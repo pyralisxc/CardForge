@@ -29,7 +29,7 @@ const toDraft = ({
   ...identity
 }: BusinessIdentity): BusinessIdentityDraft => identity;
 
-const inputClassName = 'border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 
 function TextField({
   label,
@@ -43,7 +43,7 @@ function TextField({
   type?: 'text' | 'email' | 'url' | 'date';
 }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
       {label}
       <input
         className={inputClassName}
@@ -92,11 +92,11 @@ export function OwnerBusinessIdentityPanel({
   };
 
   return (
-    <section className="border border-[#5f4526] bg-[#15100a] p-6">
+    <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Business identity</h2>
-          <p className="mt-2 text-sm text-[#c7b288]">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Business identity</h2>
+          <p className="mt-2 text-sm text-[var(--cf-text-muted)]">
             Version {businessIdentity.identityVersion}. The version is server-owned and used to prevent overwriting newer edits.
           </p>
         </div>
@@ -104,21 +104,21 @@ export function OwnerBusinessIdentityPanel({
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         <TextField label="Brand name" value={draft.brandName} onChange={(value) => setField('brandName', value)} />
         <TextField label="Legal operator name" value={draft.legalOperatorName} onChange={(value) => setField('legalOperatorName', value)} />
-        <label className="grid gap-2 text-sm text-[#c7b288]">
+        <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
           Entity type
           <select className={inputClassName} value={draft.entityType} onChange={(event) => setField('entityType', event.target.value as 'sole_proprietor')}>
             <option value="sole_proprietor">Sole proprietor</option>
           </select>
         </label>
-        <div className="grid gap-2 text-sm text-[#c7b288]">
+        <div className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
           <span>Assumed business name status</span>
-          <div className="border border-[#5f4526] bg-[#0c0b09] p-3">
-            <p className="font-medium text-[#ffe7ad]">
+          <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3">
+            <p className="font-medium text-[var(--cf-accent-text)]">
               {businessIdentity.assumedBusinessNameStatus === 'registered'
                 ? 'Registered (externally verified)'
                 : 'Unverified'}
             </p>
-            <p className="mt-2 leading-6 text-[#a98a75]">
+            <p className="mt-2 leading-6 text-[var(--cf-text-subtle)]">
               {businessIdentity.assumedBusinessNameStatus === 'unverified'
                 ? 'CardForge does not use assumed-name operator wording while this status is unverified. Changes require documented external verification and a separate reviewed update.'
                 : 'Assumed-name status is read-only. Changes require documented external verification and a separate reviewed update.'}
@@ -135,7 +135,7 @@ export function OwnerBusinessIdentityPanel({
         <TextField label="Copyright holder" value={draft.copyrightHolder} onChange={(value) => setField('copyrightHolder', value)} />
       </div>
       <Button
-        className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+        className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
         disabled={isSaving}
         onClick={save}
       >

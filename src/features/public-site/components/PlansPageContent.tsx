@@ -28,7 +28,7 @@ export function PlansPageContent({ plans }: { plans: McpAllowance[] }) {
 
   return (
     <>
-      <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_top_left,#352310_0%,#0c0b09_58%)] px-5 py-12 text-[var(--public-ivory)] md:px-8 md:py-16">
+      <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_top_left,#352310_0%,var(--cf-canvas)_58%)] px-5 py-12 text-[var(--public-ivory)] md:px-8 md:py-16">
         <div className="mx-auto max-w-7xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['plans.hero.eyebrow']}</p>
           <h1 className="mt-3 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight md:text-6xl">

@@ -19,7 +19,7 @@ export function PipelineRecipeMeta({ recipe, className }: PipelineRecipeMetaProp
       <span className="max-w-full truncate rounded-[3px] border border-[#314032] bg-[#0c1710] px-1 py-0.5 text-[#9ed7a6]">
         {getDeveloperAssetStatusLabel(recipe.status)}
       </span>
-      <span className="max-w-full truncate rounded-[3px] border border-[#3a2e17] bg-[#171207] px-1 py-0.5 text-[#d8c49a]">
+      <span className="max-w-full truncate rounded-[3px] border border-[#3a2e17] bg-[var(--cf-surface-inset)] px-1 py-0.5 text-[var(--cf-text-muted)]">
         {recipe.contributorName}
       </span>
       <span className="max-w-full truncate rounded-[3px] border border-[#32284f] bg-[#141122] px-1 py-0.5 text-[#cdbfff]">

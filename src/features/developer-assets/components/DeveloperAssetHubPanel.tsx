@@ -250,7 +250,7 @@ export function DeveloperAssetHubPanel({
   if (isLoading) {
     return (
       <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
-        <div className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">Loading developer asset hub...</div>
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-6 text-[var(--cf-text-muted)]">Loading developer asset hub...</div>
       </section>
     );
   }
@@ -258,17 +258,17 @@ export function DeveloperAssetHubPanel({
   if (!program) {
     return (
       <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
-        <div className="border border-[#7d5a2e] bg-[#181009] p-6 md:p-8">
-          <div className="flex items-center gap-3 text-[#e2aa4a]">
+        <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-6 md:p-8">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
             <UploadCloud className="h-6 w-6" />
             <span className="text-sm font-semibold uppercase tracking-[0.2em]">Developer Asset Hub</span>
           </div>
-          <h2 className="mt-4 font-serif text-2xl text-[#fff1c7]">Asset hub needs a refresh</h2>
-          <p className="mt-3 text-sm leading-6 text-[#c7b288]">
+          <h2 className="mt-4 font-serif text-2xl text-[var(--cf-text-strong)]">Asset hub needs a refresh</h2>
+          <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">
             {loadError ?? 'The developer asset hub did not finish loading yet.'}
           </p>
           <Button
-            className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+            className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
             onClick={() => void loadProgram()}
             disabled={isLoading}
           >
@@ -282,8 +282,8 @@ export function DeveloperAssetHubPanel({
   return (
     <TooltipProvider>
     <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
-      <div className="border border-[#7d5a2e] bg-[#15100a] p-6 md:p-8">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6 md:p-8">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <UploadCloud className="h-6 w-6" />
           <span className="text-sm font-semibold uppercase tracking-[0.2em]">Developer Asset Hub</span>
         </div>
@@ -294,22 +294,22 @@ export function DeveloperAssetHubPanel({
           <Stat label="Uploads left" value={program.remainingSubmissions} help="Uploads remaining before your monthly site-submission allowance is reached." />
         </div>
 
-        <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
+        <div className="mt-4 grid gap-3 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:grid-cols-3">
           <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
           <ProgramRule label="Open live slots" value={openDefaultSlotCount} body="Available Starter and Creator Pass slots before passing assets have to wait in candidate review." />
           <ProgramRule label="Voting lane" value={program.totalVoteableCount} body="Voteable uploads, publish candidates, live assets, and recoverable archived assets in one shared lane." />
         </div>
 
-        <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
+        <div className="mt-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Start here</p>
-              <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">Your developer loop is submit, review, track, improve.</h3>
+              <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Start here</p>
+              <h3 className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">Your developer loop is submit, review, track, improve.</h3>
             </div>
             <Button
               size="sm"
               variant="outline"
-              className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+              className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]"
               onClick={() => void loadProgram()}
             >
               Refresh pipeline
@@ -345,19 +345,19 @@ export function DeveloperAssetHubPanel({
         </div>
 
         {program.developerOwnerNote ? (
-          <p className="mt-4 border border-[#3c2c1b] bg-[#15100a] p-3 text-xs leading-5 text-[#a98a55]">
+          <p className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 text-xs leading-5 text-[var(--cf-text-subtle)]">
             Owner note: {program.developerOwnerNote}
           </p>
         ) : null}
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="border border-[#5f4526] bg-[#100c08] p-4">
-            <h3 className="font-serif text-xl text-[#fff1c7]">How assets move</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+          <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">How assets move</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
               Votes, thresholds, and live-library capacity move assets automatically. Published and retired assets stay voteable, while a visible owner override can pin a different status or tier until it is cleared.
             </p>
           </div>
-          <div className="grid gap-2 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
+          <div className="grid gap-2 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">
             <PipelineMetric label="Votes to grade" value={program.settings.minimumVotesForGrading} body="Minimum votes before the pipeline can judge pass/fail signal." />
             <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Automatic tier thresholds after the minimum vote count is met." />
             <PipelineMetric label="Owner vote" value={`${program.settings.ownerVoteWeight}x`} body="Owner signal weight when the owner votes." />
@@ -367,28 +367,28 @@ export function DeveloperAssetHubPanel({
         </div>
 
         <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="mt-6">
-          <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
-            <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Submit</TabsTrigger>
-            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Voting Lane</TabsTrigger>
-            <TabsTrigger value="pipeline" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">My Pipeline</TabsTrigger>
-            <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Program</TabsTrigger>
+          <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-2">
+            <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Submit</TabsTrigger>
+            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Voting Lane</TabsTrigger>
+            <TabsTrigger value="pipeline" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">My Pipeline</TabsTrigger>
+            <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Program</TabsTrigger>
           </TabsList>
 
           <DeveloperAssetSubmissionPanel program={program} onSubmitted={loadProgram} />
 
           <TabsContent value="voting" className="mt-4">
-            <div className="border border-[#5f4526] bg-[#100c08] p-4">
-              <h3 className="font-serif text-xl text-[#fff1c7]">Continuous voting lane</h3>
-              <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+              <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Continuous voting lane</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
                 Vote on new uploads, publish candidates, live library assets, and archived assets in the same lane. Status badges explain what the signal currently means; filters only narrow the view.
               </p>
-              <p className="mt-3 text-xs leading-5 text-[#a98a55]">{reviewQueueHelp}</p>
+              <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">{reviewQueueHelp}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${reviewStatus === 'all' ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
+                  className={`rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)] ${reviewStatus === 'all' ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)]' : ''}`}
                   onClick={() => setReviewStatus('all')}
                 >
                   All ({program.totalVoteableCount})
@@ -401,20 +401,20 @@ export function DeveloperAssetHubPanel({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${reviewStatus === status ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
+                      className={`rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)] ${reviewStatus === status ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)]' : ''}`}
                       onClick={() => setReviewStatus(status)}
                     >
                       {getDeveloperAssetStatusLabel(status)} ({reviewStatusCounts[status]})
                     </Button>
                   ))}
               </div>
-              <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 lg:grid-cols-[minmax(14rem,1fr)_repeat(5,minmax(8rem,auto))]">
-                <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+              <div className="mt-4 grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 lg:grid-cols-[minmax(14rem,1fr)_repeat(5,minmax(8rem,auto))]">
+                <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                   Search
-                  <span className="flex items-center gap-2 border border-[#5f4526] bg-[#100c08] px-3">
-                    <Search className="h-4 w-4 text-[#d7b469]" />
+                  <span className="flex items-center gap-2 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3">
+                    <Search className="h-4 w-4 text-[var(--cf-accent)]" />
                     <input
-                      className="min-h-10 w-full bg-transparent text-sm normal-case tracking-normal text-[#ffe7ad] outline-none"
+                      className="min-h-10 w-full bg-transparent text-sm normal-case tracking-normal text-[var(--cf-accent-text)] outline-none"
                       value={reviewSearch}
                       onChange={(event) => setReviewSearch(event.target.value)}
                     />
@@ -447,7 +447,7 @@ export function DeveloperAssetHubPanel({
               </div>
               <div className="mt-4 space-y-3">
                 {visibleReviewSubmissions.length === 0 ? (
-                  <p className="text-sm text-[#c7b288]">No assets match this queue view.</p>
+                  <p className="text-sm text-[var(--cf-text-muted)]">No assets match this queue view.</p>
                 ) : visibleReviewSubmissions.map((submission) => (
                     <AssetRow
                       key={submission.id}
@@ -473,11 +473,11 @@ export function DeveloperAssetHubPanel({
           </TabsContent>
 
           <TabsContent value="pipeline" className="mt-4">
-            <div className="border border-[#5f4526] bg-[#100c08] p-4">
-              <h3 className="font-serif text-xl text-[#fff1c7]">Your pipeline</h3>
+            <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+              <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Your pipeline</h3>
               <div className="mt-4 space-y-3">
                 {ownSubmissions.length === 0 ? (
-                  <p className="text-sm text-[#c7b288]">Your submitted assets will appear here.</p>
+                  <p className="text-sm text-[var(--cf-text-muted)]">Your submitted assets will appear here.</p>
                 ) : ownSubmissions.map((submission) => (
                     <AssetRow
                       key={submission.id}
@@ -518,7 +518,7 @@ export function DeveloperAssetHubPanel({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+                        className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]"
                         onClick={() => beginEdit(submission)}
                         aria-label={`Edit ${submission.name}`}
                       >
@@ -548,7 +548,7 @@ export function DeveloperAssetHubPanel({
               <ProgramRule label="Required published" value={program.effectiveMonthlyPublishedRequirement} body="Monthly published expectation currently assigned to your developer account." />
               <ProgramRule label="Votes to decide" value={program.settings.minimumVotesForGrading} body="Votes required before automatic status and tier selection begins." />
             </div>
-            <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
+            <div className="mt-3 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">
               Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between the live library, candidate review, and archive. Contribution history remains attributed to its developer; CardForge does not currently operate a payout program.
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">

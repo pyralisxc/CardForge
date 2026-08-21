@@ -38,7 +38,7 @@ export function DeveloperCampaignPackageDetails({
   return (
     <div className="mt-4 flex flex-col gap-4">
       <section className="order-2">
-        <div className="flex items-center gap-2 text-[#e2aa4a]">
+        <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
           <FileText className="h-4 w-4" />
           <h4 className="text-xs font-semibold uppercase tracking-[0.14em]">
             Release context
@@ -75,7 +75,7 @@ export function DeveloperCampaignPackageDetails({
               <ul className="grid gap-2">
                 {campaign.associations.map((association) => (
                   <li key={association.id}>
-                    <span className="block text-xs uppercase tracking-[0.1em] text-[#a98a55]">
+                    <span className="block text-xs uppercase tracking-[0.1em] text-[var(--cf-text-subtle)]">
                       {association.kind.replaceAll('_', ' ')} · {association.externalKey}
                     </span>
                     {association.referenceUrl ? (
@@ -89,7 +89,7 @@ export function DeveloperCampaignPackageDetails({
                       </a>
                     ) : association.titleSnapshot || association.externalKey}
                     {association.note ? (
-                      <span className="mt-1 block text-xs text-[#a98a55]">
+                      <span className="mt-1 block text-xs text-[var(--cf-text-subtle)]">
                         {association.note}
                       </span>
                     ) : null}
@@ -104,10 +104,10 @@ export function DeveloperCampaignPackageDetails({
       <section className="order-1" aria-labelledby={`provider-preview-${campaign.id}`}>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">Provider lens</p>
-            <h4 id={`provider-preview-${campaign.id}`} className="font-serif text-lg text-[#fff1c7]">What your audience will see</h4>
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Provider lens</p>
+            <h4 id={`provider-preview-${campaign.id}`} className="font-serif text-lg text-[var(--cf-text-strong)]">What your audience will see</h4>
           </div>
-          <p className="text-xs text-[#a98a55]">Copy and media shown together before approval.</p>
+          <p className="text-xs text-[var(--cf-text-subtle)]">Copy and media shown together before approval.</p>
         </div>
         <div className="mt-3 grid gap-3 xl:grid-cols-2">
           {campaign.variants.map((variant) => (
@@ -122,10 +122,10 @@ export function DeveloperCampaignPackageDetails({
           ))}
         </div>
         {campaign.variants.flatMap((variant) => variant.attachments).length ? (
-          <div className="mt-3 grid gap-2 text-xs text-[#a98a55] sm:grid-cols-2">
+          <div className="mt-3 grid gap-2 text-xs text-[var(--cf-text-subtle)] sm:grid-cols-2">
             {campaign.variants.flatMap((variant) => variant.attachments).map((attachment) => (
-              <p key={attachment.id} className="border border-[#4a3823] bg-[#100c08] p-3">
-                <span className="block text-[#d8c49a]">Alt: {attachment.altText}</span>
+              <p key={attachment.id} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                <span className="block text-[var(--cf-text-muted)]">Alt: {attachment.altText}</span>
                 {attachment.captionOverride ? <span className="mt-1 block">Caption: {attachment.captionOverride}</span> : null}
                 <span className="mt-1 block">{attachment.media.reviewState.replace('_', ' ')} · {attachment.media.creatorCredit || attachment.media.rightsBasis || 'Rights pending'}</span>
               </p>
@@ -141,13 +141,13 @@ export function DeveloperCampaignPackageDetails({
 
 function ProviderHistory({ jobs }: { jobs: SocialPublishJob[] }) {
   return (
-    <section className="order-3 border border-[#4a3823] bg-[#100c08] p-3">
-      <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+    <section className="order-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+      <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
         Provider delivery history
       </h4>
-      <ul className="mt-2 grid gap-2 text-xs text-[#c7b288] sm:grid-cols-2">
+      <ul className="mt-2 grid gap-2 text-xs text-[var(--cf-text-muted)] sm:grid-cols-2">
         {jobs.map((job) => (
-          <li key={job.id} className="border border-[#4a3823] px-3 py-2">
+          <li key={job.id} className="border border-[var(--cf-border-subtle)] px-3 py-2">
             <span className="font-semibold text-[#e8d5ac]">
               {SOCIAL_SERVICE_LABELS[job.service]}
             </span>
@@ -171,12 +171,12 @@ function ContextItem({
   children: ReactNode;
 }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-3">
-      <dt className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+      <dt className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </dt>
-      <dd className="mt-2 break-words text-sm leading-6 text-[#d8c49a]">
+      <dd className="mt-2 break-words text-sm leading-6 text-[var(--cf-text-muted)]">
         {children}
       </dd>
     </div>

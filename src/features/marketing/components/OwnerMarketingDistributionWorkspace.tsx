@@ -109,27 +109,27 @@ export function OwnerMarketingDistributionWorkspace({
 
   return (
     <div className="space-y-4">
-      <section className={marketing.meta.configured ? "border border-[#497352] bg-[#0e170f] p-5" : "border border-[#8c6436] bg-[#1b1209] p-5"}>
+      <section className={marketing.meta.configured ? "border border-[#497352] bg-[#0e170f] p-5" : "border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-5"}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Owned social accounts</p>
-            <h3 className="mt-1 font-serif text-2xl text-[#fff1c7]">Facebook and Instagram through CardForge</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Owned social accounts</p>
+            <h3 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Facebook and Instagram through CardForge</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
               {marketing.connections.length ? `${marketing.connections.length} Meta connection(s) are stored with encrypted tokens.` : "Connect the Facebook account that manages the CardForge Page. A linked Instagram professional account will be discovered automatically."}
               {" "}Publishing is {marketing.meta.publishingEnabled ? "enabled" : "safely disabled until setup is verified"}.
             </p>
-            {!marketing.meta.configured ? <p className="mt-2 text-xs text-[#f0bd75]">Server setup still needs: {marketing.meta.missing.join(", ")}</p> : null}
+            {!marketing.meta.configured ? <p className="mt-2 text-xs text-[var(--cf-warning)]">Server setup still needs: {marketing.meta.missing.join(", ")}</p> : null}
           </div>
           {marketing.meta.configured ? <Button asChild><a href="/api/owner/marketing/meta/connect">{marketing.connections.length ? "Reconnect Meta" : "Connect Meta"}</a></Button> : null}
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <h3 className="font-serif text-2xl text-[#fff1c7]">
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             Prepare approved content
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
             Choose the approved package and where it belongs. Community
             destinations create a manual task; connected owned channels can use
             automatic delivery.
@@ -170,8 +170,8 @@ export function OwnerMarketingDistributionWorkspace({
           </Button>
         </article>
 
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <h3 className="font-serif text-2xl text-[#fff1c7]">
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             {editing ? "Edit destination" : "Add a destination"}
           </h3>
           <div className="mt-4 grid gap-3">
@@ -266,19 +266,19 @@ export function OwnerMarketingDistributionWorkspace({
               setEditing(destination);
               setDraft(destination);
             }}
-            className="border border-[#5f4526] bg-[#15100a] p-4 text-left disabled:cursor-default"
+            className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4 text-left disabled:cursor-default"
           >
             <div className="flex justify-between gap-2">
-              <h4 className="font-medium text-[#ffe7ad]">{destination.name}</h4>
-              <span className="text-[10px] uppercase tracking-[0.12em] text-[#e2aa4a]">
+              <h4 className="font-medium text-[var(--cf-accent-text)]">{destination.name}</h4>
+              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--cf-accent-strong)]">
                 {destination.publishingMode}
               </span>
             </div>
-            <p className="mt-2 text-sm text-[#c7b288]">
+            <p className="mt-2 text-sm text-[var(--cf-text-muted)]">
               {MARKETING_SERVICE_LABELS[destination.service]} · {destination.kind}
             </p>
             {destination.rulesSummary ? (
-              <p className="mt-2 text-xs leading-5 text-[#a98a75]">
+              <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">
                 {destination.rulesSummary}
               </p>
             ) : null}
@@ -316,8 +316,8 @@ export function OwnerMarketingDistributionWorkspace({
       </section>
 
       {cockpit.publishJobs.length ? (
-        <section className="border border-[#5f4526] bg-[#15100a] p-5">
-          <h3 className="font-serif text-2xl text-[#fff1c7]">Delivery history</h3>
+        <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Delivery history</h3>
           <div className="mt-4 grid gap-2">
             {cockpit.publishJobs.map((job) => {
               const content = cockpit.campaigns.find(
@@ -329,13 +329,13 @@ export function OwnerMarketingDistributionWorkspace({
               return (
                 <div
                   key={job.id}
-                  className="flex flex-wrap items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3"
+                  className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3"
                 >
                   <div>
-                    <p className="text-sm text-[#ffe7ad]">
+                    <p className="text-sm text-[var(--cf-accent-text)]">
                       {content?.title ?? "Content"} → {destination?.name ?? job.service}
                     </p>
-                    <p className="mt-1 text-xs text-[#a98a75]">
+                    <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">
                       {job.deliveryMode} · {job.status}
                       {job.scheduledFor
                         ? ` · ${new Date(job.scheduledFor).toLocaleString()}`

@@ -59,7 +59,7 @@ export function TextExpressionEditor({
   }, [element.id, fieldContracts]);
 
   return (
-    <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+    <div className="space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
       <div className="flex items-center justify-between gap-2">
         <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Text Editor</Label>
         <span className="rounded-full border border-[#2d3340] px-2 py-0.5 text-[10px] text-[#8f95a3]">
@@ -96,15 +96,15 @@ export function TextExpressionEditor({
             aria-label="Text size"
             value={textFontSizePx(element)}
             onChange={event => onElementChange({ fontSizePx: clamp(Number(event.target.value) || 14, 6, 96) })}
-            className="h-7 w-14 rounded-[4px] border-[#2d3340] bg-[#111720] px-1 text-center text-xs text-[#d8d1c4]"
+            className="h-7 w-14 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-1 text-center text-xs text-[#d8d1c4]"
           />
-          <Button type="button" variant="outline" size="icon" aria-label="Align text left" title="Align left" className={cn(makerTheme.button, element.textAlign === 'left' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'left' })}><AlignLeft className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="icon" aria-label="Align text center" title="Align center" className={cn(makerTheme.button, element.textAlign === 'center' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'center' })}><AlignCenter className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="icon" aria-label="Align text right" title="Align right" className={cn(makerTheme.button, element.textAlign === 'right' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'right' })}><AlignRight className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="sm" aria-label="Justify text" title="Justify" className={cn(makerTheme.button, element.textAlign === 'justify' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'justify' })}>J</Button>
-          <Button type="button" variant="outline" size="sm" aria-label="Use horizontal text direction" title="Horizontal text" className={cn(makerTheme.button, (element.writingMode || 'horizontal-tb') === 'horizontal-tb' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'horizontal-tb' })}>H</Button>
-          <Button type="button" variant="outline" size="sm" aria-label="Use vertical right-to-left text direction" title="Vertical right-to-left" className={cn(makerTheme.button, element.writingMode === 'vertical-rl' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-rl' })}>V-RL</Button>
-          <Button type="button" variant="outline" size="sm" aria-label="Use vertical left-to-right text direction" title="Vertical left-to-right" className={cn(makerTheme.button, element.writingMode === 'vertical-lr' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-lr' })}>V-LR</Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text left" title="Align left" className={cn(makerTheme.button, element.textAlign === 'left' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ textAlign: 'left' })}><AlignLeft className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text center" title="Align center" className={cn(makerTheme.button, element.textAlign === 'center' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ textAlign: 'center' })}><AlignCenter className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text right" title="Align right" className={cn(makerTheme.button, element.textAlign === 'right' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ textAlign: 'right' })}><AlignRight className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Justify text" title="Justify" className={cn(makerTheme.button, element.textAlign === 'justify' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ textAlign: 'justify' })}>J</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use horizontal text direction" title="Horizontal text" className={cn(makerTheme.button, (element.writingMode || 'horizontal-tb') === 'horizontal-tb' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ writingMode: 'horizontal-tb' })}>H</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use vertical right-to-left text direction" title="Vertical right-to-left" className={cn(makerTheme.button, element.writingMode === 'vertical-rl' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ writingMode: 'vertical-rl' })}>V-RL</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use vertical left-to-right text direction" title="Vertical left-to-right" className={cn(makerTheme.button, element.writingMode === 'vertical-lr' && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} onClick={() => onElementChange({ writingMode: 'vertical-lr' })}>V-LR</Button>
         </CardForgeRichTextEditor>
       </div>
 

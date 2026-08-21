@@ -93,7 +93,7 @@ export function FinishedSetShowcase({ example }: { example: HomepageShowcaseExam
       </figcaption>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cards.slice(0, 4).map((card, index) => (
-          <div key={card.uniqueId} role="img" aria-label={`${example.altText[index] ?? `${example.name} sample card ${index + 1}.`} Finished card ${index + 1}.`} className="flex min-w-0 justify-center rounded-[var(--public-radius)] bg-[#21170d] p-2">
+          <div key={card.uniqueId} role="img" aria-label={`${example.altText[index] ?? `${example.name} sample card ${index + 1}.`} Finished card ${index + 1}.`} className="flex min-w-0 justify-center rounded-[var(--public-radius)] bg-[var(--cf-surface-raised)] p-2">
             <CardPreview card={card} face="front" targetWidthPx={190} />
           </div>
         ))}

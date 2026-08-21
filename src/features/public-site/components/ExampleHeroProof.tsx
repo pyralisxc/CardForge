@@ -39,7 +39,7 @@ export function ExampleHeroProof({ example, frontTemplate, backTemplate }: Examp
             key={card.uniqueId}
             role="img"
             aria-label={`${example.altText.rows[index]} Card ${index + 1} of ${cards.length}.`}
-            className="flex min-w-0 justify-center overflow-hidden rounded-[var(--public-radius)] bg-[#21170d] p-1.5"
+            className="flex min-w-0 justify-center overflow-hidden rounded-[var(--public-radius)] bg-[var(--cf-surface-raised)] p-1.5"
           >
             <CardPreview card={card} face="front" targetWidthPx={136} />
           </div>

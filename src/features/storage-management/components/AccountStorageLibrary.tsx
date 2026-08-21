@@ -83,15 +83,15 @@ function StorageSummaryCard({
   footer: string;
 }) {
   return (
-    <div className="border border-[#5f4526] bg-[#15100a] p-4">
-      <div className="flex items-center gap-2 text-[#e2aa4a]">
+    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
+      <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
         {icon}
         <span className="text-xs font-semibold uppercase tracking-[0.16em]">{eyebrow}</span>
       </div>
-      <p className="mt-3 font-serif text-2xl text-[#fff1c7]">{title}</p>
-      <p className="mt-1 text-sm text-[#cbb58b]">{detail}</p>
+      <p className="mt-3 font-serif text-2xl text-[var(--cf-text-strong)]">{title}</p>
+      <p className="mt-1 text-sm text-[var(--cf-text-muted)]">{detail}</p>
       <div className="mt-4"><StorageBar ratio={ratio} /></div>
-      <p className="mt-2 text-xs text-[#9f8a66]">{footer}</p>
+      <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{footer}</p>
     </div>
   );
 }
@@ -237,15 +237,15 @@ export function AccountStorageLibrary({
 
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby="storage-library-title">
-      <div className="border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
+      <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-[#e2aa4a]">
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
               <Database className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Storage &amp; Library</span>
             </div>
-            <h2 id="storage-library-title" className="mt-2 font-serif text-2xl text-[#fff1c7]">Your CardForge, in one place</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-[#cbb58b]">
+            <h2 id="storage-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Your CardForge, in one place</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
               See what lives on this device, what is backed up to your account, and what exists only as a private AI working draft. Delete actions affect only the storage location they name.
             </p>
           </div>
@@ -253,7 +253,7 @@ export function AccountStorageLibrary({
             type="button"
             variant="outline"
             size="sm"
-            className="border-[#70532e] bg-transparent text-[#f6d891] hover:bg-[#24180e]"
+            className="border-[#70532e] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]"
             onClick={() => { void refreshDeviceDetails(); void refreshCloudSets(); setDraftRefreshVersion((version) => version + 1); }}
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
@@ -282,19 +282,19 @@ export function AccountStorageLibrary({
         {hydrationError ? <p className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">{hydrationError}</p> : null}
 
         <div className="mt-6">
-          <h3 className="font-serif text-xl text-[#fff1c7]">On this device</h3>
-          <p className="mt-1 text-xs leading-5 text-[#a9946c]">Portable-size estimates can overlap because Templates and artwork may be shared by multiple sets.</p>
+          <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">On this device</h3>
+          <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Portable-size estimates can overlap because Templates and artwork may be shared by multiple sets.</p>
           {!hydrated ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-[#cbb58b]"><Loader2 className="h-4 w-4 animate-spin" /> Loading this device workspace…</p>
+            <p className="mt-3 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading this device workspace…</p>
           ) : (
             <div className="mt-3 space-y-2">
               {cardSets.map((set) => {
                 const cloudSet = cloudBySetId.get(set.id);
                 const canBackUp = Boolean(cloudSet) || cloudUsed < cloudLimit;
                 return (
-                  <div key={set.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#15100a] p-3">
+                  <div key={set.id} className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#fff1c7]">{set.name}</p>
+                      <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{set.name}</p>
                       <p className="mt-1 text-xs text-[#bba57c]">
                         {cardCounts.get(set.id) ?? 0} cards · {formatBytes(portableSetBytes[set.id])} portable estimate · {cloudSet ? 'device + cloud' : 'device only'}
                       </p>
@@ -324,19 +324,19 @@ export function AccountStorageLibrary({
           )}
         </div>
 
-        <div className="mt-6 border-t border-[#4a3823] pt-5">
-          <h3 className="font-serif text-xl text-[#fff1c7]">Cloud sets</h3>
-          <p className="mt-1 text-xs leading-5 text-[#a9946c]">Removing a cloud backup never deletes a copy already stored on a device.</p>
+        <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
+          <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Cloud sets</h3>
+          <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Removing a cloud backup never deletes a copy already stored on a device.</p>
           {!isSignedIn ? (
-            <p className="mt-3 text-sm text-[#cbb58b]">Sign in to see and manage account cloud saves.</p>
+            <p className="mt-3 text-sm text-[var(--cf-text-muted)]">Sign in to see and manage account cloud saves.</p>
           ) : isLoadingCloudSets ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-[#cbb58b]"><Loader2 className="h-4 w-4 animate-spin" /> Loading cloud sets…</p>
+            <p className="mt-3 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading cloud sets…</p>
           ) : cloud?.sets.length ? (
             <div className="mt-3 space-y-2">
               {cloud.sets.map((set) => (
-                <div key={set.setId} className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#15100a] p-3">
+                <div key={set.setId} className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#fff1c7]">{set.name}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{set.name}</p>
                     <p className="mt-1 text-xs text-[#bba57c]">{set.cardCount} cards · revision {set.revision} · {formatBytes(set.storageBytes)} · {localSetIds.has(set.setId) ? 'also on this device' : 'cloud only on this device'}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -359,7 +359,7 @@ export function AccountStorageLibrary({
                 </div>
               ))}
             </div>
-          ) : <p className="mt-3 text-sm text-[#cbb58b]">No cloud-saved sets yet.</p>}
+          ) : <p className="mt-3 text-sm text-[var(--cf-text-muted)]">No cloud-saved sets yet.</p>}
         </div>
 
         <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} />

@@ -20,23 +20,23 @@ export function OwnerDeveloperProgramOverview({
 
   return (
     <>
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <Crown className="h-5 w-5" />
-        <h2 className="font-serif text-2xl text-[#fff1c7]">Asset Pipeline Command</h2>
+        <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Asset Pipeline Command</h2>
       </div>
-      <p className="mt-3 text-sm leading-6 text-[#c7b288]">
+      <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">
         Control developer slots, contribution rules, vote thresholds, library visibility, and per-type caps. Published assets are the only rows loaded into creator-facing Studio libraries; everything else remains visible in the pipeline.
       </p>
-      <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
+      <div className="mt-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Owner control map</p>
-            <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">These rules change the live pipeline after you save.</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">Saving updates limits, voting, tier caps, and review behavior without deleting contribution history.</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Owner control map</p>
+            <h3 className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">These rules change the live pipeline after you save.</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Saving updates limits, voting, tier caps, and review behavior without deleting contribution history.</p>
           </div>
-          <div className="min-w-48 border border-[#3c2c1b] bg-[#15100a] p-3 text-sm text-[#c7b288]">
-            <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Save state</p>
-            <p className="mt-2 text-[#ffe7ad]">{lastSavedLabel}</p>
+          <div className="min-w-48 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 text-sm text-[var(--cf-text-muted)]">
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Save state</p>
+            <p className="mt-2 text-[var(--cf-accent-text)]">{lastSavedLabel}</p>
           </div>
         </div>
       </div>

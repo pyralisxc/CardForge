@@ -29,7 +29,7 @@ import { OwnerMarketingResultsWorkspace } from "./OwnerMarketingResultsWorkspace
 import { OwnerMarketingStrategyWorkspace } from "./OwnerMarketingStrategyWorkspace";
 
 const subtabClassName =
-  "rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]";
+  "rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]";
 
 export function OwnerMarketingPanel({
   initialNotice,
@@ -73,9 +73,9 @@ export function OwnerMarketingPanel({
   if (!marketing || !cockpit) {
     return (
       <section
-        className={`border p-5 ${error ? "border-[#7d3d32] bg-[#1b0d09] text-[#ffd0c6]" : "border-[#5f4526] bg-[#15100a] text-[#c7b288]"}`}
+        className={`border p-5 ${error ? "border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]" : "border-[var(--cf-border)] bg-[var(--cf-surface)] text-[var(--cf-text-muted)]"}`}
       >
-        <h2 className="font-serif text-2xl text-[#fff1c7]">
+        <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
           {error
             ? "Marketing workspace unavailable"
             : "Loading marketing workspace..."}
@@ -110,16 +110,16 @@ export function OwnerMarketingPanel({
 
   return (
     <section className="space-y-4">
-      <header className="border border-[#5f4526] bg-[#15100a] p-5">
+      <header className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">
               Marketing command center
             </p>
-            <h2 className="mt-1 font-serif text-2xl text-[#fff1c7]">
+            <h2 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">
               Strategy to publication, owned by CardForge
             </h2>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-[#c7b288]">
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
               Developers submit content into a real campaign. You approve the
               claim, destination, timing, and final publication. Owned accounts
               can become automatic; communities always remain guided manual
@@ -162,7 +162,7 @@ export function OwnerMarketingPanel({
         {notice ? (
           <p
             role={notice.kind === "error" ? "alert" : "status"}
-            className={`mt-4 border p-3 text-sm ${notice.kind === "error" ? "border-[#7d3d32] bg-[#1b0d09] text-[#ffd0c6]" : "border-[#497352] bg-[#0e170f] text-[#a8e7b8]"}`}
+            className={`mt-4 border p-3 text-sm ${notice.kind === "error" ? "border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]" : "border-[#497352] bg-[#0e170f] text-[#a8e7b8]"}`}
           >
             {notice.message}
           </p>
@@ -178,7 +178,7 @@ export function OwnerMarketingPanel({
         {error ? (
           <p
             role="alert"
-            className="mt-4 border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]"
+            className="mt-4 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]"
           >
             {error}
           </p>
@@ -186,7 +186,7 @@ export function OwnerMarketingPanel({
       </header>
 
       <Tabs defaultValue="strategy" className="space-y-4">
-        <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1">
+        <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-1">
           <TabsTrigger value="strategy" className={subtabClassName}>
             Strategy
           </TabsTrigger>

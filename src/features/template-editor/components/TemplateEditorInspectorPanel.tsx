@@ -35,14 +35,14 @@ export function TemplateEditorInspectorPanel({
     </Card>
   ) : (
     <Card className={cn(panelClassName, 'rounded-[8px]')}>
-      <CardHeader className="border-b border-[#252b35] p-2.5">
+      <CardHeader className="border-b border-[var(--cf-editor-border)] p-2.5">
         <CardTitle className="space-y-2">
           <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
             Inspector
             <span className="text-[10px] font-normal text-[#d5ad54]">{elementTypeLabel}</span>
           </span>
-          <span className="block rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-2.5 py-2">
-            <span className="block truncate text-sm font-semibold normal-case tracking-normal text-[#f3ead7]">
+          <span className="block rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] px-2.5 py-2">
+            <span className="block truncate text-sm font-semibold normal-case tracking-normal text-[var(--cf-text)]">
               {selectedElementName || 'Selected element'}
             </span>
             <span className="mt-1 block text-[11px] font-normal normal-case leading-4 tracking-normal text-[#8f95a3]">

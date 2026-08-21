@@ -59,7 +59,7 @@ export function ElementLibraryPanel({
                       draggable
                       onDragStart={(event) => handleDragStart(event, item)}
                       onClick={() => onAddElement(item.type, item.preset)}
-                      className="h-[54px] flex-col gap-1 rounded-[5px] border-[#2d3340] bg-[#111720] px-1 text-[#d8d1c4] hover:border-[#d5ad54]/80 hover:bg-[#171b24]"
+                      className="h-[54px] flex-col gap-1 rounded-[5px] border-[#2d3340] bg-[var(--cf-editor-control)] px-1 text-[#d8d1c4] hover:border-[#d5ad54]/80 hover:bg-[#171b24]"
                     >
                       <item.icon className="h-4 w-4 text-[#d5ad54]" />
                       <span className="max-w-full truncate text-[10px] leading-none">{item.label}</span>

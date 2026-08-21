@@ -92,7 +92,7 @@ function QrAssetCard({ fileName, label, message, url }: QrAssetCardProps) {
   };
 
   return (
-    <article className="grid gap-4 border border-[#4a3823] bg-[#100c08] p-4 sm:grid-cols-[12rem_1fr] sm:items-center">
+    <article className="grid gap-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 sm:grid-cols-[12rem_1fr] sm:items-center">
       <div className="overflow-hidden rounded-md bg-[#fffaf0] p-2">
         <QRCodeCanvas
           ref={canvasRef}
@@ -101,18 +101,18 @@ function QrAssetCard({ fileName, label, message, url }: QrAssetCardProps) {
           level="M"
           marginSize={4}
           bgColor="#fffaf0"
-          fgColor="#0c0b09"
+          fgColor="var(--cf-canvas)"
           title={label}
           aria-label={label}
           className="h-auto w-full"
         />
       </div>
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-[#ffe7ad]">
+        <div className="flex items-center gap-2 text-[var(--cf-accent-text)]">
           <Check className="h-4 w-4 text-[#9cc987]" aria-hidden="true" />
           <h4 className="font-serif text-xl">{label}</h4>
         </div>
-        <p className="mt-2 break-all text-sm leading-6 text-[#c7b288]">{url}</p>
+        <p className="mt-2 break-all text-sm leading-6 text-[var(--cf-text-muted)]">{url}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={download}>
             <Download className="mr-2 h-4 w-4" />Download PNG
@@ -133,9 +133,9 @@ export function OwnerShareToolkit({ message }: { message: string }) {
   const settings = usePublicShareSettings();
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-5" aria-labelledby="share-toolkit-heading">
-      <h3 id="share-toolkit-heading" className="font-serif text-2xl text-[#fff1c7]">Reusable share kit</h3>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-5" aria-labelledby="share-toolkit-heading">
+      <h3 id="share-toolkit-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Reusable share kit</h3>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
         These high-resolution PNGs always point to the live public pages. The share actions pair them with the message above; they stay separate from generated card images.
       </p>
       <div className="mt-4 grid gap-4 xl:grid-cols-2">

@@ -85,11 +85,11 @@ export function TextElementFieldModeControl({
                 disabled={variableFields.length === 0}
                 onClick={() => applyMode(option.value)}
                 className={cn(
-                  'min-h-[72px] rounded-[6px] border border-[#252b35] bg-[#090d13] p-2 text-left transition hover:border-[#6d5323] disabled:cursor-not-allowed disabled:opacity-50',
+                  'min-h-[72px] rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] p-2 text-left transition hover:border-[var(--cf-accent)] disabled:cursor-not-allowed disabled:opacity-50',
                   selected && 'border-[#d5ad54] bg-[#17120a] shadow-[0_0_0_1px_rgba(213,173,84,0.22)]'
                 )}
               >
-                <span className="flex items-center gap-2 text-xs font-semibold text-[#f3ead7]">
+                <span className="flex items-center gap-2 text-xs font-semibold text-[var(--cf-text)]">
                   <Icon className="h-4 w-4 text-[#d5ad54]" />
                   {option.label}
                 </span>
@@ -99,9 +99,9 @@ export function TextElementFieldModeControl({
           })}
         </div>
         <div className="grid gap-2 text-[10px] text-[#8f95a3] sm:grid-cols-3">
-          <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">Base text zones: {baseTextCount}</span>
-          <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">Inline variables: {variableCount}</span>
-          <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">
+          <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">Base text zones: {baseTextCount}</span>
+          <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">Inline variables: {variableCount}</span>
+          <span className="rounded border border-[var(--cf-editor-border)] bg-[#090d13] px-2 py-1">
             {mode === 'structuredRows' ? `${variableCount} editable ${variableCount === 1 ? 'part' : 'parts'}` : 'One composed field'}
           </span>
         </div>
@@ -111,10 +111,10 @@ export function TextElementFieldModeControl({
           </p>
         )}
         {mode === 'structuredRows' && (
-          <div className="rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
+          <div className="rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] p-2">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f3ead7]">Repeating Text</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--cf-text)]">Repeating Text</p>
                 <p className="text-[10px] leading-4 text-[#8f95a3]">
                   Add variables for the pieces users fill in. In Make cards, users can add items and pick a separator like dash, slash, or line break.
                 </p>

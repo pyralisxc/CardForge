@@ -92,12 +92,12 @@ export function DeveloperCampaignPanel({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-[#5f4526] bg-[#15100a] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
         <div className="flex items-center gap-3">
-          <Megaphone className="h-5 w-5 text-[#e2aa4a]" />
+          <Megaphone className="h-5 w-5 text-[var(--cf-accent-strong)]" />
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">{cockpit.isOwner ? 'Owner review workspace' : 'Campaign packages'}</p>
-            <p className="text-sm text-[#c7b288]">{cockpit.isOwner ? 'Review each candidate as your audience will see it, complete its media, and move only approved work toward publishing.' : 'Keep social copy, media, rights information, release context, approval, and delivery history together.'}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">{cockpit.isOwner ? 'Owner review workspace' : 'Campaign packages'}</p>
+            <p className="text-sm text-[var(--cf-text-muted)]">{cockpit.isOwner ? 'Review each candidate as your audience will see it, complete its media, and move only approved work toward publishing.' : 'Keep social copy, media, rights information, release context, approval, and delivery history together.'}</p>
           </div>
         </div>
         {canDraft && !showComposer ? (
@@ -111,7 +111,7 @@ export function DeveloperCampaignPanel({
         ) : null}
       </div>
 
-      {error ? <p role="alert" className="border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]">{error}</p> : null}
+      {error ? <p role="alert" className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]">{error}</p> : null}
       {message ? <p role="status" className="border border-[#497352] bg-[#0e170f] p-3 text-sm text-[#a8e7b8]">{message}</p> : null}
 
       {showComposer && canDraft ? (
@@ -135,16 +135,16 @@ export function DeveloperCampaignPanel({
       ) : null}
 
       {!canDraft ? (
-        <article className="border border-[#7d5a2e] bg-[#181009] p-5">
-          <h2 className="font-serif text-xl text-[#fff1c7]">Campaign drafting is not enabled</h2>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">The owner can enable this scope independently from asset-library access.</p>
+        <article className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-5">
+          <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Campaign drafting is not enabled</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">The owner can enable this scope independently from asset-library access.</p>
         </article>
       ) : null}
 
       {canDraft && cockpit.marketingCampaigns.length === 0 ? (
-        <article className="border border-[#7d5a2e] bg-[#181009] p-5">
-          <h2 className="font-serif text-xl text-[#fff1c7]">A marketing campaign is required</h2>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">The owner needs to create or activate a campaign in the Marketing workspace before contributors can submit content.</p>
+        <article className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-5">
+          <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">A marketing campaign is required</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">The owner needs to create or activate a campaign in the Marketing workspace before contributors can submit content.</p>
         </article>
       ) : null}
 

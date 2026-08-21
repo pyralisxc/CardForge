@@ -30,11 +30,11 @@ export function TemplateEditorTopBar({
   return (
     <div className="cardforge-editor-topbar flex flex-col border-b border-[#2b2415] bg-[#0b0d11] px-2 py-1.5 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-2">
-        <div className="cardforge-editor-mark flex h-8 w-8 items-center justify-center rounded-[4px] border border-[#6d5323] bg-[#171207] shadow-[inset_0_0_18px_rgba(213,173,84,0.12)]">
+        <div className="cardforge-editor-mark flex h-8 w-8 items-center justify-center rounded-[4px] border border-[var(--cf-accent)] bg-[var(--cf-surface-inset)] shadow-[inset_0_0_18px_rgba(213,173,84,0.12)]">
           <PenTool className="h-4 w-4 text-[#d5ad54]" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Template Studio</h2>
+          <h2 className="text-sm font-semibold tracking-wide text-[var(--cf-text)]">Template Studio</h2>
           <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">{isDirty ? 'Unsaved changes' : 'Template workspace'}</p>
         </div>
       </div>
@@ -52,7 +52,7 @@ export function TemplateEditorTopBar({
                   onClick={action.onSelect}
                   disabled={action.disabled}
                   aria-label={action.label}
-                  className="h-7 w-7 rounded-[4px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[#f3ead7]"
+                  className="h-7 w-7 rounded-[4px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[var(--cf-text)]"
                 >
                   <action.icon className="h-4 w-4" />
                 </Button>
@@ -70,7 +70,7 @@ export function TemplateEditorTopBar({
                 size="sm"
                 onClick={actualSizeAction.onSelect}
                 aria-label={actualSizeAction.label}
-                className="h-7 rounded-[4px] px-2 font-mono text-[10px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[#f3ead7]"
+                className="h-7 rounded-[4px] px-2 font-mono text-[10px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[var(--cf-text)]"
               >
                 {actualSizeAction.shortLabel}
               </Button>

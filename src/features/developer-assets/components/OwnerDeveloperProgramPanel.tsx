@@ -179,7 +179,7 @@ export function OwnerDeveloperProgramPanel({
 
   if (isLoading) {
     return (
-      <section className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">
+      <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-6 text-[var(--cf-text-muted)]">
         Loading developer program...
       </section>
     );
@@ -187,7 +187,7 @@ export function OwnerDeveloperProgramPanel({
 
   if (loadError || !program || !settings) {
     return (
-      <section className="border border-[#7d3d32] bg-[#1b0d09] p-6 text-[#ffd0c6]">
+      <section className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-6 text-[var(--cf-danger)]">
         <div className="flex items-center gap-3 text-[#ffb8a8]">
           <Crown className="h-5 w-5" />
           <h2 className="font-serif text-2xl text-[#ffe1d8]">Developer asset program unavailable</h2>
@@ -215,14 +215,14 @@ export function OwnerDeveloperProgramPanel({
 
   return (
     <TooltipProvider>
-    <section className="border border-[#7d5a2e] bg-[#15100a] p-6">
+    <section className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6">
       <OwnerDeveloperProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
       <Tabs defaultValue="library" className="mt-5 space-y-5">
-        <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1">
-          <TabsTrigger value="library" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Asset library</TabsTrigger>
-          <TabsTrigger value="studio-map" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Studio map</TabsTrigger>
-          <TabsTrigger value="rules" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Pipeline rules</TabsTrigger>
+        <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-1">
+          <TabsTrigger value="library" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Asset library</TabsTrigger>
+          <TabsTrigger value="studio-map" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Studio map</TabsTrigger>
+          <TabsTrigger value="rules" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[var(--cf-text-subtle)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[var(--cf-accent-text)]">Pipeline rules</TabsTrigger>
         </TabsList>
         <TabsContent value="library" className="mt-0">
           <OwnerAssetLibraryPanel
@@ -246,9 +246,9 @@ export function OwnerDeveloperProgramPanel({
         <TabsContent value="rules" className="mt-0">
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
-        <div className="border border-[#5f4526] bg-[#100c08] p-4">
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Monthly developer contract</h3>
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Monthly developer contract</h3>
             <FieldHelp text="These controls define who can participate, how often developers can upload, and the monthly contribution expectation." />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -258,17 +258,17 @@ export function OwnerDeveloperProgramPanel({
           </div>
         </div>
 
-        <div className="border border-[#5f4526] bg-[#100c08] p-4">
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Voting impact</h3>
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Voting impact</h3>
             <FieldHelp text="One vote threshold starts automatic ranking. Starter and Creator Pass percentages then decide the tier, while capacity decides whether the asset is live or waiting." />
           </div>
-          <div className="mt-4 border border-[#342719] bg-[#15100a] p-3">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[#a98a55]">
-              <Users className="h-3.5 w-3.5 text-[#d7b469]" />
+          <div className="mt-4 border border-[#342719] bg-[var(--cf-surface)] p-3">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">
+              <Users className="h-3.5 w-3.5 text-[var(--cf-accent)]" />
               Voting presets
             </div>
-            <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+            <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">
               Start with solo review while you are the only developer, then raise vote gates as the roster grows.
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -278,7 +278,7 @@ export function OwnerDeveloperProgramPanel({
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="justify-start rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0] hover:border-[#d8b365] hover:bg-[#2a1b0d]"
+                  className="justify-start rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)] hover:bg-[var(--cf-surface-hover)]"
                   onClick={() => applyVotingPreset(preset)}
                 >
                   {getDeveloperVotingPresetLabel(preset, program.activeDeveloperCount)}
@@ -307,11 +307,11 @@ export function OwnerDeveloperProgramPanel({
         />
       </div>
 
-      <div className="mt-6 border border-[#5f4526] bg-[#100c08] p-4">
+      <div className="mt-6 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="font-serif text-xl text-[#fff1c7]">Asset type caps</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Asset type caps</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
               Set Starter and Creator Pass capacity in one row per accepted asset type. Publish Total is computed from both tiers.
             </p>
           </div>
@@ -320,7 +320,7 @@ export function OwnerDeveloperProgramPanel({
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[44rem] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
+              <tr className="border-b border-[var(--cf-border)] text-left text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">
                 <th className="py-3 pr-3 font-medium">Asset family</th>
                 <th className="px-3 py-3 font-medium">Starter cap</th>
                 <th className="px-3 py-3 font-medium">Creator Pass cap</th>
@@ -330,7 +330,7 @@ export function OwnerDeveloperProgramPanel({
             <tbody>
               {DEVELOPER_ASSET_TYPES.map((type) => (
                 <tr key={type} className="border-b border-[#342719] last:border-b-0">
-                  <td className="py-3 pr-3 text-[#ffe7ad]">{getDeveloperAssetTypeLabel(type)}</td>
+                  <td className="py-3 pr-3 text-[var(--cf-accent-text)]">{getDeveloperAssetTypeLabel(type)}</td>
                   <td className="px-3 py-3">
                     <CompactNumberField
                       ariaLabel={`${getDeveloperAssetTypeLabel(type)} starter cap`}
@@ -366,7 +366,7 @@ export function OwnerDeveloperProgramPanel({
                     />
                   </td>
                   <td className="px-3 py-3">
-                    <div className="grid h-10 min-w-24 place-items-center border border-[#3d3324] bg-[#15100a] px-3 text-[#ffe7ad]">
+                    <div className="grid h-10 min-w-24 place-items-center border border-[#3d3324] bg-[var(--cf-surface)] px-3 text-[var(--cf-accent-text)]">
                       {settings.tierCapsByType[type].free + settings.tierCapsByType[type].paid}
                     </div>
                   </td>
@@ -378,15 +378,15 @@ export function OwnerDeveloperProgramPanel({
       </div>
 
       <div className="mt-5 grid gap-5">
-        <div className="border border-[#5f4526] bg-[#100c08] p-4">
-          <h3 className="font-serif text-xl text-[#fff1c7]">Live library cap pressure</h3>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+          <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Live library cap pressure</h3>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
             Caps control which free and paid assets can remain live in Studio libraries. Reducing a cap moves the lowest-signal live assets back into candidate review; failed assets move to archive.
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[42rem] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
+                <tr className="border-b border-[var(--cf-border)] text-left text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">
                   <th className="py-3 pr-3 font-medium">Asset family</th>
                   <th className="px-3 py-3 font-medium">Live</th>
                   <th className="px-3 py-3 font-medium">Cap</th>
@@ -398,14 +398,14 @@ export function OwnerDeveloperProgramPanel({
               <tbody>
                 {program.assetTypeSummaries.map((summary) => (
                   <tr key={summary.assetType} className="border-b border-[#342719] last:border-b-0">
-                    <td className="py-3 pr-3 text-[#ffe7ad]">{getDeveloperAssetTypeLabel(summary.assetType)}</td>
-                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishedCount} live / {summary.starterCount} starter / {summary.creatorPassCount} creator</td>
-                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishCap}</td>
-                    <td className={`px-3 py-3 ${summary.overPublishCapBy > 0 ? 'text-[#ffd0c6]' : 'text-[#bde3a8]'}`}>
+                    <td className="py-3 pr-3 text-[var(--cf-accent-text)]">{getDeveloperAssetTypeLabel(summary.assetType)}</td>
+                    <td className="px-3 py-3 text-[var(--cf-text-muted)]">{summary.publishedCount} live / {summary.starterCount} starter / {summary.creatorPassCount} creator</td>
+                    <td className="px-3 py-3 text-[var(--cf-text-muted)]">{summary.publishCap}</td>
+                    <td className={`px-3 py-3 ${summary.overPublishCapBy > 0 ? 'text-[var(--cf-danger)]' : 'text-[var(--cf-success)]'}`}>
                       {summary.overPublishCapBy > 0 ? `${summary.overPublishCapBy} over` : `${summary.openPublishSlots} open`}
                     </td>
-                    <td className="px-3 py-3 text-[#c7b288]">{summary.candidateCount}</td>
-                    <td className="px-3 py-3 text-[#c7b288]">{summary.archiveCount}</td>
+                    <td className="px-3 py-3 text-[var(--cf-text-muted)]">{summary.candidateCount}</td>
+                    <td className="px-3 py-3 text-[var(--cf-text-muted)]">{summary.archiveCount}</td>
                   </tr>
                 ))}
               </tbody>
@@ -422,7 +422,7 @@ export function OwnerDeveloperProgramPanel({
         <DecisionCard label="Automatic Creator Pass" body={`${settings.paidAssetMinimumPositiveVotePercent}%+ positive competes for Creator Pass capacity.`} />
       </div>
 
-      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
+      <Button className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={saveSettings}>
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving developer program...' : 'Save developer program'}
       </Button>

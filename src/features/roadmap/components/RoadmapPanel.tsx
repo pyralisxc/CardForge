@@ -277,19 +277,19 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-10 md:px-6">
-      <div className="border border-[#6d4f2b] bg-[#15100a] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.24)] md:p-5">
+      <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.24)] md:p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="flex items-center gap-3 text-[#e2aa4a]">
+            <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
               <History className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Roadmap</span>
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what CardForge improves next</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+            <h2 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)] md:text-4xl">Help choose what CardForge improves next</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
               Vote on focused improvements and follow the real service upgrades CardForge can plan around as Creator Pass grows.
             </p>
           </div>
-          <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+          <Button asChild variant="outline" className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
             <a href={roadmapFeedbackMailto}>
               <Mail className="mr-2 h-4 w-4" />
               Share detailed feedback
@@ -298,45 +298,45 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         </div>
 
         {!payload?.configured && !isLoading ? (
-          <div className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4 text-sm leading-6 text-[#f0c27a]">
+          <div className="mt-6 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-4 text-sm leading-6 text-[#f0c27a]">
             The public roadmap is temporarily unavailable. Please try again later.
           </div>
         ) : null}
 
-        <div className="mt-6 border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
+        <div className="mt-6 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 className="font-serif text-2xl text-[#fff1c7]">Feature requests</h3>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
+              <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Feature requests</h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
                 Signed-in creators can suggest one focused improvement at a time and vote on the requests that matter most.
               </p>
             </div>
-            <div className="grid grid-cols-3 border border-[#6d4f2b] bg-[#0c0b09] text-center">
-              <div className="border-r border-[#5f4526] px-3 py-2">
-                <span className="block text-lg font-semibold text-[#ffe7ad]">{featureItems.length}</span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">ideas</span>
+            <div className="grid grid-cols-3 border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] text-center">
+              <div className="border-r border-[var(--cf-border)] px-3 py-2">
+                <span className="block text-lg font-semibold text-[var(--cf-accent-text)]">{featureItems.length}</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">ideas</span>
               </div>
-              <div className="border-r border-[#5f4526] px-3 py-2">
-                <span className="block text-lg font-semibold text-[#ffe7ad]">{featureVoteCount}</span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">votes</span>
+              <div className="border-r border-[var(--cf-border)] px-3 py-2">
+                <span className="block text-lg font-semibold text-[var(--cf-accent-text)]">{featureVoteCount}</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">votes</span>
               </div>
               <div className="px-3 py-2">
-                <span className="block text-lg font-semibold text-[#ffe7ad]">{remainingSuggestionSlots}</span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">slots</span>
+                <span className="block text-lg font-semibold text-[var(--cf-accent-text)]">{remainingSuggestionSlots}</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">slots</span>
               </div>
             </div>
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[0.64fr_1fr]">
-            <div className="self-start border border-[#5f4526] bg-[#0c0b09] p-4">
+            <div className="self-start border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h4 className="font-serif text-lg text-[#fff1c7]">Add one request</h4>
-                <p className="mt-2 text-sm leading-5 text-[#c7b288]">
+                <h4 className="font-serif text-lg text-[var(--cf-text-strong)]">Add one request</h4>
+                <p className="mt-2 text-sm leading-5 text-[var(--cf-text-muted)]">
                   Keep it small enough that people can vote yes or no quickly.
                 </p>
               </div>
-              <span className="text-sm text-[#c7b288]">
+              <span className="text-sm text-[var(--cf-text-muted)]">
                 {activeUserSuggestionCount}/{maxActiveUserSuggestions}
               </span>
             </div>
@@ -344,7 +344,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
               <label className="sr-only" htmlFor="roadmap-suggestion">Suggest a feature</label>
               <textarea
                 id="roadmap-suggestion"
-                className="min-h-20 w-full resize-none border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none transition placeholder:text-[#8c7651] focus:border-[#d8b365]"
+                className="min-h-20 w-full resize-none border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none transition placeholder:text-[#8c7651] focus:border-[var(--cf-accent)]"
                 maxLength={maxSuggestionLength}
                 value={suggestion}
                 placeholder={boardHasSpace ? 'Example: easier foil border controls' : 'Feature board is full. Send detailed feedback by email.'}
@@ -352,13 +352,13 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
                 onChange={(event) => setSuggestion(event.target.value)}
               />
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-[#a98a55]">
+                <span className="text-xs text-[var(--cf-text-subtle)]">
                   {suggestion.length}/{maxSuggestionLength}
                 </span>
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+                  className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
                   disabled={!boardHasSpace || isSaving || suggestion.trim().length === 0}
                 >
                   <Send className="mr-2 h-4 w-4" />
@@ -370,7 +370,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
 
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h4 className="font-serif text-lg text-[#fff1c7]">Vote the queue</h4>
+              <h4 className="font-serif text-lg text-[var(--cf-text-strong)]">Vote the queue</h4>
               <div className="grid grid-cols-2 gap-2 sm:flex">
                 {(Object.keys(sortLabels) as RoadmapSortMode[]).map((mode) => (
                   <button
@@ -378,8 +378,8 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
                     type="button"
                     className={`border px-3 py-2 text-xs transition ${
                       sortMode === mode
-                        ? 'border-[#e6b85c] bg-[#2b1d0e] text-[#ffe7ad]'
-                        : 'border-[#5f4526] bg-[#100c08] text-[#c7b288] hover:border-[#b68a44] hover:text-[#fff1c7]'
+                        ? 'border-[#e6b85c] bg-[#2b1d0e] text-[var(--cf-accent-text)]'
+                        : 'border-[var(--cf-border)] bg-[var(--cf-surface-inset)] text-[var(--cf-text-muted)] hover:border-[#b68a44] hover:text-[var(--cf-text-strong)]'
                     }`}
                     onClick={() => setSortMode(mode)}
                   >
@@ -400,7 +400,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
                 />
               ))}
               {!isLoading && featureItems.length === 0 ? (
-                <p className="border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
+                <p className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">
                   No public beta suggestions yet. Add a compact request to start the board.
                 </p>
               ) : null}
@@ -412,15 +412,15 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         <div className="mt-6">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
-              <CalendarDays className="mt-1 h-5 w-5 text-[#e2aa4a]" />
+              <CalendarDays className="mt-1 h-5 w-5 text-[var(--cf-accent-strong)]" />
               <div>
-                <h3 className="font-serif text-2xl text-[#fff1c7]">Planned service upgrades</h3>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-[#c7b288]">
+                <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Planned service upgrades</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
                   Verified service upgrades with their monthly cost, official pricing source, and the {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× income buffer CardForge requires before taking on each increase.
                 </p>
               </div>
             </div>
-            <span className="border border-[#5f4526] bg-[#100c08] px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#d9c08c]">
+            <span className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#d9c08c]">
               {sortedOfficialItems.length} checkpoints
             </span>
           </div>
@@ -461,10 +461,10 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
               icon={<DollarSign className="h-3.5 w-3.5" />}
             />
           </div>
-          <p className="mb-4 text-xs leading-5 text-[#a98a55]">
+          <p className="mb-4 text-xs leading-5 text-[var(--cf-text-subtle)]">
             Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. Upgrade checkpoints require that post-tax, post-reserve estimate to reach {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× the running verified monthly cost. Figures do not deduct Stripe fees, discounts, credits, refunds, or prove that an invoice was paid.
           </p>
-          <div className="relative border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
+          <div className="relative border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5">
             <HorizontalTimeline
               items={timelineCheckpoints}
               isLoading={isLoading}

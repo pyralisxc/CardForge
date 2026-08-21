@@ -16,7 +16,7 @@ const ASSOCIATION_LABELS: Record<CampaignAssociationKind, string> = {
   jam_recording: 'Jam recording',
 };
 
-const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
+const fieldClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]';
 
 const createAssociation = (): CampaignDevelopmentAssociation => ({
   id: crypto.randomUUID(),
@@ -49,16 +49,16 @@ export function CampaignAssociationEditor({
   };
 
   return (
-    <section className="mt-4 border border-[#4a3823] bg-[#15100a] p-4">
+    <section className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-[#e2aa4a]">
+          <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
             <Link2 className="h-4 w-4" />
             <h3 className="text-xs font-semibold uppercase tracking-[0.14em]">
               Development associations
             </h3>
           </div>
-          <p className="mt-1 text-xs leading-5 text-[#a98a55]">
+          <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">
             Link the PR, release, feature, asset, or recording that produced this package. CardForge keeps the campaign history; the source system keeps development history.
           </p>
         </div>
@@ -79,9 +79,9 @@ export function CampaignAssociationEditor({
           {associations.map((association, index) => (
             <article
               key={association.id}
-              className="grid gap-3 border border-[#4a3823] bg-[#100c08] p-3 md:grid-cols-2"
+              className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 md:grid-cols-2"
             >
-              <label className="grid gap-1 text-xs text-[#c7b288]">
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
                 Association type
                 <select
                   className={fieldClassName}
@@ -96,7 +96,7 @@ export function CampaignAssociationEditor({
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-xs text-[#c7b288]">
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
                 Reference key or number
                 <input
                   className={fieldClassName}
@@ -109,7 +109,7 @@ export function CampaignAssociationEditor({
                   placeholder="PR #94, v0.1.0, or feature key"
                 />
               </label>
-              <label className="grid gap-1 text-xs text-[#c7b288]">
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
                 Reference URL
                 <input
                   type="url"
@@ -123,7 +123,7 @@ export function CampaignAssociationEditor({
                   placeholder="https://github.com/..."
                 />
               </label>
-              <label className="grid gap-1 text-xs text-[#c7b288]">
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
                 Display title
                 <input
                   className={fieldClassName}
@@ -136,7 +136,7 @@ export function CampaignAssociationEditor({
                   placeholder="Canonical campaign media"
                 />
               </label>
-              <label className="grid gap-1 text-xs text-[#c7b288] md:col-span-2">
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)] md:col-span-2">
                 Relationship note
                 <textarea
                   className={`${fieldClassName} min-h-20`}
@@ -165,7 +165,7 @@ export function CampaignAssociationEditor({
           ))}
         </div>
       ) : (
-        <p className="mt-3 border border-dashed border-[#4a3823] p-3 text-xs text-[#a98a55]">
+        <p className="mt-3 border border-dashed border-[var(--cf-border-subtle)] p-3 text-xs text-[var(--cf-text-subtle)]">
           Optional for evergreen campaigns; recommended whenever this package supports shipped development work.
         </p>
       )}

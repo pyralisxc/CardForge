@@ -359,7 +359,7 @@ export function CardForgeStudioShell({
   });
 
   return (
-    <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">
+    <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       <StudioHeader
         authConfigured={accountEntitlement.authConfigured}
         isLoadingAccount={accountEntitlement.isLoadingEntitlement}
@@ -376,10 +376,10 @@ export function CardForgeStudioShell({
           <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
         )}
         {templateLibraryFailed || styleLibraryFailed ? (
-          <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[#f7ead0] sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
             <div>
               <p className="font-semibold">Some Studio library content did not load</p>
-              <p className="mt-1 text-xs leading-5 text-[#cbb58b]">
+              <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
                 {templateLibraryFailed && styleLibraryFailed
                   ? 'Templates and appearance styles are temporarily unavailable.'
                   : templateLibraryFailed
@@ -401,17 +401,17 @@ export function CardForgeStudioShell({
           />
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={handleStudioTabChange} className="w-full min-w-0">
-          <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
-            <p><span className="font-semibold text-[#fff1c7]">Templates</span> shape editable fronts, backs, fields, and visual foundations.</p>
-            <p><span className="font-semibold text-[#fff1c7]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
+          <div className="cardforge-studio-context mb-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs leading-5 text-[var(--cf-text-muted)] no-print md:flex md:items-center md:justify-between md:gap-4">
+            <p><span className="font-semibold text-[var(--cf-text-strong)]">Templates</span> shape editable fronts, backs, fields, and visual foundations.</p>
+            <p><span className="font-semibold text-[var(--cf-text-strong)]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
           </div>
-          <TabsList className="cardforge-studio-tabs mb-4 grid h-auto w-full grid-cols-2 border border-[#5f4526] bg-[#15100a] p-1 no-print md:mb-6">
+          <TabsList className="cardforge-studio-tabs mb-4 grid h-auto w-full grid-cols-2 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-1 no-print md:mb-6">
             {STUDIO_TABS.map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
                 data-testid={`studio-tab-${tab.value}`}
-                className="flex min-h-11 items-center justify-center gap-2 px-2 text-xs text-[#c8b07f] data-[state=active]:bg-[#24180e] data-[state=active]:text-[#ffe7ad] sm:text-sm"
+                className="flex min-h-11 items-center justify-center gap-2 px-2 text-xs text-[var(--cf-text-muted)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)] sm:text-sm"
               >
                 <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
               </TabsTrigger>
@@ -533,7 +533,7 @@ export function CardForgeStudioShell({
         onClearProjectImport={clearPendingProjectImport}
         onApplyProjectImport={(mode) => void applyPendingProjectImport(mode)}
       />
-      <footer className="border-t border-[#5f4526] p-4 text-center text-sm text-[#a8946d] no-print">
+      <footer className="border-t border-[var(--cf-border)] p-4 text-center text-sm text-[#a8946d] no-print">
         {businessIdentity.brandName} &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}
       </footer>
     </div>

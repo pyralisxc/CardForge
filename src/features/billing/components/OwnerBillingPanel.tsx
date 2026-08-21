@@ -53,9 +53,9 @@ const formatDateTime = (value: string | null): string => {
 
 function MetricTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-3">
-      <span className="block text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{label}</span>
-      <span className="mt-2 block text-lg font-semibold text-[#ffe7ad]">{value}</span>
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+      <span className="block text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</span>
+      <span className="mt-2 block text-lg font-semibold text-[var(--cf-accent-text)]">{value}</span>
     </div>
   );
 }
@@ -206,21 +206,21 @@ export function OwnerBillingPanel() {
   };
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <CreditCard className="h-5 w-5" />
           <div>
-            <h2 className="font-serif text-2xl text-[#fff1c7]">Billing snapshot</h2>
-            <p className="mt-1 text-xs leading-5 text-[#a98a55]">Stripe is authoritative; CardForge organizes subscribers and provider history for owner operations.</p>
+            <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Billing snapshot</h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Stripe is authoritative; CardForge organizes subscribers and provider history for owner operations.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={reconcileBilling} disabled={isReconcilingBilling || isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+          <Button onClick={reconcileBilling} disabled={isReconcilingBilling || isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {isReconcilingBilling ? 'Reconciling...' : 'Reconcile'}
           </Button>
-          <Button onClick={() => loadBillingSummary(activeTab === 'history')} disabled={isLoadingBilling || isReconcilingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+          <Button onClick={() => loadBillingSummary(activeTab === 'history')} disabled={isLoadingBilling || isReconcilingBilling} variant="outline" className="border-[#755632] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
             <Rocket className="mr-2 h-4 w-4" />
             {isLoadingBilling ? 'Refreshing...' : 'Refresh'}
           </Button>
@@ -228,7 +228,7 @@ export function OwnerBillingPanel() {
       </div>
 
       {billingError ? (
-        <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{billingError}</p>
+        <p className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm text-[var(--cf-warning)]">{billingError}</p>
       ) : null}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -243,52 +243,52 @@ export function OwnerBillingPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 border border-[#4a3823] bg-[#0c0b09] p-1">
-          <TabsTrigger value="subscribers" className="gap-2 rounded-none py-3 text-[#a98a55] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">
+        <TabsList className="grid h-auto w-full grid-cols-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-1">
+          <TabsTrigger value="subscribers" className="gap-2 rounded-none py-3 text-[var(--cf-text-subtle)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">
             <Users className="h-4 w-4" />
             Subscribers
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2 rounded-none py-3 text-[#a98a55] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">
+          <TabsTrigger value="history" className="gap-2 rounded-none py-3 text-[var(--cf-text-subtle)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">
             <History className="h-4 w-4" />
             Checkout history
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscribers" className="mt-4 space-y-3">
-          <div className="border border-[#6d4f2b] bg-[#1a1209] p-4">
-            <p className="text-sm font-semibold text-[#ffe7ad]">Actual Stripe subscriptions</p>
-            <p className="mt-1 text-xs leading-5 text-[#a98a55]">These are subscription records—not checkout attempts. Active and trialing subscribers appear first.</p>
+          <div className="border border-[var(--cf-border-strong)] bg-[#1a1209] p-4">
+            <p className="text-sm font-semibold text-[var(--cf-accent-text)]">Actual Stripe subscriptions</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">These are subscription records—not checkout attempts. Active and trialing subscribers appear first.</p>
           </div>
           {subscriptions.map((subscription) => {
             const isProductAccess = subscription.billingPurpose === 'product_access';
             const needsConnection = isProductAccess
               && (subscription.mappingStatus === 'stale' || subscription.mappingStatus === 'missing');
             return (
-              <article key={subscription.id} className="border border-[#6d4f2b] bg-[#100c08] p-4">
+              <article key={subscription.id} className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold text-[#ffe7ad]">
+                    <p className="text-lg font-semibold text-[var(--cf-accent-text)]">
                       {formatMoney(subscription.amountCents, subscription.currency)}
                       {subscription.interval ? ` / ${subscription.interval}` : ''}
                     </p>
                     <p className="mt-1 text-sm text-[#d9c28f]">{subscription.customerEmail ?? subscription.customerId ?? 'Customer email unavailable'}</p>
                   </div>
-                  <span className="text-xs uppercase tracking-[0.16em] text-[#d8b365]">{subscription.billingPurpose.replace('_', ' ')} / {subscription.status ?? 'unknown'}</span>
+                  <span className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent)]">{subscription.billingPurpose.replace('_', ' ')} / {subscription.status ?? 'unknown'}</span>
                 </div>
-                <div className="mt-3 grid gap-2 text-xs text-[#8f7b57] md:grid-cols-2">
+                <div className="mt-3 grid gap-2 text-xs text-[var(--cf-text-subtle)] md:grid-cols-2">
                   <p className="break-all">Subscription: {subscription.id}</p>
                   <p>{subscription.cancelAtPeriodEnd ? 'Cancels' : 'Period ends'}: {formatDateTime(subscription.currentPeriodEnd)}</p>
                   {isProductAccess ? (
-                    <p className={`md:col-span-2 ${subscription.mappingStatus === 'connected' ? 'text-[#8fca72]' : 'text-[#f0bd75]'}`}>
+                    <p className={`md:col-span-2 ${subscription.mappingStatus === 'connected' ? 'text-[var(--cf-success)]' : 'text-[var(--cf-warning)]'}`}>
                       {getOwnerSubscriptionConnectionLabel(subscription)}
                     </p>
                   ) : (
-                    <p className="md:col-span-2 text-[#8fca72]">Support subscription — no product entitlement expected</p>
+                    <p className="md:col-span-2 text-[var(--cf-success)]">Support subscription — no product entitlement expected</p>
                   )}
                   {subscription.clerkUserId ? <p className="break-all md:col-span-2">Stored Clerk mapping: {subscription.clerkUserId}</p> : null}
                 </div>
                 {needsConnection ? (
-                  <p className="mt-3 border border-[#755632] bg-[#1b1209] p-3 text-xs leading-5 text-[#f0bd75]">
+                  <p className="mt-3 border border-[#755632] bg-[var(--cf-warning-surface)] p-3 text-xs leading-5 text-[var(--cf-warning)]">
                     Ask this customer to sign in or register with the Stripe email above, then run Reconcile. They should not purchase again.
                   </p>
                 ) : null}
@@ -296,18 +296,18 @@ export function OwnerBillingPanel() {
             );
           })}
           {billingSnapshot && subscriptions.length === 0 ? (
-            <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No Stripe subscriptions found.</p>
+            <p className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">No Stripe subscriptions found.</p>
           ) : null}
         </TabsContent>
 
         <TabsContent value="history" className="mt-4 space-y-3">
-          <div className="border border-[#4a3823] bg-[#100c08] p-4">
-            <p className="text-sm font-semibold text-[#ffe7ad]">Stripe Checkout history</p>
-            <p className="mt-1 text-xs leading-5 text-[#a98a55]">
+          <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+            <p className="text-sm font-semibold text-[var(--cf-accent-text)]">Stripe Checkout history</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">
               This secondary view includes completed, repeated, and abandoned Checkout Sessions. CardForge shows only the last {historySettings?.retentionDays ?? 30} days and never deletes Stripe records.
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
-              <label className="grid gap-2 text-xs text-[#c7b288]">
+              <label className="grid gap-2 text-xs text-[var(--cf-text-muted)]">
                 Maximum displayed sessions (1–{MAX_BILLING_HISTORY_LIMIT})
                 <input
                   type="number"
@@ -315,34 +315,34 @@ export function OwnerBillingPanel() {
                   max={MAX_BILLING_HISTORY_LIMIT}
                   value={historyLimitDraft}
                   onChange={(event) => setHistoryLimitDraft(Number(event.target.value))}
-                  className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                  className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
                 />
               </label>
               <Button
                 onClick={saveHistoryLimit}
                 disabled={isSavingHistory || historyLimitDraft < 1 || historyLimitDraft > MAX_BILLING_HISTORY_LIMIT || !Number.isInteger(historyLimitDraft)}
                 variant="outline"
-                className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+                className="border-[#755632] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
               >
                 <Save className="mr-2 h-4 w-4" />
                 {isSavingHistory ? 'Saving...' : 'Save limit'}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button disabled={isClearingHistory || !historyLoaded} variant="outline" className="border-[#8c6436] bg-transparent text-[#f0bd75] hover:bg-[#2a1b0d] hover:text-[#ffe7ad]">
+                  <Button disabled={isClearingHistory || !historyLoaded} variant="outline" className="border-[var(--cf-warning-border)] bg-transparent text-[var(--cf-warning)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-accent-text)]">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Clear displayed history
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="border-[#6d4f2b] bg-[#15100a] text-[#f7ead0]">
+                <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Clear displayed checkout history?</AlertDialogTitle>
-                    <AlertDialogDescription className="leading-6 text-[#c7b288]">
+                    <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
                       CardForge will hide every Checkout Session created before now. Stripe&apos;s financial and billing records remain intact, and new checkout attempts will still appear.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="border-[#755632] bg-transparent text-[#f8e3b0]">Cancel</AlertDialogCancel>
+                    <AlertDialogCancel className="border-[#755632] bg-transparent text-[var(--cf-accent-text)]">Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={clearDisplayedHistory} className="bg-[#b96c3e] text-white hover:bg-[#cf8050]">
                       Clear CardForge view
                     </AlertDialogAction>
@@ -350,26 +350,26 @@ export function OwnerBillingPanel() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-            <p className="mt-3 text-xs text-[#8f7b57]">
+            <p className="mt-3 text-xs text-[var(--cf-text-subtle)]">
               Displaying {billingSnapshot?.recentCheckoutSessions.length ?? 0} of up to {historySettings?.limit ?? DEFAULT_BILLING_HISTORY_LIMIT} sessions since {formatDateTime(historySettings?.effectiveStart ?? null)}.
             </p>
           </div>
 
           {!historyLoaded && isLoadingBilling ? (
-            <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">Loading Stripe checkout history...</p>
+            <p className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">Loading Stripe checkout history...</p>
           ) : null}
           {(billingSnapshot?.recentCheckoutSessions ?? []).map((session) => (
-            <article key={session.id} className="border border-[#4a3823] bg-[#100c08] p-4">
+            <article key={session.id} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(session.amountTotalCents, session.currency)}</p>
-                <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Checkout {session.paymentStatus ?? session.status ?? 'unknown'}</span>
+                <p className="text-sm font-semibold text-[var(--cf-accent-text)]">{formatMoney(session.amountTotalCents, session.currency)}</p>
+                <span className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Checkout {session.paymentStatus ?? session.status ?? 'unknown'}</span>
               </div>
               <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
-              <p className="mt-2 text-xs text-[#8f7b57]">{session.billingPurpose.replace('_', ' ')} / {formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
+              <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{session.billingPurpose.replace('_', ' ')} / {formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
             </article>
           ))}
           {historyLoaded && billingSnapshot?.recentCheckoutSessions.length === 0 ? (
-            <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No checkout sessions are visible inside the current history window.</p>
+            <p className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">No checkout sessions are visible inside the current history window.</p>
           ) : null}
         </TabsContent>
       </Tabs>

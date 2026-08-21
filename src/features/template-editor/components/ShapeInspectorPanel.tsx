@@ -27,7 +27,7 @@ export function ShapeInspectorPanel({
 
   return (
     <>
-      <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+      <div className="space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
         <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Shape Studio</Label>
         <Label htmlFor="shape-kind">Primitive</Label>
         <Select value={element.shapeKind || 'rectangle'} onValueChange={(value) => onUpdateElement({ shapeKind: value as FreeformCardElement['shapeKind'] })}>
@@ -44,7 +44,7 @@ export function ShapeInspectorPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+              className="h-7 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
               onClick={() => onUpdateElement(primitive.updates)}
             >
               {primitive.label}
@@ -61,7 +61,7 @@ export function ShapeInspectorPanel({
               size="sm"
               title={getPipelineRecipeTitle(preset)}
               aria-label={`Apply ${preset.label} shape recipe`}
-              className="h-auto min-h-8 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+              className="h-auto min-h-8 flex-col items-start rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
               onClick={() => {
                 const next = { ...element, ...preset.updates } as FreeformCardElement;
                 onUpdateElement({ ...preset.updates, appearance: normalizeAppearanceForElement(next) });

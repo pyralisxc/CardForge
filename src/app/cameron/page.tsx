@@ -77,7 +77,7 @@ export default async function CameronPage() {
         { name: 'Cameron Locke', path: '/cameron' },
       ])} />
 
-      <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_18%_16%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
+      <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_18%_16%,#30200f_0%,var(--cf-canvas)_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className={`mx-auto grid max-w-5xl gap-8 md:items-center ${portraitDesktopGrid}`}>
           <div
             role="img"
@@ -121,7 +121,7 @@ export default async function CameronPage() {
       </section>
 
       {siteConfiguration.supportOfferVisible ? <>
-      <section id="support" className="scroll-mt-6 border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_80%_15%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
+      <section id="support" className="scroll-mt-6 border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_80%_15%,#30200f_0%,var(--cf-canvas)_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
           <HeartHandshake className="h-7 w-7 text-[var(--public-brass)]" aria-hidden="true" />
           <p className="mt-3 text-base font-semibold text-[var(--public-brass)]">{siteContent['founder.support.eyebrow']}</p>
@@ -144,7 +144,7 @@ export default async function CameronPage() {
               portalUrl={supportOffers.portalUrl}
             />
           ) : (
-            <div role="status" className="mt-4 border-l-2 border-[var(--public-brass)] bg-[#21170d] p-4 text-base font-semibold text-[var(--public-ivory)]">Payments are not active yet. This page explains the separation before payment options are enabled.</div>
+            <div role="status" className="mt-4 border-l-2 border-[var(--public-brass)] bg-[var(--cf-surface-raised)] p-4 text-base font-semibold text-[var(--public-ivory)]">Payments are not active yet. This page explains the separation before payment options are enabled.</div>
           )}
         </div>
       </section>

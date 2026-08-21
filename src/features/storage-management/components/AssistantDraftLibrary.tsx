@@ -141,19 +141,19 @@ export function AssistantDraftLibrary({
 
   return (
     <>
-      <div className="mt-6 border-t border-[#4a3823] pt-5">
-        <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#e2aa4a]" /><h3 className="font-serif text-xl text-[#fff1c7]">AI &amp; Studio working drafts</h3></div>
-        <p className="mt-1 text-xs leading-5 text-[#a9946c]">{retentionCopy}</p>
+      <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
+        <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[var(--cf-accent-strong)]" /><h3 className="font-serif text-xl text-[var(--cf-text-strong)]">AI &amp; Studio working drafts</h3></div>
+        <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">{retentionCopy}</p>
         {!isSignedIn ? (
-          <p className="mt-3 text-sm text-[#cbb58b]">Sign in to see private working drafts.</p>
+          <p className="mt-3 text-sm text-[var(--cf-text-muted)]">Sign in to see private working drafts.</p>
         ) : loadingDocuments ? (
-          <p className="mt-3 flex items-center gap-2 text-sm text-[#cbb58b]"><Loader2 className="h-4 w-4 animate-spin" /> Loading working drafts…</p>
+          <p className="mt-3 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading working drafts…</p>
         ) : studioDocuments.length ? (
           <div className="mt-3 space-y-2">
             {studioDocuments.map((document) => (
-              <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#15100a] p-3">
+              <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[#fff1c7]">{document.title}</p>
+                  <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{document.title}</p>
                   <p className="mt-1 text-xs text-[#bba57c]">Revision {document.revision} · {document.creationSource === 'gpt' ? 'ChatGPT working draft' : 'Studio working document'} · active until {formatDate(document.expiresAt)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -171,17 +171,17 @@ export function AssistantDraftLibrary({
               </div>
             ))}
           </div>
-        ) : <p className="mt-3 text-sm text-[#cbb58b]">No private working drafts are attached to this account.</p>}
+        ) : <p className="mt-3 text-sm text-[var(--cf-text-muted)]">No private working drafts are attached to this account.</p>}
 
         {deletedStudioDocuments.length ? (
-          <div className="mt-5 border-t border-[#3c2c1b] pt-4">
+          <div className="mt-5 border-t border-[var(--cf-border-subtle)] pt-4">
             <h4 className="text-sm font-semibold text-[#f0c77a]">Recoverable trash</h4>
-            <p className="mt-1 text-xs leading-5 text-[#8f7b57]">CardForge permanently removes these drafts and their private artwork after the listed time.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">CardForge permanently removes these drafts and their private artwork after the listed time.</p>
             <div className="mt-3 space-y-2">
               {deletedStudioDocuments.map((document) => (
-                <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#100c08] p-3">
+                <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#fff1c7]">{document.title}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{document.title}</p>
                     <p className="mt-1 text-xs text-[#bba57c]">Permanently removed after {formatDate(document.purgeAfter ?? document.updatedAt)}</p>
                   </div>
                   <Button
@@ -206,17 +206,17 @@ export function AssistantDraftLibrary({
           if (!open && !deletingDocumentId) setPendingDocumentDelete(null);
         }}
       >
-        <AlertDialogContent className="border-[#6d4f2b] bg-[#15100a] text-[#f7ead0]">
+        <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
           <AlertDialogHeader>
             <AlertDialogTitle>Move this private working draft to trash?</AlertDialogTitle>
-            <AlertDialogDescription className="leading-6 text-[#c7b288]">
+            <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
               {pendingDocumentDelete
                 ? `“${pendingDocumentDelete.title}” will be hidden now and remain recoverable for 24 hours. Installed local work and cloud sets will remain.`
                 : 'The private working draft will be hidden now and remain recoverable for 24 hours. Installed local work and cloud sets will remain.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-[#755632] bg-transparent text-[#f8e3b0]">Keep draft</AlertDialogCancel>
+            <AlertDialogCancel className="border-[#755632] bg-transparent text-[var(--cf-accent-text)]">Keep draft</AlertDialogCancel>
             <AlertDialogAction
               disabled={!pendingDocumentDelete || Boolean(deletingDocumentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

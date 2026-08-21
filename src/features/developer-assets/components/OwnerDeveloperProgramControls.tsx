@@ -17,11 +17,11 @@ export function ProfileOverrideField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs text-[#c7b288]">
+    <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
       {label}
       <input
         aria-label={ariaLabel}
-        className="h-10 border border-[#3c2c1b] bg-[#15100a] px-3 text-[#ffe7ad] placeholder:text-[#6f5b3a]"
+        className="h-10 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] px-3 text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]"
         inputMode="numeric"
         placeholder={placeholder}
         value={value}
@@ -43,13 +43,13 @@ export function NumberField({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
       <span className="flex items-center justify-between gap-2">
         {label}
         <FieldHelp text={help} />
       </span>
       <input
-        className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
         inputMode="numeric"
         value={value}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
@@ -70,7 +70,7 @@ export function CompactNumberField({
   return (
     <input
       aria-label={ariaLabel}
-      className="h-10 w-full min-w-24 border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad]"
+      className="h-10 w-full min-w-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)]"
       inputMode="numeric"
       value={value}
       onChange={(event) => onChange(Number(event.target.value) || 0)}
@@ -86,11 +86,11 @@ export function VoteWeightSelector({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="mt-4 border border-[#342719] bg-[#15100a] p-3">
+    <div className="mt-4 border border-[#342719] bg-[var(--cf-surface)] p-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Owner vote weight</p>
-          <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Owner vote weight</p>
+          <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">
             1x keeps the owner equal with developers. Raise it only when owner taste should break close calls.
           </p>
         </div>
@@ -104,8 +104,8 @@ export function VoteWeightSelector({
             size="sm"
             variant="outline"
             className={[
-              'rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0] hover:border-[#d8b365] hover:bg-[#2a1b0d]',
-              value === weight ? 'border-[#d8b365] bg-[#2a1b0d] text-[#fff1c7]' : '',
+              'rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)] hover:bg-[var(--cf-surface-hover)]',
+              value === weight ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)] text-[var(--cf-text-strong)]' : '',
             ].join(' ')}
             onClick={() => onChange(weight)}
           >
@@ -129,7 +129,7 @@ export function ToggleField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-4 border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">
+    <label className="flex items-center justify-between gap-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">
       <span className="flex items-center gap-2">
         {label}
         <FieldHelp text={help} />
@@ -145,8 +145,8 @@ export function ToggleField({
 
 export function DecisionCard({ label, body }: { label: string; body: string }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</p>
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</p>
       <p className="mt-2 text-sm leading-6 text-[#d9c28f]">{body}</p>
     </div>
   );

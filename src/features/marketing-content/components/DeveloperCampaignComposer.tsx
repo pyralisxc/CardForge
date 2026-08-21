@@ -133,7 +133,7 @@ export const getCampaignPayload = (draft: CampaignDraft) => ({
   }) => association),
 });
 
-const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
+const fieldClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]';
 
 const buildFocalPoint = (
   metadata: CampaignMediaIngestDraft,
@@ -243,16 +243,16 @@ export function DeveloperCampaignComposer({
   };
 
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-5">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">
+          <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">
             {editing ? 'Editing package' : 'New package'}
           </p>
-          <h2 className="font-serif text-2xl text-[#fff1c7]">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             {editing ? editing.title : 'Build a campaign package'}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
             Build one reviewable content package inside an owner-defined campaign. Add channel-specific copy, rights-aware media, a clear call to action, and durable development proof.
           </p>
         </div>
@@ -268,12 +268,12 @@ export function DeveloperCampaignComposer({
 
       <PackageReadiness readiness={readiness} />
 
-      <section className="mt-4 border border-[#6d4f2b] bg-[#1b1209] p-4" aria-labelledby="live-provider-preview-heading">
+      <section className="mt-4 border border-[var(--cf-border-strong)] bg-[var(--cf-warning-surface)] p-4" aria-labelledby="live-provider-preview-heading">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">Audience view</p>
-            <h3 id="live-provider-preview-heading" className="font-serif text-xl text-[#fff1c7]">Live provider preview</h3>
-            <p className="mt-1 text-xs text-[#c7b288]">This preview updates with the copy, destination, and media below.</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Audience view</p>
+            <h3 id="live-provider-preview-heading" className="font-serif text-xl text-[var(--cf-text-strong)]">Live provider preview</h3>
+            <p className="mt-1 text-xs text-[var(--cf-text-muted)]">This preview updates with the copy, destination, and media below.</p>
           </div>
           <a href="#campaign-social-posts" className="inline-flex min-h-11 items-center text-sm text-[#f1c875] underline underline-offset-4">
             Edit copy or media
@@ -305,10 +305,10 @@ export function DeveloperCampaignComposer({
       </section>
 
       <fieldset
-        className="mt-5 border border-[#4a3823] bg-[#100c08] p-4"
+        className="mt-5 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4"
         disabled={disabled}
       >
-        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           1. Campaign and intent
         </legend>
         <div className="grid gap-3 md:grid-cols-2">
@@ -328,7 +328,7 @@ export function DeveloperCampaignComposer({
               placeholder="Founder workflow proof"
             />
           </CountedField>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Marketing campaign
             <select
               className={fieldClassName}
@@ -348,31 +348,31 @@ export function DeveloperCampaignComposer({
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Audience
             <select className={fieldClassName} value={draft.audienceKey} disabled>
               {MARKETING_AUDIENCES.map((audience) => <option key={audience.id} value={audience.id}>{audience.label}</option>)}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Content pillar
             <select className={fieldClassName} value={draft.contentPillar} onChange={(event) => onDraftChange({ ...draft, contentPillar: event.target.value as CampaignDraft['contentPillar'] })}>
               {MARKETING_CONTENT_PILLARS.filter((pillar) => marketingStrategy.enabledPillars.includes(pillar.id)).map((pillar) => <option key={pillar.id} value={pillar.id}>{pillar.label}</option>)}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Journey stage
             <select className={fieldClassName} value={draft.funnelStage} onChange={(event) => onDraftChange({ ...draft, funnelStage: event.target.value as CampaignDraft['funnelStage'] })}>
               {MARKETING_FUNNEL_STAGES.map((stage) => <option key={stage} value={stage}>{stage.replaceAll('-', ' ')}</option>)}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Content format
             <select className={fieldClassName} value={draft.contentKind} onChange={(event) => onDraftChange({ ...draft, contentKind: event.target.value as CampaignDraft['contentKind'] })}>
               {MARKETING_CONTENT_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll('-', ' ')}</option>)}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Creation source
             <select className={fieldClassName} value={draft.creationSource} onChange={(event) => onDraftChange({ ...draft, creationSource: event.target.value as CampaignDraft['creationSource'] })}>
               <option value="developer">Developer-authored</option>
@@ -380,7 +380,7 @@ export function DeveloperCampaignComposer({
               <option value="ai-assisted">AI-assisted</option>
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Link people should open
             <input
               type="url"
@@ -421,10 +421,10 @@ export function DeveloperCampaignComposer({
 
       <fieldset
         id="campaign-social-posts"
-        className="mt-4 border border-[#4a3823] bg-[#100c08] p-4"
+        className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4"
         disabled={disabled}
       >
-        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           2. Release context
         </legend>
         <div className="grid gap-3 md:grid-cols-2">
@@ -445,7 +445,7 @@ export function DeveloperCampaignComposer({
               placeholder="Release, feature, proof, or review context."
             />
           </CountedField>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Preferred publish time
             <input
               type="datetime-local"
@@ -471,10 +471,10 @@ export function DeveloperCampaignComposer({
       </fieldset>
 
       <fieldset
-        className="mt-4 border border-[#4a3823] bg-[#100c08] p-4"
+        className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4"
         disabled={disabled}
       >
-        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           3. Social posts
         </legend>
         <div className="space-y-3">
@@ -502,7 +502,7 @@ export function DeveloperCampaignComposer({
       </fieldset>
 
       {!associationsComplete ? (
-        <p className="mt-3 text-sm text-[#f0bd75]">
+        <p className="mt-3 text-sm text-[var(--cf-warning)]">
           Complete or remove each development association before saving.
         </p>
       ) : null}
@@ -542,12 +542,12 @@ function PackageReadiness({
   readiness: ReturnType<typeof getCampaignPackageReadiness>;
 }) {
   return (
-    <section className="mt-4 border border-[#6d4f2b] bg-[#1b1209] p-4">
+    <section className="mt-4 border border-[var(--cf-border-strong)] bg-[var(--cf-warning-surface)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           Package readiness
         </h3>
-        <p className="text-xs text-[#d8c49a]">
+        <p className="text-xs text-[var(--cf-text-muted)]">
           {readiness.completed} of {readiness.total} package sections ready
         </p>
       </div>
@@ -556,7 +556,7 @@ function PackageReadiness({
           <li
             key={item.key}
             className={`flex items-center gap-2 text-xs ${
-              item.complete ? 'text-[#a8e7b8]' : 'text-[#c7b288]'
+              item.complete ? 'text-[#a8e7b8]' : 'text-[var(--cf-text-muted)]'
             }`}
           >
             {item.complete ? (
@@ -586,7 +586,7 @@ function CountedField({
   children: ReactNode;
 }) {
   return (
-    <label className={`grid gap-1 text-xs text-[#c7b288] ${className}`}>
+    <label className={`grid gap-1 text-xs text-[var(--cf-text-muted)] ${className}`}>
       <span className="flex justify-between gap-3">
         <span>{label}</span>
         <span>{value.length}/{limit}</span>

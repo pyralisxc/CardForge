@@ -29,7 +29,7 @@ export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
         <nav aria-label="Footer links" className="grid grid-cols-2 gap-x-6 gap-y-5 py-5 sm:grid-cols-4">
           {PUBLIC_NAVIGATION.footerGroups.map((group) => (
             <section key={group.label}>
-              <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#cbb58b]">{group.label}</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">{group.label}</h2>
               <div className="mt-2 grid gap-1">
                 {group.links.map((link) => (
                   <Link

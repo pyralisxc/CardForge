@@ -268,15 +268,15 @@ export function AnalyticsProvider({
           <aside
             ref={dialogRef}
             className={requiredChoice
-              ? 'w-full max-w-2xl border border-[#8c6436] bg-[#15100a] p-5 text-[#f7ead0] shadow-2xl'
-              : 'border border-[#8c6436] bg-[#15100a] p-4 text-[#f7ead0] shadow-2xl'}
+              ? 'w-full max-w-2xl border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-5 text-[var(--cf-text)] shadow-2xl'
+              : 'border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-4 text-[var(--cf-text)] shadow-2xl'}
             role="dialog"
             aria-modal={requiredChoice}
             aria-labelledby="analytics-consent-title"
             aria-describedby="analytics-consent-description"
           >
-            <p id="analytics-consent-title" className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
-            <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[#c7b288]">
+            <p id="analytics-consent-title" className="font-serif text-lg text-[var(--cf-text-strong)]">Help improve CardForge</p>
+            <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
               {productAnalyticsEnabled
                 ? 'Allow privacy-minimized Google Analytics and PostHog measurement for page visits, basic browser and device context, and selected CardForge actions. PostHog receives only these allow-listed events—no session replay or page content. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'
                 : 'Allow privacy-minimized Google Analytics measurement for page visits, basic browser and device context, and selected CardForge actions. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'}
@@ -290,7 +290,7 @@ export function AnalyticsProvider({
           </aside>
         </div>
       ) : (
-        <button type="button" onClick={() => setShowSettings(true)} className="fixed bottom-3 left-3 z-50 border border-[#5f4526] bg-[#100c08] px-3 py-2 text-xs text-[#c7b288] hover:border-[#d8b365] hover:text-[#fff1c7]">Analytics settings</button>
+        <button type="button" onClick={() => setShowSettings(true)} className="fixed bottom-3 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]">Analytics settings</button>
       )}
     </>
   );

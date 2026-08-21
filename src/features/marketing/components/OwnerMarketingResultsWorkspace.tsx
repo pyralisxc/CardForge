@@ -17,19 +17,19 @@ export function OwnerMarketingResultsWorkspace({
   );
 
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-5">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
       <div className="flex items-center gap-3">
-        <BarChart3 className="h-5 w-5 text-[#e2aa4a]" />
+        <BarChart3 className="h-5 w-5 text-[var(--cf-accent-strong)]" />
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">
+          <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">
             Measurement
           </p>
-          <h3 className="font-serif text-2xl text-[#fff1c7]">
+          <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             Campaign-linked results
           </h3>
         </div>
       </div>
-      <p className="mt-3 max-w-4xl text-sm leading-6 text-[#c7b288]">
+      <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
         Every campaign owns a utm_campaign key and every content package owns
         utm_content. Use those values in the existing analytics workspace to
         connect visits and Studio actions back to the work that caused them.

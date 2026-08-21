@@ -78,20 +78,20 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
 
   if (mode === 'copy') {
     return (
-      <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
-        <div className="flex items-center gap-3 text-[#e2aa4a]"><FileText className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Public site copy</h2></div>
+      <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><FileText className="h-5 w-5" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Public site copy</h2></div>
         <div className="mt-6 grid gap-4">
           {groups.map(({ group, sections }) => (
-            <details key={group} className="border border-[#4a3823] bg-[#100c08]" open={group === 'landing'}>
-              <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[#ffe7ad]">{groupLabels[group]} <span className="ml-2 text-xs font-sans text-[#8f7b57]">{sections.reduce((total, section) => total + section.blocks.length, 0)} editable fields</span></summary>
-              <div className="grid gap-3 border-t border-[#4a3823] p-4">
-                {sections.map(({ section, blocks: sectionBlocks }) => <details key={section} className="border border-[#3a2d1d] bg-[#0c0b09]" open={sections.length === 1}>
-                  <summary className="cursor-pointer px-3 py-2 font-semibold text-[#d8c49a]">{section} <span className="ml-2 text-xs font-normal text-[#8f7b57]">{sectionBlocks.length}</span></summary>
+            <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'landing'}>
+              <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{groupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{sections.reduce((total, section) => total + section.blocks.length, 0)} editable fields</span></summary>
+              <div className="grid gap-3 border-t border-[var(--cf-border-subtle)] p-4">
+                {sections.map(({ section, blocks: sectionBlocks }) => <details key={section} className="border border-[#3a2d1d] bg-[var(--cf-canvas)]" open={sections.length === 1}>
+                  <summary className="cursor-pointer px-3 py-2 font-semibold text-[var(--cf-text-muted)]">{section} <span className="ml-2 text-xs font-normal text-[var(--cf-text-subtle)]">{sectionBlocks.length}</span></summary>
                   <div className="grid gap-3 border-t border-[#3a2d1d] p-3">
                   {sectionBlocks.map((block) => (
-                  <div key={block.slug} className="border border-[#3a2d1d] bg-[#0c0b09] p-3">
-                    <label className="grid gap-2 text-sm text-[#c7b288]"><span className="flex justify-between gap-2">{block.label}<span className="text-xs text-[#8f7b57]">{block.body.length}/{block.maxLength}</span></span>{block.kind === 'long' ? <textarea className="min-h-24 border border-[#5f4526] bg-[#100c08] p-3 text-sm leading-6 text-[#ffe7ad]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} /> : <input className="min-h-11 border border-[#5f4526] bg-[#100c08] px-3 text-sm text-[#ffe7ad]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} />}</label>
-                    <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[#8f7b57]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={busyBlock !== null} onClick={() => saveBlock(block)}><Save className="mr-2 h-4 w-4" />{busyBlock === block.slug ? 'Publishing...' : 'Publish block'}</Button></div>
+                  <div key={block.slug} className="border border-[#3a2d1d] bg-[var(--cf-canvas)] p-3">
+                    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]"><span className="flex justify-between gap-2">{block.label}<span className="text-xs text-[var(--cf-text-subtle)]">{block.body.length}/{block.maxLength}</span></span>{block.kind === 'long' ? <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm leading-6 text-[var(--cf-accent-text)]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} /> : <input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-sm text-[var(--cf-accent-text)]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} />}</label>
+                    <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[var(--cf-text-subtle)]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={busyBlock !== null} onClick={() => saveBlock(block)}><Save className="mr-2 h-4 w-4" />{busyBlock === block.slug ? 'Publishing...' : 'Publish block'}</Button></div>
                   </div>
                   ))}
                   </div>
@@ -106,8 +106,8 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
   }
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
-      <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Roadmap rules</h2></div>
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Roadmap rules</h2></div>
       <div className="mt-6 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <MechanicsField label="Active suggestions cap" field="maxActiveUserRoadmapItems" value={settings.maxActiveUserRoadmapItems} settings={settings} setSettings={setSettings} help="Maximum user-created feature requests kept open before new suggestions are blocked." />
         <MechanicsField label="Suggestion length" field="maxRoadmapSuggestionLength" value={settings.maxRoadmapSuggestionLength} settings={settings} setSettings={setSettings} help="Maximum characters accepted for public feature suggestions." />
@@ -116,7 +116,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
         <MechanicsField label="Estimated tax %" field="roadmapEstimatedTaxPercent" value={settings.roadmapEstimatedTaxPercent} settings={settings} setSettings={setSettings} help="Planning estimate deducted from active Creator Pass listed-price MRR. This is not a filed tax result or tax advice." />
         <MechanicsField label="Operating reserve %" field="roadmapOperatingReservePercent" value={settings.roadmapOperatingReservePercent} settings={settings} setSettings={setSettings} help="Share of after-tax Creator Pass income held back before roadmap upgrades are considered funded." />
       </div>
-      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSavingMechanics} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSavingMechanics ? 'Saving roadmap rules...' : 'Save roadmap rules'}</Button>
+      <Button className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSavingMechanics} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSavingMechanics ? 'Saving roadmap rules...' : 'Save roadmap rules'}</Button>
     </section>
   );
 }
@@ -130,6 +130,6 @@ function MechanicsField({ label, field, value, settings, setSettings, help }: {
   help: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]"><span className="flex items-center justify-between gap-2">{label}<OwnerFieldHelp text={help} /></span><input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" inputMode="numeric" value={value} onChange={(event) => setSettings({ ...settings, [field]: Number(event.target.value) || 0 })} /></label>
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]"><span className="flex items-center justify-between gap-2">{label}<OwnerFieldHelp text={help} /></span><input className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" inputMode="numeric" value={value} onChange={(event) => setSettings({ ...settings, [field]: Number(event.target.value) || 0 })} /></label>
   );
 }

@@ -68,22 +68,22 @@ export function StudioRuntimeLoader({
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
-      <header className="border-b border-[#5f4526] bg-[#120e09] px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+    <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
+      <header className="border-b border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-sm font-bold text-[#f2c15d]">CF</div>
+          <div className="grid h-10 w-10 place-items-center border border-[var(--cf-accent)]/70 bg-[var(--cf-surface-raised)] text-sm font-bold text-[var(--cf-accent-strong)]">CF</div>
           <div>
-            <p className="font-serif text-xl font-semibold text-[#fff1c7]">{businessIdentity.brandName}</p>
+            <p className="font-serif text-xl font-semibold text-[var(--cf-text-strong)]">{businessIdentity.brandName}</p>
             <p className="text-xs uppercase tracking-[0.16em] text-[#bda878]">Studio</p>
           </div>
         </div>
       </header>
       <main className="mx-auto grid min-h-[70vh] max-w-7xl place-items-center px-5 py-12">
         <div className="grid max-w-md justify-items-center gap-4 text-center" role="status" aria-live="polite">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-hidden="true" />
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--cf-accent-strong)] border-t-transparent" aria-hidden="true" />
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-[#fff1c7]">Opening CardForge Studio</h1>
-            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">
+            <h1 className="font-serif text-2xl font-semibold text-[var(--cf-text-strong)]">Opening CardForge Studio</h1>
+            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
               Your CardForge session is ready. The editor is loading separately so the page can become responsive first.
             </p>
           </div>

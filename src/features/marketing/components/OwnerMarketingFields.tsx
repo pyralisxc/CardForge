@@ -1,7 +1,7 @@
 import { Target } from "lucide-react";
 
 export const ownerMarketingFieldClassName =
-  "min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]";
+  "min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]";
 
 export function OwnerMarketingMetric({
   icon: Icon,
@@ -13,14 +13,14 @@ export function OwnerMarketingMetric({
   value: number;
 }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-3">
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">
+        <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">
           {label}
         </span>
-        <Icon className="h-4 w-4 text-[#e2aa4a]" />
+        <Icon className="h-4 w-4 text-[var(--cf-accent-strong)]" />
       </div>
-      <strong className="mt-2 block font-serif text-2xl text-[#fff1c7]">
+      <strong className="mt-2 block font-serif text-2xl text-[var(--cf-text-strong)]">
         {value}
       </strong>
     </div>
@@ -39,7 +39,7 @@ export function OwnerMarketingTextField({
   type?: string;
 }) {
   return (
-    <label className="grid gap-1 text-xs text-[#c7b288]">
+    <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
       {label}
       <input
         className={ownerMarketingFieldClassName}
@@ -61,7 +61,7 @@ export function OwnerMarketingTextArea({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs text-[#c7b288]">
+    <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
       {label}
       <textarea
         className={`${ownerMarketingFieldClassName} min-h-24`}
@@ -86,7 +86,7 @@ export function OwnerMarketingSelectField({
   placeholder?: string;
 }) {
   return (
-    <label className="grid gap-1 text-xs text-[#c7b288]">
+    <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
       {label}
       <select
         className={ownerMarketingFieldClassName}

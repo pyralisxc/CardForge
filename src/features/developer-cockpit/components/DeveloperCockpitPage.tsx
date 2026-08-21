@@ -155,8 +155,8 @@ export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissio
               </Button>
             </div>
           </div>
-          {loadError ? <p role="alert" className="mt-3 border border-[var(--cf-danger-border)] bg-[#1b0d09] p-3 text-sm text-[var(--cf-danger)]">{loadError}</p> : null}
-          {!cockpit.extendedContributionsEnabled ? <p className="mt-3 border border-[var(--cf-warning-border)] bg-[#1b1209] p-3 text-sm leading-6 text-[var(--cf-warning)]">Extended contributor lanes are release-gated. Owners can inspect and test them, but developer campaign/site scopes stay inactive until the updated contribution terms and privacy disclosure are published and the server flag is enabled.</p> : null}
+          {loadError ? <p role="alert" className="mt-3 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]">{loadError}</p> : null}
+          {!cockpit.extendedContributionsEnabled ? <p className="mt-3 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm leading-6 text-[var(--cf-warning)]">Extended contributor lanes are release-gated. Owners can inspect and test them, but developer campaign/site scopes stay inactive until the updated contribution terms and privacy disclosure are published and the server flag is enabled.</p> : null}
         </CardForgeSurface>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

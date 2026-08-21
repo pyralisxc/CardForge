@@ -154,7 +154,7 @@ export function TemplateDraftPreviewClient() {
   }, [exportedPreview]);
 
   return (
-    <main className="flex min-h-screen items-start justify-center bg-[#090b0f] p-3 text-[#f7ead0]">
+    <main className="flex min-h-screen items-start justify-center bg-[#090b0f] p-3 text-[var(--cf-text)]">
       {exportedPreview && payload ? (
         <section className="w-full max-w-[620px] rounded-xl border border-[#2b3039] bg-[#0d1117] p-3 shadow-2xl">
           <div className="mb-3 flex items-center justify-between gap-3">

@@ -30,19 +30,19 @@ export function RoadmapDeveloperControls({
   if (!isDeveloper) return null;
 
   return (
-    <form className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4" onSubmit={onSubmit}>
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
+    <form className="mt-6 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-4" onSubmit={onSubmit}>
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <Database className="h-5 w-5" />
-        <h3 className="font-serif text-xl text-[#fff1c7]">Roadmap publishing controls</h3>
+        <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Roadmap publishing controls</h3>
       </div>
-      <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+      <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
         {isOwner
           ? 'Expense checkpoints require the provider, plan, monthly cost, official pricing page, and verification date. Shipped progress carries no invented expense.'
           : 'Publish shipped Chronicle progress here. Verified financial checkpoints remain owner-only.'}
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <input
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
           value={form.title}
           placeholder="Timeline title"
           aria-label="Timeline title"
@@ -50,7 +50,7 @@ export function RoadmapDeveloperControls({
           onChange={(event) => onChange((current) => ({ ...current, title: event.target.value }))}
         />
         <input
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
           value={form.visibleMonth}
           placeholder="YYYY-MM"
           aria-label="Visible month"
@@ -58,7 +58,7 @@ export function RoadmapDeveloperControls({
           onChange={(event) => onChange((current) => ({ ...current, visibleMonth: event.target.value }))}
         />
         <select
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
           value={form.itemType}
           onChange={(event) => onChange((current) => ({
             ...current,
@@ -69,7 +69,7 @@ export function RoadmapDeveloperControls({
           <option value="shipped_update">Shipped product update</option>
         </select>
         <select
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
           value={form.status}
           onChange={(event) => onChange((current) => ({
             ...current,
@@ -82,7 +82,7 @@ export function RoadmapDeveloperControls({
           <option value="shipped">Shipped</option>
         </select>
         <input
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
           value={form.monthlyCostDollars}
           placeholder="New monthly operating cost dollars"
           aria-label="New monthly operating cost in dollars"
@@ -93,7 +93,7 @@ export function RoadmapDeveloperControls({
         {form.itemType === 'roi_checkpoint' ? (
           <>
             <input
-              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+              className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
               value={form.expenseProvider}
               placeholder="Provider, e.g. Supabase"
               aria-label="Expense provider"
@@ -101,7 +101,7 @@ export function RoadmapDeveloperControls({
               onChange={(event) => onChange((current) => ({ ...current, expenseProvider: event.target.value }))}
             />
             <input
-              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+              className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
               value={form.expensePlan}
               placeholder="Plan, e.g. Pro"
               aria-label="Provider plan"
@@ -109,17 +109,17 @@ export function RoadmapDeveloperControls({
               onChange={(event) => onChange((current) => ({ ...current, expensePlan: event.target.value }))}
             />
             <input
-              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
+              className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)] md:col-span-2"
               value={form.expenseSourceUrl}
               placeholder="Official HTTPS pricing URL"
               aria-label="Official pricing URL"
               type="url"
               onChange={(event) => onChange((current) => ({ ...current, expenseSourceUrl: event.target.value }))}
             />
-            <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+            <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
               Pricing verified
               <input
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]"
                 value={form.expenseVerifiedAt}
                 type="date"
                 onChange={(event) => onChange((current) => ({ ...current, expenseVerifiedAt: event.target.value }))}
@@ -128,7 +128,7 @@ export function RoadmapDeveloperControls({
           </>
         ) : null}
         <textarea
-          className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
+          className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)] md:col-span-2"
           value={form.description}
           placeholder="What this unlocks for users and why the cost is worth it"
           maxLength={420}
@@ -137,7 +137,7 @@ export function RoadmapDeveloperControls({
       </div>
       <Button
         type="submit"
-        className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+        className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
         disabled={isSaving || !isRoadmapDeveloperFormComplete(form)}
       >
         <Plus className="mr-2 h-4 w-4" />

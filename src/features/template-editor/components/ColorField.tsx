@@ -25,7 +25,7 @@ export function ColorField({ value, onChange, id }: ColorFieldProps) {
           aria-label={`Color ${hex}`}
         />
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[#252b35]" side="left" align="start">
+      <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[var(--cf-editor-border)]" side="left" align="start">
         <HexColorPicker color={hex} onChange={onChange} />
         <input
           type="text"

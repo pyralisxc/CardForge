@@ -8,7 +8,7 @@ import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/
 import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
 import type { HomepageShowcaseExample } from '@/features/public-site/client';
 
-const inputClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const MAX_EXAMPLES = 6;
 const MAX_ROWS = 12;
 const MAX_FIELDS = 24;
@@ -150,11 +150,11 @@ export function OwnerHomepageShowcasePanel({
   };
 
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-5 xl:col-span-2">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5 xl:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Homepage demonstration sets</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Homepage demonstration sets</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
             Choose the published Templates and sample card data used by the landing page’s “Review the set” view. These cards use CardForge’s real bulk renderer; this panel only controls the marketing selection and sample values.
           </p>
         </div>
@@ -169,9 +169,9 @@ export function OwnerHomepageShowcasePanel({
           const fields = fieldKeysFor(example);
           const selectedTemplate = templatesById.get(example.frontTemplateId);
           return (
-            <section key={example.slug} className="border border-[#4a3823] bg-[#100c08] p-4">
+            <section key={example.slug} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex min-h-11 items-center gap-2 border border-[#3c2c1b] bg-[#0c0b09] px-3 text-sm text-[#ffe7ad]">
+                <label className="flex min-h-11 items-center gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] px-3 text-sm text-[var(--cf-accent-text)]">
                   <input type="checkbox" checked={example.visible} onChange={(event) => updateExample(index, { visible: event.target.checked })} />
                   {example.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   Show this set
@@ -184,14 +184,14 @@ export function OwnerHomepageShowcasePanel({
               </div>
 
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                <label className="grid gap-1 text-sm text-[#c7b288]">Display name<input className={inputClassName} maxLength={100} value={example.name} onChange={(event) => updateExample(index, { name: event.target.value })} /></label>
-                <label className="grid gap-1 text-sm text-[#c7b288]">Published front Template
+                <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">Display name<input className={inputClassName} maxLength={100} value={example.name} onChange={(event) => updateExample(index, { name: event.target.value })} /></label>
+                <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">Published front Template
                   <select className={inputClassName} value={example.frontTemplateId} onChange={(event) => selectFrontTemplate(index, event.target.value)}>
                     {!selectedTemplate ? <option value={example.frontTemplateId}>{example.frontTemplateName ?? example.frontTemplateId}</option> : null}
                     {templates.flatMap((template) => template.id ? [<option key={template.id} value={template.id}>{template.name}</option>] : [])}
                   </select>
                 </label>
-                <label className="grid gap-1 text-sm text-[#c7b288]">Shared back Template
+                <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">Shared back Template
                   <select
                     className={inputClassName}
                     value={example.backTemplateId ?? ''}
@@ -208,23 +208,23 @@ export function OwnerHomepageShowcasePanel({
                     {templates.flatMap((template) => template.id ? [<option key={template.id} value={template.id}>{template.name}</option>] : [])}
                   </select>
                 </label>
-                <div className="grid content-end gap-1 text-sm text-[#c7b288]">
+                <div className="grid content-end gap-1 text-sm text-[var(--cf-text-muted)]">
                   <span>Stable demo id</span>
-                  <div className="flex min-h-11 items-center border border-[#3c2c1b] bg-[#0c0b09] px-3 font-mono text-xs text-[#a9946c]">{example.slug}</div>
+                  <div className="flex min-h-11 items-center border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] px-3 font-mono text-xs text-[var(--cf-text-subtle)]">{example.slug}</div>
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-[#3c2c1b] pt-4">
+              <div className="mt-4 border-t border-[var(--cf-border-subtle)] pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-[#ffe7ad]">Sample data fields</h3>
-                    <p className="mt-1 text-xs text-[#9f8a66]">Template selection syncs these fields to the Template’s current generator contract. You can also add or remove fields manually.</p>
+                    <h3 className="font-semibold text-[var(--cf-accent-text)]">Sample data fields</h3>
+                    <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">Template selection syncs these fields to the Template’s current generator contract. You can also add or remove fields manually.</p>
                   </div>
                   {selectedTemplate ? <Button type="button" size="sm" variant="outline" onClick={() => updateExample(index, { rows: syncRowsToTemplate(example.rows, selectedTemplate) })}><RefreshCw className="mr-2 h-4 w-4" /> Sync Template fields</Button> : null}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {fields.map((field) => (
-                    <span key={field} className="inline-flex min-h-9 items-center gap-2 border border-[#4a3823] bg-[#0c0b09] px-2 text-xs text-[#d8c49a]">
+                    <span key={field} className="inline-flex min-h-9 items-center gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] px-2 text-xs text-[var(--cf-text-muted)]">
                       {field}
                       <button type="button" aria-label={`Remove ${field} field`} disabled={fields.length <= 1} className="text-[#b98b70] disabled:opacity-30" onClick={() => removeField(index, field)}>×</button>
                     </span>
@@ -236,26 +236,26 @@ export function OwnerHomepageShowcasePanel({
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-[#3c2c1b] pt-4">
+              <div className="mt-4 border-t border-[var(--cf-border-subtle)] pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-[#ffe7ad]">Sample cards</h3>
-                    <p className="mt-1 text-xs text-[#9f8a66]">Alt text is required for every card so the live showcase remains accessible.</p>
+                    <h3 className="font-semibold text-[var(--cf-accent-text)]">Sample cards</h3>
+                    <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">Alt text is required for every card so the live showcase remains accessible.</p>
                   </div>
                   <Button type="button" size="sm" variant="outline" disabled={example.rows.length >= MAX_ROWS} onClick={() => addRow(index)}><Plus className="mr-2 h-4 w-4" /> Add card</Button>
                 </div>
                 <div className="mt-3 space-y-3">
                   {example.rows.map((row, rowIndex) => (
-                    <details key={`${example.slug}-${rowIndex}`} className="border border-[#3a2d1d] bg-[#0c0b09]" open={rowIndex === 0}>
-                      <summary className="cursor-pointer px-3 py-2 font-semibold text-[#d8c49a]">Card {rowIndex + 1}</summary>
+                    <details key={`${example.slug}-${rowIndex}`} className="border border-[#3a2d1d] bg-[var(--cf-canvas)]" open={rowIndex === 0}>
+                      <summary className="cursor-pointer px-3 py-2 font-semibold text-[var(--cf-text-muted)]">Card {rowIndex + 1}</summary>
                       <div className="grid gap-3 border-t border-[#3a2d1d] p-3 lg:grid-cols-2">
-                        <label className="grid gap-1 text-sm text-[#c7b288] lg:col-span-2">Accessibility description
+                        <label className="grid gap-1 text-sm text-[var(--cf-text-muted)] lg:col-span-2">Accessibility description
                           <input className={inputClassName} maxLength={240} value={example.altText[rowIndex] ?? ''} onChange={(event) => updateExample(index, { altText: example.altText.map((text, textIndex) => textIndex === rowIndex ? event.target.value : text) })} />
                         </label>
                         {fields.map((field) => (
-                          <label key={field} className="grid gap-1 text-sm text-[#c7b288]">{field}
+                          <label key={field} className="grid gap-1 text-sm text-[var(--cf-text-muted)]">{field}
                             <textarea
-                              className="min-h-20 border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#ffe7ad]"
+                              className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"
                               maxLength={4000}
                               value={row[field] ?? ''}
                               onChange={(event) => updateExample(index, {

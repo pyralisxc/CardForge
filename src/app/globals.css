@@ -571,12 +571,6 @@ body {
     }
   }
 
-  @media (min-width: 1024px) {
-    .cardforge-maker-mobile-switcher {
-      display: none;
-    }
-  }
-
   .cardforge-clerk-profile .cl-cardBox,
   .cardforge-clerk-profile .cl-navbar,
   .cardforge-clerk-profile .cl-scrollBox,

@@ -14,7 +14,7 @@ import type {
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 
-const inputClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
   showcase: 'Studio showcase',
   workflow: 'How the workflow works',
@@ -90,34 +90,34 @@ export function OwnerSiteConfigurationPanel({
   return (
     <section className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-2">
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <div className="flex items-center gap-3 text-[#e2aa4a]"><Megaphone className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[#fff1c7]">Announcement</h2></div>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Show one compact message above the public header. Leave it off when there is nothing every visitor needs to see.</p>
-          <label className="mt-4 flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Megaphone className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Announcement</h2></div>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Show one compact message above the public header. Leave it off when there is nothing every visitor needs to see.</p>
+          <label className="mt-4 flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">
             Show public announcement
             <input type="checkbox" checked={draft.announcementEnabled} onChange={(event) => setDraft((current) => ({ ...current, announcementEnabled: event.target.checked }))} />
           </label>
-          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Announcement text<textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" maxLength={240} value={draft.announcementMessage} onChange={(event) => setDraft((current) => ({ ...current, announcementMessage: event.target.value }))} /></label>
+          <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Announcement text<textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" maxLength={240} value={draft.announcementMessage} onChange={(event) => setDraft((current) => ({ ...current, announcementMessage: event.target.value }))} /></label>
         </article>
 
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <div className="flex items-center gap-3 text-[#e2aa4a]"><Search className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[#fff1c7]">Homepage search &amp; sharing</h2></div>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">These fields own the homepage title and search description. The default social-share image is managed beside the other brand media.</p>
-          <label className="mt-4 grid gap-2 text-sm text-[#c7b288]">Page title<input className={inputClassName} maxLength={80} value={draft.homepageTitle} onChange={(event) => setDraft((current) => ({ ...current, homepageTitle: event.target.value }))} /></label>
-          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Search description<textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" maxLength={200} value={draft.homepageDescription} onChange={(event) => setDraft((current) => ({ ...current, homepageDescription: event.target.value }))} /></label>
-          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Search phrases (one per line)<textarea className="min-h-32 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={draft.searchKeywords.join('\n')} onChange={(event) => setDraft((current) => ({ ...current, searchKeywords: event.target.value.split('\n').map((keyword) => keyword.trim()).filter(Boolean) }))} /></label>
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Search className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Homepage search &amp; sharing</h2></div>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">These fields own the homepage title and search description. The default social-share image is managed beside the other brand media.</p>
+          <label className="mt-4 grid gap-2 text-sm text-[var(--cf-text-muted)]">Page title<input className={inputClassName} maxLength={80} value={draft.homepageTitle} onChange={(event) => setDraft((current) => ({ ...current, homepageTitle: event.target.value }))} /></label>
+          <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Search description<textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" maxLength={200} value={draft.homepageDescription} onChange={(event) => setDraft((current) => ({ ...current, homepageDescription: event.target.value }))} /></label>
+          <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">Search phrases (one per line)<textarea className="min-h-32 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.searchKeywords.join('\n')} onChange={(event) => setDraft((current) => ({ ...current, searchKeywords: event.target.value.split('\n').map((keyword) => keyword.trim()).filter(Boolean) }))} /></label>
         </article>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[#fff1c7]">Primary navigation</h2></div>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Rename, hide, or reorder the approved public destinations. Routes themselves remain code-owned.</p>
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Settings2 className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Primary navigation</h2></div>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Rename, hide, or reorder the approved public destinations. Routes themselves remain code-owned.</p>
           <div className="mt-4 space-y-2">
             {draft.primaryNavigation.map((item, index) => (
-              <div key={item.id} className="grid gap-2 border border-[#3c2c1b] bg-[#100c08] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+              <div key={item.id} className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
                 <input aria-label={`Show ${item.label} in primary navigation`} type="checkbox" checked={item.visible} onChange={(event) => updateNavigation(index, { visible: event.target.checked })} />
-                <label className="grid gap-1 text-xs text-[#a98a75]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
+                <label className="grid gap-1 text-xs text-[var(--cf-text-subtle)]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
                 <div className="flex gap-1">
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} down`} disabled={index === draft.primaryNavigation.length - 1} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
@@ -127,26 +127,26 @@ export function OwnerSiteConfigurationPanel({
           </div>
         </article>
 
-        <article className="border border-[#5f4526] bg-[#15100a] p-5">
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Homepage sections &amp; offers</h2>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Control the order and visibility of the homepage’s approved sections. This cannot introduce unreviewed components or routes.</p>
+        <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Homepage sections &amp; offers</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Control the order and visibility of the homepage’s approved sections. This cannot introduce unreviewed components or routes.</p>
           <div className="mt-4 space-y-2">
             {draft.homepageSections.map((section, index) => (
-              <div key={section.id} className="flex min-h-11 items-center gap-3 border border-[#3c2c1b] bg-[#100c08] p-3">
+              <div key={section.id} className="flex min-h-11 items-center gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <input aria-label={`Show ${sectionLabels[section.id]}`} type="checkbox" checked={section.visible} onChange={(event) => setDraft((current) => ({ ...current, homepageSections: current.homepageSections.map((item, itemIndex) => itemIndex === index ? { ...item, visible: event.target.checked } : item) }))} />
-                <span className="min-w-0 flex-1 text-sm text-[#ffe7ad]">{sectionLabels[section.id]}</span>
+                <span className="min-w-0 flex-1 text-sm text-[var(--cf-accent-text)]">{sectionLabels[section.id]}</span>
                 <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
                 <Button type="button" size="icon" variant="outline" aria-label={`Move ${sectionLabels[section.id]} down`} disabled={index === draft.homepageSections.length - 1} onClick={() => setDraft((current) => ({ ...current, homepageSections: move(current.homepageSections, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs leading-5 text-[#9f8a66]">The Studio showcase’s demo-set selection and sample data are edited below.</p>
+          <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">The Studio showcase’s demo-set selection and sample data are edited below.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
+            <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm text-[#c7b288]">Primary action text<input className={inputClassName} maxLength={80} value={draft.primaryCtaLabel} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaLabel: event.target.value }))} /></label>
-            <label className="grid gap-2 text-sm text-[#c7b288]">Primary action path<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action text<input className={inputClassName} maxLength={80} value={draft.primaryCtaLabel} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaLabel: event.target.value }))} /></label>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action path<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
           </div>
         </article>
       </div>
@@ -155,7 +155,7 @@ export function OwnerSiteConfigurationPanel({
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 
-      <Button type="button" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
+      <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
     </section>
   );
 }
