@@ -85,6 +85,17 @@ describe('cloud set saves', () => {
     expect(migration).not.toContain("status = 'shipped'");
   });
 
+  it('keeps cloud-set table access server-only after hardened default privileges', () => {
+    const migration = readFileSync(
+      resolve(process.cwd(), 'supabase/migrations/20260821000123_grant_cloud_set_service_role.sql'),
+      'utf8',
+    );
+    expect(migration).toContain('revoke all privileges on table public.cardforge_cloud_sets');
+    expect(migration).toContain('from public, anon, authenticated');
+    expect(migration).toContain('grant select, insert, update, delete on table public.cardforge_cloud_sets');
+    expect(migration).toContain('to service_role');
+  });
+
   it('keeps large artwork off Vercel function bodies by using signed Storage uploads', () => {
     const hook = readFileSync(
       resolve(process.cwd(), 'src/features/project/hooks/useCloudSetActions.ts'),
