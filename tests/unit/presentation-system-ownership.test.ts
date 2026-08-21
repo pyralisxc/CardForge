@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = process.cwd();
 const readSource = (path: string) => readFileSync(resolve(root, path), 'utf8');
-const migrationPath = 'supabase/migrations/20260821180000_owner_presentation_controls.sql';
+const migrationPath = 'supabase/migrations/20260821201016_owner_presentation_controls.sql';
 
 const retiredPresentationLiterals = [
   '#0c0b09', '#15100a', '#15110d', '#100c08', '#120e09', '#171207',
