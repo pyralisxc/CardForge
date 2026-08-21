@@ -37,7 +37,7 @@ describe('Vercel build cadence', () => {
     expect(shouldIgnoreVercelBuild([])).toBe(false);
   });
 
-  it('allows automatic Git deployments only from main and the reusable preview lane', () => {
+  it('allows automatic Git deployments only from main and the managed release lanes', () => {
     const config = JSON.parse(readFileSync(join(process.cwd(), 'vercel.json'), 'utf8')) as {
       git?: { deploymentEnabled?: Record<string, boolean> };
       ignoreCommand?: string;
@@ -48,6 +48,7 @@ describe('Vercel build cadence', () => {
       '**': false,
       main: true,
       'vercel-preview': true,
+      'codex/mcp-account-journey': true,
     });
     expect(config.ignoreCommand).toBe('node scripts/vercel-build-cadence.mjs');
   });

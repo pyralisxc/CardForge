@@ -5,7 +5,8 @@
       "*": false,
       "**": false,
       "main": true,
-      "vercel-preview": true
+      "vercel-preview": true,
+      "codex/mcp-account-journey": true
     }
   },
   "ignoreCommand": "node scripts/vercel-build-cadence.mjs"
