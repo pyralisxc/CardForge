@@ -12,6 +12,14 @@ const toolNames = (source: string) => Array.from(
   (match) => match[1],
 );
 
+const toolRegistration = (source: string, name: string) => {
+  const marker = new RegExp(`registerTool\\(\\s*['\"]${name}['\"]`);
+  const start = source.search(marker);
+  if (start < 0) throw new Error(`Missing MCP tool registration for ${name}`);
+  const next = source.indexOf('registerTool(', start + 1);
+  return source.slice(start, next < 0 ? undefined : next);
+};
+
 describe('CardForge MCP and plugin product hygiene', () => {
   const route = readSource('src/app/mcp/route.ts');
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
@@ -75,6 +83,24 @@ describe('CardForge MCP and plugin product hygiene', () => {
   it('publishes an explicit output schema for every structured MCP tool', () => {
     const sources = [route, templateTools, cardTools, cloudTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
+  });
+
+  it('labels private overwrites and external artwork retrieval accurately', () => {
+    const sources = [route, templateTools, cardTools, cloudTools].join('\n');
+    const destructiveTools = new Set([
+      'attach_template_artwork',
+      'update_editable_template',
+      'upsert_card',
+      'upsert_card_set',
+      'upsert_cards',
+    ]);
+    const openWorldTools = new Set(['upsert_card', 'upsert_cards']);
+
+    for (const name of toolNames(sources)) {
+      const registration = toolRegistration(sources, name);
+      expect(registration, name).toContain(`destructiveHint: ${destructiveTools.has(name)}`);
+      expect(registration, name).toContain(`openWorldHint: ${openWorldTools.has(name)}`);
+    }
   });
 
   it('advertises and serves the two CardForge skills through the MCP skills extension', () => {

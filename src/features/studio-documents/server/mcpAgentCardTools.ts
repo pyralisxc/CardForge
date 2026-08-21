@@ -23,7 +23,7 @@ import {
   cardWriteOutputSchema,
 } from './mcpToolOutputSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.6.0';
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.7.0';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -214,7 +214,7 @@ export const registerAgentCardTools = ({
       description: 'Use when the user names a set, deck, collection, expansion, or group of cards. Creates or revises that set in the same private working document. Reuse a stable setId on revisions or retries; when setId is omitted CardForge reuses an existing same-name set before creating another one.',
       inputSchema: upsertCardSetInputSchema,
       outputSchema: cardSetWriteOutputSchema,
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId }) => {
       return runObserved({
@@ -305,7 +305,7 @@ export const registerAgentCardTools = ({
       description: 'Use for a single card in an existing working set. Load get_card_generation_contract first and use only its Template field keys. Copy and optional artwork are written together; artwork accepts a generated/uploaded public HTTPS sourceUrl or bounded raw base64 fallback. Reuse the returned stable cardId for edits or retries.',
       inputSchema: upsertCardInputSchema,
       outputSchema: cardWriteOutputSchema,
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     async ({ documentId, expectedRevision, setId, card }) => upsertCards({
       documentId,
@@ -323,7 +323,7 @@ export const registerAgentCardTools = ({
       description: 'Use when the user asks for multiple cards, a deck/set, bulk generation, or conversion of a list/CSV/JSON. Creates or revises up to 100 cards using structured objects and the exact CardForge field contract. Each card can include its artwork so CardForge performs one real bulk write. Never guess card columns or image keys; reuse stable cardId values for revisions and retries.',
       inputSchema: upsertCardsInputSchema,
       outputSchema: cardWriteOutputSchema,
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     async ({ documentId, expectedRevision, setId, cards }) => upsertCards({
       documentId,
