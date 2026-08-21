@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 19, 2026
+Last updated: August 21, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -27,6 +27,7 @@ Use `.env.example` as the complete catalog.
 - Access: one canonical `CARDFORGE_OWNER_ACCOUNT_EMAILS` identity plus developer/paid allowlists where still intentionally used.
 - Analytics: public enable/measurement values plus server-only GA/Search Console/PostHog reporting credentials.
 - Social: Meta app/configuration/Graph version, token-encryption key, dispatch secret, and publishing flag.
+- OpenAI plugin verification: `OPENAI_APPS_CHALLENGE_TOKEN` only while OpenAI is verifying the production domain.
 
 ## Development and release cadence
 
@@ -137,6 +138,8 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Owner Console content; the plugin must not introduce a parallel tier catalog or access toggle.
 
+`plugins/cardforge-studio/SUBMISSION.md` is the reusable portal listing and review-case source. Keep it aligned with the packaged manifest, live MCP annotations, exact CSP, and current production behavior. Reviewer credentials and the OpenAI challenge token must never be committed.
+
 Assistant draft retention is also controlled by the plan records in Owner Console. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/developer 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
 
 Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Edge Function. Vault must contain `project_url` and an active `publishable_key`; the retention migration generates a separate random `assistant_draft_retention_cron_secret`. Never place the service-role key in Cron SQL. Schedule the function every 15 minutes with `pg_cron` + `pg_net` following Supabase's scheduled-functions pattern. Supabase's `apikey` header identifies the project, while the dedicated `X-CardForge-Cron-Secret` is the function's custom authorization and must be validated before maintenance begins. Verify one scheduled invocation reports `expired`, `claimed`, `purged`, and `failed`, then confirm the Cron job exists by name and the function remains custom-authenticated. Storage objects must be removed through the Storage API before the corresponding row is finalized.
@@ -150,6 +153,8 @@ For a development-beta release:
 5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
 6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
 7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
+
+When OpenAI supplies a domain challenge, set `OPENAI_APPS_CHALLENGE_TOKEN` in the production Vercel environment, redeploy, and confirm `/.well-known/openai-apps-challenge` returns only the exact token as plain text. Remove or rotate the value after verification if OpenAI's current portal guidance permits it.
 
 ## Billing reconciliation
 

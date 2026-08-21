@@ -272,7 +272,13 @@ export const registerAgentTemplateTools = ({
 
   const previewResourceMeta = {
     ui: {
-      csp: { frameDomains: [publicOrigin] },
+      domain: publicOrigin,
+      prefersBorder: false,
+      csp: {
+        connectDomains: [],
+        resourceDomains: [],
+        frameDomains: [publicOrigin],
+      },
     },
     'openai/widgetDescription': 'Exact CardForge exported Template image with a separate link to install the same revision in Studio.',
     'openai/widgetPrefersBorder': false,
@@ -313,7 +319,7 @@ export const registerAgentTemplateTools = ({
       outputSchema: templateArtworkOutputSchema,
       annotations: {
         readOnlyHint: false,
-        destructiveHint: false,
+        destructiveHint: true,
         openWorldHint: false,
       },
     },

@@ -1,6 +1,6 @@
 {
   "name": "cardforge-studio",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Development beta to design editable cards, generate complete card sets with ChatGPT, and continue in CardForge Studio.",
   "author": {
     "name": "Cameron Locke",

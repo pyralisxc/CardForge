@@ -296,7 +296,7 @@ const handler = createMcpHandler(
         outputSchema: editableTemplateSummaryOutputSchema,
         annotations: {
           readOnlyHint: false,
-          destructiveHint: false,
+          destructiveHint: true,
           openWorldHint: false,
         },
       },
@@ -427,7 +427,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.6.0' },
+    serverInfo: { name: 'cardforge-studio', version: '0.7.0' },
     capabilities: {
       extensions: {
         'io.modelcontextprotocol/skills': {},

@@ -19,7 +19,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '0.6.0',
+      version: '0.7.0',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -42,7 +42,7 @@ describe('CardForge Studio plugin', () => {
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain("version: '0.6.0'");
+    expect(route).toContain("version: '0.7.0'");
   });
 
   it('serves submission-time skill manifests with exact content digests', () => {
@@ -86,6 +86,33 @@ describe('CardForge Studio plugin', () => {
     expect(legal).toContain('private assistant working documents');
     expect(legal).toContain('aggregate MCP usage');
     expect(legal).toContain("'privacy', 'Privacy Policy', privacyBody, '2026-08-21'");
+  });
+
+  it('keeps a reviewer-ready submission source without committing credentials', () => {
+    const submission = readFileSync(
+      resolve(process.cwd(), 'plugins/cardforge-studio/SUBMISSION.md'),
+      'utf8',
+    );
+    const envExample = readFileSync(resolve(process.cwd(), '.env.example'), 'utf8');
+    const operations = readFileSync(resolve(process.cwd(), 'docs/operations.md'), 'utf8');
+
+    const positiveCases = submission.match(/^### Positive \d+[\s\S]*?(?=^### Positive \d+|^## Negative)/gm) ?? [];
+    const negativeCases = submission.match(/^### Negative \d+[\s\S]*?(?=^### Negative \d+|^## Domain)/gm) ?? [];
+    expect(positiveCases).toHaveLength(5);
+    expect(negativeCases).toHaveLength(3);
+    for (const reviewCase of positiveCases) expect(reviewCase).toContain('- Fixture:');
+    for (const reviewCase of negativeCases) expect(reviewCase).toContain('- Why it should not complete:');
+    expect(submission).toContain('https://cardforges.com/mcp');
+    expect(submission).toContain('https://cardforges.com/contact?kind=support');
+    expect(submission).toContain('https://cardforges.com/privacy');
+    expect(submission).toContain('https://cardforges.com/terms');
+    expect(submission).toContain('There is no review-only authentication bypass.');
+    expect(submission).toContain('globally wherever ChatGPT plugins');
+    expect(submission).toContain('Initial-submission release notes for 0.7.0');
+    expect(submission).toContain('editable Template named `OpenAI Review Fixture`');
+    expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
+    expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');
+    expect(operations).toContain('plugins/cardforge-studio/SUBMISSION.md');
   });
 
   it('returns direct Studio document links while browser Clerk owns sign-in', () => {

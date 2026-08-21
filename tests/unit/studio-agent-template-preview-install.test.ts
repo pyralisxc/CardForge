@@ -295,6 +295,9 @@ describe('agent Template install and chat preview architecture', () => {
     expect(mcpTools).toContain('productionReady');
     expect(mcpTools).toContain("'openai/outputTemplate'");
     expect(mcpTools).toContain("'openai/widgetDomain': publicOrigin");
+    expect(mcpTools).toContain('domain: publicOrigin');
+    expect(mcpTools).toContain('connectDomains: []');
+    expect(mcpTools).toContain('resourceDomains: []');
     expect(mcpTools).toContain('frameDomains: [publicOrigin]');
   });
 });
