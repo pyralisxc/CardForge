@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ExternalLink, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardForgeStatusBadge, CardForgeSurface } from '@/components/ui/cardforge-presentation';
+import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -61,7 +61,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
               <span className="block text-[10px] uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">{label}</span>
               <span className="block text-sm font-semibold text-[var(--cf-accent-text)]">{value}</span>
             </div>
-            <CardForgeStatusBadge tone={ready ? 'success' : 'warning'} className="h-2.5 w-2.5 border-0 p-0 text-transparent" aria-label={ready ? `${label} ready` : `${label} needs setup`}>•</CardForgeStatusBadge>
+            <span className={`h-2.5 w-2.5 ${ready ? 'bg-[var(--cf-success)]' : 'bg-[var(--cf-warning)]'}`} aria-label={ready ? `${label} ready` : `${label} needs setup`} />
           </CardForgeSurface>
         ))}
       </div>
