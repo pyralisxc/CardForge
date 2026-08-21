@@ -5,18 +5,17 @@ export interface CanvasPoint {
   y: number;
 }
 
-export interface DepthSelectionState {
-  point: CanvasPoint;
-  stackSignature: string;
-}
-
-interface ResolvePointerSelectionInput {
+interface ResolvePointerPressSelectionInput {
   clickedElementId: string;
   currentSelectedId: string | null;
-  cycleDepth?: boolean;
+  forceDepthCycle?: boolean;
   hitStack: FreeformCardElement[];
-  point: CanvasPoint;
-  previousState: DepthSelectionState | null;
+}
+
+export interface PointerPressSelection {
+  activeSelectedId: string | null;
+  tapSelectedId: string | null;
+  cycleDepthOnTap: boolean;
 }
 
 const MIN_CHILD_SIZE = 12;
@@ -31,10 +30,6 @@ function isPointInsideElement(element: FreeformCardElement, point: CanvasPoint) 
   );
 }
 
-function buildStackSignature(stack: FreeformCardElement[]) {
-  return stack.map((element) => element.id).join('|');
-}
-
 export function getElementDepthStack(elements: FreeformCardElement[], point: CanvasPoint) {
   return elements
     .filter((element) => element.visible !== false)
@@ -42,85 +37,39 @@ export function getElementDepthStack(elements: FreeformCardElement[], point: Can
     .sort((left, right) => right.zIndex - left.zIndex);
 }
 
-export function resolveDepthSelection(
-  hitStack: FreeformCardElement[],
-  point: CanvasPoint,
-  currentSelectedId: string | null,
-  previousState: DepthSelectionState | null,
-  threshold = 28,
-) {
-  if (hitStack.length === 0) {
-    return {
-      nextSelectedId: null,
-      nextState: null,
-    };
-  }
-
-  const nextState = {
-    point,
-    stackSignature: buildStackSignature(hitStack),
-  };
-
-  if (hitStack.length === 1) {
-    return {
-      nextSelectedId: hitStack[0]?.id ?? null,
-      nextState,
-    };
-  }
-
-  const sameRegion = previousState
-    && previousState.stackSignature === nextState.stackSignature
-    && Math.abs(previousState.point.x - point.x) <= threshold
-    && Math.abs(previousState.point.y - point.y) <= threshold;
-
-  const currentSelectionStillInStack = currentSelectedId
-    ? hitStack.some((element) => element.id === currentSelectedId)
-    : false;
-
-  if (!sameRegion && !currentSelectionStillInStack) {
-    return {
-      nextSelectedId: hitStack[0]?.id ?? null,
-      nextState,
-    };
-  }
-
-  const selectedIndex = hitStack.findIndex((element) => element.id === currentSelectedId);
-  const nextIndex = selectedIndex >= 0
-    ? (selectedIndex + 1) % hitStack.length
-    : 0;
-
-  return {
-    nextSelectedId: hitStack[nextIndex]?.id ?? null,
-    nextState,
-  };
-}
-
-export function resolvePointerSelection({
+export function resolvePointerPressSelection({
   clickedElementId,
   currentSelectedId,
-  cycleDepth = false,
+  forceDepthCycle = false,
   hitStack,
-  point,
-  previousState,
-}: ResolvePointerSelectionInput) {
-  if (cycleDepth) {
-    return resolveDepthSelection(hitStack, point, currentSelectedId, previousState);
+}: ResolvePointerPressSelectionInput): PointerPressSelection {
+  if (hitStack.length === 0) {
+    return {
+      activeSelectedId: null,
+      tapSelectedId: null,
+      cycleDepthOnTap: false,
+    };
   }
 
-  const nextState = hitStack.length > 0
-    ? {
-        point,
-        stackSignature: buildStackSignature(hitStack),
-      }
-    : null;
-  const clickedElement = hitStack.find((element) => element.id === clickedElementId);
-  const selectedElement = currentSelectedId
-    ? hitStack.find((element) => element.id === currentSelectedId)
-    : null;
+  const clickedIndex = hitStack.findIndex((element) => element.id === clickedElementId);
+  const currentIndex = currentSelectedId
+    ? hitStack.findIndex((element) => element.id === currentSelectedId)
+    : -1;
+  const activeIndex = currentIndex >= 0
+    ? currentIndex
+    : clickedIndex >= 0
+      ? clickedIndex
+      : 0;
+  const activeSelectedId = hitStack[activeIndex]?.id ?? null;
+  const cycleDepthOnTap = hitStack.length > 1 && (forceDepthCycle || currentIndex >= 0);
+  const tapSelectedId = cycleDepthOnTap
+    ? hitStack[(activeIndex + 1) % hitStack.length]?.id ?? activeSelectedId
+    : activeSelectedId;
 
   return {
-    nextSelectedId: clickedElement?.id ?? selectedElement?.id ?? hitStack[0]?.id ?? null,
-    nextState,
+    activeSelectedId,
+    tapSelectedId,
+    cycleDepthOnTap,
   };
 }
 

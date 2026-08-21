@@ -124,17 +124,21 @@ export function TemplateCanvasStage({
   renderEditableElement,
 }: TemplateCanvasStageProps) {
   return (
-    <section className="cardforge-canvas-stage cardforge-maker-canvas min-w-0 overflow-hidden bg-[#05080c] lg:min-h-[760px]">
-      <div className="flex items-center justify-between border-b border-[var(--cf-editor-border)] bg-[#080c12] px-3 py-1.5 text-[11px] text-[#8f95a3]">
-        <span className="flex items-center gap-2"><MousePointer2 className="h-3.5 w-3.5 text-[#d5ad54]" /> Drag layers. On touch, pinch to zoom and use two fingers to pan.</span>
-        <span className="font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>
+    <section className="cardforge-canvas-stage cardforge-maker-canvas min-w-0 overflow-hidden bg-[#05080c]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--cf-editor-border)] bg-[#080c12] px-3 py-1.5 text-[11px] text-[#8f95a3]">
+        <span className="flex min-w-0 items-center gap-2">
+          <MousePointer2 className="h-3.5 w-3.5 shrink-0 text-[#d5ad54]" />
+          <span className="truncate sm:hidden">Tap again: layer below · Hold: actions</span>
+          <span className="hidden sm:inline">Tap/click a selected layer again for the layer below. Hold or right-click for actions. Drag to move.</span>
+        </span>
+        <span className="shrink-0 font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>
       </div>
       <div
         ref={(stage) => {
           stageRef.current = stage;
         }}
         data-cardforge-stage="true"
-        className="cardforge-canvas-scroll relative flex h-[calc(100vh-238px)] min-h-[520px] touch-none justify-center overflow-auto bg-[#05080c] p-4 md:min-h-[720px] md:p-8"
+        className="cardforge-canvas-scroll relative flex min-h-0 flex-1 touch-none justify-center overflow-auto bg-[#05080c] p-4 md:p-8"
         onPointerDownCapture={onStagePointerDownCapture}
         onPointerMoveCapture={onStagePointerMoveCapture}
         onPointerUpCapture={onStagePointerUpCapture}
@@ -217,7 +221,7 @@ export function TemplateCanvasStage({
           />
 
           <p id="maker-canvas-help" className="sr-only">
-            Template canvas editor. Select an element, then use arrow keys to move it. Hold Shift to move by grid size. Use Delete or Backspace to remove the selected element.
+            Template canvas editor. Tap or click a selected layer again to move to the next visible layer beneath it. Hold or right-click a layer for its actions. Drag to move a layer. On touch, pinch to zoom and use two fingers to pan. With the canvas focused, use arrow keys to move the selected layer, Shift plus arrows to move by grid size, and Delete or Backspace to remove it.
           </p>
           <p id="maker-selection-status" className="sr-only" role="status" aria-live="polite">
             {selectedElement ? `Selected ${selectedElement.name || selectedElement.type} element.` : 'No element selected.'}

@@ -70,7 +70,7 @@ export function MobileCanvasControls({
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="bottom" className="max-h-[78svh] overflow-y-auto border-[var(--cf-editor-control-border)] bg-[#0d1117] text-[var(--cf-text)]">
+        <SheetContent side="bottom" className="cardforge-mobile-scroll-surface max-h-[calc(100dvh-1rem)] overflow-y-auto border-[var(--cf-editor-control-border)] bg-[#0d1117] text-[var(--cf-text)]">
           <SheetHeader className="text-left">
             <SheetTitle className="text-[var(--cf-text)]">Editor tools</SheetTitle>
             <SheetDescription className="text-[#aeb6c4]">The same canvas commands available in the desktop toolbar.</SheetDescription>

@@ -12,7 +12,7 @@ export function ScrollableDialogContent({
 }: ComponentPropsWithoutRef<typeof DialogContent>) {
   return (
     <DialogContent
-      className={cn('flex max-h-[90dvh] min-h-0 flex-col overflow-hidden', className)}
+      className={cn('flex max-h-[calc(100dvh-1rem)] min-h-0 flex-col overflow-hidden sm:max-h-[90dvh]', className)}
       {...props}
     />
   );

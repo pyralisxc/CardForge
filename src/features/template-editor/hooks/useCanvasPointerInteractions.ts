@@ -1,10 +1,10 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
-import { getElementDepthStack, resolvePointerSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/domain/templates/editorGeometry';
+import { getElementDepthStack, resolvePointerPressSelection, scaleElementWithParentResize } from '@/domain/templates/editorGeometry';
 import { getDescendantIds } from '@/features/template-editor/lib/layerTree';
 import {
   calculateMovedElementPosition,
@@ -13,12 +13,29 @@ import {
   type ResizeHandle,
 } from '@/features/template-editor/lib/canvasPointerMath';
 
+type ElementContextAction = (element: FreeformCardElement) => void;
+
 type DragState =
   | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number }
   | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number };
 
+interface PressState {
+  pointerId: number;
+  pointerTarget: HTMLElement;
+  startClientX: number;
+  startClientY: number;
+  movementSlopPx: number;
+  activeElement: FreeformCardElement;
+  tapSelectedId: string | null;
+  cycleDepthOnTap: boolean;
+  hasMoved: boolean;
+  longPressTimer: number | null;
+  contextAction: ElementContextAction;
+}
+
 const MOUSE_DRAG_START_SLOP = 3;
 const TOUCH_DRAG_START_SLOP = 10;
+export const LONG_PRESS_DURATION_MS = 450;
 
 interface UseCanvasPointerInteractionsInput {
   canvas: FreeformCanvas;
@@ -31,6 +48,21 @@ interface UseCanvasPointerInteractionsInput {
   snapValue: (value: number) => number;
   updateCanvas: (updates: Partial<FreeformCanvas>, trackHistory?: boolean) => void;
   zoom: number;
+}
+
+function clearLongPressTimer(press: PressState) {
+  if (press.longPressTimer !== null) window.clearTimeout(press.longPressTimer);
+  press.longPressTimer = null;
+}
+
+function releasePointerCapture(press: PressState) {
+  try {
+    if (press.pointerTarget.hasPointerCapture(press.pointerId)) {
+      press.pointerTarget.releasePointerCapture(press.pointerId);
+    }
+  } catch {
+    // Capture can already be gone after pointer cancellation or element teardown.
+  }
 }
 
 export function useCanvasPointerInteractions({
@@ -46,7 +78,20 @@ export function useCanvasPointerInteractions({
   zoom,
 }: UseCanvasPointerInteractionsInput) {
   const dragStateRef = useRef<DragState | null>(null);
-  const depthSelectionRef = useRef<DepthSelectionState | null>(null);
+  const pressStateRef = useRef<PressState | null>(null);
+
+  const clearActivePress = useCallback(() => {
+    const press = pressStateRef.current;
+    if (!press) return;
+    clearLongPressTimer(press);
+    releasePointerCapture(press);
+    pressStateRef.current = null;
+  }, []);
+
+  useEffect(() => () => {
+    clearActivePress();
+    dragStateRef.current = null;
+  }, [clearActivePress]);
 
   const getCanvasPoint = useCallback((event: Pick<PointerEvent | ReactPointerEvent, 'clientX' | 'clientY'>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -54,46 +99,95 @@ export function useCanvasPointerInteractions({
     return getCanvasPointFromRect(event, rect, zoom);
   }, [canvasRef, zoom]);
 
-  const handleElementPointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement) => {
-    if (previewMode) return;
+  const handleElementContextMenu = useCallback((element: FreeformCardElement, onElementContextAction: ElementContextAction) => {
+    selectElement(element.id);
+    onElementContextAction(element);
+  }, [selectElement]);
+
+  const handleElementPointerDown = useCallback((
+    event: ReactPointerEvent,
+    element: FreeformCardElement,
+    onElementContextAction: ElementContextAction,
+  ) => {
+    if (previewMode || (event.button !== 0 && event.button !== 2)) return;
     event.preventDefault();
     event.stopPropagation();
+    clearActivePress();
+    dragStateRef.current = null;
+
     const point = getCanvasPoint(event);
     const hitStack = getElementDepthStack(canvas.elements, point);
-    const { nextSelectedId, nextState } = resolvePointerSelection({
+    const selection = resolvePointerPressSelection({
       clickedElementId: element.id,
       currentSelectedId: selectedElementId,
-      cycleDepth: event.altKey,
+      forceDepthCycle: event.altKey,
       hitStack,
-      point,
-      previousState: depthSelectionRef.current,
     });
-    depthSelectionRef.current = nextState;
-    const targetElement = canvas.elements.find((candidate) => candidate.id === (nextSelectedId || element.id)) || element;
-    selectElement(targetElement.id);
-    if (targetElement.locked) {
-      dragStateRef.current = null;
+    const targetElement = canvas.elements.find((candidate) => candidate.id === (selection.activeSelectedId || element.id)) || element;
+
+    if (event.button === 2) {
+      handleElementContextMenu(targetElement, onElementContextAction);
       return;
     }
+
+    selectElement(targetElement.id);
+    const pointerTarget = event.currentTarget as HTMLElement;
+    pointerTarget.setPointerCapture(event.pointerId);
+    const movementSlopPx = event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP : MOUSE_DRAG_START_SLOP;
+    const press: PressState = {
+      pointerId: event.pointerId,
+      pointerTarget,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      movementSlopPx,
+      activeElement: targetElement,
+      tapSelectedId: selection.tapSelectedId,
+      cycleDepthOnTap: selection.cycleDepthOnTap,
+      hasMoved: false,
+      longPressTimer: null,
+      contextAction: onElementContextAction,
+    };
+    pressStateRef.current = press;
+
+    press.longPressTimer = window.setTimeout(() => {
+      const currentPress = pressStateRef.current;
+      if (!currentPress || currentPress.pointerId !== press.pointerId || currentPress.hasMoved) return;
+      clearLongPressTimer(currentPress);
+      dragStateRef.current = null;
+      releasePointerCapture(currentPress);
+      pressStateRef.current = null;
+      handleElementContextMenu(currentPress.activeElement, currentPress.contextAction);
+    }, LONG_PRESS_DURATION_MS);
+
+    if (targetElement.locked) return;
     const descendantIds = getDescendantIds(targetElement.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, selectedElementId, zoom]);
+    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false, startSlop: movementSlopPx / zoom };
+  }, [canvas.elements, clearActivePress, getCanvasPoint, handleElementContextMenu, previewMode, selectElement, selectedElementId, zoom]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement, handle: ResizeHandle) => {
-    if (previewMode || element.locked) return;
+    if (previewMode || element.locked || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    clearActivePress();
     selectElement(element.id);
     const point = getCanvasPoint(event);
     const descendantIds = getDescendantIds(element.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
     dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, zoom]);
+  }, [canvas.elements, clearActivePress, getCanvasPoint, previewMode, selectElement, zoom]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
+    const press = pressStateRef.current;
+    if (press && press.pointerId === event.pointerId && !press.hasMoved) {
+      const movementPx = Math.hypot(event.clientX - press.startClientX, event.clientY - press.startClientY);
+      if (movementPx >= press.movementSlopPx) {
+        press.hasMoved = true;
+        clearLongPressTimer(press);
+      }
+    }
+
     const dragState = dragStateRef.current;
     if (!dragState) return;
     event.preventDefault();
@@ -167,17 +261,28 @@ export function useCanvasPointerInteractions({
     }, false);
   }, [canvas.elements, canvas.height, canvas.width, currentTemplate, getCanvasPoint, recordTemplateHistory, snapValue, updateCanvas]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((event: ReactPointerEvent) => {
+    const press = pressStateRef.current;
+    if (press && press.pointerId === event.pointerId) {
+      clearLongPressTimer(press);
+      if (event.type === 'pointerup' && !press.hasMoved && press.cycleDepthOnTap && press.tapSelectedId) {
+        selectElement(press.tapSelectedId);
+      }
+      releasePointerCapture(press);
+      pressStateRef.current = null;
+    }
     dragStateRef.current = null;
-  }, []);
+  }, [selectElement]);
 
   const clearDepthSelection = useCallback(() => {
-    depthSelectionRef.current = null;
-  }, []);
+    clearActivePress();
+    dragStateRef.current = null;
+  }, [clearActivePress]);
 
   const cancelDrag = useCallback(() => {
+    clearActivePress();
     dragStateRef.current = null;
-  }, []);
+  }, [clearActivePress]);
 
   return {
     cancelDrag,
