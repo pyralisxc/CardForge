@@ -75,12 +75,78 @@ describe('public site configuration', () => {
       ],
     });
 
-    expect(configuration.homepageSections).toEqual([
+    expect(configuration.homepageSections.map(({ id, visible }) => ({ id, visible }))).toEqual([
       { id: 'workflow', visible: false },
       { id: 'showcase', visible: true },
       { id: 'access', visible: true },
       { id: 'founder', visible: true },
       { id: 'final_cta', visible: true },
     ]);
+    expect(configuration.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples?.length).toBeGreaterThan(0);
+  });
+
+  it('hydrates owner-selected showcase Templates, order, card data, and accessibility copy', () => {
+    const configuration = hydratePublicSiteConfiguration({
+      homepage_sections: [
+        {
+          id: 'showcase',
+          visible: true,
+          showcaseExamples: [
+            {
+              slug: 'owner-demo',
+              name: 'Owner demo set',
+              visible: true,
+              frontTemplateId: 'published-template',
+              frontTemplateName: 'Published Template',
+              rows: [
+                { CardName: 'Alpha', Artwork: 'https://example.com/alpha.png' },
+                { CardName: 'Beta', Artwork: 'https://example.com/beta.png' },
+              ],
+              altText: ['Alpha finished card.', 'Beta finished card.'],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(configuration.homepageSections[0]).toMatchObject({
+      id: 'showcase',
+      showcaseExamples: [{
+        slug: 'owner-demo',
+        name: 'Owner demo set',
+        frontTemplateId: 'published-template',
+        rows: [{ CardName: 'Alpha', Artwork: 'https://example.com/alpha.png' }, { CardName: 'Beta', Artwork: 'https://example.com/beta.png' }],
+        altText: ['Alpha finished card.', 'Beta finished card.'],
+      }],
+    });
+  });
+
+  it('rejects unsafe showcase snapshots instead of silently publishing inaccessible demos', () => {
+    const base = {
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      primaryNavigation: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryNavigation],
+      homepageSections: DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.map((section) => ({
+        ...section,
+        showcaseExamples: section.showcaseExamples?.map((example) => ({ ...example, rows: example.rows.map((row) => ({ ...row })), altText: [...example.altText] })),
+      })),
+    };
+    const showcaseIndex = base.homepageSections.findIndex((section) => section.id === 'showcase');
+    const showcase = base.homepageSections[showcaseIndex]!;
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      homepageSections: base.homepageSections.map((section, index) => index === showcaseIndex ? {
+        ...showcase,
+        showcaseExamples: showcase.showcaseExamples?.map((example, exampleIndex) => exampleIndex === 0 ? { ...example, altText: [] } : example),
+      } : section),
+    })).toThrow('complete alt text');
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      homepageSections: base.homepageSections.map((section, index) => index === showcaseIndex ? {
+        ...showcase,
+        showcaseExamples: showcase.showcaseExamples?.map((example) => ({ ...example, visible: false })),
+      } : section),
+    })).toThrow('at least one visible set');
   });
 });

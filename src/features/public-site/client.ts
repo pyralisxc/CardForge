@@ -48,8 +48,10 @@ export {
 } from './model/showcaseTiming';
 export {
   CARDFORGE_EXAMPLES,
+  createDefaultHomepageShowcaseExamples,
   type CardForgeExample,
   type CardForgeExampleRow,
+  type HomepageShowcaseExample,
 } from './model/examples';
 export {
   DEFAULT_FOUNDER_PROFILE,

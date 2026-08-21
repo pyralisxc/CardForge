@@ -23,6 +23,18 @@ export interface CardForgeExample {
   }>;
 }
 
+export interface HomepageShowcaseExample {
+  slug: string;
+  name: string;
+  visible: boolean;
+  frontTemplateId: string;
+  frontTemplateName?: string;
+  backTemplateId?: string;
+  backTemplateName?: string;
+  rows: Record<string, string>[];
+  altText: string[];
+}
+
 const defineExample = (
   example: Omit<CardForgeExample, 'cardCount'>,
 ): CardForgeExample => Object.freeze({
@@ -219,3 +231,17 @@ export const CARDFORGE_EXAMPLES: readonly CardForgeExample[] = Object.freeze([
     }),
   }),
 ]);
+
+export const createDefaultHomepageShowcaseExamples = (): HomepageShowcaseExample[] => (
+  CARDFORGE_EXAMPLES.map((example) => ({
+    slug: example.slug,
+    name: example.name,
+    visible: true,
+    frontTemplateId: example.frontTemplateId,
+    frontTemplateName: example.frontTemplateName,
+    backTemplateId: example.backTemplateId,
+    backTemplateName: example.backTemplateName,
+    rows: example.rows.map((row) => ({ ...row })),
+    altText: [...example.altText.rows],
+  }))
+);

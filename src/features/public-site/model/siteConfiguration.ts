@@ -1,5 +1,14 @@
+import {
+  createDefaultHomepageShowcaseExamples,
+  type HomepageShowcaseExample,
+} from './examples';
+
 export const PRIMARY_NAVIGATION_IDS = ['about', 'plans', 'roadmap', 'account'] as const;
 export const HOMEPAGE_SECTION_IDS = ['showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
+
+export const MAX_HOMEPAGE_SHOWCASE_EXAMPLES = 6;
+export const MAX_HOMEPAGE_SHOWCASE_ROWS = 12;
+export const MAX_HOMEPAGE_SHOWCASE_FIELDS = 24;
 
 export type PrimaryNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
 export type HomepageSectionId = typeof HOMEPAGE_SECTION_IDS[number];
@@ -14,6 +23,7 @@ export interface PrimaryNavigationItem {
 export interface HomepageSectionSetting {
   id: HomepageSectionId;
   visible: boolean;
+  showcaseExamples?: HomepageShowcaseExample[];
 }
 
 export interface PublicSiteConfiguration {
@@ -46,6 +56,12 @@ const DEFAULT_NAVIGATION_LABELS: Record<PrimaryNavigationId, string> = {
   account: 'Account',
 };
 
+const defaultHomepageSection = (id: HomepageSectionId): HomepageSectionSetting => ({
+  id,
+  visible: true,
+  ...(id === 'showcase' ? { showcaseExamples: createDefaultHomepageShowcaseExamples() } : {}),
+});
+
 export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
   announcementEnabled: false,
   announcementMessage: '',
@@ -73,7 +89,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
     href: NAVIGATION_ROUTES[id],
     visible: true,
   })),
-  homepageSections: HOMEPAGE_SECTION_IDS.map((id) => ({ id, visible: true })),
+  homepageSections: HOMEPAGE_SECTION_IDS.map(defaultHomepageSection),
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -100,6 +116,84 @@ const normalizeKeywords = (value: unknown): string[] => {
   return keywords.length >= 1 && keywords.length <= 24 && keywords.every((keyword) => keyword.length <= 80)
     ? keywords
     : [...DEFAULT_PUBLIC_SITE_CONFIGURATION.searchKeywords];
+};
+
+const normalizeOptionalShowcaseText = (value: unknown, maxLength: number): string | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim();
+  return normalized && normalized.length <= maxLength ? normalized : undefined;
+};
+
+const parseHomepageShowcaseExample = (value: unknown): HomepageShowcaseExample | null => {
+  if (!isRecord(value)) return null;
+  const slug = typeof value.slug === 'string' ? value.slug.trim() : '';
+  const name = typeof value.name === 'string' ? value.name.trim() : '';
+  const frontTemplateId = typeof value.frontTemplateId === 'string' ? value.frontTemplateId.trim() : '';
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/u.test(slug) || !name || name.length > 100 || !frontTemplateId || frontTemplateId.length > 160) {
+    return null;
+  }
+
+  if (!Array.isArray(value.rows) || value.rows.length < 1 || value.rows.length > MAX_HOMEPAGE_SHOWCASE_ROWS) return null;
+  const rows: Record<string, string>[] = [];
+  for (const candidate of value.rows) {
+    if (!isRecord(candidate)) return null;
+    const entries = Object.entries(candidate);
+    if (entries.length < 1 || entries.length > MAX_HOMEPAGE_SHOWCASE_FIELDS) return null;
+    const row: Record<string, string> = {};
+    for (const [rawKey, rawValue] of entries) {
+      const key = rawKey.trim();
+      if (!key || key.length > 80 || typeof rawValue !== 'string' || rawValue.length > 4000 || Object.hasOwn(row, key)) return null;
+      row[key] = rawValue;
+    }
+    rows.push(row);
+  }
+
+  if (!Array.isArray(value.altText) || value.altText.length !== rows.length) return null;
+  const altText = value.altText.flatMap((candidate) => {
+    if (typeof candidate !== 'string') return [];
+    const normalized = candidate.trim();
+    return normalized && normalized.length <= 240 ? [normalized] : [];
+  });
+  if (altText.length !== rows.length) return null;
+
+  const frontTemplateName = normalizeOptionalShowcaseText(value.frontTemplateName, 160);
+  const backTemplateId = normalizeOptionalShowcaseText(value.backTemplateId, 160);
+  const backTemplateName = normalizeOptionalShowcaseText(value.backTemplateName, 160);
+  if ((value.frontTemplateName && !frontTemplateName)
+    || (value.backTemplateId && !backTemplateId)
+    || (value.backTemplateName && !backTemplateName)) return null;
+
+  return {
+    slug,
+    name,
+    visible: value.visible !== false,
+    frontTemplateId,
+    frontTemplateName,
+    backTemplateId,
+    backTemplateName,
+    rows,
+    altText,
+  };
+};
+
+const parseHomepageShowcaseExamples = (value: unknown): HomepageShowcaseExample[] | null => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > MAX_HOMEPAGE_SHOWCASE_EXAMPLES) return null;
+  const examples = value.map(parseHomepageShowcaseExample);
+  if (examples.some((example) => example === null)) return null;
+  const parsed = examples as HomepageShowcaseExample[];
+  if (new Set(parsed.map((example) => example.slug)).size !== parsed.length || !parsed.some((example) => example.visible)) return null;
+  return parsed;
+};
+
+export const normalizeHomepageShowcaseExamples = (value: unknown): HomepageShowcaseExample[] => (
+  parseHomepageShowcaseExamples(value) ?? createDefaultHomepageShowcaseExamples()
+);
+
+const validateHomepageShowcaseExamplesInput = (value: unknown): void => {
+  if (!parseHomepageShowcaseExamples(value)) {
+    throw new Error(`Homepage demonstration sets must contain 1-${MAX_HOMEPAGE_SHOWCASE_EXAMPLES} unique sets, at least one visible set, 1-${MAX_HOMEPAGE_SHOWCASE_ROWS} cards per set, and complete alt text for every sample card.`);
+  }
 };
 
 const isSafeInternalPath = (value: string): boolean => /^\/(?!\/)[A-Za-z0-9/_-]*$/.test(value);
@@ -138,11 +232,15 @@ const normalizeHomepageSections = (value: unknown): HomepageSectionSetting[] => 
     const id = row.id as HomepageSectionId;
     if (used.has(id)) return [];
     used.add(id);
-    return [{ id, visible: row.visible !== false }];
+    return [{
+      id,
+      visible: row.visible !== false,
+      ...(id === 'showcase' ? { showcaseExamples: normalizeHomepageShowcaseExamples(row.showcaseExamples) } : {}),
+    }];
   });
   return [
     ...normalized,
-    ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map((id) => ({ id, visible: true })),
+    ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map(defaultHomepageSection),
   ];
 };
 
@@ -177,6 +275,13 @@ export const hydratePublicSiteConfiguration = (
 export const normalizePublicSiteConfigurationInput = (
   input: Record<string, unknown>,
 ): PublicSiteConfiguration => {
+  if (Array.isArray(input.homepageSections)) {
+    const showcase = input.homepageSections.find((row) => isRecord(row) && row.id === 'showcase');
+    if (isRecord(showcase) && Object.hasOwn(showcase, 'showcaseExamples')) {
+      validateHomepageShowcaseExamplesInput(showcase.showcaseExamples);
+    }
+  }
+
   const configuration = hydratePublicSiteConfiguration({
     announcement_enabled: input.announcementEnabled,
     announcement_message: input.announcementMessage,

@@ -48,8 +48,9 @@ export default async function LandingPage() {
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
   const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
   const generatorBulkMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-bulk');
+  const showcaseExamples = siteConfiguration.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples;
   const homepageSections = {
-    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} />,
+    showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} examples={showcaseExamples} />,
     workflow: <WorkflowProof />,
     access: <AccessComparison plans={plans} />,
     founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,
