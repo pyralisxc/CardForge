@@ -43,6 +43,9 @@ export function PublicSiteHeader({
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const hasVisibleAccountNavigation = siteConfiguration.primaryNavigation.some(
+    (item) => item.visible && item.href === '/account',
+  );
 
   return (
     <header className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] text-[var(--public-ivory)]">
@@ -148,15 +151,17 @@ export function PublicSiteHeader({
                   </Link>
                 </DialogClose>
               ))}
-              <DialogClose asChild>
-                <Link
-                  href={accountSlot ? '/account' : '/sign-in'}
-                  prefetch={false}
-                  className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
-                >
-                  <LogIn className="h-4 w-4" aria-hidden="true" /> {accountSlot ? 'Account' : 'Sign in'}
-                </Link>
-              </DialogClose>
+              {!hasVisibleAccountNavigation ? (
+                <DialogClose asChild>
+                  <Link
+                    href={accountSlot ? '/account' : '/sign-in'}
+                    prefetch={false}
+                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
+                  >
+                    <LogIn className="h-4 w-4" aria-hidden="true" /> {accountSlot ? 'Account' : 'Sign in'}
+                  </Link>
+                </DialogClose>
+              ) : null}
               <DialogClose asChild>
                 <Link
                   href={siteConfiguration.primaryCtaHref}

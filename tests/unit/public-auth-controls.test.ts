@@ -41,7 +41,7 @@ describe('public header authentication controls', () => {
     expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/developer')");
   });
 
-  it('mounts the dynamic public account control only in the desktop header, never inside the mobile dialog', () => {
+  it('mounts the dynamic public account control only in the desktop header and avoids duplicate mobile account navigation', () => {
     const headerSource = readFileSync(
       resolve(process.cwd(), 'src/features/public-site/components/PublicSiteHeader.tsx'),
       'utf8',
@@ -54,6 +54,8 @@ describe('public header authentication controls', () => {
     expect(dialogEnd).toBeGreaterThan(dialogStart);
     expect(headerSource).toContain('cardforge-public-auth-status hidden shrink-0 xl:block');
     expect(dialogSource).not.toContain('{accountSlot}');
+    expect(headerSource).toContain("item.visible && item.href === '/account'");
+    expect(dialogSource).toContain('{!hasVisibleAccountNavigation ? (');
     expect(dialogSource).toContain("href={accountSlot ? '/account' : '/sign-in'}");
   });
 
