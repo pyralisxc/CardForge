@@ -40,26 +40,26 @@ export function PlanChoiceGrid({
             : `Assistant drafts stay active for ${plan.draftRetentionHours} hours`,
         ];
         return (
-          <article key={plan.planKey} className={`flex min-h-full snap-start flex-col border bg-[#15100a] p-5 ${isFeatured ? 'border-[#d8b365] shadow-[inset_0_3px_0_#d8b365]' : 'border-[#5f4526]'}`}>
+          <article key={plan.planKey} className={`flex min-h-full snap-start flex-col border bg-[var(--cf-surface)] p-5 ${isFeatured ? 'border-[var(--cf-accent)]' : 'border-[var(--cf-border)]'}`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h3 className="font-serif text-2xl font-semibold text-[#fff1c7]">{plan.displayName}</h3>
-              {isCurrent ? <span className="border border-[#5f7f54] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#bde3a8]">Current</span> : null}
+              <h3 className="font-serif text-2xl font-semibold text-[var(--cf-text-strong)]">{plan.displayName}</h3>
+              {isCurrent ? <span className="border border-[var(--cf-success-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-success)]">Current</span> : null}
             </div>
-            <div className="mt-5 min-h-[4.5rem] border-b border-[#3c2c1b] pb-5">
-              <p className="font-serif text-4xl font-semibold leading-none text-[#fff1c7]">{plan.priceLabel}</p>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#a98a75]">{plan.priceNote}</p>
+            <div className="mt-5 min-h-[4.5rem] border-b border-[var(--cf-border-subtle)] pb-5">
+              <p className="font-serif text-4xl font-semibold leading-none text-[var(--cf-text-strong)]">{plan.priceLabel}</p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{plan.priceNote}</p>
             </div>
-            <p className="mt-3 text-sm leading-6 text-[#c7b288]">{plan.description}</p>
-            <ul className="mt-4 space-y-2 text-sm text-[#d8c49a]">
+            <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">{plan.description}</p>
+            <ul className="mt-4 space-y-2 text-sm text-[var(--cf-text-muted)]">
               {features.map((feature) => (
-                <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#d8b365]" aria-hidden="true" /><span>{feature}</span></li>
+                <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cf-accent)]" aria-hidden="true" /><span>{feature}</span></li>
               ))}
             </ul>
             <div className="mt-auto pt-5">
               {isCurrent ? (
-                <span className="inline-flex min-h-11 w-full items-center justify-center border border-[#5f7f54] px-4 font-semibold text-[#bde3a8]">Your current plan</span>
+                <span className="inline-flex min-h-11 w-full items-center justify-center border border-[var(--cf-success-border)] px-4 font-semibold text-[var(--cf-success)]">Your current plan</span>
               ) : (
-                <Link href={href} prefetch={false} className={`inline-flex min-h-11 w-full items-center justify-center border px-4 text-center font-bold transition-colors ${isFeatured ? 'border-[#e4aa43] bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]' : 'border-[#846634] text-[#f8e3b0] hover:border-[#d9a441] hover:bg-[#24180e]'}`}>{plan.ctaLabel}</Link>
+                <Link href={href} prefetch={false} className={`inline-flex min-h-11 w-full items-center justify-center border px-4 text-center font-bold transition-colors ${isFeatured ? 'border-[var(--cf-accent-strong)] bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110' : 'border-[var(--cf-accent)] text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]'}`}>{plan.ctaLabel}</Link>
               )}
             </div>
           </article>
