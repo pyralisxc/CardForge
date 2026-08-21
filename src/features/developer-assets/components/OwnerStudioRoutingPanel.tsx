@@ -90,18 +90,18 @@ export function OwnerStudioRoutingPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="border border-[#5f4526] bg-[#100c08] p-4">
+      <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Map className="h-4 w-4 text-[#d8b365]" />
-              <h3 className="font-serif text-xl text-[#fff1c7]">Studio Map</h3>
+              <Map className="h-4 w-4 text-[var(--cf-accent)]" />
+              <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Studio Map</h3>
             </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
               This is the live map between the Forge Pipeline and Template Studio. Automatic placement follows each asset&apos;s contract; owner placement can feature, order, reroute, or hide an asset without changing its file or publication history.
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void loadRouting()} disabled={isLoading} className="rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0]">
+          <Button type="button" variant="outline" size="sm" onClick={() => void loadRouting()} disabled={isLoading} className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
             <RefreshCcw className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')} /> Refresh
           </Button>
         </div>
@@ -122,8 +122,8 @@ export function OwnerStudioRoutingPanel() {
                         className={cn(
                           'border px-2.5 py-1.5 text-left text-xs transition',
                           destination === definition.id
-                            ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]'
-                            : 'border-[#3c2c1b] bg-[#15100a] text-[#c7b288] hover:border-[#806033]',
+                            ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)] text-[var(--cf-accent-text)]'
+                            : 'border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] text-[var(--cf-text-muted)] hover:border-[#806033]',
                         )}
                         onClick={() => { setDestination(definition.id); setPage(1); }}
                       >
@@ -136,16 +136,16 @@ export function OwnerStudioRoutingPanel() {
             ))}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="studio-map-search" className="text-xs text-[#c7b288]">Find a Pipeline asset</Label>
+            <Label htmlFor="studio-map-search" className="text-xs text-[var(--cf-text-muted)]">Find a Pipeline asset</Label>
             <Input
               id="studio-map-search"
               value={query}
               onChange={(event) => { setQuery(event.target.value); setPage(1); }}
               placeholder="Search by name..."
-              className="rounded-none border-[#5f4526] bg-[#15100a] text-[#f8e3b0]"
+              className="rounded-none border-[var(--cf-border)] bg-[var(--cf-surface)] text-[var(--cf-accent-text)]"
             />
             {destination !== 'all' ? (
-              <Button type="button" variant="ghost" size="sm" className="h-8 px-0 text-xs text-[#d8b365]" onClick={() => { setDestination('all'); setPage(1); }}>
+              <Button type="button" variant="ghost" size="sm" className="h-8 px-0 text-xs text-[var(--cf-accent)]" onClick={() => { setDestination('all'); setPage(1); }}>
                 Show all Studio assets
               </Button>
             ) : null}
@@ -154,14 +154,14 @@ export function OwnerStudioRoutingPanel() {
       </div>
 
       {loadError ? (
-        <div className="border border-[#7d3d32] bg-[#1b0d09] p-4 text-sm text-[#ffd0c6]">
+        <div className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-4 text-sm text-[var(--cf-danger)]">
           <p>{loadError}</p>
           <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void loadRouting()}>Retry</Button>
         </div>
       ) : null}
 
       {!loadError && routingPage?.items.length === 0 && !isLoading ? (
-        <div className="border border-dashed border-[#5f4526] bg-[#100c08] p-5 text-sm text-[#c7b288]">
+        <div className="border border-dashed border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-5 text-sm text-[var(--cf-text-muted)]">
           No Pipeline assets match this Studio section and search.
         </div>
       ) : null}
@@ -178,7 +178,7 @@ export function OwnerStudioRoutingPanel() {
       </div>
 
       {routingPage && routingPage.total > 0 ? (
-        <div className="flex flex-col gap-2 border border-[#3c2c1b] bg-[#100c08] p-3 text-xs text-[#c7b288] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
           <span>{routingPage.total} assets · Page {routingPage.page} of {routingPage.totalPages}</span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" disabled={routingPage.page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(1, value - 1))}>
@@ -230,10 +230,10 @@ function StudioRoutingCard({
   const isHidden = item.studioDestinations.length === 0;
 
   return (
-    <article className="border border-[#5f4526] bg-[#100c08] p-3">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3">
       <div className="flex gap-3">
         <div
-          className="grid h-20 w-16 shrink-0 place-items-center overflow-hidden border border-[#3c2c1b] bg-[#090705] bg-contain bg-center bg-no-repeat text-[9px] uppercase tracking-[0.12em] text-[#8e795e]"
+          className="grid h-20 w-16 shrink-0 place-items-center overflow-hidden border border-[var(--cf-border-subtle)] bg-[#090705] bg-contain bg-center bg-no-repeat text-[9px] uppercase tracking-[0.12em] text-[#8e795e]"
           style={isVisualAsset ? { backgroundImage: `url(${item.url})` } : undefined}
           role="img"
           aria-label={`${item.name} preview`}
@@ -243,16 +243,16 @@ function StudioRoutingCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <h4 className="truncate font-semibold text-[#ffe7ad]">{item.name}</h4>
+              <h4 className="truncate font-semibold text-[var(--cf-accent-text)]">{item.name}</h4>
               <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[#8e795e]">{item.assetType} · {item.status} · {item.accessTier}</p>
             </div>
-            {item.studioFeatured ? <span className="inline-flex items-center gap-1 border border-[#806033] bg-[#2a1b0d] px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-[#f5d27b]"><Sparkles className="h-3 w-3" /> Featured</span> : null}
+            {item.studioFeatured ? <span className="inline-flex items-center gap-1 border border-[#806033] bg-[var(--cf-surface-hover)] px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-[var(--cf-accent-text)]"><Sparkles className="h-3 w-3" /> Featured</span> : null}
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {item.studioDestinations.map((route) => (
-              <span key={route} className="border border-[#3c2c1b] bg-[#15100a] px-1.5 py-1 text-[9px] text-[#c7b288]">{getStudioAssetDestinationDefinition(route).shortLabel}</span>
+              <span key={route} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] px-1.5 py-1 text-[9px] text-[var(--cf-text-muted)]">{getStudioAssetDestinationDefinition(route).shortLabel}</span>
             ))}
-            {isHidden ? <span className="inline-flex items-center gap-1 border border-[#66423a] bg-[#1b0d09] px-1.5 py-1 text-[9px] text-[#efb3a6]"><EyeOff className="h-3 w-3" /> Hidden from Studio</span> : null}
+            {isHidden ? <span className="inline-flex items-center gap-1 border border-[#66423a] bg-[var(--cf-danger-surface-muted)] px-1.5 py-1 text-[9px] text-[#efb3a6]"><EyeOff className="h-3 w-3" /> Hidden from Studio</span> : null}
           </div>
         </div>
       </div>
@@ -261,7 +261,7 @@ function StudioRoutingCard({
         <div>
           <Label className="text-[10px] uppercase tracking-[0.13em] text-[#8e795e]">Placement owner</Label>
           <Select value={draft.mode} onValueChange={(value) => setDraft((current) => ({ ...current, mode: value as StudioAssetRoutingMode }))}>
-            <SelectTrigger className="mt-1 h-9 rounded-none border-[#5f4526] bg-[#15100a] text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1 h-9 rounded-none border-[var(--cf-border)] bg-[var(--cf-surface)] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="automatic">Automatic</SelectItem>
               <SelectItem value="owner">Owner override</SelectItem>
@@ -272,10 +272,10 @@ function StudioRoutingCard({
           <Label className="text-[10px] uppercase tracking-[0.13em] text-[#8e795e]">Used in</Label>
           <div className="mt-1 flex flex-wrap gap-2">
             {item.compatibleDestinations.map((route) => (
-              <label key={route} className={cn('flex items-center gap-1.5 border border-[#3c2c1b] px-2 py-1.5 text-[10px] text-[#c7b288]', draft.mode === 'automatic' && 'opacity-55')}>
+              <label key={route} className={cn('flex items-center gap-1.5 border border-[var(--cf-border-subtle)] px-2 py-1.5 text-[10px] text-[var(--cf-text-muted)]', draft.mode === 'automatic' && 'opacity-55')}>
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-[#d8b365]"
+                  className="h-4 w-4 accent-[var(--cf-accent)]"
                   checked={draft.destinations.includes(route)}
                   disabled={draft.mode === 'automatic'}
                   onChange={(event) => setDraft((current) => ({
@@ -299,19 +299,19 @@ function StudioRoutingCard({
         <div className="flex gap-3">
           <div>
             <Label htmlFor={`studio-order-${item.assetId}`} className="text-[10px] uppercase tracking-[0.13em] text-[#8e795e]">Order</Label>
-            <Input id={`studio-order-${item.assetId}`} type="number" min={0} max={100000} value={draft.sortOrder} onChange={(event) => setDraft((current) => ({ ...current, sortOrder: Number(event.target.value) }))} className="mt-1 h-9 w-24 rounded-none border-[#5f4526] bg-[#15100a] text-xs" />
+            <Input id={`studio-order-${item.assetId}`} type="number" min={0} max={100000} value={draft.sortOrder} onChange={(event) => setDraft((current) => ({ ...current, sortOrder: Number(event.target.value) }))} className="mt-1 h-9 w-24 rounded-none border-[var(--cf-border)] bg-[var(--cf-surface)] text-xs" />
           </div>
-          <label className="flex items-center gap-2 pb-2 text-xs text-[#c7b288]">
-            <input type="checkbox" className="h-4 w-4 accent-[#d8b365]" checked={draft.featured} onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))} /> Featured first
+          <label className="flex items-center gap-2 pb-2 text-xs text-[var(--cf-text-muted)]">
+            <input type="checkbox" className="h-4 w-4 accent-[var(--cf-accent)]" checked={draft.featured} onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))} /> Featured first
           </label>
         </div>
         <div className="flex flex-wrap gap-2">
           {item.assetType === 'template' ? (
-            <Button asChild type="button" variant="outline" size="sm" className="rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0]">
+            <Button asChild type="button" variant="outline" size="sm" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
               <a href={`/studio?editTemplate=${encodeURIComponent(item.assetId)}`}>Edit Template <ExternalLink className="ml-1 h-3.5 w-3.5" /></a>
             </Button>
           ) : null}
-          <Button type="button" size="sm" disabled={isSaving || !Number.isInteger(draft.sortOrder) || draft.sortOrder < 0 || draft.sortOrder > 100000} onClick={() => onSave(draft)} className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+          <Button type="button" size="sm" disabled={isSaving || !Number.isInteger(draft.sortOrder) || draft.sortOrder < 0 || draft.sortOrder > 100000} onClick={() => onSave(draft)} className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
             {draft.mode === 'automatic' ? <RefreshCcw className="mr-1 h-3.5 w-3.5" /> : <Save className="mr-1 h-3.5 w-3.5" />}
             {isSaving
               ? 'Saving...'

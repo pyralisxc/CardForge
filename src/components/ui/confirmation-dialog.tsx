@@ -32,19 +32,19 @@ export function ConfirmationDialog({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      <AlertDialogContent className="border-[#7d5a2e] bg-[#15100a] text-[#f7ead0]">
+      <AlertDialogContent className="border-[var(--cf-warning-border)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-serif text-2xl text-[#fff1c7]">{title}</AlertDialogTitle>
+          <AlertDialogTitle className="font-serif text-2xl text-[var(--cf-text-strong)]">{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
-            <div className="text-sm leading-6 text-[#c7b288]">{description}</div>
+            <div className="text-sm leading-6 text-[var(--cf-text-muted)]">{description}</div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="min-h-11 border-[#6d4f2b] bg-transparent text-[#ffe7ad] hover:bg-[#2a1b0d]">
+          <AlertDialogCancel className="min-h-11 border-[var(--cf-border-strong)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]">
             Go back
           </AlertDialogCancel>
           <AlertDialogAction
-            className={`min-h-11 ${destructive ? 'bg-[#9b3f32] text-white hover:bg-[#b24a3b]' : 'bg-[#d8b365] text-[#1b1209] hover:bg-[#efd08a]'}`}
+            className={`min-h-11 ${destructive ? 'bg-[#9b3f32] text-white hover:bg-[#b24a3b]' : 'bg-[var(--cf-accent)] text-[var(--cf-warning-surface)] hover:bg-[#efd08a]'}`}
             onClick={onConfirm}
           >
             {actionLabel}

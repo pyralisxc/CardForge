@@ -73,7 +73,7 @@ export function NewCardDesignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl border-[#5f4526] bg-[#111017] text-[#f7ead0]">
+      <DialogContent className="max-w-xl border-[var(--cf-border)] bg-[#111017] text-[var(--cf-text)]">
         <DialogHeader>
           <DialogTitle>{usage === 'back-preset' ? 'Create a card back Template' : 'Create a Template'}</DialogTitle>
           <DialogDescription className="text-[#b9ab91]">

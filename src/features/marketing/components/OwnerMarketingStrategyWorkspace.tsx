@@ -51,11 +51,11 @@ export function OwnerMarketingStrategyWorkspace({
   };
 
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-5">
-      <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+      <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">
         Shared brief
       </p>
-      <h3 className="mt-1 font-serif text-2xl text-[#fff1c7]">
+      <h3 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">
         The source of truth every contributor writes from
       </h3>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -100,13 +100,13 @@ export function OwnerMarketingStrategyWorkspace({
             setDraft({ ...draft, defaultCallToAction })
           }
         />
-        <div className="border border-[#4a3823] bg-[#100c08] p-3">
-          <p className="text-xs text-[#c7b288]">Enabled content pillars</p>
+        <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+          <p className="text-xs text-[var(--cf-text-muted)]">Enabled content pillars</p>
           <div className="mt-2 space-y-2">
             {MARKETING_CONTENT_PILLARS.map((pillar) => (
               <label
                 key={pillar.id}
-                className="flex gap-2 text-sm text-[#ffe7ad]"
+                className="flex gap-2 text-sm text-[var(--cf-accent-text)]"
               >
                 <input
                   type="checkbox"

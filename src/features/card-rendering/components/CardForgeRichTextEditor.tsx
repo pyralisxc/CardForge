@@ -137,7 +137,7 @@ export function CardForgeRichTextEditor({
 }: CardForgeRichTextEditorProps) {
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [highlightOpen, setHighlightOpen] = useState(false);
-  const [pickedColor, setPickedColor] = useState('#f5d27b');
+  const [pickedColor, setPickedColor] = useState('var(--cf-accent-text)');
   const [variableMenu, setVariableMenu] = useState<VariableMenuState | null>(null);
 
   const initialContent = useMemo(() => templateTextToTiptapDoc(value), [value]);
@@ -164,7 +164,7 @@ export function CardForgeRichTextEditor({
       attributes: {
         id: id || 'cardforge-rich-text-editor',
         class: cn(
-          'cardforge-rich-text-editor min-h-[8rem] rounded-[5px] border border-[#252b35] bg-[#111720] px-3 py-2 text-sm text-[#f3ead7] outline-none transition focus-within:border-[#d5ad54]',
+          'cardforge-rich-text-editor min-h-[8rem] rounded-[5px] border border-[var(--cf-editor-border)] bg-[var(--cf-editor-control)] px-3 py-2 text-sm text-[var(--cf-text)] outline-none transition focus-within:border-[#d5ad54]',
           editorClassName
         ),
         'data-placeholder': placeholder || '',
@@ -248,7 +248,7 @@ export function CardForgeRichTextEditor({
     return () => window.removeEventListener('pointerdown', close);
   }, []);
 
-  const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[#f5d27b] disabled:cursor-not-allowed disabled:opacity-45';
+  const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[var(--cf-accent-text)] disabled:cursor-not-allowed disabled:opacity-45';
   const pickerHighlightColor = toHexPickerColor(highlightColor);
   const variableStyleCss = useMemo(() => buildVariableStyleCss(variableStyles), [variableStyles]);
   const isActive = useCallback((name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false, [editor]);
@@ -366,26 +366,26 @@ export function CardForgeRichTextEditor({
 
   return (
     <div className={cn('relative space-y-1', className)}>
-      <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[#252b35] bg-[#0b0f15] px-1.5 py-1">
+      <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[var(--cf-editor-border)] bg-[#0b0f15] px-1.5 py-1">
         {children}
         {children && <div className="h-4 w-px bg-[#2d3340]" />}
         {canUse('bold') && (
-          <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bold" title="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}>
+          <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Bold" title="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}>
             <Bold className="h-3.5 w-3.5" />
           </button>
         )}
         {canUse('italic') && (
-          <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Italic" title="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}>
+          <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Italic" title="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}>
             <Italic className="h-3.5 w-3.5" />
           </button>
         )}
         {canUse('underline') && (
-          <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Underline" title="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
+          <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Underline" title="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
             <UnderlineIcon className="h-3.5 w-3.5" />
           </button>
         )}
         {canUse('highlight') && (
-          <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Highlight" title="Highlight" onClick={applyHighlight}>
+          <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Highlight" title="Highlight" onClick={applyHighlight}>
             <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
           </button>
         )}
@@ -396,7 +396,7 @@ export function CardForgeRichTextEditor({
                 <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
+            <PopoverContent className="w-auto border-[var(--cf-editor-border)] bg-[#0d1117] p-2" side="left" align="start">
               <HexColorPicker color={pickerHighlightColor} onChange={onHighlightColorChange} />
               <Input value={highlightColor} onChange={event => onHighlightColorChange(event.target.value)} className="mt-2 h-7 font-mono text-xs" />
             </PopoverContent>
@@ -405,10 +405,10 @@ export function CardForgeRichTextEditor({
         {(canUse('lists') || canUse('color')) && <div className="h-4 w-px bg-[#2d3340]" />}
         {canUse('lists') && (
           <>
-            <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bullet list" title="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+            <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Bullet list" title="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
               <List className="h-3.5 w-3.5" />
             </button>
-            <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Numbered list" title="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+            <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[var(--cf-accent-text)]')} aria-label="Numbered list" title="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
               <ListOrdered className="h-3.5 w-3.5" />
             </button>
           </>
@@ -420,7 +420,7 @@ export function CardForgeRichTextEditor({
                 <Palette className="h-3.5 w-3.5" style={{ color: pickedColor }} />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
+            <PopoverContent className="w-auto border-[var(--cf-editor-border)] bg-[#0d1117] p-2" side="left" align="start">
               <HexColorPicker color={pickedColor} onChange={setPickedColor} />
               <Input value={pickedColor} onChange={event => setPickedColor(event.target.value)} className="mt-2 h-7 font-mono text-xs" maxLength={7} />
               <Button type="button" className="mt-2 h-7 w-full text-xs" onClick={applyColor}>Apply Color</Button>
@@ -443,7 +443,7 @@ export function CardForgeRichTextEditor({
           <Redo2 className="h-3.5 w-3.5" />
         </button>
         {activeVariableKey && (
-          <span className="ml-auto truncate rounded-full border border-[#6d5323] px-2 py-0.5 text-[10px] text-[#d5ad54]">
+          <span className="ml-auto truncate rounded-full border border-[var(--cf-accent)] px-2 py-0.5 text-[10px] text-[#d5ad54]">
             {activeVariableKey}
           </span>
         )}
@@ -453,7 +453,7 @@ export function CardForgeRichTextEditor({
 
       {variableMenu && (
         <div
-          className="fixed z-[120] min-w-[230px] rounded-[7px] border border-[#353c48] bg-[#222831] py-1 text-sm text-[#f3ead7] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
+          className="fixed z-[120] min-w-[230px] rounded-[7px] border border-[#353c48] bg-[#222831] py-1 text-sm text-[var(--cf-text)] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
           style={variableMenuStyle}
           onPointerDown={event => event.stopPropagation()}
         >

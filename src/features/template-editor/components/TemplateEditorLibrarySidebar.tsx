@@ -69,7 +69,7 @@ export function TemplateEditorLibrarySidebar({
     : getCompatibleCardBacks(currentTemplate, backFaceTemplates);
 
   return (
-    <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
+    <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[var(--cf-editor-border)] bg-[#0d1117] lg:border-b-0 lg:border-r">
       <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
         <div className="space-y-3 p-2">
           <TemplateLibraryPanel
@@ -135,7 +135,7 @@ export function TemplateEditorLibrarySidebar({
               onUpdateTemplate={updateTemplate}
             />
             {currentTemplate.templateUsage !== 'back-preset' && matchingBacks.length === 0 ? (
-              <div className="mt-3 space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
+              <div className="mt-3 space-y-2 rounded-[6px] border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-2">
                 <p className="text-[11px] font-semibold text-[#f1dfb4]">This design has no matching card back</p>
                 <p className="text-[10px] leading-4 text-[#a99b82]">
                   Its current size is {getTemplateCardMeasurement(currentTemplate, 'mm').label}. You can create a back with the same format now or continue designing the front.

@@ -41,7 +41,7 @@ export function AccountBillingActions({
         <Button
           size="lg"
           variant="outline"
-          className="min-w-[11rem] border-[#d8b365]/70 bg-[#120e09] font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+          className="min-w-[11rem] border-[var(--cf-accent)]/70 bg-[var(--cf-surface-inset)] font-semibold text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
           onClick={handleOpenBillingPortal}
           disabled={isBillingPortalOpening}
         >
@@ -53,7 +53,7 @@ export function AccountBillingActions({
         <Button
           size="lg"
           variant="outline"
-          className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+          className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
           onClick={() => handleStartCheckout('creator_pass')}
           disabled={isCheckoutStarting}
         >
@@ -65,7 +65,7 @@ export function AccountBillingActions({
         <Button
           size="lg"
           variant="outline"
-          className="border-[#846634] bg-transparent text-[#f8e3b0] hover:border-[#d9a441] hover:bg-[#24180e] hover:text-[#fff1c7]"
+          className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
           onClick={() => handleStartCheckout('designer_pass')}
           disabled={isCheckoutStarting}
         >

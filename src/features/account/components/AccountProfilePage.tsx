@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { CardForgeSectionIntro, CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { AccountDeveloperStatusSection } from '@/features/account/components/AccountDeveloperStatusSection';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
@@ -61,24 +62,6 @@ const formatAccessExpiration = (value: string | null) => {
   }).format(date);
 };
 
-function SectionHeading({
-  eyebrow,
-  title,
-  detail,
-}: {
-  eyebrow: string;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div className="mb-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c79a4a]">{eyebrow}</p>
-      <h2 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7] md:text-3xl">{title}</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">{detail}</p>
-    </div>
-  );
-}
-
 function SummaryCard({
   icon,
   label,
@@ -95,16 +78,16 @@ function SummaryCard({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
-      <div className="flex items-center gap-2 text-[#e2aa4a]">
+    <CardForgeSurface className="flex h-full flex-col p-4 md:p-5">
+      <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
         {icon}
         <span className="text-xs font-semibold uppercase tracking-[0.15em]">{label}</span>
       </div>
-      <h3 className="mt-3 font-serif text-xl text-[#fff1c7]">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#cbb58b]">{detail}</p>
-      {footer ? <div className="mt-4 text-xs leading-5 text-[#a9946c]">{footer}</div> : null}
+      <h3 className="mt-3 font-serif text-xl text-[var(--cf-text-strong)]">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">{detail}</p>
+      {footer ? <div className="mt-4 text-xs leading-5 text-[var(--cf-text-subtle)]">{footer}</div> : null}
       {children ? <div className="mt-auto pt-5">{children}</div> : null}
-    </div>
+    </CardForgeSurface>
   );
 }
 
@@ -124,7 +107,7 @@ function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
         <a
           key={link.id}
           href={`#${link.id}`}
-          className="flex min-h-10 items-center gap-2 border border-transparent px-3 py-2 text-sm font-semibold text-[#cbb58b] transition-colors hover:border-[#5f4526] hover:bg-[#21170d] hover:text-[#fff1c7]"
+          className="flex min-h-10 items-center gap-2 border border-transparent px-3 py-2 text-sm font-semibold text-[var(--cf-text-muted)] transition-colors hover:border-[var(--cf-border)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
         >
           {link.icon}
           {link.label}
@@ -236,41 +219,41 @@ export function AccountProfilePage({
   const downloadLabel = entitlement.canExportClean ? 'Watermark-free downloads' : 'Free exports include the CardForge watermark';
 
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6 lg:py-7">
         <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-          <aside className="border border-[#5f4526] bg-[#100c08] p-4 lg:sticky lg:top-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a98a55]">CardForge account</p>
-            <p className="mt-2 break-words font-serif text-lg text-[#fff1c7]">
+          <CardForgeSurface as="aside" tone="inset" className="p-4 lg:sticky lg:top-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">CardForge account</p>
+            <p className="mt-2 break-words font-serif text-lg text-[var(--cf-text-strong)]">
               {effectiveSignedIn ? accountDisplayName ?? accountEmail : 'Creator dashboard'}
             </p>
-            <p className="mt-1 break-words text-xs leading-5 text-[#9f8a66]">
+            <p className="mt-1 break-words text-xs leading-5 text-[var(--cf-text-subtle)]">
               {effectiveSignedIn ? accountEmail : 'Sign in to connect cloud saves and account controls.'}
             </p>
-            <div className="mt-4 inline-flex border border-[#6f532e] bg-[#1b140d] px-2.5 py-1 text-xs font-semibold text-[#f6d891]">
+            <div className="mt-4 inline-flex border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--cf-accent-text)]">
               {planLabel}
             </div>
             <DashboardNav showDeveloper={showDeveloper} />
-            <Button asChild className="mt-5 w-full bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+            <Button asChild className="mt-5 w-full bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
               <Link href="/studio" prefetch={false}>Open Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
-          </aside>
+          </CardForgeSurface>
 
           <div className="min-w-0 space-y-5">
-            <section id="overview" className="scroll-mt-24 border border-[#5f4526] bg-[#100c08] p-4 md:p-6">
+            <CardForgeSurface as="section" id="overview" tone="inset" className="scroll-mt-24 p-4 md:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-[#e2aa4a]">
+                  <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
                     <LayoutDashboard className="h-5 w-5" />
                     <span className="text-xs font-semibold uppercase tracking-[0.18em]">Overview</span>
                   </div>
-                  <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">{accountTitle}</h1>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">{heroDetail}</p>
+                  <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">{accountTitle}</h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">{heroDetail}</p>
                 </div>
-                <div className="border border-[#6f532e] bg-[#1b140d] px-3 py-2 text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#a98a55]">Current plan</p>
-                  <p className="mt-1 text-sm font-semibold text-[#ffe7ad]">{planLabel}</p>
+                <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] px-3 py-2 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--cf-text-subtle)]">Current plan</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--cf-accent-text)]">{planLabel}</p>
                 </div>
               </div>
 
@@ -283,11 +266,11 @@ export function AccountProfilePage({
                   footer={accessExpiresOn && !isOwner && !isDeveloper ? `Current paid access runs through ${accessExpiresOn}.` : 'Cloud slot limits apply only to account backups; local creation remains unlimited.'}
                 >
                   {entitlement.canExportClean ? (
-                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#bde3a8]">
+                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--cf-success)]">
                       <CheckCircle2 className="h-4 w-4" /> Creator export access active
                     </div>
                   ) : (
-                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                       <Link href="/plans" prefetch={false}>Compare plans</Link>
                     </Button>
                   )}
@@ -300,7 +283,7 @@ export function AccountProfilePage({
                   detail="Your active CardForge workspace stays on this device. You choose which sets become private account cloud backups."
                   footer="Device-only work is not automatically uploaded or exposed to ChatGPT."
                 >
-                  <Button asChild size="sm" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                  <Button asChild size="sm" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
                     <Link href="/studio" prefetch={false}>Create in Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
                   </Button>
                 </SummaryCard>
@@ -313,15 +296,15 @@ export function AccountProfilePage({
                   footer={effectiveSignedIn ? 'Profile details, sign-in methods, passwords, and active sessions live under Profile & security.' : undefined}
                 >
                   {effectiveSignedIn ? (
-                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                       <Link href="/profile" prefetch={false}>Profile &amp; security</Link>
                     </Button>
                   ) : entitlement.authConfigured ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                      <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                         <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
                       </Button>
-                      <Button asChild size="sm" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">
+                      <Button asChild size="sm" variant="ghost" onClick={markSignUpIntent} className="text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                         <Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link>
                       </Button>
                     </div>
@@ -330,42 +313,44 @@ export function AccountProfilePage({
                   )}
                 </SummaryCard>
               </div>
-            </section>
+            </CardForgeSurface>
 
             <section id="my-cardforge" className="scroll-mt-24">
-              <SectionHeading
+              <CardForgeSectionIntro
                 eyebrow="My CardForge"
                 title="Your work across device, cloud, and AI"
-                detail="Manage the things tied to your CardForge experience without mixing storage locations. Local sets, cloud backups, and AI working drafts stay visibly distinct."
+                body="Manage the things tied to your CardForge experience without mixing storage locations. Local sets, cloud backups, and AI working drafts stay visibly distinct."
               />
-              <div className="space-y-4">
+              <div className="mt-4 space-y-4">
                 {storageLibrary}
                 {cloudStorageDetails}
               </div>
             </section>
 
-            <section id="account-and-billing" className="scroll-mt-24 border border-[#5f4526] bg-[#100c08] p-4 md:p-6">
-              <SectionHeading
+            <CardForgeSurface as="section" id="account-and-billing" tone="inset" className="scroll-mt-24 p-4 md:p-6">
+              <CardForgeSectionIntro
                 eyebrow="Plan & billing"
                 title="Choose, start, or manage your plan"
-                detail="Compare the full offer here, then use the action tied to this account. New subscriptions use Stripe Checkout; existing subscriptions open Stripe billing for plan changes, invoices, payment details, or cancellation."
+                body="Compare the full offer here, then use the action tied to this account. New subscriptions use Stripe Checkout; existing subscriptions open Stripe billing for plan changes, invoices, payment details, or cancellation."
               />
 
-              <AccountPlanManagementPanel
-                authConfigured={entitlement.authConfigured}
-                canExportClean={entitlement.canExportClean}
-                canManageBilling={canManageBilling}
-                checkoutStatus={checkoutStatus}
-                cloudSlotLabel={cloudSlotLabel}
-                currentPlanKey={currentPlanKey}
-                downloadLabel={downloadLabel}
-                effectiveSignedIn={effectiveSignedIn}
-                initialPlanIntent={initialPlanIntent}
-                planLabel={planLabel}
-                plans={plans}
-                showCheckout={showCheckout}
-                showDesignerCheckout={showDesignerCheckout}
-              />
+              <div className="mt-4">
+                <AccountPlanManagementPanel
+                  authConfigured={entitlement.authConfigured}
+                  canExportClean={entitlement.canExportClean}
+                  canManageBilling={canManageBilling}
+                  checkoutStatus={checkoutStatus}
+                  cloudSlotLabel={cloudSlotLabel}
+                  currentPlanKey={currentPlanKey}
+                  downloadLabel={downloadLabel}
+                  effectiveSignedIn={effectiveSignedIn}
+                  initialPlanIntent={initialPlanIntent}
+                  planLabel={planLabel}
+                  plans={plans}
+                  showCheckout={showCheckout}
+                  showDesignerCheckout={showDesignerCheckout}
+                />
+              </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <SummaryCard
@@ -375,47 +360,47 @@ export function AccountProfilePage({
                   detail={effectiveSignedIn ? `Signed in as ${accountEmail}` : 'Sign in to manage your name, avatar, email addresses, password, providers, and active sessions.'}
                 >
                   {effectiveSignedIn ? (
-                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                       <Link href="/profile" prefetch={false}><ShieldCheck className="mr-2 h-4 w-4" />Manage security</Link>
                     </Button>
                   ) : entitlement.authConfigured ? (
-                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                       <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
                     </Button>
                   ) : null}
                 </SummaryCard>
 
-                <div className="border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
-                  <div className="flex items-center gap-2 text-[#e2aa4a]">
+                <CardForgeSurface className="p-4 md:p-5">
+                  <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
                     <Sparkles className="h-4 w-4" />
                     <span className="text-xs font-semibold uppercase tracking-[0.15em]">Your data boundaries</span>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="border border-[#42311f] bg-[#100c08] p-3">
-                      <p className="text-sm font-semibold text-[#fff1c7]">This device</p>
-                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">The normal workspace, personal Templates, and local uploads stay browser-owned.</p>
-                    </div>
-                    <div className="border border-[#42311f] bg-[#100c08] p-3">
-                      <p className="text-sm font-semibold text-[#fff1c7]">Private cloud</p>
-                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">Only sets you explicitly back up use your account cloud slots and become available across devices.</p>
-                    </div>
-                    <div className="border border-[#42311f] bg-[#100c08] p-3">
-                      <p className="text-sm font-semibold text-[#fff1c7]">AI working drafts</p>
-                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">Temporary Studio/ChatGPT collaboration documents remain separate from permanent cloud backups.</p>
-                    </div>
+                    {[
+                      ['This device', 'The normal workspace, personal Templates, and local uploads stay browser-owned.'],
+                      ['Private cloud', 'Only sets you explicitly back up use your account cloud slots and become available across devices.'],
+                      ['AI working drafts', 'Temporary Studio/ChatGPT collaboration documents remain separate from permanent cloud backups.'],
+                    ].map(([title, detail]) => (
+                      <CardForgeSurface key={title} tone="inset" className="border-[var(--cf-border-subtle)] p-3">
+                        <p className="text-sm font-semibold text-[var(--cf-text-strong)]">{title}</p>
+                        <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">{detail}</p>
+                      </CardForgeSurface>
+                    ))}
                   </div>
-                </div>
+                </CardForgeSurface>
               </div>
-            </section>
+            </CardForgeSurface>
 
             {showDeveloper ? (
               <section id="developer-tools" className="scroll-mt-24">
-                <SectionHeading
+                <CardForgeSectionIntro
                   eyebrow="Developer"
                   title={isOwner ? 'Owner and contributor tools' : 'Contributor tools'}
-                  detail="Developer surfaces appear only for accounts that actually have contributor or owner access."
+                  body="Developer surfaces appear only for accounts that actually have contributor or owner access."
                 />
-                <AccountDeveloperStatusSection isOwner={isOwner} isDeveloper={isDeveloper} />
+                <div className="mt-4">
+                  <AccountDeveloperStatusSection isOwner={isOwner} isDeveloper={isDeveloper} />
+                </div>
               </section>
             ) : null}
           </div>

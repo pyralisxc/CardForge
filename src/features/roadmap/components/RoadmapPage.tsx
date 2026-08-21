@@ -31,20 +31,20 @@ export function RoadmapPage({
     && entitlement.ownerAccess.isOwner;
 
   return (
-    <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
-        <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
-          <div className="flex items-center gap-3 text-[#e2aa4a]">
+        <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 md:p-5">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
             <History className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['roadmap.hero.eyebrow']}</span>
           </div>
-          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">
+          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
             {siteContent['roadmap.hero.headline']}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
             {siteContent['roadmap.hero.body']}
           </p>
         </div>

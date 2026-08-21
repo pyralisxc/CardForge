@@ -39,7 +39,7 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
         size="sm"
         disabled
         aria-label="Connecting to account sign in"
-        className="gap-2 bg-[#6f552c] text-[#f8e3b0]"
+        className="gap-2 bg-[#6f552c] text-[var(--cf-accent-text)]"
       >
         <LoaderCircle className="h-4 w-4 animate-spin" /> Connecting…
       </Button>
@@ -56,7 +56,7 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
   }
 
   return (
-    <Button asChild type="button" size="sm" className="gap-2 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+    <Button asChild type="button" size="sm" className="gap-2 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
       <Link href={createAuthRouteHref('/sign-in', pathname)} prefetch={false}>
         <LogIn className="h-4 w-4" /> Sign in
       </Link>

@@ -22,7 +22,7 @@ import {
   type MarketingChannel as SocialService,
 } from '@/features/marketing-content/model';
 
-const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
+const fieldClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]';
 
 const normalizeAttachmentOrder = (
   attachments: CampaignMediaAttachment[],
@@ -144,7 +144,7 @@ export function CampaignVariantEditor({
   };
 
   return (
-    <article className="border border-[#4a3823] bg-[#100c08] p-4">
+    <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
       <div className="flex flex-wrap gap-3">
         <select
           aria-label={`Channel ${index + 1}`}
@@ -218,7 +218,7 @@ export function CampaignVariantEditor({
             onChange={(event) => setAltText(event.target.value)}
           />
         </CountedField>
-        <label className="grid gap-1 text-xs text-[#c7b288]">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
           Reuse authorized media
           <select
             className={fieldClassName}
@@ -250,7 +250,7 @@ export function CampaignVariantEditor({
       </div>
 
       <label
-        className="mt-3 inline-flex min-h-11 cursor-pointer items-center justify-center border border-[#5f4526] px-4 text-sm text-[#ffe7ad] hover:bg-[#2a1b0d]"
+        className="mt-3 inline-flex min-h-11 cursor-pointer items-center justify-center border border-[var(--cf-border)] px-4 text-sm text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]"
         aria-disabled={disabled}
       >
         {uploading ? (
@@ -277,7 +277,7 @@ export function CampaignVariantEditor({
           {variant.attachments.map((attachment, attachmentIndex) => (
             <article
               key={attachment.id}
-              className="border border-[#4a3823] bg-[#15100a] p-3"
+              className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3"
             >
               <Image
                 src={attachment.media.previewUrl}
@@ -374,7 +374,7 @@ function CountedField({
   children: ReactNode;
 }) {
   return (
-    <label className={`grid gap-1 text-xs text-[#c7b288] ${className}`}>
+    <label className={`grid gap-1 text-xs text-[var(--cf-text-muted)] ${className}`}>
       <span className="flex justify-between gap-3">
         <span>{label}</span>
         <span>{value.length}/{limit}</span>

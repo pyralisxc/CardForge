@@ -67,13 +67,13 @@ export function BorderInspectorPanel({
             size="sm"
             title={getPipelineRecipeTitle(preset)}
             aria-label={`Apply ${preset.label} edge recipe`}
-            className="h-auto min-h-8 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+            className="h-auto min-h-8 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
             onClick={() => onApplyPreset(preset)}
           >
             <span
               className="h-4 w-4 shrink-0 rounded-[3px] border"
               style={{
-                background: preset.preview?.background || preset.updates?.backgroundColor || '#111720',
+                background: preset.preview?.background || preset.updates?.backgroundColor || 'var(--cf-editor-control)',
                 borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340',
               }}
               aria-hidden="true"

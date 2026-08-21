@@ -85,27 +85,27 @@ export function OwnerMarketingCampaignsWorkspace({
             type="button"
             key={campaign.id}
             onClick={() => choose(campaign)}
-            className="block w-full border border-[#5f4526] bg-[#15100a] p-4 text-left"
+            className="block w-full border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4 text-left"
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-serif text-xl text-[#fff1c7]">
+              <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">
                 {campaign.name}
               </h3>
-              <span className="border border-[#6d4f2b] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#e2aa4a]">
+              <span className="border border-[var(--cf-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-accent-strong)]">
                 {campaign.status}
               </span>
             </div>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
               {campaign.objective}
             </p>
-            <p className="mt-2 text-xs text-[#a98a75]">
+            <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">
               utm_campaign={campaign.utmCampaign}
             </p>
           </button>
         ))}
       </section>
-      <article className="border border-[#5f4526] bg-[#15100a] p-5">
-        <h3 className="font-serif text-2xl text-[#fff1c7]">
+      <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+        <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">
           {editing ? "Edit campaign" : "Create campaign"}
         </h3>
         <div className="mt-4 space-y-3">

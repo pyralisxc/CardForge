@@ -129,20 +129,20 @@ export function DeveloperCampaignMediaLibrary({
 
   return (
     <section className="space-y-4">
-      <header className="border border-[#5f4526] bg-[#15100a] p-4">
+      <header className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">
               Campaign Media Library
             </p>
-            <h2 className="font-serif text-2xl text-[#fff1c7]">
+            <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
               Reusable production media
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
               A CardForge metadata catalog for approved and protected campaign media. Bucket paths and storage controls remain server-only.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-[#c7b288] sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 text-xs text-[var(--cf-text-muted)] sm:grid-cols-4">
             <Metric label="Media" value={String(summary.mediaCount)} />
             <Metric label="Protected" value={bytes(summary.protectedBytes)} />
             <Metric label="Derivatives" value={bytes(summary.derivativeBytes)} />
@@ -150,11 +150,11 @@ export function DeveloperCampaignMediaLibrary({
           </div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <label className="flex min-h-11 items-center gap-2 border border-[#5f4526] bg-[#0c0b09] px-3">
-            <Search className="h-4 w-4 text-[#a98a55]" />
+          <label className="flex min-h-11 items-center gap-2 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3">
+            <Search className="h-4 w-4 text-[var(--cf-text-subtle)]" />
             <span className="sr-only">Search campaign media</span>
             <input
-              className="w-full bg-transparent text-sm text-[#ffe7ad] outline-none"
+              className="w-full bg-transparent text-sm text-[var(--cf-accent-text)] outline-none"
               value={query}
               onChange={(event) => { setQuery(event.target.value); setPage(1); }}
               placeholder="Search media, contributor, credit, caption, or hash"
@@ -162,7 +162,7 @@ export function DeveloperCampaignMediaLibrary({
           </label>
           <select
             aria-label="Filter campaign media"
-            className="min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 text-sm text-[#ffe7ad]"
+            className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-sm text-[var(--cf-accent-text)]"
             value={filter}
             onChange={(event) => { setFilter(event.target.value); setPage(1); }}
           >
@@ -176,7 +176,7 @@ export function DeveloperCampaignMediaLibrary({
         </div>
       </header>
 
-      {message ? <p role="status" className="border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#f1c875]">{message}</p> : null}
+      {message ? <p role="status" className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[#f1c875]">{message}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
@@ -184,7 +184,7 @@ export function DeveloperCampaignMediaLibrary({
             type="button"
             key={item.id}
             onClick={() => setSelectedId(item.id)}
-            className="overflow-hidden border border-[#4a3823] bg-[#15100a] text-left hover:border-[#d8b365] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f1c875]"
+            className="overflow-hidden border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] text-left hover:border-[var(--cf-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f1c875]"
           >
             <Image
               src={item.previewUrl}
@@ -196,17 +196,17 @@ export function DeveloperCampaignMediaLibrary({
             />
             <div className="p-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs uppercase tracking-[0.12em] text-[#e2aa4a]">
+                <span className="text-xs uppercase tracking-[0.12em] text-[var(--cf-accent-strong)]">
                   {item.reviewState.replace('_', ' ')}
                 </span>
-                <span className="text-xs text-[#a98a55]">
+                <span className="text-xs text-[var(--cf-text-subtle)]">
                   {item.width}×{item.height}
                 </span>
               </div>
-              <p className="mt-2 truncate text-sm text-[#fff1c7]">
+              <p className="mt-2 truncate text-sm text-[var(--cf-text-strong)]">
                 {item.originalFilename || item.id}
               </p>
-              <p className="mt-1 text-xs text-[#c7b288]">
+              <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
                 {item.contributorName || item.contributorEmail || 'CardForge'} · {bytes(item.originalByteCount)}
               </p>
             </div>
@@ -215,12 +215,12 @@ export function DeveloperCampaignMediaLibrary({
       </div>
 
       {!items.length && !loading ? (
-        <p className="border border-dashed border-[#4a3823] p-6 text-center text-sm text-[#a98a55]">
+        <p className="border border-dashed border-[var(--cf-border-subtle)] p-6 text-center text-sm text-[var(--cf-text-subtle)]">
           No campaign media matches this view.
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#100c08] p-3 text-xs text-[#c7b288]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-xs text-[var(--cf-text-muted)]">
         <span>{loading ? 'Loading media…' : `${pageData.total === 0 ? 0 : (pageData.page - 1) * pageData.pageSize + 1}-${Math.min(pageData.total, pageData.page * pageData.pageSize)} of ${pageData.total}`}</span>
         <div className="flex gap-2">
           <Button type="button" size="sm" variant="outline" disabled={loading || page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
@@ -266,13 +266,13 @@ function MediaDetail({
     : 'Not set';
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-4">
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
             Media detail
           </p>
-          <h3 className="font-serif text-xl text-[#fff1c7]">
+          <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">
             {media.originalFilename || media.id}
           </h3>
         </div>
@@ -315,7 +315,7 @@ function MediaDetail({
           unoptimized
           className="aspect-video w-full object-cover"
         />
-        <dl className="grid gap-2 text-sm text-[#d8c49a]">
+        <dl className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
           <Detail
             label="Contributor"
             value={media.contributorName || media.contributorEmail || 'CardForge'}
@@ -360,17 +360,17 @@ function MediaDetail({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] px-3 py-2">
-      <p className="uppercase tracking-[0.12em] text-[#a98a55]">{label}</p>
-      <p className="mt-1 text-sm text-[#fff1c7]">{value}</p>
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2">
+      <p className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
+      <p className="mt-1 text-sm text-[var(--cf-text-strong)]">{value}</p>
     </div>
   );
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] px-3 py-2">
-      <dt className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2">
+      <dt className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
         {label}
       </dt>
       <dd className="mt-1 break-words">{value}</dd>

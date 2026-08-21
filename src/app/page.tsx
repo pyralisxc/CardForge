@@ -55,7 +55,7 @@ export default async function LandingPage() {
     access: <AccessComparison plans={plans} />,
     founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,
     final_cta: (
-      <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,#0c0b09_62%)] px-5 py-11 text-center md:px-8 md:py-14">
+      <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,var(--cf-canvas)_62%)] px-5 py-11 text-center md:px-8 md:py-14">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">{siteContent['landing.final.headline']}</h2>
           <p className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['landing.final.body']}</p>

@@ -61,8 +61,10 @@ export function ContactRequestForm({
     setForm({ ...emptyForm, name: defaultName ?? '', email: defaultEmail ?? '', subject: defaultSubject });
   };
 
+  const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
+
   return (
-    <form onSubmit={submit} className="mt-8 border border-[#6d4f2b] bg-[#15100a] p-5 md:p-6">
+    <form onSubmit={submit} className="mt-8 border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-5 md:p-6">
       <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
         Company website
         <input
@@ -72,59 +74,59 @@ export function ContactRequestForm({
           onChange={(event) => setForm((current) => ({ ...current, companyWebsite: event.target.value }))}
         />
       </label>
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <Send className="h-5 w-5" />
-        <h2 className="font-serif text-2xl text-[#fff1c7]">
+        <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
           {kind === 'developer' ? 'Request developer access' : kind === 'business' ? 'Discuss a business solution' : 'Send a support request'}
         </h2>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <label className="grid gap-2 text-sm text-[#c7b288]">
+        <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
           Name
           <input
             required
-            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+            className={inputClassName}
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
           />
         </label>
-        <label className="grid gap-2 text-sm text-[#c7b288]">
+        <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
           Email
           <input
             required
             type="email"
-            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+            className={inputClassName}
             value={form.email}
             onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
           />
         </label>
       </div>
-      <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">
+      <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">
         Subject
         <input
           required
-          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className={inputClassName}
           value={form.subject}
           onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
         />
       </label>
-      <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">
+      <label className="mt-3 grid gap-2 text-sm text-[var(--cf-text-muted)]">
         Message
         <textarea
           required
           rows={6}
-          className="resize-y border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+          className={`resize-y ${inputClassName}`}
           value={form.message}
           onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
         />
       </label>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button type="submit" disabled={status === 'submitting'} className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+        <Button type="submit" disabled={status === 'submitting'} className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
           <Send className="mr-2 h-4 w-4" />
           {status === 'submitting' ? 'Sending...' : kind === 'business' ? 'Send business inquiry' : 'Send request'}
         </Button>
         {message ? (
-          <p className={`text-sm ${status === 'error' ? 'text-[#f0bd75]' : 'text-[#bde3a8]'}`}>
+          <p className={`text-sm ${status === 'error' ? 'text-[var(--cf-warning)]' : 'text-[var(--cf-success)]'}`}>
             {message}
           </p>
         ) : null}

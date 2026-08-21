@@ -18,7 +18,7 @@ import {
 } from '@/features/public-site/client';
 
 const UPLOAD_TIMEOUT_MS = 30_000;
-const inputClassName = 'min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm leading-6 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const inputClassName = 'min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm leading-6 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const mediaGroupLabels = {
   brand: 'Brand assets',
   landing: 'Homepage media',
@@ -143,28 +143,28 @@ export function OwnerSiteMediaPanel({
   };
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-4 sm:p-6">
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 sm:p-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a98a55]">Visual publishing</p>
-        <h2 className="mt-1 font-serif text-2xl text-[#fff1c7]">Site media</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Visual publishing</p>
+        <h2 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Site media</h2>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-[#a98a7a]">
           Replace every public brand and marketing image from one catalog. JPEG, PNG, and WebP files up to 12 MB are supported. Changes stay in these previews until you publish them, and the previous version remains available for a one-step restore.
         </p>
       </div>
       <div className="mt-6 grid gap-6">
-        <article className="border border-[#4a3823] bg-[#100c08] p-4">
-          <h3 className="font-serif text-xl text-[#ffe7ad]">Watermark presentation</h3>
+        <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+          <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">Watermark presentation</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <RangeField label="Free preview/export opacity" value={brandSettings.watermarkPreviewOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkPreviewOpacity: value }))} />
             <RangeField label="Social image opacity" value={brandSettings.watermarkShareOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkShareOpacity: value }))} />
             <RangeField label="Width across card" value={brandSettings.watermarkWidthPercent} min={20} max={90} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkWidthPercent: value }))} />
           </div>
-          <Button type="button" className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(consolePayload.siteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
+          <Button type="button" className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(consolePayload.siteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
         </article>
-        {(['brand', 'landing', 'showcase', 'founder'] as const).map((group) => <details key={group} className="border border-[#4a3823] bg-[#100c08]" open={group === 'brand'}>
-          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[#ffe7ad]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[#8f7b57]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
-          <div className="grid gap-6 border-t border-[#4a3823] p-4">
+        {(['brand', 'landing', 'showcase', 'founder'] as const).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'brand'}>
+          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
+          <div className="grid gap-6 border-t border-[var(--cf-border-subtle)] p-4">
           {drafts.filter((asset) => asset.group === group).map((draft) => {
           const published = consolePayload.siteMedia.find((asset) => asset.slot === draft.slot) ?? draft;
           return (
@@ -260,13 +260,13 @@ function OwnerMediaEditor({
   const previewWidth = getPreviewWidthClass(asset, viewport);
 
   return (
-    <article className="border border-[#4a3823] bg-[#100c08] p-4">
+    <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-serif text-xl text-[#ffe7ad]">{asset.label}</h3>
+          <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">{asset.label}</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">{asset.guidance}</p>
         </div>
-        {hasResponsivePresentation ? <div className="flex border border-[#5f4526] bg-[#0c0b09] p-1" role="group" aria-label={`${asset.label} preview size`}>
+        {hasResponsivePresentation ? <div className="flex border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-1" role="group" aria-label={`${asset.label} preview size`}>
           <PreviewButton active={viewport === 'desktop'} onClick={() => setViewport('desktop')}><Monitor className="h-4 w-4" aria-hidden="true" />Desktop</PreviewButton>
           <PreviewButton active={viewport === 'mobile'} onClick={() => setViewport('mobile')}><Smartphone className="h-4 w-4" aria-hidden="true" />Mobile</PreviewButton>
         </div> : null}
@@ -274,7 +274,7 @@ function OwnerMediaEditor({
 
       <div className="mt-4 rounded border border-[#3a2d1d] bg-[#090806] p-3 sm:p-5">
         <div
-          className={`relative mx-auto grid w-full place-items-center overflow-hidden border border-[#5f4526] bg-[#21170d] font-serif text-4xl text-[#ffe7ad] transition-[max-width] ${previewWidth}`}
+          className={`relative mx-auto grid w-full place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface-raised)] font-serif text-4xl text-[var(--cf-accent-text)] transition-[max-width] ${previewWidth}`}
           style={{ aspectRatio: frameAspectRatio }}
         >
           {source ? (
@@ -301,33 +301,33 @@ function OwnerMediaEditor({
               aria-hidden="true"
             />
           ) : null}
-          {asset.kind === 'hero' ? <span className="relative max-w-[55%] justify-self-start p-5 text-xl font-semibold text-[#fff1c7]">Homepage headline preview</span> : null}
+          {asset.kind === 'hero' ? <span className="relative max-w-[55%] justify-self-start p-5 text-xl font-semibold text-[var(--cf-text-strong)]">Homepage headline preview</span> : null}
         </div>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
         <div className="grid content-start gap-4">
-          <label className="grid gap-2 text-sm text-[#c7b288]">
+          <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             Image description
             <input className={inputClassName} maxLength={300} value={asset.alt} onChange={(event) => onAssetChange({ ...asset, alt: event.target.value })} />
           </label>
-          <label className="grid gap-2 text-sm text-[#c7b288]">
+          <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             Replacement image
             <input
               key={`${asset.slot}-${inputVersion}`}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className={`${inputClassName} file:mr-3 file:border-0 file:bg-[#e4aa43] file:px-3 file:py-2 file:font-semibold file:text-[#140f0a]`}
+              className={`${inputClassName} file:mr-3 file:border-0 file:bg-[var(--cf-accent-strong)] file:px-3 file:py-2 file:font-semibold file:text-[var(--cf-accent-contrast)]`}
               onChange={(event) => onFileChange(event.target.files?.[0])}
             />
           </label>
-          <p className={`border-l-2 px-3 text-xs leading-5 ${dimensionNote.tone === 'warning' ? 'border-[#d78943] text-[#f0bd75]' : 'border-[#5f4526] text-[#8f7b57]'}`}>
+          <p className={`border-l-2 px-3 text-xs leading-5 ${dimensionNote.tone === 'warning' ? 'border-[#d78943] text-[var(--cf-warning)]' : 'border-[var(--cf-border)] text-[var(--cf-text-subtle)]'}`}>
             {file ? `Selected image: ${formatDimensions(detectedDimensions)}. ` : `Current image: ${formatDimensions(currentDimensions)}. `}{dimensionNote.message}
           </p>
         </div>
 
-        {hasResponsivePresentation ? <div className="grid content-start gap-4 border border-[#3a2d1d] bg-[#0c0b09] p-4">
-          <h4 className="font-semibold text-[#ffe7ad]">Responsive presentation</h4>
+        {hasResponsivePresentation ? <div className="grid content-start gap-4 border border-[#3a2d1d] bg-[var(--cf-canvas)] p-4">
+          <h4 className="font-semibold text-[var(--cf-accent-text)]">Responsive presentation</h4>
           {canReframe ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <SelectField label="Frame" value={asset.presentation.frame} onChange={(value) => setFrame(value as SiteMediaFrame)} options={[
@@ -349,7 +349,7 @@ function OwnerMediaEditor({
           </div>
           {canPosition ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a98a55]">{viewport} crop</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{viewport} crop</p>
               <RangeField label="Horizontal focus" value={viewport === 'desktop' ? asset.presentation.desktopFocalX : asset.presentation.mobileFocalX} min={0} max={100} suffix="%" onChange={(value) => setPresentation(viewport === 'desktop' ? 'desktopFocalX' : 'mobileFocalX', value)} />
               <RangeField label="Vertical focus" value={viewport === 'desktop' ? asset.presentation.desktopFocalY : asset.presentation.mobileFocalY} min={0} max={100} suffix="%" onChange={(value) => setPresentation(viewport === 'desktop' ? 'desktopFocalY' : 'mobileFocalY', value)} />
               <RangeField label="Zoom" value={viewport === 'desktop' ? asset.presentation.desktopZoom : asset.presentation.mobileZoom} min={1} max={2} step={0.05} suffix="×" onChange={(value) => setPresentation(viewport === 'desktop' ? 'desktopZoom' : 'mobileZoom', value)} />
@@ -358,16 +358,16 @@ function OwnerMediaEditor({
           {asset.kind === 'hero' ? (
             <RangeField label="Text overlay" value={asset.presentation.overlayStrength} min={0} max={100} suffix="%" onChange={(value) => setPresentation('overlayStrength', value)} />
           ) : null}
-        </div> : <div className="border border-[#3a2d1d] bg-[#0c0b09] p-4 text-sm leading-6 text-[#a98a7a]">{asset.kind === 'social' ? 'CardForge publishes this asset as a fixed 1600 × 900 social image. It has no on-page desktop or mobile crop.' : asset.kind === 'showcase-art' ? 'The live Pipeline template controls this artwork’s crop inside the example card. This catalog owns only the source image and its description.' : 'This asset keeps its natural transparent frame. CardForge scales it automatically wherever it is used.'}</div>}
+        </div> : <div className="border border-[#3a2d1d] bg-[var(--cf-canvas)] p-4 text-sm leading-6 text-[#a98a7a]">{asset.kind === 'social' ? 'CardForge publishes this asset as a fixed 1600 × 900 social image. It has no on-page desktop or mobile crop.' : asset.kind === 'showcase-art' ? 'The live Pipeline template controls this artwork’s crop inside the example card. This catalog owns only the source image and its description.' : 'This asset keeps its natural transparent frame. CardForge scales it automatically wherever it is used.'}</div>}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3a2d1d] pt-4">
-        <p className="text-xs text-[#8f7b57]">{hasChanges ? 'Previewing unpublished changes.' : asset.updatedAt ? `Live version published ${new Date(asset.updatedAt).toLocaleString()}.` : 'Using the bundled default.'}</p>
+        <p className="text-xs text-[var(--cf-text-subtle)]">{hasChanges ? 'Previewing unpublished changes.' : asset.updatedAt ? `Live version published ${new Date(asset.updatedAt).toLocaleString()}.` : 'Using the bundled default.'}</p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" disabled={locked || !asset.previousVersion} onClick={onRestore}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />Restore previous
           </Button>
-          <Button type="button" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={locked || !hasChanges || !asset.alt.trim()} onClick={onPublish}>
+          <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={locked || !hasChanges || !asset.alt.trim()} onClick={onPublish}>
             <ImageUp className="mr-2 h-4 w-4" aria-hidden="true" />{busy ? 'Publishing...' : 'Publish changes'}
           </Button>
         </div>
@@ -377,12 +377,12 @@ function OwnerMediaEditor({
 }
 
 function PreviewButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex min-h-10 items-center gap-2 px-3 text-sm font-semibold ${active ? 'bg-[#e4aa43] text-[#140f0a]' : 'text-[#c7b288] hover:bg-[#21170d]'}`}>{children}</button>;
+  return <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex min-h-10 items-center gap-2 px-3 text-sm font-semibold ${active ? 'bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)]' : 'text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface-raised)]'}`}>{children}</button>;
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
       {label}
       <select className={inputClassName} value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
@@ -393,9 +393,9 @@ function SelectField({ label, value, options, onChange }: { label: string; value
 
 function RangeField({ label, value, min, max, step = 1, suffix, onChange }: { label: string; value: number; min: number; max: number; step?: number; suffix: string; onChange: (value: number) => void }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
       <span className="flex justify-between gap-3"><span>{label}</span><output>{Number.isInteger(value) ? value : value.toFixed(2)}{suffix}</output></span>
-      <input className="min-h-11 accent-[#e4aa43]" type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input className="min-h-11 accent-[var(--cf-accent-strong)]" type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   );
 }

@@ -80,7 +80,7 @@ export function LayerTreePanel({
         <div
           className={cn(
             'group flex w-full items-center gap-0.5 rounded-[4px] border px-1 py-1 text-[11px] transition-colors',
-            isSelected ? 'border-[#d5ad54] bg-[#211a0d] text-[#f5d27b]' : 'border-transparent bg-[#0c1016] text-[#b7bdc9] hover:border-[#252b35] hover:bg-[#111720]',
+            isSelected ? 'border-[#d5ad54] bg-[#211a0d] text-[var(--cf-accent-text)]' : 'border-transparent bg-[#0c1016] text-[#b7bdc9] hover:border-[var(--cf-editor-border)] hover:bg-[var(--cf-editor-control)]',
             isDropTarget && layerDropTarget?.pos === 'child' && 'border-[#6d55b8] bg-[#1a1433]',
           )}
           style={{ paddingLeft: `${depth * 14 + 4}px` }}
@@ -203,7 +203,7 @@ export function LayerTreePanel({
                 variant="ghost"
                 disabled={checkedLayerIds.length < 2}
                 onClick={onGroupChecked}
-                className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[#f5d27b] disabled:opacity-40"
+                className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[var(--cf-accent-text)] disabled:opacity-40"
               >
                 <FolderPlus className="h-3 w-3" /> Group
               </Button>
@@ -217,7 +217,7 @@ export function LayerTreePanel({
                 variant="ghost"
                 disabled={!canUngroupSelected}
                 onClick={onUngroupSelected}
-                className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[#f5d27b] disabled:opacity-40"
+                className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[var(--cf-accent-text)] disabled:opacity-40"
               >
                 <Ungroup className="h-3 w-3" /> Ungroup
               </Button>

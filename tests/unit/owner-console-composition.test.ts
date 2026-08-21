@@ -46,7 +46,8 @@ describe('Owner Console composition', () => {
     );
 
     expect(page).toContain("@/features/experience-settings/client/owner");
-    expect(page).toContain('>Site Controls</TabsTrigger>');
+    expect(page).toContain("{ value: 'site', label: 'Site Controls' }");
+    expect(page).toContain('CardForgeWorkspaceNavigation');
     expect(page).toContain('>Experience &amp; Access</TabsTrigger>');
     expect(model).toContain('experienceSettings: ExperienceSettings');
     expect(panel).not.toContain('@/features/owner');

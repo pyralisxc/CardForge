@@ -18,7 +18,7 @@ export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
   const safeBackgroundImage = toThumbnailBackgroundImage(rawBackground);
   const backgroundColor = template.baseBackgroundColor ?? template.appearance?.material?.baseColor ?? '#111827';
   const borderColor = template.cardBorderColor ?? template.appearance?.border?.color ?? '#d5ad54';
-  const accent = template.baseTextColor ?? template.appearance?.material?.textColor ?? '#f5d27b';
+  const accent = template.baseTextColor ?? template.appearance?.material?.textColor ?? 'var(--cf-accent-text)';
   const [rawWidth, rawHeight] = template.aspectRatio.split(':').map(Number);
   const thumbnailRatio = rawWidth > 0 && rawHeight > 0 ? rawWidth / rawHeight : 58 / 72;
   const thumbnailWidth = Math.max(48, Math.min(112, Math.round(72 * thumbnailRatio)));

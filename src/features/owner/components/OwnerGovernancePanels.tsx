@@ -46,21 +46,21 @@ const authorityRows = [
 
 export function OwnerRolesPanel() {
   return (
-    <section className="border border-[#5f4526] bg-[#15100a] p-5">
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
+    <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <KeyRound className="h-5 w-5" />
-        <h2 className="font-serif text-2xl text-[#fff1c7]">
+        <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
           Roles &amp; permission boundaries
         </h2>
       </div>
-      <p className="mt-3 max-w-4xl text-sm leading-6 text-[#c7b288]">
+      <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
         This is the effective control model. The console edits authority through
         its real owner; it does not invent a second permissions system.
       </p>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[48rem] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
+            <tr className="border-b border-[var(--cf-border)] text-left text-xs uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">
               <th className="py-3 pr-3">Role</th>
               <th className="px-3 py-3">Can control</th>
               <th className="px-3 py-3">Authority owner</th>
@@ -69,11 +69,11 @@ export function OwnerRolesPanel() {
           <tbody>
             {authorityRows.map(([role, scope, owner]) => (
               <tr key={role} className="border-b border-[#342719]">
-                <td className="py-3 pr-3 font-semibold text-[#ffe7ad]">
+                <td className="py-3 pr-3 font-semibold text-[var(--cf-accent-text)]">
                   {role}
                 </td>
-                <td className="px-3 py-3 leading-6 text-[#c7b288]">{scope}</td>
-                <td className="px-3 py-3 text-[#d8c49a]">{owner}</td>
+                <td className="px-3 py-3 leading-6 text-[var(--cf-text-muted)]">{scope}</td>
+                <td className="px-3 py-3 text-[var(--cf-text-muted)]">{owner}</td>
               </tr>
             ))}
           </tbody>
@@ -86,52 +86,52 @@ export function OwnerRolesPanel() {
 export function OwnerRetentionPanel() {
   return (
     <section className="grid gap-4 lg:grid-cols-2">
-      <article className="border border-[#5f4526] bg-[#15100a] p-5">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <Trash2 className="h-5 w-5" />
-          <h2 className="font-serif text-2xl text-[#fff1c7]">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             Deletion controls
           </h2>
         </div>
-        <ul className="mt-4 space-y-3 text-sm leading-6 text-[#c7b288]">
+        <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--cf-text-muted)]">
           <li>
-            <strong className="text-[#ffe7ad]">Library assets:</strong>{" "}
+            <strong className="text-[var(--cf-accent-text)]">Library assets:</strong>{" "}
             permanently deletable from Studio Library with exact-name
             confirmation; managed storage, revisions, votes, and registry
             lineage are purged.
           </li>
           <li>
-            <strong className="text-[#ffe7ad]">Clerk accounts:</strong>{" "}
+            <strong className="text-[var(--cf-accent-text)]">Clerk accounts:</strong>{" "}
             deletable from People with exact-email confirmation. Historical
             contributions remain attributed and the retained profile becomes
             inactive.
           </li>
           <li>
-            <strong className="text-[#ffe7ad]">Campaign media:</strong> archived
+            <strong className="text-[var(--cf-accent-text)]">Campaign media:</strong> archived
             or purged through the campaign media owner workflow, which protects
             active campaign relationships.
           </li>
           <li>
-            <strong className="text-[#ffe7ad]">Provider data:</strong> Stripe,
+            <strong className="text-[var(--cf-accent-text)]">Provider data:</strong> Stripe,
             Resend, Google, PostHog, Meta, Clerk, and Vercel records follow
             their own dashboards and retention rules.
           </li>
         </ul>
       </article>
-      <article className="border border-[#5f4526] bg-[#15100a] p-5">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <ShieldCheck className="h-5 w-5" />
-          <h2 className="font-serif text-2xl text-[#fff1c7]">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
             Preserved history
           </h2>
         </div>
-        <p className="mt-4 text-sm leading-6 text-[#c7b288]">
+        <p className="mt-4 text-sm leading-6 text-[var(--cf-text-muted)]">
           Votes, publication decisions, legal versions, billing events, and
           contribution attribution may remain after access is revoked or an
           account is deleted. These records explain what the service published
           and why; they are not active access.
         </p>
-        <p className="mt-3 border border-[#4a3823] bg-[#100c08] p-3 text-xs leading-5 text-[#d8c49a]">
+        <p className="mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
           Use People to distinguish a live account from a history-only identity.
           A missing Clerk account should never be presented as an active
           developer.
@@ -186,15 +186,15 @@ export function OwnerActivityPanel() {
   }, [load]);
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
-    <section className="border border-[#5f4526] bg-[#15100a] p-5">
+    <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <History className="h-5 w-5" />
           <div>
             <p className="text-xs uppercase tracking-[0.16em]">
               Append-only operations
             </p>
-            <h2 className="font-serif text-2xl text-[#fff1c7]">
+            <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
               Owner change history
             </h2>
           </div>
@@ -210,7 +210,7 @@ export function OwnerActivityPanel() {
           Refresh
         </Button>
       </div>
-      <p className="mt-3 max-w-4xl text-sm leading-6 text-[#c7b288]">
+      <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
         Records safe site-control changes, people/developer authority, inbox
         state, and other migrated owner actions. Retired development proxies
         resolve to their canonical owner without rewriting the original event.
@@ -219,7 +219,7 @@ export function OwnerActivityPanel() {
       {error ? (
         <p
           role="alert"
-          className="mt-4 border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]"
+          className="mt-4 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]"
         >
           {error}
         </p>
@@ -228,16 +228,16 @@ export function OwnerActivityPanel() {
         {items.map((event) => (
           <article
             key={event.id}
-            className="grid gap-2 border border-[#4a3823] bg-[#100c08] p-3 md:grid-cols-[10rem_minmax(0,1fr)_auto]"
+            className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 md:grid-cols-[10rem_minmax(0,1fr)_auto]"
           >
-            <time className="text-xs text-[#8f7b57]" dateTime={event.createdAt}>
+            <time className="text-xs text-[var(--cf-text-subtle)]" dateTime={event.createdAt}>
               {formatOwnerDateTime(event.createdAt)}
             </time>
             <div>
-              <p className="text-sm font-semibold text-[#ffe7ad]">
+              <p className="text-sm font-semibold text-[var(--cf-accent-text)]">
                 {event.summary}
               </p>
-              <p className="mt-1 text-xs text-[#a98a75]">
+              <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">
                 {event.action} · {event.targetType}
                 {event.targetId
                   ? ` · ${event.targetLabel ?? event.targetId}`
@@ -246,19 +246,19 @@ export function OwnerActivityPanel() {
               </p>
             </div>
             <span
-              className={`self-start border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${event.outcome === "succeeded" ? "border-[#497352] text-[#a8e7b8]" : event.outcome === "partial" ? "border-[#8c6436] text-[#f0bd75]" : "border-[#7d3d32] text-[#ffd0c6]"}`}
+              className={`self-start border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${event.outcome === "succeeded" ? "border-[#497352] text-[#a8e7b8]" : event.outcome === "partial" ? "border-[var(--cf-warning-border)] text-[var(--cf-warning)]" : "border-[var(--cf-danger-border)] text-[var(--cf-danger)]"}`}
             >
               {event.outcome}
             </span>
           </article>
         ))}
         {!loading && items.length === 0 ? (
-          <p className="border border-dashed border-[#5f4526] p-5 text-sm text-[#c7b288]">
+          <p className="border border-dashed border-[var(--cf-border)] p-5 text-sm text-[var(--cf-text-muted)]">
             No owner control-plane events are recorded yet.
           </p>
         ) : null}
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[#c7b288]">
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--cf-text-muted)]">
         <span>
           Page {page} of {pages} · {total} events
         </span>

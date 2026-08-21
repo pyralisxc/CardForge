@@ -34,7 +34,7 @@ export function ImageInspectorPanel({
 
   return (
     <>
-      <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+      <div className="space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
         <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Picture source</Label>
         <div>
           <Label htmlFor="element-image-source" className="text-xs">Picture URL, card field, or uploaded file</Label>
@@ -74,7 +74,7 @@ export function ImageInspectorPanel({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="group min-h-[78px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[#111720]"
+                    className="group min-h-[78px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[var(--cf-editor-control)]"
                     onClick={() => onUpdateElement({
                       imageSource: asset.url,
                       content: asset.url,
@@ -82,7 +82,7 @@ export function ImageInspectorPanel({
                     })}
                   >
                     <span className="block h-10 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
-                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{asset.name}</span>
+                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
                     <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>
                 </TooltipTrigger>

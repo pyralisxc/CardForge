@@ -8,14 +8,13 @@ import type { TemplateFieldDefinition } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
   DialogDescription,
   DialogClose,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollableDialogBody, ScrollableDialogContent } from '@/components/ui/scrollable-dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -31,19 +30,18 @@ import type { DisplayCard } from '@/domain/rendering';
 
 interface EditCardDialogProps {
   isOpen: boolean;
-  card: DisplayCard | null; // From Zustand store via props
-  onSave: (updatedCard: DisplayCard) => void; // Calls Zustand action via props
-  onDuplicate: (cardToDuplicate: DisplayCard) => void; // Calls Zustand action via props
-  onClose: () => void; // Calls Zustand action via props
+  card: DisplayCard | null;
+  onSave: (updatedCard: DisplayCard) => void;
+  onDuplicate: (cardToDuplicate: DisplayCard) => void;
+  onClose: () => void;
 }
 
 export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: EditCardDialogProps) {
-  // Local state for the data being edited within the dialog.
   const [editedData, setEditedData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   const [editedBackingData, setEditedBackingData] = useState<CardData>({});
   const [backingFields, setBackingFields] = useState<TemplateFieldDefinition[]>([]);
-  
+
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const backingFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const { toast } = useToast();
@@ -52,12 +50,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   const generateFieldsAndData = useCallback((template: TCGCardTemplate | undefined | null, existingData: CardData | null | undefined): [TemplateFieldDefinition[], CardData] => {
     return initializeCardDataFromTemplate(template, existingData);
-  }, []); // Empty dependency array as it uses pure utility functions
+  }, []);
 
-  // useEffect to initialize or update local `editedData` and `dynamicFields` when the `card` prop changes.
-  // This is a safe and common use of useEffect: reacting to a prop change to set local state for an editing form.
   useEffect(() => {
-    // Zustand reactivity handles updates to the `card` prop.
     if (card) {
       const [fields, data] = generateFieldsAndData(card.template, card.data);
       const [nextBackingFields, nextBackingData] = generateFieldsAndData(card.backingTemplate, card.backingData);
@@ -66,13 +61,11 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
       setBackingFields(nextBackingFields);
       setEditedBackingData(nextBackingData);
     } else {
-      // If no card is provided (e.g., dialog closed or error), reset local state.
       setEditedData({});
       setDynamicFields([]);
       setEditedBackingData({});
       setBackingFields([]);
     }
-    // Dependency: `card` prop from global store, and `generateFieldsAndData` (memoized).
   }, [card, generateFieldsAndData]);
 
   const handleImageUpload = useCallback(async (
@@ -102,7 +95,6 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
         toast({ title: 'Image Not Added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
         return;
       }
-      // File reading is an async side effect, correctly handled here.
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUri = e.target?.result as string;
@@ -159,35 +151,33 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     }
   }, [getEditedCard, onClose, onDuplicate, validateRequiredFields]);
 
-  if (!card) return null; // Don't render if no card is provided (or if isOpen is false, Dialog handles that)
+  if (!card) return null;
 
   const cardIdentifier = String(editedData[dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImage)?.key || ''] || editedData[dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImage)?.key || ''] || `Card ${card.uniqueId.substring(0,5)}`);
 
   const renderFields = (
-    fields: TemplateFieldDefinition[], 
+    fields: TemplateFieldDefinition[],
     data: CardData,
     fileRefsLocal: React.MutableRefObject<Record<string, HTMLInputElement | null>>,
     onFieldChange: (fieldKey: string, value: string) => void,
     face: 'front' | 'back',
     emptyMessage: string,
-  ) => {
-    return (
-      <GeneratorFieldGroups
-        fields={fields}
-        data={data}
-        onFieldChange={onFieldChange}
-        highlightColor={richTextHighlightColor}
-        onHighlightColorChange={setRichTextHighlightColorAction}
-        fileInputRefs={fileRefsLocal}
-        onImageUpload={(event, fieldKey) => handleImageUpload(event, fieldKey, face)}
-        emptyMessage={emptyMessage}
-      />
-    );
-  };
+  ) => (
+    <GeneratorFieldGroups
+      fields={fields}
+      data={data}
+      onFieldChange={onFieldChange}
+      highlightColor={richTextHighlightColor}
+      onHighlightColorChange={setRichTextHighlightColorAction}
+      fileInputRefs={fileRefsLocal}
+      onImageUpload={(event, fieldKey) => handleImageUpload(event, fieldKey, face)}
+      emptyMessage={emptyMessage}
+    />
+  );
 
   return (
-    <Dialog open={isOpen} onOpenChange={(openState) => !openState && onClose()}> {/* onClose prop handles Zustand state */}
-      <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl max-h-[90vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(openState) => !openState && onClose()}>
+      <ScrollableDialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit: {cardIdentifier}</DialogTitle>
           <DialogDescription>
@@ -195,40 +185,40 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             {card.backingTemplate ? ` · Back: ${card.backingTemplate.name || card.backingTemplate.id?.substring(0, 8)}` : ' · No back selected'}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-6 -mr-6 mb-4"> {/* Scroll area for content */}
-            <Accordion type="multiple" defaultValue={['edit-front-data', 'edit-back-data']} className="w-full">
-                <AccordionItem value="edit-front-data">
-                    <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden"><Layers className="mr-2 h-4 w-4" />Front Details</AccordionTrigger>
-                    <AccordionContent className="pt-3 space-y-1">
-                        {renderFields(
-                          dynamicFields,
-                          editedData,
-                          fileInputRefs,
-                          (fieldKey, value) => setEditedData(prev => ({ ...prev, [fieldKey]: value })),
-                          'front',
-                          'This front design has no editable fields.',
-                        )}
-                    </AccordionContent>
-                </AccordionItem>
-                {card.backingTemplate ? (
-                  <AccordionItem value="edit-back-data">
-                    <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden"><Layers className="mr-2 h-4 w-4" />Back Details</AccordionTrigger>
-                    <AccordionContent className="space-y-1 pt-3">
-                      {renderFields(
-                        backingFields,
-                        editedBackingData,
-                        backingFileInputRefs,
-                        (fieldKey, value) => setEditedBackingData(prev => ({ ...prev, [fieldKey]: value })),
-                        'back',
-                        'This back is a fixed design with no per-card fields. It will still appear in previews and exports.',
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-            </Accordion>
-        </ScrollArea>
+        <ScrollableDialogBody className="-mr-6 mb-4 pr-6">
+          <Accordion type="multiple" defaultValue={['edit-front-data', 'edit-back-data']} className="w-full">
+            <AccordionItem value="edit-front-data">
+              <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden"><Layers className="mr-2 h-4 w-4" />Front Details</AccordionTrigger>
+              <AccordionContent className="space-y-1 pt-3">
+                {renderFields(
+                  dynamicFields,
+                  editedData,
+                  fileInputRefs,
+                  (fieldKey, value) => setEditedData(prev => ({ ...prev, [fieldKey]: value })),
+                  'front',
+                  'This front design has no editable fields.',
+                )}
+              </AccordionContent>
+            </AccordionItem>
+            {card.backingTemplate ? (
+              <AccordionItem value="edit-back-data">
+                <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden"><Layers className="mr-2 h-4 w-4" />Back Details</AccordionTrigger>
+                <AccordionContent className="space-y-1 pt-3">
+                  {renderFields(
+                    backingFields,
+                    editedBackingData,
+                    backingFileInputRefs,
+                    (fieldKey, value) => setEditedBackingData(prev => ({ ...prev, [fieldKey]: value })),
+                    'back',
+                    'This back is a fixed design with no per-card fields. It will still appear in previews and exports.',
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            ) : null}
+          </Accordion>
+        </ScrollableDialogBody>
 
-        <DialogFooter className="mt-4 pt-4 border-t"> {/* Actions footer */}
+        <DialogFooter className="mt-4 shrink-0 border-t pt-4">
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
@@ -239,7 +229,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             <Save className="mr-2 h-4 w-4" /> Save Changes
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </ScrollableDialogContent>
     </Dialog>
   );
 }

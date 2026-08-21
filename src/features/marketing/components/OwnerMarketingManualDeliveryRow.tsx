@@ -93,23 +93,23 @@ export function OwnerMarketingManualDeliveryRow({
   };
 
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-4">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.12em] text-[#e2aa4a]">
+          <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-accent-strong)]">
             Manual publication · {job.status}
           </p>
-          <h4 className="mt-1 font-medium text-[#ffe7ad]">
+          <h4 className="mt-1 font-medium text-[var(--cf-accent-text)]">
             {content?.title ?? "Content"} → {destination?.name ?? job.service}
           </h4>
           {job.scheduledFor ? (
-            <p className="mt-1 text-xs text-[#a98a75]">
+            <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">
               Due {new Date(job.scheduledFor).toLocaleString()}
             </p>
           ) : null}
         </div>
         <div className="grid max-w-2xl gap-3">
-          <div className="whitespace-pre-wrap border border-[#3c2c1b] bg-[#0c0b09] p-3 text-sm leading-6 text-[#e4d2aa]">
+          <div className="whitespace-pre-wrap border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm leading-6 text-[#e4d2aa]">
             {finalCopy || "No channel copy is available."}
           </div>
           {deliveryMedia.length ? (
@@ -120,7 +120,7 @@ export function OwnerMarketingManualDeliveryRow({
                   href={media.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group block border border-[#4a3823] bg-[#0c0b09] p-2"
+                  className="group block border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-2"
                   title="Open approved image"
                 >
                   <Image
@@ -131,7 +131,7 @@ export function OwnerMarketingManualDeliveryRow({
                     unoptimized
                     className="h-28 w-24 object-contain transition group-hover:opacity-80"
                   />
-                  <span className="mt-1 block text-center text-[10px] uppercase tracking-[0.1em] text-[#c7b288]">
+                  <span className="mt-1 block text-center text-[10px] uppercase tracking-[0.1em] text-[var(--cf-text-muted)]">
                     Open image
                   </span>
                 </a>
@@ -139,7 +139,7 @@ export function OwnerMarketingManualDeliveryRow({
             </div>
           ) : null}
           {destination?.postingGuidance || destination?.rulesSummary ? (
-            <p className="text-xs leading-5 text-[#a98a75]">
+            <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
               {[destination.rulesSummary, destination.postingGuidance]
                 .filter(Boolean)
                 .join(" ")}

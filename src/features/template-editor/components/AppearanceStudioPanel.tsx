@@ -141,7 +141,7 @@ export function AppearanceStudioPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+                className="h-7 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
                 onClick={() => applyLocalFillPreset(preset)}
               >
                 <span
@@ -165,7 +165,7 @@ export function AppearanceStudioPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 justify-start gap-2 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]/80"
+                className="h-8 justify-start gap-2 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]/80"
                 onClick={() => onApplyAppearancePreset(style)}
               >
                 <span className="h-3.5 w-3.5 shrink-0 rounded-[2px] border border-[#2d3340]" style={appearanceToStyle(style.appearance)} />
@@ -195,12 +195,12 @@ export function AppearanceStudioPanel({
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Fill</Label>
-          <ColorField value={selectedAppearance?.material?.baseColor || '#111720'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
+          <ColorField value={selectedAppearance?.material?.baseColor || 'var(--cf-editor-control)'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
         </div>
         {!canUseDividerControls && element.type !== 'image' && (
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">{element.type === 'icon' ? 'Glyph' : 'Text'}</Label>
-            <ColorField value={selectedAppearance?.material?.textColor || element.textColor || '#f5d27b'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: element.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
+            <ColorField value={selectedAppearance?.material?.textColor || element.textColor || 'var(--cf-accent-text)'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: element.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
           </div>
         )}
         {canUseDividerControls && (
@@ -281,7 +281,7 @@ export function AppearanceStudioPanel({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[#111720] hover:border-[#d5ad54]"
+                    className="h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] hover:border-[#d5ad54]"
                     style={{
                       backgroundImage: `url(${asset.url})`,
                       backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',

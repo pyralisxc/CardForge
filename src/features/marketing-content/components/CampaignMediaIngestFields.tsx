@@ -22,7 +22,7 @@ export const createCampaignMediaIngestDraft = (): CampaignMediaIngestDraft => ({
   focalY: '',
 });
 
-const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
+const fieldClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm text-[var(--cf-accent-text)] placeholder:text-[#6f5b3a]';
 
 export function CampaignMediaIngestFields({
   value,
@@ -38,18 +38,18 @@ export function CampaignMediaIngestFields({
   };
 
   return (
-    <section className="mt-4 border border-[#4a3823] bg-[#15100a] p-4">
+    <section className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-4">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           New media details
         </h3>
-        <p className="mt-1 text-xs leading-5 text-[#a98a55]">
+        <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">
           These values apply to the next image you ingest. Contextual alt text stays with each channel attachment.
         </p>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1 text-xs text-[#c7b288]">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
           Rights basis
           <input
             className={fieldClassName}
@@ -60,7 +60,7 @@ export function CampaignMediaIngestFields({
             placeholder="CardForge-owned capture or licensed marketing use"
           />
         </label>
-        <label className="grid gap-1 text-xs text-[#c7b288]">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
           Creator / credit
           <input
             className={fieldClassName}
@@ -71,7 +71,7 @@ export function CampaignMediaIngestFields({
             placeholder="CardForge or credited creator"
           />
         </label>
-        <label className="grid gap-1 text-xs text-[#c7b288]">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
           Rights restriction
           <input
             className={fieldClassName}
@@ -82,7 +82,7 @@ export function CampaignMediaIngestFields({
             placeholder="Optional usage limits"
           />
         </label>
-        <label className="grid gap-1 text-xs text-[#c7b288]">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
           Rights expiry
           <input
             type="date"
@@ -92,7 +92,7 @@ export function CampaignMediaIngestFields({
             onChange={(event) => update('rightsExpiresAt', event.target.value)}
           />
         </label>
-        <label className="grid gap-1 text-xs text-[#c7b288] md:col-span-2">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)] md:col-span-2">
           Reusable caption
           <textarea
             className={`${fieldClassName} min-h-20`}
@@ -103,7 +103,7 @@ export function CampaignMediaIngestFields({
             placeholder="Optional base caption for future campaign reuse"
           />
         </label>
-        <label className="grid gap-1 text-xs text-[#c7b288] md:col-span-2">
+        <label className="grid gap-1 text-xs text-[var(--cf-text-muted)] md:col-span-2">
           Reusable visual description
           <textarea
             className={`${fieldClassName} min-h-20`}
@@ -115,7 +115,7 @@ export function CampaignMediaIngestFields({
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-2 md:col-span-2">
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Focal point X (0–1)
             <input
               type="number"
@@ -129,7 +129,7 @@ export function CampaignMediaIngestFields({
               placeholder="0.50"
             />
           </label>
-          <label className="grid gap-1 text-xs text-[#c7b288]">
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Focal point Y (0–1)
             <input
               type="number"

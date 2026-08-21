@@ -89,7 +89,7 @@ export function IconInspectorPanel({
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Source Assets</Label>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-7 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4]" onClick={() => iconAssetUploadInputRef.current?.click()}>
+              <Button type="button" variant="outline" size="sm" className="h-7 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4]" onClick={() => iconAssetUploadInputRef.current?.click()}>
                 <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local icon' : 'Sign in'}
               </Button>
             </TooltipTrigger>
@@ -108,11 +108,11 @@ export function IconInspectorPanel({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="group min-h-[72px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[#111720]"
+                    className="group min-h-[72px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[var(--cf-editor-control)]"
                     onClick={() => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
                   >
                     <span className="block h-9 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
-                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{asset.name}</span>
+                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
                     <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>
                 </TooltipTrigger>
@@ -134,13 +134,13 @@ export function IconInspectorPanel({
                   size="sm"
                   title={getPipelineRecipeTitle(preset)}
                   aria-label={`Apply ${preset.label} icon recipe`}
-                  className="h-auto min-h-10 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-1.5 py-1 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+                  className="h-auto min-h-10 flex-col items-start rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-1.5 py-1 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
                   onClick={() => onApplyPreset(preset)}
                 >
                   <span className="flex w-full items-center gap-1.5">
                     <span
                       className="h-3.5 w-3.5 shrink-0 rounded-full border"
-                      style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#111720', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340' }}
+                      style={{ background: preset.preview?.background || preset.updates?.backgroundColor || 'var(--cf-editor-control)', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340' }}
                       aria-hidden="true"
                     />
                     <span className="min-w-0 truncate text-[#f1dfb4]">{preset.label}</span>

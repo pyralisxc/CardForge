@@ -1,13 +1,14 @@
 import { Info } from 'lucide-react';
 
+import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function OwnerMetricTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-3">
-      <span className="block text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{label}</span>
-      <span className="mt-2 block text-lg font-semibold text-[#ffe7ad]">{value}</span>
-    </div>
+    <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] p-3">
+      <span className="block text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</span>
+      <span className="mt-2 block text-lg font-semibold text-[var(--cf-accent-text)]">{value}</span>
+    </CardForgeSurface>
   );
 }
 
@@ -15,11 +16,15 @@ export function OwnerFieldHelp({ text, label }: { text: string; label?: string }
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="grid h-6 w-6 place-items-center border border-[#5f4526] text-[#d7b469] hover:border-[#d8b365] hover:text-[#fff1c7]" aria-label={label ?? `More information: ${text.slice(0, 80)}`}>
+        <button
+          type="button"
+          className="grid h-6 w-6 place-items-center border border-[var(--cf-border)] text-[var(--cf-accent)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]"
+          aria-label={label ?? `More information: ${text.slice(0, 80)}`}
+        >
           <Info className="h-3.5 w-3.5" />
         </button>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs border-[#6d4f2b] bg-[#15100a] text-[#f7ead0]">{text}</TooltipContent>
+      <TooltipContent className="max-w-xs border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">{text}</TooltipContent>
     </Tooltip>
   );
 }

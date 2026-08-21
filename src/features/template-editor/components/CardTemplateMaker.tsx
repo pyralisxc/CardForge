@@ -367,7 +367,7 @@ export function CardTemplateMaker({
   if (!draftPersistenceHydrated) {
     return (
       <div
-        className="flex min-h-[60vh] items-center justify-center rounded border border-[#252b35] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]"
+        className="flex min-h-[60vh] items-center justify-center rounded border border-[var(--cf-editor-border)] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]"
         role="status"
         aria-live="polite"
       >
@@ -388,13 +388,13 @@ export function CardTemplateMaker({
           activeButtonClassName={makerTheme.activeButton}
         />
         {isSharedTemplate ? (
-          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[#c7b288] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2">
               {isSharedTemplateRevision
                 ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
                 : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
               <div>
-                <p className="font-medium text-[#ffe7ad]">
+                <p className="font-medium text-[var(--cf-accent-text)]">
                   {isSharedTemplateRevision
                     ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is live`
                     : 'CardForge Library Template'}
@@ -411,18 +411,18 @@ export function CardTemplateMaker({
             {isSharedTemplateRevision ? (
               <Link
                 href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/developer/cockpit'}
-                className="shrink-0 font-medium text-[#f0c568] underline decoration-[#7f6225] underline-offset-4 hover:text-[#ffe7ad]"
+                className="shrink-0 font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]"
               >
                 {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}
               </Link>
             ) : null}
           </div>
         ) : canSubmitNewTemplate ? (
-          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[#c7b288] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2">
               <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
               <div>
-                <p className="font-medium text-[#ffe7ad]">
+                <p className="font-medium text-[var(--cf-accent-text)]">
                   Personal Template · not shared
                 </p>
                 <p className="mt-0.5 leading-5">
@@ -433,7 +433,7 @@ export function CardTemplateMaker({
             <Button
               type="button"
               size="sm"
-              className="shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[#f0c568]"
+              className="shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]"
               disabled={isCreatingPipelineDraft || isSavingTemplate}
               onClick={() => void handleContinueInPipeline()}
             >
@@ -555,7 +555,7 @@ export function CardTemplateMaker({
             variables={variables}
           />
         </div>
-        <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#252b35] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
+        <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
           <span className="text-[#d5ad54]">Shortcuts</span>
           <span>Ctrl+S {publishesSharedTemplateDirectly ? 'Publish changes' : isSharedTemplateRevision ? 'Submit revision' : 'Save'}</span>
           <span>Ctrl+Z Undo</span>

@@ -85,8 +85,8 @@ function VoteButton({
       type="button"
       className={`flex items-center border transition ${sizeClass} ${
         active
-          ? 'border-[#e6b85c] bg-[#2b1d0e] text-[#ffe7ad]'
-          : 'border-[#5f4526] bg-[#100c08] text-[#c7b288] hover:border-[#b68a44] hover:text-[#fff1c7]'
+          ? 'border-[#e6b85c] bg-[#2b1d0e] text-[var(--cf-accent-text)]'
+          : 'border-[var(--cf-border)] bg-[var(--cf-surface-inset)] text-[var(--cf-text-muted)] hover:border-[#b68a44] hover:text-[var(--cf-text-strong)]'
       } disabled:cursor-not-allowed disabled:opacity-50`}
       disabled={disabled}
       onClick={onClick}
@@ -110,17 +110,17 @@ export function FeatureCard({
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
 }) {
   return (
-    <article className="border border-[#5f4526] bg-[#100c08] p-3 transition hover:border-[#8f6b39]">
+    <article className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 transition hover:border-[#8f6b39]">
       <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-3">
-        <span className="grid h-8 w-8 place-items-center border border-[#6d4f2b] bg-[#0c0b09] text-xs font-semibold text-[#e2aa4a]">
+        <span className="grid h-8 w-8 place-items-center border border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] text-xs font-semibold text-[var(--cf-accent-strong)]">
           {rank}
         </span>
         <div className="min-w-0">
-          <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">
             {item.source === 'official' ? 'CardForge plan' : 'Community suggestion'} · {statusLabels[item.status]} · {voteTotal(item)} votes
           </span>
-          <h3 className="mt-1 text-sm font-semibold leading-5 text-[#ffe7ad]">{item.title}</h3>
-          {item.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#a98a55]">{item.description}</p> : null}
+          <h3 className="mt-1 text-sm font-semibold leading-5 text-[var(--cf-accent-text)]">{item.title}</h3>
+          {item.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--cf-text-subtle)]">{item.description}</p> : null}
         </div>
         <div className="flex shrink-0 gap-2">
           <VoteButton
@@ -176,50 +176,50 @@ function TimelineNodeCard({
 
   return (
     <article className="w-60 shrink-0">
-      <div className="mx-auto grid h-10 w-10 place-items-center rounded-full border-2 border-[#ffe0a0] bg-[#0c0b09] text-sm font-bold text-[#ffe7ad] shadow-[0_0_24px_rgba(228,170,67,0.22)]">
+      <div className="mx-auto grid h-10 w-10 place-items-center rounded-full border-2 border-[#ffe0a0] bg-[var(--cf-canvas)] text-sm font-bold text-[var(--cf-accent-text)] shadow-[0_0_24px_rgba(228,170,67,0.22)]">
         {index + 1}
       </div>
-      <div className="mt-3 border border-[#6d4f2b] bg-[#120d08] p-3 shadow-[inset_0_0_0_1px_rgba(255,224,157,0.05)]">
+      <div className="mt-3 border border-[var(--cf-border-strong)] bg-[#120d08] p-3 shadow-[inset_0_0_0_1px_rgba(255,224,157,0.05)]">
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-[0.12em]">
-          <span className="text-[#e2aa4a]">{formatMonth(item.visibleMonth)}</span>
+          <span className="text-[var(--cf-accent-strong)]">{formatMonth(item.visibleMonth)}</span>
           <span className="border border-[#6f522f] px-1.5 py-0.5 text-[#d9c08c]">{statusLabels[item.status]}</span>
         </div>
-        <h4 className="mt-2 font-serif text-lg leading-5 text-[#fff1c7]">{item.title}</h4>
+        <h4 className="mt-2 font-serif text-lg leading-5 text-[var(--cf-text-strong)]">{item.title}</h4>
         {item.expenseProvider && item.expensePlan ? (
-          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
             {item.expenseProvider} · {item.expensePlan}
           </p>
         ) : null}
         {item.description ? (
-          <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#c7b288]">{item.description}</p>
+          <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--cf-text-muted)]">{item.description}</p>
         ) : null}
         <div className="mt-3 grid gap-1 text-[11px] leading-4">
           {target ? (
-            <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[#a98a55]">
+            <div className="flex items-center justify-between gap-2 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-2 py-1">
+              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                 Income needed ({ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}×)
               </span>
-              <span className="text-[#ffe7ad]">{target}</span>
+              <span className="text-[var(--cf-accent-text)]">{target}</span>
             </div>
           ) : null}
           {newCost ? (
-            <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[#a98a55]">New cost</span>
+            <div className="flex items-center justify-between gap-2 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-2 py-1">
+              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">New cost</span>
               <span className="text-[#d9c08c]">{newCost}</span>
             </div>
           ) : null}
           {runningCost ? (
             <div className="flex items-center justify-between gap-2 border border-[#6f522f] bg-[#17110b] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Running cost</span>
-              <span className="text-[#e2aa4a]">{runningCost}</span>
+              <span className="uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Running cost</span>
+              <span className="text-[var(--cf-accent-strong)]">{runningCost}</span>
             </div>
           ) : null}
           {!target && !newCost && !runningCost ? (
-            <span className="text-xs text-[#e2aa4a]">{itemTypeLabels[item.itemType]}</span>
+            <span className="text-xs text-[var(--cf-accent-strong)]">{itemTypeLabels[item.itemType]}</span>
           ) : null}
           {item.expenseSourceUrl && item.expenseVerifiedAt ? (
             <a
-              className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-[#d8b365] underline decoration-[#6d4f2b] underline-offset-4 hover:text-[#ffe7ad]"
+              className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-accent)] underline decoration-[var(--cf-border-strong)] underline-offset-4 hover:text-[var(--cf-accent-text)]"
               href={item.expenseSourceUrl}
               target="_blank"
               rel="noreferrer"
@@ -250,7 +250,7 @@ function TimelineNodeCard({
             {isDeveloper ? (
               <button
                 type="button"
-                className="grid h-9 w-9 place-items-center border border-[#7d3d32] bg-[#1b0d09] text-[#f3a28f] transition hover:border-[#e27f69] hover:text-[#ffd0c6]"
+                className="grid h-9 w-9 place-items-center border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[#f3a28f] transition hover:border-[#e27f69] hover:text-[var(--cf-danger)]"
                 disabled={isSaving}
                 onClick={() => onDelete(item.id)}
                 aria-label={`Delete ${item.title}`}
@@ -284,7 +284,7 @@ export function HorizontalTimeline({
 }) {
   if (items.length === 0) {
     return (
-      <div className="border border-[#5f4526] bg-[#0c0b09] p-4 text-sm leading-6 text-[#c7b288]">
+      <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">
         {isLoading
           ? 'Loading planned service upgrades...'
           : 'Planned service upgrades will appear here as they are published. For now, add or vote on a focused improvement above.'}
@@ -302,7 +302,7 @@ export function HorizontalTimeline({
 
   return (
     <div className="relative">
-      <div className="pointer-events-none absolute bottom-2 right-0 top-0 z-10 w-16 bg-gradient-to-l from-[#100c08] to-transparent" aria-hidden="true" />
+      <div className="pointer-events-none absolute bottom-2 right-0 top-0 z-10 w-16 bg-gradient-to-l from-[var(--cf-surface-inset)] to-transparent" aria-hidden="true" />
       <div className="overflow-x-auto pb-2 pr-6">
       <div className="relative min-h-[30rem]" style={{ width }}>
         <svg
@@ -312,7 +312,7 @@ export function HorizontalTimeline({
           aria-hidden="true"
         >
           <path d={path} fill="none" stroke="#8b642f" strokeWidth="5" strokeLinecap="round" />
-          <path d={path} fill="none" stroke="#e4aa43" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="8 12" opacity="0.85" />
+          <path d={path} fill="none" stroke="var(--cf-accent-strong)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="8 12" opacity="0.85" />
         </svg>
         <div className="absolute left-0 right-0 top-5 flex justify-between gap-4 px-6">
           {items.map((checkpoint, index) => (
@@ -353,15 +353,15 @@ export function FinancialMetric({
   return (
     <div className={`border p-3 ${
       emphasis
-        ? 'border-[#d8b365] bg-[#211609] shadow-[inset_0_0_0_1px_rgba(255,224,157,0.07)]'
-        : 'border-[#5f4526] bg-[#0c0b09]'
+        ? 'border-[var(--cf-accent)] bg-[#211609] shadow-[inset_0_0_0_1px_rgba(255,224,157,0.07)]'
+        : 'border-[var(--cf-border)] bg-[var(--cf-canvas)]'
     }`}>
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">
         {icon}
         {label}
       </div>
-      <div className="mt-2 font-serif text-2xl leading-none text-[#fff1c7]">{value}</div>
-      <p className="mt-2 text-xs leading-5 text-[#c7b288]">{detail}</p>
+      <div className="mt-2 font-serif text-2xl leading-none text-[var(--cf-text-strong)]">{value}</div>
+      <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">{detail}</p>
     </div>
   );
 }

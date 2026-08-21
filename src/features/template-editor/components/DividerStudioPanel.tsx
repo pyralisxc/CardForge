@@ -29,7 +29,7 @@ export function DividerStudioPanel({
   const hasAssetBackedDivider = Boolean(selectedAppearance?.dividerAsset || selectedAppearance?.assetSource);
 
   return (
-    <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+    <div className="space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
       <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Divider Studio</Label>
       <div>
         <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Divider Recipes</Label>
@@ -42,7 +42,7 @@ export function DividerStudioPanel({
               size="sm"
               title={getPipelineRecipeTitle(preset)}
               aria-label={`Apply ${preset.label} divider recipe`}
-              className="h-auto min-h-9 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+              className="h-auto min-h-9 flex-col items-start rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
               onClick={() => onApplyPreset(preset)}
             >
               <span className="h-2 w-full rounded-full" style={{ background: preset.preview?.background || preset.updates?.backgroundImageUrl || preset.updates?.fillColor || '#d5ad54' }} aria-hidden="true" />
@@ -75,7 +75,7 @@ export function DividerStudioPanel({
             </Select>
           </div>
         )}
-        <div className="flex items-end justify-between gap-2 rounded-[5px] border border-[#252b35] bg-[#111720] px-2 py-2">
+        <div className="flex items-end justify-between gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[var(--cf-editor-control)] px-2 py-2">
           <Label htmlFor="divider-flip" className="text-xs">Flip</Label>
           <Switch id="divider-flip" checked={Boolean(element.flipX)} onCheckedChange={(checked) => onUpdateElement({ flipX: checked })} />
         </div>

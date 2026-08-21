@@ -187,7 +187,7 @@ export function InteractiveStudioShowcase({
                   className={`flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] px-3 text-base font-bold transition-colors ${
                     activeStage === index
                       ? 'bg-[var(--public-brass)] text-[var(--public-obsidian)]'
-                      : 'text-[var(--public-muted-text)] hover:bg-[#21170d] hover:text-[var(--public-ivory)]'
+                      : 'text-[var(--public-muted-text)] hover:bg-[var(--cf-surface-raised)] hover:text-[var(--public-ivory)]'
                   }`}
                 >
                   <stage.icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />

@@ -11,7 +11,7 @@ import type { FounderProfile, FounderProfileInput } from '@/features/public-site
 
 const toInput = ({ updatedAt: _updatedAt, ...profile }: FounderProfile): FounderProfileInput => profile;
 
-const inputClassName = 'border border-[#5f4526] bg-[#0c0b09] p-3 text-sm leading-6 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm leading-6 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 
 export function OwnerFounderProfilePanel({
   consolePayload,
@@ -49,11 +49,11 @@ export function OwnerFounderProfilePanel({
   };
 
   return (
-    <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
+    <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">
+      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <UserRound className="h-5 w-5" aria-hidden="true" />
         <div>
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Cameron profile</h2>
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Cameron profile</h2>
           <p className="mt-1 text-sm text-[#a98a7a]">Edit the founder story, support introduction, and public social links. Portrait controls now live in Site Media.</p>
         </div>
       </div>
@@ -72,8 +72,8 @@ export function OwnerFounderProfilePanel({
             <TextArea label="Current work" value={profile.currentBody} maxLength={1200} onChange={(value) => setField('currentBody', value)} />
           </div>
 
-          <fieldset className="border border-[#4a3823] bg-[#100c08] p-4">
-            <legend className="px-2 text-sm font-semibold text-[#ffe7ad]">Current priorities</legend>
+          <fieldset className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+            <legend className="px-2 text-sm font-semibold text-[var(--cf-accent-text)]">Current priorities</legend>
             <div className="grid gap-3 md:grid-cols-2">
               {profile.priorities.map((priority, index) => (
                 <TextField
@@ -97,7 +97,7 @@ export function OwnerFounderProfilePanel({
             <TextField label="Discord HTTPS URL" value={profile.discordUrl ?? ''} maxLength={500} onChange={(value) => setField('discordUrl', value || null)} />
           </div>
 
-          <Button className="w-fit bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveProfile}>
+          <Button className="w-fit bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={saveProfile}>
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             {isSaving ? 'Publishing profile...' : 'Save Cameron profile'}
           </Button>
@@ -110,8 +110,8 @@ export function OwnerFounderProfilePanel({
 
 function TextField({ label, value, maxLength, onChange }: { label: string; value: string; maxLength: number; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
-      <span className="flex justify-between gap-2"><span>{label}</span><span className="text-xs text-[#8f7b57]">{value.length}/{maxLength}</span></span>
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+      <span className="flex justify-between gap-2"><span>{label}</span><span className="text-xs text-[var(--cf-text-subtle)]">{value.length}/{maxLength}</span></span>
       <input className={inputClassName} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
@@ -119,8 +119,8 @@ function TextField({ label, value, maxLength, onChange }: { label: string; value
 
 function TextArea({ label, value, maxLength, onChange }: { label: string; value: string; maxLength: number; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
-      <span className="flex justify-between gap-2"><span>{label}</span><span className="text-xs text-[#8f7b57]">{value.length}/{maxLength}</span></span>
+    <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+      <span className="flex justify-between gap-2"><span>{label}</span><span className="text-xs text-[var(--cf-text-subtle)]">{value.length}/{maxLength}</span></span>
       <textarea className={`${inputClassName} min-h-28`} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );

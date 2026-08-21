@@ -58,8 +58,8 @@ export function MobileCanvasControls({
         </Button>
       ) : null}
       <span className="min-w-0 flex-1 px-1 text-center">
-        <span className="block truncate text-xs font-semibold text-[#f3ead7]">{templateName || 'Untitled Template'}</span>
-        <span className={cn('mt-0.5 block text-[10px] uppercase tracking-[0.12em]', isDirty ? 'text-[#f5d27b]' : 'text-[#8f95a3]')}>{isDirty ? 'Unsaved' : 'Ready'}</span>
+        <span className="block truncate text-xs font-semibold text-[var(--cf-text)]">{templateName || 'Untitled Template'}</span>
+        <span className={cn('mt-0.5 block text-[10px] uppercase tracking-[0.12em]', isDirty ? 'text-[var(--cf-accent-text)]' : 'text-[#8f95a3]')}>{isDirty ? 'Unsaved' : 'Ready'}</span>
       </span>
       <Button type="button" size="icon" variant="outline" aria-label="Edit selected element" className={cn(makerTheme.toolButton, 'h-10 w-10 shrink-0')} onClick={onOpenInspector}>
         <PanelRight className="h-4 w-4" />
@@ -70,9 +70,9 @@ export function MobileCanvasControls({
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="bottom" className="max-h-[78svh] overflow-y-auto border-[#3b4352] bg-[#0d1117] text-[#f3ead7]">
+        <SheetContent side="bottom" className="max-h-[78svh] overflow-y-auto border-[var(--cf-editor-control-border)] bg-[#0d1117] text-[var(--cf-text)]">
           <SheetHeader className="text-left">
-            <SheetTitle className="text-[#f3ead7]">Editor tools</SheetTitle>
+            <SheetTitle className="text-[var(--cf-text)]">Editor tools</SheetTitle>
             <SheetDescription className="text-[#aeb6c4]">The same canvas commands available in the desktop toolbar.</SheetDescription>
           </SheetHeader>
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -82,8 +82,8 @@ export function MobileCanvasControls({
                 type="button"
                 variant="outline"
                 className={cn(
-                  'min-h-12 justify-start gap-2 border-[#3b4352] bg-[#111720] text-[#f3ead7] hover:bg-[#1b2430] hover:text-[#f3ead7]',
-                  action.active && 'border-[#d5ad54] bg-[#2a2112] text-[#f5d27b]',
+                  'min-h-12 justify-start gap-2 border-[var(--cf-editor-control-border)] bg-[var(--cf-editor-control)] text-[var(--cf-text)] hover:bg-[#1b2430] hover:text-[var(--cf-text)]',
+                  action.active && 'border-[#d5ad54] bg-[#2a2112] text-[var(--cf-accent-text)]',
                 )}
                 onClick={() => runTool(action)}
                 disabled={action.disabled}

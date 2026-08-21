@@ -13,7 +13,13 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  CardForgeStatusBadge,
+  CardForgeSurface,
+  CardForgeWorkspaceNavigation,
+  CardForgeWorkspaceState,
+} from '@/components/ui/cardforge-presentation';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { DEVELOPER_CONTRIBUTION_SCOPE_LABELS } from '@/features/developer-access/client';
 import {
   type DeveloperCampaignWorkspaceView,
@@ -24,13 +30,14 @@ import {
   loadDeveloperSiteWorkspace,
 } from '@/features/developer-cockpit/client/api';
 
-const panelFallback = () => <div className="min-h-48 animate-pulse border border-[#5f4526] bg-[#15100a]" />;
+const panelFallback = () => (
+  <CardForgeWorkspaceState state="loading" message="Loading this workspace…" />
+);
 const DeveloperAssetHubPanel = dynamic(() => import('@/features/developer-assets/client').then((module) => module.DeveloperAssetHubPanel), { loading: panelFallback });
 const DeveloperCampaignPanel = dynamic(() => import('@/features/marketing-content/client').then((module) => module.DeveloperCampaignPanel), { loading: panelFallback });
 const DeveloperCampaignMediaLibrary = dynamic(() => import('@/features/marketing-content/client').then((module) => module.DeveloperCampaignMediaLibrary), { loading: panelFallback });
 const DeveloperSiteProposalPanel = dynamic(() => import('./DeveloperSiteProposalPanel').then((module) => module.DeveloperSiteProposalPanel), { loading: panelFallback });
 
-const tabClassName = 'min-h-11 rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]';
 const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boolean }> = [
   { value: 'overview', label: 'Overview' },
   { value: 'library', label: 'Asset Contributions' },
@@ -62,35 +69,67 @@ export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissio
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const load = useCallback(async () => {
-    setLoading(true); setLoadError(null);
-    try { setCockpit(await loadDeveloperCockpit()); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Unable to load the developer cockpit.'); }
-    finally { setLoading(false); }
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setCockpit(await loadDeveloperCockpit());
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load the developer cockpit.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const loadCampaigns = useCallback(async () => {
     if (campaignState.loading) return;
     setCampaignState({ loading: true, error: null });
-    try { setCampaigns(await loadDeveloperCampaignWorkspace()); setCampaignState(idleState); }
-    catch (error) { setCampaignState({ loading: false, error: error instanceof Error ? error.message : 'Unable to load campaigns.' }); }
+    try {
+      setCampaigns(await loadDeveloperCampaignWorkspace());
+      setCampaignState(idleState);
+    } catch (error) {
+      setCampaignState({ loading: false, error: error instanceof Error ? error.message : 'Unable to load campaigns.' });
+    }
   }, [campaignState.loading]);
 
   const loadSite = useCallback(async () => {
     if (siteState.loading) return;
     setSiteState({ loading: true, error: null });
-    try { setSite(await loadDeveloperSiteWorkspace()); setSiteState(idleState); }
-    catch (error) { setSiteState({ loading: false, error: error instanceof Error ? error.message : 'Unable to load site proposals.' }); }
+    try {
+      setSite(await loadDeveloperSiteWorkspace());
+      setSiteState(idleState);
+    } catch (error) {
+      setSiteState({ loading: false, error: error instanceof Error ? error.message : 'Unable to load site proposals.' });
+    }
   }, [siteState.loading]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   useEffect(() => {
     if ((activeTab === 'campaigns' || activeTab === 'campaign-media') && !campaigns && !campaignState.loading && !campaignState.error) void loadCampaigns();
     if (activeTab === 'site' && !site && !siteState.loading && !siteState.error) void loadSite();
   }, [activeTab, campaigns, campaignState, loadCampaigns, site, siteState, loadSite]);
 
-  if (loading && !cockpit) return <CockpitMessage title="Opening the cockpit" body="Loading your contribution access and workspace direction…" />;
-  if (!cockpit) return <CockpitMessage title="Developer cockpit unavailable" body={loadError ?? 'Sign in with an approved developer or owner account.'} action={<div className="flex gap-3"><Button onClick={() => void load()}>Retry</Button><Button asChild variant="outline"><Link href="/developer">Developer program</Link></Button></div>} />;
+  if (loading && !cockpit) {
+    return <CockpitMessage title="Opening the cockpit" body="Loading your contribution access and workspace direction…" />;
+  }
+  if (!cockpit) {
+    return (
+      <CockpitMessage
+        title="Developer cockpit unavailable"
+        body={loadError ?? 'Sign in with an approved developer or owner account.'}
+        action={(
+          <div className="flex gap-3">
+            <Button onClick={() => void load()}>Retry</Button>
+            <Button asChild variant="outline"><Link href="/developer">Developer program</Link></Button>
+          </div>
+        )}
+      />
+    );
+  }
 
+  const visibleTabs = cockpitTabs.filter((tab) => !tab.ownerOnly || cockpit.isOwner);
   const refreshCurrent = async () => {
     await load();
     if (activeTab === 'campaigns' || activeTab === 'campaign-media') await loadCampaigns();
@@ -98,28 +137,91 @@ export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissio
   };
 
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       <section className="mx-auto max-w-7xl space-y-4 px-4 py-5 md:px-6">
-        <header className="border border-[#6d4f2b] bg-[#15100a] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Developer cockpit</p><h1 className="mt-2 font-serif text-3xl text-[#fff1c7] md:text-4xl">Build, review, and ship contributions.</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">Turn development work into reviewed assets, production-ready campaign packages, and deliberate site improvements.</p></div><div className="flex items-center gap-2"><span className={`border px-3 py-2 text-xs ${cockpit.configured ? 'border-[#497352] text-[#a8e7b8]' : 'border-[#8c6436] text-[#f0bd75]'}`}>{cockpit.configured ? 'Workspace ready' : 'Setup required'}</span><Button type="button" className="min-h-11" size="sm" variant="outline" onClick={() => void refreshCurrent()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button></div></div>
-          {loadError ? <p role="alert" className="mt-3 border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]">{loadError}</p> : null}
-          {!cockpit.extendedContributionsEnabled ? <p className="mt-3 border border-[#8c6436] bg-[#1b1209] p-3 text-sm leading-6 text-[#f0bd75]">Extended contributor lanes are release-gated. Owners can inspect and test them, but developer campaign/site scopes stay inactive until the updated contribution terms and privacy disclosure are published and the server flag is enabled.</p> : null}
-        </header>
+        <CardForgeSurface as="header" className="border-[var(--cf-border-strong)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-accent-strong)]">Developer cockpit</p>
+              <h1 className="mt-2 font-serif text-3xl text-[var(--cf-text-strong)] md:text-4xl">Build, review, and ship contributions.</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">Turn development work into reviewed assets, production-ready campaign packages, and deliberate site improvements.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <CardForgeStatusBadge tone={cockpit.configured ? 'success' : 'warning'}>
+                {cockpit.configured ? 'Workspace ready' : 'Setup required'}
+              </CardForgeStatusBadge>
+              <Button type="button" className="min-h-11" size="sm" variant="outline" onClick={() => void refreshCurrent()} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </Button>
+            </div>
+          </div>
+          {loadError ? <p role="alert" className="mt-3 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3 text-sm text-[var(--cf-danger)]">{loadError}</p> : null}
+          {!cockpit.extendedContributionsEnabled ? <p className="mt-3 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm leading-6 text-[var(--cf-warning)]">Extended contributor lanes are release-gated. Owners can inspect and test them, but developer campaign/site scopes stay inactive until the updated contribution terms and privacy disclosure are published and the server flag is enabled.</p> : null}
+        </CardForgeSurface>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <label className="grid gap-1 text-xs text-[#c7b288] sm:hidden">Workspace section<select aria-label="Cockpit section" className="min-h-11 border border-[#5f4526] bg-[#100c08] px-3 text-sm text-[#ffe7ad]" value={activeTab} onChange={(event) => setActiveTab(event.target.value)}>{cockpitTabs.filter((tab) => !tab.ownerOnly || cockpit.isOwner).map((tab) => <option key={tab.value} value={tab.value}>{tab.label}</option>)}</select></label>
-          <TabsList className="hidden sm:flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">{cockpitTabs.filter((tab) => !tab.ownerOnly || cockpit.isOwner).map((tab) => <TabsTrigger key={tab.value} value={tab.value} className={tabClassName}>{tab.label}</TabsTrigger>)}</TabsList>
+          <CardForgeWorkspaceNavigation
+            value={activeTab}
+            onValueChange={setActiveTab}
+            options={visibleTabs}
+            label="Cockpit section"
+          />
 
           <TabsContent value="overview" className="mt-3 space-y-4">
-            <div className="grid gap-3 md:grid-cols-3"><WorkspaceCard icon={Megaphone} label="Campaign workspace" help="Draft, review, and track campaign packages only when you open this lane." onOpen={() => setActiveTab('campaigns')} /><WorkspaceCard icon={FileCheck2} label="Site proposals" help="Load live copy and proposal history only when you are working on site changes." onOpen={() => setActiveTab('site')} /><WorkspaceCard icon={Boxes} label="Asset contributions" help="Open the shared library pipeline without loading marketing or site data." onOpen={() => setActiveTab('library')} /></div>
-            <section className="grid gap-3 lg:grid-cols-2"><article className="border border-[#5f4526] bg-[#15100a] p-5"><div className="flex items-center gap-3 text-[#e2aa4a]"><Boxes className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">What you can contribute</h2></div><div className="mt-4 flex flex-wrap gap-2">{cockpit.scopes.map((scope) => <span key={scope} className="border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs text-[#d8c49a]">{DEVELOPER_CONTRIBUTION_SCOPE_LABELS[scope]}</span>)}</div></article><article className="border border-[#5f4526] bg-[#15100a] p-5"><div className="flex items-center gap-3 text-[#e2aa4a]"><Target className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Marketing direction</h2></div><p className="mt-3 text-sm leading-6 text-[#c7b288]">Primary market: {cockpit.marketingStrategy.primaryAudience.replaceAll('-', ' ')}. Current offer: {cockpit.marketingStrategy.offer}</p><p className="mt-2 text-xs leading-5 text-[#a98a75]">The owner controls publishing connections and schedules. Contributors prepare truthful, reviewable content—not provider credentials.</p></article></section>
+            <div className="grid gap-3 md:grid-cols-3">
+              <WorkspaceCard icon={Megaphone} label="Campaign workspace" help="Draft, review, and track campaign packages only when you open this lane." onOpen={() => setActiveTab('campaigns')} />
+              <WorkspaceCard icon={FileCheck2} label="Site proposals" help="Load live copy and proposal history only when you are working on site changes." onOpen={() => setActiveTab('site')} />
+              <WorkspaceCard icon={Boxes} label="Asset contributions" help="Open the shared library pipeline without loading marketing or site data." onOpen={() => setActiveTab('library')} />
+            </div>
+            <section className="grid gap-3 lg:grid-cols-2">
+              <CardForgeSurface as="article" className="p-5">
+                <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Boxes className="h-5 w-5" /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">What you can contribute</h2></div>
+                <div className="mt-4 flex flex-wrap gap-2">{cockpit.scopes.map((scope) => <span key={scope} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)]">{DEVELOPER_CONTRIBUTION_SCOPE_LABELS[scope]}</span>)}</div>
+              </CardForgeSurface>
+              <CardForgeSurface as="article" className="p-5">
+                <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Target className="h-5 w-5" /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Marketing direction</h2></div>
+                <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">Primary market: {cockpit.marketingStrategy.primaryAudience.replaceAll('-', ' ')}. Current offer: {cockpit.marketingStrategy.offer}</p>
+                <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">The owner controls publishing connections and schedules. Contributors prepare truthful, reviewable content—not provider credentials.</p>
+              </CardForgeSurface>
+            </section>
           </TabsContent>
 
           <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact initialSubmissionId={initialSubmissionId} /></TabsContent>
-          <TabsContent value="campaigns" className="mt-3">{campaigns ? <DeveloperCampaignPanel cockpit={campaigns} onRefresh={loadCampaigns} /> : <LazyWorkspace loading={campaignState.loading} error={campaignState.error} onRetry={loadCampaigns} label="campaign workspace" />}</TabsContent>
-          {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3">{campaigns ? <DeveloperCampaignMediaLibrary media={campaigns.campaignMedia} pageInfo={campaigns.campaignMediaPage} summary={campaigns.campaignMediaSummary} onRefresh={loadCampaigns} /> : <LazyWorkspace loading={campaignState.loading} error={campaignState.error} onRetry={loadCampaigns} label="campaign media" />}</TabsContent> : null}
-          <TabsContent value="site" className="mt-3">{site ? <DeveloperSiteProposalPanel cockpit={site} onChange={setSite} /> : <LazyWorkspace loading={siteState.loading} error={siteState.error} onRetry={loadSite} label="site proposals" />}</TabsContent>
-          <TabsContent value="standards" className="mt-3"><section className="border border-[#5f4526] bg-[#15100a] p-5"><div className="flex items-center gap-3 text-[#e2aa4a]"><BookOpenCheck className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Contribution guidelines</h2></div><div className="mt-4 grid gap-3 md:grid-cols-2">{standards.map((standard) => <p key={standard} className="border border-[#4a3823] bg-[#100c08] p-4 text-sm leading-6 text-[#d8c49a]">{standard}</p>)}</div></section></TabsContent>
+          <TabsContent value="campaigns" className="mt-3">
+            {campaigns ? <DeveloperCampaignPanel cockpit={campaigns} onRefresh={loadCampaigns} /> : (
+              <CardForgeWorkspaceState
+                state={campaignState.error ? 'error' : campaignState.loading ? 'loading' : 'idle'}
+                message={campaignState.error ?? (campaignState.loading ? 'Loading campaign workspace…' : 'Open campaign workspace to load it.')}
+                onRetry={() => void loadCampaigns()}
+              />
+            )}
+          </TabsContent>
+          {cockpit.isOwner ? (
+            <TabsContent value="campaign-media" className="mt-3">
+              {campaigns ? <DeveloperCampaignMediaLibrary media={campaigns.campaignMedia} pageInfo={campaigns.campaignMediaPage} summary={campaigns.campaignMediaSummary} onRefresh={loadCampaigns} /> : (
+                <CardForgeWorkspaceState
+                  state={campaignState.error ? 'error' : campaignState.loading ? 'loading' : 'idle'}
+                  message={campaignState.error ?? (campaignState.loading ? 'Loading campaign media…' : 'Open campaign media to load it.')}
+                  onRetry={() => void loadCampaigns()}
+                />
+              )}
+            </TabsContent>
+          ) : null}
+          <TabsContent value="site" className="mt-3">
+            {site ? <DeveloperSiteProposalPanel cockpit={site} onChange={setSite} /> : (
+              <CardForgeWorkspaceState
+                state={siteState.error ? 'error' : siteState.loading ? 'loading' : 'idle'}
+                message={siteState.error ?? (siteState.loading ? 'Loading site proposals…' : 'Open site proposals to load them.')}
+                onRetry={() => void loadSite()}
+              />
+            )}
+          </TabsContent>
+          <TabsContent value="standards" className="mt-3">
+            <CardForgeSurface as="section" className="p-5">
+              <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><BookOpenCheck className="h-5 w-5" /><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Contribution guidelines</h2></div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">{standards.map((standard) => <p key={standard} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">{standard}</p>)}</div>
+            </CardForgeSurface>
+          </TabsContent>
         </Tabs>
       </section>
     </main>
@@ -127,14 +229,22 @@ export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissio
 }
 
 function WorkspaceCard({ icon: Icon, label, help, onOpen }: { icon: typeof Megaphone; label: string; help: string; onOpen: () => void }) {
-  return <button type="button" className="min-h-11 border border-[#5f4526] bg-[#15100a] p-4 text-left transition-colors hover:border-[#d8b365] hover:bg-[#1b1209] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2aa4a]" onClick={onOpen} aria-label={`Open ${label.toLowerCase()}`}><div className="flex items-center justify-between gap-3"><span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</span><Icon className="h-4 w-4 text-[#e2aa4a]" /></div><p className="mt-3 text-sm leading-6 text-[#c7b288]">{help}</p></button>;
-}
-
-function LazyWorkspace({ loading, error, onRetry, label }: { loading: boolean; error: string | null; onRetry: () => Promise<void>; label: string }) {
-  if (error) return <div className="border border-[#7d3d32] bg-[#1b0d09] p-5 text-sm text-[#ffd0c6]"><p>{error}</p><Button className="mt-3" size="sm" variant="outline" onClick={() => void onRetry()}>Retry</Button></div>;
-  return <div className="min-h-48 animate-pulse border border-[#5f4526] bg-[#15100a] p-5 text-sm text-[#c7b288]" role="status">{loading ? `Loading ${label}…` : `Open ${label} to load it.`}</div>;
+  return (
+    <button type="button" className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4 text-left transition-colors hover:border-[var(--cf-accent)] hover:bg-[var(--cf-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cf-accent-strong)]" onClick={onOpen} aria-label={`Open ${label.toLowerCase()}`}>
+      <div className="flex items-center justify-between gap-3"><span className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</span><Icon className="h-4 w-4 text-[var(--cf-accent-strong)]" /></div>
+      <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">{help}</p>
+    </button>
+  );
 }
 
 function CockpitMessage({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
-  return <main className="min-h-screen bg-[#0c0b09] px-5 py-12 text-[#f7ead0]"><section className="mx-auto max-w-3xl border border-[#6d4f2b] bg-[#15100a] p-6"><h1 className="font-serif text-3xl text-[#fff1c7]">{title}</h1><p className="mt-3 text-sm leading-6 text-[#c7b288]">{body}</p>{action ? <div className="mt-5">{action}</div> : null}</section></main>;
+  return (
+    <main className="min-h-screen bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
+      <CardForgeSurface as="section" className="mx-auto max-w-3xl border-[var(--cf-border-strong)] p-6">
+        <h1 className="font-serif text-3xl text-[var(--cf-text-strong)]">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">{body}</p>
+        {action ? <div className="mt-5">{action}</div> : null}
+      </CardForgeSurface>
+    </main>
+  );
 }

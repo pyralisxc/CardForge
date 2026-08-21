@@ -19,7 +19,7 @@ export { TextExpressionEditor } from './TextExpressionEditor';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
-const fieldSelectClassName = 'h-8 rounded-md border border-[#252b35] bg-[#090d13] px-2 text-xs text-[#d8d1c4] outline-none focus:border-[#d5ad54]';
+const fieldSelectClassName = 'h-8 rounded-md border border-[var(--cf-editor-border)] bg-[#090d13] px-2 text-xs text-[#d8d1c4] outline-none focus:border-[#d5ad54]';
 
 interface TextFieldSettingsListProps {
   fields: TemplateFieldDefinition[];
@@ -49,7 +49,7 @@ export function TextFieldSettingsList({
   onUpdateContract,
 }: TextFieldSettingsListProps) {
   return (
-    <div className="mt-2 space-y-2 rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
+    <div className="mt-2 space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] p-2">
       <div className="flex items-center justify-between">
         <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Fields In This Element</Label>
         <span className="text-[10px] text-[#8f95a3]">{fields.length} fields</span>
@@ -69,7 +69,7 @@ export function TextFieldSettingsList({
                   variableCardRefs.current[field.key] = node;
                 }}
                 className={cn(
-                  'rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2 transition',
+                  'rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2 transition',
                   activeVariableKey === field.key && 'border-[#d5ad54] shadow-[0_0_0_1px_rgba(213,173,84,0.28)]'
                 )}
               >
@@ -97,7 +97,7 @@ export function TextFieldSettingsList({
                       }}
                     />
                   </div>
-                  {field.required && <span className="rounded-full border border-[#6d5323] px-2 py-0.5 text-[10px] text-[#d5ad54]">Required</span>}
+                  {field.required && <span className="rounded-full border border-[var(--cf-accent)] px-2 py-0.5 text-[10px] text-[#d5ad54]">Required</span>}
                 </div>
 
                 {!isBaseTextField && (
@@ -118,7 +118,7 @@ export function TextFieldSettingsList({
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[10px] text-[#8f95a3]">Required</Label>
-                    <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
+                    <div className="flex h-10 items-center justify-between rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] px-3">
                       <span className="text-[11px] text-[#d8d1c4]">Prompt in Make cards</span>
                       <Switch
                         aria-label={`Prompt ${field.label} in generator`}
@@ -132,7 +132,7 @@ export function TextFieldSettingsList({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-[#8f95a3]">Auto Fit</Label>
-                    <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
+                    <div className="flex h-10 items-center justify-between rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] px-3">
                       <span className="text-[11px] text-[#d8d1c4]">Shrink overflow text</span>
                       <Switch
                         aria-label={`Shrink overflow text for ${field.label}`}
@@ -199,7 +199,7 @@ export function TextFieldSettingsList({
                   </div>
                 </div>
 
-                <div className="mt-2 space-y-2 rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
+                <div className="mt-2 space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] p-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Variable Typography</Label>
                     <span className="text-[10px] text-[#6f7684]">Applies only to this field</span>
@@ -244,12 +244,12 @@ export function TextFieldSettingsList({
                       <div className="flex gap-2">
                         <Input
                           type="color"
-                          value={contract?.textColor || '#f3ead7'}
+                          value={contract?.textColor || 'var(--cf-text)'}
                           onChange={(event) => onUpdateContract(field.key, {
                             elementId: element.id,
                             textColor: event.target.value,
                           })}
-                          className="h-8 w-10 shrink-0 rounded-md border-[#252b35] bg-[#090d13] p-1"
+                          className="h-8 w-10 shrink-0 rounded-md border-[var(--cf-editor-border)] bg-[#090d13] p-1"
                           aria-label={`Text color for ${field.label}`}
                         />
                         <Input
@@ -310,7 +310,7 @@ export function TextFieldSettingsList({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
+                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] px-3">
                       <Label className="text-[11px] text-[#d8d1c4]">Italic</Label>
                       <Switch
                         aria-label={`Italic text for ${field.label}`}
@@ -321,7 +321,7 @@ export function TextFieldSettingsList({
                         })}
                       />
                     </div>
-                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
+                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] px-3">
                       <Label className="text-[11px] text-[#d8d1c4]">Underline</Label>
                       <Switch
                         aria-label={`Underline text for ${field.label}`}

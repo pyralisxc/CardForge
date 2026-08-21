@@ -57,7 +57,7 @@ export function TemplateEditorInspectorSidebar({
   const { currentTemplate, selectedElement, updateElement } = controller;
 
   return (
-    <aside className="cardforge-maker-side cardforge-maker-inspector min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
+    <aside className="cardforge-maker-side cardforge-maker-inspector min-w-0 border-t border-[var(--cf-editor-border)] bg-[#0d1117] lg:border-l lg:border-t-0">
       <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
         <div className="space-y-3 p-2">
           <TemplateEditorInspectorPanel

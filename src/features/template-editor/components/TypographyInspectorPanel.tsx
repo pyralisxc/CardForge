@@ -34,7 +34,7 @@ export function TypographyInspectorPanel({
 }: TypographyInspectorPanelProps) {
   return (
     <>
-      <details className="rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+      <details className="rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
         <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f95a3]">Text Details</summary>
         <div className="mt-2 space-y-2">
           <div className="grid grid-cols-2 gap-2">
@@ -122,7 +122,7 @@ export function TypographyInspectorPanel({
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label htmlFor="element-text-autofit">Shrink to Fit</Label>
-              <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
+              <div className="flex h-10 items-center justify-between rounded-[6px] border border-[var(--cf-editor-border)] bg-[#090d13] px-3">
                 <span className="text-[11px] text-[#d8d1c4]">Reduce text size if it overflows</span>
                 <Switch
                   id="element-text-autofit"

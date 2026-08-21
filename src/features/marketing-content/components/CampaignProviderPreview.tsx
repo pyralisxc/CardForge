@@ -34,12 +34,12 @@ export function CampaignProviderPreview({
   const serviceLabel = MARKETING_CHANNEL_LABELS[variant.service];
 
   return (
-    <section aria-label={`${serviceLabel} provider preview`} className="overflow-hidden border border-[#4a3823] bg-[#0c0b09]">
-      <div className="flex items-center justify-between gap-3 border-b border-[#4a3823] px-3 py-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+    <section aria-label={`${serviceLabel} provider preview`} className="overflow-hidden border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--cf-border-subtle)] px-3 py-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">
           {serviceLabel} preview
         </p>
-        <p className="text-[11px] text-[#a98a55]">Preview only · nothing published</p>
+        <p className="text-[11px] text-[var(--cf-text-subtle)]">Preview only · nothing published</p>
       </div>
 
       <div className={isInstagram ? 'bg-black text-white' : 'bg-white text-[#1c1e21]'}>

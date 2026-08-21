@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import {
   hydrateProjectWorkspaceForScope,
   type ProjectPersistenceScope,
@@ -39,26 +40,22 @@ export function ScopedCardForgeStudioShell({
 
   if (!isWorkspaceReady) {
     return (
-      <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
-        <main className="grid min-h-screen place-items-center px-5 py-12">
-          <div className="grid max-w-md justify-items-center gap-4 text-center" role="status" aria-live="polite">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-hidden="true" />
-            <div>
-              <h1 className="font-serif text-2xl font-semibold text-[#fff1c7]">Restoring your Studio workspace</h1>
-              <p className="mt-2 text-sm leading-6 text-[#cbb58b]">
-                CardForge is loading the workspace saved for this account before starting the editor.
-              </p>
-            </div>
-          </div>
-        </main>
-      </div>
+      <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
+        <CardForgeWorkspaceState
+          state="loading"
+          message="Restoring your Studio workspace. CardForge is loading the workspace saved for this account before starting the editor."
+          className="grid min-h-0 w-full max-w-md place-items-center text-center"
+        />
+      </main>
     );
   }
 
   return (
-    <CardForgeStudioShell
-      businessIdentity={businessIdentity}
-      initialDeveloperAccess={initialDeveloperAccess}
-    />
+    <div className="cardforge-application-viewport cardforge-studio-workspace">
+      <CardForgeStudioShell
+        businessIdentity={businessIdentity}
+        initialDeveloperAccess={initialDeveloperAccess}
+      />
+    </div>
   );
 }

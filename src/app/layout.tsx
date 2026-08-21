@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
+import './cardforgePresentation.css';
 
 import { AnalyticsProvider } from '@/features/analytics/client';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/server';
@@ -48,7 +49,13 @@ export default async function RootLayout({
     : children;
 
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-cf-palette={experienceSettings.presentationPalette}
+      data-cf-accent={experienceSettings.presentationAccent}
+      data-cf-corners={experienceSettings.presentationCorners}
+      data-cf-contrast={experienceSettings.presentationContrast}
+    >
       <body className="font-sans antialiased">
         <div id="cardforge-app-content">{app}</div>
         <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />

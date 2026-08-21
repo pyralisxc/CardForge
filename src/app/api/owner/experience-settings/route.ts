@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
       action: 'experience.settings.update',
       targetType: 'experience_settings',
       targetId: 'cardforge',
-      summary: 'Updated project-file access or analytics-consent presentation.',
+      summary: 'Updated CardForge experience, access, consent, or presentation controls.',
       metadata: { ...settings },
     });
     return createNoStoreJsonResponse({ settings, activityRecorded });

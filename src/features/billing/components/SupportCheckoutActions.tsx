@@ -74,7 +74,7 @@ export function SupportCheckoutActions({
           <p className="mt-2 text-sm leading-6 text-[#5f5548]">A single voluntary support payment. It does not renew.</p>
           <label className="mt-4 grid gap-2 text-sm font-semibold text-[#2f2418]">
             Amount in USD
-            <span className="flex min-h-11 items-center rounded-[var(--public-radius)] border border-[#8f7b57] bg-white px-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#76551c]">
+            <span className="flex min-h-11 items-center rounded-[var(--public-radius)] border border-[var(--cf-text-subtle)] bg-white px-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#76551c]">
               <span aria-hidden="true" className="text-[#2f2418]">$</span>
               <input
                 aria-describedby="one-time-support-range"

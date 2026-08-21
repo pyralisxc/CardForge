@@ -184,7 +184,7 @@ export function TemplateCommandPalette({
         strokeWidth: 0,
         borderWidth: '_none_',
         borderRadius: 'rounded-full',
-        backgroundImageUrl: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)',
+        backgroundImageUrl: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, var(--cf-accent-text) 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, var(--cf-accent-text) 82%, #7f5d1f 92%, transparent 100%)',
       })),
     },
     {
@@ -371,8 +371,8 @@ export function TemplateCommandPalette({
       if (!nextOpen) setQuery('');
     }}>
       <DialogContent className="max-w-[680px] gap-3 border-[#46381b] bg-[#090d13] p-0 text-[#e8dcc1] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
-        <DialogHeader className="border-b border-[#252b35] px-4 py-3">
-          <DialogTitle className="text-sm text-[#f3ead7]">Command Palette</DialogTitle>
+        <DialogHeader className="border-b border-[var(--cf-editor-border)] px-4 py-3">
+          <DialogTitle className="text-sm text-[var(--cf-text)]">Command Palette</DialogTitle>
           <DialogDescription className="text-xs text-[#8f95a3]">
             Search Template actions, insert layers, and jump between Studio panels.
           </DialogDescription>
@@ -392,13 +392,13 @@ export function TemplateCommandPalette({
                 }
               }}
               placeholder="Search commands..."
-              className="h-11 rounded-[4px] border-[#2d3340] bg-[#0f1520] pl-9 text-sm text-[#f3ead7] placeholder:text-[#626b78]"
+              className="h-11 rounded-[4px] border-[#2d3340] bg-[#0f1520] pl-9 text-sm text-[var(--cf-text)] placeholder:text-[#626b78]"
             />
           </div>
         </div>
 
         {selectedElement ? (
-          <div className="mx-4 rounded-[4px] border border-[#252b35] bg-[#101722] px-3 py-2 text-xs text-[#aeb4c0]">
+          <div className="mx-4 rounded-[4px] border border-[var(--cf-editor-border)] bg-[#101722] px-3 py-2 text-xs text-[#aeb4c0]">
             Selected: <span className="font-semibold text-[#f1dfb4]">{selectedElement.name || selectedElement.type}</span>
             <span className="ml-2 uppercase tracking-[0.14em] text-[#6f7a89]">{selectedElement.type}</span>
           </div>
@@ -429,7 +429,7 @@ export function TemplateCommandPalette({
                         >
                           <action.icon className="h-4 w-4 shrink-0 text-[#d5ad54]" />
                           <span className="min-w-0">
-                            <span className="block truncate text-xs font-semibold text-[#f3ead7]">{action.title}</span>
+                            <span className="block truncate text-xs font-semibold text-[var(--cf-text)]">{action.title}</span>
                             <span className="block truncate text-[11px] font-normal text-[#8f95a3]">{action.description}</span>
                           </span>
                         </Button>

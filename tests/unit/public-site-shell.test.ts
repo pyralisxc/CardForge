@@ -89,34 +89,39 @@ describe('public site shell source contract', () => {
     expect(headerSource).toContain('Follow {businessIdentity.brandName}');
   });
 
-  it('opts the portaled mobile menu into public tokens and reduced motion', () => {
+  it('opts the portaled mobile menu into canonical public aliases and reduced motion', () => {
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     const dialogSource = readSource('src/components/ui/dialog.tsx');
     const globalStyles = readSource('src/app/globals.css');
+    const presentationStyles = readSource('src/app/cardforgePresentation.css');
 
     expect(headerSource).toContain('className="cardforge-public-tokens cardforge-public-mobile-menu');
     expect(headerSource).toContain('overlayClassName="cardforge-public-tokens"');
     expect(dialogSource).toContain('overlayClassName?: string;');
     expect(dialogSource).toContain('<DialogOverlay className={overlayClassName} />');
-    expect(globalStyles).toContain('.cardforge-public,\n.cardforge-public-tokens {');
+    expect(presentationStyles).toContain('.cardforge-public,\n.cardforge-public-tokens {');
     expect(globalStyles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.cardforge-public-tokens,[\s\S]*\.cardforge-public-tokens \*/);
   });
 
-  it('uses a two-layer public focus treatment with contrast on light and dark surfaces', () => {
+  it('uses a two-layer public focus treatment sourced from accessible canonical tokens', () => {
     const globalStyles = readSource('src/app/globals.css');
-    const publicFocus = readHexToken(globalStyles, '--public-focus');
-    const publicFocusContrast = readHexToken(globalStyles, '--public-focus-contrast');
-    const publicIvory = readHexToken(globalStyles, '--public-ivory');
-    const publicCharcoal = readHexToken(globalStyles, '--public-charcoal');
+    const presentationStyles = readSource('src/app/cardforgePresentation.css');
+    const focus = readHexToken(presentationStyles, '--cf-canvas');
+    const focusContrast = readHexToken(presentationStyles, '--cf-text');
+    const strongText = readHexToken(presentationStyles, '--cf-text');
+    const surface = readHexToken(presentationStyles, '--cf-surface');
 
-    expect(contrastRatio(publicFocus, publicIvory)).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(publicFocusContrast, publicCharcoal)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(focus, strongText)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(focusContrast, surface)).toBeGreaterThanOrEqual(3);
+    expect(presentationStyles).toContain('--public-focus: var(--cf-canvas);');
+    expect(presentationStyles).toContain('--public-focus-contrast: var(--cf-text);');
     expect(globalStyles).toContain('outline: 3px solid var(--public-focus);');
     expect(globalStyles).toContain('box-shadow: 0 0 0 7px var(--public-focus-contrast);');
   });
 
-  it('scopes the public visual tokens, focus treatment, and reduced motion behavior', () => {
+  it('keeps public aliases in the canonical presentation owner and behavior in globals', () => {
     const globalStyles = readSource('src/app/globals.css');
+    const presentationStyles = readSource('src/app/cardforgePresentation.css');
     const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
     const legalPageSource = readSource('src/features/legal/components/PublicLegalPage.tsx');
 
@@ -136,8 +141,9 @@ describe('public site shell source contract', () => {
       '--public-font-body',
       '--public-font-display',
     ]) {
-      expect(globalStyles, token).toContain(token);
+      expect(presentationStyles, token).toContain(token);
     }
+    expect(globalStyles).not.toContain('--public-obsidian: #');
     expect(globalStyles).toContain('.cardforge-public-skip-link:focus-visible');
     expect(globalStyles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(globalStyles).toContain('.cardforge-public-auth-status');
@@ -150,14 +156,15 @@ describe('public site shell source contract', () => {
     expect(legalPageSource).toContain('<p className="mb-3 text-base font-bold text-[var(--public-brass)]');
   });
 
-  it('uses the compact obsidian forge shell instead of a tall light marketing frame', () => {
-    const globalStyles = readSource('src/app/globals.css');
+  it('keeps the Forge default while public styling remains an alias of the canonical system', () => {
+    const presentationStyles = readSource('src/app/cardforgePresentation.css');
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
 
-    expect(globalStyles).toContain('--public-obsidian: #0c0b09');
-    expect(globalStyles).toContain('--public-surface: #1b1510');
-    expect(globalStyles).toContain('--public-brass: #d9a441');
+    expect(presentationStyles).toContain('[data-cf-palette="forge"]');
+    expect(presentationStyles).toContain('--cf-canvas: #0c0b09');
+    expect(presentationStyles).toContain('--public-obsidian: var(--cf-canvas);');
+    expect(presentationStyles).toContain('--public-brass: var(--cf-accent-strong);');
     expect(headerSource).toContain('min-h-16');
     expect(footerSource).toContain('PUBLIC_NAVIGATION.footerGroups.map');
     expect(footerSource).not.toContain('lg:grid-cols-[minmax(15rem,1.2fr)_2fr]');

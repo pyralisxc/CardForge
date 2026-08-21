@@ -230,7 +230,7 @@ export function TemplateSettingsPanel({
                   className={cn(
                     buttonClassName,
                     'h-16 justify-start gap-2 overflow-hidden px-2 text-left text-[10px]',
-                    currentTemplate.cardBackgroundImageUrl === recipe.preview?.imageUrl && 'border-[#d5ad54] text-[#f5d27b]'
+                    currentTemplate.cardBackgroundImageUrl === recipe.preview?.imageUrl && 'border-[#d5ad54] text-[var(--cf-accent-text)]'
                   )}
                   onClick={() => onApplyElementPresetRecipe(recipe)}
                 >
@@ -269,7 +269,7 @@ export function TemplateSettingsPanel({
                 className={cn(
                   buttonClassName,
                   'h-auto min-h-24 flex-col items-stretch gap-1.5 overflow-hidden p-1.5 text-left',
-                  currentTemplate.cardBackgroundImageUrl === asset.url && 'border-[#d5ad54] text-[#f5d27b]',
+                  currentTemplate.cardBackgroundImageUrl === asset.url && 'border-[#d5ad54] text-[var(--cf-accent-text)]',
                 )}
                 onClick={() => onUpdateTemplate({ cardBackgroundImageUrl: asset.url })}
               >
@@ -307,7 +307,7 @@ export function TemplateSettingsPanel({
                 className={cn(
                   buttonClassName,
                   'h-auto min-h-24 flex-col items-stretch gap-1.5 overflow-hidden p-1.5 text-left',
-                  currentTemplate.cardBorderImageSource === asset.url && 'border-[#d5ad54] text-[#f5d27b]',
+                  currentTemplate.cardBorderImageSource === asset.url && 'border-[#d5ad54] text-[var(--cf-accent-text)]',
                 )}
                 onClick={() => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
               >

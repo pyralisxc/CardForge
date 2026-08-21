@@ -147,21 +147,21 @@ export function OwnerAssetLibraryPanel({
 
   return (
     <div className="mt-7">
-      <h3 className="font-serif text-xl text-[#fff1c7]">Visual asset library</h3>
-      <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+      <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Visual asset library</h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
         New Templates and revisions have a direct publication decision. Other assets follow the automatic pipeline unless you use Manage for an owner exception.
       </p>
       {program.submissionStatusCounts.submitted > 0 ? (
         <div className="mt-4 flex flex-col gap-3 border border-[#8a642f] bg-[#1b140c] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-serif text-lg text-[#ffe7ad]">Owner review queue</p>
-            <p className="mt-1 text-xs leading-5 text-[#c7b288]">
+            <p className="font-serif text-lg text-[var(--cf-accent-text)]">Owner review queue</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
               {program.submissionStatusCounts.submitted} submitted Template contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
             </p>
           </div>
           <Button
             size="sm"
-            className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+            className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
             onClick={() => onStatusFilterChange('submitted')}
           >
             Show pending Templates
@@ -173,17 +173,17 @@ export function OwnerAssetLibraryPanel({
         <LibrarySummary label="Managed storage" value={formatBytes(program.managedStorageBytes)} detail="Known source-file size" />
         <LibrarySummary label="Owner deletable" value={String(program.totalSubmissionCount)} detail="Votes and publication do not limit owner authority" />
       </div>
-      <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 md:grid-cols-[minmax(14rem,1fr)_minmax(12rem,0.7fr)_minmax(12rem,0.7fr)]">
-        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+      <div className="mt-4 grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 md:grid-cols-[minmax(14rem,1fr)_minmax(12rem,0.7fr)_minmax(12rem,0.7fr)]">
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
           Search library
-          <span className="flex items-center border border-[#5f4526] bg-[#0c0b09] px-3 focus-within:border-[#d8b365]">
+          <span className="flex items-center border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 focus-within:border-[var(--cf-accent)]">
             <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
             <input
               type="search"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Asset, contributor, or catalog id"
-              className="min-w-0 flex-1 bg-transparent p-2 text-sm normal-case tracking-normal text-[#ffe7ad] outline-none placeholder:text-[#6f624d]"
+              className="min-w-0 flex-1 bg-transparent p-2 text-sm normal-case tracking-normal text-[var(--cf-accent-text)] outline-none placeholder:text-[#6f624d]"
             />
           </span>
         </label>
@@ -212,13 +212,13 @@ export function OwnerAssetLibraryPanel({
           ]}
         />
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#a98a55]" aria-live="polite">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--cf-text-subtle)]" aria-live="polite">
         <p>Showing {firstItemNumber}-{lastItemNumber} of {program.submissionPage.total} matching assets.</p>
         <p>Page {currentPage} of {totalPages}</p>
       </div>
       <div className="mt-4 space-y-3">
         {program.submissions.length === 0 ? (
-          <p className="border border-[#3c2c1b] bg-[#100c08] p-4 text-sm text-[#c7b288]">No pipeline assets match these filters.</p>
+          <p className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">No pipeline assets match these filters.</p>
         ) : program.submissions.map((submission) => {
           const isPendingTemplateRevision = submission.assetType === 'templates'
             && submission.revisionNumber != null
@@ -232,18 +232,18 @@ export function OwnerAssetLibraryPanel({
             templatePreviews={templatePreviews}
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
-              <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[#15100a] p-4">
+              <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Status control
-                    <select className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={statusOverride} onChange={(event) => setStatusOverride(event.target.value as DeveloperAssetStatus | 'automatic')}>
+                    <select className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={statusOverride} onChange={(event) => setStatusOverride(event.target.value as DeveloperAssetStatus | 'automatic')}>
                       <option value="automatic">Automatic ({getDeveloperAssetStatusLabel(submission.automatedStatus)})</option>
                       {statusOptions.map((status) => <option key={status} value={status}>Pin {getDeveloperAssetStatusLabel(status)}</option>)}
                     </select>
                   </label>
-                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Access control
-                    <select className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={tierOverride} onChange={(event) => setTierOverride(event.target.value as DeveloperAssetAccessTierOverride | 'automatic')}>
+                    <select className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={tierOverride} onChange={(event) => setTierOverride(event.target.value as DeveloperAssetAccessTierOverride | 'automatic')}>
                       <option value="automatic">Automatic ({getDeveloperAssetTierLabel(submission.automatedAccessTier)})</option>
                       <option value="free">Pin Starter</option>
                       <option value="paid">Pin Creator Pass</option>
@@ -251,18 +251,18 @@ export function OwnerAssetLibraryPanel({
                     </select>
                   </label>
                 </div>
-                <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                   Decision note
-                  <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={ownerNote} onChange={(event) => setOwnerNote(event.target.value)} />
+                  <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]" value={ownerNote} onChange={(event) => setOwnerNote(event.target.value)} />
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <Button disabled={updatingSubmissionId === submission.id} className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" onClick={() => void saveOverride(submission.id)}>
+                  <Button disabled={updatingSubmissionId === submission.id} className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" onClick={() => void saveOverride(submission.id)}>
                     {updatingSubmissionId === submission.id ? 'Saving...' : 'Save control'}
                   </Button>
-                  <Button variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" onClick={() => setManagingId(null)}>Cancel</Button>
+                  <Button variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setManagingId(null)}>Cancel</Button>
                 </div>
-                <div className="border-t border-[#3c2c1b] pt-3">
-                  <p className="text-xs leading-5 text-[#a98a55]">
+                <div className="border-t border-[var(--cf-border-subtle)] pt-3">
+                  <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
                     Retire hides an asset and preserves its votes and publication history. Permanent deletion removes the complete shared asset lineage and cannot be undone.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -270,7 +270,7 @@ export function OwnerAssetLibraryPanel({
                       size="sm"
                       variant="outline"
                       disabled={updatingSubmissionId === submission.id}
-                      className="rounded-none border-[#8a642f] bg-transparent text-[#f0c568]"
+                      className="rounded-none border-[#8a642f] bg-transparent text-[var(--cf-accent-strong)]"
                       onClick={() => void retireAsset(submission)}
                     >
                       <Archive className="mr-1 h-4 w-4" /> Retire
@@ -293,7 +293,7 @@ export function OwnerAssetLibraryPanel({
               <Button
                 size="sm"
                 disabled={updatingSubmissionId === submission.id}
-                className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+                className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"
                 onClick={() => void publishTemplateRevision(submission)}
               >
                 <CheckCircle2 className="mr-1 h-4 w-4" />
@@ -305,16 +305,16 @@ export function OwnerAssetLibraryPanel({
               </Button>
             ) : null}
             {submission.assetType === 'templates' && (submission.registryAssetId || (submission.baseRevisionNumber ?? 0) > 0) ? (
-              <Button asChild size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]">
+              <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
                 <a href={`/studio?editTemplate=${encodeURIComponent(submission.registryAssetId ?? submission.targetRegistryAssetId!)}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template
                 </a>
               </Button>
             ) : null}
-            <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
+            <Button size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
               <Eye className="mr-1 h-4 w-4" /> {isPendingTemplateRevision ? 'Compare revision' : 'Review'}
             </Button>
-            <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => openManager(submission)}>
+            <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[var(--cf-accent-strong)]" onClick={() => openManager(submission)}>
               <Settings2 className="mr-1 h-4 w-4" /> Manage
             </Button>
           </AssetRow>
@@ -322,12 +322,12 @@ export function OwnerAssetLibraryPanel({
         })}
       </div>
       {totalPages > 1 ? (
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#3c2c1b] pt-4">
-          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--cf-border-subtle)] pt-4">
+          <Button size="sm" variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Previous
           </Button>
-          <span className="text-xs text-[#a98a55]">{firstItemNumber}-{lastItemNumber} of {program.submissionPage.total}</span>
-          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          <span className="text-xs text-[var(--cf-text-subtle)]">{firstItemNumber}-{lastItemNumber} of {program.submissionPage.total}</span>
+          <Button size="sm" variant="outline" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
             Next <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
@@ -338,9 +338,9 @@ export function OwnerAssetLibraryPanel({
 
 function LibrarySummary({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="border border-[#3c2c1b] bg-[#100c08] p-3">
-      <p className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">{label}</p>
-      <p className="mt-1 font-serif text-xl text-[#ffe7ad]">{value}</p>
+    <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+      <p className="text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{label}</p>
+      <p className="mt-1 font-serif text-xl text-[var(--cf-accent-text)]">{value}</p>
       <p className="mt-1 text-xs leading-5 text-[#8f7a5e]">{detail}</p>
     </div>
   );
@@ -364,9 +364,9 @@ function FilterSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
       {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="border border-[#5f4526] bg-[#0c0b09] p-2 text-sm normal-case tracking-normal text-[#ffe7ad] outline-none focus:border-[#d8b365]">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2 text-sm normal-case tracking-normal text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]">
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>

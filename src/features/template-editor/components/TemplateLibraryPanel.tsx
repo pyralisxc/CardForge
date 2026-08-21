@@ -120,9 +120,9 @@ export function TemplateLibraryPanel({
             />
           </div>
           {!canUseProjectFiles ? (
-            <div className="space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
-              <p className="flex items-start gap-2 text-[11px] leading-4 text-[#cbb58b]">
-                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e2aa4a]" />
+            <div className="space-y-2 rounded-[6px] border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-2">
+              <p className="flex items-start gap-2 text-[11px] leading-4 text-[var(--cf-text-muted)]">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--cf-accent-strong)]" />
                 <span>{projectFileGateMessage || 'Creator Pass lets you download and open portable project copies.'}</span>
               </p>
               <Button
@@ -142,12 +142,12 @@ export function TemplateLibraryPanel({
             <button
               key={template.id}
               type="button"
-              className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/70 hover:bg-[#131720]"
+              className="group flex w-full items-center gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/70 hover:bg-[#131720]"
               onClick={() => onOpenTemplate(template)}
             >
               <TemplateLibraryPreview template={template} showCardWatermark={showCardWatermark} richTextHighlightColor={richTextHighlightColor} />
               <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{template.name}</span>
+                <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{template.name}</span>
                 <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || getTemplateLibraryDescription(template)}</span>
                 <span className="block text-[10px] text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
               </span>
@@ -163,7 +163,7 @@ export function TemplateLibraryPanel({
               <button
                 key={template.id}
                 type="button"
-                className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#7dd3fc]/70 hover:bg-[#131720]"
+                className="group flex w-full items-center gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#7dd3fc]/70 hover:bg-[#131720]"
                 onClick={() => onOpenTemplate(template)}
               >
                 <TemplateLibraryPreview template={template} showCardWatermark={showCardWatermark} richTextHighlightColor={richTextHighlightColor} />
@@ -191,7 +191,7 @@ function TemplateLibraryPreview({
   richTextHighlightColor: string;
 }) {
   return (
-    <span className="relative grid h-[84px] w-[64px] shrink-0 place-items-center overflow-hidden rounded-[5px] border border-[#2b2f39] bg-[#05070b]">
+    <span className="relative grid h-[84px] w-[64px] shrink-0 place-items-center overflow-hidden rounded-[5px] border border-[var(--cf-editor-border)] bg-[#05070b]">
       <CardPreview
         card={{
           template,

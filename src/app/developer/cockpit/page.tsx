@@ -40,18 +40,18 @@ export default async function DeveloperCockpitRoute({
     const developerAccess = await getCurrentDeveloperAccessSessionState();
     if (!developerAccess.projection.hasCockpitAccess) {
       return (
-        <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12 text-[#f7ead0]">
-          <section className="w-full max-w-xl border border-[#6d4f2b] bg-[#15100a] p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Developer cockpit</p>
-            <h1 className="mt-2 font-serif text-3xl text-[#fff1c7]">Contributor access required</h1>
-            <p className="mt-3 text-sm leading-6 text-[#c7b288]">
+        <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
+          <section className="w-full max-w-xl border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-accent-strong)]">Developer cockpit</p>
+            <h1 className="mt-2 font-serif text-3xl text-[var(--cf-text-strong)]">Contributor access required</h1>
+            <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">
               This signed-in account is not an active CardForge contributor or owner.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/developer" prefetch={false} className="inline-flex min-h-11 items-center border border-[#d8b365]/70 px-4 font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d]">
+              <Link href="/developer" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-accent)] px-4 font-semibold text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]">
                 Developer program
               </Link>
-              <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center border border-[#5f4526] px-4 font-semibold text-[#c7b288] hover:bg-[#1b1209]">
+              <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-border)] px-4 font-semibold text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface-raised)]">
                 Open account
               </Link>
             </div>

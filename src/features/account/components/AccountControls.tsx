@@ -32,7 +32,7 @@ export function AccountControls({
 
   if (state === 'checking' && !isSignedIn) {
     return (
-      <Button type="button" size="sm" disabled aria-label="Checking account access" className="gap-2 bg-[#6f552c] text-[#f8e3b0]">
+      <Button type="button" size="sm" disabled aria-label="Checking account access" className="gap-2 bg-[var(--cf-surface-hover)] text-[var(--cf-accent-text)]">
         <LoaderCircle className="h-4 w-4 animate-spin" /> Checking…
       </Button>
     );
@@ -40,8 +40,8 @@ export function AccountControls({
 
   if (state === 'unavailable') {
     return (
-      <div className="ml-auto text-right text-xs text-[#c8b07f]">
-        <p className="font-semibold text-[#fff1c7]">Account sign-in isn&apos;t available here.</p>
+      <div className="ml-auto text-right text-xs text-[var(--cf-text-muted)]">
+        <p className="font-semibold text-[var(--cf-text-strong)]">Account sign-in isn&apos;t available here.</p>
       </div>
     );
   }
@@ -81,18 +81,18 @@ function ClerkAccountControls({
 
   return (
     <div className="ml-auto flex items-center gap-2">
-      <div className="hidden text-right text-xs text-[#c8b07f] sm:block">
-        <p className="font-semibold text-[#fff1c7]">{modeLabel}</p>
+      <div className="hidden text-right text-xs text-[var(--cf-text-muted)] sm:block">
+        <p className="font-semibold text-[var(--cf-text-strong)]">{modeLabel}</p>
         <p>{effectiveSignedIn ? 'Account connected' : 'Sign in to unlock paid export'}</p>
       </div>
       {!effectiveSignedIn ? (
         <>
-          <Button asChild type="button" size="sm" className="gap-2 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+          <Button asChild type="button" size="sm" className="gap-2 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
             <Link href={createAuthRouteHref('/sign-in', '/studio')} prefetch={false}>
               <LogIn className="h-4 w-4" /> Sign in
             </Link>
           </Button>
-          <Button asChild type="button" variant="outline" size="sm" onClick={markSignUpIntent} className="hidden gap-2 border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7] sm:inline-flex">
+          <Button asChild type="button" variant="outline" size="sm" onClick={markSignUpIntent} className="hidden gap-2 border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)] sm:inline-flex">
             <Link href={createAuthRouteHref('/sign-up', '/studio')} prefetch={false}>
               <UserPlus className="h-4 w-4" /> Create account
             </Link>

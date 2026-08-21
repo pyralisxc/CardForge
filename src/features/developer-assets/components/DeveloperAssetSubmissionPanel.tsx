@@ -169,17 +169,17 @@ export function DeveloperAssetSubmissionPanel({
 
   return (
     <TabsContent value="submit" className="mt-4">
-      <div className="border border-[#5f4526] bg-[#100c08] p-4">
-        <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
-        <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+      <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+        <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit a Library Candidate</h3>
+        <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
           Media and font candidates enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used: inside Template Studio.
         </p>
-        <div className="mt-4 flex flex-col gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[#ffe7ad]">Revising a shared Template?</p>
-            <p className="mt-1 text-xs leading-5 text-[#a98a55]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
+            <p className="text-sm font-medium text-[var(--cf-accent-text)]">Revising a shared Template?</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
           </div>
-          <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[#ffe7ad]">
+          <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[var(--cf-accent-text)]">
             <Link href="/studio">Open Template Studio</Link>
           </Button>
         </div>
@@ -201,7 +201,7 @@ export function DeveloperAssetSubmissionPanel({
           />
         </div>
         <div className="mt-4 grid gap-3">
-          <div className="grid gap-2 text-sm text-[#c7b288]">
+          <div className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <label htmlFor="developer-asset-family" className="flex items-center justify-between gap-2">
               Asset family
               <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
@@ -213,11 +213,11 @@ export function DeveloperAssetSubmissionPanel({
                   <button
                     key={type}
                     type="button"
-                    className={`border p-3 text-left transition-colors ${isActive ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : 'border-[#5f4526] bg-[#0c0b09] text-[#c7b288] hover:border-[#8a642f] hover:text-[#ffe7ad]'}`}
+                    className={`border p-3 text-left transition-colors ${isActive ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)] text-[var(--cf-accent-text)]' : 'border-[var(--cf-border)] bg-[var(--cf-canvas)] text-[var(--cf-text-muted)] hover:border-[#8a642f] hover:text-[var(--cf-accent-text)]'}`}
                     aria-pressed={isActive}
                     onClick={() => changeAssetType(type)}
                   >
-                    <span className="block text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                    <span className="block text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                       {type === 'fonts' ? 'Font upload' : 'Asset upload'}
                     </span>
                     <span className="mt-1 block font-medium">{getDeveloperAssetTypeLabel(type, { plural: false })}</span>
@@ -227,7 +227,7 @@ export function DeveloperAssetSubmissionPanel({
             </div>
             <select
               id="developer-asset-family"
-              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
               value={assetType}
               onChange={(event) => changeAssetType(event.target.value as DeveloperUploadAssetType)}
             >
@@ -236,14 +236,14 @@ export function DeveloperAssetSubmissionPanel({
               ))}
             </select>
           </div>
-          <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[#c7b288]">
+          <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Studio destination
               <FieldHelp text="Choose where creators should find this asset. CardForge only permits destinations compatible with the selected asset family." />
             </span>
             <select
               id="developer-asset-studio-destination"
-              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
               value={studioDestination}
               onChange={(event) => setStudioDestination(event.target.value as StudioAssetDestination)}
             >
@@ -251,7 +251,7 @@ export function DeveloperAssetSubmissionPanel({
                 <option key={destination} value={destination}>{getDeveloperAssetStudioDestinationLabel(destination)}</option>
               ))}
             </select>
-            <span className="text-xs leading-5 text-[#a98a55]">{submissionGuidance.destination}</span>
+            <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">{submissionGuidance.destination}</span>
           </label>
           <div className="grid gap-3 md:grid-cols-2">
             <ControlledTaxonomySelect
@@ -269,30 +269,30 @@ export function DeveloperAssetSubmissionPanel({
               emptyLabel="Choose at least one use case."
             />
           </div>
-          <p className="text-xs leading-5 text-[#a98a55]">
+          <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
             Studio destination controls where the asset appears. Specialty and use-case classification comes from CardForge's shared taxonomy and is stored with the submission from the start.
           </p>
-          <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
+          <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Name
               <FieldHelp text="Use a short library-facing name. This is what owners and peer reviewers see in queues." />
             </span>
-            <input id="developer-asset-name" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
+            <input id="developer-asset-name" className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={name} onChange={(event) => setName(event.target.value)} />
           </label>
-          <div className="grid gap-2 text-sm text-[#c7b288]">
+          <div className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Candidate source
               <FieldHelp text="Choose from your browser library, drag a local file here, or browse your file directory. All three routes submit through the same review pipeline." />
             </span>
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
-              <div className="border border-[#5f4526] bg-[#0c0b09] p-3">
+              <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-[#ffe7ad]">
-                    <Library className="h-4 w-4 text-[#d7b469]" />
+                  <div className="flex items-center gap-2 text-[var(--cf-accent-text)]">
+                    <Library className="h-4 w-4 text-[var(--cf-accent)]" />
                     <span className="font-medium">Personal Library</span>
                   </div>
                   <select
-                    className="border border-[#5f4526] bg-[#100c08] px-2 py-1 text-xs text-[#ffe7ad]"
+                    className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-2 py-1 text-xs text-[var(--cf-accent-text)]"
                     value={personalLibraryFilter}
                     onChange={(event) => setPersonalLibraryFilter(event.target.value as PersonalLibraryFilter)}
                   >
@@ -302,31 +302,31 @@ export function DeveloperAssetSubmissionPanel({
                     ))}
                   </select>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-[#a98a55]">
+                <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">
                   Pull locally saved art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
                 </p>
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
                   {visiblePersonalLibraryItems.length === 0 ? (
-                    <p className="border border-dashed border-[#3c2c1b] p-3 text-xs leading-5 text-[#a98a55]">
+                    <p className="border border-dashed border-[var(--cf-border-subtle)] p-3 text-xs leading-5 text-[var(--cf-text-subtle)]">
                       {getCandidateSourceEmptyMessage(personalLibraryFilter === 'all' ? assetType : personalLibraryFilter)}
                     </p>
                   ) : visiblePersonalLibraryItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      className="grid w-full grid-cols-[2.75rem,minmax(0,1fr)] gap-3 border border-[#3c2c1b] bg-[#100c08] p-2 text-left hover:border-[#d8b365] hover:bg-[#1e160d]"
+                      className="grid w-full grid-cols-[2.75rem,minmax(0,1fr)] gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-2 text-left hover:border-[var(--cf-accent)] hover:bg-[#1e160d]"
                       onClick={() => void choosePersonalLibraryItem(item)}
                     >
-                      <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
+                      <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)]">
                         {item.previewUrl && !item.previewUrl.startsWith('/api/templates') ? (
                           <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
                         ) : (
-                          <FileUp className="h-4 w-4 text-[#d7b469]" />
+                          <FileUp className="h-4 w-4 text-[var(--cf-accent)]" />
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm text-[#ffe7ad]">{item.name}</span>
-                        <span className="block text-xs text-[#a98a55]">{item.sourceLabel} - {getDeveloperAssetTypeLabel(item.assetType, { plural: false })}</span>
+                        <span className="block truncate text-sm text-[var(--cf-accent-text)]">{item.name}</span>
+                        <span className="block text-xs text-[var(--cf-text-subtle)]">{item.sourceLabel} - {getDeveloperAssetTypeLabel(item.assetType, { plural: false })}</span>
                         <span className="block truncate text-xs text-[#6f5b3a]">{item.fileName}</span>
                       </span>
                     </button>
@@ -334,7 +334,7 @@ export function DeveloperAssetSubmissionPanel({
                 </div>
               </div>
               <label
-                className={`grid min-h-56 cursor-pointer place-items-center border border-dashed p-5 text-center transition-colors ${isDragActive ? 'border-[#d8b365] bg-[#2a1b0d]' : 'border-[#5f4526] bg-[#0c0b09]'}`}
+                className={`grid min-h-56 cursor-pointer place-items-center border border-dashed p-5 text-center transition-colors ${isDragActive ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)]' : 'border-[var(--cf-border)] bg-[var(--cf-canvas)]'}`}
                 onDragEnter={(event) => {
                   event.preventDefault();
                   setIsDragActive(true);
@@ -344,11 +344,11 @@ export function DeveloperAssetSubmissionPanel({
                 onDrop={handleCandidateDrop}
               >
                 <span className="grid gap-3">
-                  <span className="mx-auto grid h-12 w-12 place-items-center border border-[#5f4526] bg-[#15100a] text-[#d7b469]">
+                  <span className="mx-auto grid h-12 w-12 place-items-center border border-[var(--cf-border)] bg-[var(--cf-surface)] text-[var(--cf-accent)]">
                     <UploadCloud className="h-5 w-5" />
                   </span>
-                  <span className="text-sm font-medium text-[#ffe7ad]">{getCandidateBrowseLabel(assetType)}</span>
-                  <span className="text-xs leading-5 text-[#a98a55]">
+                  <span className="text-sm font-medium text-[var(--cf-accent-text)]">{getCandidateBrowseLabel(assetType)}</span>
+                  <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">
                     {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}.
                   </span>
                   <input
@@ -362,33 +362,33 @@ export function DeveloperAssetSubmissionPanel({
                 </span>
               </label>
             </div>
-            <span className="text-xs text-[#a98a55]">
+            <span className="text-xs text-[var(--cf-text-subtle)]">
               {selectedFile
                 ? `${selectedFile.name} - ${Math.ceil(selectedFile.size / 1024)} KB selected`
                 : 'No source selected yet.'}
             </span>
           </div>
-          <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[#c7b288]">
+          <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Preview URL (optional)
               <FieldHelp text="Optional. Leave blank to use the uploaded source file as the visual preview." />
             </span>
-            <input id="developer-asset-preview-url" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
+            <input id="developer-asset-preview-url" className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
           </label>
-          <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[#c7b288]">
+          <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Notes
               <FieldHelp text={submissionGuidance.notesHelp} />
             </span>
             <textarea
               id="developer-asset-notes"
-              className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
               placeholder={submissionGuidance.notesHelp}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
-          <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
+          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
             {isSaving ? 'Uploading...' : 'Send to Forge Review'}
           </Button>
         </div>

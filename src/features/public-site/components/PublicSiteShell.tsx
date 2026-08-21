@@ -28,7 +28,7 @@ export function PublicSiteShell({
         Skip to main content
       </a>
       {siteConfiguration.announcementEnabled ? (
-        <div role="status" className="border-b border-[var(--public-brass)] bg-[#2a1b0d] px-5 py-2 text-center text-sm font-semibold text-[var(--public-ivory)]">
+        <div role="status" className="border-b border-[var(--public-brass)] bg-[var(--cf-surface-hover)] px-5 py-2 text-center text-sm font-semibold text-[var(--public-ivory)]">
           {siteConfiguration.announcementMessage}
         </div>
       ) : null}

@@ -58,33 +58,33 @@ export function DeveloperProgramPage({
   );
 
   return (
-    <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setIdentity} /> : null}
       <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-          <div className="border border-[#6d4f2b] bg-[#15100a] p-5 md:p-7">
-            <div className="flex items-center gap-3 text-[#e2aa4a]">
+          <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-5 md:p-7">
+            <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
               <Sparkles className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['developer.hero.eyebrow']}</span>
             </div>
-            <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[#fff1c7] md:text-5xl">
+            <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-5xl">
               {siteContent['developer.hero.headline']}
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
               {siteContent['developer.hero.body']}
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {contributionLanes.map(({ icon: Icon, title, copy }) => (
-                <article key={title} className="border border-[#4a3823] bg-[#100c08] p-3">
-                  <Icon className="h-4 w-4 text-[#e2aa4a]" />
-                  <h2 className="mt-3 font-serif text-lg text-[#ffe7ad]">{title}</h2>
-                  <p className="mt-2 text-sm leading-5 text-[#c7b288]">{copy}</p>
+                <article key={title} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                  <Icon className="h-4 w-4 text-[var(--cf-accent-strong)]" />
+                  <h2 className="mt-3 font-serif text-lg text-[var(--cf-accent-text)]">{title}</h2>
+                  <p className="mt-2 text-sm leading-5 text-[var(--cf-text-muted)]">{copy}</p>
                 </article>
               ))}
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {isContributor ? (
-                <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                <Button asChild className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
                   <Link href="/developer/cockpit">
                     Open developer cockpit <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -95,15 +95,15 @@ export function DeveloperProgramPage({
                 </Button>
               ) : !signedIn ? (
                 <>
-                  <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                  <Button asChild className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
                     <Link href={createAuthRouteHref('/sign-in', '/developer')} prefetch={false}>Sign in first</Link>
                   </Button>
-                  <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                  <Button asChild variant="outline" className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                     <Link href={createAuthRouteHref('/sign-up', '/developer')} prefetch={false}>Create account</Link>
                   </Button>
                 </>
               ) : (
-                <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                <Button asChild variant="outline" className="border-[var(--cf-accent)]/70 bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
                   <a href={requestMailto}>
                     Email fallback <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
@@ -120,27 +120,27 @@ export function DeveloperProgramPage({
             ) : null}
           </div>
 
-          <aside className="border border-[#5f4526] bg-[#100c08] p-4">
-            <div className="flex items-center gap-2 text-[#e2aa4a]">
+          <aside className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
               <ShieldCheck className="h-4 w-4" />
               <p className="text-xs uppercase tracking-[0.16em]">Scoped contributor access</p>
             </div>
-            <p className="mt-3 break-words text-sm text-[#ffe7ad]">
+            <p className="mt-3 break-words text-sm text-[var(--cf-accent-text)]">
               {accountEmail ?? 'No signed-in account'}
             </p>
-            <p className="mt-3 text-xs leading-5 text-[#c7b288]">
+            <p className="mt-3 text-xs leading-5 text-[var(--cf-text-muted)]">
               Contributor access is intentionally scoped. The owner can enable campaign drafting and site proposals independently for each active developer.
             </p>
           </aside>
         </div>
 
-        <section className="mt-5 border border-[#5f4526] bg-[#15100a] p-5">
-          <h2 className="font-serif text-2xl text-[#fff1c7]">{siteContent['developer.rules.heading']}</h2>
+        <section className="mt-5 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">{siteContent['developer.rules.heading']}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {standards.map((standard) => (
-              <div key={standard} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">
+              <div key={standard} className="flex gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#8be0a4]" />
-                <p className="text-sm leading-5 text-[#d8c49a]">{standard}</p>
+                <p className="text-sm leading-5 text-[var(--cf-text-muted)]">{standard}</p>
               </div>
             ))}
           </div>
