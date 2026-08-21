@@ -25,6 +25,8 @@ describe('assistant draft retention', () => {
     expect(migration).toContain('last_activity_at = pg_catalog.now()');
     expect(migration).toContain('cardforge_apply_studio_document_retention');
     expect(storageLibrary).toContain('visiting this page does not');
+    expect(storageLibrary).toContain("'plan-specific'");
+    expect(storageLibrary).not.toContain("?? 'plan'}-hour");
     expect(migration).toContain('returning expires_at into current_deadline');
     expect(readSource('src/features/studio-documents/server/studioDocumentStore.ts'))
       .toContain(".gt('expires_at', new Date().toISOString())");
