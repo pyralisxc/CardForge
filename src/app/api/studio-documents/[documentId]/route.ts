@@ -49,7 +49,7 @@ export async function GET(
     const documentId = await readDocumentId(context);
     if (!documentId) return createApiErrorResponse(400, 'studio_document_invalid', 'A valid Studio document id is required.');
     const account = await getCurrentStudioDocumentAccount();
-    const document = await getStudioDocument(account.ownerUserId, documentId);
+    const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
     const assets = await getStudioDocumentAssetDownloads({
       ownerUserId: account.ownerUserId,
       documentId,
@@ -90,6 +90,7 @@ export async function PATCH(
       title,
       document,
       expectedRevision: Number(expectedRevision),
+      retentionHours: account.retentionHours,
     });
     const assets = await getStudioDocumentAssetDownloads({
       ownerUserId: account.ownerUserId,

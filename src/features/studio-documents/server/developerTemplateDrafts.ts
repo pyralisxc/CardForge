@@ -24,6 +24,7 @@ import {
   type EmbeddedTemplateAssetMimeType,
 } from './embeddedTemplateAssets';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
+import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import {
   createStudioDocument,
   getStudioDocument,
@@ -36,17 +37,19 @@ export const createDeveloperTemplateDraft = async (
   input: GptTemplateDraftInput,
 ) => {
   requireContributionScope(access, 'studio.ai.create');
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   return createStudioDocument({
     ownerUserId: access.user.id,
     title: input.title,
     creationSource: 'gpt',
     document: createProjectDocumentFromTemplateDraft(input, `gpt-${randomUUID()}`),
+    retentionHours,
   });
 };
 
 export const listDeveloperTemplateDrafts = async (access: DeveloperCockpitAccess) => {
   requireContributionScope(access, 'studio.ai.create');
-  return listStudioDocuments(access.user.id);
+  return listStudioDocuments(access.user.id, await getStudioDocumentRetentionHours(access.entitlement));
 };
 
 export const getDeveloperTemplateDraft = async (
@@ -54,7 +57,7 @@ export const getDeveloperTemplateDraft = async (
   documentId: string,
 ) => {
   requireContributionScope(access, 'studio.ai.create');
-  return getStudioDocument(access.user.id, documentId);
+  return getStudioDocument(access.user.id, documentId, await getStudioDocumentRetentionHours(access.entitlement));
 };
 
 export const updateDeveloperTemplateDraft = async ({
@@ -69,7 +72,8 @@ export const updateDeveloperTemplateDraft = async ({
   input: GptTemplateDraftInput;
 }) => {
   requireContributionScope(access, 'studio.ai.create');
-  const current = await getStudioDocument(access.user.id, documentId);
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   if (current.document.userTemplates.length !== 1) {
     throw new StudioDocumentStoreError(
       'MCP revision currently requires a Studio document with exactly one editable Template.',
@@ -99,6 +103,7 @@ export const updateDeveloperTemplateDraft = async ({
       userTemplates: [preserved.template],
       productionPlan: preserved.productionPlan,
     },
+    retentionHours,
   });
 };
 
@@ -134,7 +139,8 @@ export const attachDeveloperTemplateDraftAsset = async ({
   data: string;
 }) => {
   requireContributionScope(access, 'studio.ai.create');
-  const current = await getStudioDocument(access.user.id, documentId);
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   if (current.revision !== expectedRevision) {
     throw new StudioDocumentStoreError(
       'The Studio document changed. Reload it before attaching artwork.',
@@ -187,6 +193,7 @@ export const attachDeveloperTemplateDraftAsset = async ({
       userTemplates: [nextTemplate],
       productionPlan: { ...productionPlan, assets: nextAssets },
     },
+    retentionHours,
   });
 };
 
@@ -218,7 +225,11 @@ export const continueDeveloperTemplateDraftInPipeline = async ({
   templateId?: string;
 }) => {
   requireContributionScope(access, 'library.submit');
-  const document = await getStudioDocument(access.user.id, documentId);
+  const document = await getStudioDocument(
+    access.user.id,
+    documentId,
+    await getStudioDocumentRetentionHours(access.entitlement),
+  );
   const localTemplate = selectTemplate(document.document.userTemplates, templateId);
   if (!isRepositoryTemplate(localTemplate) || localTemplate.templateSource === 'default') {
     throw new StudioDocumentStoreError(

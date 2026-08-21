@@ -195,22 +195,3 @@ export const removeStudioDocumentAssets = async (ownerUserId: string, documentId
   const removed = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).remove(paths);
   if (removed.error) throw new StudioDocumentStoreError('Unable to remove private Studio artwork.');
 };
-
-export const removeUnreferencedStudioDocumentAssets = async ({
-  ownerUserId,
-  documentId,
-  document,
-}: {
-  ownerUserId: string;
-  documentId: string;
-  document: ProjectDocumentV1;
-}): Promise<void> => {
-  const keep = new Set(collectStudioDocumentAssetIds(document).map((id) => `${id}.webp`));
-  const prefix = storagePrefix(ownerUserId, documentId);
-  const { data, error } = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).list(prefix, { limit: MAX_STUDIO_DOCUMENT_ASSETS });
-  if (error) return;
-  const stale = (data ?? []).filter((item) => !keep.has(item.name)).map((item) => `${prefix}/${item.name}`);
-  if (stale.length === 0) return;
-  const removed = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).remove(stale);
-  if (removed.error) console.error('Unable to clean stale Studio document artwork:', removed.error);
-};

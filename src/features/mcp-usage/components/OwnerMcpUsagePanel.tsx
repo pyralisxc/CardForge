@@ -30,10 +30,11 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
   const [monthlyActionLimit, setMonthlyActionLimit] = useState<number | ''>(allowance.monthlyActionLimit);
   const [dailySafetyLimit, setDailySafetyLimit] = useState<number | ''>(allowance.dailySafetyLimit);
   const [storageMegabytes, setStorageMegabytes] = useState<number | ''>(bytesToMegabytes(allowance.onlineStorageLimitBytes));
+  const [draftRetentionHours, setDraftRetentionHours] = useState<number | ''>(allowance.draftRetentionHours);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (typeof monthlyActionLimit !== 'number' || typeof dailySafetyLimit !== 'number' || typeof storageMegabytes !== 'number') return;
+    if (typeof monthlyActionLimit !== 'number' || typeof dailySafetyLimit !== 'number' || typeof storageMegabytes !== 'number' || typeof draftRetentionHours !== 'number') return;
     setSaving(true);
     try {
       const response = await fetch('/api/owner/mcp-usage', {
@@ -51,6 +52,7 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
           monthlyActionLimit,
           dailySafetyLimit,
           onlineStorageLimitBytes: megabytesToBytes(storageMegabytes),
+          draftRetentionHours,
         }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update allowance.'));
@@ -80,12 +82,14 @@ function AllowanceEditor({ allowance, onSaved }: { allowance: McpAllowance; onSa
         <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#15100a] p-3 text-sm text-[#ffe7ad]">Show this choice<input type="checkbox" checked={isVisible} onChange={(event) => setIsVisible(event.target.checked)} /></label>
         <p className="text-xs leading-5 text-[#8f7b57]">ChatGPT plugin access is included for signed-in personal accounts. Action and private plugin workspace values below are observation targets, not enforced quotas.</p>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="grid gap-1 text-xs text-[#c7b288]">Monthly actions<input className="min-h-11 border border-[#5f4526] bg-[#15100a] px-3 text-[#fff1c7]" type="number" min="0" max="1000000" value={monthlyActionLimit} onChange={(event) => setMonthlyActionLimit(event.target.value === '' ? '' : event.target.valueAsNumber)} /></label>
         <label className="grid gap-1 text-xs text-[#c7b288]">Daily safety target<input className="min-h-11 border border-[#5f4526] bg-[#15100a] px-3 text-[#fff1c7]" type="number" min="0" max="100000" value={dailySafetyLimit} onChange={(event) => setDailySafetyLimit(event.target.value === '' ? '' : event.target.valueAsNumber)} /></label>
         <label className="grid gap-1 text-xs text-[#c7b288]">Online storage (MB)<input className="min-h-11 border border-[#5f4526] bg-[#15100a] px-3 text-[#fff1c7]" type="number" min="0" max="104857600" value={storageMegabytes} onChange={(event) => setStorageMegabytes(event.target.value === '' ? '' : event.target.valueAsNumber)} /></label>
+        <label className="grid gap-1 text-xs text-[#c7b288]">Active draft hours<input className="min-h-11 border border-[#5f4526] bg-[#15100a] px-3 text-[#fff1c7]" type="number" min="1" max="8760" value={draftRetentionHours} onChange={(event) => setDraftRetentionHours(event.target.value === '' ? '' : event.target.valueAsNumber)} /></label>
       </div>
-      <Button type="button" size="sm" className="mt-4" disabled={saving || !displayName.trim() || !description.trim() || !featureSummary.trim() || !priceLabel.trim() || !priceNote.trim() || !ctaLabel.trim() || [monthlyActionLimit, dailySafetyLimit, storageMegabytes].some((value) => typeof value !== 'number' || !Number.isFinite(value))} onClick={() => void save()}>{saving ? 'Saving…' : 'Save plan'}</Button>
+      <p className="mt-2 text-xs leading-5 text-[#8f7b57]">Opening or updating a draft resets this active window. Expired drafts remain recoverable for 24 hours before permanent cleanup.</p>
+      <Button type="button" size="sm" className="mt-4" disabled={saving || !displayName.trim() || !description.trim() || !featureSummary.trim() || !priceLabel.trim() || !priceNote.trim() || !ctaLabel.trim() || [monthlyActionLimit, dailySafetyLimit, storageMegabytes, draftRetentionHours].some((value) => typeof value !== 'number' || !Number.isFinite(value))} onClick={() => void save()}>{saving ? 'Saving…' : 'Save plan'}</Button>
     </article>
   );
 }

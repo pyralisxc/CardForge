@@ -137,6 +137,10 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Owner Console content; the plugin must not introduce a parallel tier catalog or access toggle.
 
+Assistant draft retention is also controlled by the plan records in Owner Console. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/developer 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
+
+Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Edge Function. Vault must contain `project_url` and an active `publishable_key`; the retention migration generates a separate random `assistant_draft_retention_cron_secret`. Never place the service-role key in Cron SQL. Schedule the function every 15 minutes with `pg_cron` + `pg_net` following Supabase's scheduled-functions pattern. Supabase's `apikey` header identifies the project, while the dedicated `X-CardForge-Cron-Secret` is the function's custom authorization and must be validated before maintenance begins. Verify one scheduled invocation reports `expired`, `claimed`, `purged`, and `failed`, then confirm the Cron job exists by name and the function remains custom-authenticated. Storage objects must be removed through the Storage API before the corresponding row is finalized.
+
 For a development-beta release:
 
 1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.

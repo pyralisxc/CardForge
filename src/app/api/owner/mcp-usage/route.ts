@@ -44,6 +44,7 @@ export async function PUT(request: Request) {
     if (typeof values.monthlyActionLimit !== 'number'
       || typeof values.dailySafetyLimit !== 'number'
       || typeof values.onlineStorageLimitBytes !== 'number'
+      || typeof values.draftRetentionHours !== 'number'
       || typeof values.displayName !== 'string'
       || typeof values.description !== 'string'
       || typeof values.featureSummary !== 'string'
@@ -56,6 +57,7 @@ export async function PUT(request: Request) {
     const monthlyActionLimit = values.monthlyActionLimit;
     const dailySafetyLimit = values.dailySafetyLimit;
     const onlineStorageLimitBytes = values.onlineStorageLimitBytes;
+    const draftRetentionHours = values.draftRetentionHours;
     const dashboard = await updateMcpAllowance({
       planKey: values.planKey,
       displayName: values.displayName,
@@ -68,6 +70,7 @@ export async function PUT(request: Request) {
       monthlyActionLimit,
       dailySafetyLimit,
       onlineStorageLimitBytes,
+      draftRetentionHours,
     });
     revalidatePath('/');
     revalidatePath('/cameron');
@@ -86,6 +89,7 @@ export async function PUT(request: Request) {
         monthlyActionLimit,
         dailySafetyLimit,
         onlineStorageLimitBytes,
+        draftRetentionHours,
       },
     });
     return createNoStoreJsonResponse({ dashboard, activityRecorded });

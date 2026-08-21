@@ -85,7 +85,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(legal).toContain('private assistant working documents');
     expect(legal).toContain('aggregate MCP usage');
-    expect(legal).toContain("'privacy', 'Privacy Policy', privacyBody, '2026-08-20'");
+    expect(legal).toContain("'privacy', 'Privacy Policy', privacyBody, '2026-08-21'");
   });
 
   it('returns direct Studio document links while browser Clerk owns sign-in', () => {

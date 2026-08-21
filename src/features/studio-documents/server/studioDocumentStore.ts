@@ -14,7 +14,6 @@ import {
   cleanupUploadedStudioDocumentAssets,
   externalizeStudioDocumentAssets,
   removeStudioDocumentAssets,
-  removeUnreferencedStudioDocumentAssets,
 } from './studioDocumentAssetStore';
 
 interface StudioDocumentRow {
@@ -25,9 +24,14 @@ interface StudioDocumentRow {
   revision: number;
   created_at: string;
   updated_at: string;
+  last_activity_at: string;
+  expires_at: string;
+  retention_hours: number;
+  deleted_at: string | null;
+  purge_after: string | null;
 }
 
-const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at';
+const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
 
 const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocumentSummary => ({
@@ -37,6 +41,11 @@ const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocu
   revision: row.revision,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  lastActivityAt: row.last_activity_at,
+  expiresAt: row.expires_at,
+  retentionHours: row.retention_hours,
+  deletedAt: row.deleted_at,
+  purgeAfter: row.purge_after,
 });
 
 const toDocument = (row: StudioDocumentRow): StudioDocument => {
@@ -55,11 +64,27 @@ const requireStore = () => {
   return supabase;
 };
 
-export const listStudioDocuments = async (ownerUserId: string): Promise<StudioDocumentSummary[]> => {
+const applyRetentionPolicy = async (ownerUserId: string, retentionHours: number): Promise<void> => {
+  const { error } = await requireStore().rpc('cardforge_apply_studio_document_retention', {
+    p_owner_user_id: ownerUserId,
+    p_retention_hours: retentionHours,
+  });
+  if (error) {
+    console.error('Failed to apply Studio document retention:', error);
+    throw new StudioDocumentStoreError('Unable to apply Studio document retention.');
+  }
+};
+
+export const listStudioDocuments = async (
+  ownerUserId: string,
+  retentionHours: number,
+): Promise<StudioDocumentSummary[]> => {
+  await applyRetentionPolicy(ownerUserId, retentionHours);
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .select(SUMMARY_COLUMNS)
     .eq('owner_user_id', ownerUserId)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .limit(100);
   if (error) {
@@ -69,15 +94,48 @@ export const listStudioDocuments = async (ownerUserId: string): Promise<StudioDo
   return (data ?? []).map((row) => toSummary(row as unknown as Omit<StudioDocumentRow, 'document_payload'>));
 };
 
+export const listDeletedStudioDocuments = async (
+  ownerUserId: string,
+): Promise<StudioDocumentSummary[]> => {
+  const { data, error } = await requireStore()
+    .from('cardforge_studio_documents')
+    .select(SUMMARY_COLUMNS)
+    .eq('owner_user_id', ownerUserId)
+    .not('deleted_at', 'is', null)
+    .gt('purge_after', new Date().toISOString())
+    .order('deleted_at', { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error('Failed to list deleted Studio documents:', error);
+    throw new StudioDocumentStoreError('Unable to list deleted Studio documents.');
+  }
+  return (data ?? []).map((row) => toSummary(row as unknown as Omit<StudioDocumentRow, 'document_payload'>));
+};
+
 export const getStudioDocument = async (
   ownerUserId: string,
   documentId: string,
+  retentionHours?: number,
 ): Promise<StudioDocument> => {
+  if (retentionHours) {
+    const { data: touched, error: touchError } = await requireStore().rpc('cardforge_touch_studio_document', {
+      p_owner_user_id: ownerUserId,
+      p_document_id: documentId,
+      p_retention_hours: retentionHours,
+    });
+    if (touchError) {
+      console.error('Failed to refresh Studio document activity:', touchError);
+      throw new StudioDocumentStoreError('Unable to refresh the Studio document.');
+    }
+    if (!touched) throw new StudioDocumentStoreError('Studio document not found or awaiting permanent deletion.', 404);
+  }
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .select(DOCUMENT_COLUMNS)
     .eq('id', documentId)
     .eq('owner_user_id', ownerUserId)
+    .is('deleted_at', null)
+    .gt('expires_at', new Date().toISOString())
     .maybeSingle();
   if (error) {
     console.error('Failed to load Studio document:', error);
@@ -92,11 +150,13 @@ export const createStudioDocument = async ({
   title,
   creationSource,
   document,
+  retentionHours,
 }: {
   ownerUserId: string;
   title: string;
   creationSource: StudioDocumentSource;
   document: ProjectDocumentV1;
+  retentionHours: number;
 }): Promise<StudioDocument> => {
   const documentId = randomUUID();
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
@@ -109,6 +169,10 @@ export const createStudioDocument = async ({
       creation_source: creationSource,
       document_version: externalized.document.version,
       document_payload: externalized.document,
+      retention_hours: retentionHours,
+      last_activity_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString(),
+      retention_grace_until: null,
     })
     .select(DOCUMENT_COLUMNS)
     .single();
@@ -130,13 +194,16 @@ export const updateStudioDocument = async ({
   title,
   document,
   expectedRevision,
+  retentionHours,
 }: {
   ownerUserId: string;
   documentId: string;
   title: string;
   document: ProjectDocumentV1;
   expectedRevision: number;
+  retentionHours: number;
 }): Promise<StudioDocument> => {
+  await applyRetentionPolicy(ownerUserId, retentionHours);
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
@@ -145,10 +212,15 @@ export const updateStudioDocument = async ({
       document_version: externalized.document.version,
       document_payload: externalized.document,
       revision: expectedRevision + 1,
+      retention_hours: retentionHours,
+      last_activity_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString(),
+      retention_grace_until: null,
     })
     .eq('id', documentId)
     .eq('owner_user_id', ownerUserId)
     .eq('revision', expectedRevision)
+    .is('deleted_at', null)
     .select(DOCUMENT_COLUMNS)
     .maybeSingle();
   if (error) {
@@ -172,7 +244,6 @@ export const updateStudioDocument = async ({
     );
   }
   const updated = toDocument(data as unknown as StudioDocumentRow);
-  await removeUnreferencedStudioDocumentAssets({ ownerUserId, documentId, document: updated.document });
   return updated;
 };
 
@@ -180,18 +251,55 @@ export const deleteStudioDocument = async (
   ownerUserId: string,
   documentId: string,
 ): Promise<void> => {
-  await getStudioDocument(ownerUserId, documentId);
-  await removeStudioDocumentAssets(ownerUserId, documentId);
+  const deletedAt = new Date();
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
-    .delete()
+    .update({
+      deleted_at: deletedAt.toISOString(),
+      purge_after: new Date(deletedAt.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      purge_state: 'pending',
+    })
     .eq('id', documentId)
     .eq('owner_user_id', ownerUserId)
+    .is('deleted_at', null)
     .select('id')
     .maybeSingle();
   if (error) {
-    console.error('Failed to delete Studio document:', error);
-    throw new StudioDocumentStoreError('Unable to delete the Studio document.');
+    console.error('Failed to move Studio document to trash:', error);
+    throw new StudioDocumentStoreError('Unable to move the Studio document to recoverable trash.');
   }
   if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
+};
+
+export const restoreStudioDocument = async (
+  ownerUserId: string,
+  documentId: string,
+  retentionHours: number,
+): Promise<StudioDocumentSummary> => {
+  const now = new Date();
+  const { data, error } = await requireStore()
+    .from('cardforge_studio_documents')
+    .update({
+      deleted_at: null,
+      purge_after: null,
+      purge_state: null,
+      purge_claimed_at: null,
+      retention_hours: retentionHours,
+      last_activity_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + retentionHours * 60 * 60 * 1000).toISOString(),
+      retention_grace_until: null,
+    })
+    .eq('id', documentId)
+    .eq('owner_user_id', ownerUserId)
+    .not('deleted_at', 'is', null)
+    .gt('purge_after', now.toISOString())
+    .eq('purge_state', 'pending')
+    .select(SUMMARY_COLUMNS)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to restore Studio document:', error);
+    throw new StudioDocumentStoreError('Unable to restore the Studio document.');
+  }
+  if (!data) throw new StudioDocumentStoreError('Studio document is no longer recoverable.', 404);
+  return toSummary(data as unknown as Omit<StudioDocumentRow, 'document_payload'>);
 };
