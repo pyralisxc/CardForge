@@ -7,8 +7,13 @@ import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
+import { SiteContentProvider } from '@/features/public-site/client';
 import { PublicSiteHeader } from '@/features/public-site/client/shell';
-import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
+import {
+  createSiteContentMap,
+  getCachedPublicSiteConfiguration,
+  getCachedSiteContentBlocks,
+} from '@/features/public-site/server';
 import { AccountCloudStorageBreakdown, AccountStorageLibrary } from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -31,17 +36,19 @@ export default async function AccountPage({
   const checkoutStatus = params.checkout === 'success' || params.checkout === 'cancelled'
     ? params.checkout
     : null;
-  const [entitlement, businessIdentity, siteConfiguration, plans] = await Promise.all([
+  const [entitlement, businessIdentity, siteConfiguration, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement(),
     getCachedBusinessIdentity(),
     getCachedPublicSiteConfiguration(),
     getMcpAllowances(),
+    getCachedSiteContentBlocks('account'),
   ]);
   const authConfigured = entitlement.authConfigured;
   const persistenceScope = createProjectPersistenceScope({
     authConfigured,
     accountUserId: entitlement.accountUserId,
   });
+  const accountContent = createSiteContentMap(accountContentBlocks);
 
   return (
     <CardForgeAppProviders scope="shell">
@@ -59,13 +66,14 @@ export default async function AccountPage({
         initialAuthConfigured={authConfigured}
         plans={plans}
         storageLibrary={(
-          <AccountStorageLibrary
-            key="storage-library"
-            embedded
-            persistenceScope={persistenceScope}
-            isSignedIn={entitlement.isSignedIn}
-            cloudSetLimit={entitlement.capabilities.cloudSetLimit}
-          />
+          <SiteContentProvider key="storage-library-copy" content={accountContent}>
+            <AccountStorageLibrary
+              embedded
+              persistenceScope={persistenceScope}
+              isSignedIn={entitlement.isSignedIn}
+              cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+            />
+          </SiteContentProvider>
         )}
         cloudStorageDetails={(
           <AccountCloudStorageBreakdown key="cloud-storage-details" embedded isSignedIn={entitlement.isSignedIn} />

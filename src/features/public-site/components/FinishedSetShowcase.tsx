@@ -6,14 +6,16 @@ import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/
 import { createBulkDisplayCards } from '@/features/card-generator/client';
 import { CardPreview } from '@/features/card-rendering/client';
 import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
-import type { CardForgeExample } from '../model/examples';
+import type { HomepageShowcaseExample } from '../model/examples';
+import { useSiteContent } from './PublicSitePresentationContext';
 
-const buildRows = (example: CardForgeExample): string[][] => {
+const buildRows = (example: HomepageShowcaseExample): string[][] => {
   const headers = Array.from(new Set(example.rows.flatMap((row) => Object.keys(row))));
   return [headers, ...example.rows.map((row) => headers.map((header) => row[header] ?? ''))];
 };
 
-export function FinishedSetShowcase({ example }: { example: CardForgeExample }) {
+export function FinishedSetShowcase({ example }: { example: HomepageShowcaseExample }) {
+  const siteContent = useSiteContent();
   const [templates, setTemplates] = useState<readonly TCGCardTemplate[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
@@ -84,14 +86,14 @@ export function FinishedSetShowcase({ example }: { example: CardForgeExample }) 
     <figure className="min-h-[27rem] border border-[#3b2b19] bg-[#0d0b08] p-4">
       <figcaption className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-base font-semibold text-[var(--public-brass)]">The finished set</p>
+          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.showcase.finished.eyebrow']}</p>
           <h3 className="mt-1 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{example.name}</h3>
         </div>
-        <p className="text-base text-[var(--public-muted-text)]">{cards.length} cards, one reusable template</p>
+        <p className="text-base text-[var(--public-muted-text)]">{siteContent['landing.showcase.finished.summary'].replaceAll('{count}', String(cards.length))}</p>
       </figcaption>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cards.slice(0, 4).map((card, index) => (
-          <div key={card.uniqueId} role="img" aria-label={`${example.altText.rows[index]} Finished card ${index + 1}.`} className="flex min-w-0 justify-center rounded-[var(--public-radius)] bg-[#21170d] p-2">
+          <div key={card.uniqueId} role="img" aria-label={`${example.altText[index] ?? `${example.name} sample card ${index + 1}.`} Finished card ${index + 1}.`} className="flex min-w-0 justify-center rounded-[var(--public-radius)] bg-[#21170d] p-2">
             <CardPreview card={card} face="front" targetWidthPx={190} />
           </div>
         ))}

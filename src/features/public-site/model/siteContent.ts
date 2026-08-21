@@ -1,4 +1,4 @@
-export type SiteContentGroup = 'shell' | 'landing' | 'plans' | 'about' | 'founder' | 'developer' | 'roadmap' | 'sharing';
+export type SiteContentGroup = 'shell' | 'landing' | 'plans' | 'account' | 'about' | 'founder' | 'developer' | 'roadmap' | 'sharing';
 export type SiteContentKind = 'short' | 'long';
 
 type SiteContentDefinition = {
@@ -24,6 +24,17 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.showcase.eyebrow', group: 'landing', section: 'Studio showcase', label: 'Eyebrow', body: 'Look inside CardForge', kind: 'short', maxLength: 100 },
   { slug: 'landing.showcase.headline', group: 'landing', section: 'Studio showcase', label: 'Headline', body: 'Design the look, build the set, and see every finished card.', kind: 'short', maxLength: 180 },
   { slug: 'landing.showcase.body', group: 'landing', section: 'Studio showcase', label: 'Introduction', body: "This walkthrough uses CardForge's real templates, sample rows, and card renderer. Choose any step or set inside the Studio frame.", kind: 'long', maxLength: 500 },
+  { slug: 'landing.showcase.stage.templates', group: 'landing', section: 'Studio showcase controls', label: 'Templates stage label', body: 'Templates', kind: 'short', maxLength: 60 },
+  { slug: 'landing.showcase.stage.make', group: 'landing', section: 'Studio showcase controls', label: 'Make cards stage label', body: 'Make cards', kind: 'short', maxLength: 60 },
+  { slug: 'landing.showcase.stage.review', group: 'landing', section: 'Studio showcase controls', label: 'Review stage label', body: 'Review the set', kind: 'short', maxLength: 60 },
+  { slug: 'landing.showcase.generator.single', group: 'landing', section: 'Studio showcase controls', label: 'Single-card view label', body: 'Make one card', kind: 'short', maxLength: 80 },
+  { slug: 'landing.showcase.generator.bulk', group: 'landing', section: 'Studio showcase controls', label: 'Bulk view label', body: 'Use a list', kind: 'short', maxLength: 80 },
+  { slug: 'landing.showcase.finished.eyebrow', group: 'landing', section: 'Finished-set showcase', label: 'Finished-set eyebrow', body: 'The finished set', kind: 'short', maxLength: 100 },
+  { slug: 'landing.showcase.finished.summary', group: 'landing', section: 'Finished-set showcase', label: 'Finished-set count line', body: '{count} cards, one reusable template', kind: 'short', maxLength: 140 },
+  { slug: 'landing.showcase.footer.rendering', group: 'landing', section: 'Studio showcase footer', label: 'Rendered-set proof line', body: 'Real {brand} templates and rendering', kind: 'short', maxLength: 160 },
+  { slug: 'landing.showcase.footer.screenshot', group: 'landing', section: 'Studio showcase footer', label: 'Screenshot proof line', body: 'Actual {brand} screenshot', kind: 'short', maxLength: 140 },
+  { slug: 'landing.showcase.footer.auto', group: 'landing', section: 'Studio showcase footer', label: 'Automatic movement note', body: 'Moves every 12 seconds · interaction pauses for one minute', kind: 'short', maxLength: 180 },
+  { slug: 'landing.showcase.footer.reduced', group: 'landing', section: 'Studio showcase footer', label: 'Reduced-motion note', body: 'Click to move between views', kind: 'short', maxLength: 120 },
   { slug: 'landing.workflow.eyebrow', group: 'landing', section: 'Workflow', label: 'Eyebrow', body: 'How it works', kind: 'short', maxLength: 100 },
   { slug: 'landing.workflow.headline', group: 'landing', section: 'Workflow', label: 'Headline', body: 'From one good-looking card to the whole set.', kind: 'short', maxLength: 180 },
   { slug: 'landing.workflow.step1.title', group: 'landing', section: 'Workflow steps', label: 'Step 1 title', body: 'Make the look once', kind: 'short', maxLength: 100 },
@@ -59,6 +70,8 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'plans.process.manage.title', group: 'plans', section: 'Subscription process', label: 'Manage step title', body: 'Change it when you need to', kind: 'short', maxLength: 100 },
   { slug: 'plans.process.manage.body', group: 'plans', section: 'Subscription process', label: 'Manage step description', body: 'Return to Account to open Stripe billing, switch plans, update payment details, view invoices, or cancel.', kind: 'long', maxLength: 320 },
   { slug: 'plans.beta.note', group: 'plans', section: 'Development beta', label: 'ChatGPT availability note', body: 'CardForge for ChatGPT is currently available for development beta testing through ChatGPT Developer Mode. Availability depends on ChatGPT access while the integration completes review.', kind: 'long', maxLength: 320 },
+
+  { slug: 'account.storage.working-drafts.retention', group: 'account', section: 'Storage & Library', label: 'Working-draft retention explanation', body: 'These are temporary private collaboration documents. Opening or updating one restarts its {retention} active window; visiting this page does not. Expired drafts remain recoverable for 24 hours.', kind: 'long', maxLength: 420 },
 
   { slug: 'about.hero.eyebrow', group: 'about', section: 'Hero', label: 'Eyebrow', body: 'About CardForge Studio', kind: 'short', maxLength: 100 },
   { slug: 'about.meta.title', group: 'about', section: 'Search & sharing', label: 'Page title', body: 'About CardForge', kind: 'short', maxLength: 100 },
@@ -160,6 +173,13 @@ const siteContentSlugs = new Set<SiteContentBlockSlug>(
   DEFAULT_SITE_CONTENT_BLOCKS.map((block) => block.slug),
 );
 
+const REQUIRED_SITE_CONTENT_TOKENS: Partial<Record<SiteContentBlockSlug, readonly string[]>> = {
+  'landing.showcase.finished.summary': ['{count}'],
+  'landing.showcase.footer.rendering': ['{brand}'],
+  'landing.showcase.footer.screenshot': ['{brand}'],
+  'account.storage.working-drafts.retention': ['{retention}'],
+};
+
 export type SiteContentBlockInputResult =
   | { ok: true; value: { slug: SiteContentBlockSlug; body: string } }
   | { ok: false; message: string };
@@ -178,6 +198,11 @@ export const normalizeSiteContentBlockInput = (value: {
   if (!body) return { ok: false, message: 'Site copy is required.' };
   if (body.length > definition.maxLength) {
     return { ok: false, message: `Site copy must be ${definition.maxLength} characters or fewer.` };
+  }
+  const requiredTokens = REQUIRED_SITE_CONTENT_TOKENS[slug as SiteContentBlockSlug] ?? [];
+  const missingToken = requiredTokens.find((token) => !body.includes(token));
+  if (missingToken) {
+    return { ok: false, message: `This site copy must include the ${missingToken} dynamic token.` };
   }
 
   return { ok: true, value: { slug: slug as SiteContentBlockSlug, body } };

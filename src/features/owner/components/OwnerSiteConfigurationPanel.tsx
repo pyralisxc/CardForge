@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type {
   HomepageSectionSetting,
+  HomepageShowcaseExample,
   PrimaryNavigationItem,
   PublicSiteConfiguration,
 } from '@/features/public-site/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 
 const inputClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
@@ -74,6 +76,17 @@ export function OwnerSiteConfigurationPanel({
     }));
   };
 
+  const updateShowcaseExamples = (examples: HomepageShowcaseExample[]) => {
+    setDraft((current) => ({
+      ...current,
+      homepageSections: current.homepageSections.map((section) => (
+        section.id === 'showcase' ? { ...section, showcaseExamples: examples } : section
+      )),
+    }));
+  };
+
+  const showcaseExamples = draft.homepageSections.find((section) => section.id === 'showcase')?.showcaseExamples ?? [];
+
   return (
     <section className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-2">
@@ -127,6 +140,7 @@ export function OwnerSiteConfigurationPanel({
               </div>
             ))}
           </div>
+          <p className="mt-3 text-xs leading-5 text-[#9f8a66]">The Studio showcase’s demo-set selection and sample data are edited below.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>
@@ -135,6 +149,10 @@ export function OwnerSiteConfigurationPanel({
             <label className="grid gap-2 text-sm text-[#c7b288]">Primary action path<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
           </div>
         </article>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 
       <Button type="button" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>

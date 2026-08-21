@@ -4,6 +4,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_MCP_ALLOWANCES, resolveMcpUsagePlanKey } from '@/features/mcp-usage/lib/mcpUsage';
+import {
+  getDefaultSiteContentBlock,
+  normalizeSiteContentBlockInput,
+} from '@/features/public-site/model/siteContent';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -24,10 +28,27 @@ describe('assistant draft retention', () => {
     expect(migration).toContain('cardforge_touch_studio_document');
     expect(migration).toContain('last_activity_at = pg_catalog.now()');
     expect(migration).toContain('cardforge_apply_studio_document_retention');
-    expect(storageLibrary).toContain('visiting this page does not');
+    expect(storageLibrary).toContain("siteContent['account.storage.working-drafts.retention']");
+    expect(storageLibrary).toContain("draftRetentionHours === null ? 'plan-specific' : `${draftRetentionHours}-hour`");
+    expect(storageLibrary).toContain("replaceAll('{retention}', retentionLabel)");
+    expect(getDefaultSiteContentBlock('account.storage.working-drafts.retention').body).toContain('visiting this page does not');
     expect(migration).toContain('returning expires_at into current_deadline');
     expect(readSource('src/features/studio-documents/server/studioDocumentStore.ts'))
       .toContain(".gt('expires_at', new Date().toISOString())");
+  });
+
+  it('keeps the retention value dynamic while letting the owner edit the surrounding Account copy', () => {
+    expect(normalizeSiteContentBlockInput({
+      slug: 'account.storage.working-drafts.retention',
+      body: 'Working drafts use a {retention} active window. Visiting Account does not extend it.',
+    })).toMatchObject({ ok: true });
+    expect(normalizeSiteContentBlockInput({
+      slug: 'account.storage.working-drafts.retention',
+      body: 'Working drafts expire according to your plan.',
+    })).toEqual({
+      ok: false,
+      message: 'This site copy must include the {retention} dynamic token.',
+    });
   });
 
   it('backfills legacy drafts with a protected deadline', () => {

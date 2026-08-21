@@ -8,7 +8,10 @@ import {
   type SiteMediaAsset,
 } from '@/features/public-site/model/siteMedia';
 import { getSiteMediaFrameAspectRatio, ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
-import { CARDFORGE_EXAMPLES, type CardForgeExample } from '../model/examples';
+import {
+  createDefaultHomepageShowcaseExamples,
+  type HomepageShowcaseExample,
+} from '../model/examples';
 import {
   getNextShowcaseStage,
   getShowcaseAdvanceDelay,
@@ -17,13 +20,7 @@ import {
 import { useSiteContent } from './PublicSitePresentationContext';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 
-const stages = [
-  { label: 'Templates', icon: LayoutTemplate },
-  { label: 'Make cards', icon: Database },
-  { label: 'Review the set', icon: Layers3 },
-] as const;
-
-type FinishedSetComponent = ComponentType<{ example: CardForgeExample }>;
+type FinishedSetComponent = ComponentType<{ example: HomepageShowcaseExample }>;
 
 function StudioScreenshot({
   media,
@@ -75,13 +72,20 @@ export function InteractiveStudioShowcase({
   layoutMedia = getDefaultSiteMedia('landing.showcase.layout'),
   generatorSingleMedia = getDefaultSiteMedia('landing.showcase.generator-single'),
   generatorBulkMedia = getDefaultSiteMedia('landing.showcase.generator-bulk'),
+  examples = createDefaultHomepageShowcaseExamples(),
 }: {
   layoutMedia?: SiteMediaAsset;
   generatorSingleMedia?: SiteMediaAsset;
   generatorBulkMedia?: SiteMediaAsset;
+  examples?: HomepageShowcaseExample[];
 }) {
   const siteContent = useSiteContent();
   const brand = useBrandPresentation();
+  const stages = [
+    { label: siteContent['landing.showcase.stage.templates'], icon: LayoutTemplate },
+    { label: siteContent['landing.showcase.stage.make'], icon: Database },
+    { label: siteContent['landing.showcase.stage.review'], icon: Layers3 },
+  ] as const;
   const [activeStage, setActiveStage] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
   const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
@@ -89,6 +93,8 @@ export function InteractiveStudioShowcase({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [FinishedSetShowcase, setFinishedSetShowcase] = useState<FinishedSetComponent | null>(null);
   const [finishedSetLoadFailed, setFinishedSetLoadFailed] = useState(false);
+  const configuredExamples = examples.filter((example) => example.visible);
+  const visibleExamples = configuredExamples.length ? configuredExamples : createDefaultHomepageShowcaseExamples();
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -97,6 +103,10 @@ export function InteractiveStudioShowcase({
     media.addEventListener('change', updatePreference);
     return () => media.removeEventListener('change', updatePreference);
   }, []);
+
+  useEffect(() => {
+    if (activeExample >= visibleExamples.length) setActiveExample(0);
+  }, [activeExample, visibleExamples.length]);
 
   useEffect(() => {
     const delay = getShowcaseAdvanceDelay({
@@ -109,7 +119,7 @@ export function InteractiveStudioShowcase({
       setActiveStage((current) => getNextShowcaseStage(current, stages.length));
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [activeStage, pauseUntil, reducedMotion]);
+  }, [activeStage, pauseUntil, reducedMotion, stages.length]);
 
   useEffect(() => {
     if (activeStage !== 2 || FinishedSetShowcase || finishedSetLoadFailed) return;
@@ -130,7 +140,7 @@ export function InteractiveStudioShowcase({
     setPauseUntil(Date.now() + INTERACTION_PAUSE_MS);
   }, []);
 
-  const example = CARDFORGE_EXAMPLES[activeExample] ?? CARDFORGE_EXAMPLES[0];
+  const example = visibleExamples[activeExample] ?? visibleExamples[0]!;
   const panelId = 'showcase-stage-panel';
   const generatorMedia = activeGeneratorView === 'single' ? generatorSingleMedia : generatorBulkMedia;
 
@@ -203,7 +213,7 @@ export function InteractiveStudioShowcase({
                         : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
                     }`}
                   >
-                    {view === 'single' ? 'Make one card' : 'Use a list'}
+                    {view === 'single' ? siteContent['landing.showcase.generator.single'] : siteContent['landing.showcase.generator.bulk']}
                   </button>
                 ))}
               </div>
@@ -212,7 +222,7 @@ export function InteractiveStudioShowcase({
             <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
               <p className="sr-only">Choose a demonstration set</p>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {CARDFORGE_EXAMPLES.map((candidate, index) => (
+                {visibleExamples.map((candidate, index) => (
                   <button
                     key={candidate.slug}
                     type="button"
@@ -238,13 +248,9 @@ export function InteractiveStudioShowcase({
             className="bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5"
           >
             {activeStage === 0 ? (
-              <StudioScreenshot
-                media={layoutMedia}
-              />
+              <StudioScreenshot media={layoutMedia} />
             ) : activeStage === 1 ? (
-              <StudioScreenshot
-                media={generatorMedia}
-              />
+              <StudioScreenshot media={generatorMedia} />
             ) : finishedSetLoadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
                 The finished-set preview is temporarily unavailable. You can still explore the Studio screenshots.
@@ -259,8 +265,8 @@ export function InteractiveStudioShowcase({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--public-border)] bg-[var(--public-surface)] px-4 py-3 text-base text-[var(--public-muted-text)]">
-            <span>{activeStage === 2 ? `Real ${brand.brandName} templates and rendering` : `Actual ${brand.brandName} screenshot`}</span>
-            <span>{reducedMotion ? 'Click to move between views' : 'Moves every 12 seconds · interaction pauses for one minute'}</span>
+            <span>{(activeStage === 2 ? siteContent['landing.showcase.footer.rendering'] : siteContent['landing.showcase.footer.screenshot']).replaceAll('{brand}', brand.brandName)}</span>
+            <span>{reducedMotion ? siteContent['landing.showcase.footer.reduced'] : siteContent['landing.showcase.footer.auto']}</span>
           </div>
         </div>
       </div>
