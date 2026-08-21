@@ -344,3 +344,198 @@
     min-height: 0;
   }
 }
+
+/*
+ * Legacy Forge utility compatibility bridge.
+ *
+ * These selectors intentionally own no palette values. They translate the
+ * historic Tailwind hex vocabulary into the canonical semantic token system
+ * so older feature markup follows Owner Console presentation settings while
+ * source-level migrations continue toward var(--cf-*) classes.
+ */
+[class~="bg-[#0c0b09]"] { background-color: var(--cf-canvas) !important; }
+[class~="bg-[#15100a]"],
+[class~="bg-[#15110d]"] { background-color: var(--cf-surface) !important; }
+[class~="bg-[#100c08]"],
+[class~="bg-[#120e09]"],
+[class~="bg-[#171207]"] { background-color: var(--cf-surface-inset) !important; }
+[class~="bg-[#1b140d]"],
+[class~="bg-[#1b1510]"],
+[class~="bg-[#1b1209]"],
+[class~="bg-[#1c130b]"] { background-color: var(--cf-surface-raised) !important; }
+[class~="bg-[#24180e]"],
+[class~="bg-[#2a1b0d]"] { background-color: var(--cf-surface-hover) !important; }
+[class~="bg-[#122012]"] { background-color: var(--cf-surface-raised) !important; }
+[class~="bg-[#181009]"] { background-color: var(--cf-surface-inset) !important; }
+[class~="bg-[#e4aa43]"] { background-color: var(--cf-accent-strong) !important; }
+[class~="bg-[#f4c66b]"] { background-color: var(--cf-accent) !important; }
+[class~="bg-[#8fca72]"] { background-color: var(--cf-success) !important; }
+
+[class~="text-[#f7ead0]"],
+[class~="text-[#f7f1e4]"],
+[class~="text-[#f3ead7]"] { color: var(--cf-text) !important; }
+[class~="text-[#fff1c7]"],
+[class~="text-[#fff3ca]"],
+[class~="text-[#f9e7b7]"] { color: var(--cf-text-strong) !important; }
+[class~="text-[#cbb58b]"],
+[class~="text-[#c7b288]"],
+[class~="text-[#c4af87]"],
+[class~="text-[#c8bda8]"],
+[class~="text-[#dbc79e]"],
+[class~="text-[#c8b07f]"],
+[class~="text-[#d8c49a]"],
+[class~="text-[#d5be8c]"],
+[class~="text-[#bfa97d]"] { color: var(--cf-text-muted) !important; }
+[class~="text-[#a98a75]"],
+[class~="text-[#a98a55]"],
+[class~="text-[#a9946c]"],
+[class~="text-[#8f7b57]"],
+[class~="text-[#9f8a66]"] { color: var(--cf-text-subtle) !important; }
+[class~="text-[#d8b365]"],
+[class~="text-[#d9a441]"] { color: var(--cf-accent) !important; }
+[class~="text-[#e4aa43]"],
+[class~="text-[#e2aa4a]"],
+[class~="text-[#c79a4a]"],
+[class~="text-[#f2c15d]"],
+[class~="text-[#f0c568]"],
+[class~="text-[#e2c07b]"] { color: var(--cf-accent-strong) !important; }
+[class~="text-[#ffe7ad]"],
+[class~="text-[#f8e3b0]"],
+[class~="text-[#f7d690]"],
+[class~="text-[#f6d891]"],
+[class~="text-[#f5d27b]"],
+[class~="text-[#f3d48f]"],
+[class~="text-[#f1d79e]"] { color: var(--cf-accent-text) !important; }
+[class~="text-[#140f0a]"] { color: var(--cf-accent-contrast) !important; }
+[class~="text-[#bde3a8]"],
+[class~="text-[#c8e9ba]"],
+[class~="text-[#b8caa0]"] { color: var(--cf-success) !important; }
+[class~="text-[#f0bd75]"] { color: var(--cf-warning) !important; }
+[class~="text-[#ffd0c6]"] { color: var(--cf-danger) !important; }
+
+[class~="border-[#5f4526]"],
+[class~="border-[#644923]"] { border-color: var(--cf-border) !important; }
+[class~="border-[#3c2c1b]"],
+[class~="border-[#4a3823]"],
+[class~="border-[#42311f]"],
+[class~="border-[#4d3c25]"] { border-color: var(--cf-border-subtle) !important; }
+[class~="border-[#6f532e]"],
+[class~="border-[#6d4f2b]"] { border-color: var(--cf-border-strong) !important; }
+[class~="border-[#d8b365]"],
+[class~="border-[#d9a441]"],
+[class~="border-[#d7b469]"],
+[class~="border-[#846634]"],
+[class~="border-[#6d5323]"],
+[class~="border-[#d8b365]/70"] { border-color: var(--cf-accent) !important; }
+[class~="border-[#5f7f54]"] { border-color: var(--cf-success-border) !important; }
+[class~="border-[#8c6436]"],
+[class~="border-[#7d5a2e]"] { border-color: var(--cf-warning-border) !important; }
+[class~="border-[#7d3d32]"] { border-color: var(--cf-danger-border) !important; }
+
+[class~="hover:bg-[#2a1b0d]"]:hover,
+[class~="hover:bg-[#24180e]"]:hover,
+[class~="hover:bg-[#1b1209]"]:hover { background-color: var(--cf-surface-hover) !important; }
+[class~="hover:bg-[#f4c66b]"]:hover { background-color: var(--cf-accent) !important; }
+[class~="hover:text-[#fff1c7]"]:hover,
+[class~="hover:text-[#fff3ca]"]:hover { color: var(--cf-text-strong) !important; }
+[class~="hover:border-[#d8b365]"]:hover,
+[class~="hover:border-[#d9a441]"]:hover { border-color: var(--cf-accent) !important; }
+[class~="focus:border-[#d8b365]"]:focus { border-color: var(--cf-accent) !important; }
+
+[class~="data-[state=active]:bg-[#1b140d]"][data-state="active"],
+[class~="data-[state=active]:bg-[#2a1b0d]"][data-state="active"] { background-color: var(--cf-surface-raised) !important; }
+[class~="data-[state=active]:border-[#d8b365]"][data-state="active"] { border-color: var(--cf-accent) !important; }
+[class~="data-[state=active]:text-[#ffe7ad]"][data-state="active"] { color: var(--cf-accent-text) !important; }
+
+/* Canonical overrides for legacy component-level presentation rules in globals.css. */
+.cardforge-clerk-profile .cl-cardBox,
+.cardforge-clerk-profile .cl-navbar,
+.cardforge-clerk-profile .cl-scrollBox,
+.cardforge-clerk-profile .cl-pageScrollBox {
+  color: var(--cf-text) !important;
+  background-color: var(--cf-surface) !important;
+  border-color: var(--cf-border) !important;
+}
+
+.cardforge-clerk-profile .cl-navbar {
+  background-color: var(--cf-surface-inset) !important;
+}
+
+.cardforge-clerk-profile .cl-cardBox *,
+.cardforge-clerk-profile .cl-modalContent * {
+  color: var(--cf-text) !important;
+}
+
+.cardforge-clerk-profile .cl-headerTitle,
+.cardforge-clerk-profile .cl-profileSectionTitleText,
+.cardforge-clerk-profile .cl-userPreviewMainIdentifier,
+.cardforge-clerk-profile .cl-userPreviewMainIdentifierText {
+  color: var(--cf-text-strong) !important;
+}
+
+.cardforge-clerk-profile .cl-headerSubtitle,
+.cardforge-clerk-profile .cl-navbarButton,
+.cardforge-clerk-profile .cl-navbarButton *,
+.cardforge-clerk-profile .cl-formFieldHintText,
+.cardforge-clerk-profile .cl-formFieldInfoText {
+  color: var(--cf-text-muted) !important;
+}
+
+.cardforge-clerk-profile .cl-navbarButton.cl-active,
+.cardforge-clerk-profile .cl-navbarButton.cl-active *,
+.cardforge-clerk-profile .cl-profileSectionPrimaryButton,
+.cardforge-clerk-profile .cl-profileSectionPrimaryButton *,
+.cardforge-clerk-profile .cl-menuButton,
+.cardforge-clerk-profile .cl-menuButton *,
+.cardforge-clerk-profile .cl-footerActionLink,
+.cardforge-clerk-profile .cl-footerActionLink * {
+  color: var(--cf-accent-strong) !important;
+}
+
+.cardforge-clerk-profile .cl-profileSection,
+.cardforge-clerk-profile .cl-profileSectionItem,
+.cardforge-clerk-profile .cl-profileSectionItemList {
+  border-color: var(--cf-border-subtle) !important;
+}
+
+.cardforge-clerk-profile .cl-badge,
+.cardforge-clerk-profile .cl-formFieldInput {
+  border-color: var(--cf-border) !important;
+  background-color: var(--cf-surface-inset) !important;
+  color: var(--cf-accent-text) !important;
+}
+
+.cardforge-clerk-profile .cl-formButtonPrimary {
+  background-color: var(--cf-accent-strong) !important;
+  color: var(--cf-accent-contrast) !important;
+}
+
+@media (max-width: 1023px) {
+  .cardforge-maker-mobile-switcher {
+    border-color: var(--cf-editor-border) !important;
+    background: var(--cf-editor-shell) !important;
+  }
+
+  .cardforge-maker-library,
+  .cardforge-maker-inspector {
+    background: var(--cf-editor-inset) !important;
+    border-color: var(--cf-editor-border) !important;
+  }
+
+  .cardforge-mobile-overlay-backdrop {
+    background: color-mix(in srgb, var(--cf-editor-canvas) 46%, transparent) !important;
+  }
+
+  .cardforge-mobile-overlay-close {
+    border-color: var(--cf-editor-control-border) !important;
+    background: var(--cf-editor-control) !important;
+    color: var(--cf-editor-text) !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: landscape) {
+  .cardforge-maker-side:first-child,
+  .cardforge-maker-side:last-child {
+    border-color: var(--cf-editor-border) !important;
+  }
+}
