@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import {
   buildProductAccessCheckoutSessionParams,
   getBillingConfigStatus,
+  normalizeProductAccessOffering,
 } from '@/features/billing/server';
 import { isClerkAuthConfigured } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -11,7 +12,7 @@ import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     if (!isClerkAuthConfigured()) {
       return createApiErrorResponse(
@@ -26,21 +27,45 @@ export async function POST() {
       return createApiErrorResponse(401, 'sign_in_required', 'Sign in before starting checkout.');
     }
 
+    const rawBody = await request.text();
+    let requestedOffering: unknown = 'creator_pass';
+    if (rawBody.trim()) {
+      try {
+        requestedOffering = (JSON.parse(rawBody) as { offering?: unknown }).offering ?? 'creator_pass';
+      } catch {
+        return createApiErrorResponse(400, 'billing_checkout_failed', 'Choose a valid CardForge plan.');
+      }
+    }
+    const offering = normalizeProductAccessOffering(requestedOffering);
+    if (!offering) {
+      return createApiErrorResponse(400, 'billing_checkout_failed', 'Choose a valid CardForge plan.');
+    }
+
     const config = getBillingConfigStatus();
-    if (!config.productAccessConfigured) {
+    const isConfigured = offering === 'designer_pass'
+      ? config.designerPassConfigured
+      : config.productAccessConfigured;
+    const missing = offering === 'designer_pass'
+      ? config.missingDesignerPass
+      : config.missingProductAccess;
+    if (!isConfigured) {
       return createApiErrorResponse(
         503,
         'billing_not_configured',
-        `Stripe checkout is not configured. Missing: ${config.missingProductAccess.join(', ')}.`
+        `Stripe checkout is not configured. Missing: ${missing.join(', ')}.`
       );
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const primaryEmail = user.emailAddresses[0]?.emailAddress ?? null;
+    const priceId = offering === 'designer_pass'
+      ? process.env.STRIPE_DESIGNER_PASS_PRICE_ID!
+      : process.env.STRIPE_CREATOR_PASS_PRICE_ID!;
     const session = await stripe.checkout.sessions.create(buildProductAccessCheckoutSessionParams({
       appUrl: getPublicAppUrl(),
       email: primaryEmail,
-      priceId: process.env.STRIPE_CREATOR_PASS_PRICE_ID!,
+      offering,
+      priceId,
       userId: user.id,
     }));
 

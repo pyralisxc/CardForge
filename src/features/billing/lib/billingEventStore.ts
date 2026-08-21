@@ -104,7 +104,7 @@ export const beginBillingEvent = async ({
   subscriptionId: string | null;
   clerkUserId: string | null;
   billingPurpose: 'product_access' | 'creator_support' | 'unmatched';
-  billingOffering: 'creator_pass' | 'support_one_time' | 'support_monthly' | null;
+  billingOffering: 'creator_pass' | 'designer_pass' | 'support_one_time' | 'support_monthly' | null;
   stripePriceId: string | null;
   amountCents: number | null;
   currency: string | null;

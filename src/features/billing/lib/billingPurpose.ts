@@ -8,11 +8,12 @@ import {
 } from './billing';
 
 export type BillingPurpose = 'product_access' | 'creator_support';
-export type BillingOffering = 'creator_pass' | CreatorSupportOffering;
+export type BillingOffering = 'creator_pass' | 'designer_pass' | CreatorSupportOffering;
 export type ClassifiedBillingPurpose = BillingPurpose | 'unmatched';
 
 export interface BillingPriceConfiguration {
   creatorPassPriceId?: string | null;
+  designerPassPriceId?: string | null;
   supportCurrency?: string | null;
   supportMonthlyPriceIds?: Partial<Record<SupportMonthlyAmountCents, string | null>>;
 }
@@ -74,12 +75,17 @@ export const classifyBillingPurpose = ({
 
   if (
     purpose === 'product_access'
-    && offering === 'creator_pass'
+    && (offering === 'creator_pass' || offering === 'designer_pass')
     && mode === 'subscription'
-    && Boolean(prices.creatorPassPriceId)
-    && priceId === prices.creatorPassPriceId
   ) {
-    return { accepted: true, purpose, offering, reason: null };
+    const priceOffering = priceId === prices.creatorPassPriceId
+      ? 'creator_pass'
+      : priceId === prices.designerPassPriceId
+        ? 'designer_pass'
+        : null;
+    if (priceOffering) {
+      return { accepted: true, purpose, offering: priceOffering, reason: null };
+    }
   }
 
   if (

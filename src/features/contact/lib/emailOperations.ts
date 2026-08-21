@@ -1,4 +1,4 @@
-export type ContactRequestKind = 'support' | 'developer';
+export type ContactRequestKind = 'support' | 'developer' | 'business';
 
 export interface ContactRequestInput {
   kind?: unknown;
@@ -65,7 +65,7 @@ const escapeHtml = (value: string): string =>
     .replace(/'/g, '&#39;');
 
 export const normalizeContactRequestInput = (input: ContactRequestInput): ContactRequestInputResult => {
-  const kind = input.kind === 'developer' ? 'developer' : 'support';
+  const kind = input.kind === 'developer' || input.kind === 'business' ? input.kind : 'support';
   const name = normalizeText(input.name, 120);
   const email = normalizeText(input.email, 254).toLowerCase();
   const subject = normalizeText(input.subject, 160);
@@ -90,7 +90,11 @@ export const normalizeContactRequestInput = (input: ContactRequestInput): Contac
 };
 
 export const buildContactRequestEmail = (request: ContactRequest): BuiltEmail => {
-  const kindLabel = request.kind === 'developer' ? 'developer' : 'support';
+  const kindLabel = request.kind === 'developer'
+    ? 'developer'
+    : request.kind === 'business'
+      ? 'business solutions'
+      : 'support';
   const subject = `[CardForge ${kindLabel}] ${request.subject}`;
   const pageLine = request.pageUrl ? `\nPage: ${request.pageUrl}` : '';
   const text = [

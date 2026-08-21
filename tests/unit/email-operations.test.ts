@@ -41,6 +41,21 @@ describe('email operations', () => {
     });
   });
 
+  it('keeps Business Solutions inquiries distinct for the owner inbox', () => {
+    const result = normalizeContactRequestInput({
+      kind: 'business',
+      name: 'Studio Team',
+      email: 'team@example.test',
+      subject: 'Business workflow',
+      message: 'We need a tailored publishing workflow.',
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { kind: 'business' } });
+    if (result.ok) {
+      expect(buildContactRequestEmail(result.value).subject).toBe('[CardForge business solutions] Business workflow');
+    }
+  });
+
   it('builds owner-facing request email content without exposing secrets', () => {
     const email = buildContactRequestEmail({
       kind: 'support',

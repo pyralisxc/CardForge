@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { getCardForgePluginSkillCatalog } from '@/features/studio-documents/server/mcpPluginSkills';
 
 describe('CardForge Studio plugin', () => {
   it('packages the authenticated production MCP server for ChatGPT and Codex', () => {
@@ -16,8 +19,11 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
+      version: '0.6.0',
+      author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
+      interface: { developerName: 'Cameron Locke' },
     });
     expect(mcp.mcpServers['cardforge-studio']).toEqual({
       type: 'http',
@@ -27,12 +33,59 @@ describe('CardForge Studio plugin', () => {
 
   it('keeps publishing out of the chat tool surface', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
+    const access = readFileSync(resolve(process.cwd(), 'src/app/mcp/mcpStudioAccess.ts'), 'utf8');
 
     expect(route).toContain("'create_editable_template'");
     expect(route).toContain("'continue_template_in_pipeline'");
     expect(route).not.toContain("'publish_template'");
-    expect(route).toContain("getDeveloperCockpitAccessForUserId");
+    expect(access).toContain("getDeveloperCockpitAccessForUserId");
+    expect(access).not.toContain('getMcpAllowanceForPlan');
+    expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
+    expect(route).toContain("version: '0.6.0'");
+  });
+
+  it('serves submission-time skill manifests with exact content digests', () => {
+    const catalog = getCardForgePluginSkillCatalog();
+    expect(catalog.map((skill) => skill.frontmatter.name)).toEqual([
+      'create-editable-template',
+      'create-cards-and-sets',
+    ]);
+
+    for (const skill of catalog) {
+      const content = readFileSync(resolve(
+        process.cwd(),
+        'plugins/cardforge-studio/skills',
+        skill.frontmatter.name,
+        'SKILL.md',
+      ), 'utf8');
+      expect(skill.resources).toEqual([{
+        uri: skill.uri,
+        digest: `sha256:${createHash('sha256').update(content, 'utf8').digest('hex')}`,
+      }]);
+    }
+  });
+
+  it('declares telemetry-writing tools as non-read-only for publication review', () => {
+    const toolSources = [
+      'src/app/mcp/route.ts',
+      'src/features/studio-documents/server/mcpAgentCardTools.ts',
+      'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
+    ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
+
+    expect(toolSources).toContain('observeMcpToolExecution');
+    expect(toolSources).not.toContain('readOnlyHint: true');
+  });
+
+  it('discloses private assistant documents and aggregate MCP usage', () => {
+    const legal = readFileSync(
+      resolve(process.cwd(), 'src/features/legal/model/legalDocument.ts'),
+      'utf8',
+    );
+
+    expect(legal).toContain('private assistant working documents');
+    expect(legal).toContain('aggregate MCP usage');
+    expect(legal).toContain("'privacy', 'Privacy Policy', privacyBody, '2026-08-20'");
   });
 
   it('returns direct Studio document links while browser Clerk owns sign-in', () => {

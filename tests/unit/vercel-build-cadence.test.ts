@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,7 +9,7 @@ import {
 } from '../../scripts/vercel-build-cadence.mjs';
 
 describe('Vercel build cadence', () => {
-  it('ignores documentation, tests, and agent-instruction-only changes', () => {
+  it('ignores documentation, tests, and agent-instruction-only changes after a preview is requested', () => {
     expect(shouldIgnoreVercelBuild([
       'docs/operations.md',
       'tests/unit/example.test.ts',
@@ -32,5 +35,21 @@ describe('Vercel build cadence', () => {
 
   it('requires a build when the change set is empty or uncertain', () => {
     expect(shouldIgnoreVercelBuild([])).toBe(false);
+  });
+
+  it('allows automatic Git deployments only from main and the managed release lanes', () => {
+    const config = JSON.parse(readFileSync(join(process.cwd(), 'vercel.json'), 'utf8')) as {
+      git?: { deploymentEnabled?: Record<string, boolean> };
+      ignoreCommand?: string;
+    };
+
+    expect(config.git?.deploymentEnabled).toEqual({
+      '*': false,
+      '**': false,
+      main: true,
+      'vercel-preview': true,
+      'codex/mcp-account-journey': true,
+    });
+    expect(config.ignoreCommand).toBe('node scripts/vercel-build-cadence.mjs');
   });
 });

@@ -9,6 +9,7 @@ import {
   buildStripePaidAccessMetadata,
   buildStripeRevokedAccessMetadata,
   finishBillingEvent,
+  getPaidPlanForProductAccessOffering,
   releaseBillingEntitlementLock,
   resolveCurrentProductEntitlement,
   shouldRevokeStripePaidAccessForSubscription,
@@ -50,6 +51,7 @@ const unmatchedContext = (reason: string): BillingEventContext => ({
 
 const getBillingPriceConfiguration = () => ({
   creatorPassPriceId: process.env.STRIPE_CREATOR_PASS_PRICE_ID,
+  designerPassPriceId: process.env.STRIPE_DESIGNER_PASS_PRICE_ID,
   supportCurrency: process.env.STRIPE_SUPPORT_CURRENCY,
   supportMonthlyPriceIds: {
     100: process.env.STRIPE_SUPPORT_MONTHLY_1_PRICE_ID,
@@ -193,8 +195,21 @@ const syncSubscriptionAccess = async (
     }
 
     if (resolution.action === 'paid') {
+      const classification = classifyBillingPurpose({
+        metadata: subscription.metadata,
+        mode: 'subscription',
+        priceIds: subscription.items.data.map(({ price }) => price.id),
+        amountCents: subscription.items.data[0]?.price.unit_amount,
+        currency: subscription.items.data[0]?.price.currency,
+        prices: getBillingPriceConfiguration(),
+      });
+      if (classification.offering !== 'creator_pass' && classification.offering !== 'designer_pass') {
+        throw new Error('The active product subscription no longer matches a configured CardForge plan.');
+      }
+      const paidPlan = getPaidPlanForProductAccessOffering(classification.offering);
       await updateUserPrivateMetadata(userId, (existingMetadata) => buildStripePaidAccessMetadata({
         existingMetadata,
+        paidPlan,
         stripeCustomerId: getStripeObjectId(subscription.customer),
         stripeSubscriptionId: subscription.id,
         stripeCheckoutSessionId: checkoutSessionId,

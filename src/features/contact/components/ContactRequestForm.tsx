@@ -20,7 +20,7 @@ export function ContactRequestForm({
   defaultName = '',
   defaultSubject = '',
 }: {
-  kind?: 'support' | 'developer';
+  kind?: 'support' | 'developer' | 'business';
   defaultEmail?: string | null;
   defaultName?: string | null;
   defaultSubject?: string;
@@ -75,7 +75,7 @@ export function ContactRequestForm({
       <div className="flex items-center gap-3 text-[#e2aa4a]">
         <Send className="h-5 w-5" />
         <h2 className="font-serif text-2xl text-[#fff1c7]">
-          {kind === 'developer' ? 'Request developer access' : 'Send a support request'}
+          {kind === 'developer' ? 'Request developer access' : kind === 'business' ? 'Discuss a business solution' : 'Send a support request'}
         </h2>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -121,7 +121,7 @@ export function ContactRequestForm({
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button type="submit" disabled={status === 'submitting'} className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
           <Send className="mr-2 h-4 w-4" />
-          {status === 'submitting' ? 'Sending...' : 'Send request'}
+          {status === 'submitting' ? 'Sending...' : kind === 'business' ? 'Send business inquiry' : 'Send request'}
         </Button>
         {message ? (
           <p className={`text-sm ${status === 'error' ? 'text-[#f0bd75]' : 'text-[#bde3a8]'}`}>

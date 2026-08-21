@@ -24,6 +24,7 @@ import {
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { getMcpAllowances } from '@/features/mcp-usage/server';
 
 export async function generateMetadata() {
   const content = createSiteContentMap(await getCachedSiteContentBlocks('founder'));
@@ -36,12 +37,13 @@ export async function generateMetadata() {
 
 export default async function CameronPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, profile, siteMedia, siteConfiguration, siteContentBlocks] = await Promise.all([
+  const [businessIdentity, profile, siteMedia, siteConfiguration, siteContentBlocks, plans] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
     getCachedSiteMedia(),
     getCachedPublicSiteConfiguration(),
     getCachedSiteContentBlocks('founder'),
+    getMcpAllowances(),
   ]);
   const siteContent = createSiteContentMap(siteContentBlocks);
   const supportUses = [
@@ -51,6 +53,7 @@ export default async function CameronPage() {
     [siteContent['founder.support-use4.title'], siteContent['founder.support-use4.body'], ServerCog],
   ] as const;
   const supportOffers = getCreatorSupportOfferConfiguration();
+  const creatorPlan = plans.find((plan) => plan.planKey === 'creator' && plan.isVisible);
   const portraitMedia = siteMedia.find((asset) => asset.slot === 'founder.portrait')
     ?? getDefaultSiteMedia('founder.portrait');
   const portraitUrl = getSiteMediaDisplaySrc(portraitMedia);
@@ -125,10 +128,10 @@ export default async function CameronPage() {
           <h2 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)]">{profile.supportHeading}</h2>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.supportIntroduction}</p>
 
-          {siteConfiguration.creatorPassOfferVisible ? <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
-            <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.creator-pass.heading']}</h3>
-            <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">{siteContent['founder.creator-pass.body']}</p>
-            <Link href="/account" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">{siteContent['founder.creator-pass.action']}</Link>
+          {creatorPlan ? <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
+            <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{creatorPlan.displayName}</h3>
+            <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">{creatorPlan.description}</p>
+            <Link href="/account#account-actions" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">{creatorPlan.ctaLabel}</Link>
           </div> : null}
 
           {supportOffers ? (

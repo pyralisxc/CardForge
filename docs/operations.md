@@ -9,8 +9,8 @@ This is the current runbook for `https://cardforges.com`. It contains only proce
 - Vercel deploys `main`; `NEXT_PUBLIC_APP_URL=https://cardforges.com` is canonical.
 - `www.cardforges.com` redirects to the apex domain.
 - Clerk owns authentication and trusted private account metadata.
-- Stripe owns Creator Pass/support checkout, customers, subscriptions, webhooks, and Billing Portal.
-- Supabase owns shared product state and managed public/protected media; user projects remain local.
+- Stripe owns Creator Pass, Designer Pass, support checkout, customers, subscriptions, webhooks, and Billing Portal.
+- Supabase owns shared product state, private temporary ChatGPT Studio documents and their normalized artwork, cloud-set backups, and managed public/protected media; ordinary browser projects remain local.
 - Resend owns transactional email delivery.
 - GA4, PostHog, and Search Console own analytics/search records.
 - Meta owns Facebook/Instagram authorization and provider posts; CardForge owns marketing approval/scheduling/delivery history.
@@ -22,7 +22,7 @@ Secrets stay in Vercel or their owning provider. The Owner Console may report re
 Use `.env.example` as the complete catalog.
 
 - Core: `NEXT_PUBLIC_APP_URL`, Clerk keys, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. `SUPABASE_SERVICE_ROLE_KEY` is a temporary compatibility fallback only.
-- Billing: Stripe secret/webhook keys, Creator Pass Price, support Prices/currency/portal configuration.
+- Billing: Stripe secret/webhook keys, Creator Pass and Designer Pass Prices, support Prices/currency/portal configuration.
 - Email: `RESEND_API_KEY`, `CARDFORGE_EMAIL_FROM`, `CARDFORGE_EMAIL_REPLY_TO`.
 - Access: one canonical `CARDFORGE_OWNER_ACCOUNT_EMAILS` identity plus developer/paid allowlists where still intentionally used.
 - Analytics: public enable/measurement values plus server-only GA/Search Console/PostHog reporting credentials.
@@ -133,9 +133,25 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 `npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
 
+## ChatGPT development beta
+
+The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Owner Console content; the plugin must not introduce a parallel tier catalog or access toggle.
+
+For a development-beta release:
+
+1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.
+2. Verify MCP discovery/OAuth against the real signed-in owner/developer account and confirm signed-out requests fail closed.
+3. In the MCP Inspector, confirm every tool exposes an input schema, output schema, and accurate annotations; confirm `skills/list`, `skills/get`, and each listed `resources/read` digest resolve.
+4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
+5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
+6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
+7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
+
 ## Billing reconciliation
 
 Stripe remains authoritative. `product_access` and voluntary `creator_support` are separate purposes; support must never grant product entitlement.
+
+Configure Stripe's Billing Portal to allow an existing Creator or Designer subscriber to switch between the two approved recurring products. Free accounts start hosted Checkout with a server-selected Price; existing subscribers use the Portal so CardForge never creates parallel active subscriptions as an upgrade mechanism.
 
 From Owner billing tools, reconcile current subscription state and record `checked`, `repaired`, `unchanged`, `missingClerkUser`, `ledgerCreated`, and `missingLedger`. Require `missingLedger` to be zero and investigate missing Clerk users before manually changing entitlement.
 

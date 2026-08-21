@@ -15,14 +15,20 @@ import {
 } from '@/features/project/server';
 import {
   DeveloperCockpitAccessError,
-  getDeveloperCockpitAccessForUserId,
 } from '@/features/developer-access/server';
+import {
+  McpUsageStoreError,
+  observeMcpToolExecution,
+} from '@/features/mcp-usage/server';
 import {
   continueDeveloperTemplateDraftInPipeline,
   createDeveloperTemplateDraft,
+  editableTemplateSummaryForMcp,
   getDeveloperTemplateDraft,
   gptTemplateDraftInputSchema,
   listDeveloperTemplateDrafts,
+  omitEmbeddedMediaForMcp,
+  registerCardForgePluginSkills,
   searchStudioCreationLibrary,
   StudioDocumentStoreError,
   updateDeveloperTemplateDraft,
@@ -35,7 +41,16 @@ import {
   searchStudioLibraryInputSchema,
   updateTemplateInputSchema,
 } from '@/features/studio-documents/server/mcpToolInputSchemas';
+import {
+  editableTemplateListOutputSchema,
+  editableTemplateOutputSchema,
+  editableTemplateSummaryOutputSchema,
+  pipelineHandoffOutputSchema,
+  studioCreationGuideOutputSchema,
+  studioLibrarySearchOutputSchema,
+} from '@/features/studio-documents/server/mcpToolOutputSchemas';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
+import { getMcpStudioAccess } from './mcpStudioAccess';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -60,44 +75,17 @@ const studioDocumentUrl = (documentId: string) => absoluteUrl(
   `/studio?document=${encodeURIComponent(documentId)}`,
 );
 
-const omitEmbeddedMediaForChat = (value: unknown): unknown => {
-  if (typeof value === 'string') {
-    if (value.startsWith('data:')) return '[embedded media retained by CardForge; use attach_template_artwork to replace it]';
-    return value.length > 4000 ? `${value.slice(0, 4000)}…` : value;
-  }
-  if (Array.isArray(value)) return value.map(omitEmbeddedMediaForChat);
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const embeddedAssetId = typeof record.embeddedAssetId === 'string' ? record.embeddedAssetId : null;
-    const entries = Object.entries(record)
-      .filter(([key]) => key !== 'binding' && key !== 'embeddedAssetId')
-      .map(([key, entry]) => [key, omitEmbeddedMediaForChat(entry)] as const);
-    const sanitized = Object.fromEntries(entries);
-    if (embeddedAssetId && typeof sanitized.assetUrl !== 'string') {
-      sanitized.assetUrl = `embedded://${embeddedAssetId}`;
-    }
-    return sanitized;
-  }
-  return value;
-};
-
-const getMcpDeveloperAccess = async () => {
-  const clerkAuth = await auth({ acceptsToken: 'oauth_token' });
-  if (!clerkAuth.userId) {
-    throw new DeveloperCockpitAccessError('A linked CardForge account is required.', 401);
-  }
-  return getDeveloperCockpitAccessForUserId(clerkAuth.userId);
-};
-
 const toolError = (error: unknown) => {
   const message = error instanceof DeveloperCockpitAccessError
     || error instanceof StudioDocumentStoreError
     || error instanceof RateLimitUnavailableError
+    || error instanceof McpUsageStoreError
     ? error.message
     : 'CardForge could not complete that action.';
   if (!(error instanceof DeveloperCockpitAccessError)
     && !(error instanceof StudioDocumentStoreError)
-    && !(error instanceof RateLimitUnavailableError)) {
+    && !(error instanceof RateLimitUnavailableError)
+    && !(error instanceof McpUsageStoreError)) {
     console.error('CardForge MCP tool failed:', error);
   }
   return {
@@ -106,6 +94,25 @@ const toolError = (error: unknown) => {
   };
 };
 
+type ObservedMcpTool<Result> = {
+  toolName: string;
+  input: unknown;
+  execute: (access: Awaited<ReturnType<typeof getMcpStudioAccess>>) => Promise<Result>;
+};
+
+const runObservedMcpTool = async <Result>({ toolName, input, execute }: ObservedMcpTool<Result>) => {
+  try {
+    const access = await getMcpStudioAccess();
+    return await observeMcpToolExecution({
+      ownerUserId: access.user.id,
+      toolName,
+      input,
+      execute: async () => execute(access),
+    });
+  } catch (error) {
+    return toolError(error);
+  }
+};
 const validateDraftInput = (input: unknown) => {
   const validation = gptTemplateDraftInputSchema.safeParse(input);
   if (validation.success) return validation.data;
@@ -119,55 +126,31 @@ const validateDraftInput = (input: unknown) => {
   );
 };
 
-const documentStructuredContent = (document: Awaited<ReturnType<typeof createDeveloperTemplateDraft>>) => {
-  const productionPlan = document.document.productionPlan;
-  const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
-    ?.filter((field) => field.type === 'image')
-    .map((field) => field.key) ?? [];
-  return {
-    document: {
-      id: document.id,
-      title: document.title,
-      creationSource: document.creationSource,
-      revision: document.revision,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt,
-    },
-    productionPlan: productionPlan ? {
-      decisionMode: productionPlan.decisionMode,
-      planningLocked: true,
-      outputSize: productionPlan.outputSize,
-      editableFieldCount: productionPlan.editableFieldKeys.length,
-      editableImageFieldKeys,
-      assetSummary: summarizeProjectProductionAssets(productionPlan),
-    } : null,
-    openInStudioUrl: studioDocumentUrl(document.id),
-  };
-};
-
 const handler = createMcpHandler(
   (server) => {
+    registerCardForgePluginSkills(server);
     registerAgentTemplateTools({
       server,
       publicOrigin: publicOrigin(),
-      getAccess: getMcpDeveloperAccess,
+      getAccess: getMcpStudioAccess,
       toolError,
     });
-
     server.registerTool(
       'get_studio_creation_guide',
       {
         title: 'Get the CardForge creation workflow',
         description: 'Read CardForge native authoring capabilities and the recommended conversation-to-Studio workflow before planning a new design.',
+        outputSchema: studioCreationGuideOutputSchema,
         annotations: {
-          readOnlyHint: true,
+          readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async () => {
-        try {
-          await getMcpDeveloperAccess();
+      async () => runObservedMcpTool({
+        toolName: 'get_studio_creation_guide',
+        input: {},
+        execute: async () => {
           const structuredContent = {
             workflow: [
               'Establish the purpose, audience, deliverable, and exact output dimensions or physical format.',
@@ -235,10 +218,8 @@ const handler = createMcpHandler(
             content: [{ type: 'text', text: 'CardForge creation workflow loaded. Resolve quality once, use existing frame structure as the skeleton, bind artwork to the intended native slot, and preview until the exact render is correct.' }],
             structuredContent,
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
@@ -247,24 +228,24 @@ const handler = createMcpHandler(
         title: 'Search the CardForge Studio library',
         description: 'Search CardForge templates, styles, fonts, textures, dividers, icons, and images while planning a design. Prefer reusing suitable library assets before inventing new ones.',
         inputSchema: searchStudioLibraryInputSchema,
+        outputSchema: studioLibrarySearchOutputSchema,
         annotations: {
-          readOnlyHint: true,
+          readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async ({ query, kinds, limit }) => {
-        try {
-          await getMcpDeveloperAccess();
+      async ({ query, kinds, limit }) => runObservedMcpTool({
+        toolName: 'search_studio_library',
+        input: { query, kinds, limit },
+        execute: async () => {
           const items = await searchStudioCreationLibrary({ query, kinds, limit });
           return {
             content: [{ type: 'text', text: `Found ${items.length} CardForge creation librar${items.length === 1 ? 'y item' : 'y items'}.` }],
             structuredContent: { items },
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
@@ -273,15 +254,17 @@ const handler = createMcpHandler(
         title: 'Create a planned editable CardForge Template',
         description: 'Create one private CardForge Template after resolving the requested quality target, identifying every meaningful visual slot, defining editable fields, and accepting the production plan. productionPlan is required and must truthfully record confirmed user approval or explicit creative delegation. Once created, that accepted plan is locked for ordinary revisions; use native Studio fields so replaceable text and imagery remain editable.',
         inputSchema: createTemplateInputSchema,
+        outputSchema: editableTemplateSummaryOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async (input) => {
-        try {
-          const access = await getMcpDeveloperAccess();
+      async (input) => runObservedMcpTool({
+        toolName: 'create_editable_template',
+        input,
+        execute: async (access) => {
           const userId = access.user.id;
           const rateLimit = await consumeRateLimit({
             action: 'studio-ai-draft',
@@ -298,12 +281,10 @@ const handler = createMcpHandler(
               type: 'text',
               text: `Created "${document.title}" as a private editable Studio Template with a locked ${validatedInput.productionPlan.decisionMode} production plan and ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
             }],
-            structuredContent: documentStructuredContent(document),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
@@ -312,15 +293,17 @@ const handler = createMcpHandler(
         title: 'Revise an editable CardForge Template',
         description: 'Revise the same private Studio document against its accepted production plan. Load the document first, preserve its CardForge identity and planned asset ids, send the current expectedRevision, and update the rich native Template plus its production plan. Do not reopen planning for ordinary copy, layout, style, or artwork changes; re-plan only when the user materially changes purpose, deliverable, output size, quality target, or explicitly requests it. CardForge preserves already embedded artwork for matching planned asset ids.',
         inputSchema: updateTemplateInputSchema,
+        outputSchema: editableTemplateSummaryOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async ({ documentId, expectedRevision, ...draftInput }) => {
-        try {
-          const access = await getMcpDeveloperAccess();
+      async ({ documentId, expectedRevision, ...draftInput }) => runObservedMcpTool({
+        toolName: 'update_editable_template',
+        input: { documentId, expectedRevision, ...draftInput },
+        execute: async (access) => {
           const rateLimit = await consumeRateLimit({
             action: 'studio-ai-draft',
             identity: access.user.id,
@@ -337,37 +320,35 @@ const handler = createMcpHandler(
           });
           return {
             content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision} without reopening its accepted planning gate.` }],
-            structuredContent: documentStructuredContent(document),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
       'list_editable_templates',
       {
         title: 'List editable CardForge Templates',
-        description: 'List private Studio documents in the linked developer account so the user can choose one without guessing an id.',
+        description: 'List private Studio documents in the linked CardForge account so the user can choose one without guessing an id.',
+        outputSchema: editableTemplateListOutputSchema,
         annotations: {
-          readOnlyHint: true,
+          readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async () => {
-        try {
-          const access = await getMcpDeveloperAccess();
+      async () => runObservedMcpTool({
+        toolName: 'list_editable_templates',
+        input: {},
+        execute: async (access) => {
           const documents = await listDeveloperTemplateDrafts(access);
           return {
             content: [{ type: 'text', text: `Found ${documents.length} private Studio document${documents.length === 1 ? '' : 's'}.` }],
             structuredContent: { documents },
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
@@ -376,34 +357,35 @@ const handler = createMcpHandler(
         title: 'Get an editable CardForge Template',
         description: 'Load one private Studio document, including its native editable Template and production plan, before revising it. A stored confirmed or delegated production plan is already accepted and should not be sent through the planning/approval gate again unless the user materially changes scope or explicitly asks to re-plan. Embedded image bytes are omitted from model context but remain attached to the draft.',
         inputSchema: documentIdInputSchema,
+        outputSchema: editableTemplateOutputSchema,
         annotations: {
-          readOnlyHint: true,
+          readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async ({ documentId }) => {
-        try {
-          const access = await getMcpDeveloperAccess();
+      async ({ documentId }) => runObservedMcpTool({
+        toolName: 'get_editable_template',
+        input: { documentId },
+        execute: async (access) => {
           const document = await getDeveloperTemplateDraft(access, documentId);
           const productionPlan = document.document.productionPlan;
           const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
             ?.filter((field) => field.type === 'image')
             .map((field) => field.key) ?? [];
           const result = {
-            document: omitEmbeddedMediaForChat(document),
+            document: omitEmbeddedMediaForMcp(document),
             planningLocked: Boolean(productionPlan),
             planningDecisionMode: productionPlan?.decisionMode ?? null,
             editableImageFieldKeys,
             openInStudioUrl: studioDocumentUrl(document.id),
           };
           return {
-            content: [{ type: 'text', text: JSON.stringify(result) }],
+            content: [{ type: 'text', text: `Loaded "${document.title}" at Studio document revision ${document.revision}.` }],
+            structuredContent: result,
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
 
     server.registerTool(
@@ -412,15 +394,17 @@ const handler = createMcpHandler(
         title: 'Continue a Template in Forge Review',
         description: 'Create a developer Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
         inputSchema: pipelineInputSchema,
+        outputSchema: pipelineHandoffOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
           openWorldHint: false,
         },
       },
-      async ({ documentId, templateId }) => {
-        try {
-          const access = await getMcpDeveloperAccess();
+      async ({ documentId, templateId }) => runObservedMcpTool({
+        toolName: 'continue_template_in_pipeline',
+        input: { documentId, templateId },
+        execute: async (access) => {
           const userId = access.user.id;
           const rateLimit = await consumeRateLimit({
             action: 'template-pipeline-draft',
@@ -438,14 +422,17 @@ const handler = createMcpHandler(
             content: [{ type: 'text', text: 'The Template is now a Pipeline draft. Open Forge Review to complete its metadata; nothing was invented or published.' }],
             structuredContent,
           };
-        } catch (error) {
-          return toolError(error);
-        }
-      },
+        },
+      }),
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.3.3' },
+    serverInfo: { name: 'cardforge-studio', version: '0.6.0' },
+    capabilities: {
+      extensions: {
+        'io.modelcontextprotocol/skills': {},
+      },
+    },
     instructions: [
       'Act as a design director and production planner before creating a new CardForge Template.',
       'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',

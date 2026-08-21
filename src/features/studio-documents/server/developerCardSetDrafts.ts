@@ -14,9 +14,10 @@ import {
 } from '@/features/card-generator/server';
 import { requireContributionScope, type DeveloperCockpitAccess } from '@/features/developer-access/server';
 import {
-  normalizeEmbeddedTemplateAsset,
-  type EmbeddedTemplateAssetMimeType,
-} from './embeddedTemplateAssets';
+  createMcpArtworkOperationBudget,
+  normalizeMcpArtworkSource,
+} from './mcpArtworkSources';
+import type { McpCardArtworkInput } from './mcpCardToolSchemas';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import { getStudioDocument, updateStudioDocument } from './studioDocumentStore';
 
@@ -24,6 +25,7 @@ export interface AgentCardInput {
   cardId?: string;
   data: CardData;
   backingData?: CardData;
+  artwork?: McpCardArtworkInput[];
 }
 
 const materializeGenerationTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] => (
@@ -256,6 +258,7 @@ export const upsertDeveloperCards = async ({
   cards: AgentCardInput[];
 }) => {
   requireContributionScope(access, 'studio.ai.create');
+  const artworkBudget = createMcpArtworkOperationBudget(cards.flatMap((card) => card.artwork ?? []));
   const current = await getStudioDocument(access.user.id, documentId);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
@@ -265,11 +268,41 @@ export const upsertDeveloperCards = async ({
     : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
-  cards.forEach((input, inputIndex) => {
-    validateCardData(front, input.data, 'Front');
+  const artworkResults: Array<{ cardId: string; fieldKey: string; face: 'front' | 'back'; status: 'stored' }> = [];
+  for (const [inputIndex, input] of cards.entries()) {
     const uniqueId = input.cardId?.trim() || createStableAgentCardId(set.id, input, inputIndex);
     const existing = byId.get(uniqueId);
-    const nextBackingData = back ? (input.backingData ?? existing?.backingData ?? {}) : undefined;
+    const nextData: CardData = { ...(existing?.data ?? {}), ...input.data };
+    const nextBackingData: CardData | undefined = back
+      ? { ...(existing?.backingData ?? {}), ...(input.backingData ?? {}) }
+      : undefined;
+    const artworkTargets = new Set<string>();
+    for (const artwork of input.artwork ?? []) {
+      const targetTemplate = artwork.face === 'back' ? back : front;
+      if (!targetTemplate) {
+        throw new StudioDocumentStoreError(
+          'This set does not have a card-back Template. Add a compatible back or attach the artwork to the front face instead.',
+          409,
+        );
+      }
+      const targetKey = `${artwork.face}:${artwork.fieldKey}`;
+      if (artworkTargets.has(targetKey)) {
+        throw new StudioDocumentStoreError(`Artwork field ${targetKey} was provided more than once for card ${uniqueId}.`, 400);
+      }
+      artworkTargets.add(targetKey);
+      const imageField = getCardFields(targetTemplate).find((field) => field.key === artwork.fieldKey && field.isImage);
+      if (!imageField) {
+        throw new StudioDocumentStoreError(
+          `Artwork field ${targetKey} is not an image field in the current Template contract. Reload get_card_generation_contract and retry with the same stable card id.`,
+          409,
+        );
+      }
+      const normalized = await normalizeMcpArtworkSource(artwork, artworkBudget);
+      if (artwork.face === 'back') nextBackingData![artwork.fieldKey] = normalized.dataUri;
+      else nextData[artwork.fieldKey] = normalized.dataUri;
+      artworkResults.push({ cardId: uniqueId, fieldKey: artwork.fieldKey, face: artwork.face, status: 'stored' });
+    }
+    validateCardData(front, nextData, 'Front');
     if (back) validateCardData(back, nextBackingData ?? {}, 'Back');
     const card: StoredDisplayCard = {
       uniqueId,
@@ -278,11 +311,11 @@ export const upsertDeveloperCards = async ({
       backingData: nextBackingData,
       setId: set.id,
       setName: set.name,
-      data: input.data,
+      data: nextData,
     };
     byId.set(uniqueId, card);
     updatedIds.push(uniqueId);
-  });
+  }
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
@@ -295,72 +328,5 @@ export const upsertDeveloperCards = async ({
       storedCards: Array.from(byId.values()),
     },
   });
-  return { document, set, updatedIds };
-};
-
-export const attachDeveloperCardArtwork = async ({
-  access,
-  documentId,
-  expectedRevision,
-  cardId,
-  fieldKey,
-  face,
-  mimeType,
-  data,
-}: {
-  access: DeveloperCockpitAccess;
-  documentId: string;
-  expectedRevision: number;
-  cardId: string;
-  fieldKey: string;
-  face: 'front' | 'back';
-  mimeType: EmbeddedTemplateAssetMimeType;
-  data: string;
-}) => {
-  requireContributionScope(access, 'studio.ai.create');
-  const current = await getStudioDocument(access.user.id, documentId);
-  const templates = materializeGenerationTemplates(current.document.userTemplates);
-  const cardIndex = current.document.storedCards.findIndex((card) => card.uniqueId === cardId);
-  const card = current.document.storedCards[cardIndex];
-  if (!card) {
-    throw new StudioDocumentStoreError(
-      'That card is not part of the current working design. Reload preview_card_set and retry with a current stable card id.',
-      404,
-    );
-  }
-  const set = requireSet(current.document.cardSets, card.setId ?? current.document.activeCardSetId ?? '');
-  const front = selectFrontTemplate(templates, set.frontTemplateId);
-  const back = set.backingTemplateId
-    ? selectBackTemplate(templates, front, set.backingTemplateId)
-    : null;
-  const template = face === 'back' ? back : front;
-  if (!template) {
-    throw new StudioDocumentStoreError(
-      'This set does not have a card-back Template. Add a compatible back to the set or attach the artwork to the front face instead.',
-      409,
-    );
-  }
-  const imageField = getCardFields(template).find((field) => field.key === fieldKey && field.isImage);
-  if (!imageField) {
-    throw new StudioDocumentStoreError(
-      'That field is not an image field on the selected card face. Reload get_card_generation_contract and use one of its image field keys.',
-      409,
-    );
-  }
-  const normalized = await normalizeEmbeddedTemplateAsset({ data, mimeType });
-  const cards = [...current.document.storedCards];
-  cards[cardIndex] = face === 'back'
-    ? { ...card, backingData: { ...(card.backingData ?? {}), [fieldKey]: normalized.dataUri } }
-    : { ...card, data: { ...card.data, [fieldKey]: normalized.dataUri } };
-  return updateStudioDocument({
-    ownerUserId: access.user.id,
-    documentId,
-    expectedRevision,
-    title: current.title,
-    document: {
-      ...current.document,
-      userTemplates: templates,
-      storedCards: cards,
-    },
-  });
+  return { document, set, updatedIds, artworkResults };
 };

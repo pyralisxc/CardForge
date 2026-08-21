@@ -67,6 +67,23 @@ describe('accountEntitlement', () => {
     })).toBe('dev');
   });
 
+  it('distinguishes Designer Pass from Creator Pass without granting contributor access', () => {
+    expect(resolveAccountEntitlement({
+      authConfigured: true,
+      isSignedIn: true,
+      emailAddresses: ['designer@example.com'],
+      privateMetadata: {
+        cardforgeAccess: 'paid',
+        cardforgePaidPlan: 'designer',
+      },
+      env: {},
+    })).toMatchObject({
+      accessMode: 'paid',
+      paidPlan: 'designer',
+      canExportClean: true,
+    });
+  });
+
   it('keeps beta paid metadata active until the private metadata expiration date', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,

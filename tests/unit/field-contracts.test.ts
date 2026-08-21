@@ -87,4 +87,33 @@ describe('field contract v1 helpers', () => {
       }),
     ]);
   });
+
+  it('does not turn a locked fixed-source frame into a per-card image field', () => {
+    const template: TCGCardTemplate = {
+      id: 'locked-frame-template',
+      name: 'Locked Frame Template',
+      aspectRatio: '63:88',
+      fieldContracts: [{
+        key: 'image_premium_frame_overlay_locked_frame_overlay',
+        label: 'Image Premium Frame Overlay Locked Frame Overlay',
+        type: 'image',
+        required: false,
+        defaultValue: '/frames/premium.webp',
+        allowedFormatting: [],
+      }],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          { id: 'art', type: 'image', name: 'Artwork', x: 0, y: 0, width: 630, height: 880, zIndex: 1, imageSource: '{{artwork}}' },
+          { id: 'locked-frame-overlay', type: 'image', name: 'Premium Frame Overlay', x: 0, y: 0, width: 630, height: 880, zIndex: 2, imageSource: '/frames/premium.webp', locked: true },
+        ],
+      },
+    };
+
+    const normalized = normalizeTemplateFieldContracts(template);
+
+    expect(normalized.fieldContracts?.map((contract) => contract.key)).toEqual(['artwork']);
+    expect(extractTemplateFieldDefinitions(normalized).map((field) => field.key)).toEqual(['artwork']);
+  });
 });

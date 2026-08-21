@@ -17,6 +17,8 @@ import {
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
 import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '@/features/studio-documents/model';
+import { type StudioDocumentAssetDownload } from '../assetReferences';
+import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface ToastInput {
@@ -97,6 +99,7 @@ export function useStudioDocumentHandoff({
             revision?: unknown;
             document?: unknown;
           };
+          assets?: StudioDocumentAssetDownload[];
           watermark?: { required?: unknown };
         };
         const actualRevision = Number.isInteger(payload.document?.revision)
@@ -110,8 +113,9 @@ export function useStudioDocumentHandoff({
           );
         }
 
-        const document = normalizeStudioDocumentPayload(payload.document?.document);
-        if (!document) throw new Error('The account document is not a valid CardForge Studio project.');
+        const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
+        if (!storedDocument) throw new Error('The account document is not a valid CardForge Studio project.');
+        const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? []);
         const patch = applyProjectDocumentToState(document);
         const assetStorage = getProjectAssetStorage();
 

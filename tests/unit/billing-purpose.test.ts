@@ -9,6 +9,7 @@ import {
 
 const prices = {
   creatorPassPriceId: 'price_creator_pass',
+  designerPassPriceId: 'price_designer_pass',
   supportMonthlyPriceIds: {
     100: 'price_support_1',
     500: 'price_support_5',
@@ -30,6 +31,29 @@ describe('billing purpose classification', () => {
       purpose: 'product_access',
       offering: 'creator_pass',
       reason: null,
+    });
+
+    expect(classifyBillingPurpose({
+      metadata: { billingPurpose: 'product_access', billingOffering: 'designer_pass' },
+      mode: 'subscription',
+      priceIds: ['price_designer_pass'],
+      prices,
+    })).toEqual({
+      accepted: true,
+      purpose: 'product_access',
+      offering: 'designer_pass',
+      reason: null,
+    });
+
+    expect(classifyBillingPurpose({
+      metadata: { billingPurpose: 'product_access', billingOffering: 'creator_pass' },
+      mode: 'subscription',
+      priceIds: ['price_designer_pass'],
+      prices,
+    })).toMatchObject({
+      accepted: true,
+      purpose: 'product_access',
+      offering: 'designer_pass',
     });
   });
 

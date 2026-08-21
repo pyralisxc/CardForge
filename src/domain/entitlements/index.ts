@@ -1,4 +1,5 @@
 export type AccessMode = 'free' | 'paid' | 'dev';
+export type PaidPlan = 'creator' | 'designer';
 export type ProjectFileAccessPolicy = 'free' | 'creator_pass';
 
 export type ProjectCapabilities = {

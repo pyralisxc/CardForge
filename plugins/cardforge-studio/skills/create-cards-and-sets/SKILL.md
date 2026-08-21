@@ -17,6 +17,10 @@ Use this skill when the user wants actual card instances: one card, a deck/set, 
 
 CardForge remains local-first: local Templates, sets, cards, and project state can exist without cloud saving. Cloud visibility is explicit and bounded by account slots. A private mutable Studio working document is the agent collaboration/revision layer; it is not the permanent cloud-set library.
 
+## Artwork and assembly rule
+
+Image generation creates standalone artwork assets only. Never generate a flattened finished card as a substitute for CardForge assembly. Once standalone artwork exists, return control to CardForge: the Studio Template, card data, renderer, and set workflow assemble the finished card.
+
 ## Saved-set discovery
 
 When the user says things such as "my saved set", "the set I backed up", "the one I made on my other device", or expects CardForge to remember a set without providing a working-document id:
@@ -37,10 +41,9 @@ When the connector reloads or a write response is lost, do not create replacemen
 1. Create or revise the working set with `upsert_card_set`. Give a stable `setId` when practical and reuse the returned set id on every later write.
 2. Call `get_card_generation_contract` and inspect all text and image fields before generating anything.
 3. For a new multi-card concept, prefer a small representative sample first when visual correctness is still unproven; once the Template/contract is verified, generate the requested full set without unnecessary extra approval loops.
-4. Use `upsert_card` for one card or `upsert_cards` for up to 100 cards. Give each planned card a stable `cardId` when practical and reuse the returned ids for revisions and retries.
-5. Use `attach_card_artwork` only with an image field key returned by the contract and the exact stable card id.
-6. Call `preview_card_set` after meaningful generation/artwork changes. Check that card copy varies as intended and that the set/card identities are correct before calling the set complete.
-7. Open the exact returned Studio revision to install or update the same normal local Template, set, and cards.
-8. In CardForge Studio, users can export finished media, export/import an editable individual card or set as CardForge JSON, or explicitly back up selected sets to their account cloud slots. Do not invent a parallel transfer format in chat.
+4. Use `upsert_card` for one card or `upsert_cards` for up to 100 cards. Give each planned card a stable `cardId` when practical and reuse the returned ids for revisions and retries. Put per-card artwork in the same card object's `artwork` array using an exact contract image field key. Prefer a generated/uploaded public HTTPS `sourceUrl`; use bounded raw base64 only when no URL is available.
+5. Call `preview_card_set` after meaningful generation/artwork changes. Check the explicit artwork diagnostics: distinguish privately resolved artwork, renderable references, unresolved values, Template fallback, and placeholder use.
+6. Open the exact returned Studio revision to install or update the same normal local Template, set, and cards.
+7. In CardForge Studio, users can export finished media, export/import an editable individual card or set as CardForge JSON, or explicitly back up selected sets to their account cloud slots. Do not invent a parallel transfer format in chat.
 
 If CardForge reports a revision conflict, reload the current working document or generation contract and retry the intended operation with the new `expectedRevision` and the same stable identities.

@@ -1,4 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "**": false,
+      "main": true,
+      "vercel-preview": true,
+      "codex/mcp-account-journey": true
+    }
+  },
   "ignoreCommand": "node scripts/vercel-build-cadence.mjs"
 }

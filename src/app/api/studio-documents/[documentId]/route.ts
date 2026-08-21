@@ -4,6 +4,7 @@ import {
   deleteStudioDocument,
   getCurrentStudioDocumentAccount,
   getStudioDocument,
+  getStudioDocumentAssetDownloads,
   normalizeStudioDocumentPayload,
   normalizeStudioDocumentTitle,
   StudioDocumentAccessError,
@@ -49,7 +50,12 @@ export async function GET(
     if (!documentId) return createApiErrorResponse(400, 'studio_document_invalid', 'A valid Studio document id is required.');
     const account = await getCurrentStudioDocumentAccount();
     const document = await getStudioDocument(account.ownerUserId, documentId);
-    return createNoStoreJsonResponse({ document, watermark: account.watermark });
+    const assets = await getStudioDocumentAssetDownloads({
+      ownerUserId: account.ownerUserId,
+      documentId,
+      value: document.document,
+    });
+    return createNoStoreJsonResponse({ document, assets, watermark: account.watermark });
   } catch (error) {
     return toErrorResponse(error, 'Unable to load the Studio document.');
   }
@@ -85,7 +91,12 @@ export async function PATCH(
       document,
       expectedRevision: Number(expectedRevision),
     });
-    return createNoStoreJsonResponse({ document: updated, watermark: account.watermark });
+    const assets = await getStudioDocumentAssetDownloads({
+      ownerUserId: account.ownerUserId,
+      documentId,
+      value: updated.document,
+    });
+    return createNoStoreJsonResponse({ document: updated, assets, watermark: account.watermark });
   } catch (error) {
     return toErrorResponse(error, 'Unable to update the Studio document.');
   }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import type { useToast } from '@/components/ui/use-toast';
+import type { ProductAccessOffering } from '@/features/billing/lib/billing';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
@@ -10,6 +11,7 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 interface BillingStatusPayload {
   billing?: {
     productAccessConfigured: boolean;
+    designerPassConfigured: boolean;
   };
 }
 
@@ -24,9 +26,9 @@ export function useCheckoutActions({
   isSignedIn,
   toast,
 }: UseCheckoutActionsInput) {
-  const [isCheckoutStarting, setIsCheckoutStarting] = useState(false);
+  const [checkoutOffering, setCheckoutOffering] = useState<ProductAccessOffering | null>(null);
 
-  const handleStartCheckout = async () => {
+  const handleStartCheckout = async (offering: ProductAccessOffering = 'creator_pass') => {
     if (!authConfigured) {
       toast({
         title: 'Checkout not configured',
@@ -51,7 +53,7 @@ export function useCheckoutActions({
       return;
     }
 
-    setIsCheckoutStarting(true);
+    setCheckoutOffering(offering);
     try {
       const statusResponse = await fetch('/api/billing/status', {
         cache: 'no-store',
@@ -60,12 +62,16 @@ export function useCheckoutActions({
         ? await statusResponse.json() as BillingStatusPayload
         : null;
 
-      if (!status?.billing?.productAccessConfigured) {
+      const configured = offering === 'designer_pass'
+        ? status?.billing?.designerPassConfigured
+        : status?.billing?.productAccessConfigured;
+      if (!configured) {
+        const planName = offering === 'designer_pass' ? 'Designer Pass' : 'Creator Pass';
         toast({
-          title: 'Creator Pass checkout is unavailable',
+          title: `${planName} checkout is unavailable`,
           description: withNextStep(
             'Stripe checkout is not enabled in this environment.',
-            'Contact CardForge support if you expected Creator Pass to be available.'
+            `Contact CardForge support if you expected ${planName} to be available.`
           ),
           variant: 'default',
         });
@@ -74,6 +80,8 @@ export function useCheckoutActions({
 
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ offering }),
       });
       const payload = await response.json() as {
         url?: string;
@@ -97,12 +105,13 @@ export function useCheckoutActions({
         variant: 'destructive',
       });
     } finally {
-      setIsCheckoutStarting(false);
+      setCheckoutOffering(null);
     }
   };
 
   return {
     handleStartCheckout,
-    isCheckoutStarting,
+    checkoutOffering,
+    isCheckoutStarting: checkoutOffering !== null,
   };
 }

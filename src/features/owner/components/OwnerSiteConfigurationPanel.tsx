@@ -16,7 +16,7 @@ const inputClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
   showcase: 'Studio showcase',
   workflow: 'How the workflow works',
-  access: 'Free and Creator Pass comparison',
+  access: 'Plan choices',
   founder: 'Founder introduction',
   final_cta: 'Final Studio action',
 };
@@ -128,7 +128,6 @@ export function OwnerSiteConfigurationPanel({
             ))}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Show Creator Pass offer<input type="checkbox" checked={draft.creatorPassOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, creatorPassOfferVisible: event.target.checked }))} /></label>
             <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

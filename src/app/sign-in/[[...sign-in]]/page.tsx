@@ -43,16 +43,21 @@ export default async function SignInPage({
   const fallbackRedirectUrl = getSafeLocalReturnPath(params.redirect_url);
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12">
-      <div className="grid justify-items-center gap-6">
+    <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12 text-[#f7f1e4]">
+      <div className="grid max-w-md justify-items-center gap-6 text-center">
         <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">
           CardForge Studio
         </Link>
+        <div>
+          <h1 className="font-[var(--font-cardforge-spectral)] text-3xl font-semibold text-[#fff1c7]">Return to your account</h1>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Sign in to view your plan, billing, assistant access, and online usage. Studio remains available without signing in.</p>
+        </div>
         <SignIn
           fallbackRedirectUrl={fallbackRedirectUrl}
           signUpFallbackRedirectUrl={fallbackRedirectUrl}
           signUpUrl={createAuthRouteHref('/sign-up', fallbackRedirectUrl)}
         />
+        <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center border border-[#846634] px-5 font-bold text-[#f8e3b0] hover:border-[#d9a441]">Open Studio without signing in</Link>
       </div>
     </main>
   );

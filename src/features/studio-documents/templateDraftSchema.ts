@@ -11,7 +11,7 @@ import {
   PROJECT_PRODUCTION_DECISION_MODES,
   PROJECT_PRODUCTION_PLAN_VERSION,
   PROJECT_PRODUCTION_SIZE_UNITS,
-} from '@/features/project/server';
+} from '@/features/project/client/model';
 
 const boundedString = (max: number) => z.string().max(max);
 const boundedTrimmedString = (max: number) => z.string().trim().min(1).max(max);

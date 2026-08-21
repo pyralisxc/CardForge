@@ -1,6 +1,8 @@
 import { SignUp } from '@clerk/nextjs';
 import Link from 'next/link';
 
+import { PlanChoiceGrid } from '@/features/mcp-usage/client/plans';
+import { getMcpAllowances } from '@/features/mcp-usage/server';
 import {
   createAuthRouteHref,
   getSafeLocalReturnPath,
@@ -41,18 +43,35 @@ export default async function SignUpPage({
 
   const params = await searchParams;
   const fallbackRedirectUrl = getSafeLocalReturnPath(params.redirect_url);
+  const plans = await getMcpAllowances();
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12">
-      <div className="grid justify-items-center gap-6">
-        <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">
-          CardForge Studio
-        </Link>
-        <SignUp
-          fallbackRedirectUrl={fallbackRedirectUrl}
-          signInFallbackRedirectUrl={fallbackRedirectUrl}
-          signInUrl={createAuthRouteHref('/sign-in', fallbackRedirectUrl)}
-        />
+    <main className="min-h-screen bg-[#0c0b09] px-5 py-10 text-[#f7f1e4]">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">CardForge Studio</Link>
+          <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center border border-[#846634] px-5 font-bold text-[#f8e3b0] hover:border-[#d9a441]">Open Studio without an account</Link>
+        </div>
+        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
+          <div className="max-w-2xl pt-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8b365]">Account setup</p>
+            <h1 className="mt-2 font-[var(--font-cardforge-spectral)] text-4xl font-semibold text-[#fff1c7] md:text-5xl">Create in seconds. Add the plan that fits how you make.</h1>
+            <p className="mt-4 max-w-xl text-base leading-7 text-[#c7b288]">Your account keeps your plan, billing, ChatGPT plugin access, and private plugin workspace together. The Studio still opens instantly, and your everyday projects remain on this device unless you choose to export or share them.</p>
+          </div>
+          <div id="create-account" className="grid justify-items-center">
+            <SignUp
+              fallbackRedirectUrl={fallbackRedirectUrl}
+              signInFallbackRedirectUrl={fallbackRedirectUrl}
+              signInUrl={createAuthRouteHref('/sign-in', fallbackRedirectUrl)}
+            />
+          </div>
+        </div>
+        <section aria-labelledby="signup-plans-heading" className="mt-12 border-t border-[#4d3c25] pt-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8b365]">Plans</p>
+          <h2 id="signup-plans-heading" className="mt-2 font-[var(--font-cardforge-spectral)] text-3xl font-semibold text-[#fff1c7] md:text-4xl">See exactly what each plan gives you</h2>
+          <p className="mt-3 mb-6 max-w-3xl text-base leading-7 text-[#c7b288]">Compare finished Studio exports and portable CardForge project files with monthly ChatGPT plugin actions and private plugin workspace.</p>
+          <PlanChoiceGrid plans={plans} creatorHref={fallbackRedirectUrl === '/account' ? '/account#account-actions' : fallbackRedirectUrl} />
+        </section>
       </div>
     </main>
   );

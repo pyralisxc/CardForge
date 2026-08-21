@@ -24,10 +24,14 @@ import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitl
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 import { AccountBillingActions } from '@/features/billing/client/account';
+import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 interface PlatformStatusPayload {
-  billing: { productAccessConfigured: boolean };
+  billing: {
+    designerPassConfigured: boolean;
+    productAccessConfigured: boolean;
+  };
 }
 
 interface ClerkIdentity {
@@ -185,6 +189,7 @@ export function AccountProfilePage({
   const canStartCheckout = entitlement.authConfigured && effectiveSignedIn && !entitlement.canExportClean;
   const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const showCheckout = canStartCheckout && Boolean(platformStatus?.billing.productAccessConfigured);
+  const showDesignerCheckout = canStartCheckout && Boolean(platformStatus?.billing.designerPassConfigured);
   const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
@@ -197,9 +202,11 @@ export function AccountProfilePage({
       ? 'Contributor access'
       : accessExpiresOn
         ? `Creator Pass through ${accessExpiresOn}`
-        : entitlement.canExportClean
-          ? 'Creator Pass'
-          : 'Free';
+        : entitlement.paidPlan === 'designer'
+          ? 'Designer Pass'
+          : entitlement.canExportClean
+            ? 'Creator Pass'
+            : 'Free';
 
   const accountTitle = isClerkSetupIncomplete
     ? 'Account setup needed'
@@ -357,7 +364,7 @@ export function AccountProfilePage({
                   detail={canManageBilling
                     ? 'Open your billing portal to manage the subscription attached to this CardForge account.'
                     : showCheckout
-                      ? 'Upgrade this account to Creator Pass for watermark-free downloads and five cloud-set slots.'
+                      ? 'Choose Creator Pass or Designer Pass for watermark-free downloads, cloud saves, and expanded ChatGPT plugin capacity.'
                       : entitlement.canExportClean
                         ? 'Creator export access is active for this account.'
                         : 'Free access includes one private cloud-set slot and watermarked exports.'}
@@ -369,6 +376,7 @@ export function AccountProfilePage({
                       canManageBilling={canManageBilling}
                       effectiveSignedIn={effectiveSignedIn}
                       checkoutLabel="Get Creator Pass"
+                      showDesignerCheckout={showDesignerCheckout}
                       showCheckout={showCheckout}
                     />
                     {effectiveSignedIn && !canManageBilling && !showCheckout && entitlement.canExportClean ? (
@@ -401,6 +409,8 @@ export function AccountProfilePage({
                 </div>
               </div>
             </section>
+
+            {entitlement.authConfigured && effectiveSignedIn ? <AccountMcpUsageSection /> : null}
 
             {showDeveloper ? (
               <section id="developer-tools" className="scroll-mt-24">

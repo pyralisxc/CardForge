@@ -8,7 +8,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 - Public product: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
 - Studio: `/studio` contains Template Studio and Generator.
-- Account/access: Clerk identifies users; CardForge applies free, Creator Pass, developer, and owner policy.
+- Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, developer, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
 - Shared platform state: Supabase owns CardForge shared records, private account cloud-set mirrors, and approved managed media.
 - User projects: Templates, generated cards, project uploads, preferences, and project files use the browser-local workspace as the normal working copy. Signed-in users may explicitly mirror selected card sets to their private CardForge cloud library; arbitrary local workspace state is not automatically uploaded.
@@ -95,6 +95,7 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 - Free: local design/generation, one signed-in cloud-set slot, and whatever portable-project access the owner-controlled experience policy currently allows.
 - Creator Pass: clean paid finished-output entitlement, portable-project access, and five cloud-set slots.
+- Designer Pass: Creator Pass-grade Studio access and cloud storage plus the higher Designer MCP capacity target; it does not grant contributor access.
 - Developer: Creator Pass-grade output, five cloud-set slots, plus contribution/pipeline capabilities according to active developer profile/scopes.
 - Owner: owner console plus developer-grade tooling and five cloud-set slots.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
@@ -125,9 +126,13 @@ Extended contributor lanes and native Meta publication are independent owner-con
 
 ## MCP / agent authoring
 
-`/mcp` uses the MCP protocol and Clerk OAuth/token verification. Agent tools operate on the same private Studio documents, Template validation, production planning, library assets, renderer, and publication boundaries used by browser Studio. There is no second agent template format, renderer, asset catalog, or publication path.
+`/mcp` uses the MCP protocol and Clerk OAuth/token verification. Agent tools operate on the same private Studio documents, Template validation, production planning, library assets, renderer, and publication boundaries used by browser Studio. There is no second agent template format, renderer, asset catalog, or publication path. Image generation produces standalone artwork only; CardForge Templates, card data, and the native renderer remain responsible for card/set assembly.
 
-Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Account cloud-set saves now provide a durable server-resident CardForge set resource that can support a later MCP read/selection surface, but cloud-save rollout does not add or rename published MCP tools.
+Published MCP tools pair concise model-visible results with explicit output schemas. The MCP skills extension serves the packaged design and card/set `SKILL.md` files as static, digest-verified submission resources; the Markdown remains the single instruction owner for both the local plugin bundle and OpenAI import.
+
+`mcp-usage` owns plan presentation, capacity targets, and usage observation; it does not create billing entitlements. The Owner Console is the only mutable source for plan names, descriptions, feature lines, CTA labels, visibility, and capacity targets. MCP access itself follows authenticated account identity: signed-out requests fail closed, signed-in Free/Creator/Designer accounts receive the shared Studio assistant scope, and approved developers or the owner must still pass the developer-access boundary for developer scopes. Tool telemetry fails open so an observation outage cannot break an otherwise authorized action. Because observation writes aggregate usage, every observed MCP tool declares a non-read-only side effect even when its product action only reads data. Successful user-visible mutations count as assisted actions; reads, previews, failures, and retries remain visible operational calls but consume no action unit. Numeric plan and storage targets are informational until a separately reviewed quota and billing policy is approved.
+
+Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Raster artwork is normalized to WebP and content-addressed in a private Studio-document bucket rather than repeated as base64 inside JSON; short-lived signed URLs rehydrate the normal browser Studio handoff. Storage observation counts both the compact JSON and the real private object bytes. Account cloud-set saves are the separate durable backup/cross-device library, and the MCP read-only `list_cloud_sets` / `get_cloud_set` tools expose only sets the account intentionally saved there.
 
 ## Roadmap and voting
 
@@ -135,7 +140,7 @@ Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live ro
 
 ## Owner console
 
-The Owner Console composes six job-oriented workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Owner does not become a parallel database, provider config system, or product-domain owner.
+The Owner Console composes six job-oriented workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Growth & People presents the plan catalog, capacity targets, and MCP usage observation owned by `mcp-usage`; the console only composes that authority. General Site Controls no longer carry a duplicate Creator Pass visibility switch. Owner does not become a parallel database, provider config system, or product-domain owner.
 
 ## Source of truth
 

@@ -40,7 +40,7 @@ If question 2 has no concrete answer, do not add a wrapper, cache, reconciliatio
 3. **Implement cohesive batches.** Work inline by default. Do not use subagents for ordinary implementation. Use one only for independent investigation or high-risk/cross-owner final review.
 4. **Commit milestones.** Commit coherent outcomes, not every adjustment, test fix, or review note. When working through remote GitHub APIs instead of a local worktree, prepare related blobs/tree entries first, create one commit for the milestone, then move the branch once. Never use one-file-at-a-time commit creation as the normal edit loop.
 5. **Keep context lean.** Summarize routine tool output and retain only evidence that changes a decision, proves a check, or explains a failure.
-6. **Use hosted previews intentionally.** GitHub CI is the deterministic code-health loop. Vercel Preview is the live browser/integration check for a coherent deployable branch head. Default to one initial preview and only meaningful follow-up previews after relevant fixes; do not push no-op, incomplete, or test-only commits just to retrigger hosted status.
+6. **Use hosted previews intentionally.** Normal feature/docs/test branches do not auto-deploy to Vercel. GitHub CI is the deterministic code-health loop. After a PR reaches its coherent final candidate SHA, move the reusable `vercel-preview` branch to that exact SHA once to request hosted integration proof. `main` remains the production deployment branch. Move `vercel-preview` again only after a relevant fix changes the candidate SHA; never create no-op or test-only commits to chase provider status.
 
 ## Hard budgets
 
@@ -50,7 +50,7 @@ If question 2 has no concrete answer, do not add a wrapper, cache, reconciliatio
 - **Full verification:** run once after implementation and cleanup. After a failure, rerun the failing portion; repeat the full gate only when the fix could affect the wider system.
 - **Review:** self-review every PR diff. Add one independent review only for high-risk changes or material cross-owner changes; re-review only blocking fixes.
 - **CI:** inspect the final run once. Reinspect only after a new push or changed check state.
-- **Vercel Preview:** use it to prove deployment and live behavior on the exact coherent PR head, not as a per-file compile/test loop. If Vercel reports a build-rate or quota block, stop pushing and wait for or resolve that provider state; never create extra commits to chase the check.
+- **Vercel Preview:** ordinary branches are deployment-disabled. Use only the reusable `vercel-preview` branch for the exact final PR SHA. The repository's `ignoreCommand` may still avoid build work for safe-only diffs after Vercel accepts the preview request, but it is not a substitute for branch-level deployment gating. If Vercel reports a build-rate or daily deployment quota block, stop creating provider-triggering refs; never create extra commits to chase the check.
 - **Providers:** for high-risk changes, use one preflight, one approved mutation, and one postflight verification. Do not poll providers during ordinary edits.
 - **Agents:** no agent fan-out by default. Do not poll. After a meaningful wait, request status once; if there is still no evidence of progress, interrupt and take over.
 

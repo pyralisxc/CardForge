@@ -22,8 +22,8 @@ import {
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { getMcpAllowances } from '@/features/mcp-usage/server';
 
 export async function generateMetadata() {
   const siteConfiguration = await getCachedPublicSiteConfiguration();
@@ -36,12 +36,12 @@ export async function generateMetadata() {
 
 export default async function LandingPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, siteMedia, siteContentBlocks, experienceSettings, siteConfiguration] = await Promise.all([
+  const [businessIdentity, siteMedia, siteContentBlocks, siteConfiguration, plans] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteMedia(),
     getCachedSiteContentBlocks('landing'),
-    getCachedExperienceSettings(),
     getCachedPublicSiteConfiguration(),
+    getMcpAllowances(),
   ]);
   const siteContent = createSiteContentMap(siteContentBlocks);
   const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
@@ -51,7 +51,7 @@ export default async function LandingPage() {
   const homepageSections = {
     showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} />,
     workflow: <WorkflowProof />,
-    access: <AccessComparison projectFileAccess={experienceSettings.projectFileAccess} creatorPassVisible={siteConfiguration.creatorPassOfferVisible} />,
+    access: <AccessComparison plans={plans} />,
     founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,
     final_cta: (
       <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,#0c0b09_62%)] px-5 py-11 text-center md:px-8 md:py-14">

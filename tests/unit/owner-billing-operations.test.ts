@@ -136,11 +136,13 @@ describe('owner billing operations', () => {
     const snapshot = buildOwnerBillingSnapshot({
       config: {
         productAccessConfigured: true,
+        designerPassConfigured: true,
         supportOneTimeConfigured: false,
         supportMonthlyConfigured: false,
         supportConfigured: false,
         webhookConfigured: false,
         missingProductAccess: [],
+        missingDesignerPass: [],
         missingSupport: [],
       },
       checkoutSessions: [{
