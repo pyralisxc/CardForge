@@ -104,6 +104,15 @@ describe('MCP workflow hardening', () => {
     expect(access).toContain('{ allowStudioAiOnly: true }');
   });
 
+  it('materializes private Studio artwork before a Template enters owner Pipeline review', () => {
+    const drafts = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
+    expect(drafts).toContain('materializeTemplateForPipelineReview');
+    expect(drafts).toContain('getStudioDocumentAssetDownloads');
+    expect(drafts).toContain('replaceStudioDocumentAssetReferences');
+    expect(drafts).toContain('MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES = 10 * 1024 * 1024');
+    expect(drafts).toContain('data:${asset.mimeType};base64,${bytes.toString');
+  });
+
   it('documents and enforces the known artwork limits in the agent workflow', () => {
     const artwork = readSource('src/features/studio-documents/server/mcpArtworkSources.ts');
     const embedded = readSource('src/features/studio-documents/server/embeddedTemplateAssets.ts');
