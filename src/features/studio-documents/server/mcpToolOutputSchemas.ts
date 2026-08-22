@@ -172,7 +172,8 @@ export const cardWriteOutputSchema = objectOutput(
 export const cardSetPreviewOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'set', 'cards', 'artwork', 'cardCount',
-    'openInStudioUrl', 'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
+    'previewUrl', 'previewSampleCount', 'installation', 'openInStudioUrl',
+    'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
   ],
   {
     documentId: { type: 'string' },
@@ -181,6 +182,18 @@ export const cardSetPreviewOutputSchema = objectOutput(
     cards: { type: 'array', items: {} },
     artwork: objectValue,
     cardCount: { type: 'integer', minimum: 0 },
+    previewUrl: { type: 'string', format: 'uri' },
+    previewSampleCount: { type: 'integer', minimum: 0, maximum: 12 },
+    installation: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['currentRevisionApplied', 'lastInstalledRevision', 'lastInstalledAt'],
+      properties: {
+        currentRevisionApplied: { type: 'boolean' },
+        lastInstalledRevision: { type: ['integer', 'null'], minimum: 1 },
+        lastInstalledAt: { type: ['string', 'null'] },
+      },
+    },
     openInStudioUrl: { type: 'string', format: 'uri' },
     retrySafety,
     ...workflowProperties,
