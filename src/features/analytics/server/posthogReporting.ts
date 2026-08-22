@@ -25,6 +25,24 @@ const isProductEventName = (value: unknown): value is ProductAnalyticsEventName 
   typeof value === 'string' && PRODUCT_ANALYTICS_EVENT_NAMES.includes(value as ProductAnalyticsEventName)
 );
 
+const isPostHogReportingTimeout = (reason: unknown) => (
+  reason instanceof Error
+  && (
+    reason.name === 'TimeoutError'
+    || (reason.name === 'AbortError' && /timeout/iu.test(reason.message))
+    || /aborted due to timeout/iu.test(reason.message)
+  )
+);
+
+const logPostHogReportFailure = (reason: unknown) => {
+  const message = reason instanceof Error ? reason.message : reason;
+  if (isPostHogReportingTimeout(reason)) {
+    console.warn('PostHog analytics report timed out:', message);
+    return;
+  }
+  console.error('PostHog analytics report failed:', message);
+};
+
 const posthogQuery = async (
   appHost: string,
   projectId: string,
@@ -96,7 +114,7 @@ export const applyProductAnalyticsReporting = async (snapshot: OwnerAnalyticsSna
 
   for (const result of results) {
     if (result.status === 'rejected') {
-      console.error('PostHog analytics report failed:', result.reason instanceof Error ? result.reason.message : result.reason);
+      logPostHogReportFailure(result.reason);
       snapshot.warnings.push('One PostHog interaction report is temporarily unavailable.');
       continue;
     }
