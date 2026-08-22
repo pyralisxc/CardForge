@@ -11,7 +11,7 @@ import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
-import { CardTemplateMaker, EditCardDialog, GenerationWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
+import { CardTemplateMaker, EditCardDialog, GenerationWorkspace, SetLibraryWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
 import { GeneratorBackWorkflowBanner } from '@/features/app-shell/components/GeneratorBackWorkflowBanner';
 import { StudioConfirmationDialogs } from '@/features/app-shell/components/StudioConfirmationDialogs';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
@@ -401,24 +401,20 @@ export function CardForgeStudioShell({
           />
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={handleStudioTabChange} className="w-full min-w-0">
-          <div className="cardforge-studio-context mb-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs leading-5 text-[var(--cf-text-muted)] no-print md:flex md:items-center md:justify-between md:gap-4">
-            <p><span className="font-semibold text-[var(--cf-text-strong)]">Templates</span> shape editable fronts, backs, fields, and visual foundations.</p>
-            <p><span className="font-semibold text-[var(--cf-text-strong)]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
-          </div>
-          <TabsList className="cardforge-studio-tabs mb-4 grid h-auto w-full grid-cols-2 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-1 no-print md:mb-6">
+          <TabsList className="cardforge-studio-tabs mb-2 grid h-10 w-full grid-cols-3 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-0.5 no-print lg:w-fit lg:min-w-[27rem]">
             {STUDIO_TABS.map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
                 data-testid={`studio-tab-${tab.value}`}
-                className="flex min-h-11 items-center justify-center gap-2 px-2 text-xs text-[var(--cf-text-muted)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)] sm:text-sm"
+                className="flex min-h-9 items-center justify-center gap-1.5 px-3 py-1 text-xs text-[var(--cf-text-muted)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)] sm:text-sm"
               >
-                <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
+                <tab.icon className="h-4 w-4" /> {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="space-y-3 data-[state=inactive]:hidden">
+          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="!mt-0 space-y-3 data-[state=inactive]:hidden">
             {generatorBackWorkflow ? (
               <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={handleReturnToGenerator} />
             ) : null}
@@ -454,7 +450,7 @@ export function CardForgeStudioShell({
             />
           </TabsContent>
 
-          <TabsContent value="generator" data-testid="generator-panel">
+          <TabsContent value="generator" data-testid="generator-panel" className="!mt-0">
             <GenerationWorkspace
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
@@ -504,6 +500,12 @@ export function CardForgeStudioShell({
             />
           </TabsContent>
 
+          <TabsContent value="sets" data-testid="sets-panel" className="!mt-0 min-h-0 flex-1 overflow-hidden">
+            <SetLibraryWorkspace
+              onOpenMakeCards={() => setActiveTabAction('generator')}
+              onEditCardRequest={handleEditCardRequest}
+            />
+          </TabsContent>
         </Tabs>
       </main>
       <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canUseProjectFiles} />
@@ -533,11 +535,9 @@ export function CardForgeStudioShell({
         onClearProjectImport={clearPendingProjectImport}
         onApplyProjectImport={(mode) => void applyPendingProjectImport(mode)}
       />
-      <footer className="border-t border-[var(--cf-border)] p-4 text-center text-sm text-[#a8946d] no-print">
+      <footer className="hidden" aria-hidden="true">
         {businessIdentity.brandName} &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}
       </footer>
     </div>
   );
 }
-
-    

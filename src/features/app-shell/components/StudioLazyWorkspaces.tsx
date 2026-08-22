@@ -48,6 +48,13 @@ export const GenerationWorkspace = dynamic(
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
+export const SetLibraryWorkspace = dynamic(
+  () => import('@/features/card-generator/client')
+    .then((module) => module.loadSetLibraryWorkspace())
+    .then((module) => module.SetLibraryWorkspace),
+  { ssr: false, loading: WorkspaceLoadingState },
+);
+
 export const EditCardDialog = dynamic(
   () => import('@/features/card-generator/client')
     .then((module) => module.loadEditCardDialog())
