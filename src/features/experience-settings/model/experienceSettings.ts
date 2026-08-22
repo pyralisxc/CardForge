@@ -20,6 +20,7 @@ export interface ExperienceSettings {
   presentationAccent: PresentationAccent;
   presentationCorners: PresentationCorners;
   presentationContrast: PresentationContrast;
+  studioDefaultTemplateId: string | null;
 }
 
 export const DEFAULT_EXPERIENCE_SETTINGS: ExperienceSettings = {
@@ -29,6 +30,7 @@ export const DEFAULT_EXPERIENCE_SETTINGS: ExperienceSettings = {
   presentationAccent: 'brass',
   presentationCorners: 'subtle',
   presentationContrast: 'standard',
+  studioDefaultTemplateId: null,
 };
 
 const isProjectFileAccessPolicy = (value: unknown): value is ProjectFileAccessPolicy =>
@@ -48,6 +50,15 @@ const isPresentationCorners = (value: unknown): value is PresentationCorners =>
 
 const isPresentationContrast = (value: unknown): value is PresentationContrast =>
   typeof value === 'string' && PRESENTATION_CONTRASTS.includes(value as PresentationContrast);
+
+const normalizeOptionalTemplateId = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') throw new Error('Choose a published Studio Template or use the automatic default.');
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized.length > 200) throw new Error('The Studio default Template id is too long.');
+  return normalized;
+};
 
 export const hydrateExperienceSettings = (
   row: Record<string, unknown> | null | undefined,
@@ -70,6 +81,9 @@ export const hydrateExperienceSettings = (
   presentationContrast: isPresentationContrast(row?.presentation_contrast)
     ? row.presentation_contrast
     : DEFAULT_EXPERIENCE_SETTINGS.presentationContrast,
+  studioDefaultTemplateId: typeof row?.studio_default_template_id === 'string' && row.studio_default_template_id.trim()
+    ? row.studio_default_template_id.trim()
+    : null,
 });
 
 export const normalizeExperienceSettingsInput = (
@@ -100,5 +114,6 @@ export const normalizeExperienceSettingsInput = (
     presentationAccent: input.presentationAccent,
     presentationCorners: input.presentationCorners,
     presentationContrast: input.presentationContrast,
+    studioDefaultTemplateId: normalizeOptionalTemplateId(input.studioDefaultTemplateId),
   };
 };
