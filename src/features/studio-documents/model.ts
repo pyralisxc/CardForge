@@ -25,6 +25,7 @@ export {
   templateDraftSchema,
 };
 export type { GptTemplateDraftInput };
+export type { StudioDocumentAssetDownload } from './assetReferences';
 
 export const STUDIO_DOCUMENT_SOURCES = ['studio', 'gpt', 'import'] as const;
 export type StudioDocumentSource = typeof STUDIO_DOCUMENT_SOURCES[number];
