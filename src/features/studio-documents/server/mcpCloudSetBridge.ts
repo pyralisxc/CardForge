@@ -204,7 +204,7 @@ const uploadPreparedAssets = async (
     if (!asset) throw new CloudSetStoreError('CardForge lost track of a private artwork file while committing the cloud Set.', 500);
     const form = new FormData();
     form.append('cacheControl', '3600');
-    form.append('', new Blob([asset.bytes], { type: asset.descriptor.mimeType }));
+    form.append('', new Blob([new Uint8Array(asset.bytes)], { type: asset.descriptor.mimeType }));
     const response = await fetch(upload.signedUrl, {
       method: 'PUT',
       headers: { 'x-upsert': 'true' },
@@ -295,6 +295,6 @@ export const deleteCloudSetForAgent = async ({
       409,
     );
   }
-  await deleteCloudSet(access.entitlement.accountUserId, setId);
+  await deleteCloudSet(access.entitlement.accountUserId, setId, expectedCloudRevision);
   return current.summary;
 };
