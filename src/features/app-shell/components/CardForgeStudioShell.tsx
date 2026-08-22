@@ -369,52 +369,62 @@ export function CardForgeStudioShell({
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
         developerCockpitHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}
       />
-      <main className="cardforge-studio-main container mx-auto w-full max-w-full flex-grow p-4 md:p-6 lg:p-8">
-        {isStudioReady ? (
-          <div data-testid="studio-ready" className="sr-only">Studio ready</div>
-        ) : (
-          <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
-        )}
-        {templateLibraryFailed || styleLibraryFailed ? (
-          <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
-            <div>
-              <p className="font-semibold">Some Studio library content did not load</p>
-              <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
-                {templateLibraryFailed && styleLibraryFailed
-                  ? 'Templates and appearance styles are temporarily unavailable.'
-                  : templateLibraryFailed
-                    ? 'Templates are temporarily unavailable.'
-                    : 'Appearance styles are temporarily unavailable.'}{' '}
-                Your browser-saved work is unchanged.
-              </p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={retryLibraries} disabled={isLoadingTemplates}>
-              {isLoadingTemplates ? 'Retrying...' : 'Retry library'}
-            </Button>
-          </div>
-        ) : null}
-        {showFirstRunGuide ? (
-          <StudioFirstRunGuide
-            onDismiss={handleDismissFirstRunGuide}
-            onStartMakingCards={handleStartMakingCards}
-            onEditDesignFirst={handleEditDesignFirst}
-          />
-        ) : null}
-        <Tabs value={effectiveActiveTab} onValueChange={handleStudioTabChange} className="w-full min-w-0">
-          <TabsList className="cardforge-studio-tabs mb-2 grid h-10 w-full grid-cols-3 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-0.5 no-print lg:w-fit lg:min-w-[27rem]">
-            {STUDIO_TABS.map(tab => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                data-testid={`studio-tab-${tab.value}`}
-                className="flex min-h-9 items-center justify-center gap-1.5 px-3 py-1 text-xs text-[var(--cf-text-muted)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)] sm:text-sm"
-              >
-                <tab.icon className="h-4 w-4" /> {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
 
-          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="!mt-0 space-y-3 data-[state=inactive]:hidden">
+      <Tabs
+        value={effectiveActiveTab}
+        onValueChange={handleStudioTabChange}
+        className="cardforge-studio-tabs-root flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
+      >
+        <div className="cardforge-studio-workspace-nav shrink-0 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] no-print">
+          <div className="container mx-auto flex max-w-full items-center px-4 md:px-6 lg:px-8">
+            <TabsList className="cardforge-studio-tabs grid h-10 w-full grid-cols-3 rounded-none border-0 bg-transparent p-0 sm:w-auto sm:min-w-[26rem]">
+              {STUDIO_TABS.map(tab => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  data-testid={`studio-tab-${tab.value}`}
+                  className="flex min-h-10 items-center justify-center gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-4 py-1 text-xs text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent-strong)] data-[state=active]:bg-[var(--cf-surface-raised)] data-[state=active]:text-[var(--cf-text-strong)] sm:text-sm"
+                >
+                  <tab.icon className="h-4 w-4" /> {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        <main className="cardforge-studio-main container mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-4 md:p-6 lg:p-8">
+          {isStudioReady ? (
+            <div data-testid="studio-ready" className="sr-only">Studio ready</div>
+          ) : (
+            <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
+          )}
+          {templateLibraryFailed || styleLibraryFailed ? (
+            <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
+              <div>
+                <p className="font-semibold">Some Studio library content did not load</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
+                  {templateLibraryFailed && styleLibraryFailed
+                    ? 'Templates and appearance styles are temporarily unavailable.'
+                    : templateLibraryFailed
+                      ? 'Templates are temporarily unavailable.'
+                      : 'Appearance styles are temporarily unavailable.'}{' '}
+                  Your browser-saved work is unchanged.
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={retryLibraries} disabled={isLoadingTemplates}>
+                {isLoadingTemplates ? 'Retrying...' : 'Retry library'}
+              </Button>
+            </div>
+          ) : null}
+          {showFirstRunGuide ? (
+            <StudioFirstRunGuide
+              onDismiss={handleDismissFirstRunGuide}
+              onStartMakingCards={handleStartMakingCards}
+              onEditDesignFirst={handleEditDesignFirst}
+            />
+          ) : null}
+
+          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="!mt-0 min-h-0 flex-1 space-y-3 data-[state=inactive]:hidden">
             {generatorBackWorkflow ? (
               <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={handleReturnToGenerator} />
             ) : null}
@@ -450,7 +460,7 @@ export function CardForgeStudioShell({
             />
           </TabsContent>
 
-          <TabsContent value="generator" data-testid="generator-panel" className="!mt-0">
+          <TabsContent value="generator" data-testid="generator-panel" className="!mt-0 min-h-0 flex-1">
             <GenerationWorkspace
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
@@ -504,18 +514,42 @@ export function CardForgeStudioShell({
             <SetLibraryWorkspace
               onOpenMakeCards={() => setActiveTabAction('generator')}
               onEditCardRequest={handleEditCardRequest}
+              selectedPaperSize={selectedPaperSize}
+              pdfMarginMm={pdfMarginMm}
+              pdfCardSpacingMm={pdfCardSpacingMm}
+              pdfIncludeCutLines={pdfIncludeCutLines}
+              pdfDuplexLayout={pdfDuplexLayout}
+              exportMode={exportMode}
+              exportDpi={exportDpi}
+              zipProgress={zipProgress}
+              isZipExporting={isZipExporting}
+              zipExportKind={zipExportKind}
+              isCheckoutStarting={isCheckoutStarting}
+              canExportClean={projectCapabilities.canExportClean}
+              exportGateMessage={exportGateMessage}
+              exportEntitlementLabel={exportEntitlementLabel}
+              exportEntitlementMessage={exportEntitlementMessage}
+              onSelectPaperSize={setSelectedPaperSizeAction}
+              onSetPdfOptions={setPdfOptionsAction}
+              onSetExportMode={setExportModeAction}
+              onSetExportDpi={setExportDpiAction}
+              onStartCheckout={handleStartCheckout}
+              onExportAllAsZip={handleExportAllAsZip}
+              onExportTabletopSimulatorSpritesheets={handleExportTabletopSimulatorSpritesheets}
+              onClearCardsRequest={() => setIsClearCardsDialogOpen(true)}
             />
           </TabsContent>
-        </Tabs>
-      </main>
+        </main>
+      </Tabs>
+
       <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canUseProjectFiles} />
       {isEditDialogOpen && editingCardFromStore && (
         <EditCardDialog
-            isOpen={isEditDialogOpen}
-            card={editingCardFromStore}
-            onSave={handleSaveEditedCard}
-            onDuplicate={handleDuplicateCard}
-            onClose={handleCloseEditDialog}
+          isOpen={isEditDialogOpen}
+          card={editingCardFromStore}
+          onSave={handleSaveEditedCard}
+          onDuplicate={handleDuplicateCard}
+          onClose={handleCloseEditDialog}
         />
       )}
       <StudioConfirmationDialogs

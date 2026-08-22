@@ -15,6 +15,7 @@ describe('experience settings', () => {
       presentationAccent: 'brass',
       presentationCorners: 'subtle',
       presentationContrast: 'standard',
+      studioDefaultTemplateId: null,
     });
   });
 
@@ -33,6 +34,7 @@ describe('experience settings', () => {
       presentationAccent: 'arcane',
       presentationCorners: 'soft',
       presentationContrast: 'high',
+      studioDefaultTemplateId: null,
     });
     expect(hydrateExperienceSettings({
       project_file_access: 'unexpected',

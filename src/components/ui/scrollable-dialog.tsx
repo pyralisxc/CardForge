@@ -3,7 +3,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { DialogContent } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/shared/classNames';
 
 export function ScrollableDialogContent({
@@ -26,8 +25,13 @@ export function ScrollableDialogBody({
   className?: string;
 }) {
   return (
-    <ScrollArea className={cn('cardforge-scroll-body min-h-0 flex-1', className)}>
+    <div
+      className={cn(
+        'cardforge-scroll-body min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] touch-pan-y',
+        className,
+      )}
+    >
       {children}
-    </ScrollArea>
+    </div>
   );
 }

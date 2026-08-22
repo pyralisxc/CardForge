@@ -7,7 +7,7 @@ import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates'
 
 interface UseBootstrapLibrariesInput {
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
-  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => void;
+  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => void;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
 }
 
@@ -43,7 +43,10 @@ export function useBootstrapLibraries({
 
         setTemplateLibraryFailed(false);
         setStyleLibraryFailed(false);
-        setDefaultTemplatesFromFiles(payload.templates.defaults);
+        setDefaultTemplatesFromFiles(
+          payload.templates.defaults,
+          payload.studioDefaults?.defaultTemplateId ?? null,
+        );
         mergeUserTemplatesFromFiles(payload.templates.userTemplates);
         setAppearanceStylesFromFiles(payload.styles.styles);
       } catch (error) {

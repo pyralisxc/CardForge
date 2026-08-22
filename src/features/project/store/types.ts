@@ -6,7 +6,7 @@ export interface TemplateSlice {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
   addOrUpdateTemplate: (template: TCGCardTemplate, source?: TemplateSource) => string;
-  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => number;
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   deleteTemplate: (templateId: string, source?: TemplateSource) => void;

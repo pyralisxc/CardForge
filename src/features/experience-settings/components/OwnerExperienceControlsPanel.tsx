@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Save, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
+import type { TCGCardTemplate } from '@/domain/templates';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import type { ExperienceSettings } from '../model/experienceSettings';
@@ -13,6 +14,12 @@ import type { ExperienceSettings } from '../model/experienceSettings';
 type OwnerExperienceControlsPanelProps = {
   settings: ExperienceSettings;
   onSettingsChange: (settings: ExperienceSettings) => void;
+};
+
+type StudioBootstrapResponse = {
+  templates?: {
+    defaults?: TCGCardTemplate[];
+  };
 };
 
 const selectClassName = 'w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
@@ -25,8 +32,35 @@ export function OwnerExperienceControlsPanel({
   const { toast } = useToast();
   const [draft, setDraft] = useState(settings);
   const [isSaving, setIsSaving] = useState(false);
+  const [studioTemplates, setStudioTemplates] = useState<TCGCardTemplate[]>([]);
+  const [isLoadingStudioTemplates, setIsLoadingStudioTemplates] = useState(true);
 
   useEffect(() => setDraft(settings), [settings]);
+  useEffect(() => {
+    let cancelled = false;
+    const loadTemplates = async () => {
+      setIsLoadingStudioTemplates(true);
+      try {
+        const response = await fetch('/api/catalog/studio-bootstrap', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load the published Studio Templates.');
+        const payload = await response.json() as StudioBootstrapResponse;
+        if (!cancelled) setStudioTemplates(payload.templates?.defaults ?? []);
+      } catch {
+        if (!cancelled) setStudioTemplates([]);
+      } finally {
+        if (!cancelled) setIsLoadingStudioTemplates(false);
+      }
+    };
+    void loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const frontStudioTemplates = useMemo(() => studioTemplates.filter((template) => (
+    Boolean(template.id)
+    && template.templateUsage !== 'back-preset'
+  )), [studioTemplates]);
 
   const save = async () => {
     setIsSaving(true);
@@ -46,7 +80,7 @@ export function OwnerExperienceControlsPanel({
         title: 'Experience controls saved',
         description: result.activityRecorded === false
           ? 'The settings changed, but owner change history was unavailable.'
-          : 'New visits and refreshed workspaces now use the updated experience and presentation settings.',
+          : 'New visits and fresh Studio workspaces now use the updated experience settings.',
         variant: result.activityRecorded === false ? 'destructive' : 'default',
       });
     } catch (error) {
@@ -69,7 +103,7 @@ export function OwnerExperienceControlsPanel({
         <div>
           <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Experience controls</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            Change safe launch and presentation values without changing page ownership. CardForge validates the available visual profiles so contrast, focus, and editor legibility remain code-reviewed.
+            Change safe Studio, launch, and presentation defaults without editing GitHub. CardForge keeps operational behavior and accessibility boundaries code-owned.
           </p>
         </div>
       </div>
@@ -86,6 +120,26 @@ export function OwnerExperienceControlsPanel({
             <option value="free">Available on the free plan</option>
           </select>
           <span className="leading-6 text-[var(--cf-text-subtle)]">Controls CardForge project files only. Watermark-free exports remain Creator Pass features.</span>
+        </label>
+
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Fresh Studio starting Template</span>
+          <select
+            className={selectClassName}
+            value={draft.studioDefaultTemplateId ?? ''}
+            disabled={isLoadingStudioTemplates}
+            onChange={(event) => setDraft((current) => ({ ...current, studioDefaultTemplateId: event.target.value || null }))}
+          >
+            <option value="">Automatic — first available published front Template</option>
+            {frontStudioTemplates.map((template) => (
+              <option key={template.id ?? template.name} value={template.id ?? ''}>{template.name || template.id}</option>
+            ))}
+          </select>
+          <span className="leading-6 text-[var(--cf-text-subtle)]">
+            {isLoadingStudioTemplates
+              ? 'Loading the published Template catalog…'
+              : 'Used only when a Studio workspace has no saved Template, set Template, or cards yet. Existing user work is never replaced by this default.'}
+          </span>
         </label>
 
         <label className={fieldClassName}>
@@ -106,7 +160,7 @@ export function OwnerExperienceControlsPanel({
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">CardForge presentation</p>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
-          These curated settings feed the one semantic CardForge token system used by the public site, account surfaces, operational consoles, Studio, Generator, and Template editor roles.
+          These curated settings feed the one semantic CardForge token system used by the public site, account surfaces, operational consoles, Studio, Make Cards, Sets, and Template editor roles.
         </p>
       </div>
 

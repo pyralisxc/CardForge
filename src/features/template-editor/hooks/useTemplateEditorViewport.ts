@@ -113,26 +113,52 @@ export function useTemplateEditorViewport({
   const [previewMode, setPreviewMode] = useState(false);
   const gridSize = canvas.gridSize || 20;
 
+  const calculateFitZoom = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    const width = stage.clientWidth;
+    const height = stage.clientHeight;
+    if (!width || !height) return null;
+    const chrome = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2 + CANVAS_SCROLL_PADDING;
+    const widthFit = Math.max(1, width - chrome) / canvas.width;
+    const heightFit = Math.max(1, height - chrome) / canvas.height;
+    const fitted = width < 1024
+      ? Math.min(widthFit, CANVAS_ZOOM.autoFitMax)
+      : Math.min(widthFit, heightFit, CANVAS_ZOOM.autoFitMax);
+    return clamp(Math.round(fitted * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.autoFitMax);
+  }, [canvas.height, canvas.width]);
+
+  const fitCanvasNow = useCallback(() => {
+    const fitted = calculateFitZoom();
+    if (fitted === null) return false;
+    setZoom(fitted);
+    return true;
+  }, [calculateFitZoom]);
+
+  const centerCanvasViewport = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
+    stage.scrollTop = Math.max(0, (stage.scrollHeight - stage.clientHeight) / 2);
+  }, []);
+
+  const centerAfterLayout = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(centerCanvasViewport);
+    });
+  }, [centerCanvasViewport]);
+
   useEffect(() => {
     const stage = stageRef.current;
     if (!autoFitCanvas || !stage) return;
     const updateFit = () => {
-      const width = stage.clientWidth;
-      const height = stage.clientHeight;
-      if (!width || !height) return;
-      const chrome = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2 + CANVAS_SCROLL_PADDING;
-      const widthFit = (width - chrome) / canvas.width;
-      const heightFit = (height - chrome) / canvas.height;
-      const fitted = width < 1024
-        ? Math.min(widthFit, CANVAS_ZOOM.autoFitMax)
-        : Math.min(widthFit, heightFit, CANVAS_ZOOM.autoFitMax);
-      setZoom(clamp(Math.round(fitted * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.autoFitMax));
+      if (fitCanvasNow()) centerAfterLayout();
     };
     updateFit();
     const observer = new ResizeObserver(updateFit);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [autoFitCanvas, canvas.height, canvas.width]);
+  }, [autoFitCanvas, centerAfterLayout, fitCanvasNow]);
 
   const snapValue = useCallback(
     (value: number) => snapToGrid ? Math.round(value / gridSize) * gridSize : Math.round(value),
@@ -268,23 +294,18 @@ export function useTemplateEditorViewport({
     stage.scrollTop = nextViewport.scrollTop;
   }, [zoom]);
 
-  const centerCanvasViewport = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
-    stage.scrollTop = Math.max(0, (stage.scrollHeight - stage.clientHeight) / 2);
-  }, []);
-
   const fitCanvasToViewport = useCallback(() => {
     setAutoFitCanvas(true);
-    requestAnimationFrame(centerCanvasViewport);
-  }, [centerCanvasViewport]);
+    requestAnimationFrame(() => {
+      if (fitCanvasNow()) centerAfterLayout();
+    });
+  }, [centerAfterLayout, fitCanvasNow]);
 
   const resetCanvasZoom = useCallback(() => {
     setAutoFitCanvas(false);
     setZoom(CANVAS_ZOOM.actualSize);
-    requestAnimationFrame(centerCanvasViewport);
-  }, [centerCanvasViewport]);
+    centerAfterLayout();
+  }, [centerAfterLayout]);
 
   const handleDrop = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();

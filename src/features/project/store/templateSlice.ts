@@ -12,13 +12,18 @@ import { isDraftTemplateSelection } from './workspaceDefaults';
 const selectFallbackTemplateId = (
   templates: TCGCardTemplate[],
   selectedId: string | null,
+  preferredTemplateId: string | null = null,
 ): string | null => {
   const selectedStillExists = selectedId
     ? isDraftTemplateSelection(selectedId) || templates.some((template) => template.id === selectedId)
     : false;
-  return selectedStillExists
-    ? selectedId
-    : (templates.find((template) => template.templateUsage !== 'back-preset')?.id ?? null);
+  if (selectedStillExists) return selectedId;
+  const preferredTemplate = preferredTemplateId
+    ? templates.find((template) => template.id === preferredTemplateId && template.templateUsage !== 'back-preset')
+    : null;
+  return preferredTemplate?.id
+    ?? templates.find((template) => template.templateUsage !== 'back-preset')?.id
+    ?? null;
 };
 
 const selectFallbackEditorTemplateId = (
@@ -86,7 +91,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     return finalId;
   },
 
-  setDefaultTemplatesFromFiles: (templates) => {
+  setDefaultTemplatesFromFiles: (templates, preferredTemplateId = null) => {
     const reconstructed = templates
       .map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'default' }))
       .filter((template) => Boolean(template.id?.trim()));
@@ -97,7 +102,11 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
         defaultTemplates: reconstructed,
         userTemplates: state.userTemplates,
       });
-      const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
+      const selectedId = selectFallbackTemplateId(
+        allTemplates,
+        state.singleCardGeneratorSelectedTemplateId,
+        preferredTemplateId,
+      );
       return {
         defaultTemplates: reconstructed,
         singleCardGeneratorSelectedTemplateId: selectedId,
