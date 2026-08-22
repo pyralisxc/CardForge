@@ -7,7 +7,7 @@ import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates'
 
 interface UseBootstrapLibrariesInput {
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
-  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => void;
+  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => void;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
 }
 
@@ -19,7 +19,6 @@ export function useBootstrapLibraries({
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [templateLibraryFailed, setTemplateLibraryFailed] = useState(false);
   const [styleLibraryFailed, setStyleLibraryFailed] = useState(false);
-  const [studioDefaultTemplateId, setStudioDefaultTemplateId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const retryLibraries = useCallback(() => {
@@ -44,8 +43,10 @@ export function useBootstrapLibraries({
 
         setTemplateLibraryFailed(false);
         setStyleLibraryFailed(false);
-        setStudioDefaultTemplateId(payload.studioDefaults?.defaultTemplateId ?? null);
-        setDefaultTemplatesFromFiles(payload.templates.defaults);
+        setDefaultTemplatesFromFiles(
+          payload.templates.defaults,
+          payload.studioDefaults?.defaultTemplateId ?? null,
+        );
         mergeUserTemplatesFromFiles(payload.templates.userTemplates);
         setAppearanceStylesFromFiles(payload.styles.styles);
       } catch (error) {
@@ -53,7 +54,6 @@ export function useBootstrapLibraries({
         if (!cancelled) {
           setTemplateLibraryFailed(true);
           setStyleLibraryFailed(true);
-          setStudioDefaultTemplateId(null);
         }
       } finally {
         if (!cancelled) setIsLoadingTemplates(false);
@@ -75,7 +75,6 @@ export function useBootstrapLibraries({
     isLoadingTemplates,
     retryLibraries,
     styleLibraryFailed,
-    studioDefaultTemplateId,
     templateLibraryFailed,
   };
 }
