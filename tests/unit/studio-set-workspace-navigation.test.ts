@@ -26,6 +26,14 @@ describe('Studio set workspace navigation', () => {
     expect(shell).not.toContain('p-4 text-center text-sm text-[#a8946d]');
   });
 
+  it('keeps inactive force-mounted workspaces out of layout while preserving their editor state', () => {
+    const tabs = readSource('src/components/ui/tabs.tsx');
+    const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+
+    expect(shell).toContain('value="template-maker" forceMount');
+    expect(tabs).toContain('data-[state=inactive]:!hidden');
+  });
+
   it('keeps Make Cards generation-only and makes Sets the finished production workspace', () => {
     const makeCards = readSource('src/features/card-generator/components/GenerationWorkspace.tsx');
     const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
