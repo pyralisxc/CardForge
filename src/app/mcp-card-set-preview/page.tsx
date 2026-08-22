@@ -1,4 +1,4 @@
-import { CardSetDraftPreviewClient } from '@/features/studio-documents/components/CardSetDraftPreviewClient';
+import { CardSetDraftPreviewClient } from '@/features/studio-documents/client';
 
 export const dynamic = 'force-dynamic';
 
