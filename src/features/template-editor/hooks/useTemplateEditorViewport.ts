@@ -37,6 +37,42 @@ interface TouchGestureState {
   scrollTop: number;
 }
 
+interface CompactWorkspaceSwipeState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startedAt: number;
+}
+
+const WORKSPACE_SWIPE_DISTANCE = 72;
+const WORKSPACE_SWIPE_MAX_DURATION_MS = 700;
+
+export function resolveCompactWorkspaceSwipe({
+  activePanel,
+  deltaX,
+  deltaY,
+  durationMs,
+}: {
+  activePanel: MobileMakerPanel;
+  deltaX: number;
+  deltaY: number;
+  durationMs: number;
+}): MobileMakerPanel | null {
+  if (durationMs > WORKSPACE_SWIPE_MAX_DURATION_MS) return null;
+  if (Math.abs(deltaX) < WORKSPACE_SWIPE_DISTANCE) return null;
+  if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return null;
+
+  if (deltaX > 0) {
+    if (activePanel === 'inspector') return 'canvas';
+    if (activePanel === 'canvas') return 'library';
+    return null;
+  }
+
+  if (activePanel === 'library') return 'canvas';
+  if (activePanel === 'canvas') return 'inspector';
+  return null;
+}
+
 interface UseTemplateEditorViewportInput {
   addElement: (
     type: FreeformCardElement['type'],
@@ -68,6 +104,7 @@ export function useTemplateEditorViewport({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const touchPointersRef = useRef<Map<number, TouchPoint>>(new Map());
   const touchGestureRef = useRef<TouchGestureState | null>(null);
+  const compactWorkspaceSwipeRef = useRef<CompactWorkspaceSwipeState | null>(null);
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
   const [mobilePanel, setMobilePanel] = useState<MobileMakerPanel>('canvas');
@@ -133,8 +170,26 @@ export function useTemplateEditorViewport({
 
   const handleStagePointerDownCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch') return;
+    const target = event.target as HTMLElement;
+    const compactViewport = window.matchMedia('(max-width: 1023px)').matches;
+    if (
+      compactViewport
+      && touchPointersRef.current.size === 0
+      && !target.closest?.('[data-cardforge-canvas="true"]')
+    ) {
+      compactWorkspaceSwipeRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startedAt: performance.now(),
+      };
+    } else {
+      compactWorkspaceSwipeRef.current = null;
+    }
+
     touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
     if (touchPointersRef.current.size >= 2) {
+      compactWorkspaceSwipeRef.current = null;
       event.preventDefault();
       event.stopPropagation();
       setAutoFitCanvas(false);
@@ -172,10 +227,25 @@ export function useTemplateEditorViewport({
 
   const handleStagePointerUpCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch') return;
+    const swipe = compactWorkspaceSwipeRef.current;
+    if (swipe?.pointerId === event.pointerId && touchPointersRef.current.size === 1) {
+      const nextPanel = resolveCompactWorkspaceSwipe({
+        activePanel: mobilePanel,
+        deltaX: event.clientX - swipe.startX,
+        deltaY: event.clientY - swipe.startY,
+        durationMs: performance.now() - swipe.startedAt,
+      });
+      if (nextPanel) {
+        event.preventDefault();
+        event.stopPropagation();
+        setMobilePanel(nextPanel);
+      }
+    }
+    compactWorkspaceSwipeRef.current = null;
     touchPointersRef.current.delete(event.pointerId);
     if (touchPointersRef.current.size >= 2) beginTouchGesture();
     else touchGestureRef.current = null;
-  }, [beginTouchGesture]);
+  }, [beginTouchGesture, mobilePanel]);
 
   const handleStageWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
     if (!event.ctrlKey && !event.metaKey) return;

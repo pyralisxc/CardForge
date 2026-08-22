@@ -1,0 +1,104 @@
+.workspace {
+  min-height: 0;
+}
+
+@media (max-width: 1023px) {
+  :global(.cardforge-panel-workspace .cardforge-maker-scroll) {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  :global(.cardforge-panel-workspace .cardforge-maker-scroll [data-radix-scroll-area-viewport]) {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-mobile-overlay-backdrop),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-mobile-overlay-backdrop) {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-grid),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-grid) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(10rem, 1fr) minmax(13rem, 42%) !important;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-canvas-stage),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-canvas-stage) {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-library),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-inspector) {
+    position: relative !important;
+    z-index: 30;
+    grid-column: 1;
+    grid-row: 2;
+    inset: auto !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    border-top: 1px solid var(--cf-editor-border);
+    box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.3);
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-mobile-menu-close),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-mobile-inspector-close) {
+    position: relative !important;
+    z-index: 50;
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    justify-self: end;
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+    left: auto !important;
+    margin: 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: landscape) {
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-grid),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-grid) {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 40%) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-canvas-stage),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-canvas-stage) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-library),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-inspector) {
+    grid-column: 2;
+    grid-row: 1;
+    border-top: 0;
+    border-left: 1px solid var(--cf-editor-border);
+    box-shadow: -12px 0 28px rgba(0, 0, 0, 0.3);
+  }
+
+  :global(.cardforge-maker-shell[data-mobile-panel="library"] .cardforge-mobile-menu-close),
+  :global(.cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-mobile-inspector-close) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
