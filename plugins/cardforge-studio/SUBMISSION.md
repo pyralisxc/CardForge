@@ -31,12 +31,13 @@ The MCP server uses CardForge's production Clerk OAuth flow. There is no review-
 
 Before submission, create one dedicated OpenAI reviewer account in Clerk that:
 
-- does not require MFA, email confirmation, SMS, private networking, or owner impersonation;
-- has the minimum developer scope needed to exercise `continue_template_in_pipeline` without owner privileges;
-- contains one ordinary editable Template named `OpenAI Review Fixture` and one intentionally cloud-saved set with the same name;
+- uses an isolated email/password identity controlled by the publisher; a consumer mailbox or plus-address alias is acceptable, but it must not match an owner identity;
+- is fully verified before submission and does not require the reviewer to complete MFA, email confirmation, SMS, private networking, or owner impersonation;
+- remains on the ordinary Free account scope with no developer, owner, billing, or provider-console privileges;
+- contains one intentionally cloud-saved set named `OpenAI Review Fixture`; temporary assistant drafts are created by the review cases instead of being pre-seeded because Free drafts expire after inactivity;
 - contains no customer, owner, billing, or production marketing data.
 
-Enter its credentials only in the OpenAI submission portal. Rotate or retire the account after review according to the provider's current review policy.
+Enter its credentials only in the OpenAI submission portal. Never commit the reviewer email or password. Keep the account available for the full review and resubmission window, then rotate its password or retire it according to the provider's current review policy. The developer-only `continue_template_in_pipeline` tool is not part of the Free-account positive cases; test it separately only if OpenAI requests developer-workflow coverage.
 
 ## Tool safety and UI declarations
 
@@ -60,18 +61,18 @@ The template preview UI is model-only and cannot call MCP tools. Its exact CSP a
 - Expected tools: `create_editable_template`, `attach_template_artwork`, `preview_template_draft`; use `update_editable_template` only when a material revision is requested.
 - Expected result: one private document whose revision advances, artwork reports its exact native binding, the rendered PNG appears in chat, and the separate Studio URL targets the exact revision.
 
-### Positive 3 — resume an existing Template and hand it to Forge Review
+### Positive 3 — resume and revise a private Template
 
-- Fixture: the review account owns an editable Template and has the minimum developer scope.
-- Prompt: “List my editable Templates, open the review fixture, and continue it in Forge Review without publishing it.”
-- Expected tools: `list_editable_templates`, `get_editable_template`, `continue_template_in_pipeline`.
-- Expected result: the existing accepted plan remains locked, one private Pipeline draft is created, and the returned URL opens Forge Review; nothing becomes public.
+- Fixture: first create a private editable Template in the same review session, then use the returned document id for this case.
+- Prompt: “List my editable Templates, reopen the one we just made, change its title to OpenAI Review Fixture, and show me the revised preview.”
+- Expected tools: `list_editable_templates`, `get_editable_template`, `update_editable_template`, `preview_template_draft`.
+- Expected result: the existing accepted plan remains locked, the same private document advances by one revision, and the preview and Studio URL target that exact revision; no developer Pipeline draft is created.
 
 ### Positive 4 — build and inspect a bulk set with artwork
 
-- Fixture: use the review account's editable Template named `OpenAI Review Fixture`. Use these public artwork URLs in order: `https://cardforges.com/site-fallbacks/showcase/creatures/emberclaw-whelp.webp`, `https://cardforges.com/site-fallbacks/showcase/creatures/moonveil-stag.webp`, and `https://cardforges.com/site-fallbacks/showcase/creatures/mossback-guardian.webp`.
-- Prompt: “Use my OpenAI Review Fixture Template to make a three-card rock-paper-scissors set with distinct rules and the three review-fixture artwork URLs, then review it.”
-- Expected tools: `upsert_card_set`, `get_card_generation_contract`, `upsert_cards`, `preview_card_set`.
+- Fixture: create a private editable Template in this review session or reuse the still-active document from Positive 2 or 3. Use these public artwork URLs in order: `https://cardforges.com/site-fallbacks/showcase/creatures/emberclaw-whelp.webp`, `https://cardforges.com/site-fallbacks/showcase/creatures/moonveil-stag.webp`, and `https://cardforges.com/site-fallbacks/showcase/creatures/mossback-guardian.webp`.
+- Prompt: “Use the editable Template in this session to make a three-card rock-paper-scissors set with distinct rules and the three review-fixture artwork URLs, then review it.”
+- Expected tools: `create_editable_template` when no active document exists, then `upsert_card_set`, `get_card_generation_contract`, `upsert_cards`, and `preview_card_set`.
 - Expected result: the agent uses only returned field keys, reuses stable set/card IDs, stores artwork in the bulk transaction, and reports each image as resolved, unresolved, template fallback, or placeholder.
 
 ### Positive 5 — read an intentional cloud save

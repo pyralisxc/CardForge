@@ -109,7 +109,9 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('globally wherever ChatGPT plugins');
     expect(submission).toContain('Initial-submission release notes for 0.7.0');
-    expect(submission).toContain('editable Template named `OpenAI Review Fixture`');
+    expect(submission).toContain('ordinary Free account scope with no developer, owner, billing, or provider-console privileges');
+    expect(submission).toContain('cloud-saved set named `OpenAI Review Fixture`');
+    expect(submission).toContain('temporary assistant drafts are created by the review cases');
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
     expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');
     expect(operations).toContain('plugins/cardforge-studio/SUBMISSION.md');
