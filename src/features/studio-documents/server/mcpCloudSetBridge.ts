@@ -149,6 +149,8 @@ export const checkoutCloudSetForAgent = async ({
     creationSource: 'gpt',
     document: projectDocument,
     retentionHours: await getStudioDocumentRetentionHours(access.entitlement),
+    sourceCloudSetId: set.id,
+    sourceCloudRevision: cloud.summary.revision,
   });
   return {
     cloud: cloud.summary,
@@ -238,6 +240,12 @@ export const commitAgentWorkingSetToCloud = async ({
   if (document.revision !== expectedDocumentRevision) {
     throw new StudioDocumentStoreError(
       `The agent working document is revision ${document.revision}, not ${expectedDocumentRevision}. Reload the working Set before committing it to cloud.`,
+      409,
+    );
+  }
+  if (document.sourceCloudSetId !== setId || document.sourceCloudRevision !== expectedCloudRevision) {
+    throw new StudioDocumentStoreError(
+      `This agent working document was checked out from ${document.sourceCloudSetId ?? 'no cloud Set'} revision ${document.sourceCloudRevision ?? 'none'}, not ${setId} revision ${expectedCloudRevision}. Check out the current cloud revision before committing so unrelated or stale working content cannot overwrite it.`,
       409,
     );
   }
