@@ -57,6 +57,8 @@ export interface StudioDocumentSummary {
   lastInstalledRevision: number | null;
   lastInstalledAt: string | null;
   lastInstallSummary: StudioDocumentInstallSummary | null;
+  sourceCloudSetId: string | null;
+  sourceCloudRevision: number | null;
 }
 
 export interface StudioDocument extends StudioDocumentSummary {
