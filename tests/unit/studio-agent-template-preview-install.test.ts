@@ -221,7 +221,7 @@ describe('agent Studio install and chat preview architecture', () => {
       handoff.indexOf('// Non-agent Studio documents retain project-open semantics.'),
     );
     expect(gptBranch).toContain('mergeProjectAssetListToStorage');
-    expect(gptBranch).toContain("template.templateLibrarySource !== 'official'");
+    expect(gptBranch).toContain("template.templateLibrarySource !== 'pipeline'");
     expect(gptBranch).toContain('mergeUserTemplates(personalTemplates.map');
     expect(gptBranch).toContain("templateLibrarySource: 'personal'");
     expect(gptBranch).not.toContain('(Agent copy)');
