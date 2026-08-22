@@ -13,3 +13,4 @@ export {
 
 export const loadEditCardDialog = () => import('./components/EditCardDialog');
 export const loadGenerationWorkspace = () => import('./components/GenerationWorkspace');
+export const loadSetLibraryWorkspace = () => import('./components/SetLibraryWorkspace');

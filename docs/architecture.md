@@ -7,7 +7,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 ## Product truth
 
 - Public product: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
-- Studio: `/studio` contains Template Studio and Generator.
+- Studio: `/studio` contains three product workspaces: Templates, Make Cards, and Sets.
 - Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, developer, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
 - Shared platform state: Supabase owns CardForge shared records, private account cloud-set mirrors, and approved managed media.
@@ -51,7 +51,7 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/features/template-editor`: Template Studio session/draft lifecycle, canvas/layer/inspector commands, history, and native Template-library commands.
-- `src/features/card-generator`: single/bulk card creation, generated output gallery, image controls, set/cloud-save controls, and exports.
+- `src/features/card-generator`: single/bulk card creation, generated output gallery, Studio Set Library composition, image controls, set/cloud-save controls, and exports.
 - `src/features/card-rendering`: shared preview/rendering, rich text, vector shapes, thumbnails, appearance, and watermarks.
 - `src/features/project`: browser workspace/persistence/recovery/assets/project files plus the account cloud-set mirror and its canonical Transfer V1 packing/hydration.
 - `src/features/account`: current Clerk-backed user projection, entitlement surfaces, profile, and account administration.
@@ -104,7 +104,7 @@ Current account resolution uses Clerk's current-user identity directly; CardForg
 
 ## Card and Template model
 
-Template Studio owns reusable front Templates and separate card-back Templates. Generator owns a card set's selected front Template/back, card values, and export settings. Generated cards own independent front `data` and back `backingData`; layouts remain reusable blueprints.
+Studio navigation has three product workspaces over the same project state. **Templates** owns reusable front Templates and separate card-back Templates. **Make Cards** owns active production for the currently selected set: its selected front Template/back, card values, generation, review, and export settings. **Sets** is the normal production library for browsing local sets, loading cloud mirrors into the local workspace, renaming/selecting sets, reviewing their cards, importing/exporting, backing up a set, and handing the selected set to Make Cards. Sets composes the existing `cardSets`, transfer, renderer, and cloud-mirror owners; it does not create another set registry. Account Storage remains the storage/account lens for device/cloud usage, storage location, AI drafts, and location-specific deletion rather than a second production set library. Generated cards own independent front `data` and back `backingData`; layouts remain reusable blueprints.
 
 Text/image editability is expressed through native field contracts and real canvas elements. Image fields retain generator-side fit/position/scale/rotation/offset/flip controls.
 

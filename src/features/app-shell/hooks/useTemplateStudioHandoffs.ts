@@ -150,7 +150,7 @@ export function useTemplateStudioHandoffs({
     focusStudioRegion('[data-workflow-step="setup"]');
   }, [focusStudioRegion, setActiveTab]);
   const handleStudioTabChange = useCallback((tab: string) => {
-    if (tab === 'generator') {
+    if (tab !== 'template-maker') {
       setGeneratorBackWorkflow(null);
       setPendingGeneratorBackSave(null);
     }

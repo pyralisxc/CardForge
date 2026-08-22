@@ -1,7 +1,7 @@
 import type { CardSet } from '@/domain/cards';
 import type { AppearanceStylePreset } from '@/domain/templates';
 
-export const WORKSPACE_TABS = ['template-maker', 'generator'] as const;
+export const WORKSPACE_TABS = ['template-maker', 'generator', 'sets'] as const;
 
 export const dedupeAppearanceStyles = (styles: AppearanceStylePreset[]): AppearanceStylePreset[] => {
   const byId = new Map<string, AppearanceStylePreset>();
