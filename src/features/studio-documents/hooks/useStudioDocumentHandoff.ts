@@ -16,8 +16,12 @@ import {
   useProjectStore,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
-import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '@/features/studio-documents/model';
-import { type StudioDocumentAssetDownload } from '../assetReferences';
+import {
+  normalizeStudioDocumentPayload,
+  type StudioDocumentAssetDownload,
+  type StudioDocumentInstallSummary,
+  type StudioDocumentSource,
+} from '@/features/studio-documents/model';
 import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -50,6 +54,8 @@ const parseRequestedRevision = (value: string | null): number | null => {
   return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
 };
 
+const handoffKey = (documentId: string, revision: number | null) => `${documentId}:${revision ?? 'latest'}`;
+
 export function useStudioDocumentHandoff({
   isAccountLoading,
   isSignedIn,
@@ -66,21 +72,22 @@ export function useStudioDocumentHandoff({
   mergeUserTemplates,
   toast,
 }: StudioDocumentHandoffOptions) {
-  const handledDocumentIdRef = useRef<string | null>(null);
-  const inFlightDocumentIdRef = useRef<string | null>(null);
+  const handledRevisionKeyRef = useRef<string | null>(null);
+  const inFlightRevisionKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isAccountLoading || !isSignedIn || !isStudioReady) return;
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
     const requestedRevision = parseRequestedRevision(url.searchParams.get('revision'));
+    if (!documentId) return;
+    const requestedKey = handoffKey(documentId, requestedRevision);
     if (
-      !documentId
-      || handledDocumentIdRef.current === documentId
-      || inFlightDocumentIdRef.current === documentId
+      handledRevisionKeyRef.current === requestedKey
+      || inFlightRevisionKeyRef.current === requestedKey
     ) return;
 
-    inFlightDocumentIdRef.current = documentId;
+    inFlightRevisionKeyRef.current = requestedKey;
 
     let cancelled = false;
     void (async () => {
@@ -120,20 +127,10 @@ export function useStudioDocumentHandoff({
         const assetStorage = getProjectAssetStorage();
 
         if (payload.document?.creationSource === 'gpt') {
-          if (patch.userTemplates.length !== 1 || !patch.userTemplates[0]?.id) {
-            throw new Error('This agent draft does not contain exactly one installable CardForge Template.');
-          }
-
-          const incomingTemplate = patch.userTemplates[0];
-          const existingTemplate = useProjectStore.getState().userTemplates.find(
-            (candidate) => candidate.id === incomingTemplate.id,
-          );
-          const templateToInstall: TCGCardTemplate = {
-            ...incomingTemplate,
-            templateSource: 'user',
-            templateLibrarySource: 'personal',
-            templateRevision: actualRevision ?? incomingTemplate.templateRevision,
-          };
+          const beforeState = useProjectStore.getState();
+          const existingTemplateIds = new Set(beforeState.userTemplates.map((template) => template.id).filter(Boolean));
+          const existingCardIds = new Set(beforeState.storedCards.map((card) => card.uniqueId));
+          const personalTemplates = patch.userTemplates.filter((template) => template.templateSource !== 'default');
 
           await Promise.all([
             mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
@@ -143,34 +140,87 @@ export function useStudioDocumentHandoff({
           ]);
           if (cancelled) return;
 
-          mergeUserTemplates([templateToInstall]);
-          const projectState = useProjectStore.getState();
-          let installedCardCount = 0;
+          if (personalTemplates.length > 0) {
+            mergeUserTemplates(personalTemplates.map((template) => ({
+              ...template,
+              templateSource: 'user' as const,
+              templateLibrarySource: 'personal' as const,
+              templateRevision: actualRevision ?? template.templateRevision,
+            })));
+          }
+
+          const shouldInstallSetState = patch.storedCards.length > 0
+            || patch.cardSets.some((set) => set.id !== 'active-card-set' || set.name !== 'Untitled Set');
+          if (shouldInstallSetState) {
+            useProjectStore.getState().mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
+          }
+
+          let cardResult = { successCount: 0, skippedCount: 0 };
           if (patch.storedCards.length > 0) {
-            projectState.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-            const cardResult = mergeStoredCards(patch.storedCards);
-            installedCardCount = cardResult.successCount;
+            cardResult = mergeStoredCards(patch.storedCards);
             if (patch.activeCardSetId) useProjectStore.getState().setActiveCardSetId(patch.activeCardSetId);
           }
-          const installedTemplateId = templateToInstall.id!;
+
+          const installedCards = patch.storedCards.slice(0, cardResult.successCount);
+          const cardAddedCount = installedCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;
+          const cardUpdatedCount = Math.max(0, cardResult.successCount - cardAddedCount);
+          const templateAddedCount = personalTemplates.filter((template) => template.id && !existingTemplateIds.has(template.id)).length;
+          const templateUpdatedCount = Math.max(0, personalTemplates.length - templateAddedCount);
+          const destination: StudioDocumentInstallSummary['destination'] = cardResult.successCount > 0 ? 'sets' : 'template-maker';
+          const activeFrontTemplateId = patch.cardSets.find((set) => set.id === patch.activeCardSetId)?.frontTemplateId ?? null;
+          const installedTemplateId = activeFrontTemplateId
+            ?? personalTemplates.find((template) => template.id)?.id
+            ?? patch.userTemplates.find((template) => template.id)?.id
+            ?? null;
           setSelectedTemplateId(installedTemplateId);
           setTemplateEditorSelectedTemplateId(installedTemplateId);
-          setActiveTab(installedCardCount > 0 ? 'generator' : 'template-maker');
+          setActiveTab(destination);
 
-          handledDocumentIdRef.current = documentId;
+          const installSummary: StudioDocumentInstallSummary = {
+            templateCount: personalTemplates.length,
+            templateAddedCount,
+            templateUpdatedCount,
+            setCount: shouldInstallSetState ? patch.cardSets.length : 0,
+            cardCount: cardResult.successCount,
+            cardAddedCount,
+            cardUpdatedCount,
+            cardSkippedCount: cardResult.skippedCount,
+            activeSetId: patch.activeCardSetId ?? null,
+            destination,
+          };
+
+          if (actualRevision) {
+            void fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/installation`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ revision: actualRevision, summary: installSummary }),
+            }).catch((error) => {
+              console.warn('Unable to acknowledge installed agent revision:', error);
+            });
+          }
+
+          handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
           url.searchParams.delete('document');
           url.searchParams.delete('revision');
           window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
           const revisionLabel = actualRevision ? ` revision ${actualRevision}` : '';
-          const cardLabel = installedCardCount > 0
-            ? ` ${installedCardCount} card${installedCardCount === 1 ? '' : 's'} in the agent set were also added or updated.`
-            : '';
-          toast({
-            title: existingTemplate ? 'Agent Template updated' : 'Agent Template installed',
-            description: existingTemplate
-              ? `"${templateToInstall.name}"${revisionLabel} replaced the earlier agent revision in your personal Template library on this device.${cardLabel}`
-              : `"${templateToInstall.name}"${revisionLabel} is now in your personal Template library on this device.${cardLabel}`,
-          });
+          if (cardResult.successCount > 0) {
+            toast({
+              title: 'Agent revision applied',
+              description: `CardForge applied${revisionLabel}: ${cardAddedCount} card${cardAddedCount === 1 ? '' : 's'} added, ${cardUpdatedCount} updated${cardResult.skippedCount ? `, ${cardResult.skippedCount} skipped` : ''}. The working Set is open in Sets.`,
+            });
+          } else if (personalTemplates.length > 0) {
+            toast({
+              title: templateUpdatedCount > 0 ? 'Agent Template updated' : 'Agent Template installed',
+              description: `CardForge applied${revisionLabel}: ${templateAddedCount} Template${templateAddedCount === 1 ? '' : 's'} added and ${templateUpdatedCount} updated in your personal library on this device.`,
+            });
+          } else {
+            toast({
+              title: 'Agent revision applied',
+              description: `CardForge applied${revisionLabel} to this device.`,
+            });
+          }
           return;
         }
 
@@ -209,7 +259,7 @@ export function useStudioDocumentHandoff({
         setTemplateEditorSelectedTemplateId(firstTemplateId);
         setActiveTab('template-maker');
 
-        handledDocumentIdRef.current = documentId;
+        handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
         url.searchParams.delete('document');
         url.searchParams.delete('revision');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
@@ -228,8 +278,8 @@ export function useStudioDocumentHandoff({
           });
         }
       } finally {
-        if (inFlightDocumentIdRef.current === documentId) {
-          inFlightDocumentIdRef.current = null;
+        if (inFlightRevisionKeyRef.current === requestedKey) {
+          inFlightRevisionKeyRef.current = null;
         }
       }
     })();
