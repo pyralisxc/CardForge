@@ -19,6 +19,7 @@ export function useBootstrapLibraries({
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [templateLibraryFailed, setTemplateLibraryFailed] = useState(false);
   const [styleLibraryFailed, setStyleLibraryFailed] = useState(false);
+  const [studioDefaultTemplateId, setStudioDefaultTemplateId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const retryLibraries = useCallback(() => {
@@ -43,6 +44,7 @@ export function useBootstrapLibraries({
 
         setTemplateLibraryFailed(false);
         setStyleLibraryFailed(false);
+        setStudioDefaultTemplateId(payload.studioDefaults?.defaultTemplateId ?? null);
         setDefaultTemplatesFromFiles(payload.templates.defaults);
         mergeUserTemplatesFromFiles(payload.templates.userTemplates);
         setAppearanceStylesFromFiles(payload.styles.styles);
@@ -51,6 +53,7 @@ export function useBootstrapLibraries({
         if (!cancelled) {
           setTemplateLibraryFailed(true);
           setStyleLibraryFailed(true);
+          setStudioDefaultTemplateId(null);
         }
       } finally {
         if (!cancelled) setIsLoadingTemplates(false);
@@ -72,6 +75,7 @@ export function useBootstrapLibraries({
     isLoadingTemplates,
     retryLibraries,
     styleLibraryFailed,
+    studioDefaultTemplateId,
     templateLibraryFailed,
   };
 }
