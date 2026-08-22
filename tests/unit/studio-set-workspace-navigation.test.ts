@@ -8,13 +8,15 @@ import { normalizeActiveTab } from '@/features/project/store/workspaceDefaults';
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Studio set workspace navigation', () => {
-  it('keeps Sets as a first-class persisted Studio destination and preserves workspace height', () => {
+  it('keeps Sets as a first-class persisted Studio destination in an app-level navigation rail', () => {
     const tabs = readSource('src/features/app-shell/lib/studioTabs.tsx');
     const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
 
     expect(normalizeActiveTab('sets')).toBe('sets');
     expect(tabs).toContain("value: 'sets'");
     expect(tabs).toContain("label: 'Sets'");
+    expect(shell).toContain('cardforge-studio-workspace-nav');
+    expect(shell.indexOf('cardforge-studio-workspace-nav')).toBeLessThan(shell.indexOf('<main className="cardforge-studio-main'));
     expect(shell).toContain('grid-cols-3');
     expect(shell).toContain('value="sets"');
     expect(shell).toContain('data-testid="sets-panel"');
@@ -24,16 +26,34 @@ describe('Studio set workspace navigation', () => {
     expect(shell).not.toContain('p-4 text-center text-sm text-[#a8946d]');
   });
 
+  it('keeps Make Cards generation-only and makes Sets the finished production workspace', () => {
+    const makeCards = readSource('src/features/card-generator/components/GenerationWorkspace.tsx');
+    const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
+
+    expect(makeCards).toContain('Bulk generation');
+    expect(makeCards).toContain('<BulkGenerator');
+    expect(makeCards).toContain('Sets to inspect, edit, share, back up, and export');
+    expect(makeCards).not.toContain('<GeneratedCardGallery');
+    expect(makeCards).not.toContain('<ExportControlsPanel');
+
+    expect(sets).toContain('data-cardforge-set-library="true"');
+    expect(sets).toContain('Cards in this set');
+    expect(sets).toContain('Editable set');
+    expect(sets).toContain('Rendered output');
+    expect(sets).toContain('<CardVisualPreviewDialog');
+    expect(sets).toContain('<ShareCardButton');
+    expect(sets).toContain('<ExportCardImageButton');
+    expect(sets).toContain('<ExportControlsPanel');
+  });
+
   it('uses Sets as the production library while Account remains the storage lens', () => {
     const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
     const accountStorage = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
-    expect(sets).toContain('data-cardforge-set-library="true"');
     expect(sets).toContain('useProjectStore');
     expect(sets).toContain('useCloudSetActions');
     expect(sets).toContain('useCardTransferActions');
-    expect(sets).toContain('Make cards');
-    expect(sets).toContain('Cards in this set');
+    expect(sets).toContain('Add cards');
     expect(sets).toContain('Cloud only');
     expect(sets).not.toContain('AssistantDraftLibrary');
     expect(sets).not.toContain('Browser storage');
