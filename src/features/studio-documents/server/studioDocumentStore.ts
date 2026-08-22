@@ -33,9 +33,11 @@ interface StudioDocumentRow {
   last_installed_revision: number | null;
   last_installed_at: string | null;
   last_install_summary: unknown;
+  source_cloud_set_id: string | null;
+  source_cloud_revision: number | null;
 }
 
-const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary';
+const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_cloud_set_id,source_cloud_revision';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
 
 const readInstallSummary = (value: unknown): StudioDocumentInstallSummary | null => (
@@ -59,6 +61,8 @@ const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocu
   lastInstalledRevision: row.last_installed_revision,
   lastInstalledAt: row.last_installed_at,
   lastInstallSummary: readInstallSummary(row.last_install_summary),
+  sourceCloudSetId: row.source_cloud_set_id,
+  sourceCloudRevision: row.source_cloud_revision,
 });
 
 const toDocument = (row: StudioDocumentRow): StudioDocument => {
@@ -164,13 +168,20 @@ export const createStudioDocument = async ({
   creationSource,
   document,
   retentionHours,
+  sourceCloudSetId = null,
+  sourceCloudRevision = null,
 }: {
   ownerUserId: string;
   title: string;
   creationSource: StudioDocumentSource;
   document: ProjectDocumentV1;
   retentionHours: number;
+  sourceCloudSetId?: string | null;
+  sourceCloudRevision?: number | null;
 }): Promise<StudioDocument> => {
+  if ((sourceCloudSetId === null) !== (sourceCloudRevision === null)) {
+    throw new StudioDocumentStoreError('Cloud checkout lineage requires both a Set id and source revision.', 400);
+  }
   const documentId = randomUUID();
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
@@ -186,6 +197,8 @@ export const createStudioDocument = async ({
       last_activity_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString(),
       retention_grace_until: null,
+      source_cloud_set_id: sourceCloudSetId,
+      source_cloud_revision: sourceCloudRevision,
     })
     .select(DOCUMENT_COLUMNS)
     .single();
