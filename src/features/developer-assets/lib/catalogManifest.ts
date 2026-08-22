@@ -38,6 +38,9 @@ export interface CardForgeStudioBootstrapManifest {
   templates: CardForgeCatalogManifest['templates'];
   styles: AppearanceStyleLibrary;
   fonts: CardForgeCatalogManifest['fonts'];
+  studioDefaults: {
+    defaultTemplateId: string | null;
+  };
 }
 
 export interface CardForgeStudioAssetManifest {
@@ -94,6 +97,7 @@ const mapStudioBootstrap = async (
     templates: { defaults: templates, userTemplates: [] },
     styles: { version: 1, styles },
     fonts,
+    studioDefaults: { defaultTemplateId: null },
   };
 };
 
