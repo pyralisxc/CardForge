@@ -132,7 +132,7 @@ export function OwnerExperienceControlsPanel({
           >
             <option value="">Automatic — first available published front Template</option>
             {frontStudioTemplates.map((template) => (
-              <option key={template.id} value={template.id}>{template.name || template.id}</option>
+              <option key={template.id ?? template.name} value={template.id ?? ''}>{template.name || template.id}</option>
             ))}
           </select>
           <span className="leading-6 text-[var(--cf-text-subtle)]">
