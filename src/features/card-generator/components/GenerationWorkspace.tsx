@@ -1,21 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from 'react';
-import { FilePlus2, FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardPreview } from '@/features/card-rendering/client';
+import { CardPreview, CardWatermarkOverlay, shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
 import { CardSetManager } from '@/features/card-generator/components/CardSetManager';
-import { CardWatermarkOverlay } from '@/features/card-rendering/client';
-import { ExportControlsPanel } from '@/features/card-generator/components/ExportControlsPanel';
-import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
-import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
+import type { GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
 import type { CardSet } from '@/domain/cards';
 import {
   getCompatibleCardBacks,
@@ -27,7 +23,6 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import type { TabletopSimulatorExportQuality } from '@/features/card-generator/lib/zipExport';
-import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface GenerationWorkspaceProps {
@@ -78,57 +73,29 @@ interface GenerationWorkspaceProps {
   onRemoveCard: (card: DisplayCard) => void;
 }
 
-export function GenerationWorkspace({
-  isLoadingTemplates,
-  templates,
-  backFaceTemplates,
-  activeCardSet,
-  generatorSelectedTemplateId,
-  selectedPaperSize,
-  pdfMarginMm,
-  pdfCardSpacingMm,
-  pdfIncludeCutLines,
-  pdfDuplexLayout,
-  richTextHighlightColor,
-  exportMode,
-  exportDpi,
-  generatedDisplayCards,
-  zipProgress,
-  gallerySearch,
-  gallerySort,
-  isZipExporting,
-  zipExportKind,
-  isCheckoutStarting,
-  canExportClean,
-  exportGateMessage,
-  exportEntitlementLabel,
-  exportEntitlementMessage,
-  onOpenTemplateMaker,
-  onCreateMatchingBack,
-  onEditSelectedBack,
-  onManageCardBacks,
-  onSingleCardAdded,
-  onBulkCardsGenerated,
-  onTemplateSelectionChange,
-  onSetActiveCardSetName,
-  onSetActiveCardSetBackingTemplateId,
-  onSelectPaperSize,
-  onSetPdfOptions,
-  onSetExportMode,
-  onSetExportDpi,
-  onStartCheckout,
-  onExportAllAsZip,
-  onExportTabletopSimulatorSpritesheets,
-  onClearCardsRequest,
-  onGallerySearchChange,
-  onGallerySortChange,
-  onEditCardRequest,
-  onRemoveCard,
-}: GenerationWorkspaceProps) {
-  const galleryRegionRef = useRef<HTMLDivElement | null>(null);
+export function GenerationWorkspace(props: GenerationWorkspaceProps) {
+  const {
+    isLoadingTemplates,
+    templates,
+    backFaceTemplates,
+    activeCardSet,
+    generatorSelectedTemplateId,
+    richTextHighlightColor,
+    canExportClean,
+    generatedDisplayCards,
+    onOpenTemplateMaker,
+    onCreateMatchingBack,
+    onEditSelectedBack,
+    onManageCardBacks,
+    onBulkCardsGenerated,
+    onTemplateSelectionChange,
+    onSetActiveCardSetName,
+    onSetActiveCardSetBackingTemplateId,
+  } = props;
+
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === generatorSelectedTemplateId) || null,
-    [generatorSelectedTemplateId, templates]
+    [generatorSelectedTemplateId, templates],
   );
   const compatibleBackTemplates = useMemo(
     () => selectedTemplate ? getCompatibleCardBacks(selectedTemplate, backFaceTemplates) : [],
@@ -138,39 +105,24 @@ export function GenerationWorkspace({
     () => activeCardSet.backingTemplateId
       ? compatibleBackTemplates.find((template) => template.id === activeCardSet.backingTemplateId) || null
       : null,
-    [activeCardSet.backingTemplateId, compatibleBackTemplates]
+    [activeCardSet.backingTemplateId, compatibleBackTemplates],
   );
   const selectedFormat = selectedTemplate ? resolveTemplateCardFormat(selectedTemplate) : null;
   const deckPreviewCard = useMemo<DisplayCard | null>(() => (
     selectedTemplate
       ? {
-        template: selectedTemplate,
-        backingTemplate: selectedBackingTemplate,
-        backingTemplateId: selectedBackingTemplate?.id ?? null,
-        setId: activeCardSet.id,
-        setName: activeCardSet.name,
-        data: selectedTemplate.templatePreviewData || {},
-        uniqueId: `${activeCardSet.id}-setup-preview`,
-      }
+          template: selectedTemplate,
+          backingTemplate: selectedBackingTemplate,
+          backingTemplateId: selectedBackingTemplate?.id ?? null,
+          setId: activeCardSet.id,
+          setName: activeCardSet.name,
+          data: selectedTemplate.templatePreviewData || {},
+          uniqueId: `${activeCardSet.id}-setup-preview`,
+        }
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
   const showGeneratedPreviewWatermark = shouldShowVisibleCardWatermark(canExportClean);
-  const hasGeneratedCards = generatedDisplayCards.length > 0;
-  const scrollGalleryIntoView = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      galleryRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, []);
 
-  const handleSingleCardAdded = useCallback((card: DisplayCard) => {
-    onSingleCardAdded(card);
-    scrollGalleryIntoView();
-  }, [onSingleCardAdded, scrollGalleryIntoView]);
-
-  const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
-    onBulkCardsGenerated(cards);
-    if (cards.length > 0) scrollGalleryIntoView();
-  }, [onBulkCardsGenerated, scrollGalleryIntoView]);
   const requestMatchingBack = useCallback(() => {
     if (!selectedTemplate) return;
     trackCardForgeEvent('matching_back_requested', {
@@ -180,22 +132,29 @@ export function GenerationWorkspace({
     onCreateMatchingBack(selectedTemplate);
   }, [onCreateMatchingBack, selectedFormat?.formatId, selectedTemplate]);
 
+  const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
+    onBulkCardsGenerated(cards);
+    if (cards.length > 0) {
+      trackCardForgeEvent('generation_method_selected', { generation_method: 'bulk' });
+    }
+  }, [onBulkCardsGenerated]);
+
   if (isLoadingTemplates) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" aria-label="Loading templates" />
-        <p className="text-muted-foreground text-sm">Loading templates...</p>
+        <p className="text-sm text-muted-foreground">Loading templates...</p>
       </div>
     );
   }
 
   if (templates.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-xl bg-card/30 text-center p-12 space-y-5 shadow-inner">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-5 rounded-xl border bg-card/30 p-12 text-center shadow-inner">
         <PenTool className="h-16 w-16 text-primary/60" />
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">No Templates Yet</h2>
-          <p className="text-muted-foreground max-w-sm">Open Templates to create a front Template first, then come back here to fill in its fields and make cards.</p>
+          <p className="max-w-sm text-muted-foreground">Open Templates to create a front Template first, then come back here to generate cards from a list.</p>
         </div>
         <Button size="lg" onClick={onOpenTemplateMaker} className="gap-2">
           <PenTool className="h-5 w-5" /> Open Templates
@@ -205,247 +164,157 @@ export function GenerationWorkspace({
   }
 
   return (
-    <>
-    <div className="space-y-8">
+    <div className="space-y-6 pb-6">
       <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="rounded-lg border bg-card p-4 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Layers3 className="h-5 w-5 text-primary" />
-            <div>
-              <h2 id="generator-setup-heading" className="text-base font-semibold">Set up your set</h2>
-              <p className="text-xs text-muted-foreground">Choose the front design and card back for this set.</p>
-            </div>
+        <div className="mb-4 flex items-center gap-2">
+          <Layers3 className="h-5 w-5 text-primary" />
+          <div>
+            <h2 id="generator-setup-heading" className="text-base font-semibold">Generation target</h2>
+            <p className="text-xs text-muted-foreground">Choose which set and Template this batch should use.</p>
           </div>
-          <CardSetManager />
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
-            <div>
-              <Label htmlFor="active-card-set-name">Set name</Label>
-              <Input
-                id="active-card-set-name"
-                value={activeCardSet.name}
-                onChange={(event) => onSetActiveCardSetName(event.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="deck-front-template">Template</Label>
-              <Select
-                value={generatorSelectedTemplateId ?? undefined}
-                onValueChange={(value) => onTemplateSelectionChange(value)}
-                disabled={templates.length === 0}
-              >
-                <SelectTrigger id="deck-front-template">
-                  <SelectValue placeholder="Choose a Template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id || template.name} value={template.id || template.name}>
-                      {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="deck-backing-template">Card Back</Label>
-              <Select
-                value={activeCardSet.backingTemplateId || '_none_'}
-                onValueChange={(value) => {
-                  onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value);
-                  trackCardForgeEvent('card_back_selected', {
-                    format_id: selectedFormat?.formatId ?? 'custom',
-                    has_matching_back: value !== '_none_',
-                  });
-                }}
-              >
-                <SelectTrigger id="deck-backing-template">
-                  <SelectValue placeholder="Choose card back" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none_">No card back</SelectItem>
-                  {compatibleBackTemplates.map((template) => (
-                    <SelectItem key={template.id || template.name} value={template.id || template.name}>
-                      {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedTemplate && compatibleBackTemplates.length > 0 ? (
-                <>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {compatibleBackTemplates.length} matching {compatibleBackTemplates.length === 1 ? 'back' : 'backs'} available. Choose one to preview it.
-                  </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                    {selectedBackingTemplate?.id ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => onEditSelectedBack(selectedBackingTemplate.id!)}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" /> Edit selected back
-                      </Button>
-                    ) : null}
-                    <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={requestMatchingBack}>
-                      <Plus className="mr-2 h-4 w-4" /> Create matching back
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" className="w-full justify-start" onClick={onManageCardBacks}>
-                      <FolderOpen className="mr-2 h-4 w-4" /> Manage card backs
-                    </Button>
-                  </div>
-                </>
-              ) : null}
-              {selectedTemplate && compatibleBackTemplates.length === 0 ? (
-                <div className="mt-2 space-y-2 rounded-md border border-amber-500/35 bg-amber-500/10 p-3 text-xs">
-                  <p className="font-medium text-foreground">No matching card back yet</p>
-                  <p className="leading-5 text-muted-foreground">
-                    This design uses {selectedFormat ? `${selectedFormat.widthMm} × ${selectedFormat.heightMm} mm` : 'a custom size'}.
-                    Create a matching back now, or continue without one.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={requestMatchingBack}
-                  >
-                    Create matching card back
+        </div>
+
+        <CardSetManager />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
+          <div>
+            <Label htmlFor="active-card-set-name">Set name</Label>
+            <Input
+              id="active-card-set-name"
+              value={activeCardSet.name}
+              onChange={(event) => onSetActiveCardSetName(event.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="deck-front-template">Template</Label>
+            <Select
+              value={generatorSelectedTemplateId ?? undefined}
+              onValueChange={(value) => onTemplateSelectionChange(value)}
+              disabled={templates.length === 0}
+            >
+              <SelectTrigger id="deck-front-template">
+                <SelectValue placeholder="Choose a Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id || template.name} value={template.id || template.name}>
+                    {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="deck-backing-template">Card back</Label>
+            <Select
+              value={activeCardSet.backingTemplateId || '_none_'}
+              onValueChange={(value) => {
+                onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value);
+                trackCardForgeEvent('card_back_selected', {
+                  format_id: selectedFormat?.formatId ?? 'custom',
+                  has_matching_back: value !== '_none_',
+                });
+              }}
+            >
+              <SelectTrigger id="deck-backing-template">
+                <SelectValue placeholder="Choose card back" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none_">No card back</SelectItem>
+                {compatibleBackTemplates.map((template) => (
+                  <SelectItem key={template.id || template.name} value={template.id || template.name}>
+                    {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedTemplate && compatibleBackTemplates.length > 0 ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {selectedBackingTemplate?.id ? (
+                  <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => onEditSelectedBack(selectedBackingTemplate.id!)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit selected back
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" className="w-full" onClick={onManageCardBacks}>
-                    Manage card backs
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-            {deckPreviewCard ? (
-              <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
-                  <div className="relative w-fit">
-                    <CardPreview card={deckPreviewCard} face="front" highlightColor={richTextHighlightColor} targetWidthPx={110} />
-                    {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
-                  {selectedBackingTemplate ? (
-                    <div className="relative w-fit">
-                      <CardPreview card={deckPreviewCard} face="back" highlightColor={richTextHighlightColor} targetWidthPx={110} />
-                      {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-back-watermark" /> : null}
-                    </div>
-                  ) : (
-                    <div className="flex aspect-[63/88] w-[78px] items-center justify-center rounded border border-dashed bg-muted/40 px-2 text-center text-xs text-muted-foreground">
-                      No card back selected
-                    </div>
-                  )}
-                </div>
+                ) : null}
+                <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={requestMatchingBack}>
+                  <Plus className="mr-2 h-4 w-4" /> Create matching back
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="w-full justify-start" onClick={onManageCardBacks}>
+                  <FolderOpen className="mr-2 h-4 w-4" /> Manage card backs
+                </Button>
+              </div>
+            ) : null}
+
+            {selectedTemplate && compatibleBackTemplates.length === 0 ? (
+              <div className="mt-2 space-y-2 rounded-md border border-amber-500/35 bg-amber-500/10 p-3 text-xs">
+                <p className="font-medium text-foreground">No matching card back yet</p>
+                <p className="leading-5 text-muted-foreground">
+                  This design uses {selectedFormat ? `${selectedFormat.widthMm} × ${selectedFormat.heightMm} mm` : 'a custom size'}. Create a matching back now, or continue without one.
+                </p>
+                <Button type="button" size="sm" variant="outline" className="w-full" onClick={requestMatchingBack}>
+                  Create matching card back
+                </Button>
               </div>
             ) : null}
           </div>
+
+          {deckPreviewCard ? (
+            <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
+                <div className="relative w-fit">
+                  <CardPreview card={deckPreviewCard} face="front" highlightColor={richTextHighlightColor} targetWidthPx={110} />
+                  {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
+                {selectedBackingTemplate ? (
+                  <div className="relative w-fit">
+                    <CardPreview card={deckPreviewCard} face="back" highlightColor={richTextHighlightColor} targetWidthPx={110} />
+                    {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-back-watermark" /> : null}
+                  </div>
+                ) : (
+                  <div className="flex aspect-[63/88] w-[78px] items-center justify-center rounded border border-dashed bg-muted/40 px-2 text-center text-xs text-muted-foreground">
+                    No card back selected
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       <section data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Create cards</p>
-          <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Fill one card or bring in a whole list</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
+            <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Generate cards from a list</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Make Cards is the production-input workspace. Add or paste a batch here, then use Sets to inspect, edit, share, back up, and export the finished cards.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-md border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+            <PackagePlus className="h-4 w-4 text-primary" />
+            {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'} currently in {activeCardSet.name}
+          </div>
         </div>
-        <Tabs
-          defaultValue="single"
-          className="space-y-4"
-          onValueChange={(value) => trackCardForgeEvent('generation_method_selected', { generation_method: value })}
-        >
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
-            <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
-              <FilePlus2 className="h-4 w-4" />
-              One card
-            </TabsTrigger>
-            <TabsTrigger value="bulk" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
-              <PackagePlus className="h-4 w-4" />
-              Use a list
-            </TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="single" className="mt-0">
-            <SingleCardGenerator
-              templates={templates}
-              backingTemplate={selectedBackingTemplate}
-              activeCardSet={activeCardSet}
-              onSingleCardAdded={handleSingleCardAdded}
-              selectedTemplateIdProp={generatorSelectedTemplateId}
-            />
-          </TabsContent>
-
-          <TabsContent value="bulk" className="mt-0">
-            <BulkGenerator
-              templates={templates}
-              backingTemplate={selectedBackingTemplate}
-              activeCardSet={activeCardSet}
-              onCardsGenerated={handleBulkCardsGenerated}
-              selectedTemplateIdProp={generatorSelectedTemplateId}
-            />
-          </TabsContent>
-        </Tabs>
+        <BulkGenerator
+          templates={templates}
+          backingTemplate={selectedBackingTemplate}
+          activeCardSet={activeCardSet}
+          onCardsGenerated={handleBulkCardsGenerated}
+          selectedTemplateIdProp={generatorSelectedTemplateId}
+        />
       </section>
 
-      {hasGeneratedCards ? <section data-workflow-step="review" aria-labelledby="generator-review-heading" className="space-y-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Review the set</p>
-          <h2 id="generator-review-heading" className="mt-1 text-xl font-semibold">Review your cards</h2>
+      {generatedDisplayCards.length > 0 ? (
+        <div className="rounded-md border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-text-muted)]" role="status">
+          This set already has {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'}. Review, preview, share, and export them from <span className="font-semibold text-[var(--cf-text-strong)]">Sets</span>.
         </div>
-        <div ref={galleryRegionRef} className="min-w-0 scroll-mt-4">
-          <GeneratedCardGallery
-            templates={templates}
-            generatorSelectedTemplateId={generatorSelectedTemplateId}
-            generatedDisplayCards={generatedDisplayCards}
-            gallerySearch={gallerySearch}
-            gallerySort={gallerySort}
-            exportMode={exportMode}
-            exportDpi={exportDpi}
-            richTextHighlightColor={richTextHighlightColor}
-            showPreviewWatermark={showGeneratedPreviewWatermark}
-            onGallerySearchChange={onGallerySearchChange}
-            onGallerySortChange={onGallerySortChange}
-            onEditCardRequest={onEditCardRequest}
-            onRemoveCard={onRemoveCard}
-            canExportClean={canExportClean}
-          />
-        </div>
-      </section> : (
-        <section data-workflow-step="next" className="rounded-lg border border-dashed bg-card/40 p-4 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Next: review and export</p>
-          <p className="mt-1">Add your first card above. CardForge will then open the set gallery, print layout, image downloads, and virtual-tabletop exports.</p>
-        </section>
-      )}
-
-      {hasGeneratedCards ? <section data-workflow-step="export" aria-labelledby="generator-export-heading">
-        <ExportControlsPanel
-          canExportClean={canExportClean}
-          exportDpi={exportDpi}
-          exportEntitlementLabel={exportEntitlementLabel}
-          exportEntitlementMessage={exportEntitlementMessage}
-          exportGateMessage={exportGateMessage}
-          exportMode={exportMode}
-          generatedDisplayCards={generatedDisplayCards}
-          isCheckoutStarting={isCheckoutStarting}
-          isZipExporting={isZipExporting}
-          pdfCardSpacingMm={pdfCardSpacingMm}
-          pdfDuplexLayout={pdfDuplexLayout}
-          pdfIncludeCutLines={pdfIncludeCutLines}
-          pdfMarginMm={pdfMarginMm}
-          richTextHighlightColor={richTextHighlightColor}
-          selectedPaperSize={selectedPaperSize}
-          zipExportKind={zipExportKind}
-          zipProgress={zipProgress}
-          onClearCardsRequest={onClearCardsRequest}
-          onExportAllAsZip={onExportAllAsZip}
-          onExportTabletopSimulatorSpritesheets={onExportTabletopSimulatorSpritesheets}
-          onSelectPaperSize={onSelectPaperSize}
-          onSetExportDpi={onSetExportDpi}
-          onSetExportMode={onSetExportMode}
-          onSetPdfOptions={onSetPdfOptions}
-          onStartCheckout={onStartCheckout}
-        />
-      </section> : null}
+      ) : null}
     </div>
-    </>
   );
 }
