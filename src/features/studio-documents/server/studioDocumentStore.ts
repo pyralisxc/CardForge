@@ -4,6 +4,7 @@ import type { ProjectDocumentV1 } from '@/features/project/server';
 import {
   normalizeStudioDocumentPayload,
   type StudioDocument,
+  type StudioDocumentInstallSummary,
   type StudioDocumentSource,
   type StudioDocumentSummary,
 } from '@/features/studio-documents/model';
@@ -29,10 +30,19 @@ interface StudioDocumentRow {
   retention_hours: number;
   deleted_at: string | null;
   purge_after: string | null;
+  last_installed_revision: number | null;
+  last_installed_at: string | null;
+  last_install_summary: unknown;
 }
 
-const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after';
+const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
+
+const readInstallSummary = (value: unknown): StudioDocumentInstallSummary | null => (
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? value as StudioDocumentInstallSummary
+    : null
+);
 
 const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocumentSummary => ({
   id: row.id,
@@ -46,6 +56,9 @@ const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocu
   retentionHours: row.retention_hours,
   deletedAt: row.deleted_at,
   purgeAfter: row.purge_after,
+  lastInstalledRevision: row.last_installed_revision,
+  lastInstalledAt: row.last_installed_at,
+  lastInstallSummary: readInstallSummary(row.last_install_summary),
 });
 
 const toDocument = (row: StudioDocumentRow): StudioDocument => {
@@ -243,8 +256,46 @@ export const updateStudioDocument = async ({
       409,
     );
   }
-  const updated = toDocument(data as unknown as StudioDocumentRow);
-  return updated;
+  return toDocument(data as unknown as StudioDocumentRow);
+};
+
+export const recordStudioDocumentInstallation = async ({
+  ownerUserId,
+  documentId,
+  revision,
+  summary,
+}: {
+  ownerUserId: string;
+  documentId: string;
+  revision: number;
+  summary: StudioDocumentInstallSummary;
+}): Promise<StudioDocumentSummary> => {
+  const installedAt = new Date().toISOString();
+  const { data, error } = await requireStore()
+    .from('cardforge_studio_documents')
+    .update({
+      last_installed_revision: revision,
+      last_installed_at: installedAt,
+      last_install_summary: summary,
+    })
+    .eq('id', documentId)
+    .eq('owner_user_id', ownerUserId)
+    .eq('revision', revision)
+    .eq('creation_source', 'gpt')
+    .is('deleted_at', null)
+    .select(SUMMARY_COLUMNS)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to acknowledge Studio document installation:', error);
+    throw new StudioDocumentStoreError('Unable to acknowledge the installed CardForge revision.');
+  }
+  if (!data) {
+    throw new StudioDocumentStoreError(
+      `CardForge could not acknowledge revision ${revision} because the agent working document has changed. Reopen and apply the latest revision instead.`,
+      409,
+    );
+  }
+  return toSummary(data as unknown as Omit<StudioDocumentRow, 'document_payload'>);
 };
 
 export const deleteStudioDocument = async (
