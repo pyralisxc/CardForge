@@ -100,7 +100,8 @@ describe('MCP workflow hardening', () => {
     expect(accountTools).toContain('isOwner: access.isOwner');
     expect(accountTools).toContain('isDeveloper: access.isDeveloper');
     expect(accountTools).toContain('scopes: access.scopes');
-    expect(access).toContain("return createStudioOnlyAccess('studio.ai.create')");
+    expect(access).toContain("scopes: ['studio.ai.create']");
+    expect(access).toContain('{ allowStudioAiOnly: true }');
   });
 
   it('documents and enforces the known artwork limits in the agent workflow', () => {
