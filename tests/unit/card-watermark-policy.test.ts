@@ -76,8 +76,12 @@ describe('card watermark policy', () => {
       resolve(process.cwd(), 'src/features/card-generator/components/GenerationWorkspace.tsx'),
       'utf8',
     );
-    const gallerySource = readFileSync(
-      resolve(process.cwd(), 'src/features/card-generator/components/GeneratedCardGallery.tsx'),
+    const setLibrarySource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/components/SetLibraryWorkspace.tsx'),
+      'utf8',
+    );
+    const visualPreviewSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/components/CardVisualPreviewDialog.tsx'),
       'utf8',
     );
     const makerSource = readFileSync(
@@ -96,8 +100,11 @@ describe('card watermark policy', () => {
     expect(shellSource).toContain('shouldShowVisibleCardWatermark(projectCapabilities.canExportClean)');
     expect(shellSource).toContain('showCardWatermark={showVisibleCardWatermark}');
     expect(workspaceSource).toContain('shouldShowVisibleCardWatermark(canExportClean)');
-    expect(workspaceSource).toContain('showPreviewWatermark={showGeneratedPreviewWatermark}');
-    expect(gallerySource).toContain('showPreviewWatermark ? <CardWatermarkOverlay /> : null');
+    expect(workspaceSource).toContain('showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null');
+    expect(setLibrarySource).toContain('shouldShowVisibleCardWatermark(canExportClean)');
+    expect(setLibrarySource).toContain('showWatermark ? <CardWatermarkOverlay testId={`set-library-watermark-${card.uniqueId}`} /> : null');
+    expect(setLibrarySource).toContain('showWatermark={showWatermark}');
+    expect(visualPreviewSource).toContain('showWatermark ? <CardWatermarkOverlay testId={`visual-preview-watermark-${card.uniqueId}`} /> : null');
     expect(makerSource).toContain('showCardWatermark={showCardWatermark}');
     expect(stageSource).toContain('showCardWatermark ? <CardWatermarkOverlay testId="template-editor-watermark" /> : null');
     expect(librarySource).toContain('showCardWatermark ? <CardWatermarkOverlay testId="template-library-watermark" /> : null');
