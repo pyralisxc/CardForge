@@ -1,31 +1,29 @@
 import { createHash } from 'node:crypto';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
-import { getCardForgeStudioBootstrapManifest } from '@/features/developer-assets/lib/catalogManifest';
-import type { RegistryViewerAccess } from '@/features/developer-assets/lib/registryContentAssets';
+import {
+  getCardForgeStudioBootstrapManifest,
+  type RegistryViewerAccess,
+} from '@/features/developer-assets/server';
 import {
   CloudSetStoreError,
+  createCardSetTransfer,
   createProjectDocumentFromState,
+  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   deleteCloudSet,
   getCloudSet,
   getCloudSetAssetIdFromReference,
   getCloudSetAssetReference,
   prepareCloudSetUploads,
   saveCloudSet,
+  type CardForgeTransferV1,
   type CloudSetAssetDescriptor,
   type CloudSetDownloadAsset,
   type CloudSetSummary,
 } from '@/features/project/server';
-import {
-  createCardSetTransfer,
-  type CardForgeTransferV1,
-} from '@/features/project/model/cardTransfer';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/model/projectDocument';
 import {
   getStudioDocumentAssetIdFromReference,
   replaceStudioDocumentAssetReferences,
