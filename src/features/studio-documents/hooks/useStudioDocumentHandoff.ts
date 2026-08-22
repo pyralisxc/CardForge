@@ -18,10 +18,10 @@ import {
 } from '@/features/project/client';
 import {
   normalizeStudioDocumentPayload,
+  type StudioDocumentAssetDownload,
   type StudioDocumentInstallSummary,
   type StudioDocumentSource,
 } from '@/features/studio-documents/model';
-import type { StudioDocumentAssetDownload } from '../assetReferences';
 import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -132,7 +132,7 @@ export function useStudioDocumentHandoff({
           const existingCardIds = new Set(beforeState.storedCards.map((card) => card.uniqueId));
           const personalTemplates = patch.userTemplates.filter((template) => (
             template.templateSource !== 'default'
-            && template.templateLibrarySource !== 'official'
+            && template.templateLibrarySource !== 'pipeline'
           ));
 
           await Promise.all([
@@ -158,20 +158,15 @@ export function useStudioDocumentHandoff({
             useProjectStore.getState().mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
           }
 
-          const stateBeforeCardMerge = useProjectStore.getState();
-          const availableTemplateIds = new Set([
-            ...stateBeforeCardMerge.defaultTemplates,
-            ...stateBeforeCardMerge.userTemplates,
-          ].map((template) => template.id).filter((id): id is string => Boolean(id)));
-          const mergeableCards = patch.storedCards.filter((card) => availableTemplateIds.has(card.templateId));
           let cardResult = { successCount: 0, skippedCount: 0 };
           if (patch.storedCards.length > 0) {
             cardResult = mergeStoredCards(patch.storedCards);
             if (patch.activeCardSetId) useProjectStore.getState().setActiveCardSetId(patch.activeCardSetId);
           }
 
-          const cardAddedCount = mergeableCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;
-          const cardUpdatedCount = Math.max(0, mergeableCards.length - cardAddedCount);
+          const installedCards = patch.storedCards.slice(0, cardResult.successCount);
+          const cardAddedCount = installedCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;
+          const cardUpdatedCount = Math.max(0, cardResult.successCount - cardAddedCount);
           const templateAddedCount = personalTemplates.filter((template) => template.id && !existingTemplateIds.has(template.id)).length;
           const templateUpdatedCount = Math.max(0, personalTemplates.length - templateAddedCount);
           const destination: StudioDocumentInstallSummary['destination'] = cardResult.successCount > 0 ? 'sets' : 'template-maker';
@@ -198,21 +193,14 @@ export function useStudioDocumentHandoff({
           };
 
           if (actualRevision) {
-            void (async () => {
-              try {
-                const acknowledgement = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/installation`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'same-origin',
-                  body: JSON.stringify({ revision: actualRevision, summary: installSummary }),
-                });
-                if (!acknowledgement.ok) {
-                  console.warn('CardForge applied the agent revision locally but could not acknowledge that installation to the agent working document.');
-                }
-              } catch (error) {
-                console.warn('Unable to acknowledge installed agent revision:', error);
-              }
-            })();
+            void fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/installation`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ revision: actualRevision, summary: installSummary }),
+            }).catch((error) => {
+              console.warn('Unable to acknowledge installed agent revision:', error);
+            });
           }
 
           handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
