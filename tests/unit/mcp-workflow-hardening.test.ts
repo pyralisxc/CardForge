@@ -25,11 +25,11 @@ const card: StoredDisplayCard = {
   data: { name: 'Card One' },
 };
 
-const template = (id: string, source: 'official' | 'personal'): TCGCardTemplate => ({
+const template = (id: string, source: 'pipeline' | 'personal'): TCGCardTemplate => ({
   id,
   name: id,
   aspectRatio: '63:88',
-  templateSource: 'user',
+  templateSource: source === 'pipeline' ? 'default' : 'user',
   templateLibrarySource: source,
   freeformCanvas: { width: 630, height: 880, elements: [] },
 });
@@ -41,12 +41,12 @@ describe('MCP workflow hardening', () => {
     expect(first).not.toBe(revised);
   });
 
-  it('does not export transient official catalog Templates as personal Set dependencies', () => {
+  it('does not export transient published catalog Templates as personal Set dependencies', () => {
     const transfer = createCardSetTransfer({
       set,
       storedCards: [card],
       templates: [
-        template('official-template', 'official'),
+        template('official-template', 'pipeline'),
         template('unrelated-personal', 'personal'),
       ],
     });
