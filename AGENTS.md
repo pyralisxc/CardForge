@@ -8,9 +8,10 @@ Treat `main` plus live provider state as authoritative. Read current product tru
 
 1. `README.md` for the live product/source map.
 2. `docs/architecture.md` for ownership and invariants.
-3. `docs/integrations.md` for provider-native ownership and trace paths.
-4. `docs/operations.md` for current release/provider procedures.
-5. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
+3. `docs/product-direction.md` for the intended product model and next delivery sequence; it does not override shipped behavior.
+4. `docs/integrations.md` for provider-native ownership and trace paths.
+5. `docs/operations.md` for current release/provider procedures.
+6. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
 
 Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
@@ -43,7 +44,7 @@ When fixing a bug, first find the native owner and make the smallest change ther
 
 ## Roadmap and completed work
 
-The live `/roadmap` and Supabase roadmap tables own current future/completed product plans. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
+`docs/product-direction.md` owns the durable intended product model and delivery sequence. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep them consistent without turning either source into a duplicate of the other. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
 Closed implementation plans, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 

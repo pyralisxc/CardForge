@@ -21,11 +21,12 @@ A fresh maintainer or agent should be able to work from the repository without p
 
 1. `AGENTS.md` for working rules.
 2. `docs/architecture.md` for current product ownership and invariants.
-3. `docs/integrations.md` for provider-native ownership and human trace paths.
-4. `docs/operations.md` for the current release/provider runbook.
-5. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
+3. `docs/product-direction.md` for the intended product model and next delivery sequence; it does not override shipped behavior.
+4. `docs/integrations.md` for provider-native ownership and human trace paths.
+5. `docs/operations.md` for the current release/provider runbook.
+6. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
 
-PRs, commits, old migrations, and provider history are historical evidence, not current product instructions. The live `/roadmap` and its Supabase records own future/completed roadmap state; shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 ## Quick start
 
@@ -125,8 +126,9 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 ## Documentation
 
 - `docs/architecture.md`: current architecture and source-of-truth behavior.
+- `docs/product-direction.md`: intended product model, boundaries, and delivery sequence.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current operations, release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
 
-Keep these documents current and small. Completed rollout instructions belong in Git/provider history, not in the live docs.
+Keep these documents current and focused. Completed rollout instructions belong in Git/provider history, not in the live docs.
