@@ -12,8 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CardPreview, CardWatermarkOverlay } from '@/features/card-rendering/client';
-import { hasCardBacking, type CardFace } from '@/domain/cards';
-import type { DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
+import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 
 const MIN_ZOOM = 0.55;
 const MAX_ZOOM = 2.25;
