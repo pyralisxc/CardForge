@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
 import {
-  getCardForgeStudioBootstrapManifest,
+  getCachedCardForgeStudioBootstrap,
   type RegistryViewerAccess,
 } from '@/features/developer-assets/server';
 import {
@@ -87,7 +87,7 @@ const resolveWorkingTemplates = async (
   transfer: CardForgeTransferV1,
 ) => {
   const needed = requiredTemplateIds(transfer);
-  const catalog = await getCardForgeStudioBootstrapManifest(registryAccessFor(access));
+  const catalog = await getCachedCardForgeStudioBootstrap(registryAccessFor(access));
   const byId = new Map<string, typeof transfer.templates[number]>();
   catalog.templates.defaults.forEach((template) => {
     if (template.id && needed.has(template.id)) byId.set(template.id, template);
