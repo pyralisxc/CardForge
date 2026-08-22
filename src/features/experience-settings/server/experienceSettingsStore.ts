@@ -22,6 +22,7 @@ const EXPERIENCE_SETTINGS_COLUMNS = [
   'presentation_accent',
   'presentation_corners',
   'presentation_contrast',
+  'studio_default_template_id',
 ].join(',');
 
 export const getExperienceSettings = async (): Promise<ExperienceSettings> => {
@@ -58,6 +59,7 @@ export const updateExperienceSettings = async (
     presentation_accent: normalized.presentationAccent,
     presentation_corners: normalized.presentationCorners,
     presentation_contrast: normalized.presentationContrast,
+    studio_default_template_id: normalized.studioDefaultTemplateId,
   }, { onConflict: 'id' });
   if (error) {
     console.error('Failed to update experience settings:', error);
