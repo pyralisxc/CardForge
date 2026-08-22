@@ -8,5 +8,5 @@ export const makerTheme = {
   control: 'h-8 rounded-[4px] border-[var(--cf-editor-control-border)] bg-[var(--cf-editor-inset)] text-[var(--cf-editor-text)]',
   button: 'h-8 rounded-[4px] border-[var(--cf-editor-control-border)] bg-[var(--cf-editor-control)] hover:border-[var(--cf-editor-accent-border)] hover:bg-[var(--cf-editor-control-hover)]',
   toolButton: 'h-8 rounded-[4px] border border-[var(--cf-editor-control-border)] bg-[var(--cf-editor-inset)] text-[var(--cf-editor-text)] hover:border-[var(--cf-editor-selection)] hover:bg-[var(--cf-editor-control-hover)]',
-  activeButton: 'border-[var(--cf-editor-selection)] bg-[var(--cf-editor-selection-surface)] text-[var(--cf-editor-selection-text)]',
+  activeButton: 'border-[var(--cf-editor-selection)] bg-[var(--cf-editor-selection-surface)] text-[var(--cf-accent-text)]',
 };
