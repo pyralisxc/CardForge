@@ -16,6 +16,7 @@ import {
   createTemplateFromTemplateDraft,
   type GptTemplateDraftInput,
 } from '@/features/studio-documents/model';
+import { replaceStudioDocumentAssetReferences } from '../assetReferences';
 
 import {
   bindEmbeddedTemplateAsset,
@@ -25,12 +26,15 @@ import {
 } from './embeddedTemplateAssets';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
+import { getStudioDocumentAssetDownloads } from './studioDocumentAssetStore';
 import {
   createStudioDocument,
   getStudioDocument,
   listStudioDocuments,
   updateStudioDocument,
 } from './studioDocumentStore';
+
+const MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES = 10 * 1024 * 1024;
 
 export const createDeveloperTemplateDraft = async (
   access: DeveloperCockpitAccess,
@@ -215,6 +219,45 @@ const selectTemplate = (
   return templates[0];
 };
 
+const materializeTemplateForPipelineReview = async ({
+  ownerUserId,
+  documentId,
+  template,
+}: {
+  ownerUserId: string;
+  documentId: string;
+  template: TCGCardTemplate;
+}): Promise<TCGCardTemplate> => {
+  const downloads = await getStudioDocumentAssetDownloads({
+    ownerUserId,
+    documentId,
+    value: template,
+  });
+  if (downloads.length === 0) return template;
+
+  let totalBytes = 0;
+  const replacements = new Map<string, string>();
+  for (const asset of downloads) {
+    const response = await fetch(asset.signedUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new StudioDocumentStoreError(
+        'CardForge could not carry one of the Template’s private artwork files into Forge Review. Retry the Pipeline handoff while the Studio draft is still available.',
+        503,
+      );
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    totalBytes += bytes.length;
+    if (totalBytes > MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES) {
+      throw new StudioDocumentStoreError(
+        'This Template contains more than 10 MB of private embedded artwork. Optimize or publish the reusable media through the Forge Pipeline before continuing the Template to owner review.',
+        413,
+      );
+    }
+    replacements.set(asset.id, `data:${asset.mimeType};base64,${bytes.toString('base64')}`);
+  }
+  return replaceStudioDocumentAssetReferences(template, replacements) as TCGCardTemplate;
+};
+
 export const continueDeveloperTemplateDraftInPipeline = async ({
   access,
   documentId,
@@ -237,6 +280,11 @@ export const continueDeveloperTemplateDraftInPipeline = async ({
       409,
     );
   }
+  const reviewTemplate = await materializeTemplateForPipelineReview({
+    ownerUserId: access.user.id,
+    documentId: document.id,
+    template: localTemplate,
+  });
 
   const sharedTemplateId = createNewSharedTemplateId({
     developerId: access.user.id,
@@ -248,7 +296,7 @@ export const continueDeveloperTemplateDraftInPipeline = async ({
     .digest('hex');
   const draft = await createTemplatePipelineDraft({
     template: {
-      ...localTemplate,
+      ...reviewTemplate,
       id: sharedTemplateId,
       templateSource: 'default',
       templateLibrarySource: 'pipeline',
