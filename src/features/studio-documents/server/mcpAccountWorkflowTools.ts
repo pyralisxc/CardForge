@@ -66,7 +66,7 @@ export const registerAccountWorkflowTools = ({
     {
       title: 'Get the linked CardForge account capabilities',
       description: 'Read the signed-in user’s current CardForge tier, cloud capacity, owner/developer role, and contribution scopes. Use before assuming that a developer, owner, paid, or cloud capability is available. Normal Studio/card tools remain available to signed-in customers even when developer contribution tools are not.',
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async () => runObserved({
       toolName: 'get_cardforge_capabilities',
@@ -119,7 +119,7 @@ export const registerAccountWorkflowTools = ({
     {
       title: 'List resumable CardForge agent working documents',
       description: 'Find private CardForge agent working documents from earlier turns so the agent can resume an existing Template/Set revision instead of creating another draft. Includes exact revision and last acknowledged Studio installation state.',
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async () => runObserved({
       toolName: 'list_agent_working_documents',
@@ -160,7 +160,7 @@ export const registerAccountWorkflowTools = ({
       title: 'Check whether an agent revision was applied in CardForge Studio',
       description: 'Read the current server revision and the latest revision acknowledged as installed/applied by a browser Studio workspace. Use this instead of claiming that a successful MCP write automatically changed what the user is currently seeing.',
       inputSchema: installStatusInputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId }) => runObserved({
       toolName: 'get_agent_install_status',
