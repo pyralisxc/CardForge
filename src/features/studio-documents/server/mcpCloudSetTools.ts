@@ -186,7 +186,7 @@ export const registerCloudSetTools = ({
       description: 'Use when the user refers to a Set they saved, backed up, made on another device, or expects CardForge to remember. Lists only Sets intentionally saved to the linked account cloud; browser-only Sets remain private to that device.',
       outputSchema: cloudSetListOutputSchema,
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: false,
       },
@@ -224,7 +224,7 @@ export const registerCloudSetTools = ({
       inputSchema: getCloudSetInputSchema,
       outputSchema: cloudSetOutputSchema,
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: false,
       },
