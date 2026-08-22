@@ -26,8 +26,8 @@ export function WorkspaceSection({
   const contentId = useId();
 
   return (
-    <Card className={cn(panelClassName, 'rounded-[8px]')}>
-      <CardHeader className="p-0">
+    <Card className={cn('cardforge-workspace-section', panelClassName, 'rounded-[8px]')}>
+      <CardHeader className="cardforge-workspace-section-header p-0">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-3 px-2.5 py-2.5 text-left"
@@ -43,7 +43,7 @@ export function WorkspaceSection({
         </button>
       </CardHeader>
       {isOpen ? (
-        <CardContent id={contentId} className="p-2.5 pt-0">
+        <CardContent id={contentId} className="cardforge-workspace-section-content p-2.5 pt-0">
           {children}
         </CardContent>
       ) : null}

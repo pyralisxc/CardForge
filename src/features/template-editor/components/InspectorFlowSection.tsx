@@ -43,11 +43,11 @@ export function InspectorFlowSection({
   );
 
   return (
-    <section className="rounded-[7px] border border-[var(--cf-editor-border)] bg-[#0b0f15]/72">
+    <section className="cardforge-inspector-flow-section rounded-[7px] border border-[var(--cf-editor-border)] bg-[#0b0f15]/72">
       {collapsible ? (
         <button
           type="button"
-          className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+          className="cardforge-inspector-flow-section-header flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
           aria-expanded={open}
           aria-controls={contentId}
           onClick={() => setIsOpen((value) => !value)}
@@ -56,12 +56,12 @@ export function InspectorFlowSection({
           <ChevronDown className={cn('mt-0.5 h-4 w-4 shrink-0 text-[#8f95a3] transition-transform', open && 'rotate-180 text-[#d5ad54]')} />
         </button>
       ) : (
-        <div className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left">
+        <div className="cardforge-inspector-flow-section-header flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left">
           {headerContent}
         </div>
       )}
       {open ? (
-        <div id={contentId} className="space-y-2 border-t border-[#202631] px-3 py-3">
+        <div id={contentId} className="cardforge-inspector-flow-section-content space-y-2 border-t border-[#202631] px-3 py-3">
           {children}
         </div>
       ) : null}

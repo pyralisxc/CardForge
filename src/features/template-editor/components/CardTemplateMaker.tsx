@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import Link from 'next/link';
-import { GitPullRequestArrow, LockKeyhole, X } from 'lucide-react';
+import { GitPullRequestArrow, LockKeyhole } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
@@ -131,7 +131,7 @@ export function CardTemplateMaker({
   const canSubmitNewTemplate = !isSharedTemplate && canSubmitSharedTemplateRevision;
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
-  const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
+  const [requestedLibrarySectionId, setRequestedLibrarySectionId] = useState<string | null>(null);
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
   const [saveName, setSaveName] = useState('');
   const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
@@ -140,7 +140,6 @@ export function CardTemplateMaker({
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
     if (id !== null) {
-      setActiveInspectorTab('element');
       requestAnimationFrame(() => {
         canvasRef.current?.focus();
       });
@@ -197,13 +196,20 @@ export function CardTemplateMaker({
     deleteSelected,
     selectElement,
   });
+  const openLibrary = useCallback(() => {
+    setRequestedLibrarySectionId(null);
+    setMobilePanel('library');
+  }, [setMobilePanel]);
+  const openLibrarySection = useCallback((sectionId: string) => {
+    setRequestedLibrarySectionId(sectionId);
+    setMobilePanel('library');
+  }, [setMobilePanel]);
   const openElementActions = useCallback((element: FreeformCardElement) => {
     selectElement(element.id);
     setContextElement(element);
   }, [selectElement]);
   const openElementInspector = useCallback((element: FreeformCardElement) => {
     selectElement(element.id);
-    setActiveInspectorTab('element');
     setMobilePanel('inspector');
   }, [selectElement, setMobilePanel]);
   const requestTemplateChange = useCallback((action: () => void) => {
@@ -388,18 +394,18 @@ export function CardTemplateMaker({
           activeButtonClassName={makerTheme.activeButton}
         />
         {isSharedTemplate ? (
-          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2">
               {isSharedTemplateRevision
                 ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
                 : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
               <div>
-                <p className="font-medium text-[var(--cf-accent-text)]">
+                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">
                   {isSharedTemplateRevision
                     ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is live`
                     : 'CardForge Library Template'}
                 </p>
-                <p className="mt-0.5 leading-5">
+                <p className="cardforge-template-status-description mt-0.5 leading-5">
                   {publishesSharedTemplateDirectly
                     ? `Publish changes saves this browser draft and makes revision ${nextTemplateRevision} live in the shared CardForge Library. Revision history is retained automatically.`
                     : isSharedTemplateRevision
@@ -411,21 +417,21 @@ export function CardTemplateMaker({
             {isSharedTemplateRevision ? (
               <Link
                 href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/developer/cockpit'}
-                className="shrink-0 font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]"
+                className="cardforge-template-status-action shrink-0 font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]"
               >
                 {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}
               </Link>
             ) : null}
           </div>
         ) : canSubmitNewTemplate ? (
-          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2">
               <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
               <div>
-                <p className="font-medium text-[var(--cf-accent-text)]">
+                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">
                   Personal Template · not shared
                 </p>
-                <p className="mt-0.5 leading-5">
+                <p className="cardforge-template-status-description mt-0.5 leading-5">
                   Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.
                 </p>
               </div>
@@ -433,7 +439,7 @@ export function CardTemplateMaker({
             <Button
               type="button"
               size="sm"
-              className="shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]"
+              className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]"
               disabled={isCreatingPipelineDraft || isSavingTemplate}
               onClick={() => void handleContinueInPipeline()}
             >
@@ -455,15 +461,9 @@ export function CardTemplateMaker({
           onDuplicateSelected={duplicateSelected}
           onDeleteSelected={deleteSelected}
           saveAction={saveAction!}
-          onShowLibrary={() => setMobilePanel('library')}
-          onShowInspector={() => {
-            setActiveInspectorTab('element');
-            setMobilePanel('inspector');
-          }}
-          onShowTemplateSettings={() => {
-            setActiveInspectorTab('template');
-            setMobilePanel('inspector');
-          }}
+          onShowLibrary={openLibrary}
+          onShowInspector={() => setMobilePanel('inspector')}
+          onShowTemplateSettings={() => openLibrarySection('setup')}
           onToggleGrid={() => setShowGrid(value => !value)}
           onToggleSnap={() => setSnapToGrid(value => !value)}
           onTogglePreview={() => setPreviewMode(value => !value)}
@@ -472,27 +472,11 @@ export function CardTemplateMaker({
           actions={editorActions}
           isDirty={isDirty}
           templateName={currentTemplate.name}
-          onOpenInspector={() => {
-            setActiveInspectorTab('element');
-            setMobilePanel('inspector');
-          }}
-          onOpenMenu={() => setMobilePanel('library')}
+          onOpenInspector={() => setMobilePanel('inspector')}
+          onOpenMenu={openLibrary}
         />
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
-          {mobilePanel !== 'canvas' ? (
-            <button type="button" className="cardforge-mobile-overlay-backdrop lg:hidden" aria-label="Close open editor panel" onClick={() => setMobilePanel('canvas')} />
-          ) : null}
-          {mobilePanel === 'library' ? (
-            <Button type="button" size="icon" variant="outline" aria-label="Close editor menu" className="cardforge-mobile-overlay-close cardforge-mobile-menu-close lg:hidden" onClick={() => setMobilePanel('canvas')}>
-              <X className="h-5 w-5" />
-            </Button>
-          ) : null}
-          {mobilePanel === 'inspector' ? (
-            <Button type="button" size="icon" variant="outline" aria-label="Close inspector" className="cardforge-mobile-overlay-close cardforge-mobile-inspector-close lg:hidden" onClick={() => setMobilePanel('canvas')}>
-              <X className="h-5 w-5" />
-            </Button>
-          ) : null}
           <TemplateEditorLibrarySidebar
             backFaceTemplates={backFaceTemplates}
             canUseProjectFiles={canUseProjectFiles}
@@ -515,6 +499,9 @@ export function CardTemplateMaker({
             showCardWatermark={showCardWatermark}
             templates={templates}
             userTemplates={userTemplates}
+            requestedSectionId={requestedLibrarySectionId}
+            onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)}
+            onClose={() => setMobilePanel('canvas')}
           />
           <TemplateCanvasStage
             canvas={canvas}
@@ -543,16 +530,15 @@ export function CardTemplateMaker({
             renderEditableElement={renderEditableElement}
           />
           <TemplateEditorInspectorSidebar
-            activeTab={activeInspectorTab}
             availableFonts={availableFonts}
             canUploadCustomAssets={canUploadCustomAssets}
             commands={commands}
             controller={controller}
             elements={elements}
-            onActiveTabChange={setActiveInspectorTab}
             onRichTextHighlightColorChange={setRichTextHighlightColorAction}
             richTextHighlightColor={richTextHighlightColor}
             variables={variables}
+            onClose={() => setMobilePanel('canvas')}
           />
         </div>
         <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">

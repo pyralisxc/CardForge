@@ -44,7 +44,7 @@ describe('Template panel workspaces', () => {
     expect(resolveCompactWorkspaceSwipe({ activePanel: 'canvas', deltaX: 90, deltaY: 85, durationMs: 220 })).toBeNull();
   });
 
-  it('uses one shared section navigator for Library and Inspector with lockable multi-section views and session position memory', () => {
+  it('uses one shared focused navigator with subtle pinning, resize snaps, and recent position memory', () => {
     const workspace = readSource('src/features/template-editor/components/TemplatePanelWorkspace.tsx');
     const library = readSource('src/features/template-editor/components/TemplateEditorLibrarySidebar.tsx');
     const inspector = readSource('src/features/template-editor/components/TemplateEditorInspectorSidebar.tsx');
@@ -52,12 +52,15 @@ describe('Template panel workspaces', () => {
     const viewport = readSource('src/features/template-editor/hooks/useTemplateEditorViewport.ts');
 
     expect(workspace).toContain('role="toolbar"');
-    expect(workspace).toContain("pinned ? 'Unlock' : 'Lock'");
+    expect(workspace).toContain('active || pinned');
+    expect(workspace).toContain("pinned ? 'Unpin' : 'Pin'");
     expect(workspace).toContain('pinnedSections');
     expect(workspace).toContain('visibleSections');
     expect(workspace).toContain('scrollMemoryRef');
     expect(workspace).toContain('MAX_SCROLL_MEMORY_CONTEXTS = 10');
     expect(workspace).toContain('viewport.scrollTo');
+    expect(workspace).toContain('role="separator"');
+    expect(workspace).toContain('COMPACT_PANEL_SNAP_POINTS = [28, 40, 60]');
     expect(library).toContain('<TemplatePanelWorkspace');
     expect(library).toContain("id: 'templates'");
     expect(library).toContain("id: 'layers'");
@@ -65,13 +68,53 @@ describe('Template panel workspaces', () => {
     expect(inspector).toContain('maxContexts: 10');
     expect(inspector).toContain('memoryKey={memoryContextKey}');
     expect(inspector).toContain("id: 'layout'");
+    expect(inspector).not.toContain('activeTab:');
+    expect(inspector).not.toContain('onActiveTabChange');
     expect(styles).toContain('data-mobile-panel="library"');
     expect(styles).toContain('data-mobile-panel="inspector"');
-    expect(styles).toContain('grid-template-rows: minmax(10rem, 1fr) minmax(13rem, 42%)');
+    expect(styles).toContain('var(--cf-mobile-panel-size, 40%)');
+    expect(styles).toContain('cardforge-panel-resize-handle');
+    expect(styles).toContain('cardforge-workspace-section-header');
+    expect(styles).toContain('cardforge-inspector-flow-section-header');
     expect(styles).toContain('orientation: landscape');
-    expect(styles).toContain('.cardforge-mobile-overlay-backdrop');
-    expect(styles).toContain('display: none !important;');
+    expect(styles).not.toContain('cardforge-mobile-overlay-backdrop');
+    expect(styles).not.toContain('cardforge-mobile-menu-close');
+    expect(styles).not.toContain('cardforge-mobile-inspector-close');
     expect(viewport).toContain('resolveCompactWorkspaceSwipe');
     expect(viewport).toContain("!target.closest?.('[data-cardforge-canvas=\"true\"]')");
+  });
+
+  it('routes Template settings to Library Setup and retires the old Inspector tab/overlay owners', () => {
+    const maker = readSource('src/features/template-editor/components/CardTemplateMaker.tsx');
+
+    expect(maker).toContain("onShowTemplateSettings={() => openLibrarySection('setup')}");
+    expect(maker).toContain('requestedSectionId={requestedLibrarySectionId}');
+    expect(maker).toContain("onClose={() => setMobilePanel('canvas')}");
+    expect(maker).not.toContain('activeInspectorTab');
+    expect(maker).not.toContain('cardforge-mobile-overlay-backdrop');
+    expect(maker).not.toContain('cardforge-mobile-menu-close');
+    expect(maker).not.toContain('cardforge-mobile-inspector-close');
+  });
+
+  it('makes active mobile Template Studio own the viewport instead of rendering as a website page', () => {
+    const presentation = readSource('src/app/cardforgePresentation.css');
+    const maker = readSource('src/features/template-editor/components/CardTemplateMaker.tsx');
+
+    expect(presentation).toContain('.cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"])');
+    expect(presentation).toContain('height: 100dvh');
+    expect(presentation).toContain('.cardforge-studio-header > div');
+    expect(presentation).toContain('.cardforge-studio-tabs [role="tab"]');
+    expect(presentation).toContain('padding: 0 !important;');
+    expect(presentation).toContain('> div > footer');
+    expect(presentation).toContain('display: none !important;');
+    expect(presentation).toContain('.cardforge-template-status-description');
+    expect(presentation).toContain('.cardforge-template-status-action');
+    expect(presentation).toContain('.cardforge-maker-mobile-switcher');
+    expect(presentation).toContain('position: relative !important;');
+    expect(presentation).toContain('order: -1;');
+    expect(presentation).toContain('padding-top: 0.5rem !important;');
+    expect(presentation).not.toContain('padding-top: 3.5rem !important;');
+    expect(maker).toContain('cardforge-template-status');
+    expect(maker).toContain('cardforge-template-status-description');
   });
 });
