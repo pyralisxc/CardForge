@@ -178,8 +178,8 @@ export function LayerTreePanel({
   };
 
   return (
-    <Card className={cn(panelClassName, 'rounded-[8px]')}>
-      <CardHeader className="p-2.5 pb-1.5">
+    <Card className={cn('cardforge-layer-tree-panel', panelClassName, 'rounded-[8px]')}>
+      <CardHeader className="cardforge-layer-tree-panel-header p-2.5 pb-1.5">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -195,7 +195,7 @@ export function LayerTreePanel({
           </button>
           <span className="text-[10px] font-normal text-[#757d8c]">{elementsCount}</span>
         </div>
-        {isOpen ? <div className="mt-1.5 flex items-center gap-1">
+        {isOpen ? <div className="cardforge-layer-tree-panel-actions mt-1.5 flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -235,7 +235,7 @@ export function LayerTreePanel({
           )}
         </div> : null}
       </CardHeader>
-      {isOpen ? <CardContent id={contentId} className="space-y-2 p-2.5 pt-0">
+      {isOpen ? <CardContent id={contentId} className="cardforge-layer-tree-panel-content space-y-2 p-2.5 pt-0">
         <div className="space-y-0.5">
           {layerTree.map((node) => renderNode(node, 0))}
           {elementsCount === 0 && (
