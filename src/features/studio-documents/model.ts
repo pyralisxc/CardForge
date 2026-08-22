@@ -29,6 +29,19 @@ export type { GptTemplateDraftInput };
 export const STUDIO_DOCUMENT_SOURCES = ['studio', 'gpt', 'import'] as const;
 export type StudioDocumentSource = typeof STUDIO_DOCUMENT_SOURCES[number];
 
+export interface StudioDocumentInstallSummary {
+  templateCount: number;
+  templateAddedCount: number;
+  templateUpdatedCount: number;
+  setCount: number;
+  cardCount: number;
+  cardAddedCount: number;
+  cardUpdatedCount: number;
+  cardSkippedCount: number;
+  activeSetId: string | null;
+  destination: 'template-maker' | 'generator' | 'sets';
+}
+
 export interface StudioDocumentSummary {
   id: string;
   title: string;
@@ -41,6 +54,9 @@ export interface StudioDocumentSummary {
   retentionHours: number;
   deletedAt: string | null;
   purgeAfter: string | null;
+  lastInstalledRevision: number | null;
+  lastInstalledAt: string | null;
+  lastInstallSummary: StudioDocumentInstallSummary | null;
 }
 
 export interface StudioDocument extends StudioDocumentSummary {
