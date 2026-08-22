@@ -9,6 +9,7 @@ import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server/ownerRepo
 
 describe('Google analytics reporting', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -90,5 +91,76 @@ describe('Google analytics reporting', () => {
     });
     expect(JSON.stringify(snapshot)).not.toContain('distinct_id');
     expect(fetchMock.mock.calls.every(([url]) => String(url) === 'https://us.posthog.com/api/projects/12345/query/')).toBe(true);
+  });
+
+  it('keeps a fail-soft PostHog timeout out of production error telemetry', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED', 'true');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_KEY', 'phc_test');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_HOST', 'https://us.i.posthog.com');
+    vi.stubEnv('CARDFORGE_POSTHOG_PERSONAL_API_KEY', 'phx_read_only');
+    vi.stubEnv('CARDFORGE_POSTHOG_PROJECT_ID', '12345');
+    vi.stubEnv('CARDFORGE_POSTHOG_APP_HOST', 'https://us.posthog.com');
+    const timeoutMessage = 'The operation was aborted due to timeout';
+    const fetchMock = vi.fn(async (_input: string | URL | Request, options?: RequestInit) => {
+      const body = JSON.parse(String(options?.body)) as { name: string };
+      if (body.name.includes('active visitors')) {
+        const timeout = new Error(timeoutMessage);
+        timeout.name = 'TimeoutError';
+        throw timeout;
+      }
+      return new Response(JSON.stringify({ results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const snapshot = await getOwnerAnalyticsSnapshot();
+
+    expect(warnSpy).toHaveBeenCalledWith('PostHog analytics report timed out:', timeoutMessage);
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(snapshot.warnings).toContain('One PostHog interaction report is temporarily unavailable.');
+    expect(snapshot.availability).toMatchObject({
+      interactionLive: false,
+      interactionRecent: true,
+      interactionEvents: true,
+      interactionPaths: true,
+    });
+  });
+
+  it('keeps non-timeout PostHog failures visible as production errors', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED', 'true');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_KEY', 'phc_test');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_HOST', 'https://us.i.posthog.com');
+    vi.stubEnv('CARDFORGE_POSTHOG_PERSONAL_API_KEY', 'phx_read_only');
+    vi.stubEnv('CARDFORGE_POSTHOG_PROJECT_ID', '12345');
+    vi.stubEnv('CARDFORGE_POSTHOG_APP_HOST', 'https://us.posthog.com');
+    const fetchMock = vi.fn(async (_input: string | URL | Request, options?: RequestInit) => {
+      const body = JSON.parse(String(options?.body)) as { name: string };
+      return body.name.includes('active visitors')
+        ? new Response('{}', { status: 503 })
+        : new Response(JSON.stringify({ results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const snapshot = await getOwnerAnalyticsSnapshot();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'PostHog analytics report failed:',
+      'PostHog reporting request failed with status 503.',
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(snapshot.warnings).toContain('One PostHog interaction report is temporarily unavailable.');
   });
 });
