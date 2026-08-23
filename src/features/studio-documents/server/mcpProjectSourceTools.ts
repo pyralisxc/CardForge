@@ -128,7 +128,7 @@ const connectionSchema = {
   },
 } as const;
 
-const connectedProjectListOutputSchema = {
+const connectedProjectListOutputSchema = fromJsonSchema<Record<string, unknown>>({
   type: 'object',
   additionalProperties: false,
   required: ['connection', 'projects', 'localProjectNote'],
@@ -137,9 +137,9 @@ const connectedProjectListOutputSchema = {
     projects: { type: 'array', items: projectSummarySchema },
     localProjectNote: { type: 'string' },
   },
-} as const;
+});
 
-const checkoutProjectOutputSchema = {
+const checkoutProjectOutputSchema = fromJsonSchema<Record<string, unknown>>({
   type: 'object',
   additionalProperties: false,
   required: ['source', 'documentId', 'documentRevision', 'openInStudioUrl', 'nextActions'],
@@ -158,9 +158,9 @@ const checkoutProjectOutputSchema = {
       },
     },
   },
-} as const;
+});
 
-const commitProjectOutputSchema = {
+const commitProjectOutputSchema = fromJsonSchema<Record<string, unknown>>({
   type: 'object',
   additionalProperties: false,
   required: ['source', 'documentId', 'documentRevision', 'previousProviderRevision', 'previousProjectRevision'],
@@ -171,7 +171,7 @@ const commitProjectOutputSchema = {
     previousProviderRevision: providerRevisionSchema,
     previousProjectRevision: projectRevisionSchema,
   },
-} as const;
+});
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
