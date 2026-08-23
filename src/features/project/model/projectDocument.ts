@@ -16,6 +16,7 @@ import {
   normalizeProjectProductionPlan,
   type ProjectProductionPlan,
 } from './projectProductionPlan';
+import { normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
 
 const PROJECT_DOCUMENT_VERSION = 1;
 const PROJECT_FALLBACK_SET: CardSet = {
@@ -29,6 +30,7 @@ export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-texture
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
 export const CUSTOM_ICON_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-icons';
 export const CUSTOM_IMAGE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-images';
+export const CUSTOM_FONT_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-fonts';
 
 export interface ProjectDocumentExportSettings {
   selectedPaperSize?: PaperSize;
@@ -56,6 +58,7 @@ export interface ProjectDocumentV1 {
   appearanceStyles: AppearanceStylePreset[];
   exportSettings: ProjectDocumentExportSettings;
   customAssets: ProjectDocumentCustomAssets;
+  customFonts?: ProjectFontAsset[];
   productionPlan?: ProjectProductionPlan;
 }
 
@@ -69,6 +72,7 @@ export interface CreateProjectDocumentInput extends ProjectDocumentExportSetting
   customDividerAssets?: CardAssetOption[];
   customIconAssets?: CardAssetOption[];
   customImageAssets?: CardAssetOption[];
+  customFonts?: ProjectFontAsset[];
   productionPlan?: ProjectProductionPlan;
 }
 
@@ -79,6 +83,7 @@ export interface ProjectDocumentStatePatch extends ProjectDocumentExportSettings
   storedCards: StoredDisplayCard[];
   appearanceStyles: AppearanceStylePreset[];
   customAssets: ProjectDocumentCustomAssets;
+  customFonts: ProjectFontAsset[];
 }
 
 export type ParseProjectDocumentResult =
@@ -215,6 +220,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
     customAssets: normalizeCustomAssets(value.customAssets),
+    customFonts: normalizeProjectFontAssets(value.customFonts),
     productionPlan: normalizeProjectProductionPlan(value.productionPlan),
   };
 };
@@ -236,6 +242,7 @@ export const createProjectDocumentFromState = ({
   customDividerAssets = [],
   customIconAssets = [],
   customImageAssets = [],
+  customFonts = [],
   productionPlan,
 }: CreateProjectDocumentInput): ProjectDocumentV1 => {
   const normalizedSets = reconcileCardSets({ cardSets, storedCards, fallback: PROJECT_FALLBACK_SET });
@@ -266,6 +273,7 @@ export const createProjectDocumentFromState = ({
       [CUSTOM_ICON_ASSETS_STORAGE_KEY]: customIconAssets,
       [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
     },
+    customFonts: normalizeProjectFontAssets(customFonts),
     productionPlan,
   };
 };
@@ -278,6 +286,7 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
   appearanceStyles: document.appearanceStyles,
   ...document.exportSettings,
   customAssets: normalizeCustomAssets(document.customAssets),
+  customFonts: normalizeProjectFontAssets(document.customFonts),
 });
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
