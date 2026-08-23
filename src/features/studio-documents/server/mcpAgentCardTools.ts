@@ -25,7 +25,10 @@ import {
   upsertCardSetInputSchema,
 } from './mcpCardToolSchemas';
 import {
+  cardDeleteOutputSchema,
   cardGenerationContractOutputSchema,
+  cardMoveOutputSchema,
+  cardSetDeleteOutputSchema,
   cardSetPreviewOutputSchema,
   cardSetWriteOutputSchema,
   cardWriteOutputSchema,
@@ -284,7 +287,7 @@ export const registerAgentCardTools = ({
       description: 'Read the exact front/back Template fields, required fields, image fields, and bulk schema before any card write. Use this for new cards and before revising an existing Set. Never guess card columns or image keys.',
       inputSchema: cardGenerationContractInputSchema,
       outputSchema: cardGenerationContractOutputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId, setId }) => runObserved({
       toolName: 'get_card_generation_contract',
@@ -440,7 +443,7 @@ export const registerAgentCardTools = ({
     'upsert_cards',
     {
       title: 'Make or revise CardForge cards in bulk',
-      description: 'Use for multiple cards, list/CSV/JSON conversion, or a bounded multi-card revision. Creates or revises up to 100 cards in one operation. For existing cards use writeMode revise and provide every stable cardId; this is the preferred way to update an existing Set without duplicates.',
+      description: 'Use for multiple cards, list/CSV/JSON conversion, or a bounded multi-card revision. Creates or revises up to 100 cards in one operation. For existing cards use writeMode revise and provide every stable cardId; this is the preferred way to update an existing Set without duplicates. Per-card artwork accepts a generated/uploaded public HTTPS sourceUrl or bounded raw base64 through the exact image-field contract.',
       inputSchema: upsertCardsInputSchema,
       outputSchema: cardWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
@@ -461,6 +464,7 @@ export const registerAgentCardTools = ({
       title: 'Delete cards from an agent working Set',
       description: 'Remove one or more cards by stable card id from the private agent working document. Use only after the user asks to remove those cards. This does not change a browser-local or cloud-saved Set until the relevant revision is applied or committed.',
       inputSchema: deleteCardsInputSchema,
+      outputSchema: cardDeleteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, setId, cardIds }) => runObserved({
@@ -488,6 +492,7 @@ export const registerAgentCardTools = ({
       title: 'Move cards between agent working Sets',
       description: 'Move existing stable card ids from one Set to another in the same private working document. CardForge validates the target Template contract before moving so incompatible card data is not silently broken.',
       inputSchema: moveCardsInputSchema,
+      outputSchema: cardMoveOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, sourceSetId, targetSetId, cardIds }) => runObserved({
@@ -516,6 +521,7 @@ export const registerAgentCardTools = ({
       title: 'Delete a Set from an agent working document',
       description: 'Remove a Set from the private agent working document. A non-empty Set is refused unless deleteCards is explicitly true, so normal Set deletion cannot silently destroy cards.',
       inputSchema: deleteCardSetInputSchema,
+      outputSchema: cardSetDeleteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, setId, deleteCards }) => runObserved({
@@ -548,7 +554,7 @@ export const registerAgentCardTools = ({
       description: 'Review the current agent Set structure, stable ids, artwork diagnostics, install state, and representative native CardForge renders. Use after meaningful copy or artwork changes. Do not call a Set visually finished from field diagnostics alone; inspect the rendered cards shown in chat.',
       inputSchema: getCardSetInputSchema,
       outputSchema: cardSetPreviewOutputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
       _meta: {
         ui: { resourceUri: SET_PREVIEW_RESOURCE_URI, visibility: ['model'] },
         'openai/outputTemplate': SET_PREVIEW_RESOURCE_URI,
