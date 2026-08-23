@@ -29,15 +29,17 @@ export async function GET(request: Request) {
       return createApiErrorResponse(409, 'studio_document_conflict', 'This draft cannot be rendered as a single CardForge Template preview.');
     }
 
+    const customFonts = document.document.customFonts ?? [];
     const assets = await getStudioDocumentAssetDownloads({
       ownerUserId: payload.ownerUserId,
       documentId: payload.documentId,
-      value: template,
+      value: { template, customFonts },
     });
     return createNoStoreJsonResponse({
       title: document.title,
       revision: document.revision,
       template,
+      customFonts,
       assets,
     });
   } catch (error) {
