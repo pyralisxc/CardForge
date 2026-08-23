@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cloud, ExternalLink, HardDriveUpload, Link2, Link2Off, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import {
+  chooseGoogleDriveProjectFolder,
   deleteGoogleDriveProjectFromLibrary,
   disconnectGoogleDriveStorage,
   getGoogleDriveProjectBinding,
@@ -155,10 +156,28 @@ export function GoogleDriveProjectStoragePanel({
             <div>
               <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
               <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                {connection.status === 'active' ? 'CardForge can reach its Drive project folder while your devices are offline.' : connection.statusNote || 'This connection needs attention.'}
+                {connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : connection.statusNote || 'This connection needs attention.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={Boolean(busyAction) || !canUseProjectFiles}
+                onClick={() => void run('choose-folder', async () => {
+                  const selected = await chooseGoogleDriveProjectFolder();
+                  if (selected) {
+                    toast({
+                      title: 'Google Drive folder selected',
+                      description: `New CardForge projects will be stored in “${selected.name}”. Existing files were left where they are.`,
+                    });
+                  }
+                })}
+              >
+                {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
+                Choose project folder
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -211,9 +230,9 @@ export function GoogleDriveProjectStoragePanel({
           ) : null}
 
           <div className="mt-5">
-            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Projects in your CardForge Drive folder</h3>
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Projects in your selected Drive folder</h3>
             {projects.length === 0 ? (
-              <p className="mt-2 text-sm text-[var(--cf-text-muted)]">No Google Drive projects yet. Save the current workspace as a new project to create the first one.</p>
+              <p className="mt-2 text-sm text-[var(--cf-text-muted)]">No CardForge projects are visible in this folder yet. Save the current workspace as a new project to create the first one.</p>
             ) : (
               <div className="mt-3 space-y-2">
                 {projects.map((project) => (
