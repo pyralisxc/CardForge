@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react';
 import { CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
 import {
   hydrateProjectWorkspaceForScope,
-  ProjectFontFaces,
   type ProjectPersistenceScope,
 } from '@/features/project/client';
 import { CardForgeStudioShell, type StudioBusinessIdentity } from './CardForgeStudioShell';
+import { StudioFontFaces } from './StudioFontFaces';
 import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
 
 export function ScopedCardForgeStudioShell({
@@ -53,7 +53,7 @@ export function ScopedCardForgeStudioShell({
 
   return (
     <div className="cardforge-application-viewport cardforge-studio-workspace">
-      <ProjectFontFaces />
+      <StudioFontFaces />
       <CardForgeStudioShell
         businessIdentity={businessIdentity}
         initialDeveloperAccess={initialDeveloperAccess}
