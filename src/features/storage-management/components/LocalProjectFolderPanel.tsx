@@ -10,24 +10,44 @@ import {
   disconnectLocalProjectFolder,
   getLocalProjectFileName,
   getLocalProjectFolderStatus,
+  hydrateProjectWorkspaceForScope,
   openProjectFromFolder,
   reconnectAttachedProjectFolder,
   saveCurrentProjectToNewFolder,
   saveProjectToAttachedFolder,
   type LocalProjectFolderStatus,
+  type ProjectPersistenceScope,
 } from '@/features/project/client';
 
 export function LocalProjectFolderPanel({
   canUseProjectFiles,
-  ready,
+  persistenceScope,
 }: {
   canUseProjectFiles: boolean;
-  ready: boolean;
+  persistenceScope: ProjectPersistenceScope;
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<LocalProjectFolderStatus | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReady(false);
+    void hydrateProjectWorkspaceForScope(persistenceScope)
+      .then(() => { if (!cancelled) setReady(true); })
+      .catch((error) => {
+        if (cancelled) return;
+        setReady(true);
+        toast({
+          title: 'Local workspace unavailable',
+          description: error instanceof Error ? error.message : 'CardForge could not prepare this browser workspace.',
+          variant: 'destructive',
+        });
+      });
+    return () => { cancelled = true; };
+  }, [persistenceScope, toast]);
 
   const refresh = useCallback(async () => {
     if (!ready) return;
