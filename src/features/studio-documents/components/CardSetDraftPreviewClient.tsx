@@ -40,7 +40,8 @@ const blobToDataUrl = (blob: Blob): Promise<string> => new Promise((resolve, rej
 });
 
 const getCardTitle = (card: StoredDisplayCard, index: number) => String(
-  card.data.cardName
+  card.data.card_name
+  ?? card.data.cardName
   ?? card.data.name
   ?? card.data.title
   ?? `Card ${index + 1}`,
@@ -203,7 +204,13 @@ export function CardSetDraftPreviewClient() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {renderedCards.map((card) => (
               <article key={card.id} className="min-w-0 rounded-lg border border-[#202630] bg-[#07090d] p-2">
-                <img src={card.dataUrl} alt={card.title} className="mx-auto block h-auto max-h-[48vh] max-w-full" />
+                <img
+                  src={card.dataUrl}
+                  alt={card.title}
+                  className="mx-auto block h-auto max-h-[48vh] max-w-full"
+                  data-cardforge-render-artifact="card-preview"
+                  data-card-id={card.id}
+                />
                 <p className="mt-2 truncate text-xs font-medium">{card.title}</p>
               </article>
             ))}
