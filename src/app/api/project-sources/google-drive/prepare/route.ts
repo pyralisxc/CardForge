@@ -1,4 +1,7 @@
-import { prepareGoogleDriveProjectUpload } from '@/features/project/server';
+import {
+  prepareGoogleDriveProjectUpload,
+  ProjectStorageProviderError,
+} from '@/features/project/server';
 import {
   getGoogleDriveProjectAccount,
   parseGoogleDriveProjectJson,
@@ -16,7 +19,7 @@ export async function POST(request: Request) {
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const size = typeof body.size === 'number' ? body.size : Number.NaN;
     const projectRevision = typeof body.projectRevision === 'string' ? body.projectRevision.trim() : '';
-    if (!name) throw new Error('A project name is required.');
+    if (!name) throw new ProjectStorageProviderError('A project name is required.', 400, { kind: 'invalid' });
     const result = await prepareGoogleDriveProjectUpload({
       ownerUserId,
       name,
