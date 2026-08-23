@@ -19,6 +19,7 @@ export function ConnectedPersonalAssetImport({
   onImport: (item: PersonalLibraryItem) => Promise<unknown>;
 }) {
   const [selectedId, setSelectedId] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedId && !items.some((item) => item.id === selectedId)) setSelectedId('');
@@ -32,7 +33,7 @@ export function ConnectedPersonalAssetImport({
     <div className="mb-3 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0a0e14] p-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8b93a1]">My connected library</p>
       <div className="mt-2 flex gap-2">
-        <Select value={selectedId} onValueChange={setSelectedId}>
+        <Select value={selectedId} onValueChange={(value) => { setSelectedId(value); setErrorMessage(null); }}>
           <SelectTrigger className="h-8 min-w-0 flex-1 text-xs" aria-label={`Choose connected ${label}`}>
             <SelectValue placeholder={`Choose ${label}`} />
           </SelectTrigger>
@@ -49,7 +50,11 @@ export function ConnectedPersonalAssetImport({
           className="h-8 px-2 text-xs"
           disabled={!selected || busy}
           onClick={() => {
-            if (selected) void onImport(selected);
+            if (!selected) return;
+            setErrorMessage(null);
+            void onImport(selected).catch((error) => {
+              setErrorMessage(error instanceof Error ? error.message : 'CardForge could not import that connected asset.');
+            });
           }}
         >
           {busyItemId === selected?.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CloudDownload className="mr-1.5 h-3.5 w-3.5" />}
@@ -57,6 +62,7 @@ export function ConnectedPersonalAssetImport({
         </Button>
       </div>
       <p className="mt-1.5 text-[10px] leading-4 text-[#717987]">The source stays in your provider. Importing makes a portable local copy for this CardForge workspace.</p>
+      {errorMessage ? <p className="mt-1.5 text-[10px] leading-4 text-[#ef9b88]">{errorMessage}</p> : null}
     </div>
   );
 }
