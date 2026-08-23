@@ -3,6 +3,11 @@ import { createMcpHandler } from 'mcp-handler';
 
 import { hasContributionScope, type DeveloperCockpitAccess } from '@/features/developer-access/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
+import {
+  accountCapabilitiesOutputSchema,
+  agentInstallStatusOutputSchema,
+  agentWorkingDocumentListOutputSchema,
+} from './mcpToolOutputSchemas';
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocument, listStudioDocuments } from './studioDocumentStore';
 
@@ -66,6 +71,7 @@ export const registerAccountWorkflowTools = ({
     {
       title: 'Get the linked CardForge account capabilities',
       description: 'Read the signed-in user’s current CardForge tier, cloud capacity, owner/developer role, and contribution scopes. Use before assuming that a developer, owner, paid, or cloud capability is available. Normal Studio/card tools remain available to signed-in customers even when developer contribution tools are not.',
+      outputSchema: accountCapabilitiesOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async () => runObserved({
@@ -119,6 +125,7 @@ export const registerAccountWorkflowTools = ({
     {
       title: 'List resumable CardForge agent working documents',
       description: 'Find private CardForge agent working documents from earlier turns so the agent can resume an existing Template/Set revision instead of creating another draft. Includes exact revision and last acknowledged Studio installation state.',
+      outputSchema: agentWorkingDocumentListOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async () => runObserved({
@@ -160,6 +167,7 @@ export const registerAccountWorkflowTools = ({
       title: 'Check whether an agent revision was applied in CardForge Studio',
       description: 'Read the current server revision and the latest revision acknowledged as installed/applied by a browser Studio workspace. Use this instead of claiming that a successful MCP write automatically changed what the user is currently seeing.',
       inputSchema: installStatusInputSchema,
+      outputSchema: agentInstallStatusOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId }) => runObserved({
