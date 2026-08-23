@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-time branch hardening script; remove after it commits the release changes.
 const replace = (path, from, to) => {
   let text = fs.readFileSync(path, 'utf8');
   if (!text.includes(from)) throw new Error(`Missing target in ${path}: ${from.slice(0, 100)}`);
