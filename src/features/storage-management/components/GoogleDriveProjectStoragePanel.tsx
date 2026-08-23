@@ -103,7 +103,7 @@ export function GoogleDriveProjectStoragePanel({
     }
   }, [refresh, toast]);
 
-  const projects = library?.projects ?? [];
+  const projects = useMemo(() => library?.projects ?? [], [library?.projects]);
   const attachedProject = useMemo(() => (
     binding ? projects.find((project) => project.fileId === binding.fileId) ?? null : null
   ), [binding, projects]);
