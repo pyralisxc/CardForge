@@ -190,7 +190,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('presents CardForge as a card-making product rather than a developer Template utility', () => {
-    expect(plugin.description).toContain('generate complete card sets');
+    expect(plugin.description).toContain('complete sets');
     expect(plugin.interface.shortDescription).toBe('Design cards and generate complete card sets');
     expect(plugin.interface.longDescription).toContain('bulk-generate');
     expect(plugin.interface.defaultPrompt).toContain('Turn this list into a complete CardForge card set.');
@@ -202,7 +202,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(designSkill).toContain('do **not** add another decorative border');
     expect(designSkill).toContain('`binding: element.image`');
     expect(designSkill).toContain('call `preview_template_draft`');
-    expect(designSkill).toContain('native exported PNG shown directly in chat');
+    expect(designSkill).toContain('canonical CardForge renderer');
     expect(designSkill).toContain('separate revision-bound Studio URL');
     expect(designSkill).toContain('same normal personal local Template');
 

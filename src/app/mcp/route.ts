@@ -427,7 +427,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.7.0' },
+    serverInfo: { name: 'cardforge-studio', version: '0.9.0' },
     capabilities: {
       extensions: {
         'io.modelcontextprotocol/skills': {},

@@ -38,7 +38,7 @@ When the user says things such as “my saved Set”, “the Set I backed up”,
 2. Call `get_cloud_set` for the intended Set and note its exact cloud revision. Page through cards when necessary.
 3. For reading only, stop there. For edits, call `checkout_cloud_set` at that revision. This creates a private agent working document while leaving the cloud save unchanged.
 4. Use the normal exact-contract card/Set tools on that working document.
-5. Call `preview_card_set` after meaningful changes. Inspect both the structural artwork diagnostics and the native CardForge-rendered representative cards shown in chat.
+5. Call `preview_card_set` after meaningful changes. Inspect both the structural artwork diagnostics and the native contact sheet composed only from canonical CardForge-rendered cards shown in chat.
 6. If the user wants the permanent cloud Set updated, call `commit_cloud_set` with both the exact working-document revision and the original/current cloud revision. CardForge refuses stale commits rather than overwriting newer cloud work.
 7. Use `delete_cloud_set` only when the user explicitly asks to remove the account cloud save. It requires the exact cloud revision and does not delete browser-local copies.
 

@@ -35,7 +35,7 @@ import {
   cardWriteOutputSchema,
 } from './mcpToolOutputSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.8.0';
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.9.0';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];

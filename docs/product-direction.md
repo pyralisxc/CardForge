@@ -872,3 +872,12 @@ The next workshop is implementation preparation for the Games Specialty Foundati
 5. The acceptance checklist for each of the six initial Kit families and the first coordinated rules/packaging masters.
 
 Once those five items are concrete, implementation can proceed through Gates 1–4 as one coherent Games-foundation objective. The Arcane production proof follows as Gates 5–7. Checkout remains a separate high-risk objective after the physical production contract is proven.
+
+## Canonical rendering doctrine
+
+CardForge has one canonical visual rendering implementation. Templates and structured card data are interpreted only by the browser CardPreview/export pipeline. Studio exports, assistant previews, and future downstream output systems must reuse artifacts produced by that renderer or invoke that exact renderer with an explicit profile; integrations must not independently reinterpret Templates for convenience.
+
+Canonical render artifacts are immutable derivatives bound to source identity, source revision, render subject, face, output profile, and a renderer contract version. A source revision can therefore remain unchanged while a renderer fix produces a new derivative contract, preventing stale pixels from surviving a rendering bug fix. Private render artifacts are cache/output data, not a second source of truth.
+
+MCP static creative review returns these exact CardForge-rendered artifacts as native image content. Rich widget/iframe UI is reserved for interactions that actually require persistent controls; displaying a finished CardForge render does not. Set contact sheets may compose canonical card PNGs downstream, but they must never re-render or reinterpret the underlying Template.
+
