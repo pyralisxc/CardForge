@@ -1,3 +1,4 @@
+export { PersonalLibraryImageFieldPicker } from './components/PersonalLibraryImageFieldPicker';
 export { importPersonalLibraryItemToLocalAsset } from './client/importPersonalLibraryAsset';
 export {
   chooseGoogleDrivePersonalLibraryItems,
