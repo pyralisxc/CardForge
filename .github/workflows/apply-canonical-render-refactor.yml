@@ -3,7 +3,9 @@ name: Apply canonical render MCP refactor
 on:
   push:
     branches: [feature/canonical-render-artifacts]
-    paths: [scripts/apply-canonical-render-mcp-refactor.mjs]
+    paths:
+      - scripts/apply-canonical-render-mcp-refactor.mjs
+      - .github/workflows/apply-canonical-render-refactor.yml
 
 permissions:
   contents: write
