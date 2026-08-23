@@ -102,7 +102,9 @@ const writeSnapshotToDirectory = async (
   const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME, { create: true });
   const writable = await fileHandle.createWritable();
   try {
-    await writable.write(new Blob([bytes], { type: 'application/vnd.cardforge.project+zip' }));
+    const blobBytes = new Uint8Array(bytes.byteLength);
+    blobBytes.set(bytes);
+    await writable.write(new Blob([blobBytes.buffer], { type: 'application/vnd.cardforge.project+zip' }));
     await writable.close();
   } catch (error) {
     try { await writable.abort(); } catch { /* best effort */ }
