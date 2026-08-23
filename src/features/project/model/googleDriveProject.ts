@@ -11,7 +11,6 @@ export interface GoogleDriveProjectConnectionSummary {
   connected: boolean;
   displayName: string | null;
   rootFolderId: string | null;
-  rootFolderName: string | null;
   status: 'active' | 'error' | 'unconfigured' | 'disconnected';
   statusNote: string | null;
   lastVerifiedAt: string | null;
