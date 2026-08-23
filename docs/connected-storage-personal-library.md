@@ -90,9 +90,11 @@ Multiple roots for the same role are allowed. A creator might keep project files
 
 ## Google Drive permission boundary
 
-CardForge should default to the non-sensitive `drive.file` scope rather than broad Drive access.
+CardForge defaults to the non-sensitive `drive.file` scope rather than broad Drive access.
 
-`drive.file` authorizes files and folders that CardForge creates or that the user explicitly opens/shares with CardForge. Selecting a destination folder is appropriate for CardForge-created project/library files, but it should **not** be treated as blanket recursive authorization to every pre-existing child in that folder.
+`drive.file` authorizes files and folders that CardForge creates or that the user explicitly opens/shares with CardForge. Selecting a destination folder is appropriate for CardForge-created project/library files, but it must **not** be treated as blanket recursive authorization to every pre-existing child in that folder.
+
+The Account Storage UI uses the native Google Picker with folder display enabled and folder selection enabled. CardForge receives the selected folder id, verifies on the server that it is an authorized Google Drive folder, and then changes only the connection's durable project destination. Existing files remain in their previous folders unless the user moves them separately.
 
 For existing loose content, use Google Picker to let the user explicitly select one or many files. Those selected files can then be indexed in the CardForge personal library.
 
@@ -110,7 +112,7 @@ Google Photos is an **asset-source provider**, not the durable project filesyste
 
 ## MCP behavior
 
-The MCP should consume the same provider-neutral catalog as the human UI.
+The MCP consumes provider-neutral CardForge project/library metadata rather than provider credentials.
 
 For projects:
 
@@ -137,15 +139,15 @@ CardForge uses its own MCP server. The separate **Google Drive MCP API** is not 
 
 The web Picker requires a Google API key restricted to CardForge's web origins and the Google Picker API, plus the Google Cloud project number/App ID. Durable server access uses CardForge's OAuth web client and encrypted refresh-token storage.
 
-Expected production configuration includes:
+Expected production configuration is:
 
 - `CARDFORGE_GOOGLE_STORAGE_CLIENT_ID`
 - `CARDFORGE_GOOGLE_STORAGE_CLIENT_SECRET`
 - `CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY`
-- a Picker API key environment value (final variable name set with the Picker implementation)
-- the Google Cloud project number/App ID (final variable name set with the Picker implementation)
+- `CARDFORGE_GOOGLE_PICKER_API_KEY`
+- `CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER`
 
-Secrets must be entered directly in the deployment environment and must not be passed through MCP/model output.
+The Picker API key is browser-visible by design and must be restricted in Google Cloud to approved CardForge web origins and the Google Picker API. OAuth client secrets and the CardForge storage-token encryption key are server secrets and must be entered directly in the deployment environment. They must never be passed through MCP/model output.
 
 ## Implementation order
 
