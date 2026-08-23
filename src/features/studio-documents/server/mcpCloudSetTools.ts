@@ -9,6 +9,9 @@ import {
   listCloudSets,
 } from '@/features/project/server';
 import {
+  cloudSetCheckoutOutputSchema,
+  cloudSetCommitOutputSchema,
+  cloudSetDeleteOutputSchema,
   cloudSetListOutputSchema,
   cloudSetOutputSchema,
 } from './mcpToolOutputSchemas';
@@ -279,6 +282,7 @@ export const registerCloudSetTools = ({
       title: 'Check out a cloud Set for agent editing',
       description: 'Create a private revision-safe agent working document from an intentionally cloud-saved CardForge Set. Use this when the user asks the agent to edit, revise, clean up, add artwork to, or otherwise work on a cloud Set. The cloud save itself is unchanged until commit_cloud_set is explicitly called.',
       inputSchema: checkoutCloudSetInputSchema,
+      outputSchema: cloudSetCheckoutOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -320,6 +324,7 @@ export const registerCloudSetTools = ({
       title: 'Commit an agent working Set back to CardForge cloud',
       description: 'Write one reviewed agent working Set back to its cloud save using both exact working-document and cloud revision checks. Use only when the user wants the cloud Set updated. CardForge refuses stale commits rather than overwriting a newer cloud revision.',
       inputSchema: commitCloudSetInputSchema,
+      outputSchema: cloudSetCommitOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -361,6 +366,7 @@ export const registerCloudSetTools = ({
       title: 'Delete a CardForge cloud Set',
       description: 'Permanently remove one intentionally cloud-saved Set and its private cloud artwork after the user explicitly asks for that cloud save to be deleted. Requires the exact cloud revision previously read so a stale agent cannot delete a newer saved revision. Browser-local copies are not deleted.',
       inputSchema: deleteCloudSetInputSchema,
+      outputSchema: cloudSetDeleteOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
