@@ -3,16 +3,15 @@
 import { useEffect, useState } from 'react';
 
 import {
-  CARD_FONT_OPTIONS,
   createDeveloperFontFaceCss,
   mergeCardFontOptions,
 } from '@/domain/rendering';
 import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '../model/projectFont';
 import {
   mapProjectFontsToCardFontOptions,
-  PROJECT_FONT_LIBRARY_CHANGE_EVENT,
   readProjectFonts,
-} from '@/features/project/client';
+} from '../persistence/projectFonts';
 
 export function ProjectFontFaces() {
   const [css, setCss] = useState('');
