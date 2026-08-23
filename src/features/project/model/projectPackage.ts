@@ -19,6 +19,13 @@ export const PROJECT_PACKAGE_ASSET_MIME_TYPES = [
   'image/png',
   'image/svg+xml',
   'image/webp',
+  'font/woff2',
+  'font/woff',
+  'font/ttf',
+  'font/otf',
+  'application/font-woff',
+  'application/x-font-ttf',
+  'application/x-font-opentype',
 ] as const;
 
 export type ProjectPackageAssetMimeType = typeof PROJECT_PACKAGE_ASSET_MIME_TYPES[number];
@@ -78,6 +85,13 @@ export const getProjectPackageAssetExtension = (mimeType: ProjectPackageAssetMim
     case 'image/webp': return 'webp';
     case 'image/gif': return 'gif';
     case 'image/svg+xml': return 'svg';
+    case 'font/woff2': return 'woff2';
+    case 'font/woff':
+    case 'application/font-woff': return 'woff';
+    case 'font/ttf':
+    case 'application/x-font-ttf': return 'ttf';
+    case 'font/otf':
+    case 'application/x-font-opentype': return 'otf';
   }
 };
 
