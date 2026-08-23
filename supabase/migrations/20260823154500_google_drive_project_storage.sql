@@ -9,6 +9,7 @@ create table if not exists public.cardforge_project_storage_connections (
   refresh_token_auth_tag text not null,
   granted_scopes text[] not null default '{}'::text[],
   root_folder_id text not null check (char_length(btrim(root_folder_id)) between 1 and 255),
+  root_folder_name text not null default 'CardForge' check (char_length(btrim(root_folder_name)) between 1 and 320),
   status text not null default 'active' check (status in ('active', 'error')),
   status_note text not null default '',
   last_verified_at timestamptz,
