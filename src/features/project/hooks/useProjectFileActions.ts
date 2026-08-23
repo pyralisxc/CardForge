@@ -4,28 +4,19 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useState } from 'react';
 
 import type { StoredDisplayCard } from '@/domain/cards';
-import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  applyProjectDocumentToState,
-  createProjectDocumentFromState,
-  parseProjectDocumentFile,
-} from '../model/projectDocument';
-import type { ProjectDocumentStatePatch } from '../model/projectDocument';
 import type { useToast } from '@/components/ui/use-toast';
-import {
-  mergeProjectAssetListToStorage,
-  getProjectAssetStorage,
-  readRequiredTypedProjectAssetListFromStorage,
-  writeProjectAssetListToStorage,
-} from '../persistence/projectAssets';
-import { useProjectStore } from '../store/workspaceStore';
-import { withNextStep } from '@/shared/userFacingErrors';
 import { trackExportCompleted, trackExportStarted } from '@/features/analytics/client/tracking';
+import { withNextStep } from '@/shared/userFacingErrors';
+import {
+  buildCardForgeProjectSnapshot,
+  decodeProjectFile,
+  encodeCardForgeProjectPackage,
+} from '../lib/projectPackageCodec';
+import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
+import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
+import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -73,12 +64,15 @@ export interface ProjectImportPreview {
 
 interface PendingProjectImport {
   fileName: string;
+  document: ProjectDocumentV1;
   patch: ProjectDocumentStatePatch;
   preview: ProjectImportPreview;
 }
 
-const downloadJsonFile = (fileName: string, contents: string) => {
-  const blob = new Blob([contents], { type: 'application/json' });
+const downloadProjectFile = (fileName: string, bytes: Uint8Array) => {
+  const copy = new Uint8Array(bytes.length);
+  copy.set(bytes);
+  const blob = new Blob([copy.buffer], { type: 'application/vnd.cardforge.project+zip' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -164,33 +158,15 @@ export const buildProjectImportPreview = ({
   };
 };
 
-export function useProjectFileActions({
-  appearanceStyles,
-  canUseProjectFiles,
-  exportDpi,
-  projectFileGateMessage,
-  exportMode,
-  fileInputRef,
-  pdfCardSpacingMm,
-  pdfDuplexLayout,
-  pdfIncludeCutLines,
-  pdfMarginMm,
-  selectedPaperSize,
-  setAppearanceStylesFromFiles,
-  setExportDpi,
-  setExportMode,
-  setPdfOptions,
-  setSelectedTemplateId,
-  setSelectedPaperSize,
-  setStoredCardsFromFile,
-  mergeStoredCardsFromFile,
-  setUserTemplatesFromFiles,
-  mergeUserTemplatesFromFiles,
-  replaceAppearanceStylesFromFiles,
-  storedCards,
-  toast,
-  userTemplates,
-}: UseProjectFileActionsInput) {
+export function useProjectFileActions(input: UseProjectFileActionsInput) {
+  const {
+    canUseProjectFiles,
+    fileInputRef,
+    projectFileGateMessage,
+    storedCards,
+    toast,
+    userTemplates,
+  } = input;
   const [pendingProjectImport, setPendingProjectImport] = useState<PendingProjectImport | null>(null);
 
   const showProjectFileGate = useCallback(() => {
@@ -210,54 +186,36 @@ export function useProjectFileActions({
     }
 
     try {
-      const assetStorage = getProjectAssetStorage();
-      const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets] = await Promise.all([
-        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-      ]);
-      const workspaceState = useProjectStore.getState();
-      const projectDocument = createProjectDocumentFromState({
-        userTemplates,
-        cardSets: workspaceState.cardSets,
-        activeCardSetId: workspaceState.activeCardSet.id,
-        storedCards,
-        appearanceStyles,
-        selectedPaperSize,
-        pdfMarginMm,
-        pdfCardSpacingMm,
-        pdfIncludeCutLines,
-        pdfDuplexLayout,
-        exportMode,
-        exportDpi,
-        customTextureAssets,
-        customDividerAssets,
-        customIconAssets,
-        customImageAssets,
-      });
-
+      const document = await captureCurrentProjectDocument();
+      const activeSetName = document.cardSets.find((set) => set.id === document.activeCardSetId)?.name
+        ?? document.cardSets[0]?.name
+        ?? 'CardForge Project';
+      const projectName = normalizeProjectFileName(activeSetName);
+      const snapshot = await buildCardForgeProjectSnapshot({ document, name: projectName });
+      const bytes = await encodeCardForgeProjectPackage(snapshot);
       trackExportStarted('project', storedCards.length);
-      downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
+      downloadProjectFile(`${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`, bytes);
       trackExportCompleted('project', storedCards.length);
-      toast({ title: 'Project Exported', description: 'Local project downloaded as cardforge-studio-project.json.' });
+      toast({
+        title: 'Project exported',
+        description: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION} contains the project document and its embedded artwork as one portable CardForge package.`,
+      });
     } catch (error) {
       toast({
         title: 'Project not exported',
         description: error instanceof Error
-          ? `CardForge could not read every local asset, so it did not create an incomplete project file. ${error.message}`
-          : 'CardForge could not read every local asset, so it did not create an incomplete project file.',
+          ? `CardForge did not create an incomplete project file. ${error.message}`
+          : 'CardForge did not create an incomplete project file.',
         variant: 'destructive',
       });
     }
-  }, [appearanceStyles, canUseProjectFiles, exportDpi, exportMode, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, selectedPaperSize, showProjectFileGate, storedCards, toast, userTemplates]);
+  }, [canUseProjectFiles, showProjectFileGate, storedCards.length, toast]);
 
   const handleChooseImportProject = useCallback(() => {
     if (!canUseProjectFiles) {
       showProjectFileGate();
       return;
     }
-
     fileInputRef.current?.click();
   }, [canUseProjectFiles, fileInputRef, showProjectFileGate]);
 
@@ -267,33 +225,26 @@ export function useProjectFileActions({
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      try {
-        const jsonString = loadEvent.target?.result as string;
-        const parsedProject = parseProjectDocumentFile(jsonString);
-
-        if (!parsedProject.success) {
-          toast({ title: 'Import Error', description: parsedProject.error, variant: 'destructive' });
-          return;
-        }
-
-        const patch = applyProjectDocumentToState(parsedProject.document);
+    void decodeProjectFile(file)
+      .then((decoded) => {
+        const patch = applyProjectDocumentToState(decoded.document);
         setPendingProjectImport({
           fileName: file.name,
+          document: decoded.document,
           patch,
           preview: buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
         });
-      } catch (error) {
-        toast({ title: 'Import Error', description: `Failed to parse or process JSON: ${(error as Error).message}`, variant: 'destructive' });
-        console.error('Error importing project:', error);
-      }
-    };
-    reader.readAsText(file);
+      })
+      .catch((error) => {
+        toast({
+          title: 'Import error',
+          description: error instanceof Error ? error.message : 'CardForge could not open this project file.',
+          variant: 'destructive',
+        });
+      });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [canUseProjectFiles, fileInputRef, showProjectFileGate, toast, userTemplates]);
 
@@ -301,56 +252,25 @@ export function useProjectFileActions({
 
   const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
-
-    const { patch } = pendingProjectImport;
-    const writeAssets = mode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
-    const assetStorage = getProjectAssetStorage();
     try {
-      await Promise.all([
-        writeAssets(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-        writeAssets(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-        writeAssets(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-        writeAssets(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
-      ]);
-    } catch (error) {
-      console.error('Unable to persist imported project assets:', error);
+      const result = await applyProjectDocumentToWorkspace(pendingProjectImport.document, mode);
+      setPendingProjectImport(null);
       toast({
-        title: 'Project Import Not Saved',
-        description: 'Browser storage could not save the imported artwork. Free browser storage or download a backup, then try again.',
+        title: mode === 'merge' ? 'Project merged' : 'Project imported',
+        description: buildProjectImportSummary(result),
+        duration: 7000,
+      });
+    } catch (error) {
+      console.error('Unable to apply imported CardForge project:', error);
+      toast({
+        title: 'Project import not saved',
+        description: error instanceof Error
+          ? `CardForge could not safely apply every project asset. ${error.message}`
+          : 'CardForge could not safely apply every project asset.',
         variant: 'destructive',
       });
-      return;
     }
-    const importedTemplateCount = mode === 'merge'
-      ? mergeUserTemplatesFromFiles(patch.userTemplates)
-      : setUserTemplatesFromFiles(patch.userTemplates);
-    const workspaceState = useProjectStore.getState();
-    if (mode === 'merge') {
-      workspaceState.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-      setAppearanceStylesFromFiles(patch.appearanceStyles);
-    } else {
-      workspaceState.setCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-      replaceAppearanceStylesFromFiles(patch.appearanceStyles);
-    }
-    if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
-    setPdfOptions({
-      margin: patch.pdfMarginMm,
-      spacing: patch.pdfCardSpacingMm,
-      cutLines: patch.pdfIncludeCutLines,
-      duplexLayout: patch.pdfDuplexLayout,
-    });
-    if (patch.exportMode) setExportMode(patch.exportMode);
-    if (patch.exportDpi) setExportDpi(patch.exportDpi);
-
-    const { successCount, skippedCount } = mode === 'merge'
-      ? mergeStoredCardsFromFile(patch.storedCards)
-      : setStoredCardsFromFile(patch.storedCards);
-    const activeSet = useProjectStore.getState().activeCardSet;
-    setSelectedTemplateId(activeSet.frontTemplateId);
-    const toastMessage = buildProjectImportSummary({ importedTemplateCount, successCount, skippedCount });
-    setPendingProjectImport(null);
-    toast({ title: mode === 'merge' ? 'Project Merged' : 'Project Imported', description: toastMessage, duration: 7000 });
-  }, [mergeStoredCardsFromFile, mergeUserTemplatesFromFiles, pendingProjectImport, replaceAppearanceStylesFromFiles, setAppearanceStylesFromFiles, setExportDpi, setExportMode, setPdfOptions, setSelectedPaperSize, setSelectedTemplateId, setStoredCardsFromFile, setUserTemplatesFromFiles, toast]);
+  }, [pendingProjectImport, toast]);
 
   return {
     applyPendingProjectImport,
