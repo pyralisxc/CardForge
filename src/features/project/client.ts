@@ -82,6 +82,7 @@ export type {
 } from './model/projectPackage';
 export {
   GOOGLE_DRIVE_FILE_SCOPE,
+  GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   GOOGLE_DRIVE_IDENTITY_SCOPES,
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
@@ -90,6 +91,8 @@ export {
   isGoogleDriveProviderRevision,
 } from './model/googleDriveProject';
 export type {
+  GoogleDriveFolderSelection,
+  GoogleDrivePickerConfiguration,
   GoogleDriveProjectConnectionSummary,
   GoogleDriveProjectDownload,
   GoogleDriveProjectListResult,
@@ -114,6 +117,7 @@ export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,
 } from './client/projectWorkspaceDocument';
+export { chooseGoogleDriveProjectFolder } from './client/googleDriveFolderPicker';
 export {
   deleteGoogleDriveProjectFromLibrary,
   disconnectGoogleDriveProjectBinding,
