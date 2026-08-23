@@ -71,4 +71,34 @@ describe('Google Drive project storage', () => {
     expect(account).toContain('LocalProjectFolderPanel');
     expect(account).toContain('GoogleDriveProjectStoragePanel');
   });
+
+  it('uses the native Google Picker for explicit project-folder selection', () => {
+    const picker = read('src/features/project/client/googleDriveFolderPicker.ts');
+    const pickerStore = read('src/features/project/server/googleDriveFolderPickerStore.ts');
+    const accountPanel = read('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
+
+    expect(picker).toContain("'https://apis.google.com/js/api.js'");
+    expect(picker).toContain('.setIncludeFolders(true)');
+    expect(picker).toContain('.setSelectFolderEnabled(true)');
+    expect(picker).toContain('.setMode(picker.DocsViewMode.LIST)');
+    expect(picker).toContain('.setOAuthToken(config.accessToken)');
+    expect(picker).toContain('.setDeveloperKey(config.developerKey)');
+    expect(picker).toContain('.setAppId(config.appId)');
+    expect(pickerStore).toContain('CARDFORGE_GOOGLE_PICKER_API_KEY');
+    expect(pickerStore).toContain('CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER');
+    expect(pickerStore).toContain("url.searchParams.set('fields', 'id,name,mimeType')");
+    expect(accountPanel).toContain('chooseGoogleDriveProjectFolder');
+    expect(accountPanel).toContain('Existing files were left where they are.');
+  });
+
+  it('never treats selecting a Drive folder as permission to recursively crawl pre-existing assets', () => {
+    const pickerStore = read('src/features/project/server/googleDriveFolderPickerStore.ts');
+    const projectStore = read('src/features/project/server/googleDriveProjectStore.ts');
+    const architecture = read('docs/connected-storage-personal-library.md');
+
+    expect(pickerStore).not.toContain('drive.readonly');
+    expect(projectStore).not.toContain('drive.readonly');
+    expect(architecture).toContain('must **not** be treated as blanket recursive authorization');
+    expect(architecture).toContain('use Google Picker to let the user explicitly select one or many files');
+  });
 });
