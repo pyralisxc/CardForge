@@ -115,6 +115,36 @@ export const pipelineHandoffOutputSchema = objectOutput(
   },
 );
 
+export const accountCapabilitiesOutputSchema = objectOutput(
+  ['account', 'studio', 'developer', 'guidance'],
+  {
+    account: objectValue,
+    studio: objectValue,
+    developer: objectValue,
+    guidance: objectValue,
+  },
+);
+
+export const agentWorkingDocumentListOutputSchema = objectOutput(['documents'], {
+  documents: objectList,
+});
+
+export const agentInstallStatusOutputSchema = objectOutput(
+  [
+    'documentId', 'title', 'revision', 'lastInstalledRevision',
+    'lastInstalledAt', 'lastInstallSummary', 'currentRevisionApplied',
+  ],
+  {
+    documentId: { type: 'string' },
+    title: { type: 'string' },
+    revision: { type: 'integer', minimum: 1 },
+    lastInstalledRevision: { type: ['integer', 'null'], minimum: 1 },
+    lastInstalledAt: { type: ['string', 'null'] },
+    lastInstallSummary: { type: ['string', 'null'] },
+    currentRevisionApplied: { type: 'boolean' },
+  },
+);
+
 export const cardGenerationContractOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'frontTemplateId', 'frontFields', 'backFields',
