@@ -15,12 +15,9 @@ export async function GET(
     const { ownerUserId } = await getPersonalLibraryAccount();
     const { itemId } = await params;
     const materialized = await materializePersonalLibraryItem(ownerUserId, itemId);
-    const body = Buffer.from(
-      materialized.bytes.buffer,
-      materialized.bytes.byteOffset,
-      materialized.bytes.byteLength,
-    );
-    return new Response(body, {
+    const responseBytes = new Uint8Array(materialized.bytes.byteLength);
+    responseBytes.set(materialized.bytes);
+    return new Response(responseBytes.buffer, {
       headers: {
         'Cache-Control': 'private, no-store',
         'Content-Type': materialized.mimeType,
