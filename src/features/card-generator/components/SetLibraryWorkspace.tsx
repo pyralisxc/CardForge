@@ -315,13 +315,13 @@ export function SetLibraryWorkspace({
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={!canBackUpActiveSet || Boolean(savingSetId) || isLoadingCloudSets}
+                  disabled={Boolean(savingSetId) || isLoadingCloudSets}
                   onClick={() => void saveSetToCloud(activeCardSet.id)}
                 >
                   {savingSetId === activeCardSet.id
                     ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                     : <CloudUpload className="mr-1.5 h-4 w-4" />}
-                  {activeCloudSet ? 'Update backup' : canBackUpActiveSet ? 'Back up' : 'Cloud full'}
+                  {activeCloudSet ? 'Update backup' : canBackUpActiveSet ? 'Back up' : 'Cloud full — review'}
                 </Button>
               ) : null}
               <Button type="button" size="sm" onClick={() => openSetForProduction(activeCardSet.id)}>

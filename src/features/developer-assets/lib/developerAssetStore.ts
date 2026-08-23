@@ -60,7 +60,7 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
     return { configured: false, settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS };
   }
 
-  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,tier_caps_by_type';
+  const settingsColumns = 'max_active_developers,monthly_submission_limit,max_submission_file_size_mb,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,tier_caps_by_type';
   const { data, error } = await supabase
     .from('cardforge_developer_program_settings')
     .select(settingsColumns)
@@ -69,12 +69,16 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
 
   if (error) {
     console.error('Failed to load developer asset program settings:', error);
-    return { configured: false, settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS };
+    throw new DeveloperAssetStoreError('Developer program settings are temporarily unavailable.', 503);
+  }
+
+  if (!data?.[0]) {
+    throw new DeveloperAssetStoreError('Developer program settings are not configured.', 503);
   }
 
   return {
     configured: true,
-    settings: mapDeveloperProgramSettingsRow(data?.[0] as DeveloperProgramSettingsRow | undefined),
+    settings: mapDeveloperProgramSettingsRow(data[0] as DeveloperProgramSettingsRow),
   };
 };
 
@@ -242,7 +246,20 @@ export const createDeveloperAssetSubmission = async ({
 
   const view = await getDeveloperAssetProgramView(developerId, currentContributorIds, { includeRegistryRecipePayloads });
   if (view.remainingSubmissions <= 0) {
-    throw new DeveloperAssetStoreError('This developer has reached the monthly submission limit.', 400);
+    throw new DeveloperAssetStoreError(
+      'This developer has reached the monthly Forge Review submission allowance.',
+      409,
+      {
+        kind: 'limit',
+        nextAction: 'Wait for the next calendar month or ask the owner to raise this developer’s submission allowance.',
+        limit: {
+          resource: 'developer_monthly_submissions',
+          current: view.effectiveMonthlySubmissionLimit,
+          maximum: view.effectiveMonthlySubmissionLimit,
+          unit: 'submissions_per_month',
+        },
+      },
+    );
   }
 
   const normalized = normalizeDeveloperAssetSubmissionInput(input);

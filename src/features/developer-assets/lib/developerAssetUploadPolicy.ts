@@ -1,8 +1,30 @@
 export const DEVELOPER_ASSET_STORAGE_BUCKET = 'cardforge-developer-assets';
 
-// This is a CardForge per-file product limit, not the Supabase plan's total
-// storage quota. Raise it intentionally alongside a Storage bucket migration.
-export const DEVELOPER_ASSET_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+export const DEFAULT_DEVELOPER_ASSET_UPLOAD_MAX_MB = 25;
+export const DEVELOPER_ASSET_UPLOAD_HARD_MAX_MB = 50;
+
+export const getDeveloperAssetUploadMaxBytes = (maxFileSizeMb: number): number => (
+  Math.min(
+    DEVELOPER_ASSET_UPLOAD_HARD_MAX_MB,
+    Math.max(1, Math.round(maxFileSizeMb)),
+  ) * 1024 * 1024
+);
+
+export interface DeveloperAssetUploadPlan {
+  signedUrl: string;
+  storagePath: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  maxFileSizeBytes: number;
+}
+
+export interface DeveloperAssetUploadedFile {
+  storagePath: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+}
 
 export const DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES = [
   'image/svg+xml',

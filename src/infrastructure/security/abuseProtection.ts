@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import type { BoundaryLimit } from '@/shared/boundaryFailure';
 
 interface RateLimitClient {
   rpc: (
@@ -13,6 +14,19 @@ export class RateLimitUnavailableError extends Error {
   constructor() {
     super('Rate limiting is temporarily unavailable.');
     this.name = 'RateLimitUnavailableError';
+  }
+}
+
+export class RateLimitExceededError extends Error {
+  readonly status = 429;
+
+  constructor(
+    message: string,
+    public readonly retryAfterSeconds: number,
+    public readonly limit?: BoundaryLimit,
+  ) {
+    super(message);
+    this.name = 'RateLimitExceededError';
   }
 }
 

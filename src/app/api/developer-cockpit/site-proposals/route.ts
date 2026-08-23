@@ -13,13 +13,17 @@ import {
 } from '@/features/developer-cockpit/server';
 import { revalidateSiteContentCache } from '@/features/public-site/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
+import { consumeRateLimit, RateLimitExceededError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
 const consumeMutationLimit = async (userId: string) => {
   const rateLimit = await consumeRateLimit({ action: 'developer-site-proposal', identity: userId, limit: 60, windowSeconds: 3600 });
-  if (!rateLimit.allowed) throw new DeveloperCockpitStoreError('Too many site-copy changes. Please try again later.', 429);
+  if (!rateLimit.allowed) throw new RateLimitExceededError(
+    'Too many site-copy changes.',
+    rateLimit.retryAfterSeconds,
+    { resource: 'site_copy_changes', maximum: 60, unit: 'attempts_per_hour' },
+  );
 };
 
 export async function POST(request: Request) {

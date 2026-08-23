@@ -4,8 +4,8 @@ import {
 import { DeveloperAccessStoreError } from '@/features/developer-access/server';
 import { DeveloperCockpitStoreError } from '@/features/developer-cockpit/server/storeSupport';
 import { MarketingContentStoreError } from '@/features/marketing-content/server';
-import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
-import { RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
+import { createApiErrorResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
+import { RateLimitExceededError, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const createDeveloperCockpitErrorResponse = (
   error: unknown,
@@ -36,6 +36,14 @@ export const createDeveloperCockpitErrorResponse = (
   }
   if (error instanceof RateLimitUnavailableError) {
     return createApiErrorResponse(503, 'developer_cockpit_unavailable', error.message);
+  }
+  if (error instanceof RateLimitExceededError) {
+    return createRateLimitErrorResponse(error.message, {
+      retryAfterSeconds: error.retryAfterSeconds,
+      resource: error.limit?.resource,
+      maximum: error.limit?.maximum,
+      unit: error.limit?.unit,
+    });
   }
   if (error instanceof DeveloperCockpitStoreError) {
     return createApiErrorResponse(

@@ -1,7 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server';
 
 import { voteRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many votes. Please try again later.');
+      return createRateLimitErrorResponse('Too many roadmap votes.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'roadmap_votes',
+        maximum: 120,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const body = await request.json() as { itemId?: unknown; vote?: unknown };

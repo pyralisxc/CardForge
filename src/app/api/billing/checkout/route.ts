@@ -18,7 +18,8 @@ export async function POST(request: Request) {
       return createApiErrorResponse(
         503,
         'account_auth_unconfigured',
-        'Account sign-in is not configured. Add Clerk environment variables before testing paid checkout.'
+        'Account sign-in is temporarily unavailable.',
+        { nextAction: 'Try again later or contact CardForge support.' },
       );
     }
 
@@ -45,14 +46,12 @@ export async function POST(request: Request) {
     const isConfigured = offering === 'designer_pass'
       ? config.designerPassConfigured
       : config.productAccessConfigured;
-    const missing = offering === 'designer_pass'
-      ? config.missingDesignerPass
-      : config.missingProductAccess;
     if (!isConfigured) {
       return createApiErrorResponse(
         503,
         'billing_not_configured',
-        `Stripe checkout is not configured. Missing: ${missing.join(', ')}.`
+        'Secure checkout is temporarily unavailable.',
+        { nextAction: 'Try again later or contact CardForge support if this plan should be available.' },
       );
     }
 

@@ -31,6 +31,8 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 **CardForge owns:** the application schema, feature stores, lifecycle rules, and the decision to keep browser writes out of Supabase. There is no browser-direct Supabase client and no second shared catalog outside `cardforge_asset_registry`.
 
+Forge Review source files and cloud-set artwork use server-issued, short-lived signed Storage upload URLs so large bytes travel directly from the browser to Supabase rather than through a Vercel Function. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
+
 ## Stripe — checkout, subscriptions, and billing portal
 
 **Provider owns:** hosted Checkout, payment methods, subscription/customer state, the Billing Portal, and webhook delivery.
@@ -114,6 +116,8 @@ Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invoke
 3. `src/features/project/persistence/indexedDbStorage.ts` — the `StateStorage` adapter, recovery snapshot, save status, quota health, and local-art optimization.
 
 **CardForge owns:** account-scoped namespace selection, project recovery, asset bounds, and export/import portability. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent cloud project sync until that becomes a product decision.
+
+Browser capacity is not a CardForge allowance. The UI may show device usage in the storage/account lens, but normal local creation is not proactively gated by an estimated browser quota. Actual rejected writes, corrupt reads, and unsafe individual files remain explicit failures.
 
 ## Human journey traces
 

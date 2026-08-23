@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 
 import { AccountProfilePage } from '@/features/account/client/profile';
-import { getCurrentCardforgeEntitlement } from '@/features/account/server';
+import {
+  getCurrentCardforgeEntitlement,
+  isClerkAuthConfigured,
+  resolveAccountEntitlement,
+} from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
@@ -37,7 +41,10 @@ export default async function AccountPage({
     ? params.checkout
     : null;
   const [entitlement, businessIdentity, siteConfiguration, plans, accountContentBlocks] = await Promise.all([
-    getCurrentCardforgeEntitlement(),
+    getCurrentCardforgeEntitlement().catch((error) => {
+      console.error('Unable to verify account access during page render:', error);
+      return resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() });
+    }),
     getCachedBusinessIdentity(),
     getCachedPublicSiteConfiguration(),
     getMcpAllowances(),

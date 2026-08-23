@@ -6,7 +6,7 @@ import {
   sendResendEmail,
 } from '@/features/contact/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import {
   consumeRateLimit,
   getRequestClientAddress,
@@ -32,7 +32,12 @@ export async function POST(request: Request) {
       consumeRateLimit({ action: 'contact-email', identity: normalized.value.email.toLowerCase(), limit: 10, windowSeconds: 86400 }),
     ]);
     if (decisions.some((decision) => !decision.allowed)) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many contact requests. Please try again later.');
+      return createRateLimitErrorResponse('Too many contact requests.', {
+        retryAfterSeconds: Math.max(...decisions.filter((decision) => !decision.allowed).map((decision) => decision.retryAfterSeconds)),
+        resource: 'contact_requests',
+        maximum: 5,
+        unit: 'requests_per_hour_per_address',
+      });
     }
 
     const supportEmail = (await getBusinessIdentity()).supportEmail;

@@ -10,7 +10,7 @@ import {
   stylePresetPayloadSchema,
   templatePayloadSchema,
 } from '@/infrastructure/http/apiValidation';
-import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 
 describe('apiValidation', () => {
   it('reserves a bounded upload lane for image-backed Studio content', () => {
@@ -31,9 +31,31 @@ describe('apiValidation', () => {
       error: {
         code: 'service_unavailable',
         message: 'Try again later.',
+        kind: 'unavailable',
+        retryable: true,
         details: ['Temporary maintenance window.'],
       },
       correlationId: response.headers.get('x-correlation-id'),
+    });
+  });
+
+  it('publishes a stable rate-limit envelope and HTTP retry window', async () => {
+    const response = createRateLimitErrorResponse('Too many changes.', {
+      retryAfterSeconds: 3600,
+      resource: 'changes',
+      maximum: 60,
+      unit: 'attempts_per_hour',
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('3600');
+    expect(body.error).toMatchObject({
+      code: 'rate_limited',
+      kind: 'limit',
+      retryable: true,
+      retryAfterSeconds: 3600,
+      limit: { resource: 'changes', maximum: 60, unit: 'attempts_per_hour' },
     });
   });
 

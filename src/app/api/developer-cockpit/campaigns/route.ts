@@ -14,7 +14,7 @@ import {
   submitSocialCampaign,
 } from '@/features/marketing-content/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
+import { consumeRateLimit, RateLimitExceededError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +26,10 @@ const consumeMutationLimit = async (userId: string) => {
     windowSeconds: 3600,
   });
   if (!rateLimit.allowed) {
-    throw new MarketingContentStoreError(
-      'Too many campaign changes. Please try again later.',
-      429,
+    throw new RateLimitExceededError(
+      'Too many campaign changes.',
+      rateLimit.retryAfterSeconds,
+      { resource: 'campaign_changes', maximum: 60, unit: 'attempts_per_hour' },
     );
   }
 };

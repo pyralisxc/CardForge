@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getUtf8ByteLength } from '@/infrastructure/http/apiValidation';
+import type { BoundaryFailureKind, BoundaryLimit } from '@/shared/boundaryFailure';
 import { parseCardForgeTransferValue, type CardForgeTransferV1 } from '../model/cardTransfer';
 import {
   CLOUD_SET_ASSET_BUCKET,
@@ -21,11 +22,21 @@ import {
 
 export class CloudSetStoreError extends Error {
   status: number;
+  kind?: BoundaryFailureKind;
+  nextAction?: string;
+  limit?: BoundaryLimit;
 
-  constructor(message: string, status = 500) {
+  constructor(message: string, status = 500, options: {
+    kind?: BoundaryFailureKind;
+    nextAction?: string;
+    limit?: BoundaryLimit;
+  } = {}) {
     super(message);
     this.name = 'CloudSetStoreError';
     this.status = status;
+    this.kind = options.kind;
+    this.nextAction = options.nextAction;
+    this.limit = options.limit;
   }
 }
 
@@ -173,6 +184,16 @@ const assertSlotAvailable = async (ownerUserId: string, setId: string, limit: nu
         ? 'Your Free account already has its 1 cloud-saved set. Remove that cloud save or activate Creator Pass for 5 cloud set slots.'
         : `Your account already has all ${limit} cloud set slots in use. Remove one cloud save before adding another.`,
       409,
+      {
+        kind: 'limit',
+        nextAction: 'Remove an existing cloud save, then try again. Device-local sets are unaffected.',
+        limit: {
+          resource: 'cloud_set_slots',
+          current: count ?? 0,
+          maximum: limit,
+          unit: 'sets',
+        },
+      },
     );
   }
 };

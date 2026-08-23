@@ -11,3 +11,4 @@ export * from './lib/registryFonts';
 export * from './lib/repositoryCatalog';
 export * from './lib/ownerStudioRouting';
 export * from './server/catalogCache';
+export * from './server/developerAssetRequestAccess';

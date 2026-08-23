@@ -8,17 +8,22 @@ import {
 } from '@/features/account/lib/accountEntitlement';
 import { isClerkPublicConfigPresent } from '@/infrastructure/auth/clerk';
 
-const loadAccountEntitlement = async (fallbackAuthConfigured: boolean): Promise<AccountEntitlement> => {
+type AccountEntitlementLoadResult =
+  | { ok: true; entitlement: AccountEntitlement }
+  | { ok: false; message: string };
+
+const loadAccountEntitlement = async (): Promise<AccountEntitlementLoadResult> => {
   try {
     const response = await fetch('/api/account/entitlement', {
       cache: 'no-store',
     });
-    if (!response.ok) throw new Error('Unable to load account entitlement.');
-    return await response.json() as AccountEntitlement;
-  } catch {
-    return resolveAccountEntitlement({
-      authConfigured: fallbackAuthConfigured,
-    });
+    if (!response.ok) throw new Error('Unable to verify account access right now.');
+    return { ok: true, entitlement: await response.json() as AccountEntitlement };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Unable to verify account access right now.',
+    };
   }
 };
 
@@ -31,14 +36,22 @@ export function useAccountEntitlement({
     authConfigured: initialAuthConfigured,
   }));
   const [isLoadingEntitlement, setIsLoadingEntitlement] = useState(true);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
   const inFlightRefreshRef = useRef<Promise<void> | null>(null);
 
   const refreshEntitlement = useCallback(async (_options?: { force?: boolean }) => {
     if (inFlightRefreshRef.current) return inFlightRefreshRef.current;
 
     setIsLoadingEntitlement(true);
-    const refresh = loadAccountEntitlement(initialAuthConfigured)
-      .then(setEntitlement)
+    const refresh = loadAccountEntitlement()
+      .then((result) => {
+        if (result.ok) {
+          setEntitlement(result.entitlement);
+          setEntitlementError(null);
+          return;
+        }
+        setEntitlementError(result.message);
+      })
       .finally(() => {
         inFlightRefreshRef.current = null;
         setIsLoadingEntitlement(false);
@@ -46,10 +59,11 @@ export function useAccountEntitlement({
 
     inFlightRefreshRef.current = refresh;
     return refresh;
-  }, [initialAuthConfigured]);
+  }, []);
 
   const applyEntitlement = useCallback((nextEntitlement: AccountEntitlement) => {
     setEntitlement(nextEntitlement);
+    setEntitlementError(null);
     setIsLoadingEntitlement(false);
   }, []);
 
@@ -68,6 +82,8 @@ export function useAccountEntitlement({
 
   return {
     ...entitlement,
+    entitlementError,
+    entitlementStatus: entitlementError ? 'unavailable' as const : isLoadingEntitlement ? 'loading' as const : 'ready' as const,
     isLoadingEntitlement,
     applyEntitlement,
     refreshEntitlement,

@@ -92,8 +92,9 @@ export const editableTemplateSummaryOutputSchema = objectOutput(
   },
 );
 
-export const editableTemplateListOutputSchema = objectOutput(['documents'], {
+export const editableTemplateListOutputSchema = objectOutput(['documents', 'hasMore'], {
   documents: objectList,
+  hasMore: { type: 'boolean' },
 });
 
 export const editableTemplateOutputSchema = objectOutput(

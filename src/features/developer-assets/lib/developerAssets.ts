@@ -1,3 +1,8 @@
+import {
+  DEFAULT_DEVELOPER_ASSET_UPLOAD_MAX_MB,
+  DEVELOPER_ASSET_UPLOAD_HARD_MAX_MB,
+} from './developerAssetUploadPolicy';
+
 export const DEVELOPER_ASSET_TYPES = [
   'templates',
   'elementPresets',
@@ -39,6 +44,7 @@ export type DeveloperTierCapsByType = Record<DeveloperAssetType, { free: number;
 export interface DeveloperProgramSettings {
   maxActiveDevelopers: number;
   monthlySubmissionLimit: number;
+  maxSubmissionFileSizeMb: number;
   monthlyPublishedRequirement: number;
   minimumVotesForGrading: number;
   freeAssetMinimumPositiveVotePercent: number;
@@ -125,6 +131,7 @@ export const DEFAULT_DEVELOPER_PUBLISH_CAPS_BY_TYPE: DeveloperPublishCapsByType 
 export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
   maxActiveDevelopers: 25,
   monthlySubmissionLimit: 25,
+  maxSubmissionFileSizeMb: DEFAULT_DEVELOPER_ASSET_UPLOAD_MAX_MB,
   monthlyPublishedRequirement: 5,
   minimumVotesForGrading: 5,
   freeAssetMinimumPositiveVotePercent: 60,
@@ -254,6 +261,12 @@ export const normalizeDeveloperProgramSettingsInput = (
   return {
     maxActiveDevelopers: normalizeInteger(value.maxActiveDevelopers, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.maxActiveDevelopers, 1, 100),
     monthlySubmissionLimit: normalizeInteger(value.monthlySubmissionLimit, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlySubmissionLimit, 1, 250),
+    maxSubmissionFileSizeMb: normalizeInteger(
+      value.maxSubmissionFileSizeMb,
+      DEFAULT_DEVELOPER_PROGRAM_SETTINGS.maxSubmissionFileSizeMb,
+      1,
+      DEVELOPER_ASSET_UPLOAD_HARD_MAX_MB,
+    ),
     monthlyPublishedRequirement: normalizeInteger(value.monthlyPublishedRequirement, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlyPublishedRequirement, 0, 100),
     minimumVotesForGrading: normalizeInteger(value.minimumVotesForGrading, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.minimumVotesForGrading, 1, 1000),
     freeAssetMinimumPositiveVotePercent: normalizeInteger(value.freeAssetMinimumPositiveVotePercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.freeAssetMinimumPositiveVotePercent, 1, 100),

@@ -57,15 +57,14 @@ describe('server CardForge user resolution', () => {
     });
   });
 
-  it('fails closed when Clerk cannot resolve the current user', async () => {
+  it('reports Clerk resolution failure as unavailable instead of signed out', async () => {
     clerk.currentUser.mockRejectedValue(new Error('Clerk backend unavailable'));
 
-    const access = await getCurrentCardforgeUserAccess();
+    const access = getCurrentCardforgeUserAccess();
 
+    await expect(access).rejects.toThrow('Account identity is temporarily unavailable.');
     expect(clerk.currentUser).toHaveBeenCalledOnce();
     expect(clerk.clerkClient).not.toHaveBeenCalled();
-    expect(access.user).toBeNull();
-    expect(access.ownerAccess.isOwner).toBe(false);
   });
 
   it('returns no user when Clerk reports a signed-out request', async () => {

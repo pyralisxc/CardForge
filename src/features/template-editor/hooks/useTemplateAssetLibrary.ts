@@ -19,7 +19,7 @@ import {
   type FreeformCardElement,
   type StudioAssetDestination,
 } from '@/domain/templates';
-import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import {
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
@@ -237,18 +237,6 @@ export function useTemplateAssetLibrary({
         defaultWidth: kind === 'icon' ? 64 : kind === 'image' ? 300 : undefined,
         defaultHeight: kind === 'icon' ? 64 : kind === 'image' ? 180 : undefined,
       });
-
-      const storageHealth = await getBrowserStorageHealth();
-      if (storageHealth.level === 'critical' || (
-        storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5
-      )) {
-        toast({
-          title: 'Browser Storage Almost Full',
-          description: 'Download a project backup and free browser storage before adding more artwork.',
-          variant: 'destructive',
-        });
-        return;
-      }
 
       const storageKey = kind === 'texture'
         ? CUSTOM_TEXTURE_ASSETS_STORAGE_KEY

@@ -42,6 +42,16 @@ A maintainer should be able to answer “where does this behavior live?” witho
 
 When fixing a bug, first find the native owner and make the smallest change there. Do not create a unique workaround simply because it is locally convenient.
 
+## Boundary failure contract
+
+Every boundary owner must distinguish **unavailable**, **authentication required**, **not permitted**, **invalid input**, **conflict**, **not found**, and **limit reached**. Do not turn a provider timeout into signed-out, Free, inactive, empty, or missing state, and do not claim success after replacing unreadable persisted data with an empty value.
+
+HTTP failures use the shared API error contract: stable code and kind, human message, retryability, correlation id, and a next action or structured limit when relevant. Agent tools must preserve equivalent boundary meaning in their result instead of flattening it into an ambiguous failure sentence. UI copy may be friendlier, but it must not erase the distinction.
+
+Local browser work is not a CardForge metered allowance. Do not add proactive local quota warnings or cloud-style gates; surface actual browser rejection, invalid/corrupt data, and unsafe file constraints when they occur. Enforce and explain CardForge cloud, provider, permission, and submission limits at the action that crosses that boundary. Keep the authoritative server/provider check even when the client can explain a known limit earlier.
+
+Do not add speculative guards for impossible states. A new failure branch must correspond to a real I/O, trust, persistence, concurrency, provider, validation, permission, or enforced-cap boundary and must leave authored work unchanged or recoverable.
+
 ## Roadmap and completed work
 
 `docs/product-direction.md` owns the durable intended product model and delivery sequence. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep them consistent without turning either source into a duplicate of the other. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.

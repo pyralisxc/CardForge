@@ -80,6 +80,7 @@ describe('developer asset store helpers', () => {
     expect(mapDeveloperProgramSettingsRow({
       max_active_developers: 25,
       monthly_submission_limit: 25,
+      max_submission_file_size_mb: 32,
       monthly_published_requirement: 5,
       minimum_votes_for_grading: 6,
       free_asset_minimum_positive_vote_percent: 60,
@@ -90,6 +91,7 @@ describe('developer asset store helpers', () => {
     })).toMatchObject({
       maxActiveDevelopers: 25,
       monthlySubmissionLimit: 25,
+      maxSubmissionFileSizeMb: 32,
       monthlyPublishedRequirement: 5,
       minimumVotesForGrading: 6,
       freeAssetMinimumPositiveVotePercent: 60,

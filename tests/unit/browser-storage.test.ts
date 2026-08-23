@@ -145,22 +145,19 @@ describe('browser IndexedDB storage', () => {
 });
 
 describe('local artwork validation', () => {
-  it('rejects unsupported types and files larger than eight MiB', () => {
+  it('rejects unsupported types without imposing a CardForge storage quota', () => {
     expect(validateLocalAssetFile({ name: 'notes.txt', size: 100, type: 'text/plain' })).toEqual({
       ok: false,
       message: 'Choose a PNG, JPEG, WebP, GIF, or SVG image.',
     });
     expect(validateLocalAssetFile({
       name: 'huge.png',
-      size: 8 * 1024 * 1024 + 1,
+      size: 80 * 1024 * 1024,
       type: 'image/png',
-    })).toEqual({
-      ok: false,
-      message: 'Artwork must be 8 MB or smaller.',
-    });
+    })).toEqual({ ok: true });
   });
 
-  it('accepts supported artwork within the limit', () => {
+  it('accepts supported artwork', () => {
     expect(validateLocalAssetFile({
       name: 'art.webp',
       size: 500_000,

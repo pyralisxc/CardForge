@@ -24,7 +24,8 @@ export function PlanChoiceGrid({
   featuredPlanKey?: McpUsagePlanKey;
 }) {
   return (
-    <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(16.5rem,82%)] gap-3 overflow-x-auto pb-3 lg:auto-cols-[minmax(17rem,42%)] xl:grid-flow-row xl:grid-cols-4 xl:auto-cols-auto xl:overflow-visible xl:pb-0">
+    <>
+      <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(16.5rem,82%)] gap-3 overflow-x-auto pb-3 lg:auto-cols-[minmax(17rem,42%)] xl:grid-flow-row xl:grid-cols-4 xl:auto-cols-auto xl:overflow-visible xl:pb-0">
       {plans.filter((plan) => plan.isVisible).map((plan) => {
         const isCurrent = currentPlanKey === plan.planKey;
         const href = plan.planKey === 'creator' && creatorHref
@@ -65,6 +66,10 @@ export function PlanChoiceGrid({
           </article>
         );
       })}
-    </div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">
+        ChatGPT plugin action and private workspace figures are current beta capacity targets. CardForge measures them for planning; they are not enforced quotas or overage charges today.
+      </p>
+    </>
   );
 }

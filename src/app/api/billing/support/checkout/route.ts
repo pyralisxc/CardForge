@@ -10,7 +10,7 @@ import {
   normalizeSupportOneTimeAmountCents,
   validateCreatorSupportPrice,
 } from '@/features/billing/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import {
   consumeRateLimit,
@@ -54,7 +54,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many checkout attempts. Please try again later.');
+      return createRateLimitErrorResponse('Too many checkout attempts.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'creator_support_checkout_attempts',
+        maximum: 10,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const user = isClerkAuthConfigured() ? await currentUser() : null;

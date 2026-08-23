@@ -13,6 +13,7 @@ import {
 import {
   createApiErrorResponse,
   createNoStoreJsonResponse,
+  createRateLimitErrorResponse,
 } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 
@@ -59,11 +60,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(
-        429,
-        'rate_limited',
-        'Too many campaign image uploads. Please try again later.',
-      );
+      return createRateLimitErrorResponse('Too many campaign image uploads.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'campaign_image_uploads',
+        maximum: 30,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const formData = await request.formData();

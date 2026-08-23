@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import type { useToast } from '@/components/ui/use-toast';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -35,16 +36,9 @@ export function useBillingPortalActions({
       const response = await fetch('/api/billing/portal', {
         method: 'POST',
       });
-      const payload = await response.json() as {
-        url?: string;
-        error?: string | { message?: string };
-      };
-      if (!response.ok || !payload.url) {
-        const message = typeof payload.error === 'string'
-          ? payload.error
-          : payload.error?.message;
-        throw new Error(message || 'Unable to open billing management.');
-      }
+      if (!response.ok) throw await readApiError(response, 'Unable to open billing management.');
+      const payload = await response.json() as { url?: string };
+      if (!payload.url) throw new Error('Billing management did not return a destination.');
 
       window.location.assign(payload.url);
     } catch (error) {
@@ -52,7 +46,7 @@ export function useBillingPortalActions({
         title: 'Billing unavailable',
         description: withNextStep(
           extractErrorMessage(error),
-          'Open the Owner Console billing snapshot or Stripe Dashboard to confirm the customer record.'
+          'Retry once. If it still fails, contact CardForge support from the signed-in account.'
         ),
         variant: 'destructive',
       });

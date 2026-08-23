@@ -222,6 +222,11 @@ export function AccountProfilePage({
     <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6 lg:py-7">
+        {entitlement.entitlementError ? (
+          <div role="status" className="mb-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">
+            Account access could not be verified, so CardForge is not presenting this as signed-out or Free. Local work remains available. Retry account or cloud actions after the service recovers.
+          </div>
+        ) : null}
         <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
           <CardForgeSurface as="aside" tone="inset" className="p-4 lg:sticky lg:top-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">CardForge account</p>

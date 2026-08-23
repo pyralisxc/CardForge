@@ -302,9 +302,9 @@ export function AccountStorageLibrary({
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => openLocalSet(set.id)}>Open</Button>
                       {isSignedIn ? (
-                        <Button size="sm" variant="outline" disabled={!canBackUp || Boolean(savingSetId)} onClick={() => void saveSetToCloud(set.id)}>
+                        <Button size="sm" variant="outline" disabled={Boolean(savingSetId)} onClick={() => void saveSetToCloud(set.id)}>
                           {savingSetId === set.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
-                          {cloudSet ? 'Update cloud' : canBackUp ? 'Back up' : 'Slots full'}
+                          {cloudSet ? 'Update cloud' : canBackUp ? 'Back up' : 'Slots full — review'}
                         </Button>
                       ) : null}
                       <Button

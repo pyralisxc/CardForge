@@ -4,6 +4,7 @@ import {
   consumeRateLimit,
   getRequestClientAddress,
   hashRateLimitIdentity,
+  RateLimitExceededError,
 } from '@/infrastructure/security/abuseProtection';
 
 describe('abuse protection', () => {
@@ -44,5 +45,17 @@ describe('abuse protection', () => {
       windowSeconds: 3600,
       client: { rpc: vi.fn().mockResolvedValue({ data: null, error: new Error('offline') }) },
     })).rejects.toThrow('Rate limiting is temporarily unavailable');
+  });
+
+  it('carries a retry window and limit when a route needs to throw', () => {
+    expect(new RateLimitExceededError(
+      'Too many changes.',
+      3600,
+      { resource: 'changes', maximum: 60, unit: 'attempts_per_hour' },
+    )).toMatchObject({
+      status: 429,
+      retryAfterSeconds: 3600,
+      limit: { resource: 'changes', maximum: 60, unit: 'attempts_per_hour' },
+    });
   });
 });

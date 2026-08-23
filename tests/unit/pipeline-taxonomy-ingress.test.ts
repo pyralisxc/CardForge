@@ -9,19 +9,21 @@ describe('Forge Review taxonomy ingress architecture', () => {
     expect(submissionPanel).toContain('ControlledTaxonomySelect');
     expect(submissionPanel).toContain('CARDFORGE_SPECIALTY_OPTIONS');
     expect(submissionPanel).toContain('CARDFORGE_USE_CASE_OPTIONS');
-    expect(submissionPanel).toContain("formData.set('specialtyTags'");
-    expect(submissionPanel).toContain("formData.set('useCaseTags'");
+    expect(submissionPanel).toContain('specialtyTags,');
+    expect(submissionPanel).toContain('useCaseTags,');
+    expect(submissionPanel).toContain("headers: { 'Content-Type': 'application/json' }");
     expect(submissionPanel).not.toContain('placeholder="games, marketing"');
     expect(submissionPanel).not.toContain('placeholder="tcg, event-poster"');
   });
 
-  it('carries initial classification through the existing upload workflow', () => {
+  it('carries initial classification through the direct-upload workflow', () => {
     const route = read('src/app/api/developer-assets/route.ts');
     const uploader = read('src/features/developer-assets/lib/developerAssetUploadSubmission.ts');
     const store = read('src/features/developer-assets/lib/developerAssetStore.ts');
 
-    expect(route).toContain("specialtyTags: formData.get('specialtyTags')");
-    expect(route).toContain("useCaseTags: formData.get('useCaseTags')");
+    expect(route).toContain('specialtyTags: body.specialtyTags');
+    expect(route).toContain('useCaseTags: body.useCaseTags');
+    expect(route).not.toContain('request.formData()');
     expect(uploader).toContain('specialtyTags,');
     expect(uploader).toContain('useCaseTags,');
     expect(store).toContain('specialty_tags: normalized.value.specialtyTags');

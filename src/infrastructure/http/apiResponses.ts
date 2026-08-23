@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 
+import {
+  inferBoundaryFailureKind,
+  isRetryableBoundaryStatus,
+  type BoundaryFailureKind,
+  type BoundaryLimit,
+} from '@/shared/boundaryFailure';
+
 export type ApiErrorCode =
   | 'account_auth_unconfigured'
   | 'account_entitlement_unavailable'
@@ -26,6 +33,7 @@ export type ApiErrorCode =
   | 'developer_access_required'
   | 'developer_access_unavailable'
   | 'developer_asset_request_invalid'
+  | 'developer_asset_limit'
   | 'developer_asset_unavailable'
   | 'developer_cockpit_request_invalid'
   | 'developer_cockpit_unavailable'
@@ -88,9 +96,32 @@ export interface ApiErrorBody {
   error: {
     code: ApiErrorCode;
     message: string;
+    kind: BoundaryFailureKind;
+    retryable: boolean;
     details?: string[];
+    nextAction?: string;
+    retryAfterSeconds?: number;
+    limit?: BoundaryLimit;
   };
   correlationId: string;
+}
+
+export interface ApiErrorResponseOptions {
+  details?: string[];
+  kind?: BoundaryFailureKind;
+  retryable?: boolean;
+  nextAction?: string;
+  retryAfterSeconds?: number;
+  limit?: BoundaryLimit;
+  headers?: HeadersInit;
+}
+
+export interface RateLimitErrorResponseOptions {
+  retryAfterSeconds: number;
+  nextAction?: string;
+  resource?: string;
+  maximum?: number;
+  unit?: string;
 }
 
 const createCorrelationId = (): string => {
@@ -107,27 +138,52 @@ export const createApiErrorResponse = (
   status: number,
   code: ApiErrorCode,
   message: string,
-  details?: string[]
+  detailsOrOptions?: string[] | ApiErrorResponseOptions,
 ) => {
+  const options = Array.isArray(detailsOrOptions)
+    ? { details: detailsOrOptions }
+    : detailsOrOptions ?? {};
   const correlationId = createCorrelationId();
   const body: ApiErrorBody = {
     ok: false,
     error: {
       code,
       message,
-      ...(details && details.length > 0 ? { details } : {}),
+      kind: options.kind ?? inferBoundaryFailureKind(status),
+      retryable: options.retryable ?? isRetryableBoundaryStatus(status),
+      ...(options.details && options.details.length > 0 ? { details: options.details } : {}),
+      ...(options.nextAction ? { nextAction: options.nextAction } : {}),
+      ...(options.retryAfterSeconds !== undefined ? { retryAfterSeconds: options.retryAfterSeconds } : {}),
+      ...(options.limit ? { limit: options.limit } : {}),
     },
     correlationId,
   };
 
+  const headers = new Headers(options.headers);
+  headers.set('Cache-Control', 'no-store');
+  headers.set('x-correlation-id', correlationId);
+  if (options.retryAfterSeconds !== undefined) {
+    headers.set('Retry-After', String(options.retryAfterSeconds));
+  }
+
   return NextResponse.json(body, {
     status,
-    headers: {
-      'Cache-Control': 'no-store',
-      'x-correlation-id': correlationId,
-    },
+    headers,
   });
 };
+
+export const createRateLimitErrorResponse = (
+  message: string,
+  options: RateLimitErrorResponseOptions,
+) => createApiErrorResponse(429, 'rate_limited', message, {
+  kind: 'limit',
+  retryable: true,
+  retryAfterSeconds: options.retryAfterSeconds,
+  nextAction: options.nextAction ?? 'Wait for the retry window, then try the same action again.',
+  ...(options.resource && options.maximum !== undefined && options.unit
+    ? { limit: { resource: options.resource, maximum: options.maximum, unit: options.unit } }
+    : {}),
+});
 
 export const createNoStoreJsonResponse = <Body>(body: Body, init?: ResponseInit) => {
   const headers = new Headers(init?.headers);

@@ -7,7 +7,7 @@ import {
   revalidateSiteMediaCache,
   SiteMediaStoreError,
 } from '@/features/public-site/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sl
     const { slot } = await params;
     if (!isSiteMediaSlot(slot)) return createApiErrorResponse(404, 'site_media_not_found', 'Public image not found.');
     const rateLimit = await consumeRateLimit({ action: 'site-media-restore', identity: owner.userId, limit: 24, windowSeconds: 3600 });
-    if (!rateLimit.allowed) return createApiErrorResponse(429, 'rate_limited', 'Too many image restores. Please try again later.');
+    if (!rateLimit.allowed) return createRateLimitErrorResponse('Too many image restores.', {
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      resource: 'public_image_restores',
+      maximum: 24,
+      unit: 'attempts_per_hour',
+    });
 
     await restorePreviousSiteMedia(slot);
     revalidateSiteMediaCache();

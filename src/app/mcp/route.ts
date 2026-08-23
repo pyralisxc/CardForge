@@ -14,10 +14,6 @@ import {
   summarizeProjectProductionAssets,
 } from '@/features/project/server';
 import {
-  DeveloperCockpitAccessError,
-} from '@/features/developer-access/server';
-import {
-  McpUsageStoreError,
   observeMcpToolExecution,
 } from '@/features/mcp-usage/server';
 import {
@@ -49,7 +45,11 @@ import {
   studioCreationGuideOutputSchema,
   studioLibrarySearchOutputSchema,
 } from '@/features/studio-documents/server/mcpToolOutputSchemas';
-import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
+import {
+  consumeRateLimit,
+  RateLimitExceededError,
+} from '@/infrastructure/security/abuseProtection';
+import { createMcpToolError } from './mcpToolError';
 import { getMcpStudioAccess } from './mcpStudioAccess';
 
 export const dynamic = 'force-dynamic';
@@ -75,25 +75,6 @@ const studioDocumentUrl = (documentId: string) => absoluteUrl(
   `/studio?document=${encodeURIComponent(documentId)}`,
 );
 
-const toolError = (error: unknown) => {
-  const message = error instanceof DeveloperCockpitAccessError
-    || error instanceof StudioDocumentStoreError
-    || error instanceof RateLimitUnavailableError
-    || error instanceof McpUsageStoreError
-    ? error.message
-    : 'CardForge could not complete that action.';
-  if (!(error instanceof DeveloperCockpitAccessError)
-    && !(error instanceof StudioDocumentStoreError)
-    && !(error instanceof RateLimitUnavailableError)
-    && !(error instanceof McpUsageStoreError)) {
-    console.error('CardForge MCP tool failed:', error);
-  }
-  return {
-    isError: true,
-    content: [{ type: 'text' as const, text: message }],
-  };
-};
-
 type ObservedMcpTool<Result> = {
   toolName: string;
   input: unknown;
@@ -110,7 +91,7 @@ const runObservedMcpTool = async <Result>({ toolName, input, execute }: Observed
       execute: async () => execute(access),
     });
   } catch (error) {
-    return toolError(error);
+    return createMcpToolError(error);
   }
 };
 const validateDraftInput = (input: unknown) => {
@@ -133,7 +114,7 @@ const handler = createMcpHandler(
       server,
       publicOrigin: publicOrigin(),
       getAccess: getMcpStudioAccess,
-      toolError,
+      toolError: createMcpToolError,
     });
     server.registerTool(
       'get_studio_creation_guide',
@@ -272,7 +253,11 @@ const handler = createMcpHandler(
             limit: 60,
             windowSeconds: 3600,
           });
-          if (!rateLimit.allowed) throw new StudioDocumentStoreError('Too many Studio drafts. Please try again later.', 409);
+          if (!rateLimit.allowed) throw new RateLimitExceededError(
+            'Too many Studio drafts.',
+            rateLimit.retryAfterSeconds,
+            { resource: 'studio_ai_drafts', maximum: 60, unit: 'attempts_per_hour' },
+          );
           const validatedInput = validateDraftInput(input);
           const document = await createDeveloperTemplateDraft(access, validatedInput);
           const assetSummary = summarizeProjectProductionAssets(validatedInput.productionPlan);
@@ -310,7 +295,11 @@ const handler = createMcpHandler(
             limit: 60,
             windowSeconds: 3600,
           });
-          if (!rateLimit.allowed) throw new StudioDocumentStoreError('Too many Studio draft revisions. Please try again later.', 409);
+          if (!rateLimit.allowed) throw new RateLimitExceededError(
+            'Too many Studio draft revisions.',
+            rateLimit.retryAfterSeconds,
+            { resource: 'studio_ai_draft_revisions', maximum: 60, unit: 'attempts_per_hour' },
+          );
           const validatedInput = validateDraftInput(draftInput);
           const document = await updateDeveloperTemplateDraft({
             access,
@@ -342,10 +331,15 @@ const handler = createMcpHandler(
         toolName: 'list_editable_templates',
         input: {},
         execute: async (access) => {
-          const documents = await listDeveloperTemplateDrafts(access);
+          const page = await listDeveloperTemplateDrafts(access);
           return {
-            content: [{ type: 'text', text: `Found ${documents.length} private Studio document${documents.length === 1 ? '' : 's'}.` }],
-            structuredContent: { documents },
+            content: [{
+              type: 'text',
+              text: page.hasMore
+                ? `Returned the first ${page.documents.length} private Studio documents. More documents exist beyond this result boundary.`
+                : `Found ${page.documents.length} private Studio document${page.documents.length === 1 ? '' : 's'}.`,
+            }],
+            structuredContent: page,
           };
         },
       }),
@@ -412,7 +406,11 @@ const handler = createMcpHandler(
             limit: 60,
             windowSeconds: 3600,
           });
-          if (!rateLimit.allowed) throw new StudioDocumentStoreError('Too many Pipeline handoffs. Please try again later.', 409);
+          if (!rateLimit.allowed) throw new RateLimitExceededError(
+            'Too many Pipeline handoffs.',
+            rateLimit.retryAfterSeconds,
+            { resource: 'template_pipeline_handoffs', maximum: 60, unit: 'attempts_per_hour' },
+          );
           const result = await continueDeveloperTemplateDraftInPipeline({ access, documentId, templateId });
           const structuredContent = {
             draftId: result.draft.id,
