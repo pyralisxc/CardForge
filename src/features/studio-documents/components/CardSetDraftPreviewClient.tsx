@@ -191,7 +191,7 @@ export function CardSetDraftPreviewClient() {
   }
 
   return (
-    <main className="min-h-screen bg-[#090b0f] p-3 text-[#f7ead0]">
+    <main className="min-h-screen bg-[#090b0f] p-3 text-[var(--cf-text)]">
       <section className="mx-auto max-w-5xl rounded-xl border border-[#2b3039] bg-[#0d1117] p-3 shadow-2xl">
         <div className="mb-3">
           <p className="text-sm font-semibold">{payload.set.name}</p>
