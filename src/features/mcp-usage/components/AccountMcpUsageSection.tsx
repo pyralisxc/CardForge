@@ -19,9 +19,11 @@ const UsageBar = ({ value, limit }: { value: number; limit: number }) => {
 export function AccountMcpUsageSection() {
   const [usage, setUsage] = useState<McpAccountUsageSummary | null>(null);
   const [failed, setFailed] = useState(false);
+  const [requestKey, setRequestKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    setFailed(false);
     void fetch('/api/account/mcp-usage', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) throw new Error('Unable to load usage.');
@@ -30,9 +32,8 @@ export function AccountMcpUsageSection() {
       .then((payload) => { if (mounted) setUsage(payload); })
       .catch(() => { if (mounted) setFailed(true); });
     return () => { mounted = false; };
-  }, []);
+  }, [requestKey]);
 
-  if (failed) return null;
   return (
     <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5" aria-labelledby="account-usage-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -42,7 +43,18 @@ export function AccountMcpUsageSection() {
         </div>
         <span className="border border-[var(--cf-success-border)] px-2 py-1 text-xs text-[var(--cf-success)]">Measurement only</span>
       </div>
-      {!usage ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]" role="status">Loading current usage…</p> : (
+      {failed ? (
+        <div className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-4 text-sm text-[var(--cf-warning)]" role="alert">
+          <p>Current cloud usage is temporarily unavailable. This does not limit local Studio work or change your plan.</p>
+          <button
+            type="button"
+            className="mt-3 border border-current px-3 py-1.5 font-semibold"
+            onClick={() => setRequestKey((current) => current + 1)}
+          >
+            Retry usage check
+          </button>
+        </div>
+      ) : !usage ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]" role="status">Loading current usage…</p> : (
         <>
           <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">CardForge’s ChatGPT plugin is included with your signed-in {usage.allowance.displayName} account. The capacity numbers below are planning targets while CardForge measures real usage; they are not enforced yet.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">

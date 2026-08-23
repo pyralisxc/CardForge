@@ -5,7 +5,6 @@ export const BROWSER_STORAGE_FAILURE_EVENT = 'cardforge:browser-storage-failure'
 export const BROWSER_STORAGE_SAVE_STATUS_EVENT = 'cardforge:workspace-save-status';
 const BROWSER_STORAGE_OBJECT_STORE = 'key-value';
 const BROWSER_STORAGE_VERSION = 1;
-export const MAX_LOCAL_ASSET_BYTES = 8 * 1024 * 1024;
 export const MAX_LOCAL_ASSET_DIMENSION = 8192;
 const OPTIMIZED_LOCAL_ASSET_DIMENSION = 2400;
 const OPTIMIZE_LOCAL_ASSET_THRESHOLD_BYTES = 2 * 1024 * 1024;
@@ -267,7 +266,6 @@ export const getBrowserStorageHealth = async (
 };
 
 export const validateLocalAssetFile = ({
-  size,
   type,
 }: Pick<File, 'name' | 'size' | 'type'>):
   | { ok: true }
@@ -281,9 +279,6 @@ export const validateLocalAssetFile = ({
   ]);
   if (!supportedTypes.has(type.toLowerCase())) {
     return { ok: false, message: 'Choose a PNG, JPEG, WebP, GIF, or SVG image.' };
-  }
-  if (size > MAX_LOCAL_ASSET_BYTES) {
-    return { ok: false, message: 'Artwork must be 8 MB or smaller.' };
   }
   return { ok: true };
 };

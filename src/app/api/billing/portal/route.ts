@@ -17,7 +17,8 @@ export async function POST() {
       return createApiErrorResponse(
         503,
         'account_auth_unconfigured',
-        'Account sign-in is not configured. Add Clerk environment variables before testing billing management.'
+        'Account sign-in is temporarily unavailable.',
+        { nextAction: 'Try again later or contact CardForge support.' },
       );
     }
 
@@ -35,7 +36,8 @@ export async function POST() {
       return createApiErrorResponse(
         503,
         'billing_not_configured',
-        'Stripe billing management is not configured.'
+        'Billing management is temporarily unavailable.',
+        { nextAction: 'Try again later or contact CardForge support from this account.' },
       );
     }
 
@@ -44,7 +46,8 @@ export async function POST() {
       return createApiErrorResponse(
         403,
         'billing_portal_failed',
-        'No Stripe customer record is attached to this account yet.'
+        'This account does not have a billing record to manage yet.',
+        { nextAction: 'Use the account that started the subscription, or contact CardForge support.' },
       );
     }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canUploadCustomLocalAssets,
+  readRequiredProjectAssetListFromStorage,
   readProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
@@ -40,6 +41,13 @@ describe('projectLocalAssets', () => {
     await writeProjectAssetListToStorage(storage, 'textures', [{ id: 'asset-1' }]);
 
     await expect(storage.getItem('textures')).resolves.toBe(JSON.stringify([{ id: 'asset-1' }]));
+  });
+
+  it('fails strict reads used by exports instead of silently omitting broken assets', async () => {
+    const storage = createStorage({ invalid: '{not json' });
+
+    await expect(readRequiredProjectAssetListFromStorage(storage, 'invalid')).rejects.toThrow();
+    await expect(readRequiredProjectAssetListFromStorage(storage, 'missing')).resolves.toEqual([]);
   });
 
   it('surfaces failed writes instead of claiming the asset was saved', async () => {

@@ -56,6 +56,8 @@ export function AssistantDraftLibrary({
   const siteContent = useSiteContent();
   const [studioDocuments, setStudioDocuments] = useState<StudioDocumentSummary[]>([]);
   const [deletedStudioDocuments, setDeletedStudioDocuments] = useState<StudioDocumentSummary[]>([]);
+  const [documentsHaveMore, setDocumentsHaveMore] = useState(false);
+  const [deletedDocumentsHaveMore, setDeletedDocumentsHaveMore] = useState(false);
   const [draftRetentionHours, setDraftRetentionHours] = useState<number | null>(null);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
@@ -66,6 +68,8 @@ export function AssistantDraftLibrary({
     if (!isSignedIn) {
       setStudioDocuments([]);
       setDeletedStudioDocuments([]);
+      setDocumentsHaveMore(false);
+      setDeletedDocumentsHaveMore(false);
       setDraftRetentionHours(null);
       return;
     }
@@ -76,10 +80,14 @@ export function AssistantDraftLibrary({
       const payload = await response.json() as {
         documents?: StudioDocumentSummary[];
         deletedDocuments?: StudioDocumentSummary[];
+        documentsHasMore?: boolean;
+        deletedDocumentsHasMore?: boolean;
         retentionHours?: number;
       };
       setStudioDocuments(Array.isArray(payload.documents) ? payload.documents : []);
       setDeletedStudioDocuments(Array.isArray(payload.deletedDocuments) ? payload.deletedDocuments : []);
+      setDocumentsHaveMore(payload.documentsHasMore === true);
+      setDeletedDocumentsHaveMore(payload.deletedDocumentsHasMore === true);
       setDraftRetentionHours(typeof payload.retentionHours === 'number' ? payload.retentionHours : null);
     } catch (error) {
       toast({
@@ -173,10 +181,19 @@ export function AssistantDraftLibrary({
           </div>
         ) : <p className="mt-3 text-sm text-[var(--cf-text-muted)]">No private working drafts are attached to this account.</p>}
 
+        {documentsHaveMore ? (
+          <p role="status" className="mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-2 text-xs text-[var(--cf-text-muted)]">
+            Showing the 100 most recently updated working drafts. Older drafts still exist but are outside this view.
+          </p>
+        ) : null}
+
         {deletedStudioDocuments.length ? (
           <div className="mt-5 border-t border-[var(--cf-border-subtle)] pt-4">
             <h4 className="text-sm font-semibold text-[#f0c77a]">Recoverable trash</h4>
             <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">CardForge permanently removes these drafts and their private artwork after the listed time.</p>
+            {deletedDocumentsHaveMore ? (
+              <p role="status" className="mt-2 text-xs text-[var(--cf-warning)]">Showing the 100 most recent recoverable drafts; more are still in recoverable trash.</p>
+            ) : null}
             <div className="mt-3 space-y-2">
               {deletedStudioDocuments.map((document) => (
                 <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">

@@ -1,4 +1,5 @@
 import {
+  AccountIdentityUnavailableError,
   getCurrentCardforgeUserAccess,
   resolveAccountEntitlement,
 } from '@/features/account/server';
@@ -30,9 +31,12 @@ export async function GET() {
   } catch (error) {
     console.error('Failed to resolve account entitlement:', error);
     return createApiErrorResponse(
-      500,
+      error instanceof AccountIdentityUnavailableError ? error.status : 500,
       'account_entitlement_unavailable',
-      'Unable to load account entitlement.'
+      'Unable to verify account access right now.',
+      {
+        nextAction: 'Keep working locally and retry account or cloud actions when the identity service recovers.',
+      },
     );
   }
 }

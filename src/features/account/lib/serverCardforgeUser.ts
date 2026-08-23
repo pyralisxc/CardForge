@@ -6,7 +6,7 @@ import {
   type AccountEntitlement,
 } from '@/features/account/lib/accountEntitlement';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
-import { resolveWithTimeout } from '@/shared/asyncTimeout';
+import { resolveWithTimeoutOrThrow } from '@/shared/asyncTimeout';
 
 const CLERK_USER_READ_TIMEOUT_MS = 3000;
 
@@ -37,6 +37,15 @@ export interface CardforgeServerUserAccess {
   authConfigured: boolean;
   user: CardforgeServerUser | null;
   ownerAccess: OwnerAccess & { userId: string | null; email: string | null };
+}
+
+export class AccountIdentityUnavailableError extends Error {
+  readonly status = 503;
+
+  constructor(message = 'Account identity is temporarily unavailable.') {
+    super(message);
+    this.name = 'AccountIdentityUnavailableError';
+  }
 }
 
 export const resolveOwnerAccessForServerUser = (
@@ -102,16 +111,19 @@ export const getCardforgeUserAccessForUserId = async (
   const authConfigured = isClerkAuthConfigured();
   if (!authConfigured) return createCardforgeUserAccess(false, null);
 
-  const fullUser = await resolveWithTimeout(
-    Promise.resolve().then(async () => {
-      const client = await clerkClient();
-      return client.users.getUser(userId);
-    }),
-    {
-      fallback: null,
-      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-    },
-  );
+  let fullUser;
+  try {
+    fullUser = await resolveWithTimeoutOrThrow(
+      Promise.resolve().then(async () => {
+        const client = await clerkClient();
+        return client.users.getUser(userId);
+      }),
+      CLERK_USER_READ_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.error('Unable to resolve CardForge account identity by user id:', error);
+    throw new AccountIdentityUnavailableError();
+  }
 
   return createCardforgeUserAccess(
     authConfigured,
@@ -129,13 +141,16 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
   const authConfigured = isClerkAuthConfigured();
   if (!authConfigured) return createCardforgeUserAccess(false, null);
 
-  const fullUser = await resolveWithTimeout(
-    Promise.resolve().then(() => currentUser()),
-    {
-      fallback: null,
-      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-    },
-  );
+  let fullUser;
+  try {
+    fullUser = await resolveWithTimeoutOrThrow(
+      Promise.resolve().then(() => currentUser()),
+      CLERK_USER_READ_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.error('Unable to resolve current CardForge account identity:', error);
+    throw new AccountIdentityUnavailableError();
+  }
 
   return createCardforgeUserAccess(
     authConfigured,

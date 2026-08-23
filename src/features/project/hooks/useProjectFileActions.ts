@@ -20,7 +20,7 @@ import type { useToast } from '@/components/ui/use-toast';
 import {
   mergeProjectAssetListToStorage,
   getProjectAssetStorage,
-  readTypedProjectAssetListFromStorage,
+  readRequiredTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
 import { useProjectStore } from '../store/workspaceStore';
@@ -209,37 +209,47 @@ export function useProjectFileActions({
       return;
     }
 
-    const assetStorage = getProjectAssetStorage();
-    const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets] = await Promise.all([
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-    ]);
-    const workspaceState = useProjectStore.getState();
-    const projectDocument = createProjectDocumentFromState({
-      userTemplates,
-      cardSets: workspaceState.cardSets,
-      activeCardSetId: workspaceState.activeCardSet.id,
-      storedCards,
-      appearanceStyles,
-      selectedPaperSize,
-      pdfMarginMm,
-      pdfCardSpacingMm,
-      pdfIncludeCutLines,
-      pdfDuplexLayout,
-      exportMode,
-      exportDpi,
-      customTextureAssets,
-      customDividerAssets,
-      customIconAssets,
-      customImageAssets,
-    });
+    try {
+      const assetStorage = getProjectAssetStorage();
+      const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets] = await Promise.all([
+        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      ]);
+      const workspaceState = useProjectStore.getState();
+      const projectDocument = createProjectDocumentFromState({
+        userTemplates,
+        cardSets: workspaceState.cardSets,
+        activeCardSetId: workspaceState.activeCardSet.id,
+        storedCards,
+        appearanceStyles,
+        selectedPaperSize,
+        pdfMarginMm,
+        pdfCardSpacingMm,
+        pdfIncludeCutLines,
+        pdfDuplexLayout,
+        exportMode,
+        exportDpi,
+        customTextureAssets,
+        customDividerAssets,
+        customIconAssets,
+        customImageAssets,
+      });
 
-    trackExportStarted('project', storedCards.length);
-    downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
-    trackExportCompleted('project', storedCards.length);
-    toast({ title: 'Project Exported', description: 'Local project downloaded as cardforge-studio-project.json.' });
+      trackExportStarted('project', storedCards.length);
+      downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
+      trackExportCompleted('project', storedCards.length);
+      toast({ title: 'Project Exported', description: 'Local project downloaded as cardforge-studio-project.json.' });
+    } catch (error) {
+      toast({
+        title: 'Project not exported',
+        description: error instanceof Error
+          ? `CardForge could not read every local asset, so it did not create an incomplete project file. ${error.message}`
+          : 'CardForge could not read every local asset, so it did not create an incomplete project file.',
+        variant: 'destructive',
+      });
+    }
   }, [appearanceStyles, canUseProjectFiles, exportDpi, exportMode, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, selectedPaperSize, showProjectFileGate, storedCards, toast, userTemplates]);
 
   const handleChooseImportProject = useCallback(() => {

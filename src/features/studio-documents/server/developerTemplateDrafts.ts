@@ -30,7 +30,7 @@ import { getStudioDocumentAssetDownloads } from './studioDocumentAssetStore';
 import {
   createStudioDocument,
   getStudioDocument,
-  listStudioDocuments,
+  listStudioDocumentsPage,
   updateStudioDocument,
 } from './studioDocumentStore';
 
@@ -53,7 +53,7 @@ export const createDeveloperTemplateDraft = async (
 
 export const listDeveloperTemplateDrafts = async (access: DeveloperCockpitAccess) => {
   requireContributionScope(access, 'studio.ai.create');
-  return listStudioDocuments(access.user.id, await getStudioDocumentRetentionHours(access.entitlement));
+  return listStudioDocumentsPage(access.user.id, await getStudioDocumentRetentionHours(access.entitlement));
 };
 
 export const getDeveloperTemplateDraft = async (

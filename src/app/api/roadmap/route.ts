@@ -3,7 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/roadmap/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -44,7 +44,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many roadmap submissions. Please try again later.');
+      return createRateLimitErrorResponse('Too many roadmap submissions.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'roadmap_submissions',
+        maximum: 10,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const body = await request.json() as {

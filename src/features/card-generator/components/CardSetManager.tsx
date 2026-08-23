@@ -148,13 +148,13 @@ export function CardSetManager() {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={!canSaveActiveSet || Boolean(savingSetId) || isLoadingCloudSets}
+                  disabled={Boolean(savingSetId) || isLoadingCloudSets}
                   onClick={() => void saveSetToCloud(activeCardSet.id)}
                 >
                   {savingSetId === activeCardSet.id
                     ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     : <CloudUpload className="mr-2 h-4 w-4" />}
-                  {activeCloudSet ? 'Update cloud' : 'Back up set'}
+                  {activeCloudSet ? 'Update cloud' : canSaveActiveSet ? 'Back up set' : 'Cloud full — review'}
                 </Button>
               </div>
 

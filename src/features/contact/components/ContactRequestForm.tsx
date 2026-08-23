@@ -5,6 +5,7 @@ import type React from 'react';
 import { Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 
 const emptyForm = {
   name: '',
@@ -39,26 +40,25 @@ export function ContactRequestForm({
     setStatus('submitting');
     setMessage(null);
 
-    const response = await fetch('/api/contact/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        kind,
-        ...form,
-        pageUrl: window.location.href,
-      }),
-    });
+    try {
+      const response = await fetch('/api/contact/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind,
+          ...form,
+          pageUrl: window.location.href,
+        }),
+      });
+      if (!response.ok) throw await readApiError(response, 'Unable to send the request.');
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+      setStatus('sent');
+      setMessage('Request sent. CardForge will follow up through the email you provided.');
+      setForm({ ...emptyForm, name: defaultName ?? '', email: defaultEmail ?? '', subject: defaultSubject });
+    } catch (error) {
       setStatus('error');
-      setMessage(body?.error?.message ?? 'Unable to send the request.');
-      return;
+      setMessage(error instanceof Error ? error.message : 'Unable to send the request. Check your connection and try again.');
     }
-
-    setStatus('sent');
-    setMessage('Request sent. CardForge will follow up through the email you provided.');
-    setForm({ ...emptyForm, name: defaultName ?? '', email: defaultEmail ?? '', subject: defaultSubject });
   };
 
   const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';

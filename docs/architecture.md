@@ -28,7 +28,9 @@ CardForge has four deliberate storage lanes.
 
 Signed-in users may explicitly back up selected CardForge sets to their account. Free accounts receive one cloud-set slot; Creator Pass, developer, and owner-grade access receive five. The quota limits cloud mirrors, not local creation.
 
-`cardforge_cloud_sets` stores one private account-owned CardForge Transfer V1 set manifest per saved set, including its cards and required personal Templates. Embedded artwork is removed from that JSON manifest, content-hashed, and stored in the private `cardforge-cloud-set-assets` Supabase Storage bucket. A cloud set is capped at 128 MB total, including up to 3 MB of metadata and referenced artwork subject to CardForge's existing 8 MB-per-local-artwork ceiling.
+Cloud-slot controls remain actionable when the known slot count is full so the attempted save can explain the enforced account boundary and recovery step. The server remains authoritative. CardForge does not proactively meter or warn about browser-local capacity; it reports actual browser write/read failure and refuses to create a knowingly incomplete export or cloud mirror.
+
+`cardforge_cloud_sets` stores one private account-owned CardForge Transfer V1 set manifest per saved set, including its cards and required personal Templates. Embedded artwork is removed from that JSON manifest, content-hashed, and stored in the private `cardforge-cloud-set-assets` Supabase Storage bucket. A cloud set is capped at 128 MB total, including up to 3 MB of metadata and an 8 MB ceiling for each artwork file crossing into CardForge-managed cloud storage. Local artwork is not subject to that cloud ceiling.
 
 Cloud artwork does not pass through Next.js request bodies. CardForge server routes authorize the account, enforce slot/storage limits, validate the manifest, and issue short-lived signed Supabase Storage URLs; the browser transfers the artwork directly to/from the private bucket. Loading a cloud set rehydrates the same Transfer V1 payload and merges it through the normal local CardForge import path. Removing a cloud mirror never deletes a device-local copy.
 
@@ -119,6 +121,12 @@ Shared structured Template revisions originate in Template Studio: developer edi
 Developer submissions use one durable lifecycle from draft/submission through voting/review/publication, with archive/rejection paths. Published shared assets retain attribution and lineage. Owner permanent deletion removes active registry/submission/revision/vote/storage lineage and leaves only a private tombstone that prevents bootstrap recreation.
 
 The pipeline is operational infrastructure, not an active payout program. Retired contributor identities remain presentation aliases for historical attribution; they are not active developers.
+
+The Owner Console controls both monthly submission count and the maximum source-file size for Forge Review media/font candidates. Source files upload directly through short-lived signed Supabase Storage URLs, then the server verifies account ownership, object size, file policy, remaining allowance, and pipeline metadata before committing the submission. This keeps production-quality sources out of Vercel Function request bodies. The Storage bucket enforces the 50 MB platform hard ceiling; the owner may choose a lower CardForge ceiling. Failed finalization compensates the uploaded object, and the browser also requests cleanup for an unfinished attempt.
+
+## Boundary failures
+
+CardForge uses one reusable boundary vocabulary across browser UI, HTTP APIs, and agent-facing tools: authentication, authorization, invalid input, conflict, not found, limit, and unavailable. API errors include a stable code and kind, retryability, a correlation id, and optional next-action, retry timing, or structured limit metadata. Provider failure must never masquerade as a lower entitlement or missing user-owned content. Tolerant reads remain appropriate for optional visual lists; portability, cloud, billing, entitlement, and permission boundaries use strict reads and explicit failures.
 
 ## Campaign and publication model
 

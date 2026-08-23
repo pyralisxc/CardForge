@@ -132,6 +132,7 @@ export interface DeveloperAssetProgramAggregate {
 export interface DeveloperProgramSettingsRow {
   max_active_developers?: unknown;
   monthly_submission_limit?: unknown;
+  max_submission_file_size_mb?: unknown;
   monthly_published_requirement?: unknown;
   minimum_votes_for_grading?: unknown;
   free_asset_minimum_positive_vote_percent?: unknown;
@@ -343,6 +344,7 @@ export const mapDeveloperProgramSettingsRow = (
   ? {
       maxActiveDevelopers: row.max_active_developers,
       monthlySubmissionLimit: row.monthly_submission_limit,
+      maxSubmissionFileSizeMb: row.max_submission_file_size_mb,
       monthlyPublishedRequirement: row.monthly_published_requirement,
       minimumVotesForGrading: row.minimum_votes_for_grading,
       freeAssetMinimumPositiveVotePercent: row.free_asset_minimum_positive_vote_percent,

@@ -1,5 +1,5 @@
 import { resolveAccountEntitlement } from '@/features/account/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetVotePolicy,
@@ -44,7 +44,12 @@ export async function POST(
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many developer votes. Please try again later.');
+      return createRateLimitErrorResponse('Too many developer votes.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'developer_votes',
+        maximum: 120,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const { submissionId } = await params;

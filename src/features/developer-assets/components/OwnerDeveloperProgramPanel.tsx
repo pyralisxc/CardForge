@@ -251,9 +251,10 @@ export function OwnerDeveloperProgramPanel({
             <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Monthly developer contract</h3>
             <FieldHelp text="These controls define who can participate, how often developers can upload, and the monthly contribution expectation." />
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <NumberField label="Max developers" help="Total active developer slots in the curated program." value={settings.maxActiveDevelopers} onChange={(value) => setSettings({ ...settings, maxActiveDevelopers: value })} />
             <NumberField label="Submission allowance" help="Maximum site-submitted assets one developer can upload each calendar month. Submissions left is calculated from this." value={settings.monthlySubmissionLimit} onChange={(value) => setSettings({ ...settings, monthlySubmissionLimit: value })} />
+            <NumberField label="Source file ceiling (MB)" help="Maximum size of one Forge Review media or font upload. Large files upload directly to managed storage; local browser projects are not affected." value={settings.maxSubmissionFileSizeMb} onChange={(value) => setSettings({ ...settings, maxSubmissionFileSizeMb: value })} />
             <NumberField label="Required published" help="Minimum published assets expected from each active developer per calendar month." value={settings.monthlyPublishedRequirement} onChange={(value) => setSettings({ ...settings, monthlyPublishedRequirement: value })} />
           </div>
         </div>

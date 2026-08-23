@@ -24,6 +24,7 @@ type McpRegistrationServer = Parameters<RegistrationCallback>[0];
 type ToolErrorResult = {
   isError: boolean;
   content: Array<{ type: 'text'; text: string }>;
+  _meta?: Record<string, unknown>;
 };
 
 type DeveloperTemplateDraft = Awaited<ReturnType<typeof getDeveloperTemplateDraft>>;

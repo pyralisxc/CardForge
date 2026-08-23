@@ -1,7 +1,7 @@
 import {
   getCurrentStudioDocumentAccount,
-  listDeletedStudioDocuments,
-  listStudioDocuments,
+  listDeletedStudioDocumentsPage,
+  listStudioDocumentsPage,
   StudioDocumentAccessError,
   StudioDocumentStoreError,
 } from '@/features/studio-documents/server';
@@ -12,11 +12,13 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const account = await getCurrentStudioDocumentAccount();
-    const documents = await listStudioDocuments(account.ownerUserId, account.retentionHours);
-    const deletedDocuments = await listDeletedStudioDocuments(account.ownerUserId);
+    const documentsPage = await listStudioDocumentsPage(account.ownerUserId, account.retentionHours);
+    const deletedDocumentsPage = await listDeletedStudioDocumentsPage(account.ownerUserId);
     return createNoStoreJsonResponse({
-      documents,
-      deletedDocuments,
+      documents: documentsPage.documents,
+      documentsHasMore: documentsPage.hasMore,
+      deletedDocuments: deletedDocumentsPage.documents,
+      deletedDocumentsHasMore: deletedDocumentsPage.hasMore,
       retentionHours: account.retentionHours,
       recoveryHours: 24,
       watermark: account.watermark,

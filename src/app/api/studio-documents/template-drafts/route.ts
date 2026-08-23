@@ -14,7 +14,7 @@ import {
   parseJsonBodyWithLimit,
   STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
 } from '@/infrastructure/http/apiValidation';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many AI Studio drafts. Please try again later.');
+      return createRateLimitErrorResponse('Too many AI Studio drafts.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'studio_ai_drafts',
+        maximum: 60,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);

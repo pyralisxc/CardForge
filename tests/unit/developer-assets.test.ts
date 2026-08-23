@@ -108,6 +108,7 @@ describe('developer asset program rules', () => {
     const settings = normalizeDeveloperProgramSettingsInput({
       maxActiveDevelopers: '200',
       monthlySubmissionLimit: '-2',
+      maxSubmissionFileSizeMb: '100',
       monthlyPublishedRequirement: '7',
       minimumVotesForGrading: '3',
       freeAssetMinimumPositiveVotePercent: '60',
@@ -119,6 +120,7 @@ describe('developer asset program rules', () => {
 
     expect(settings.maxActiveDevelopers).toBe(100);
     expect(settings.monthlySubmissionLimit).toBe(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlySubmissionLimit);
+    expect(settings.maxSubmissionFileSizeMb).toBe(50);
     expect(settings.monthlyPublishedRequirement).toBe(7);
     expect(settings.minimumVotesForGrading).toBe(3);
     expect(settings.freeAssetMinimumPositiveVotePercent).toBe(60);
@@ -143,6 +145,16 @@ describe('developer asset program rules', () => {
     expect(migration).toContain('alter column eligible_for_profit_share set default false');
     expect(migration).toContain('cardforge_freeze_archived_creator_pool_fields');
     expect(migration).not.toContain("profit_share_pool_percent = (p_settings ->> 'profitSharePoolPercent')");
+  });
+
+  it('keeps the upload-ceiling migration compatible with the previous owner payload', () => {
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260822213000_owner_controlled_developer_upload_ceiling.sql'),
+      'utf8',
+    );
+
+    expect(migration).toContain("(p_settings ->> 'maxSubmissionFileSizeMb')::integer");
+    expect(migration).toMatch(/max_submission_file_size_mb = coalesce\([\s\S]*max_submission_file_size_mb[\s\S]*\)/u);
   });
 
   it('derives publish capacity from Starter plus Creator Pass capacity', () => {

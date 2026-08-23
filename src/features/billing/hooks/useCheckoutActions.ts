@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { useToast } from '@/components/ui/use-toast';
 import type { ProductAccessOffering } from '@/features/billing/lib/billing';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -33,8 +34,8 @@ export function useCheckoutActions({
       toast({
         title: 'Checkout not configured',
         description: withNextStep(
-          'Add Clerk and Stripe environment variables before testing paid export checkout.',
-          'Configure .env.local from .env.example, restart the app, then try again.'
+          'Secure checkout is not available right now. Your local work is unchanged.',
+          'Try again later or contact CardForge support if checkout should be available.'
         ),
         variant: 'default',
       });
@@ -70,7 +71,7 @@ export function useCheckoutActions({
         toast({
           title: `${planName} checkout is unavailable`,
           description: withNextStep(
-            'Stripe checkout is not enabled in this environment.',
+            'Secure checkout is not available right now.',
             `Contact CardForge support if you expected ${planName} to be available.`
           ),
           variant: 'default',
@@ -83,16 +84,9 @@ export function useCheckoutActions({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ offering }),
       });
-      const payload = await response.json() as {
-        url?: string;
-        error?: string | { message?: string };
-      };
-      if (!response.ok || !payload.url) {
-        const message = typeof payload.error === 'string'
-          ? payload.error
-          : payload.error?.message;
-        throw new Error(message || 'Unable to start checkout.');
-      }
+      if (!response.ok) throw await readApiError(response, 'Unable to start checkout.');
+      const payload = await response.json() as { url?: string };
+      if (!payload.url) throw new Error('Secure checkout did not return a destination.');
 
       window.location.assign(payload.url);
     } catch (error) {
@@ -100,7 +94,7 @@ export function useCheckoutActions({
         title: 'Checkout unavailable',
         description: withNextStep(
           extractErrorMessage(error),
-          'Check Stripe environment variables and payment method settings, then retry.'
+          'Retry once. If it still fails, contact CardForge support; your account and local work are unchanged.'
         ),
         variant: 'destructive',
       });

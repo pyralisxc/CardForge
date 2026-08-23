@@ -8,6 +8,7 @@ export {
   getCardforgeUserAccessForUserId,
   getCurrentCardforgeEntitlement,
   getCurrentCardforgeUserAccess,
+  AccountIdentityUnavailableError,
   resolveOwnerAccessForServerUser,
   type CardforgeServerUser,
 } from './lib/serverCardforgeUser';

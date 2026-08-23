@@ -16,7 +16,7 @@ import {
   STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
   templatePayloadSchema,
 } from '@/infrastructure/http/apiValidation';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,12 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many Pipeline draft handoffs. Please try again later.');
+      return createRateLimitErrorResponse('Too many Pipeline draft handoffs.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        resource: 'template_pipeline_handoffs',
+        maximum: 60,
+        unit: 'attempts_per_hour',
+      });
     }
 
     const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);

@@ -43,6 +43,24 @@ export const readTypedProjectAssetListFromStorage = async <T>(
   key: string,
 ): Promise<T[]> => readProjectAssetListFromStorage(storage, key) as Promise<T[]>;
 
+export const readRequiredProjectAssetListFromStorage = async (
+  storage: ProjectAssetStorage,
+  key: string,
+): Promise<unknown[]> => {
+  const value = await storage.getItem(key);
+  if (!value) return [];
+  const parsed = JSON.parse(value);
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Local asset storage “${key}” is invalid.`);
+  }
+  return parsed;
+};
+
+export const readRequiredTypedProjectAssetListFromStorage = async <T>(
+  storage: ProjectAssetStorage,
+  key: string,
+): Promise<T[]> => readRequiredProjectAssetListFromStorage(storage, key) as Promise<T[]>;
+
 export const writeProjectAssetListToStorage = async (
   storage: ProjectAssetStorage,
   key: string,

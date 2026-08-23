@@ -21,7 +21,7 @@ import {
   initializeCardDataFromTemplate,
 } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/domain/templates';
-import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface SingleCardGeneratorProps {
@@ -96,11 +96,6 @@ export function SingleCardGenerator({
       let storedFile: File;
       try {
         storedFile = await optimizeLocalAssetFile(file);
-        const storageHealth = await getBrowserStorageHealth();
-        if (storageHealth.level === 'critical' || (storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5)) {
-          toast({ title: 'Browser Storage Almost Full', description: 'Download a project backup and free storage before adding more card artwork.', variant: 'destructive' });
-          return;
-        }
       } catch (error) {
         toast({ title: 'Image Not Added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
         return;

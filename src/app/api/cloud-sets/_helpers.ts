@@ -36,7 +36,11 @@ export const toCloudSetErrorResponse = (error: unknown, fallback: string) => {
           : error.status === 413
             ? 'cloud_set_too_large'
             : 'cloud_set_invalid';
-    return createApiErrorResponse(error.status, code, error.message);
+    return createApiErrorResponse(error.status, code, error.message, {
+      kind: error.kind,
+      nextAction: error.nextAction,
+      limit: error.limit,
+    });
   }
   console.error(fallback, error);
   return createApiErrorResponse(500, 'cloud_set_unavailable', fallback);

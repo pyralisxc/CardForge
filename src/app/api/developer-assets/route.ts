@@ -1,57 +1,21 @@
-import { resolveAccountEntitlement } from '@/features/account/server';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import {
   createUploadedDeveloperAssetSubmission,
   DeveloperAssetStoreError,
+  getCurrentDeveloperAssetRequestAccess,
+  getDeveloperContributorIds,
   getDeveloperAssetProgramView,
   projectDeveloperAssetProgramForViewer,
+  syncDeveloperAssetRequestProfile,
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/features/developer-assets/server';
-import { getDeveloperProfileCapabilities, upsertDeveloperProfile } from '@/features/developer-access/server';
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 
 export const dynamic = 'force-dynamic';
-
-const getDeveloperAccess = async () => {
-  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
-
-  if (!user) {
-    return {
-      ok: false as const,
-      response: createApiErrorResponse(401, 'sign_in_required', 'Sign in before using developer asset tools.'),
-    };
-  }
-
-  const entitlement = resolveAccountEntitlement({
-    authConfigured,
-    isSignedIn: true,
-    emailAddresses: user.emailAddresses,
-    privateMetadata: user.privateMetadata,
-    ownerAccess,
-  });
-
-  const isDeveloper = entitlement.accessMode === 'dev';
-  if (!isDeveloper && !ownerAccess.isOwner) {
-    return {
-      ok: false as const,
-      response: createApiErrorResponse(403, 'developer_access_required', 'Developer access is required for asset submissions.'),
-    };
-  }
-
-  return {
-    ok: true as const,
-    user,
-    ownerAccess,
-    isOwner: ownerAccess.isOwner,
-    isDeveloper,
-    email: user.email,
-  };
-};
 
 const getOwnerAccess = async () => {
   const owner = await getCurrentOwnerAccess();
@@ -64,23 +28,6 @@ const getOwnerAccess = async () => {
   return { ok: true as const, owner };
 };
 
-const getContributorIds = (userId: string) => [userId];
-
-const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDeveloperAccess>> & { ok: true }) => {
-  await upsertDeveloperProfile({
-    developerId: access.user.id,
-    email: access.email,
-    firstName: access.user.firstName,
-    lastName: access.user.lastName,
-  });
-  if (!access.isOwner) {
-    const profile = await getDeveloperProfileCapabilities(access.user.id);
-    if (profile.status !== 'active') {
-      throw new DeveloperAssetStoreError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
-    }
-  }
-};
-
 const parsePositiveInteger = (value: string | null, fallback: number): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
@@ -89,15 +36,14 @@ const parsePositiveInteger = (value: string | null, fallback: number): number =>
 export async function GET(request: Request) {
   const timing = createServerTimingTracker();
   try {
-    const access = await timing.track('developer_access', getDeveloperAccess);
-    if (!access.ok) return access.response;
-    await timing.track('profile_sync', () => syncDeveloperProfile(access));
+    const access = await timing.track('developer_access', getCurrentDeveloperAssetRequestAccess);
+    await timing.track('profile_sync', () => syncDeveloperAssetRequestProfile(access));
     const url = new URL(request.url);
     const program = await timing.track(
       'program_view',
       () => getDeveloperAssetProgramView(
         access.user.id,
-        getContributorIds(access.user.id),
+        getDeveloperContributorIds(access.user.id),
         {
           includeRegistryRecipePayloads: access.isOwner,
           submissionQuery: {
@@ -134,6 +80,13 @@ export async function GET(request: Request) {
     response.headers.set('Server-Timing', timing.header());
     return response;
   } catch (error) {
+    if (error instanceof DeveloperAssetStoreError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 401 ? 'sign_in_required' : error.status === 403 ? 'developer_access_required' : 'developer_asset_unavailable',
+        error.message,
+      );
+    }
     console.error('Failed to load developer asset program:', error);
     return createApiErrorResponse(
       500,
@@ -145,8 +98,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const access = await getDeveloperAccess();
-    if (!access.ok) return access.response;
+    const access = await getCurrentDeveloperAssetRequestAccess();
     const rateLimit = await consumeRateLimit({
       action: 'developer-submission',
       identity: access.user.id,
@@ -154,28 +106,45 @@ export async function POST(request: Request) {
       windowSeconds: 3600,
     });
     if (!rateLimit.allowed) {
-      return createApiErrorResponse(429, 'rate_limited', 'Too many developer submissions. Please try again later.');
+      return createRateLimitErrorResponse('Too many developer submissions.', {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        nextAction: 'Wait for the submission window to reset, then retry the same upload.',
+        resource: 'developer_submission_attempts',
+        maximum: 30,
+        unit: 'attempts_per_hour',
+      });
     }
-    await syncDeveloperProfile(access);
+    await syncDeveloperAssetRequestProfile(access);
 
-    const formData = await request.formData();
-    const file = formData.get('file');
-    if (!(file instanceof File)) {
-      return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Choose a source file to upload.');
+    const body = await request.json() as Record<string, unknown>;
+    const uploadedFile = body.uploadedFile;
+    if (!uploadedFile || typeof uploadedFile !== 'object' || Array.isArray(uploadedFile)) {
+      return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Upload a source file before submitting it to Forge Review.');
     }
+    const programView = await getDeveloperAssetProgramView(
+      access.user.id,
+      getDeveloperContributorIds(access.user.id),
+      { includeRegistryRecipePayloads: access.isOwner },
+    );
     const program = await createUploadedDeveloperAssetSubmission({
       developerId: access.user.id,
       developerEmail: access.email,
-      currentContributorIds: getContributorIds(access.user.id),
+      currentContributorIds: getDeveloperContributorIds(access.user.id),
       includeRegistryRecipePayloads: access.isOwner,
-      assetType: formData.get('assetType'),
-      studioDestination: formData.get('studioDestination'),
-      specialtyTags: formData.get('specialtyTags'),
-      useCaseTags: formData.get('useCaseTags'),
-      name: formData.get('name'),
-      description: formData.get('description'),
-      previewUrl: formData.get('previewUrl'),
-      file,
+      maxFileSizeMb: programView.settings.maxSubmissionFileSizeMb,
+      assetType: body.assetType,
+      studioDestination: body.studioDestination,
+      specialtyTags: body.specialtyTags,
+      useCaseTags: body.useCaseTags,
+      name: body.name,
+      description: body.description,
+      previewUrl: body.previewUrl,
+      uploadedFile: uploadedFile as {
+        storagePath: string;
+        fileName: string;
+        fileSizeBytes: number;
+        mimeType: string;
+      },
     });
     revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({
@@ -185,14 +154,30 @@ export async function POST(request: Request) {
       }),
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
     if (error instanceof RateLimitUnavailableError) {
       return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
     }
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
-        error.message
+        error.status === 401
+          ? 'sign_in_required'
+          : error.status === 403
+            ? 'developer_access_required'
+            : error.status === 503
+              ? 'developer_asset_unavailable'
+              : error.boundary.kind === 'limit'
+                ? 'developer_asset_limit'
+                : 'developer_asset_request_invalid',
+        error.message,
+        {
+          kind: error.boundary.kind,
+          nextAction: error.boundary.nextAction,
+          limit: error.boundary.limit,
+        },
       );
     }
 
@@ -218,7 +203,7 @@ export async function PUT(request: Request) {
     const program = await updateDeveloperProgramSettings(
       body.settings ?? {},
       ownerUserId,
-      getContributorIds(ownerUserId)
+      getDeveloperContributorIds(ownerUserId)
     );
     revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({ program });
@@ -265,7 +250,7 @@ export async function PATCH(request: Request) {
       developerId: typeof body.developerId === 'string' ? body.developerId : '',
       input: body.profile ?? {},
       currentUserId: ownerUserId,
-      currentContributorIds: getContributorIds(ownerUserId),
+      currentContributorIds: getDeveloperContributorIds(ownerUserId),
     });
     return createNoStoreJsonResponse({ program });
   } catch (error) {

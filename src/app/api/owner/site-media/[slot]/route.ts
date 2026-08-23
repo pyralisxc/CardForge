@@ -16,7 +16,7 @@ import {
   validateSiteMediaFile,
 } from '@/features/public-site/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ slo
     const { slot } = await params;
     if (!isSiteMediaSlot(slot)) return createApiErrorResponse(404, 'site_media_not_found', 'Public image not found.');
     const rateLimit = await consumeRateLimit({ action: 'site-media-upload', identity: owner.userId, limit: 24, windowSeconds: 3600 });
-    if (!rateLimit.allowed) return createApiErrorResponse(429, 'rate_limited', 'Too many public image publishes. Please try again later.');
+    if (!rateLimit.allowed) return createRateLimitErrorResponse('Too many public image publishes.', {
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      resource: 'public_image_publishes',
+      maximum: 24,
+      unit: 'attempts_per_hour',
+    });
 
     const formData = await request.formData();
     const imageValue = formData.get('image');

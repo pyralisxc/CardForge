@@ -33,6 +33,7 @@ import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { trackCardForgeEvent } from '@/features/analytics/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 
 interface UseTemplateEditorCommandsInput {
   acceptTemplate: (template: TCGCardTemplate) => void;
@@ -379,18 +380,31 @@ export function useTemplateEditorCommands({
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      apply(loadEvent.target?.result as string);
-      toast({ title: 'Image Uploaded', description: `${file.name} loaded.` });
-    };
-    reader.onerror = () => toast({
-      title: 'Upload Error',
-      description: 'Failed to read the selected image.',
-      variant: 'destructive',
-    });
-    reader.readAsDataURL(file);
     event.target.value = '';
+    const validation = validateLocalAssetFile(file);
+    if (!validation.ok) {
+      toast({ title: 'Image not loaded', description: validation.message, variant: 'destructive' });
+      return;
+    }
+    void optimizeLocalAssetFile(file).then((storedFile) => {
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        apply(loadEvent.target?.result as string);
+        toast({ title: 'Image Uploaded', description: `${file.name} loaded.` });
+      };
+      reader.onerror = () => toast({
+        title: 'Upload Error',
+        description: 'Failed to read the selected image.',
+        variant: 'destructive',
+      });
+      reader.readAsDataURL(storedFile);
+    }).catch((error) => {
+      toast({
+        title: 'Image not loaded',
+        description: error instanceof Error ? error.message : 'The image could not be validated.',
+        variant: 'destructive',
+      });
+    });
   }, [toast]);
 
   return {

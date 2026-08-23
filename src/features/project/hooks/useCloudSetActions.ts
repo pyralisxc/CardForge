@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { CardAssetOption } from '@/domain/templates';
 import type { useToast } from '@/components/ui/use-toast';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 import {
   hydrateCloudSetTransfer,
   prepareCloudSetTransfer,
@@ -27,7 +27,7 @@ import {
 } from '../model/projectDocument';
 import {
   getProjectAssetStorage,
-  readTypedProjectAssetListFromStorage,
+  readRequiredTypedProjectAssetListFromStorage,
 } from '../persistence/projectAssets';
 import { selectAllTemplates } from '../store/selectors';
 import { useProjectStore } from '../store/workspaceStore';
@@ -38,10 +38,10 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 const readCustomAssets = async (): Promise<ProjectDocumentCustomAssets> => {
   const storage = getProjectAssetStorage();
   const [textures, dividers, icons, images] = await Promise.all([
-    readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-    readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-    readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-    readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
   ]);
   return {
     [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
@@ -52,7 +52,7 @@ const readCustomAssets = async (): Promise<ProjectDocumentCustomAssets> => {
 };
 
 const requireJson = async <T>(response: Response, fallback: string): Promise<T> => {
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, fallback));
+  if (!response.ok) throw await readApiError(response, fallback);
   return await response.json() as T;
 };
 
@@ -109,6 +109,17 @@ export function useCloudSetActions({
       toast({ title: 'Set not found', description: 'Choose an existing local set before saving it to the cloud.', variant: 'destructive' });
       return null;
     }
+    const existingCloudSet = cloudBySetId.get(setId);
+    if (!existingCloudSet && cloud && cloud.used >= cloud.limit) {
+      toast({
+        title: 'Cloud save limit reached',
+        description: cloud.limit === 1
+          ? 'Your Free account already uses its 1 cloud set slot. Remove that cloud save or activate Creator Pass for 5 slots. Your local sets remain unchanged and unlimited.'
+          : `All ${cloud.limit} cloud set slots are in use. Remove a cloud save before adding another. Your local sets remain unchanged and unlimited.`,
+        variant: 'destructive',
+      });
+      return null;
+    }
     setSavingSetId(setId);
     try {
       const transfer = createCardSetTransfer({
@@ -158,7 +169,7 @@ export function useCloudSetActions({
     } finally {
       setSavingSetId(null);
     }
-  }, [cloudBySetId, enabled, refreshCloudSets, savingSetId, toast]);
+  }, [cloud, cloudBySetId, enabled, refreshCloudSets, savingSetId, toast]);
 
   const loadSetFromCloud = useCallback(async (setId: string) => {
     if (!enabled || loadingSetId) return false;
@@ -193,7 +204,7 @@ export function useCloudSetActions({
     setDeletingSetId(setId);
     try {
       const response = await fetch(`/api/cloud-sets/${encodeURIComponent(setId)}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to remove this cloud save.'));
+      if (!response.ok) throw await readApiError(response, 'Unable to remove this cloud save.');
       const removedName = cloudBySetId.get(setId)?.name ?? setId;
       await refreshCloudSets();
       toast({

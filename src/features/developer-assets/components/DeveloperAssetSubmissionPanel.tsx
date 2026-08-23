@@ -14,6 +14,7 @@ import {
   type DeveloperUploadAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
+import type { DeveloperAssetUploadPlan } from '@/features/developer-assets/lib/developerAssetUploadPolicy';
 import {
   developerAssetSubmissionGuidance,
   getCandidateBrowseLabel,
@@ -35,10 +36,14 @@ import {
   getDeveloperAssetStudioDestinationOptions,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import type { StudioAssetDestination } from '@/domain/templates';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { readApiError } from '@/infrastructure/http/clientResponses';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
+}
+
+interface DeveloperAssetUploadPlanResponse {
+  upload: DeveloperAssetUploadPlan;
 }
 
 const formatBytes = (value: number): string => {
@@ -124,29 +129,65 @@ export function DeveloperAssetSubmissionPanel({
   };
 
   const submitAsset = async () => {
+    const submissionAssetType = assetType;
+    const submissionStudioDestination = studioDestination;
     setIsSaving(true);
+    let pendingUpload: DeveloperAssetUploadPlan | null = null;
+    let submitted = false;
     try {
       if (!name.trim()) throw new Error('Name the asset before submitting.');
       if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
       if (!useCaseTags.length) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
 
-      const formData = new FormData();
-      formData.set('assetType', assetType);
-      formData.set('studioDestination', studioDestination);
-      formData.set('specialtyTags', specialtyTags.join(','));
-      formData.set('useCaseTags', useCaseTags.join(','));
-      formData.set('name', name);
-      formData.set('description', description);
-      formData.set('previewUrl', previewUrl);
-      formData.set('file', selectedFile);
+      const planResponse = await fetch('/api/developer-assets/upload-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assetType: submissionAssetType,
+          studioDestination: submissionStudioDestination,
+          fileName: selectedFile.name,
+          fileSizeBytes: selectedFile.size,
+          mimeType: selectedFile.type || 'application/octet-stream',
+        }),
+      });
+      if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
+      pendingUpload = (await planResponse.json() as DeveloperAssetUploadPlanResponse).upload;
+
+      const uploadForm = new FormData();
+      uploadForm.append('cacheControl', '3600');
+      uploadForm.append('', selectedFile);
+      const uploadResponse = await fetch(pendingUpload.signedUrl, {
+        method: 'PUT',
+        headers: { 'x-upsert': 'false' },
+        body: uploadForm,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
+      }
 
       const response = await fetch('/api/developer-assets', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assetType: submissionAssetType,
+          studioDestination: submissionStudioDestination,
+          specialtyTags,
+          useCaseTags,
+          name,
+          description,
+          previewUrl,
+          uploadedFile: {
+            storagePath: pendingUpload.storagePath,
+            fileName: pendingUpload.fileName,
+            fileSizeBytes: pendingUpload.fileSizeBytes,
+            mimeType: pendingUpload.mimeType,
+          },
+        }),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit asset.'));
+      if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
       await response.json() as DeveloperAssetsResponse;
+      submitted = true;
       await onSubmitted();
       setName('');
       setDescription('');
@@ -163,6 +204,13 @@ export function DeveloperAssetSubmissionPanel({
         variant: 'destructive',
       });
     } finally {
+      if (pendingUpload && !submitted) {
+        void fetch('/api/developer-assets/upload-plan', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assetType: submissionAssetType, storagePath: pendingUpload.storagePath }),
+        });
+      }
       setIsSaving(false);
     }
   };
@@ -349,7 +397,7 @@ export function DeveloperAssetSubmissionPanel({
                   </span>
                   <span className="text-sm font-medium text-[var(--cf-accent-text)]">{getCandidateBrowseLabel(assetType)}</span>
                   <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-                    {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}.
+                    {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}. Owner ceiling: {program.settings.maxSubmissionFileSizeMb} MB.
                   </span>
                   <input
                     key={fileInputKey}
@@ -388,8 +436,8 @@ export function DeveloperAssetSubmissionPanel({
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
-          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
-            {isSaving ? 'Uploading...' : 'Send to Forge Review'}
+          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={submitAsset}>
+            {isSaving ? 'Uploading...' : program.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly limit reached — review'}
           </Button>
         </div>
       </div>

@@ -60,7 +60,7 @@ const readProfileRows = async (): Promise<DeveloperProfileRow[]> => {
     .select(PROFILE_COLUMNS);
   if (!error) return (data ?? []) as DeveloperProfileRow[];
   console.error('Failed to load developer profiles:', error);
-  return [];
+  throw new DeveloperAccessStoreError('Developer profiles are temporarily unavailable.', 503);
 };
 
 export const fetchDeveloperProfileRows = readProfileRows;
@@ -95,7 +95,7 @@ export const countActiveDevelopers = async (): Promise<number> => {
     .eq('status', 'active');
   if (error) {
     console.error('Failed to count active developers:', error);
-    return 1;
+    throw new DeveloperAccessStoreError('Developer roster capacity is temporarily unavailable.', 503);
   }
   return Math.max(1, count ?? 0);
 };
@@ -158,7 +158,10 @@ export const getDeveloperProfileCapabilities = async (
     canDraftCampaigns: false,
     canProposeSiteContent: false,
   };
-  if (!supabase || !developerId) return failClosed;
+  if (!developerId) return failClosed;
+  if (!supabase) {
+    throw new DeveloperAccessStoreError('Developer access storage is not configured.', 503);
+  }
 
   const { data, error } = await supabase
     .from('cardforge_developer_profiles')
@@ -167,7 +170,7 @@ export const getDeveloperProfileCapabilities = async (
     .limit(1);
   if (error) {
     console.error('Failed to read developer contribution capabilities:', error);
-    return failClosed;
+    throw new DeveloperAccessStoreError('Developer access could not be verified.', 503);
   }
   const row = data?.[0] as DeveloperProfileRow | undefined;
   return {

@@ -65,7 +65,6 @@ export {
   getBrowserWorkspaceSaveStatus,
   getBrowserStorageHealth,
   getConstrainedImageSize,
-  MAX_LOCAL_ASSET_BYTES,
   MAX_LOCAL_ASSET_DIMENSION,
   optimizeLocalAssetFile,
   quarantineBrowserStorageValue,
@@ -93,6 +92,8 @@ export {
   getProjectAssetStorage,
   mergeProjectAssetListToStorage,
   readProjectAssetListFromStorage,
+  readRequiredProjectAssetListFromStorage,
+  readRequiredTypedProjectAssetListFromStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from './persistence/projectAssets';
