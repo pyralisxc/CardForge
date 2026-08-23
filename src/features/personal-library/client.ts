@@ -1,3 +1,4 @@
+export { importPersonalLibraryItemToLocalAsset } from './client/importPersonalLibraryAsset';
 export {
   chooseGoogleDrivePersonalLibraryItems,
   loadPersonalLibrary,
