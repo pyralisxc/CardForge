@@ -119,6 +119,14 @@ export type {
 } from './client/projectWorkspaceDocument';
 export { chooseGoogleDriveProjectFolder } from './client/googleDriveFolderPicker';
 export {
+  loadGoogleDrivePickerConfiguration,
+  pickGoogleDriveItems,
+} from './client/googleDrivePicker';
+export type {
+  GoogleDrivePickerItem,
+  GoogleDrivePickerRequest,
+} from './client/googleDrivePicker';
+export {
   deleteGoogleDriveProjectFromLibrary,
   disconnectGoogleDriveProjectBinding,
   disconnectGoogleDriveStorage,

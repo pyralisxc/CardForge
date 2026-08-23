@@ -72,18 +72,22 @@ describe('Google Drive project storage', () => {
     expect(account).toContain('GoogleDriveProjectStoragePanel');
   });
 
-  it('uses the native Google Picker for explicit project-folder selection', () => {
-    const picker = read('src/features/project/client/googleDriveFolderPicker.ts');
+  it('uses the shared native Google Picker for explicit project-folder selection', () => {
+    const folderPicker = read('src/features/project/client/googleDriveFolderPicker.ts');
+    const pickerRuntime = read('src/features/project/client/googleDrivePicker.ts');
     const pickerStore = read('src/features/project/server/googleDriveFolderPickerStore.ts');
     const accountPanel = read('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
 
-    expect(picker).toContain("'https://apis.google.com/js/api.js'");
-    expect(picker).toContain('.setIncludeFolders(true)');
-    expect(picker).toContain('.setSelectFolderEnabled(true)');
-    expect(picker).toContain('.setMode(picker.DocsViewMode.LIST)');
-    expect(picker).toContain('.setOAuthToken(config.accessToken)');
-    expect(picker).toContain('.setDeveloperKey(config.developerKey)');
-    expect(picker).toContain('.setAppId(config.appId)');
+    expect(pickerRuntime).toContain("'https://apis.google.com/js/api.js'");
+    expect(pickerRuntime).toContain('setIncludeFolders(includeFolders)');
+    expect(pickerRuntime).toContain('setSelectFolderEnabled(selectFolders)');
+    expect(pickerRuntime).toContain('setMode(picker.DocsViewMode.LIST)');
+    expect(pickerRuntime).toContain('setOAuthToken(config.accessToken)');
+    expect(pickerRuntime).toContain('setDeveloperKey(config.developerKey)');
+    expect(pickerRuntime).toContain('setAppId(config.appId)');
+    expect(folderPicker).toContain('pickGoogleDriveItems');
+    expect(folderPicker).toContain('includeFolders: true');
+    expect(folderPicker).toContain('selectFolders: true');
     expect(pickerStore).toContain('CARDFORGE_GOOGLE_PICKER_API_KEY');
     expect(pickerStore).toContain('CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER');
     expect(pickerStore).toContain("url.searchParams.set('fields', 'id,name,mimeType')");

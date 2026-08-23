@@ -6,18 +6,22 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Google Drive project folder selection', () => {
-  it('uses the native Google Picker with narrow drive.file authorization', () => {
-    const picker = read('src/features/project/client/googleDriveFolderPicker.ts');
+  it('uses the shared native Google Picker with narrow drive.file authorization', () => {
+    const folderPicker = read('src/features/project/client/googleDriveFolderPicker.ts');
+    const pickerRuntime = read('src/features/project/client/googleDrivePicker.ts');
     const model = read('src/features/project/model/googleDriveProject.ts');
 
     expect(model).toContain("GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file'");
     expect(model).toContain("GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'");
-    expect(picker).toContain("https://apis.google.com/js/api.js");
-    expect(picker).toContain('setIncludeFolders(true)');
-    expect(picker).toContain('setSelectFolderEnabled(true)');
-    expect(picker).toContain('setOAuthToken(config.accessToken)');
-    expect(picker).toContain('setDeveloperKey(config.developerKey)');
-    expect(picker).toContain('setAppId(config.appId)');
+    expect(pickerRuntime).toContain("https://apis.google.com/js/api.js");
+    expect(pickerRuntime).toContain("gapi.load('picker'");
+    expect(pickerRuntime).toContain('setOAuthToken(config.accessToken)');
+    expect(pickerRuntime).toContain('setDeveloperKey(config.developerKey)');
+    expect(pickerRuntime).toContain('setAppId(config.appId)');
+    expect(folderPicker).toContain('pickGoogleDriveItems');
+    expect(folderPicker).toContain('includeFolders: true');
+    expect(folderPicker).toContain('selectFolders: true');
+    expect(folderPicker).toContain('mimeTypes: [GOOGLE_DRIVE_FOLDER_MIME_TYPE]');
   });
 
   it('keeps Picker credentials server-configured and persists only the chosen folder id', () => {

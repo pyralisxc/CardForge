@@ -1,3 +1,4 @@
+import { registerPersonalLibraryTools } from '@/features/personal-library/server';
 import { registerAccountWorkflowTools } from './mcpAccountWorkflowTools';
 import { registerAgentCardTools } from './mcpAgentCardTools';
 import { registerAgentTemplateTools as registerTemplateTools } from './mcpAgentTemplateToolsCore';
@@ -12,4 +13,5 @@ export const registerAgentTemplateTools = (
   registerAgentCardTools(options);
   registerCloudSetTools(options);
   registerProjectSourceTools(options);
+  registerPersonalLibraryTools(options);
 };
