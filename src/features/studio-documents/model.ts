@@ -29,6 +29,8 @@ export type { StudioDocumentAssetDownload } from './assetReferences';
 
 export const STUDIO_DOCUMENT_SOURCES = ['studio', 'gpt', 'import'] as const;
 export type StudioDocumentSource = typeof STUDIO_DOCUMENT_SOURCES[number];
+export const STUDIO_DOCUMENT_PROJECT_SOURCE_PROVIDERS = ['google-drive'] as const;
+export type StudioDocumentProjectSourceProvider = typeof STUDIO_DOCUMENT_PROJECT_SOURCE_PROVIDERS[number];
 
 export interface StudioDocumentInstallSummary {
   templateCount: number;
@@ -60,6 +62,11 @@ export interface StudioDocumentSummary {
   lastInstallSummary: StudioDocumentInstallSummary | null;
   sourceCloudSetId: string | null;
   sourceCloudRevision: number | null;
+  sourceProjectProvider: StudioDocumentProjectSourceProvider | null;
+  sourceProjectExternalId: string | null;
+  sourceProviderRevision: string | null;
+  sourceProjectRevision: string | null;
+  sourceProjectName: string | null;
 }
 
 export interface StudioDocument extends StudioDocumentSummary {

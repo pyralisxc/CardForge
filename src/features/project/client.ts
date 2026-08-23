@@ -81,6 +81,26 @@ export type {
   ProjectSourceProvider,
 } from './model/projectPackage';
 export {
+  GOOGLE_DRIVE_FILE_SCOPE,
+  GOOGLE_DRIVE_FOLDER_MIME_TYPE,
+  GOOGLE_DRIVE_IDENTITY_SCOPES,
+  GOOGLE_DRIVE_PROJECT_MIME_TYPE,
+  GOOGLE_DRIVE_PROJECT_PROVIDER,
+  GOOGLE_DRIVE_ROOT_FOLDER_NAME,
+  isGoogleDriveFileId,
+  isGoogleDriveProviderRevision,
+} from './model/googleDriveProject';
+export type {
+  GoogleDriveFolderSelection,
+  GoogleDrivePickerConfiguration,
+  GoogleDriveProjectConnectionSummary,
+  GoogleDriveProjectDownload,
+  GoogleDriveProjectListResult,
+  GoogleDriveProjectSummary,
+  GoogleDriveUploadCompletion,
+  GoogleDriveUploadPrepareResult,
+} from './model/googleDriveProject';
+export {
   buildCardForgeProjectSnapshot,
   decodeCardForgeProjectPackage,
   decodeProjectFile,
@@ -97,6 +117,18 @@ export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,
 } from './client/projectWorkspaceDocument';
+export { chooseGoogleDriveProjectFolder } from './client/googleDriveFolderPicker';
+export {
+  deleteGoogleDriveProjectFromLibrary,
+  disconnectGoogleDriveProjectBinding,
+  disconnectGoogleDriveStorage,
+  getGoogleDriveProjectBinding,
+  getGoogleDriveProjectSourceDescriptor,
+  loadGoogleDriveProjectLibrary,
+  openGoogleDriveProject,
+  saveCurrentProjectToGoogleDrive,
+} from './client/googleDriveProjectTransfer';
+export type { GoogleDriveProjectBinding } from './client/googleDriveProjectTransfer';
 export {
   disconnectLocalProjectFolder,
   getLocalProjectFileName,

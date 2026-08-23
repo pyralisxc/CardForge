@@ -21,6 +21,7 @@ import {
 import {
   AccountCloudStorageBreakdown,
   AccountStorageLibrary,
+  GoogleDriveProjectStoragePanel,
   LocalProjectFolderPanel,
 } from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -35,7 +36,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; intent?: string }>;
+  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string }>;
 }) {
   const params = await searchParams;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
@@ -43,6 +44,9 @@ export default async function AccountPage({
     : null;
   const checkoutStatus = params.checkout === 'success' || params.checkout === 'cancelled'
     ? params.checkout
+    : null;
+  const storageStatus = params.storage === 'google-drive-connected' || params.storage === 'google-drive-error'
+    ? params.storage
     : null;
   const [entitlement, businessIdentity, siteConfiguration, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement().catch((error) => {
@@ -71,6 +75,13 @@ export default async function AccountPage({
           siteConfiguration={siteConfiguration}
         />
       </div>
+      {storageStatus ? (
+        <div className={`mx-auto mt-4 max-w-4xl border px-4 py-3 text-sm ${storageStatus === 'google-drive-connected' ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-100' : 'border-[#8b4c35] bg-[#2a130e] text-[#efb6a4]'}`} role="status">
+          {storageStatus === 'google-drive-connected'
+            ? 'Google Drive is connected. Your CardForge project files can now live in your Google storage and remain reachable to CardForge services.'
+            : params.message || 'Google Drive could not be connected. Review the storage panel and try again.'}
+        </div>
+      ) : null}
       <AccountProfilePage
         checkoutStatus={checkoutStatus}
         initialPlanIntent={initialPlanIntent}
@@ -87,6 +98,11 @@ export default async function AccountPage({
               />
               <LocalProjectFolderPanel
                 persistenceScope={persistenceScope}
+                canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
+              />
+              <GoogleDriveProjectStoragePanel
+                persistenceScope={persistenceScope}
+                isSignedIn={entitlement.isSignedIn}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
               />
             </div>
