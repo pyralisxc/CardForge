@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 
 const STUDIO_DOCUMENT_ASSET_BUCKET = "cardforge-studio-document-assets";
+const STUDIO_DOCUMENT_FONT_BUCKET = "cardforge-studio-document-fonts";
 const RENDER_ARTIFACT_BUCKET = "cardforge-render-artifacts";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -82,6 +83,7 @@ Deno.serve(async (request: Request) => {
     try {
       const prefix = `${claim.owner_user_id}/${claim.document_id}`;
       await removePrefixObjects(STUDIO_DOCUMENT_ASSET_BUCKET, prefix);
+      await removePrefixObjects(STUDIO_DOCUMENT_FONT_BUCKET, prefix);
       await removePrefixObjects(RENDER_ARTIFACT_BUCKET, prefix);
 
       const { data: finalized, error: finalizeError } = await supabase.rpc(
