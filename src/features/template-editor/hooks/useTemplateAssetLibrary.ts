@@ -4,27 +4,32 @@ import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import type { CardAssetOption } from '@/features/developer-assets/client/assets';
-import { loadCardForgeStudioAssets } from '@/features/developer-assets/client/catalog';
-import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/client';
 import type { useToast } from '@/components/ui/use-toast';
 import {
   getDefaultStudioAssetDestinations,
   type FreeformCardElement,
   type StudioAssetDestination,
 } from '@/domain/templates';
-import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import type { CardAssetOption } from '@/features/developer-assets/client/assets';
+import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
+import { loadCardForgeStudioAssets } from '@/features/developer-assets/client/catalog';
 import {
+  importPersonalLibraryItemToLocalAsset,
+  loadPersonalLibrary,
+  type PersonalLibraryItem,
+} from '@/features/personal-library/client';
+import {
+  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
+  optimizeLocalAssetFile,
   readTypedProjectAssetListFromStorage,
+  validateLocalAssetFile,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
+
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
 const isRoutedTo = (asset: CardAssetOption, destination: StudioAssetDestination): boolean => {
@@ -59,6 +64,13 @@ const readStoredAssets = async (primaryKey: string): Promise<CardAssetOption[]> 
   }
 };
 
+const replaceAssetById = (assets: CardAssetOption[], nextAsset: CardAssetOption) => {
+  const existing = assets.findIndex((asset) => asset.id === nextAsset.id);
+  return existing >= 0
+    ? assets.map((asset, index) => index === existing ? nextAsset : asset)
+    : [...assets, nextAsset];
+};
+
 export function useTemplateAssetLibrary({
   selectedElement,
   canUseBackgroundTexture,
@@ -74,10 +86,25 @@ export function useTemplateAssetLibrary({
   const [customDividerAssets, setCustomDividerAssets] = useState<CardAssetOption[]>([]);
   const [customIconAssets, setCustomIconAssets] = useState<CardAssetOption[]>([]);
   const [customImageAssets, setCustomImageAssets] = useState<CardAssetOption[]>([]);
+  const [connectedLibraryItems, setConnectedLibraryItems] = useState<PersonalLibraryItem[]>([]);
+  const [connectedLibraryBusyItemId, setConnectedLibraryBusyItemId] = useState<string | null>(null);
+
+  const refreshLocalAssets = useCallback(async () => {
+    const [textures, dividers, icons, images] = await Promise.all([
+      readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+      readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+      readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY),
+      readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    ]);
+    setCustomTextureAssets(textures);
+    setCustomDividerAssets(dividers);
+    setCustomIconAssets(icons);
+    setCustomImageAssets(images);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const loadCustomAssets = async () => {
+    void (async () => {
       const [textures, dividers, icons, images] = await Promise.all([
         readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
         readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
@@ -89,12 +116,25 @@ export function useTemplateAssetLibrary({
       setCustomDividerAssets(dividers);
       setCustomIconAssets(icons);
       setCustomImageAssets(images);
-    };
-    void loadCustomAssets();
-    return () => {
-      cancelled = true;
-    };
+    })();
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!canUploadCustomAssets) {
+      setConnectedLibraryItems([]);
+      return;
+    }
+    let cancelled = false;
+    void loadPersonalLibrary()
+      .then((library) => {
+        if (!cancelled) setConnectedLibraryItems(library.items);
+      })
+      .catch((error) => {
+        if (!cancelled) console.warn('Unable to load connected personal assets in Template Studio:', error);
+      });
+    return () => { cancelled = true; };
+  }, [canUploadCustomAssets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,29 +143,18 @@ export function useTemplateAssetLibrary({
       try {
         const payload = (await loadCardForgeStudioAssets()).assets;
         if (cancelled) return;
-        if (Array.isArray(payload.textures) && payload.textures.length > 0) {
-          setDiscoveredTextureAssets(payload.textures);
-        }
-        if (Array.isArray(payload.dividers) && payload.dividers.length > 0) {
-          setDiscoveredDividerAssets(payload.dividers);
-        }
-        if (Array.isArray(payload.icons) && payload.icons.length > 0) {
-          setDiscoveredIconAssets(payload.icons);
-        }
+        if (Array.isArray(payload.textures) && payload.textures.length > 0) setDiscoveredTextureAssets(payload.textures);
+        if (Array.isArray(payload.dividers) && payload.dividers.length > 0) setDiscoveredDividerAssets(payload.dividers);
+        if (Array.isArray(payload.icons) && payload.icons.length > 0) setDiscoveredIconAssets(payload.icons);
         const nextImageAssets = Array.isArray(payload.imageAssets) ? payload.imageAssets : [];
-        if (nextImageAssets.length > 0) {
-          setDiscoveredImageAssets(nextImageAssets);
-        }
+        if (nextImageAssets.length > 0) setDiscoveredImageAssets(nextImageAssets);
       } catch (error) {
         console.warn('Unable to load discovered card assets:', error);
       }
     };
 
     void loadDiscoveredAssets();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const compatibleTextureAssets = useMemo(() => {
@@ -156,30 +185,64 @@ export function useTemplateAssetLibrary({
 
   const compatibleImageAssets = useMemo(() => {
     const search = assetSearch.trim().toLowerCase();
-    return [...discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.picture')), ...customImageAssets]
+    return [...discoveredImageAssets, ...customImageAssets]
+      .filter((asset) => isRoutedTo(asset, 'image.picture'))
       .filter((asset) => asset.allowedTargets.includes('image'))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customImageAssets, discoveredImageAssets]);
 
+  const allImageAssets = useMemo(() => [...discoveredImageAssets, ...customImageAssets], [customImageAssets, discoveredImageAssets]);
   const frontFrameAssets = useMemo(
-    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.front')),
-    [discoveredImageAssets],
+    () => allImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.front')),
+    [allImageAssets],
   );
-
   const backFrameAssets = useMemo(
-    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.back')),
-    [discoveredImageAssets],
+    () => allImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.back')),
+    [allImageAssets],
   );
-
   const frontBorderAssets = useMemo(
-    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.front')),
-    [discoveredImageAssets],
+    () => allImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.front')),
+    [allImageAssets],
+  );
+  const backBorderAssets = useMemo(
+    () => allImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.back')),
+    [allImageAssets],
   );
 
-  const backBorderAssets = useMemo(
-    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.back')),
-    [discoveredImageAssets],
+  const connectedImageItems = useMemo(
+    () => connectedLibraryItems.filter((item) => item.role === 'artwork' || item.role === 'frame' || item.role === 'reference'),
+    [connectedLibraryItems],
   );
+  const connectedIconItems = useMemo(
+    () => connectedLibraryItems.filter((item) => item.role === 'icon'),
+    [connectedLibraryItems],
+  );
+  const connectedTextureItems = useMemo(
+    () => connectedLibraryItems.filter((item) => item.role === 'texture'),
+    [connectedLibraryItems],
+  );
+  const connectedDividerItems = useMemo(
+    () => connectedLibraryItems.filter((item) => item.role === 'divider'),
+    [connectedLibraryItems],
+  );
+
+  const importConnectedLibraryItem = useCallback(async (item: PersonalLibraryItem): Promise<CardAssetOption> => {
+    setConnectedLibraryBusyItemId(item.id);
+    try {
+      const asset = await importPersonalLibraryItemToLocalAsset(item);
+      if (asset.kind === 'texture') setCustomTextureAssets((current) => replaceAssetById(current, asset));
+      else if (asset.kind === 'divider') setCustomDividerAssets((current) => replaceAssetById(current, asset));
+      else if (asset.kind === 'icon') setCustomIconAssets((current) => replaceAssetById(current, asset));
+      else setCustomImageAssets((current) => replaceAssetById(current, asset));
+      toast({
+        title: 'Connected asset ready in this project',
+        description: `“${item.displayName}” was materialized from Google Drive into this browser's portable CardForge asset library.`,
+      });
+      return asset;
+    } finally {
+      setConnectedLibraryBusyItemId(null);
+    }
+  }, [toast]);
 
   const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
     if (!canUploadCustomAssets) {
@@ -291,7 +354,14 @@ export function useTemplateAssetLibrary({
     frontBorderAssets,
     backBorderAssets,
     canUploadCustomAssets,
+    connectedDividerItems,
+    connectedIconItems,
+    connectedImageItems,
+    connectedLibraryBusyItemId,
+    connectedTextureItems,
     handleAssetUpload,
+    importConnectedLibraryItem,
+    refreshLocalAssets,
     setAssetSearch,
   };
 }
