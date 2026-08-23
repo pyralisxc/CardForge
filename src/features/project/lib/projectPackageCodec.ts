@@ -41,7 +41,9 @@ const bytesToHex = (bytes: Uint8Array) => Array.from(bytes, (byte) => byte.toStr
 
 const hashBytes = async (bytes: Uint8Array): Promise<string> => {
   if (!globalThis.crypto?.subtle) throw new ProjectPackageError('Secure project fingerprinting is unavailable in this environment.');
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  const input = new Uint8Array(bytes.byteLength);
+  input.set(bytes);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', input.buffer);
   return bytesToHex(new Uint8Array(digest));
 };
 
