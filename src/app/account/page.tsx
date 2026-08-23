@@ -21,6 +21,7 @@ import {
 import {
   AccountCloudStorageBreakdown,
   AccountStorageLibrary,
+  ConnectedPersonalLibraryPanel,
   GoogleDriveProjectStoragePanel,
   LocalProjectFolderPanel,
 } from '@/features/storage-management/client';
@@ -104,6 +105,10 @@ export default async function AccountPage({
                 persistenceScope={persistenceScope}
                 isSignedIn={entitlement.isSignedIn}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
+              />
+              <ConnectedPersonalLibraryPanel
+                isSignedIn={entitlement.isSignedIn}
+                canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
               />
             </div>
           </SiteContentProvider>
