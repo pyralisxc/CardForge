@@ -18,7 +18,11 @@ import {
   getCachedPublicSiteConfiguration,
   getCachedSiteContentBlocks,
 } from '@/features/public-site/server';
-import { AccountCloudStorageBreakdown, AccountStorageLibrary } from '@/features/storage-management/client';
+import {
+  AccountCloudStorageBreakdown,
+  AccountStorageLibrary,
+  LocalProjectFolderPanel,
+} from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -74,12 +78,18 @@ export default async function AccountPage({
         plans={plans}
         storageLibrary={(
           <SiteContentProvider key="storage-library-copy" content={accountContent}>
-            <AccountStorageLibrary
-              embedded
-              persistenceScope={persistenceScope}
-              isSignedIn={entitlement.isSignedIn}
-              cloudSetLimit={entitlement.capabilities.cloudSetLimit}
-            />
+            <div className="space-y-4">
+              <AccountStorageLibrary
+                embedded
+                persistenceScope={persistenceScope}
+                isSignedIn={entitlement.isSignedIn}
+                cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+              />
+              <LocalProjectFolderPanel
+                persistenceScope={persistenceScope}
+                canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
+              />
+            </div>
           </SiteContentProvider>
         )}
         cloudStorageDetails={(

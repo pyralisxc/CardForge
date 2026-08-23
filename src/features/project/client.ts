@@ -56,6 +56,62 @@ export type {
   ProjectDocumentV1,
 } from './model/projectDocument';
 export {
+  CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX,
+  CARDFORGE_PROJECT_FILE_EXTENSION,
+  CARDFORGE_PROJECT_MANIFEST_FILE,
+  CARDFORGE_PROJECT_PACKAGE_VERSION,
+  getProjectPackageAssetExtension,
+  getProjectPackageAssetIdFromReference,
+  getProjectPackageAssetReference,
+  isProjectPackageAssetId,
+  isProjectPackageAssetMimeType,
+  MAX_PROJECT_PACKAGE_ASSET_BYTES,
+  MAX_PROJECT_PACKAGE_ASSETS,
+  MAX_PROJECT_PACKAGE_BYTES,
+  MAX_PROJECT_PACKAGE_METADATA_BYTES,
+  normalizeProjectFileName,
+  PROJECT_PACKAGE_ASSET_MIME_TYPES,
+} from './model/projectPackage';
+export type {
+  CardForgeProjectManifestV1,
+  CardForgeProjectPackageSnapshot,
+  ProjectPackageAssetDescriptor,
+  ProjectPackageAssetMimeType,
+  ProjectSourceDescriptor,
+  ProjectSourceProvider,
+} from './model/projectPackage';
+export {
+  buildCardForgeProjectSnapshot,
+  decodeCardForgeProjectPackage,
+  decodeProjectFile,
+  encodeCardForgeProjectPackage,
+  hydrateCardForgeProjectSnapshot,
+  ProjectPackageError,
+} from './lib/projectPackageCodec';
+export type { DecodedProjectFile } from './lib/projectPackageCodec';
+export {
+  applyProjectDocumentToWorkspace,
+  captureCurrentProjectDocument,
+} from './client/projectWorkspaceDocument';
+export type {
+  ProjectWorkspaceApplyMode,
+  ProjectWorkspaceApplySummary,
+} from './client/projectWorkspaceDocument';
+export {
+  disconnectLocalProjectFolder,
+  getLocalProjectFileName,
+  getLocalProjectFolderStatus,
+  isLocalProjectFolderSupported,
+  openProjectFromFolder,
+  reconnectAttachedProjectFolder,
+  saveCurrentProjectToNewFolder,
+  saveProjectToAttachedFolder,
+} from './client/localProjectFolder';
+export type {
+  LocalProjectFolderBinding,
+  LocalProjectFolderStatus,
+} from './client/localProjectFolder';
+export {
   BROWSER_STORAGE_DATABASE,
   BROWSER_STORAGE_FAILURE_EVENT,
   BROWSER_STORAGE_SAVE_STATUS_EVENT,
@@ -72,6 +128,11 @@ export {
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
 export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
+export {
+  readStructuredBrowserValue,
+  removeStructuredBrowserValue,
+  writeStructuredBrowserValue,
+} from './persistence/structuredBrowserStorage';
 export {
   createProjectPersistenceScope,
   createScopedProjectStorage,

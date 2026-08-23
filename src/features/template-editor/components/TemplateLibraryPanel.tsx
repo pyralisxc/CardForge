@@ -113,7 +113,7 @@ export function TemplateLibraryPanel({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".cardforge,.json,application/json,application/zip"
               onChange={onLoadProject}
               aria-hidden="true"
               className="hidden"
