@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 
 const STUDIO_DOCUMENT_ASSET_BUCKET = "cardforge-studio-document-assets";
+const RENDER_ARTIFACT_BUCKET = "cardforge-render-artifacts";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 type PurgeClaim = {
@@ -63,21 +64,25 @@ Deno.serve(async (request: Request) => {
   let purged = 0;
   let failed = 0;
 
+  const removePrefixObjects = async (bucket: string, prefix: string) => {
+    const { data: objects, error: listError } = await supabase.storage
+      .from(bucket)
+      .list(prefix, { limit: 1000 });
+    if (listError) throw listError;
+
+    const paths = (objects ?? [])
+      .filter((object) => Boolean(object.name))
+      .map((object) => `${prefix}/${object.name}`);
+    if (paths.length === 0) return;
+    const { error: removeError } = await supabase.storage.from(bucket).remove(paths);
+    if (removeError) throw removeError;
+  };
+
   for (const claim of claims) {
     try {
       const prefix = `${claim.owner_user_id}/${claim.document_id}`;
-      const { data: objects, error: listError } = await supabase.storage
-        .from(STUDIO_DOCUMENT_ASSET_BUCKET)
-        .list(prefix, { limit: 1000 });
-      if (listError) throw listError;
-
-      const paths = (objects ?? []).map((object) => `${prefix}/${object.name}`);
-      if (paths.length > 0) {
-        const { error: removeError } = await supabase.storage
-          .from(STUDIO_DOCUMENT_ASSET_BUCKET)
-          .remove(paths);
-        if (removeError) throw removeError;
-      }
+      await removePrefixObjects(STUDIO_DOCUMENT_ASSET_BUCKET, prefix);
+      await removePrefixObjects(RENDER_ARTIFACT_BUCKET, prefix);
 
       const { data: finalized, error: finalizeError } = await supabase.rpc(
         "cardforge_finalize_studio_document_purge",

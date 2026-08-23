@@ -10,7 +10,8 @@ import {
   upsertDeveloperCards,
   upsertDeveloperCardSet,
 } from './developerCardSetDrafts';
-import { createStudioDocumentPreviewToken } from './studioDocumentPreviewToken';
+import { ensureSetContactSheetArtifact } from './studioRenderArtifacts';
+import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
   cardGenerationContractInputSchema,
@@ -34,10 +35,7 @@ import {
   cardWriteOutputSchema,
 } from './mcpToolOutputSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.8.0';
-const SET_PREVIEW_RESOURCE_URI = 'ui://cardforge/card-set-preview.html';
-const SET_PREVIEW_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
-const MAX_RENDERED_PREVIEW_CARDS = 12;
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.9.0';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -137,72 +135,6 @@ const getArtworkDiagnostics = ({
   };
 };
 
-const buildSetPreviewWidgetHtml = (origin: string) => `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#090b0f;color:#f7ead0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.shell{overflow:hidden;border:1px solid #2b3039;border-radius:14px;background:#0d1117}.frame{display:block;width:100%;height:min(760px,72vh);min-height:340px;border:0;background:#090b0f}.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid #2b3039}.status{min-width:0;font-size:12px;color:#aab1bd}.status strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f7ead0;font-size:13px}.open{appearance:none;border:1px solid #d5ad54;border-radius:7px;background:#18140d;color:#f5d27b;padding:8px 11px;font:600 12px/1 ui-sans-serif,system-ui;cursor:pointer}.open:disabled{cursor:not-allowed;opacity:.45}.empty{display:grid;min-height:340px;place-items:center;padding:24px;color:#aab1bd;font-size:13px}
-</style>
-</head>
-<body>
-<div class="shell">
-  <div id="empty" class="empty">Preparing the CardForge Set preview…</div>
-  <iframe id="preview" class="frame" title="CardForge Set preview" referrerpolicy="no-referrer" hidden></iframe>
-  <div class="bar">
-    <div id="status" class="status">Waiting for the latest Set revision…</div>
-    <button id="open" class="open" type="button" disabled>Open in CardForge</button>
-  </div>
-</div>
-<script>
-(() => {
-  const allowedOrigin = ${JSON.stringify(origin)};
-  const frame = document.getElementById('preview');
-  const empty = document.getElementById('empty');
-  const status = document.getElementById('status');
-  const openButton = document.getElementById('open');
-  let openUrl = '';
-  const safeUrl = (value, path) => {
-    if (typeof value !== 'string') return '';
-    try { const url = new URL(value); return url.origin === allowedOrigin && url.pathname === path ? url.href : ''; }
-    catch { return ''; }
-  };
-  const apply = () => {
-    const output = window.openai && window.openai.toolOutput;
-    if (!output || typeof output !== 'object') return;
-    const previewUrl = safeUrl(output.previewUrl, '/mcp-card-set-preview');
-    openUrl = safeUrl(output.openInStudioUrl, '/studio');
-    const setName = output.set && typeof output.set.name === 'string' ? output.set.name : 'CardForge Set';
-    const revision = Number.isInteger(output.revision) ? output.revision : 0;
-    const total = Number.isInteger(output.cardCount) ? output.cardCount : 0;
-    const sample = Number.isInteger(output.previewSampleCount) ? output.previewSampleCount : 0;
-    const applied = output.installation && output.installation.currentRevisionApplied === true;
-    status.innerHTML = '<strong></strong><span></span>';
-    status.querySelector('strong').textContent = setName;
-    status.querySelector('span').textContent = ['Revision ' + revision, total + ' cards', sample ? 'showing ' + sample : '', applied ? 'applied in Studio' : 'not yet applied in Studio'].filter(Boolean).join(' · ');
-    openButton.disabled = !openUrl;
-    if (previewUrl) {
-      frame.src = previewUrl;
-      frame.hidden = false;
-      empty.hidden = true;
-    }
-  };
-  openButton.addEventListener('click', async () => {
-    if (!openUrl) return;
-    if (window.openai && typeof window.openai.openExternal === 'function') {
-      await window.openai.openExternal({ href: openUrl });
-      return;
-    }
-    window.open(openUrl, '_blank', 'noopener,noreferrer');
-  });
-  apply();
-  window.addEventListener('openai:set_globals', apply);
-})();
-</script>
-</body>
-</html>`;
-
 export const registerAgentCardTools = ({
   server,
   publicOrigin,
@@ -240,45 +172,6 @@ export const registerAgentCardTools = ({
     }
   };
 
-  const previewResourceMeta = {
-    ui: {
-      domain: publicOrigin,
-      prefersBorder: false,
-      csp: {
-        connectDomains: [],
-        resourceDomains: [],
-        frameDomains: [publicOrigin],
-      },
-    },
-    'openai/widgetDescription': 'Native CardForge-rendered representative cards from the exact current Set revision, plus the revision-bound Studio handoff.',
-    'openai/widgetPrefersBorder': false,
-    'openai/widgetDomain': publicOrigin,
-    'openai/widgetCSP': {
-      connect_domains: [],
-      resource_domains: [],
-      frame_domains: [publicOrigin],
-      redirect_domains: [publicOrigin],
-    },
-  };
-
-  server.registerResource(
-    'CardForge Set draft preview',
-    SET_PREVIEW_RESOURCE_URI,
-    {
-      title: 'CardForge Set draft preview',
-      description: 'Shows representative cards from the exact current CardForge Set using the native renderer before Studio installation or cloud commit.',
-      mimeType: SET_PREVIEW_RESOURCE_MIME_TYPE,
-      _meta: previewResourceMeta,
-    },
-    async (uri) => ({
-      contents: [{
-        uri: uri.href,
-        mimeType: SET_PREVIEW_RESOURCE_MIME_TYPE,
-        text: buildSetPreviewWidgetHtml(publicOrigin),
-        _meta: previewResourceMeta,
-      }],
-    }),
-  );
 
   server.registerTool(
     'get_card_generation_contract',
@@ -555,11 +448,6 @@ export const registerAgentCardTools = ({
       inputSchema: getCardSetInputSchema,
       outputSchema: cardSetPreviewOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-      _meta: {
-        ui: { resourceUri: SET_PREVIEW_RESOURCE_URI, visibility: ['model'] },
-        'openai/outputTemplate': SET_PREVIEW_RESOURCE_URI,
-        'openai/widgetAccessible': false,
-      },
     },
     async ({ documentId, setId }) => runObserved({
       toolName: 'preview_card_set',
@@ -581,18 +469,17 @@ export const registerAgentCardTools = ({
           backFields: contract.backFields,
         });
         const applied = document.lastInstalledRevision === document.revision;
-        const token = createStudioDocumentPreviewToken({
-          documentId: document.id,
+        const rendered = await ensureSetContactSheetArtifact({
           ownerUserId: access.user.id,
-          revision: document.revision,
+          document,
+          setId: set.id,
+          publicOrigin,
         });
-        const previewUrl = `${publicOrigin}/mcp-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(set.id)}&revision=${document.revision}`;
-        const previewSampleCount = Math.min(cards.length, MAX_RENDERED_PREVIEW_CARDS);
         return {
           content: [{
-            type: 'text',
-            text: `Reviewed "${set.name}" at revision ${document.revision}: ${cards.length} card${cards.length === 1 ? '' : 's'}, ${artwork.counts.unresolved} unresolved artwork value${artwork.counts.unresolved === 1 ? '' : 's'}, ${artwork.counts.templateFallbacks} template fallback${artwork.counts.templateFallbacks === 1 ? '' : 's'}, and ${artwork.counts.placeholders} placeholder${artwork.counts.placeholders === 1 ? '' : 's'}. The native preview renders ${previewSampleCount} representative card${previewSampleCount === 1 ? '' : 's'} in chat. This exact revision is ${applied ? 'already applied to a CardForge Studio workspace' : 'not yet acknowledged as applied in Studio'}.`,
-          }],
+            type: 'text' as const,
+            text: `Reviewed "${set.name}" at revision ${document.revision}: ${cards.length} card${cards.length === 1 ? '' : 's'}, ${artwork.counts.unresolved} unresolved artwork value${artwork.counts.unresolved === 1 ? '' : 's'}, ${artwork.counts.templateFallbacks} template fallback${artwork.counts.templateFallbacks === 1 ? '' : 's'}, and ${artwork.counts.placeholders} placeholder${artwork.counts.placeholders === 1 ? '' : 's'}. ${rendered.artifact ? `The native image is a contact sheet composed only from ${rendered.previewSampleCount} canonical CardForge card renders.` : 'This Set has no cards to render yet.'} This exact revision is ${applied ? 'already applied to a CardForge Studio workspace' : 'not yet acknowledged as applied in Studio'}.`,
+          }, ...(rendered.artifact ? [renderArtifactImageContent(rendered.artifact)] : [])],
           structuredContent: {
             documentId: document.id,
             revision: document.revision,
@@ -600,8 +487,8 @@ export const registerAgentCardTools = ({
             cards: compactValue(cards),
             artwork,
             cardCount: cards.length,
-            previewUrl,
-            previewSampleCount,
+            renderArtifact: rendered.artifact ? renderArtifactStructuredContent(rendered.artifact) : null,
+            previewSampleCount: rendered.previewSampleCount,
             installation: {
               currentRevisionApplied: applied,
               lastInstalledRevision: document.lastInstalledRevision,

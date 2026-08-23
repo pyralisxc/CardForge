@@ -171,6 +171,8 @@ export function TemplateDraftPreviewClient() {
               src={exportedPreview.dataUrl}
               alt={`${payload.title}, revision ${payload.revision}`}
               className="block h-auto max-h-[78vh] max-w-full"
+              data-cardforge-render-artifact="template-preview"
+              data-template-id={payload.template.id}
             />
           </div>
         </section>

@@ -105,6 +105,8 @@ export const registerAccountWorkflowTools = ({
               canExportClean: access.entitlement.canExportClean,
               cloudSetLimit: access.entitlement.capabilities.cloudSetLimit,
               projectCapabilities: access.entitlement.capabilities,
+              nativeRenderArtifacts: true,
+              renderReviewMode: 'canonical CardForge PNGs returned directly in chat',
             },
             developer: {
               scopes: access.scopes,
@@ -113,6 +115,7 @@ export const registerAccountWorkflowTools = ({
             guidance: {
               normalCustomerTools: ['Template creation/revision', 'card and Set creation/revision', 'cloud Set read/checkout/commit/delete'],
               gatedContributionTools: 'Forge Review, shared-library publication, and owner-only publication actions remain scope-gated even though the same MCP server can describe them.',
+              renderGuidance: 'Preview tools never prove that a revision was installed in Studio. They render the exact server revision; use get_agent_install_status separately when local application state matters.',
             },
           },
         };

@@ -248,28 +248,26 @@ describe('agent Studio install and chat preview architecture', () => {
     expect(mcpTools).toContain("'get_agent_install_status'");
   });
 
-  it('exports the exact Template through the canonical native PNG pipeline for in-chat review', () => {
-    expect(templatePreview).toContain("import { renderCardToPngBlob } from '@/features/card-generator/client'");
+  it('exports Template and Set previews through canonical render artifacts and native MCP images', () => {
+    const renderArtifacts = readSource('src/features/render-artifacts/model.ts');
+    const renderStore = readSource('src/features/render-artifacts/server/renderArtifactStore.ts');
+    const browserRenderer = readSource('src/features/render-artifacts/server/canonicalBrowserRenderer.ts');
+    const studioArtifacts = readSource('src/features/studio-documents/server/studioRenderArtifacts.ts');
     expect(templatePreview).toContain("renderCardToPngBlob(card, 'virtual', 150)");
-    expect(templatePreview).toContain("type: 'cardforge-template-export'");
-    expect(templatePreview).toContain('window.parent.postMessage');
-    expect(templatePreview).not.toContain("import { CardPreview } from '@/features/card-rendering/client'");
-    expect(templatePreview).not.toContain("from 'html-to-image'");
-    expect(templatePreview).toContain('/api/studio-document-preview?token=');
-    expect(nativeExport).toContain('export async function renderCardToPngBlob');
-    expect(nativeExport).toContain('return await renderer.renderToBlob(card, face)');
-    expect(mcpTools).toContain('id="preview-image"');
-    expect(mcpTools).toContain("payload.type !== 'cardforge-template-export'");
-  });
-
-  it('renders representative Set cards through the same native exporter before completion', () => {
-    expect(setPreview).toContain("import { renderCardToPngBlob } from '@/features/card-generator/client'");
     expect(setPreview).toContain("renderCardToPngBlob(card, 'virtual', 150)");
-    expect(setPreview).toContain('MAX_RENDERED_PREVIEW_CARDS = 12');
-    expect(mcpTools).toContain("SET_PREVIEW_RESOURCE_URI = 'ui://cardforge/card-set-preview.html'");
-    expect(mcpTools).toContain("'openai/outputTemplate': SET_PREVIEW_RESOURCE_URI");
-    expect(mcpTools).toContain('/mcp-card-set-preview?token=');
-    expect(mcpTools).toContain('Do not call a Set visually finished from field diagnostics alone');
+    expect(templatePreview).toContain('data-cardforge-render-artifact="template-preview"');
+    expect(setPreview).toContain('data-cardforge-render-artifact="card-preview"');
+    expect(nativeExport).toContain('export async function renderCardToPngBlob');
+    expect(renderArtifacts).toContain('CARDFORGE_RENDERER_CONTRACT_VERSION');
+    expect(renderStore).toContain('upsert: false');
+    expect(browserRenderer).toContain("import('@sparticuz/chromium')");
+    expect(browserRenderer).toContain("import('puppeteer-core')");
+    expect(studioArtifacts).toContain('composeCanonicalContactSheet');
+    expect(mcpTools).toContain('renderArtifactImageContent');
+    expect(mcpTools).toContain('ensureTemplatePreviewArtifact');
+    expect(mcpTools).toContain('ensureSetContactSheetArtifact');
+    expect(mcpTools).not.toContain("'openai/outputTemplate'");
+    expect(mcpTools).not.toContain('frameDomains: [publicOrigin]');
   });
 
   it('reports native image bindings and composition warnings to the Template agent', () => {
@@ -313,18 +311,14 @@ describe('agent Studio install and chat preview architecture', () => {
     expect(pluginSkill).toContain('same normal personal local Template');
   });
 
-  it('keeps generated image bytes out of model-facing Template preview results and constrains widgets', () => {
+  it('keeps source artwork private while returning only canonical rendered derivatives to chat', () => {
     expect(mcpTools).toContain("'attach_template_artwork'");
     expect(mcpTools).toContain("'preview_template_draft'");
-    expect(mcpTools).toContain('createStudioDocumentPreviewToken');
     expect(mcpTools).not.toContain('structuredContent: { template');
     expect(mcpTools).toContain('remainingAssetRequirementIds');
     expect(mcpTools).toContain('productionReady');
-    expect(mcpTools).toContain("'openai/outputTemplate'");
-    expect(mcpTools).toContain("'openai/widgetDomain': publicOrigin");
-    expect(mcpTools).toContain('domain: publicOrigin');
-    expect(mcpTools).toContain('connectDomains: []');
-    expect(mcpTools).toContain('resourceDomains: []');
-    expect(mcpTools).toContain('frameDomains: [publicOrigin]');
+    expect(mcpTools).toContain('renderArtifactImageContent');
+    expect(mcpTools).not.toContain("'openai/outputTemplate'");
+    expect(mcpTools).not.toContain('frameDomains:');
   });
 });

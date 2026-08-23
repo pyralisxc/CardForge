@@ -237,7 +237,7 @@ export const cardSetDeleteOutputSchema = objectOutput(
 export const cardSetPreviewOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'set', 'cards', 'artwork', 'cardCount',
-    'previewUrl', 'previewSampleCount', 'installation', 'openInStudioUrl',
+    'renderArtifact', 'previewSampleCount', 'installation', 'openInStudioUrl',
     'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
   ],
   {
@@ -247,7 +247,7 @@ export const cardSetPreviewOutputSchema = objectOutput(
     cards: { type: 'array', items: {} },
     artwork: objectValue,
     cardCount: { type: 'integer', minimum: 0 },
-    previewUrl: { type: 'string', format: 'uri' },
+    renderArtifact: { anyOf: [objectValue, { type: 'null' }] },
     previewSampleCount: { type: 'integer', minimum: 0, maximum: 12 },
     installation: {
       type: 'object',
@@ -369,13 +369,13 @@ export const templateArtworkOutputSchema = objectOutput(
 
 export const templatePreviewOutputSchema = objectOutput(
   [
-    'title', 'revision', 'previewUrl', 'openInStudioUrl', 'productionReady',
+    'title', 'revision', 'renderArtifact', 'openInStudioUrl', 'productionReady',
     'assetSummary', 'remainingAssetRequirementIds', 'remainingAssetCount', 'composition',
   ],
   {
     title: { type: 'string' },
     revision: { type: 'integer' },
-    previewUrl: { type: 'string', format: 'uri' },
+    renderArtifact: objectValue,
     openInStudioUrl: { type: 'string', format: 'uri' },
     productionReady: { type: 'boolean' },
     assetSummary: nullableObjectValue,
