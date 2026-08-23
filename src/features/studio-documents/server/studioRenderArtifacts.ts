@@ -3,12 +3,12 @@ import {
   createStudioRenderArtifactDescriptor,
   type RenderArtifact,
 } from '@/features/render-artifacts/model';
-import { composeCanonicalContactSheet } from '@/features/render-artifacts/server/contactSheet';
-import { renderCanonicalBrowserImages } from '@/features/render-artifacts/server/canonicalBrowserRenderer';
 import {
+  composeCanonicalContactSheet,
   readRenderArtifact,
+  renderCanonicalBrowserImages,
   writeRenderArtifact,
-} from '@/features/render-artifacts/server/renderArtifactStore';
+} from '@/features/render-artifacts/server';
 import type { StudioDocument } from '@/features/studio-documents/model';
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
@@ -34,9 +34,7 @@ export const ensureTemplatePreviewArtifact = async ({
   publicOrigin: string;
 }): Promise<RenderArtifact> => {
   const template = document.document.userTemplates[0];
-  if (!template?.id) {
-    throw new StudioDocumentStoreError('This working document does not contain a renderable Template.', 409);
-  }
+  if (!template?.id) throw new StudioDocumentStoreError('This working document does not contain a renderable Template.', 409);
   const descriptor = createStudioRenderArtifactDescriptor({
     sourceId: document.id,
     sourceRevision: document.revision,
@@ -47,12 +45,10 @@ export const ensureTemplatePreviewArtifact = async ({
   });
   const cached = await readRenderArtifact({ ownerUserId, descriptor });
   if (cached) return cached;
-
   const token = previewToken(document, ownerUserId);
-  const renderUrl = `${publicOrigin}/mcp-template-preview?token=${encodeURIComponent(token)}&revision=${document.revision}`;
   const images = await renderCanonicalBrowserImages({
     publicOrigin,
-    renderUrl,
+    renderUrl: `${publicOrigin}/mcp-template-preview?token=${encodeURIComponent(token)}&revision=${document.revision}`,
     selector: 'img[data-cardforge-render-artifact="template-preview"]',
     expectedCount: 1,
   });
@@ -79,11 +75,8 @@ export const ensureSetContactSheetArtifact = async ({
   publicOrigin: string;
 }): Promise<{ artifact: RenderArtifact | null; previewSampleCount: number }> => {
   const set = getSet(document, setId);
-  const cards = document.document.storedCards
-    .filter((card) => card.setId === set.id)
-    .slice(0, MAX_CANONICAL_SET_PREVIEW_CARDS);
+  const cards = document.document.storedCards.filter((card) => card.setId === set.id).slice(0, MAX_CANONICAL_SET_PREVIEW_CARDS);
   if (cards.length === 0) return { artifact: null, previewSampleCount: 0 };
-
   const contactDescriptor = createStudioRenderArtifactDescriptor({
     sourceId: document.id,
     sourceRevision: document.revision,
@@ -94,7 +87,6 @@ export const ensureSetContactSheetArtifact = async ({
   });
   const cachedContact = await readRenderArtifact({ ownerUserId, descriptor: contactDescriptor });
   if (cachedContact) return { artifact: cachedContact, previewSampleCount: cards.length };
-
   const cardDescriptors = cards.map((card) => createStudioRenderArtifactDescriptor({
     sourceId: document.id,
     sourceRevision: document.revision,
@@ -103,16 +95,12 @@ export const ensureSetContactSheetArtifact = async ({
     face: 'front',
     profile: PREVIEW_PROFILE,
   }));
-  const cardArtifacts = await Promise.all(cardDescriptors.map((descriptor) => (
-    readRenderArtifact({ ownerUserId, descriptor })
-  )));
-
+  const cardArtifacts = await Promise.all(cardDescriptors.map((descriptor) => readRenderArtifact({ ownerUserId, descriptor })));
   if (cardArtifacts.some((artifact) => artifact === null)) {
     const token = previewToken(document, ownerUserId);
-    const renderUrl = `${publicOrigin}/mcp-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(set.id)}&revision=${document.revision}`;
     const renderedImages = await renderCanonicalBrowserImages({
       publicOrigin,
-      renderUrl,
+      renderUrl: `${publicOrigin}/mcp-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(set.id)}&revision=${document.revision}`,
       selector: 'img[data-cardforge-render-artifact="card-preview"]',
       expectedCount: cards.length,
     });
@@ -121,26 +109,13 @@ export const ensureSetContactSheetArtifact = async ({
       if (cardArtifacts[index]) continue;
       const card = cards[index]!;
       const bytes = renderedById.get(card.uniqueId);
-      if (!bytes) {
-        throw new StudioDocumentStoreError(`CardForge did not produce the canonical render for card ${card.uniqueId}.`, 500);
-      }
-      cardArtifacts[index] = await writeRenderArtifact({
-        ownerUserId,
-        descriptor: cardDescriptors[index]!,
-        bytes,
-      });
+      if (!bytes) throw new StudioDocumentStoreError(`CardForge did not produce the canonical render for card ${card.uniqueId}.`, 500);
+      cardArtifacts[index] = await writeRenderArtifact({ ownerUserId, descriptor: cardDescriptors[index]!, bytes });
     }
   }
-
   const completeArtifacts = cardArtifacts.filter((artifact): artifact is RenderArtifact => artifact !== null);
-  if (completeArtifacts.length !== cards.length) {
-    throw new StudioDocumentStoreError('CardForge could not complete the canonical Set render artifacts.', 500);
-  }
+  if (completeArtifacts.length !== cards.length) throw new StudioDocumentStoreError('CardForge could not complete the canonical Set render artifacts.', 500);
   const contactBytes = await composeCanonicalContactSheet(completeArtifacts.map((artifact) => artifact.bytes));
-  const artifact = await writeRenderArtifact({
-    ownerUserId,
-    descriptor: contactDescriptor,
-    bytes: contactBytes,
-  });
+  const artifact = await writeRenderArtifact({ ownerUserId, descriptor: contactDescriptor, bytes: contactBytes });
   return { artifact, previewSampleCount: cards.length };
 };
