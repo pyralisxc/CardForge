@@ -1,4 +1,5 @@
 export { BrowserStorageAlerts } from './components/BrowserStorageAlerts';
+export { ProjectFontFaces } from './components/ProjectFontFaces';
 export { useBrowserWorkspaceSaveStatus } from './hooks/useBrowserWorkspaceSaveStatus';
 export { useCardTransferActions } from './hooks/useCardTransferActions';
 export { useCloudSetActions } from './hooks/useCloudSetActions';
