@@ -17,6 +17,7 @@ import {
   readRequiredTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
+import { readProjectFonts, writeProjectFonts } from '../persistence/projectFonts';
 import { useProjectStore } from '../store/workspaceStore';
 
 export type ProjectWorkspaceApplyMode = 'replace' | 'merge';
@@ -30,11 +31,12 @@ export interface ProjectWorkspaceApplySummary {
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
   const state = useProjectStore.getState();
   const assetStorage = getProjectAssetStorage();
-  const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets] = await Promise.all([
+  const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets, customFonts] = await Promise.all([
     readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
     readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
     readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
     readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    readProjectFonts(),
   ]);
 
   return createProjectDocumentFromState({
@@ -54,6 +56,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     customDividerAssets,
     customIconAssets,
     customImageAssets,
+    customFonts,
   });
 };
 
@@ -64,11 +67,18 @@ export const applyProjectDocumentToWorkspace = async (
   const patch = applyProjectDocumentToState(document);
   const assetStorage = getProjectAssetStorage();
   const writeAssets = mode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
+  const nextFonts = mode === 'merge'
+    ? [
+        ...await readProjectFonts(),
+        ...patch.customFonts,
+      ].filter((font, index, fonts) => fonts.findIndex((candidate) => candidate.id === font.id) === index)
+    : patch.customFonts;
   await Promise.all([
     writeAssets(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
     writeAssets(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
     writeAssets(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
     writeAssets(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+    writeProjectFonts(nextFonts),
   ]);
 
   const state = useProjectStore.getState();
