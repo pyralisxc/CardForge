@@ -7,7 +7,8 @@ import {
   attachDeveloperTemplateDraftAsset,
   getDeveloperTemplateDraft,
 } from './developerTemplateDrafts';
-import { createStudioDocumentPreviewToken } from './studioDocumentPreviewToken';
+import { ensureTemplatePreviewArtifact } from './studioRenderArtifacts';
+import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import {
   attachTemplateAssetInputSchema,
   previewTemplateDraftInputSchema,
@@ -17,8 +18,6 @@ import {
   templatePreviewOutputSchema,
 } from './mcpToolOutputSchemas';
 
-const PREVIEW_RESOURCE_URI = 'ui://cardforge/template-draft-preview.html';
-const PREVIEW_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -117,126 +116,6 @@ const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
   };
 };
 
-const buildPreviewWidgetHtml = (origin: string) => `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<style>
-  :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#090b0f;color:#f7ead0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.shell{overflow:hidden;border:1px solid #2b3039;border-radius:14px;background:#0d1117}.image-shell{position:relative;display:grid;min-height:240px;place-items:center;background:#090b0f}.preview-image{display:block;max-height:min(680px,72vh);max-width:100%;object-fit:contain}.renderer{position:absolute;inset:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none}.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid #2b3039}.status{min-width:0;font-size:12px;color:#aab1bd}.status strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f7ead0;font-size:13px}.open{appearance:none;border:1px solid #d5ad54;border-radius:7px;background:#18140d;color:#f5d27b;padding:8px 11px;font:600 12px/1 ui-sans-serif,system-ui;cursor:pointer}.open:disabled{cursor:not-allowed;opacity:.45}.empty{padding:24px;color:#aab1bd;font-size:13px}
-</style>
-</head>
-<body>
-<div class="shell">
-  <div class="image-shell">
-    <div id="empty" class="empty">Exporting the CardForge Template preview…</div>
-    <img id="preview-image" class="preview-image" alt="" hidden />
-    <iframe id="renderer" class="renderer" title="CardForge Template PNG exporter" referrerpolicy="no-referrer" aria-hidden="true" tabindex="-1"></iframe>
-  </div>
-  <div class="bar">
-    <div id="status" class="status">Waiting for the latest draft…</div>
-    <button id="open" class="open" type="button" disabled>Open in CardForge</button>
-  </div>
-</div>
-<script>
-(() => {
-  const allowedOrigin = ${JSON.stringify(origin)};
-  const renderer = document.getElementById('renderer');
-  const previewImage = document.getElementById('preview-image');
-  const empty = document.getElementById('empty');
-  const status = document.getElementById('status');
-  const openButton = document.getElementById('open');
-  let openUrl = '';
-  let expectedRevision = 0;
-  let expectedTitle = 'CardForge draft';
-  let statusSummary = '';
-
-  const safeUrl = (value, path) => {
-    if (typeof value !== 'string') return '';
-    try {
-      const url = new URL(value);
-      return url.origin === allowedOrigin && url.pathname === path ? url.href : '';
-    } catch { return ''; }
-  };
-
-  const apply = () => {
-    const output = window.openai && window.openai.toolOutput;
-    if (!output || typeof output !== 'object') return;
-    const title = typeof output.title === 'string' ? output.title : 'CardForge draft';
-    expectedTitle = title;
-    expectedRevision = Number.isInteger(output.revision) ? output.revision : 0;
-    const previewUrl = safeUrl(output.previewUrl, '/mcp-template-preview');
-    openUrl = safeUrl(output.openInStudioUrl, '/studio');
-    if (previewUrl && renderer.src !== previewUrl) {
-      previewImage.hidden = true;
-      previewImage.removeAttribute('src');
-      empty.hidden = false;
-      empty.textContent = 'Exporting the CardForge Template preview…';
-      renderer.src = previewUrl;
-    }
-    const revision = expectedRevision > 0 ? 'Revision ' + expectedRevision : '';
-    const remaining = Number.isInteger(output.remainingAssetCount) ? output.remainingAssetCount : 0;
-    const ready = output.productionReady === true;
-    const warnings = output.composition && Array.isArray(output.composition.warnings)
-      ? output.composition.warnings.length
-      : 0;
-    const productionLabel = ready
-      ? 'ready to install'
-      : remaining > 0
-        ? remaining + ' planned asset' + (remaining === 1 ? '' : 's') + ' still needed'
-        : 'draft still needs review';
-    const warningLabel = warnings > 0
-      ? warnings + ' composition warning' + (warnings === 1 ? '' : 's')
-      : '';
-    statusSummary = [revision, productionLabel, warningLabel].filter(Boolean).join(' · ');
-    status.innerHTML = '<strong></strong><span></span>';
-    status.querySelector('strong').textContent = title;
-    status.querySelector('span').textContent = statusSummary;
-    openButton.textContent = ready ? 'Open in CardForge' : 'Open draft in CardForge';
-    openButton.disabled = !openUrl;
-  };
-
-  window.addEventListener('message', (event) => {
-    if (event.origin !== allowedOrigin || event.source !== renderer.contentWindow) return;
-    const payload = event.data;
-    if (!payload || typeof payload !== 'object') return;
-    if (payload.type === 'cardforge-template-export-error') {
-      if (payload.revision !== expectedRevision) return;
-      empty.hidden = false;
-      empty.textContent = typeof payload.message === 'string'
-        ? payload.message
-        : 'CardForge could not export this Template preview.';
-      return;
-    }
-    if (payload.type !== 'cardforge-template-export'
-      || payload.revision !== expectedRevision
-      || payload.mimeType !== 'image/png'
-      || typeof payload.imageDataUrl !== 'string'
-      || !payload.imageDataUrl.startsWith('data:image/png;base64,')) return;
-    previewImage.src = payload.imageDataUrl;
-    previewImage.alt = expectedTitle + ', revision ' + expectedRevision;
-    previewImage.hidden = false;
-    empty.hidden = true;
-    const summary = status.querySelector('span');
-    if (summary) summary.textContent = ['Exported PNG', statusSummary].filter(Boolean).join(' · ');
-  });
-
-  openButton.addEventListener('click', async () => {
-    if (!openUrl) return;
-    if (window.openai && typeof window.openai.openExternal === 'function') {
-      await window.openai.openExternal({ href: openUrl });
-      return;
-    }
-    window.open(openUrl, '_blank', 'noopener,noreferrer');
-  });
-
-  apply();
-  window.addEventListener('openai:set_globals', apply);
-})();
-</script>
-</body>
-</html>`;
-
 export const registerAgentTemplateTools = ({
   server,
   publicOrigin,
@@ -270,45 +149,6 @@ export const registerAgentTemplateTools = ({
     }
   };
 
-  const previewResourceMeta = {
-    ui: {
-      domain: publicOrigin,
-      prefersBorder: false,
-      csp: {
-        connectDomains: [],
-        resourceDomains: [],
-        frameDomains: [publicOrigin],
-      },
-    },
-    'openai/widgetDescription': 'Exact CardForge exported Template image with a separate link to install the same revision in Studio.',
-    'openai/widgetPrefersBorder': false,
-    'openai/widgetDomain': publicOrigin,
-    'openai/widgetCSP': {
-      connect_domains: [],
-      resource_domains: [],
-      frame_domains: [publicOrigin],
-      redirect_domains: [publicOrigin],
-    },
-  };
-
-  server.registerResource(
-    'CardForge Template draft preview',
-    PREVIEW_RESOURCE_URI,
-    {
-      title: 'CardForge Template draft preview',
-      description: 'Shows the exact current CardForge Template as a native exported PNG for visual review before Studio installation.',
-      mimeType: PREVIEW_RESOURCE_MIME_TYPE,
-      _meta: previewResourceMeta,
-    },
-    async (uri) => ({
-      contents: [{
-        uri: uri.href,
-        mimeType: PREVIEW_RESOURCE_MIME_TYPE,
-        text: buildPreviewWidgetHtml(publicOrigin),
-        _meta: previewResourceMeta,
-      }],
-    }),
-  );
 
   server.registerTool(
     'attach_template_artwork',
@@ -375,11 +215,6 @@ export const registerAgentTemplateTools = ({
         destructiveHint: false,
         openWorldHint: false,
       },
-      _meta: {
-        ui: { resourceUri: PREVIEW_RESOURCE_URI, visibility: ['model'] },
-        'openai/outputTemplate': PREVIEW_RESOURCE_URI,
-        'openai/widgetAccessible': false,
-      },
     },
     async ({ documentId }) => {
       return runObserved({
@@ -389,17 +224,16 @@ export const registerAgentTemplateTools = ({
         const document = await getDeveloperTemplateDraft(access, documentId);
         const status = productionStatus(document);
         const composition = compositionDiagnostics(document);
-        const token = createStudioDocumentPreviewToken({
-          documentId: document.id,
+        const artifact = await ensureTemplatePreviewArtifact({
           ownerUserId: access.user.id,
-          revision: document.revision,
+          document,
+          publicOrigin,
         });
-        const previewUrl = `${publicOrigin}/mcp-template-preview?token=${encodeURIComponent(token)}&revision=${document.revision}`;
         const openInStudioUrl = `${publicOrigin}/studio?document=${encodeURIComponent(document.id)}&revision=${document.revision}`;
         const structuredContent = {
           title: document.title,
           revision: document.revision,
-          previewUrl,
+          renderArtifact: renderArtifactStructuredContent(artifact),
           openInStudioUrl,
           productionReady: status.productionReady,
           assetSummary: status.assetSummary,
@@ -409,11 +243,11 @@ export const registerAgentTemplateTools = ({
         };
         return {
           content: [{
-            type: 'text',
+            type: 'text' as const,
             text: status.productionReady
-              ? `Exported "${document.title}" revision ${document.revision} as a PNG in chat. All planned production assets are complete; inspect the composition diagnostics and exported image before opening the separate Studio link.`
-              : `Exported "${document.title}" revision ${document.revision} as a draft PNG in chat. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
-          }],
+              ? `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. All planned production assets are complete; inspect this exact CardForge PNG before opening Studio.`
+              : `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
+          }, renderArtifactImageContent(artifact)],
           structuredContent,
           };
         },
