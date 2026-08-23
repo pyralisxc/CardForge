@@ -1,11 +1,25 @@
 export const STUDIO_DOCUMENT_ASSET_BUCKET = 'cardforge-studio-document-assets';
 export const STUDIO_DOCUMENT_ASSET_REFERENCE_PREFIX = 'cardforge-studio-asset://';
+export const STUDIO_DOCUMENT_FONT_BUCKET = 'cardforge-studio-document-fonts';
+export const STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX = 'cardforge-studio-font://';
 export const MAX_STUDIO_DOCUMENT_ASSETS = 256;
+export const MAX_STUDIO_DOCUMENT_FONTS = 64;
 export const MAX_STUDIO_DOCUMENT_ASSET_STORAGE_BYTES = 128 * 1024 * 1024;
+
+export type StudioDocumentPrivateAssetMimeType =
+  | 'image/webp'
+  | 'font/woff2'
+  | 'font/woff'
+  | 'font/ttf'
+  | 'font/otf'
+  | 'application/font-woff'
+  | 'application/x-font-ttf'
+  | 'application/x-font-opentype';
 
 export interface StudioDocumentAssetDownload {
   id: string;
-  mimeType: 'image/webp';
+  kind: 'image' | 'font';
+  mimeType: StudioDocumentPrivateAssetMimeType;
   size: number | null;
   signedUrl: string;
 }
@@ -22,11 +36,24 @@ export const getStudioDocumentAssetIdFromReference = (value: string): string | n
   return isStudioDocumentAssetId(assetId) ? assetId : null;
 };
 
-export const collectStudioDocumentAssetIds = (value: unknown): string[] => {
+export const getStudioDocumentFontReference = (assetId: string): string => (
+  `${STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX}${assetId}`
+);
+
+export const getStudioDocumentFontIdFromReference = (value: string): string | null => {
+  if (!value.startsWith(STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX)) return null;
+  const assetId = value.slice(STUDIO_DOCUMENT_FONT_REFERENCE_PREFIX.length);
+  return isStudioDocumentAssetId(assetId) ? assetId : null;
+};
+
+const collectReferenceIds = (
+  value: unknown,
+  readId: (value: string) => string | null,
+): string[] => {
   const ids = new Set<string>();
   const visit = (entry: unknown) => {
     if (typeof entry === 'string') {
-      const id = getStudioDocumentAssetIdFromReference(entry);
+      const id = readId(entry);
       if (id) ids.add(id);
       return;
     }
@@ -40,12 +67,20 @@ export const collectStudioDocumentAssetIds = (value: unknown): string[] => {
   return [...ids];
 };
 
+export const collectStudioDocumentAssetIds = (value: unknown): string[] => (
+  collectReferenceIds(value, getStudioDocumentAssetIdFromReference)
+);
+
+export const collectStudioDocumentFontIds = (value: unknown): string[] => (
+  collectReferenceIds(value, getStudioDocumentFontIdFromReference)
+);
+
 export const replaceStudioDocumentAssetReferences = (
   value: unknown,
   replacements: ReadonlyMap<string, string>,
 ): unknown => {
   if (typeof value === 'string') {
-    const id = getStudioDocumentAssetIdFromReference(value);
+    const id = getStudioDocumentAssetIdFromReference(value) ?? getStudioDocumentFontIdFromReference(value);
     return id ? replacements.get(id) ?? value : value;
   }
   if (Array.isArray(value)) return value.map((entry) => replaceStudioDocumentAssetReferences(entry, replacements));
