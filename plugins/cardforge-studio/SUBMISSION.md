@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Initial-submission release notes for 0.7.0: CardForge Studio is an authenticated beta for building editable Templates and complete card sets with ChatGPT. This initial version includes native bulk artwork ingestion, explicit artwork-resolution diagnostics, exact-revision Studio handoff, cloud-set discovery, and review-accurate tool safety annotations.
+Initial-submission release notes for 0.7.0: CardForge Studio is an authenticated beta for building editable Templates and complete card sets with ChatGPT. This initial version includes native bulk artwork ingestion, explicit artwork-resolution diagnostics, exact-revision Studio handoff, resumable agent working documents, cloud-set discovery, revision-safe cloud checkout/edit/review/commit, cloud-set deletion with stale-revision protection, and review-accurate tool safety annotations.
 
 ## Authentication and reviewer fixture
 
@@ -41,9 +41,11 @@ Enter its credentials only in the OpenAI submission portal. Never commit the rev
 
 ## Tool safety and UI declarations
 
-Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The five tools that can replace private working state declare `destructiveHint: true`: `update_editable_template`, `upsert_card_set`, `upsert_card`, `upsert_cards`, and `attach_template_artwork`. `upsert_card` and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `continue_template_in_pipeline` creates a private review draft; it does not publish.
+Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The ten tools that can replace, remove, move, or permanently commit private working state declare `destructiveHint: true`: `update_editable_template`, `attach_template_artwork`, `upsert_card_set`, `upsert_card`, `upsert_cards`, `delete_cards`, `move_cards`, `delete_card_set`, `commit_cloud_set`, and `delete_cloud_set`. `upsert_card` and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `checkout_cloud_set` only creates a private working copy and does not alter the cloud save; `continue_template_in_pipeline` creates a private review draft and does not publish.
 
-The template preview UI is model-only and cannot call MCP tools. Its exact CSP allows frames and redirects only to `https://cardforges.com`; it declares no additional connect or resource domains.
+Cloud mutations are revision-conditional. `commit_cloud_set` requires the exact working-document revision and source cloud revision, while `delete_cloud_set` requires the exact cloud revision. Stale operations fail rather than overwriting or deleting newer cloud work.
+
+The template and Set preview UIs are model-only and cannot call MCP tools. Their exact CSP allows frames and redirects only to `https://cardforges.com`; they declare no additional connect or resource domains.
 
 ## Positive review cases
 
@@ -92,9 +94,9 @@ The template preview UI is model-only and cannot call MCP tools. Its exact CSP a
 
 ### Negative 2 — a stale revision cannot overwrite newer work
 
-- Action: call `update_editable_template` or an upsert tool with an `expectedRevision` older than the current document revision.
-- Why it should not complete: accepting a stale write could silently overwrite a newer browser or assistant revision.
-- Expected result: a conflict response instructs the client to reload the current revision; the current document remains unchanged.
+- Action: call `update_editable_template`, an upsert tool, `commit_cloud_set`, or `delete_cloud_set` with an expected revision older than the current document/cloud revision.
+- Why it should not complete: accepting a stale write could silently overwrite or remove newer work.
+- Expected result: a conflict response instructs the client to reload the current revision; the current document/cloud Set remains unchanged.
 
 ### Negative 3 — invalid artwork cannot masquerade as resolved
 

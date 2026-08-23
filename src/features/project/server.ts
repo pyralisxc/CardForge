@@ -3,8 +3,18 @@ export type { ProjectPersistenceScope } from './lib/projectPersistenceIdentity';
 export {
   createProjectDocumentFromState,
   parseProjectDocumentValue,
+  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from './model/projectDocument';
 export type { ProjectDocumentV1 } from './model/projectDocument';
+export {
+  createCardSetTransfer,
+  createCardTransfer,
+  parseCardForgeTransferValue,
+} from './model/cardTransfer';
+export type { CardForgeTransferV1 } from './model/cardTransfer';
 export {
   CLOUD_SET_ASSET_BUCKET,
   CLOUD_SET_ASSET_MIME_TYPES,

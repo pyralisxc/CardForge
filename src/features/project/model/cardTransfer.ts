@@ -69,12 +69,16 @@ const selectTemplates = (
   cards: StoredDisplayCard[],
 ): TCGCardTemplate[] => {
   const ids = collectTemplateIds(sets, cards);
-  // Official/default Templates keep their stable library ids and do not need to be
-  // copied into a personal transfer. Personal Templates travel with the cards.
+  // Published CardForge Library Templates keep stable catalog ids and are resolved
+  // from the current library. Only personal Templates travel with portable cards/Sets.
+  // Agent cloud checkouts can temporarily materialize a published pipeline Template
+  // into the working document, so preserve its pipeline provenance instead of
+  // accidentally exporting that transient copy as a personal dependency.
   return templates.filter((template) => (
     template.id
     && ids.has(template.id)
     && template.templateSource !== 'default'
+    && template.templateLibrarySource !== 'pipeline'
   ));
 };
 

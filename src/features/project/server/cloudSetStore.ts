@@ -374,15 +374,30 @@ export const getCloudSet = async (
   };
 };
 
-export const deleteCloudSet = async (ownerUserId: string, setId: string): Promise<void> => {
+export const deleteCloudSet = async (
+  ownerUserId: string,
+  setId: string,
+  expectedRevision?: number | null,
+): Promise<void> => {
   const row = await getExistingRow(ownerUserId, setId);
   if (!row) throw new CloudSetStoreError('Cloud set not found.', 404);
-  const { error } = await requireStore()
+  if (expectedRevision !== undefined && expectedRevision !== null && row.revision !== expectedRevision) {
+    throw new CloudSetStoreError(
+      `This cloud set is already revision ${row.revision}. Reload the cloud library before deleting it.`,
+      409,
+    );
+  }
+  let deletion = requireStore()
     .from('cardforge_cloud_sets')
     .delete()
     .eq('id', row.id)
     .eq('owner_user_id', ownerUserId);
+  if (expectedRevision !== undefined && expectedRevision !== null) {
+    deletion = deletion.eq('revision', expectedRevision);
+  }
+  const { data, error } = await deletion.select('id').maybeSingle();
   if (error) throw new CloudSetStoreError('Unable to remove the cloud set.');
+  if (!data) throw new CloudSetStoreError('The cloud set changed while it was being deleted. Reload and retry.', 409);
   const prefix = getSetStoragePrefix(ownerUserId, setId);
   const objects = await listStoredAssets(prefix);
   const paths = objects.map((item) => `${prefix}/${item.name}`);

@@ -22,6 +22,7 @@ const toolRegistration = (source: string, name: string) => {
 
 describe('CardForge MCP and plugin product hygiene', () => {
   const route = readSource('src/app/mcp/route.ts');
+  const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
   const cloudTools = readSource('src/features/studio-documents/server/mcpCloudSetTools.ts');
@@ -40,9 +41,10 @@ describe('CardForge MCP and plugin product hygiene', () => {
     interface: { shortDescription: string; longDescription: string; defaultPrompt: string[] };
   };
 
-  it('keeps the published MCP action names explicit as cloud discovery is added', () => {
+  it('keeps the published MCP action names explicit as cloud collaboration is added', () => {
     const names = [
       ...toolNames(route),
+      ...toolNames(accountTools),
       ...toolNames(templateTools),
       ...toolNames(cardTools),
       ...toolNames(cloudTools),
@@ -50,14 +52,23 @@ describe('CardForge MCP and plugin product hygiene', () => {
 
     expect(names).toEqual([
       'attach_template_artwork',
+      'checkout_cloud_set',
+      'commit_cloud_set',
       'continue_template_in_pipeline',
       'create_editable_template',
+      'delete_card_set',
+      'delete_cards',
+      'delete_cloud_set',
+      'get_agent_install_status',
       'get_card_generation_contract',
+      'get_cardforge_capabilities',
       'get_cloud_set',
       'get_editable_template',
       'get_studio_creation_guide',
+      'list_agent_working_documents',
       'list_cloud_sets',
       'list_editable_templates',
+      'move_cards',
       'preview_card_set',
       'preview_template_draft',
       'search_studio_library',
@@ -81,14 +92,19 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('publishes an explicit output schema for every structured MCP tool', () => {
-    const sources = [route, templateTools, cardTools, cloudTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, cloudTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
   });
 
   it('labels private overwrites and external artwork retrieval accurately', () => {
-    const sources = [route, templateTools, cardTools, cloudTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, cloudTools].join('\n');
     const destructiveTools = new Set([
       'attach_template_artwork',
+      'commit_cloud_set',
+      'delete_card_set',
+      'delete_cards',
+      'delete_cloud_set',
+      'move_cards',
       'update_editable_template',
       'upsert_card',
       'upsert_card_set',
@@ -113,16 +129,16 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('uses mainstream card/set language so targeted MCP discovery can find the right tools', () => {
-    expect(cardTools).toContain('Prepare a Template for making cards or a bulk card set');
+    expect(cardTools).toContain('Prepare a Template for making or revising cards');
     expect(cardTools).toContain('Create or update a CardForge card set');
-    expect(cardTools).toContain('Make or update one CardForge card');
-    expect(cardTools).toContain('Generate cards in bulk for a CardForge set');
+    expect(cardTools).toContain('Make or revise one CardForge card');
+    expect(cardTools).toContain('Make or revise CardForge cards in bulk');
     expect(cardTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
-    expect(cardTools).toContain('Review a CardForge card set before opening it in Studio');
-    expect(cardTools).toContain('deck or set');
-    expect(cardTools).toContain('list/CSV/JSON');
-    expect(cloudTools).toContain('List cloud-saved CardForge sets');
-    expect(cloudTools).toContain('Read a cloud-saved CardForge set');
+    expect(cardTools).toContain('Visually review a CardForge Set before applying or committing it');
+    expect(cardTools).toContain('working Set');
+    expect(cardTools).toContain('list/CSV/JSON conversion');
+    expect(cloudTools).toContain('List cloud-saved CardForge Sets');
+    expect(cloudTools).toContain('Read a cloud-saved CardForge Set');
   });
 
   it('keeps account AI work separate from developer publication permissions', () => {
@@ -190,13 +206,13 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(designSkill).toContain('separate revision-bound Studio URL');
     expect(designSkill).toContain('same normal personal local Template');
 
-    expect(setSkill).toContain('# Create CardForge cards and sets');
+    expect(setSkill).toContain('# Create and revise CardForge cards and Sets');
     expect(setSkill).toContain('call `get_card_generation_contract`');
-    expect(setSkill).toContain('same set id and card ids');
+    expect(setSkill).toContain('same Set and card ids');
     expect(setSkill).toContain('`upsert_cards`');
     expect(setSkill).toContain('Image generation creates standalone artwork assets only');
     expect(setSkill).not.toContain('`attach_card_artwork`');
     expect(setSkill).toContain('`preview_card_set`');
-    expect(setSkill).toContain('export/import an editable individual card or set as CardForge JSON');
+    expect(setSkill).toContain('transfer editable CardForge files');
   });
 });

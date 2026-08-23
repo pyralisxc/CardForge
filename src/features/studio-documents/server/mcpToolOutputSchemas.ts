@@ -115,6 +115,36 @@ export const pipelineHandoffOutputSchema = objectOutput(
   },
 );
 
+export const accountCapabilitiesOutputSchema = objectOutput(
+  ['account', 'studio', 'developer', 'guidance'],
+  {
+    account: objectValue,
+    studio: objectValue,
+    developer: objectValue,
+    guidance: objectValue,
+  },
+);
+
+export const agentWorkingDocumentListOutputSchema = objectOutput(['documents'], {
+  documents: objectList,
+});
+
+export const agentInstallStatusOutputSchema = objectOutput(
+  [
+    'documentId', 'title', 'revision', 'lastInstalledRevision',
+    'lastInstalledAt', 'lastInstallSummary', 'currentRevisionApplied',
+  ],
+  {
+    documentId: { type: 'string' },
+    title: { type: 'string' },
+    revision: { type: 'integer', minimum: 1 },
+    lastInstalledRevision: { type: ['integer', 'null'], minimum: 1 },
+    lastInstalledAt: { type: ['string', 'null'] },
+    lastInstallSummary: { type: ['string', 'null'] },
+    currentRevisionApplied: { type: 'boolean' },
+  },
+);
+
 export const cardGenerationContractOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'frontTemplateId', 'frontFields', 'backFields',
@@ -169,10 +199,46 @@ export const cardWriteOutputSchema = objectOutput(
   },
 );
 
+export const cardDeleteOutputSchema = objectOutput(
+  ['documentId', 'revision', 'setId', 'deletedCardIds', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    setId: { type: 'string' },
+    deletedCardIds: stringList,
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
+export const cardMoveOutputSchema = objectOutput(
+  ['documentId', 'revision', 'sourceSet', 'targetSet', 'movedCardIds', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    sourceSet: objectValue,
+    targetSet: objectValue,
+    movedCardIds: stringList,
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
+export const cardSetDeleteOutputSchema = objectOutput(
+  ['documentId', 'revision', 'deletedSetId', 'deletedCardIds', 'activeSetId', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    deletedSetId: { type: 'string' },
+    deletedCardIds: stringList,
+    activeSetId: { type: ['string', 'null'] },
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
 export const cardSetPreviewOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'set', 'cards', 'artwork', 'cardCount',
-    'openInStudioUrl', 'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
+    'previewUrl', 'previewSampleCount', 'installation', 'openInStudioUrl',
+    'retrySafety', 'capabilityVersion', 'workflowStage', 'nextActions',
   ],
   {
     documentId: { type: 'string' },
@@ -181,6 +247,18 @@ export const cardSetPreviewOutputSchema = objectOutput(
     cards: { type: 'array', items: {} },
     artwork: objectValue,
     cardCount: { type: 'integer', minimum: 0 },
+    previewUrl: { type: 'string', format: 'uri' },
+    previewSampleCount: { type: 'integer', minimum: 0, maximum: 12 },
+    installation: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['currentRevisionApplied', 'lastInstalledRevision', 'lastInstalledAt'],
+      properties: {
+        currentRevisionApplied: { type: 'boolean' },
+        lastInstalledRevision: { type: ['integer', 'null'], minimum: 1 },
+        lastInstalledAt: { type: ['string', 'null'] },
+      },
+    },
     openInStudioUrl: { type: 'string', format: 'uri' },
     retrySafety,
     ...workflowProperties,
@@ -235,6 +313,39 @@ export const cloudSetOutputSchema = objectOutput(
         note: { type: 'string' },
       },
     },
+  },
+);
+
+export const cloudSetCheckoutOutputSchema = objectOutput(
+  ['cloudSet', 'set', 'documentId', 'documentRevision', 'sourceCloudRevision', 'openInStudioUrl', 'nextActions'],
+  {
+    cloudSet: objectValue,
+    set: objectValue,
+    documentId: { type: 'string' },
+    documentRevision: { type: 'integer', minimum: 1 },
+    sourceCloudRevision: { type: 'integer', minimum: 1 },
+    openInStudioUrl: { type: 'string', format: 'uri' },
+    nextActions: workflowActions,
+  },
+);
+
+export const cloudSetCommitOutputSchema = objectOutput(
+  ['summary', 'documentId', 'documentRevision', 'previousCloudRevision', 'cloudRevision'],
+  {
+    summary: objectValue,
+    documentId: { type: 'string' },
+    documentRevision: { type: 'integer', minimum: 1 },
+    previousCloudRevision: { type: 'integer', minimum: 1 },
+    cloudRevision: { type: 'integer', minimum: 1 },
+  },
+);
+
+export const cloudSetDeleteOutputSchema = objectOutput(
+  ['deletedSetId', 'deletedRevision', 'deletedName'],
+  {
+    deletedSetId: { type: 'string' },
+    deletedRevision: { type: 'integer', minimum: 1 },
+    deletedName: { type: 'string' },
   },
 );
 

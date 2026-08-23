@@ -69,8 +69,10 @@ describe('CardForge Studio plugin', () => {
   it('declares telemetry-writing tools as non-read-only for publication review', () => {
     const toolSources = [
       'src/app/mcp/route.ts',
+      'src/features/studio-documents/server/mcpAccountWorkflowTools.ts',
       'src/features/studio-documents/server/mcpAgentCardTools.ts',
       'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
+      'src/features/studio-documents/server/mcpCloudSetTools.ts',
     ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
 
     expect(toolSources).toContain('observeMcpToolExecution');
@@ -133,8 +135,8 @@ describe('CardForge Studio plugin', () => {
     expect(studioPage).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
     expect(handoff).not.toContain('signInPromptedDocumentIdRef');
     expect(handoff).not.toContain('Sign in to open this draft');
-    expect(handoff).toContain('inFlightDocumentIdRef');
-    expect(handoff).toContain('handledDocumentIdRef.current = documentId');
+    expect(handoff).toContain('inFlightRevisionKeyRef');
+    expect(handoff).toContain('handledRevisionKeyRef.current = handoffKey');
   });
 
   it('keeps MCP server dependencies out of the Studio browser surface', () => {
