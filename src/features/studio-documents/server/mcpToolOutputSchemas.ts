@@ -169,6 +169,41 @@ export const cardWriteOutputSchema = objectOutput(
   },
 );
 
+export const cardDeleteOutputSchema = objectOutput(
+  ['documentId', 'revision', 'setId', 'deletedCardIds', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    setId: { type: 'string' },
+    deletedCardIds: stringList,
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
+export const cardMoveOutputSchema = objectOutput(
+  ['documentId', 'revision', 'sourceSet', 'targetSet', 'movedCardIds', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    sourceSet: objectValue,
+    targetSet: objectValue,
+    movedCardIds: stringList,
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
+export const cardSetDeleteOutputSchema = objectOutput(
+  ['documentId', 'revision', 'deletedSetId', 'deletedCardIds', 'activeSetId', 'openInStudioUrl'],
+  {
+    documentId: { type: 'string' },
+    revision: { type: 'integer' },
+    deletedSetId: { type: 'string' },
+    deletedCardIds: stringList,
+    activeSetId: { type: ['string', 'null'] },
+    openInStudioUrl: { type: 'string', format: 'uri' },
+  },
+);
+
 export const cardSetPreviewOutputSchema = objectOutput(
   [
     'documentId', 'revision', 'set', 'cards', 'artwork', 'cardCount',
@@ -248,6 +283,39 @@ export const cloudSetOutputSchema = objectOutput(
         note: { type: 'string' },
       },
     },
+  },
+);
+
+export const cloudSetCheckoutOutputSchema = objectOutput(
+  ['cloudSet', 'set', 'documentId', 'documentRevision', 'sourceCloudRevision', 'openInStudioUrl', 'nextActions'],
+  {
+    cloudSet: objectValue,
+    set: objectValue,
+    documentId: { type: 'string' },
+    documentRevision: { type: 'integer', minimum: 1 },
+    sourceCloudRevision: { type: 'integer', minimum: 1 },
+    openInStudioUrl: { type: 'string', format: 'uri' },
+    nextActions: workflowActions,
+  },
+);
+
+export const cloudSetCommitOutputSchema = objectOutput(
+  ['summary', 'documentId', 'documentRevision', 'previousCloudRevision', 'cloudRevision'],
+  {
+    summary: objectValue,
+    documentId: { type: 'string' },
+    documentRevision: { type: 'integer', minimum: 1 },
+    previousCloudRevision: { type: 'integer', minimum: 1 },
+    cloudRevision: { type: 'integer', minimum: 1 },
+  },
+);
+
+export const cloudSetDeleteOutputSchema = objectOutput(
+  ['deletedSetId', 'deletedRevision', 'deletedName'],
+  {
+    deletedSetId: { type: 'string' },
+    deletedRevision: { type: 'integer', minimum: 1 },
+    deletedName: { type: 'string' },
   },
 );
 
