@@ -10,6 +10,7 @@ import {
   writeRenderArtifact,
 } from '@/features/render-artifacts/server';
 import type { StudioDocument } from '@/features/studio-documents/model';
+import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import { createStudioDocumentPreviewToken } from './studioDocumentPreviewToken';
@@ -17,6 +18,21 @@ import { createStudioDocumentPreviewToken } from './studioDocumentPreviewToken';
 export const MAX_CANONICAL_SET_PREVIEW_CARDS = 12;
 const PREVIEW_PROFILE = 'virtual-150';
 const CONTACT_SHEET_PROFILE = 'virtual-150-contact-sheet-3col';
+
+const consumeUncachedRenderBudget = async (ownerUserId: string) => {
+  const result = await consumeRateLimit({
+    action: 'studio-ai-render',
+    identity: ownerUserId,
+    limit: 60,
+    windowSeconds: 3600,
+  });
+  if (!result.allowed) {
+    throw new StudioDocumentStoreError(
+      'Too many uncached CardForge renders were requested. Reuse the current revision or try again later.',
+      429,
+    );
+  }
+};
 
 const previewToken = (document: StudioDocument, ownerUserId: string) => createStudioDocumentPreviewToken({
   documentId: document.id,
@@ -45,6 +61,7 @@ export const ensureTemplatePreviewArtifact = async ({
   });
   const cached = await readRenderArtifact({ ownerUserId, descriptor });
   if (cached) return cached;
+  await consumeUncachedRenderBudget(ownerUserId);
   const token = previewToken(document, ownerUserId);
   const images = await renderCanonicalBrowserImages({
     publicOrigin,
@@ -97,6 +114,7 @@ export const ensureSetContactSheetArtifact = async ({
   }));
   const cardArtifacts = await Promise.all(cardDescriptors.map((descriptor) => readRenderArtifact({ ownerUserId, descriptor })));
   if (cardArtifacts.some((artifact) => artifact === null)) {
+    await consumeUncachedRenderBudget(ownerUserId);
     const token = previewToken(document, ownerUserId);
     const renderedImages = await renderCanonicalBrowserImages({
       publicOrigin,

@@ -54,6 +54,7 @@ import { getMcpStudioAccess } from './mcpStudioAccess';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 120;
 
 const CARDFORGE_SHAPE_ROLES = [
   'basic',

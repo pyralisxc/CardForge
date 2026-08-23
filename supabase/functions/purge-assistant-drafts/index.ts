@@ -71,7 +71,7 @@ Deno.serve(async (request: Request) => {
     if (listError) throw listError;
 
     const paths = (objects ?? [])
-      .filter((object) => object.name && !object.id === false)
+      .filter((object) => Boolean(object.name))
       .map((object) => `${prefix}/${object.name}`);
     if (paths.length === 0) return;
     const { error: removeError } = await supabase.storage.from(bucket).remove(paths);

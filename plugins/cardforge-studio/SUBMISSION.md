@@ -15,7 +15,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Category: Design
 - Requested availability: public beta, globally wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because all working documents and cloud sets are private to the linked account.
 - Short description: Design cards and generate complete card sets.
-- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review results, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.
+- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.
 
 Starter prompts:
 
@@ -45,7 +45,7 @@ Every MCP call records aggregate usage telemetry, so every tool truthfully decla
 
 Cloud mutations are revision-conditional. `commit_cloud_set` requires the exact working-document revision and source cloud revision, while `delete_cloud_set` requires the exact cloud revision. Stale operations fail rather than overwriting or deleting newer cloud work.
 
-The template and Set preview UIs are model-only and cannot call MCP tools. Their exact CSP allows frames and redirects only to `https://cardforges.com`; they declare no additional connect or resource domains.
+Template and Set preview tools do not register iframe/widget output templates. They return native MCP `image/png` content produced by CardForge's canonical renderer, plus separate revision-bound Studio URLs. Static creative review therefore requires no frame-domain or widget CSP permissions.
 
 ## Positive review cases
 
