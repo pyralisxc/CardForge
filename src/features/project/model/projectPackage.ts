@@ -1,4 +1,5 @@
 import type { ProjectDocumentV1 } from './projectDocument';
+export type { ProjectDocumentV1 } from './projectDocument';
 
 export const CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
 export const CARDFORGE_PROJECT_FILE_EXTENSION = '.cardforge';
