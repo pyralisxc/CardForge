@@ -299,7 +299,7 @@ export const connectGoogleDriveProjectStorage = async ({
   ownerUserId: string;
   code: string;
 }): Promise<GoogleDriveProjectConnectionSummary> => {
-  if (!code.trim()) throw new ProjectStorageProviderError('Google authorization code is missing.', 400, { kind: 'invalid_input' });
+  if (!code.trim()) throw new ProjectStorageProviderError('Google authorization code is missing.', 400, { kind: 'invalid' });
   const tokens = await exchangeAuthorizationCode(code.trim());
   const userInfo = await fetchGoogleUserInfo(tokens.access_token!);
   const externalAccountId = userInfo.sub?.trim() ?? '';
@@ -431,7 +431,7 @@ const getDriveFileMetadata = async ({
   accessToken: string;
   fileId: string;
 }): Promise<GoogleDriveFile> => {
-  if (!isGoogleDriveFileId(fileId)) throw new ProjectStorageProviderError('Google Drive project id is invalid.', 400, { kind: 'invalid_input' });
+  if (!isGoogleDriveFileId(fileId)) throw new ProjectStorageProviderError('Google Drive project id is invalid.', 400, { kind: 'invalid' });
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
   url.searchParams.set('fields', GOOGLE_DRIVE_PROJECT_FIELDS);
   const response = await fetch(url, {
@@ -548,7 +548,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     throw new ProjectStorageProviderError('The CardForge project is empty or exceeds the safe portable-project size limit.', 413, { kind: 'limit' });
   }
   if (!isProjectPackageAssetId(projectRevision)) {
-    throw new ProjectStorageProviderError('The CardForge project revision is invalid.', 400, { kind: 'invalid_input' });
+    throw new ProjectStorageProviderError('The CardForge project revision is invalid.', 400, { kind: 'invalid' });
   }
   const { row, accessToken } = await requireConnection(ownerUserId);
   const normalizedName = normalizeDriveProjectName(name);
@@ -620,14 +620,15 @@ const completeServerUpload = async ({
   uploadSessionUrl: string;
   bytes: Uint8Array;
 }): Promise<GoogleDriveUploadCompletion> => {
-  const body = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const bodyBytes = new Uint8Array(bytes.byteLength);
+  bodyBytes.set(bytes);
   const response = await fetch(uploadSessionUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
       'Content-Length': String(bytes.byteLength),
     },
-    body,
+    body: bodyBytes.buffer,
     cache: 'no-store',
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
