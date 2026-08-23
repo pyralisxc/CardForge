@@ -1,4 +1,5 @@
 export * from './model';
+export { registerPersonalLibraryTools } from './server/mcpPersonalLibraryTools';
 export {
   PersonalLibraryStoreError,
   listPersonalLibraryItems,
