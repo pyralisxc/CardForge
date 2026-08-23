@@ -17,7 +17,10 @@ import {
   createMcpArtworkOperationBudget,
   normalizeMcpArtworkSource,
 } from './mcpArtworkSources';
-import type { McpCardArtworkInput } from './mcpCardToolSchemas';
+import type {
+  McpCardArtworkInput,
+  McpCardWriteMode,
+} from './mcpCardToolSchemas';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocument, updateStudioDocument } from './studioDocumentStore';
@@ -257,12 +260,14 @@ export const upsertDeveloperCards = async ({
   expectedRevision,
   setId,
   cards,
+  writeMode = 'upsert',
 }: {
   access: DeveloperCockpitAccess;
   documentId: string;
   expectedRevision: number;
   setId: string;
   cards: AgentCardInput[];
+  writeMode?: McpCardWriteMode;
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const artworkBudget = createMcpArtworkOperationBudget(cards.flatMap((card) => card.artwork ?? []));
@@ -276,10 +281,36 @@ export const upsertDeveloperCards = async ({
     : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
+  const addedIds: string[] = [];
+  const revisedIds: string[] = [];
   const artworkResults: Array<{ cardId: string; fieldKey: string; face: 'front' | 'back'; status: 'stored' }> = [];
   for (const [inputIndex, input] of cards.entries()) {
+    if (writeMode === 'revise' && !input.cardId?.trim()) {
+      throw new StudioDocumentStoreError(
+        'Revision mode requires the existing stable cardId for every card. Reload preview_card_set or the current generation contract and retry with those exact ids.',
+        409,
+      );
+    }
     const uniqueId = input.cardId?.trim() || createStableAgentCardId(set.id, input, inputIndex);
     const existing = byId.get(uniqueId);
+    if (writeMode === 'revise' && !existing) {
+      throw new StudioDocumentStoreError(
+        `Card ${uniqueId} does not exist in this working document. Reload preview_card_set and retry the revision with a current card id.`,
+        404,
+      );
+    }
+    if (writeMode === 'create' && existing) {
+      throw new StudioDocumentStoreError(
+        `Card ${uniqueId} already exists. Use revise mode with that id instead of creating a duplicate.`,
+        409,
+      );
+    }
+    if (existing && existing.setId !== set.id) {
+      throw new StudioDocumentStoreError(
+        `Card ${uniqueId} belongs to a different Set. Use move_cards before revising it in this Set.`,
+        409,
+      );
+    }
     const nextData: CardData = { ...(existing?.data ?? {}), ...input.data };
     const nextBackingData: CardData | undefined = back
       ? { ...(existing?.backingData ?? {}), ...(input.backingData ?? {}) }
@@ -323,6 +354,8 @@ export const upsertDeveloperCards = async ({
     };
     byId.set(uniqueId, card);
     updatedIds.push(uniqueId);
+    if (existing) revisedIds.push(uniqueId);
+    else addedIds.push(uniqueId);
   }
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
@@ -337,5 +370,162 @@ export const upsertDeveloperCards = async ({
     },
     retentionHours,
   });
-  return { document, set, updatedIds, artworkResults };
+  return { document, set, updatedIds, addedIds, revisedIds, artworkResults };
+};
+
+export const deleteDeveloperCards = async ({
+  access,
+  documentId,
+  expectedRevision,
+  setId,
+  cardIds,
+}: {
+  access: DeveloperCockpitAccess;
+  documentId: string;
+  expectedRevision: number;
+  setId: string;
+  cardIds: string[];
+}) => {
+  requireContributionScope(access, 'studio.ai.create');
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
+  const set = requireSet(current.document.cardSets, setId);
+  const requested = new Set(cardIds);
+  const cardsById = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
+  for (const id of requested) {
+    const card = cardsById.get(id);
+    if (!card || card.setId !== set.id) {
+      throw new StudioDocumentStoreError(`Card ${id} is not in "${set.name}". Reload preview_card_set before deleting cards.`, 404);
+    }
+  }
+  const document = await updateStudioDocument({
+    ownerUserId: access.user.id,
+    documentId,
+    expectedRevision,
+    title: current.title,
+    document: {
+      ...current.document,
+      activeCardSetId: set.id,
+      storedCards: current.document.storedCards.filter((card) => !requested.has(card.uniqueId)),
+    },
+    retentionHours,
+  });
+  return { document, set, deletedIds: [...requested] };
+};
+
+export const moveDeveloperCards = async ({
+  access,
+  documentId,
+  expectedRevision,
+  sourceSetId,
+  targetSetId,
+  cardIds,
+}: {
+  access: DeveloperCockpitAccess;
+  documentId: string;
+  expectedRevision: number;
+  sourceSetId: string;
+  targetSetId: string;
+  cardIds: string[];
+}) => {
+  requireContributionScope(access, 'studio.ai.create');
+  if (sourceSetId === targetSetId) throw new StudioDocumentStoreError('Source and target Set must be different.', 400);
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
+  const source = requireSet(current.document.cardSets, sourceSetId);
+  const target = requireSet(current.document.cardSets, targetSetId);
+  const templates = materializeGenerationTemplates(current.document.userTemplates);
+  const targetFront = selectFrontTemplate(templates, target.frontTemplateId);
+  const targetBack = target.backingTemplateId ? selectBackTemplate(templates, targetFront, target.backingTemplateId) : null;
+  const requested = new Set(cardIds);
+  const cardsById = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
+  for (const id of requested) {
+    const card = cardsById.get(id);
+    if (!card || card.setId !== source.id) {
+      throw new StudioDocumentStoreError(`Card ${id} is not in "${source.name}". Reload both Sets before moving cards.`, 404);
+    }
+    validateCardData(targetFront, card.data, 'Front');
+    if (targetBack) validateCardData(targetBack, card.backingData ?? {}, 'Back');
+  }
+  const storedCards = current.document.storedCards.map((card) => (
+    requested.has(card.uniqueId)
+      ? {
+          ...card,
+          setId: target.id,
+          setName: target.name,
+          templateId: targetFront.id!,
+          backingTemplateId: targetBack?.id ?? null,
+          backingData: targetBack ? card.backingData : undefined,
+        }
+      : card
+  ));
+  const document = await updateStudioDocument({
+    ownerUserId: access.user.id,
+    documentId,
+    expectedRevision,
+    title: current.title,
+    document: {
+      ...current.document,
+      userTemplates: templates,
+      activeCardSetId: target.id,
+      storedCards,
+    },
+    retentionHours,
+  });
+  return { document, sourceSet: source, targetSet: target, movedIds: [...requested] };
+};
+
+export const deleteDeveloperCardSet = async ({
+  access,
+  documentId,
+  expectedRevision,
+  setId,
+  deleteCards = false,
+}: {
+  access: DeveloperCockpitAccess;
+  documentId: string;
+  expectedRevision: number;
+  setId: string;
+  deleteCards?: boolean;
+}) => {
+  requireContributionScope(access, 'studio.ai.create');
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
+  const set = requireSet(current.document.cardSets, setId);
+  const setCards = current.document.storedCards.filter((card) => card.setId === set.id);
+  if (setCards.length > 0 && !deleteCards) {
+    throw new StudioDocumentStoreError(
+      `"${set.name}" still contains ${setCards.length} card${setCards.length === 1 ? '' : 's'}. Delete or move those cards first, or retry with deleteCards true only when the user explicitly wants the Set and its cards removed.`,
+      409,
+    );
+  }
+  let cardSets = current.document.cardSets.filter((candidate) => candidate.id !== set.id);
+  const storedCards = deleteCards
+    ? current.document.storedCards.filter((card) => card.setId !== set.id)
+    : current.document.storedCards;
+  if (cardSets.length === 0) {
+    const front = materializeGenerationTemplates(current.document.userTemplates)
+      .find((template) => template.templateUsage !== 'back-preset');
+    cardSets = [{
+      id: 'active-card-set',
+      name: 'Untitled Set',
+      frontTemplateId: front?.id ?? null,
+      backingTemplateId: null,
+    }];
+  }
+  const activeSet = cardSets[0]!;
+  const document = await updateStudioDocument({
+    ownerUserId: access.user.id,
+    documentId,
+    expectedRevision,
+    title: current.title,
+    document: {
+      ...current.document,
+      cardSets,
+      activeCardSetId: activeSet.id,
+      storedCards,
+    },
+    retentionHours,
+  });
+  return { document, deletedSet: set, deletedCardIds: deleteCards ? setCards.map((card) => card.uniqueId) : [] };
 };

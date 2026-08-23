@@ -16,6 +16,8 @@ describe('Studio MCP creative production flow', () => {
     readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
     readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
     readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
+    readSource('src/features/studio-documents/server/mcpCloudSetTools.ts'),
+    readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts'),
   ].join('\n');
   const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
   const templateToolResults = readSource('src/features/studio-documents/server/mcpTemplateToolResults.ts');
@@ -41,11 +43,14 @@ describe('Studio MCP creative production flow', () => {
     expect(agentTools).toContain("'preview_template_draft'");
   });
 
-  it('exposes exact-contract set, individual-card, and bulk-card authoring through the same Studio document', () => {
+  it('exposes exact-contract set, individual-card, bulk-card, and maintenance authoring through one Studio document', () => {
     expect(agentTools).toContain("'get_card_generation_contract'");
     expect(agentTools).toContain("'upsert_card_set'");
     expect(agentTools).toContain("'upsert_card'");
     expect(agentTools).toContain("'upsert_cards'");
+    expect(agentTools).toContain("'delete_cards'");
+    expect(agentTools).toContain("'move_cards'");
+    expect(agentTools).toContain("'delete_card_set'");
     expect(agentTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
     expect(agentTools).not.toContain("'attach_card_artwork'");
     expect(agentTools).toContain("'preview_card_set'");
@@ -55,6 +60,18 @@ describe('Studio MCP creative production flow', () => {
     expect(revisions).toContain('updateStudioDocument({');
     expect(projectDocument).toContain('cardSets: CardSet[]');
     expect(projectDocument).toContain('activeCardSetId?: string');
+  });
+
+  it('supports revision-safe cloud collaboration and account-aware capability discovery', () => {
+    expect(agentTools).toContain("'get_cardforge_capabilities'");
+    expect(agentTools).toContain("'list_agent_working_documents'");
+    expect(agentTools).toContain("'get_agent_install_status'");
+    expect(agentTools).toContain("'list_cloud_sets'");
+    expect(agentTools).toContain("'get_cloud_set'");
+    expect(agentTools).toContain("'checkout_cloud_set'");
+    expect(agentTools).toContain("'commit_cloud_set'");
+    expect(agentTools).toContain("'delete_cloud_set'");
+    expect(agentTools).toContain('expectedCloudRevision');
   });
 
   it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {
@@ -86,7 +103,7 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('A successful upload is not proof of correct placement');
     expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
     expect(route).toContain('installs or updates the same Template in the user personal local Template library');
-    expect(route).toContain("version: '0.7.0'");
+    expect(route).toContain("version: '0.9.0'");
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
@@ -133,5 +150,14 @@ describe('Studio MCP creative production flow', () => {
     expect(revisions).toContain('preserveEmbeddedTemplateAssets');
     expect(revisions).toContain('expectedRevision');
     expect(revisions).toContain('productionPlan: preserved.productionPlan');
+  });
+
+  it('keeps Pipeline continuation as an owner-reviewed draft and carries private Studio art with it', () => {
+    expect(route).toContain("'continue_template_in_pipeline'");
+    expect(route).not.toContain("'publish_template'");
+    expect(revisions).toContain('materializeTemplateForPipelineReview');
+    expect(revisions).toContain('MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES');
+    expect(revisions).toContain('createTemplatePipelineDraft');
+    expect(revisions).toContain("templateRegistryStatus: 'draft'");
   });
 });

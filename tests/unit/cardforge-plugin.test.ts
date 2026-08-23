@@ -19,7 +19,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '0.7.0',
+      version: '0.9.0',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -42,7 +42,7 @@ describe('CardForge Studio plugin', () => {
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain("version: '0.7.0'");
+    expect(route).toContain("version: '0.9.0'");
   });
 
   it('serves submission-time skill manifests with exact content digests', () => {
@@ -69,8 +69,10 @@ describe('CardForge Studio plugin', () => {
   it('declares telemetry-writing tools as non-read-only for publication review', () => {
     const toolSources = [
       'src/app/mcp/route.ts',
+      'src/features/studio-documents/server/mcpAccountWorkflowTools.ts',
       'src/features/studio-documents/server/mcpAgentCardTools.ts',
       'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
+      'src/features/studio-documents/server/mcpCloudSetTools.ts',
     ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
 
     expect(toolSources).toContain('observeMcpToolExecution');
@@ -108,7 +110,7 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('https://cardforges.com/terms');
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('globally wherever ChatGPT plugins');
-    expect(submission).toContain('Initial-submission release notes for 0.7.0');
+    expect(submission).toContain('Initial-submission release notes for 0.9.0');
     expect(submission).toContain('ordinary Free account scope with no developer, owner, billing, or provider-console privileges');
     expect(submission).toContain('cloud-saved set named `OpenAI Review Fixture`');
     expect(submission).toContain('temporary assistant drafts are created by the review cases');
@@ -133,8 +135,8 @@ describe('CardForge Studio plugin', () => {
     expect(studioPage).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
     expect(handoff).not.toContain('signInPromptedDocumentIdRef');
     expect(handoff).not.toContain('Sign in to open this draft');
-    expect(handoff).toContain('inFlightDocumentIdRef');
-    expect(handoff).toContain('handledDocumentIdRef.current = documentId');
+    expect(handoff).toContain('inFlightRevisionKeyRef');
+    expect(handoff).toContain('handledRevisionKeyRef.current = handoffKey');
   });
 
   it('keeps MCP server dependencies out of the Studio browser surface', () => {

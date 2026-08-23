@@ -6,6 +6,8 @@ import {
   type EmbeddedTemplateAssetMimeType,
 } from './embeddedTemplateAssets';
 
+export type McpCardWriteMode = 'upsert' | 'create' | 'revise';
+
 export interface CardGenerationContractInput {
   documentId: string;
   setId?: string;
@@ -39,6 +41,7 @@ export interface UpsertCardInput {
   documentId: string;
   expectedRevision: number;
   setId: string;
+  writeMode?: McpCardWriteMode;
   card: McpCardInput;
 }
 
@@ -46,12 +49,35 @@ export interface UpsertCardsInput {
   documentId: string;
   expectedRevision: number;
   setId: string;
+  writeMode?: McpCardWriteMode;
   cards: McpCardInput[];
 }
 
 export interface GetCardSetInput {
   documentId: string;
   setId: string;
+}
+
+export interface DeleteCardsInput {
+  documentId: string;
+  expectedRevision: number;
+  setId: string;
+  cardIds: string[];
+}
+
+export interface MoveCardsInput {
+  documentId: string;
+  expectedRevision: number;
+  sourceSetId: string;
+  targetSetId: string;
+  cardIds: string[];
+}
+
+export interface DeleteCardSetInput {
+  documentId: string;
+  expectedRevision: number;
+  setId: string;
+  deleteCards?: boolean;
 }
 
 const documentId = {
@@ -69,6 +95,18 @@ const setId = {
   minLength: 1,
   maxLength: 255,
   description: 'Stable set id. Reuse the same id for revisions and retries so a transient connector failure cannot create another set.',
+} as const;
+const cardId = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 255,
+  description: 'Stable card id returned by CardForge. Revisions, moves, deletes, and retries must reuse this exact id.',
+} as const;
+const writeMode = {
+  type: 'string',
+  enum: ['upsert', 'create', 'revise'],
+  default: 'upsert',
+  description: 'Use revise when changing existing cards; every card must then include an existing cardId. Use create when duplicates would be an error. Upsert preserves backward-compatible create-or-revise behavior.',
 } as const;
 const cardData = {
   type: 'object',
@@ -88,10 +126,8 @@ const cardInput = {
   required: ['data'],
   properties: {
     cardId: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 255,
-      description: 'Stable card id. Reuse it whenever revising or retrying this card. If omitted for a new card, CardForge derives a deterministic id from the submitted card data; use the returned id for later edits.',
+      ...cardId,
+      description: 'Stable card id. Required in revise mode. If omitted for a new upsert/create card, CardForge derives a deterministic id from the submitted card data; always use the returned id for later edits.',
     },
     data: cardData,
     backingData: cardData,
@@ -174,7 +210,7 @@ export const upsertCardInputSchema = fromJsonSchema<UpsertCardInput>({
   type: 'object',
   additionalProperties: false,
   required: ['documentId', 'expectedRevision', 'setId', 'card'],
-  properties: { documentId, expectedRevision, setId, card: cardInput },
+  properties: { documentId, expectedRevision, setId, writeMode, card: cardInput },
 });
 
 export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
@@ -185,11 +221,12 @@ export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
     documentId,
     expectedRevision,
     setId,
+    writeMode,
     cards: {
       type: 'array',
       minItems: 1,
       maxItems: 100,
-      description: 'One to 100 cards using the exact Template field keys. A single write may include up to 64 artwork files and 32 MB of aggregate artwork input; split larger artwork sets across revision-safe calls. Give each planned card a stable cardId when possible so retries and later revisions update instead of duplicate.',
+      description: 'One to 100 cards using the exact Template field keys. A single write may include up to 64 artwork files and 32 MB of aggregate artwork input; split larger artwork sets across revision-safe calls. For existing cards use writeMode revise and provide every stable cardId so edits cannot become duplicates.',
       items: cardInput,
     },
   },
@@ -200,4 +237,45 @@ export const getCardSetInputSchema = fromJsonSchema<GetCardSetInput>({
   additionalProperties: false,
   required: ['documentId', 'setId'],
   properties: { documentId, setId },
+});
+
+export const deleteCardsInputSchema = fromJsonSchema<DeleteCardsInput>({
+  type: 'object',
+  additionalProperties: false,
+  required: ['documentId', 'expectedRevision', 'setId', 'cardIds'],
+  properties: {
+    documentId,
+    expectedRevision,
+    setId,
+    cardIds: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: cardId },
+  },
+});
+
+export const moveCardsInputSchema = fromJsonSchema<MoveCardsInput>({
+  type: 'object',
+  additionalProperties: false,
+  required: ['documentId', 'expectedRevision', 'sourceSetId', 'targetSetId', 'cardIds'],
+  properties: {
+    documentId,
+    expectedRevision,
+    sourceSetId: setId,
+    targetSetId: setId,
+    cardIds: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: cardId },
+  },
+});
+
+export const deleteCardSetInputSchema = fromJsonSchema<DeleteCardSetInput>({
+  type: 'object',
+  additionalProperties: false,
+  required: ['documentId', 'expectedRevision', 'setId'],
+  properties: {
+    documentId,
+    expectedRevision,
+    setId,
+    deleteCards: {
+      type: 'boolean',
+      default: false,
+      description: 'False refuses to delete a non-empty Set. Set true only when the user explicitly wants the Set and its cards removed from this agent working document.',
+    },
+  },
 });

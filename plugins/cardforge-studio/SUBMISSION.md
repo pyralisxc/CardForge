@@ -15,7 +15,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Category: Design
 - Requested availability: public beta, globally wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because all working documents and cloud sets are private to the linked account.
 - Short description: Design cards and generate complete card sets.
-- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review results, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.
+- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.
 
 Starter prompts:
 
@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Initial-submission release notes for 0.7.0: CardForge Studio is an authenticated beta for building editable Templates and complete card sets with ChatGPT. This initial version includes native bulk artwork ingestion, explicit artwork-resolution diagnostics, exact-revision Studio handoff, cloud-set discovery, and review-accurate tool safety annotations.
+Initial-submission release notes for 0.9.0: CardForge Studio is an authenticated beta for editable Templates and complete card Sets with revision-safe cloud collaboration. Template and Set review now return immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
 
 ## Authentication and reviewer fixture
 
@@ -41,9 +41,11 @@ Enter its credentials only in the OpenAI submission portal. Never commit the rev
 
 ## Tool safety and UI declarations
 
-Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The five tools that can replace private working state declare `destructiveHint: true`: `update_editable_template`, `upsert_card_set`, `upsert_card`, `upsert_cards`, and `attach_template_artwork`. `upsert_card` and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `continue_template_in_pipeline` creates a private review draft; it does not publish.
+Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The ten tools that can replace, remove, move, or permanently commit private working state declare `destructiveHint: true`: `update_editable_template`, `attach_template_artwork`, `upsert_card_set`, `upsert_card`, `upsert_cards`, `delete_cards`, `move_cards`, `delete_card_set`, `commit_cloud_set`, and `delete_cloud_set`. `upsert_card` and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `checkout_cloud_set` only creates a private working copy and does not alter the cloud save; `continue_template_in_pipeline` creates a private review draft and does not publish.
 
-The template preview UI is model-only and cannot call MCP tools. Its exact CSP allows frames and redirects only to `https://cardforges.com`; it declares no additional connect or resource domains.
+Cloud mutations are revision-conditional. `commit_cloud_set` requires the exact working-document revision and source cloud revision, while `delete_cloud_set` requires the exact cloud revision. Stale operations fail rather than overwriting or deleting newer cloud work.
+
+Template and Set preview tools do not register iframe/widget output templates. They return native MCP `image/png` content produced by CardForge's canonical renderer, plus separate revision-bound Studio URLs. Static creative review therefore requires no frame-domain or widget CSP permissions.
 
 ## Positive review cases
 
@@ -92,9 +94,9 @@ The template preview UI is model-only and cannot call MCP tools. Its exact CSP a
 
 ### Negative 2 — a stale revision cannot overwrite newer work
 
-- Action: call `update_editable_template` or an upsert tool with an `expectedRevision` older than the current document revision.
-- Why it should not complete: accepting a stale write could silently overwrite a newer browser or assistant revision.
-- Expected result: a conflict response instructs the client to reload the current revision; the current document remains unchanged.
+- Action: call `update_editable_template`, an upsert tool, `commit_cloud_set`, or `delete_cloud_set` with an expected revision older than the current document/cloud revision.
+- Why it should not complete: accepting a stale write could silently overwrite or remove newer work.
+- Expected result: a conflict response instructs the client to reload the current revision; the current document/cloud Set remains unchanged.
 
 ### Negative 3 — invalid artwork cannot masquerade as resolved
 
