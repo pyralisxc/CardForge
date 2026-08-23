@@ -1,12 +1,10 @@
 import type { CardSet } from '@/domain/cards';
 import {
-  createStudioRenderArtifactDescriptor,
-  type RenderArtifact,
-} from '@/features/render-artifacts/model';
-import {
   composeCanonicalContactSheet,
+  createStudioRenderArtifactDescriptor,
   readRenderArtifact,
   renderCanonicalBrowserImages,
+  type RenderArtifact,
   writeRenderArtifact,
 } from '@/features/render-artifacts/server';
 import type { StudioDocument } from '@/features/studio-documents/model';
