@@ -5,6 +5,7 @@ import {
   normalizeStudioDocumentPayload,
   type StudioDocument,
   type StudioDocumentInstallSummary,
+  type StudioDocumentProjectSourceProvider,
   type StudioDocumentSource,
   type StudioDocumentSummary,
 } from '@/features/studio-documents/model';
@@ -35,15 +36,28 @@ interface StudioDocumentRow {
   last_install_summary: unknown;
   source_cloud_set_id: string | null;
   source_cloud_revision: number | null;
+  source_project_provider: StudioDocumentProjectSourceProvider | null;
+  source_project_external_id: string | null;
+  source_provider_revision: string | null;
+  source_project_revision: string | null;
+  source_project_name: string | null;
 }
 
-const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_cloud_set_id,source_cloud_revision';
+const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_cloud_set_id,source_cloud_revision,source_project_provider,source_project_external_id,source_provider_revision,source_project_revision,source_project_name';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
 const STUDIO_DOCUMENT_LIST_LIMIT = 100;
 
 export interface StudioDocumentListPage {
   documents: StudioDocumentSummary[];
   hasMore: boolean;
+}
+
+export interface StudioDocumentProjectSourceLineage {
+  provider: StudioDocumentProjectSourceProvider;
+  externalId: string;
+  providerRevision: string;
+  projectRevision: string;
+  projectName: string;
 }
 
 const readInstallSummary = (value: unknown): StudioDocumentInstallSummary | null => (
@@ -69,6 +83,11 @@ const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocu
   lastInstallSummary: readInstallSummary(row.last_install_summary),
   sourceCloudSetId: row.source_cloud_set_id,
   sourceCloudRevision: row.source_cloud_revision,
+  sourceProjectProvider: row.source_project_provider,
+  sourceProjectExternalId: row.source_project_external_id,
+  sourceProviderRevision: row.source_provider_revision,
+  sourceProjectRevision: row.source_project_revision,
+  sourceProjectName: row.source_project_name,
 });
 
 const toDocument = (row: StudioDocumentRow): StudioDocument => {
@@ -95,6 +114,16 @@ const applyRetentionPolicy = async (ownerUserId: string, retentionHours: number)
   if (error) {
     console.error('Failed to apply Studio document retention:', error);
     throw new StudioDocumentStoreError('Unable to apply Studio document retention.');
+  }
+};
+
+const validateProjectSourceLineage = (lineage: StudioDocumentProjectSourceLineage | null): void => {
+  if (!lineage) return;
+  if (!lineage.externalId.trim() || !lineage.providerRevision.trim() || !lineage.projectName.trim()) {
+    throw new StudioDocumentStoreError('Project checkout lineage requires a source id, provider revision, and project name.', 400);
+  }
+  if (!/^[a-f0-9]{64}$/u.test(lineage.projectRevision)) {
+    throw new StudioDocumentStoreError('Project checkout lineage requires an exact CardForge project revision.', 400);
   }
 };
 
@@ -201,6 +230,7 @@ export const createStudioDocument = async ({
   retentionHours,
   sourceCloudSetId = null,
   sourceCloudRevision = null,
+  sourceProject = null,
 }: {
   ownerUserId: string;
   title: string;
@@ -209,9 +239,14 @@ export const createStudioDocument = async ({
   retentionHours: number;
   sourceCloudSetId?: string | null;
   sourceCloudRevision?: number | null;
+  sourceProject?: StudioDocumentProjectSourceLineage | null;
 }): Promise<StudioDocument> => {
   if ((sourceCloudSetId === null) !== (sourceCloudRevision === null)) {
     throw new StudioDocumentStoreError('Cloud checkout lineage requires both a Set id and source revision.', 400);
+  }
+  validateProjectSourceLineage(sourceProject);
+  if (sourceCloudSetId && sourceProject) {
+    throw new StudioDocumentStoreError('A Studio document can have one durable checkout source at a time.', 400);
   }
   const documentId = randomUUID();
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
@@ -230,6 +265,11 @@ export const createStudioDocument = async ({
       retention_grace_until: null,
       source_cloud_set_id: sourceCloudSetId,
       source_cloud_revision: sourceCloudRevision,
+      source_project_provider: sourceProject?.provider ?? null,
+      source_project_external_id: sourceProject?.externalId ?? null,
+      source_provider_revision: sourceProject?.providerRevision ?? null,
+      source_project_revision: sourceProject?.projectRevision ?? null,
+      source_project_name: sourceProject?.projectName ?? null,
     })
     .select(DOCUMENT_COLUMNS)
     .single();
@@ -301,6 +341,60 @@ export const updateStudioDocument = async ({
     );
   }
   return toDocument(data as unknown as StudioDocumentRow);
+};
+
+export const recordStudioDocumentProjectSourceCommit = async ({
+  ownerUserId,
+  documentId,
+  expectedDocumentRevision,
+  sourceProject,
+  nextProviderRevision,
+  nextProjectRevision,
+  nextProjectName,
+}: {
+  ownerUserId: string;
+  documentId: string;
+  expectedDocumentRevision: number;
+  sourceProject: StudioDocumentProjectSourceLineage;
+  nextProviderRevision: string;
+  nextProjectRevision: string;
+  nextProjectName: string;
+}): Promise<StudioDocumentSummary> => {
+  validateProjectSourceLineage(sourceProject);
+  validateProjectSourceLineage({
+    ...sourceProject,
+    providerRevision: nextProviderRevision,
+    projectRevision: nextProjectRevision,
+    projectName: nextProjectName,
+  });
+  const { data, error } = await requireStore()
+    .from('cardforge_studio_documents')
+    .update({
+      source_provider_revision: nextProviderRevision,
+      source_project_revision: nextProjectRevision,
+      source_project_name: nextProjectName,
+    })
+    .eq('id', documentId)
+    .eq('owner_user_id', ownerUserId)
+    .eq('revision', expectedDocumentRevision)
+    .eq('source_project_provider', sourceProject.provider)
+    .eq('source_project_external_id', sourceProject.externalId)
+    .eq('source_provider_revision', sourceProject.providerRevision)
+    .eq('source_project_revision', sourceProject.projectRevision)
+    .is('deleted_at', null)
+    .select(SUMMARY_COLUMNS)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to advance Studio project-source lineage:', error);
+    throw new StudioDocumentStoreError('CardForge could not record the committed project source revision.', 503);
+  }
+  if (!data) {
+    throw new StudioDocumentStoreError(
+      'The working document or its project source changed while the commit was finishing. Reload the current working document before committing again.',
+      409,
+    );
+  }
+  return toSummary(data as unknown as Omit<StudioDocumentRow, 'document_payload'>);
 };
 
 export const recordStudioDocumentInstallation = async ({
