@@ -103,10 +103,10 @@ export function GoogleDriveProjectStoragePanel({
     }
   }, [refresh, toast]);
 
+  const projects = library?.projects ?? [];
   const attachedProject = useMemo(() => (
-    binding ? library?.projects.find((project) => project.fileId === binding.fileId) ?? null : null
-  ), [binding, library?.projects]);
-
+    binding ? projects.find((project) => project.fileId === binding.fileId) ?? null : null
+  ), [binding, projects]);
   const connection = library?.connection ?? null;
 
   return (
@@ -143,7 +143,7 @@ export function GoogleDriveProjectStoragePanel({
             className="mt-3"
             size="sm"
             disabled={!canUseProjectFiles}
-            onClick={() => { window.location.assign('/api/project-sources/google-drive/connect'); }}
+            onClick={() => router.push('/api/project-sources/google-drive/connect')}
           >
             <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
           </Button>
@@ -179,7 +179,7 @@ export function GoogleDriveProjectStoragePanel({
                   disabled={Boolean(busyAction) || !canUseProjectFiles}
                   onClick={() => void run('update', async () => {
                     const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name });
-                    toast({ title: 'Google Drive project updated', description: `Saved the current workspace to “${saved.name}” without overwriting a newer Drive revision.` });
+                    toast({ title: 'Google Drive project updated', description: `Saved the current workspace to “${saved.name}” without intentionally overwriting a newer Drive revision.` });
                   })}
                 >
                   {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -212,11 +212,11 @@ export function GoogleDriveProjectStoragePanel({
 
           <div className="mt-5">
             <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Projects in your CardForge Drive folder</h3>
-            {library.projects.length === 0 ? (
+            {projects.length === 0 ? (
               <p className="mt-2 text-sm text-[var(--cf-text-muted)]">No Google Drive projects yet. Save the current workspace as a new project to create the first one.</p>
             ) : (
               <div className="mt-3 space-y-2">
-                {library.projects.map((project) => (
+                {projects.map((project) => (
                   <GoogleDriveProjectRow
                     key={project.fileId}
                     project={project}
