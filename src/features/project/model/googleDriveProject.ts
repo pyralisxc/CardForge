@@ -1,5 +1,6 @@
 export const GOOGLE_DRIVE_PROJECT_PROVIDER = 'google-drive' as const;
 export const GOOGLE_DRIVE_PROJECT_MIME_TYPE = 'application/vnd.cardforge.project+zip';
+export const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 export const GOOGLE_DRIVE_ROOT_FOLDER_NAME = 'CardForge';
 export const GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 export const GOOGLE_DRIVE_IDENTITY_SCOPES = ['openid', 'email'] as const;
@@ -10,6 +11,7 @@ export interface GoogleDriveProjectConnectionSummary {
   connected: boolean;
   displayName: string | null;
   rootFolderId: string | null;
+  rootFolderName: string | null;
   status: 'active' | 'error' | 'unconfigured' | 'disconnected';
   statusNote: string | null;
   lastVerifiedAt: string | null;
@@ -29,6 +31,18 @@ export interface GoogleDriveProjectSummary {
 export interface GoogleDriveProjectListResult {
   connection: GoogleDriveProjectConnectionSummary;
   projects: GoogleDriveProjectSummary[];
+}
+
+export interface GoogleDrivePickerConfiguration {
+  accessToken: string;
+  developerKey: string;
+  appId: string;
+  initialFolderId: string | null;
+}
+
+export interface GoogleDriveFolderSelection {
+  id: string;
+  name: string;
 }
 
 export interface GoogleDriveUploadPrepareResult {
