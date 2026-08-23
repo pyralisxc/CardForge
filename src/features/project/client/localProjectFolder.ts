@@ -109,11 +109,7 @@ const writeSnapshotToDirectory = async (
     throw error;
   }
   const binding: LocalProjectFolderBinding = {
-    handle: directory,
-    folderName: directory.name,
-    sourceRevision: snapshot.manifest.projectRevision,
-    lastSavedAt: snapshot.manifest.savedAt,
-    ...existingBinding,
+    ...(existingBinding ?? {}),
     handle: directory,
     folderName: directory.name,
     sourceRevision: snapshot.manifest.projectRevision,
