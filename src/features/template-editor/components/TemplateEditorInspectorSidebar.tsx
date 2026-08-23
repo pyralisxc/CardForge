@@ -4,6 +4,7 @@ import { cardFontOptionsToSelectOptions } from '@/domain/rendering';
 import { SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
 import { AppearanceStudioPanel } from '@/features/template-editor/components/AppearanceStudioPanel';
 import { BorderInspectorPanel } from '@/features/template-editor/components/BorderInspectorPanel';
+import { ConnectedPersonalAssetImport } from '@/features/template-editor/components/ConnectedPersonalAssetImport';
 import { DividerStudioPanel } from '@/features/template-editor/components/DividerStudioPanel';
 import { ElementAlignmentPanel } from '@/features/template-editor/components/ElementAlignmentPanel';
 import { ElementContentPanel } from '@/features/template-editor/components/ElementContentPanel';
@@ -87,14 +88,22 @@ export function TemplateEditorInspectorSidebar({
               onUpsertFieldContract={variables.upsertFieldContract}
             />
             {elements.canUseImageSource ? (
-              <ImageInspectorPanel
-                element={selectedElement}
-                imageAssets={elements.compatibleImageAssets}
-                assetSearch={elements.assetSearch}
-                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                onHandleFileUpload={commands.handleFileUpload}
-                onAssetSearchChange={elements.setAssetSearch}
-              />
+              <>
+                <ConnectedPersonalAssetImport
+                  items={elements.connectedImageItems}
+                  busyItemId={elements.connectedLibraryBusyItemId}
+                  label="artwork"
+                  onImport={elements.importConnectedLibraryItem}
+                />
+                <ImageInspectorPanel
+                  element={selectedElement}
+                  imageAssets={elements.compatibleImageAssets}
+                  assetSearch={elements.assetSearch}
+                  onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                  onHandleFileUpload={commands.handleFileUpload}
+                  onAssetSearchChange={elements.setAssetSearch}
+                />
+              </>
             ) : null}
           </InspectorFlowSection>
         ),
@@ -112,6 +121,12 @@ export function TemplateEditorInspectorSidebar({
             description="Pick a built-in icon, upload a symbol, or choose a reviewed icon asset before styling the glyph."
             collapsible={false}
           >
+            <ConnectedPersonalAssetImport
+              items={elements.connectedIconItems}
+              busyItemId={elements.connectedLibraryBusyItemId}
+              label="icon"
+              onImport={elements.importConnectedLibraryItem}
+            />
             <IconInspectorPanel
               element={selectedElement}
               iconOptions={ICON_OPTIONS}
@@ -155,14 +170,22 @@ export function TemplateEditorInspectorSidebar({
               />
             ) : null}
             {elements.canUseDividerControls ? (
-              <DividerStudioPanel
-                element={selectedElement}
-                selectedAppearance={elements.selectedAppearance}
-                dividerPresets={elements.selectedElementPresetRecipeGroups.divider}
-                onApplyPreset={elements.applyElementPresetRecipe}
-                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                onUpdateAppearance={(updater, trackHistory) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory)}
-              />
+              <>
+                <ConnectedPersonalAssetImport
+                  items={elements.connectedDividerItems}
+                  busyItemId={elements.connectedLibraryBusyItemId}
+                  label="divider"
+                  onImport={elements.importConnectedLibraryItem}
+                />
+                <DividerStudioPanel
+                  element={selectedElement}
+                  selectedAppearance={elements.selectedAppearance}
+                  dividerPresets={elements.selectedElementPresetRecipeGroups.divider}
+                  onApplyPreset={elements.applyElementPresetRecipe}
+                  onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                  onUpdateAppearance={(updater, trackHistory) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory)}
+                />
+              </>
             ) : null}
           </InspectorFlowSection>
         ),
@@ -205,6 +228,14 @@ export function TemplateEditorInspectorSidebar({
             description="Change fill, texture, gradient, and glow without touching Border & Edge controls."
             collapsible={false}
           >
+            {elements.canUseBackgroundTexture ? (
+              <ConnectedPersonalAssetImport
+                items={elements.connectedTextureItems}
+                busyItemId={elements.connectedLibraryBusyItemId}
+                label="texture"
+                onImport={elements.importConnectedLibraryItem}
+              />
+            ) : null}
             <AppearanceStudioPanel
               element={selectedElement}
               selectedAppearance={elements.selectedAppearance}
