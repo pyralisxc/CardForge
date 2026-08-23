@@ -141,7 +141,7 @@ export const agentInstallStatusOutputSchema = objectOutput(
     revision: { type: 'integer', minimum: 1 },
     lastInstalledRevision: { type: ['integer', 'null'], minimum: 1 },
     lastInstalledAt: { type: ['string', 'null'] },
-    lastInstallSummary: { type: ['string', 'null'] },
+    lastInstallSummary: nullableObjectValue,
     currentRevisionApplied: { type: 'boolean' },
   },
 );
