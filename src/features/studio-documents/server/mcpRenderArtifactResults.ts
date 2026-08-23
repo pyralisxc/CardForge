@@ -1,7 +1,7 @@
 import {
   renderArtifactMetadata,
   type RenderArtifact,
-} from '@/features/render-artifacts/model';
+} from '@/features/render-artifacts/server';
 
 export const renderArtifactImageContent = (artifact: RenderArtifact) => ({
   type: 'image' as const,
