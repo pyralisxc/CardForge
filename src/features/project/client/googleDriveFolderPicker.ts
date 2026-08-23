@@ -6,6 +6,7 @@ import {
   type GoogleDriveFolderSelection,
   type GoogleDrivePickerConfiguration,
 } from '../model/googleDriveProject';
+import { disconnectGoogleDriveProjectBinding } from './googleDriveProjectTransfer';
 
 const GOOGLE_PICKER_SCRIPT_SRC = 'https://apis.google.com/js/api.js';
 
@@ -171,5 +172,8 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
     loadPickerConfiguration(),
   ]);
   const selected = await showFolderPicker(picker, config);
-  return selected ? persistSelectedFolder(selected) : null;
+  if (!selected) return null;
+  const persisted = await persistSelectedFolder(selected);
+  await disconnectGoogleDriveProjectBinding();
+  return persisted;
 };
