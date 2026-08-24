@@ -251,6 +251,7 @@ export const createProjectDocumentFromState = ({
     preferredId: activeCardSetId,
     fallback: PROJECT_FALLBACK_SET,
   });
+  const normalizedFonts = normalizeProjectFontAssets(customFonts);
   return {
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates,
@@ -273,8 +274,8 @@ export const createProjectDocumentFromState = ({
       [CUSTOM_ICON_ASSETS_STORAGE_KEY]: customIconAssets,
       [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
     },
-    customFonts: normalizeProjectFontAssets(customFonts),
-    productionPlan,
+    ...(normalizedFonts.length > 0 ? { customFonts: normalizedFonts } : {}),
+    ...(productionPlan ? { productionPlan } : {}),
   };
 };
 
