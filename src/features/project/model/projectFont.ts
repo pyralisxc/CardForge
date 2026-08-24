@@ -1,3 +1,5 @@
+import { getProjectPackageAssetIdFromReference } from './projectPackage';
+
 export const PROJECT_FONT_MIME_TYPES = [
   'font/woff2',
   'font/woff',
@@ -46,6 +48,10 @@ const normalizeDataUrlMime = (dataUrl: string): string | null => {
   return match?.[1]?.toLowerCase() ?? null;
 };
 
+const isPortableProjectAssetReference = (value: string): boolean => (
+  getProjectPackageAssetIdFromReference(value) !== null
+);
+
 export const normalizeProjectFontAsset = (value: unknown): ProjectFontAsset | null => {
   if (!isRecord(value)) return null;
   const id = typeof value.id === 'string' ? value.id.trim() : '';
@@ -55,7 +61,7 @@ export const normalizeProjectFontAsset = (value: unknown): ProjectFontAsset | nu
   const fileSizeBytes = typeof value.fileSizeBytes === 'number' ? value.fileSizeBytes : Number.NaN;
   if (!isProjectFontAssetId(id) || !name || !isProjectFontMimeType(mimeType)) return null;
   if (!Number.isInteger(fileSizeBytes) || fileSizeBytes <= 0 || fileSizeBytes > MAX_PROJECT_FONT_BYTES) return null;
-  if (normalizeDataUrlMime(dataUrl) !== mimeType) return null;
+  if (!isPortableProjectAssetReference(dataUrl) && normalizeDataUrlMime(dataUrl) !== mimeType) return null;
   const sourceProvider = value.sourceProvider === 'google-drive' ? 'google-drive' : undefined;
   const optionalString = (input: unknown, max: number) => (
     typeof input === 'string' && input.trim() ? input.trim().slice(0, max) : undefined
