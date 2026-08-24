@@ -183,14 +183,6 @@ export const observeMcpToolExecution = async <Result>({
   recordWorkflow?: WorkflowObservationRecorder;
 }): Promise<Result> => {
   const documentId = getDocumentId(input);
-  if (documentId) {
-    await safeWorkflowRecord(recordWorkflow, {
-      ownerUserId,
-      documentId,
-      toolCalls: 1,
-    });
-  }
-
   const startedAt = Date.now();
   try {
     const result = await observeBaseMcpToolExecution({
@@ -209,6 +201,7 @@ export const observeMcpToolExecution = async <Result>({
       await safeWorkflowRecord(recordWorkflow, {
         ownerUserId,
         documentId,
+        toolCalls: 1,
         revisions: REVISION_MUTATION_TOOLS.has(toolName) && !replayed ? 1 : 0,
         retries: replayed || statusLookup ? 1 : 0,
         duplicatePreventions: replayed ? 1 : 0,
@@ -216,7 +209,6 @@ export const observeMcpToolExecution = async <Result>({
         uploadOperations: uploadOperation ? 1 : 0,
         uploadLatencyMs: uploadOperation ? Math.max(0, Date.now() - startedAt) : 0,
         complete: toolName === 'preview_card_set',
-        createIfMissing: false,
       });
     }
     return result;
@@ -231,10 +223,10 @@ export const observeMcpToolExecution = async <Result>({
       await safeWorkflowRecord(recordWorkflow, {
         ownerUserId,
         documentId,
+        toolCalls: 1,
         revisionConflicts: revisionConflict ? 1 : 0,
         duplicatePreventions: duplicatePrevented ? 1 : 0,
         validationFailures: validationFailure ? 1 : 0,
-        createIfMissing: false,
       });
     }
     throw error;

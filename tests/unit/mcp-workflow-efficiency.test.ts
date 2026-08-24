@@ -44,16 +44,14 @@ describe('MCP workflow efficiency telemetry', () => {
     });
 
     expect(result).toEqual({ structuredContent: { revision: 9, replayed: false } });
-    expect(recordWorkflow).toHaveBeenNthCalledWith(1, expect.objectContaining({
+    expect(recordWorkflow).toHaveBeenCalledTimes(1);
+    expect(recordWorkflow).toHaveBeenCalledWith(expect.objectContaining({
       ownerUserId: 'user-1',
       documentId: 'document-123',
       toolCalls: 1,
-    }));
-    expect(recordWorkflow).toHaveBeenLastCalledWith(expect.objectContaining({
       revisions: 1,
       retries: 0,
       duplicatePreventions: 0,
-      createIfMissing: false,
     }));
     expect(JSON.stringify(recordWorkflow.mock.calls)).not.toContain('private card copy');
   });
@@ -69,7 +67,9 @@ describe('MCP workflow efficiency telemetry', () => {
       recordWorkflow: replayRecord,
     });
 
-    expect(replayRecord).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(replayRecord).toHaveBeenCalledTimes(1);
+    expect(replayRecord).toHaveBeenCalledWith(expect.objectContaining({
+      toolCalls: 1,
       revisions: 0,
       retries: 1,
       duplicatePreventions: 1,
@@ -84,7 +84,7 @@ describe('MCP workflow efficiency telemetry', () => {
       record: vi.fn().mockResolvedValue(true),
       recordWorkflow: statusRecord,
     });
-    expect(statusRecord).toHaveBeenLastCalledWith(expect.objectContaining({ retries: 1 }));
+    expect(statusRecord).toHaveBeenCalledWith(expect.objectContaining({ toolCalls: 1, retries: 1 }));
   });
 
   it('tracks revision conflicts and stable-id duplicate prevention while failing open', async () => {
@@ -98,10 +98,11 @@ describe('MCP workflow efficiency telemetry', () => {
       recordWorkflow,
     })).rejects.toThrow('expected revision is stale');
 
-    expect(recordWorkflow).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(recordWorkflow).toHaveBeenCalledTimes(1);
+    expect(recordWorkflow).toHaveBeenCalledWith(expect.objectContaining({
+      toolCalls: 1,
       revisionConflicts: 1,
       duplicatePreventions: 1,
-      createIfMissing: false,
     }));
 
     await expect(observeMcpToolExecution({
@@ -134,5 +135,6 @@ describe('MCP workflow efficiency telemetry', () => {
     expect(renderer).toContain('expectedCount: missingCards.length');
     expect(renderer).toContain('cacheHits: artifacts.filter');
     expect(renderer).toContain('canonicalRenders: renderedImages.length');
+    expect(renderer).toContain('createIfMissing: true');
   });
 });

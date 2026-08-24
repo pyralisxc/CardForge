@@ -44,7 +44,7 @@ const recordRenderObservation = async ({
       canonicalRenders,
       renderOperations,
       renderLatencyMs,
-      createIfMissing: false,
+      createIfMissing: true,
     });
   } catch (error) {
     console.error('MCP render workflow recorder failed open:', error);
