@@ -1,79 +1,53 @@
 **Comparison target**
 
 - Source visual truth: `C:\Users\Pyralis\.codex\generated_images\01a02f7b-56c7-7613-b5f0-d700030ea6a2\exec-ad254ef3-de44-4619-80a0-b79e844ca546.png`
-- Browser-rendered implementation: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-streamline-audit\04-hosted-option-3-owner.png`
-- Full-view comparison: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-streamline-audit\05-hosted-option-3-side-by-side.jpg`
-- Focused work comparison: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-streamline-audit\07-hosted-option-3-work-focus.jpg`
-- Focused account comparison: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-streamline-audit\08-hosted-option-3-account-focus.jpg`
-- Mobile utility evidence: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-streamline-audit\06-hosted-option-3-mobile-account.png`
+- Whole-family comparison: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-family-overhaul\10-account-family-overhaul-contact-sheet.jpg`
+- Desktop evidence: `01-home.png`, `02-library.png`, `03-storage.png`, `04-billing.png`, `05-developer.png`, `06-profile.png`, and `07-storage-drive-expanded.png` in the same folder.
+- Mobile evidence: `08-profile-mobile.png` and `09-mobile-account-drawer.png` in the same folder.
 - Hosted route: `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app/account`
-- Candidate verified: `321d398b72eef190dfbf56f1e2cfe87e0d010958`
-- Viewport: 1440 x 589 CSS px for the normalized desktop comparison; 390 x 844 CSS px for mobile behavior.
-- Pixels and normalization: source is 1487 x 1058 px. Hosted desktop capture is 1425 x 589 px at device pixel ratio 1. The source was scaled to a 1440-wide CSS frame, cropped to the same 589-px above-the-fold region, then normalized to 1425 x 589 for the side-by-side comparison. Focused crops were independently normalized in pairs before comparison.
+- Candidate verified: `97c6541cf0dbcb17bad8ed356de120c8a5c284e6`
 - State: signed-in Preview owner account (`pyraliscameron@gmail.com`), dark theme, one device Set, one connected Google Drive project, zero cloud saves, account drawer open.
+- Viewports: 1440 x 900 CSS px desktop and 390 x 844 CSS px mobile. Chrome captured 1425 x 900 and 375 x 844 content pixels at device pixel ratio 1.
 
 **Findings**
 
-- No actionable P0, P1, or P2 mismatch remains.
-- [P3] The featured item uses its real Set type icon instead of concept artwork.
-  Location: Home, “Continue where you left off”.
-  Evidence: the source concept uses fantasy artwork for a populated 27-card Set; the real owner workspace has a zero-card Set and the unified record exposes no preview asset.
-  Impact: the real row is visually quieter, but it remains clear and avoids fake user content.
-  Fix: none for this candidate. Introduce artwork only when a real user-work preview asset becomes part of the unified library contract.
+- No actionable P0, P1, or P2 mismatch remains across the Account family.
+- [P3] Real empty Set records use the product's truthful type icon rather than the concept's illustrative artwork. The unified library does not currently expose a real preview asset for that record, so no fake imagery was added.
+- [P3] An expanded storage location is intentionally taller than the selected concept's Account Home. This state contains the provider-owned operations the user requested; the collapsed storage index remains the default and fits above the fold.
 
 **Fidelity surfaces checked**
 
-- Fonts and typography: CardForge's serif display hierarchy and compact sans-serif utility typography match the selected direction. Weights, line heights, truncation, and small-label tracking remain legible in populated desktop and mobile states.
-- Spacing and layout rhythm: the compact app header, flexible work canvas, narrow utility drawer, featured row, flat recent-work table, dividers, and row density match the concept. The implementation is intentionally denser in the account drawer, supporting the requested streamlined workspace.
-- Colors and visual tokens: existing CardForge canvas, surface, border, muted text, green Drive, pink identity, and gold action tokens align with the concept and preserve contrast.
-- Image quality and asset fidelity: the existing CardForge brand mark and real Clerk avatar are used. No source imagery is replaced by CSS art, handcrafted SVG, emoji, or fake product content. The item type icon is the truthful empty-record fallback described above.
-- Copy and content: work-focused copy is concise; “Plan & billing” clarifies the original “Billing” label. Source/provider ownership remains visible without turning providers into competing library tabs.
-- Icons and controls: the existing Lucide icon family is consistent in stroke, size, alignment, and semantic use. Primary and overflow actions are fully implemented.
-- Accessibility and responsiveness: semantic landmarks, links/buttons, labels, screen-reader Sheet title/description, practical tap targets, no 390-px horizontal overflow, and a working mobile Account Sheet were verified.
-
-**Full-view comparison evidence**
-
-- The combined source/hosted image confirms the selected composition: one app header, work-first main canvas, prominent resume row, flat recent-work rows, and a narrow Account utility drawer.
-- The former bulky sidebar, repeated cards, and long account document are absent.
-- Populated owner, Drive, Cloud, billing, and developer state stays readable above the fold without taking ownership of the work canvas.
-
-**Focused region comparison evidence**
-
-- Work region: hierarchy, row height, border treatment, source tag, title, detail line, Refresh, and Resume placement match. The only image difference is the truthful empty-Set fallback classified P3.
-- Account region: identity, owner badge, link hierarchy, icon alignment, dividers, close action, and drawer proportions match. The implementation's slightly smaller text and tighter rows are intentional to support the user's requested density.
+- Composition: every destination uses the selected Option 3 grammar—one compact app header, a work-focused main panel, flat dividers, dense rows, and one optional Account utility drawer.
+- Density: Library is a compact inventory and toolbar; Storage is five collapsed locations; Billing leads with current access; Developer is two task destinations; Profile embeds native Clerk controls without a second marketing header or CardForge settings sidebar.
+- Typography and color: existing CardForge display, utility, canvas, border, accent, success, and provider tokens remain consistent across all destinations.
+- Native provider ownership: Stripe actions remain inside the billing owner, Google Drive actions remain inside the connected-storage owner, and Clerk's `<UserProfile />` remains the identity/security owner. Clerk theming now uses its current supported `appearance.variables`; structural global selectors were removed.
+- Accessibility: semantic headings, landmarks, links, buttons, native disclosure controls, status messaging, screen-reader Sheet metadata, practical tap targets, and keyboard-reachable actions are present.
+- Responsiveness: the Profile workspace and mobile Account Sheet were checked at 390 x 844 with no horizontal overflow (`scrollWidth === clientWidth === 375`). Clerk's native compact navigation replaces its desktop sidebar at the mobile breakpoint.
 
 **Primary interactions tested**
 
-- Home loaded with the signed-in owner identity and settled from initial loading to Owner access.
-- Google Drive project populated under Recent work.
-- Library loaded the pooled device and Drive inventory with source counts and cloud capacity.
-- Library search narrowed the inventory to the named Drive project.
-- Project filtering showed only the connected project.
-- The row overflow menu exposed `View source` and `Manage location`; primary `Open`/`Resume` remained direct.
-- Mobile at 390 x 844 had no horizontal overflow and opened the complete Account utility Sheet.
-- Header Home, Studio, Library, Search, and Account destinations were present with correct URLs.
+- Home settled from initial account projection to Owner access and populated the device Set and connected Drive project.
+- Library pooled device and Drive inventory and retained source, kind, location, revision, size, and valid item actions.
+- Storage expanded the Google Drive row and exposed the connected identity, folder picker, save, disconnect, open-in-Drive, and location-specific delete controls.
+- Billing presented Owner access without incorrectly labeling Designer as the current owner plan; plan comparison and ChatGPT usage remain available through disclosures.
+- Developer exposed distinct Owner Console and Developer Cockpit rows.
+- Profile rendered Clerk-native identity, email, connected-account, security, and session controls inside the Account workspace.
+- Legacy `/profile` redirected to `/account?section=profile`.
+- Mobile Account navigation exposed Profile, Owner, Billing, Storage, and Developer destinations without duplicated Google Drive or Cloud navigation rows.
 
-**Console and runtime errors checked**
+**Console and runtime checks**
 
-- No CardForge browser error or React child-key warning remained on the hosted candidate.
-- Browser warnings were limited to the user's extension and existing Clerk development-key/structural-CSS notices.
+- No CardForge browser error was emitted during final hosted Profile verification.
+- The former Clerk structural-CSS warning is gone. The remaining Clerk warning states that Preview intentionally uses development keys; Chrome-extension listener warnings are external to CardForge.
+- Vercel deployment `dpl_A7MvEwM4UzTuYYj18a872FLsfEtP` is READY for the exact candidate SHA.
 - Vercel returned no `error` or `fatal` runtime logs for the deployment during the verification window.
 
-**Comparison history**
+**Implementation verification**
 
-- Pass 1: [P1] the local implementation could only show the provider-unavailable signed-out fallback, so identity density, recent rows, providers, and actions could not be compared in the same state. No visual workaround was added because the fallback was truthful.
-- Fix: deployed the exact candidate to Vercel Preview and captured the real signed-in owner state at matched desktop and mobile viewports. Added a stable key to the server-provided library node after the local console exposed a React warning.
-- Pass 2 evidence: full and focused source/hosted comparisons show no actionable P0/P1/P2 drift. Signed-in owner, Drive project, utility links, search/filter, overflow actions, responsive Sheet, browser console, and Vercel runtime were verified.
+- Complete repository gate passed on the Account implementation: lint, type generation, TypeScript, architecture, migration safety, 153 test files, and 912 tests.
+- The final Clerk-native variable update passed focused TypeScript and ESLint checks before the final READY deployment.
 
-**Open Questions**
-
-- None blocking. A future real preview-asset field could enrich populated library rows without inventing imagery.
-
-**Implementation Checklist**
-
-- Complete. No design-QA fix remains for this candidate.
-
-**Follow-up Polish**
+**Follow-up polish**
 
 - [P3] Add real generated or user-authored work thumbnails when the unified library record can supply them.
 
