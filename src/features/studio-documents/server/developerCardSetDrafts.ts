@@ -86,9 +86,8 @@ const getCardFields = (template: TCGCardTemplate) => (
   extractTemplateFieldDefinitions(template).filter((field) => !field.isStaticBaseText)
 );
 
-const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: string) => {
-  const fields = getCardFields(template);
-  const allowed = new Set(fields.map((field) => field.key));
+const validateIncomingCardFields = (template: TCGCardTemplate, data: CardData, faceLabel: string) => {
+  const allowed = new Set(getCardFields(template).map((field) => field.key));
   const unknown = Object.keys(data).filter((key) => !allowed.has(key));
   if (unknown.length > 0) {
     throw new StudioDocumentStoreError(
@@ -96,7 +95,10 @@ const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: 
       409,
     );
   }
-  const missing = fields.filter((field) => (
+};
+
+const validateRequiredCardData = (template: TCGCardTemplate, data: CardData, faceLabel: string) => {
+  const missing = getCardFields(template).filter((field) => (
     field.required
     && field.defaultValue === undefined
     && (data[field.key] === undefined || String(data[field.key]).trim() === '')
@@ -107,6 +109,11 @@ const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: 
       409,
     );
   }
+};
+
+const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: string) => {
+  validateIncomingCardFields(template, data, faceLabel);
+  validateRequiredCardData(template, data, faceLabel);
 };
 
 const isDisposableFallbackSet = (set: CardSet, cards: StoredDisplayCard[]): boolean => (
@@ -311,6 +318,14 @@ export const upsertDeveloperCards = async ({
         409,
       );
     }
+
+    // Validate only the incoming delta against today's contract. Historical values
+    // already stored on the card may be legacy/orphaned and must not block an
+    // unrelated safe revision; they are preserved unless a dedicated migration
+    // or sparse unset explicitly removes them.
+    validateIncomingCardFields(front, input.data, 'Front');
+    if (back && input.backingData) validateIncomingCardFields(back, input.backingData, 'Back');
+
     const nextData: CardData = { ...(existing?.data ?? {}), ...input.data };
     const nextBackingData: CardData | undefined = back
       ? { ...(existing?.backingData ?? {}), ...(input.backingData ?? {}) }
@@ -341,8 +356,8 @@ export const upsertDeveloperCards = async ({
       else nextData[artwork.fieldKey] = normalized.dataUri;
       artworkResults.push({ cardId: uniqueId, fieldKey: artwork.fieldKey, face: artwork.face, status: 'stored' });
     }
-    validateCardData(front, nextData, 'Front');
-    if (back) validateCardData(back, nextBackingData ?? {}, 'Back');
+    validateRequiredCardData(front, nextData, 'Front');
+    if (back) validateRequiredCardData(back, nextBackingData ?? {}, 'Back');
     const card: StoredDisplayCard = {
       uniqueId,
       templateId: front.id!,

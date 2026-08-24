@@ -1,4 +1,5 @@
-import type { CardSet } from '@/domain/cards';
+import type { CardSet, StoredDisplayCard } from '@/domain/cards';
+import { recordMcpWorkflowObservation } from '@/features/mcp-usage/server';
 import {
   composeCanonicalContactSheet,
   createStudioRenderArtifactDescriptor,
@@ -16,6 +17,39 @@ import { createStudioDocumentPreviewToken } from './studioDocumentPreviewToken';
 export const MAX_CANONICAL_SET_PREVIEW_CARDS = 12;
 const PREVIEW_PROFILE = 'virtual-150';
 const CONTACT_SHEET_PROFILE = 'virtual-150-contact-sheet-3col';
+
+const recordRenderObservation = async ({
+  ownerUserId,
+  document,
+  renderCacheChecks = 0,
+  cacheHits = 0,
+  canonicalRenders = 0,
+  renderOperations = 0,
+  renderLatencyMs = 0,
+}: {
+  ownerUserId: string;
+  document: StudioDocument;
+  renderCacheChecks?: number;
+  cacheHits?: number;
+  canonicalRenders?: number;
+  renderOperations?: number;
+  renderLatencyMs?: number;
+}) => {
+  try {
+    await recordMcpWorkflowObservation({
+      ownerUserId,
+      documentId: document.id,
+      renderCacheChecks,
+      cacheHits,
+      canonicalRenders,
+      renderOperations,
+      renderLatencyMs,
+      createIfMissing: true,
+    });
+  } catch (error) {
+    console.error('MCP render workflow recorder failed open:', error);
+  }
+};
 
 const consumeUncachedRenderBudget = async (ownerUserId: string) => {
   const result = await consumeRateLimit({
@@ -58,14 +92,28 @@ export const ensureTemplatePreviewArtifact = async ({
     profile: PREVIEW_PROFILE,
   });
   const cached = await readRenderArtifact({ ownerUserId, descriptor });
+  await recordRenderObservation({
+    ownerUserId,
+    document,
+    renderCacheChecks: 1,
+    cacheHits: cached ? 1 : 0,
+  });
   if (cached) return cached;
   await consumeUncachedRenderBudget(ownerUserId);
   const token = previewToken(document, ownerUserId);
+  const renderStartedAt = Date.now();
   const images = await renderCanonicalBrowserImages({
     publicOrigin,
     renderUrl: `${publicOrigin}/mcp-template-preview?token=${encodeURIComponent(token)}&revision=${document.revision}`,
     selector: 'img[data-cardforge-render-artifact="template-preview"]',
     expectedCount: 1,
+  });
+  await recordRenderObservation({
+    ownerUserId,
+    document,
+    canonicalRenders: images.length,
+    renderOperations: 1,
+    renderLatencyMs: Math.max(0, Date.now() - renderStartedAt),
   });
   const rendered = images[0];
   if (!rendered) throw new StudioDocumentStoreError('CardForge did not produce the canonical Template preview.', 500);
@@ -76,6 +124,93 @@ const getSet = (document: StudioDocument, setId: string): CardSet => {
   const set = document.document.cardSets.find((candidate) => candidate.id === setId);
   if (!set) throw new StudioDocumentStoreError('That Set is not part of this working document.', 404);
   return set;
+};
+
+const ensureCardArtifacts = async ({
+  ownerUserId,
+  document,
+  set,
+  cards,
+  publicOrigin,
+}: {
+  ownerUserId: string;
+  document: StudioDocument;
+  set: CardSet;
+  cards: StoredDisplayCard[];
+  publicOrigin: string;
+}): Promise<RenderArtifact[]> => {
+  const descriptors = cards.map((card) => createStudioRenderArtifactDescriptor({
+    sourceId: document.id,
+    sourceRevision: document.revision,
+    kind: 'card-preview',
+    subjectId: card.uniqueId,
+    face: 'front',
+    profile: PREVIEW_PROFILE,
+  }));
+  const artifacts = await Promise.all(descriptors.map((descriptor) => readRenderArtifact({ ownerUserId, descriptor })));
+  await recordRenderObservation({
+    ownerUserId,
+    document,
+    renderCacheChecks: descriptors.length,
+    cacheHits: artifacts.filter((artifact) => artifact !== null).length,
+  });
+  const missingIndexes = artifacts.flatMap((artifact, index) => artifact === null ? [index] : []);
+  if (missingIndexes.length > 0) {
+    await consumeUncachedRenderBudget(ownerUserId);
+    const token = previewToken(document, ownerUserId);
+    const missingCards = missingIndexes.map((index) => cards[index]!);
+    const cardIds = missingCards.map((card) => card.uniqueId).join(',');
+    const renderStartedAt = Date.now();
+    const renderedImages = await renderCanonicalBrowserImages({
+      publicOrigin,
+      renderUrl: `${publicOrigin}/mcp-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(set.id)}&cardIds=${encodeURIComponent(cardIds)}&revision=${document.revision}`,
+      selector: 'img[data-cardforge-render-artifact="card-preview"]',
+      expectedCount: missingCards.length,
+    });
+    await recordRenderObservation({
+      ownerUserId,
+      document,
+      canonicalRenders: renderedImages.length,
+      renderOperations: 1,
+      renderLatencyMs: Math.max(0, Date.now() - renderStartedAt),
+    });
+    const renderedById = new Map(renderedImages.map((image) => [image.subjectId, image.bytes]));
+    for (const index of missingIndexes) {
+      const card = cards[index]!;
+      const bytes = renderedById.get(card.uniqueId);
+      if (!bytes) throw new StudioDocumentStoreError(`CardForge did not produce the canonical render for card ${card.uniqueId}.`, 500);
+      artifacts[index] = await writeRenderArtifact({ ownerUserId, descriptor: descriptors[index]!, bytes });
+    }
+  }
+  const complete = artifacts.filter((artifact): artifact is RenderArtifact => artifact !== null);
+  if (complete.length !== cards.length) throw new StudioDocumentStoreError('CardForge could not complete the requested canonical card renders.', 500);
+  return complete;
+};
+
+export const ensureSelectedCardArtifacts = async ({
+  ownerUserId,
+  document,
+  setId,
+  cardIds,
+  publicOrigin,
+}: {
+  ownerUserId: string;
+  document: StudioDocument;
+  setId: string;
+  cardIds: string[];
+  publicOrigin: string;
+}): Promise<{ artifacts: RenderArtifact[]; cardIds: string[] }> => {
+  const set = getSet(document, setId);
+  const byId = new Map(document.document.storedCards.filter((card) => card.setId === set.id).map((card) => [card.uniqueId, card]));
+  const cards = cardIds.map((cardId) => {
+    const card = byId.get(cardId);
+    if (!card) throw new StudioDocumentStoreError(`Card ${cardId} is not part of Set ${set.id}. Reload the Set once and retry with stable card ids.`, 404);
+    return card;
+  });
+  return {
+    artifacts: await ensureCardArtifacts({ ownerUserId, document, set, cards, publicOrigin }),
+    cardIds: cards.map((card) => card.uniqueId),
+  };
 };
 
 export const ensureSetContactSheetArtifact = async ({
@@ -101,37 +236,15 @@ export const ensureSetContactSheetArtifact = async ({
     profile: CONTACT_SHEET_PROFILE,
   });
   const cachedContact = await readRenderArtifact({ ownerUserId, descriptor: contactDescriptor });
+  await recordRenderObservation({
+    ownerUserId,
+    document,
+    renderCacheChecks: 1,
+    cacheHits: cachedContact ? 1 : 0,
+  });
   if (cachedContact) return { artifact: cachedContact, previewSampleCount: cards.length };
-  const cardDescriptors = cards.map((card) => createStudioRenderArtifactDescriptor({
-    sourceId: document.id,
-    sourceRevision: document.revision,
-    kind: 'card-preview',
-    subjectId: card.uniqueId,
-    face: 'front',
-    profile: PREVIEW_PROFILE,
-  }));
-  const cardArtifacts = await Promise.all(cardDescriptors.map((descriptor) => readRenderArtifact({ ownerUserId, descriptor })));
-  if (cardArtifacts.some((artifact) => artifact === null)) {
-    await consumeUncachedRenderBudget(ownerUserId);
-    const token = previewToken(document, ownerUserId);
-    const renderedImages = await renderCanonicalBrowserImages({
-      publicOrigin,
-      renderUrl: `${publicOrigin}/mcp-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(set.id)}&revision=${document.revision}`,
-      selector: 'img[data-cardforge-render-artifact="card-preview"]',
-      expectedCount: cards.length,
-    });
-    const renderedById = new Map(renderedImages.map((image) => [image.subjectId, image.bytes]));
-    for (let index = 0; index < cards.length; index += 1) {
-      if (cardArtifacts[index]) continue;
-      const card = cards[index]!;
-      const bytes = renderedById.get(card.uniqueId);
-      if (!bytes) throw new StudioDocumentStoreError(`CardForge did not produce the canonical render for card ${card.uniqueId}.`, 500);
-      cardArtifacts[index] = await writeRenderArtifact({ ownerUserId, descriptor: cardDescriptors[index]!, bytes });
-    }
-  }
-  const completeArtifacts = cardArtifacts.filter((artifact): artifact is RenderArtifact => artifact !== null);
-  if (completeArtifacts.length !== cards.length) throw new StudioDocumentStoreError('CardForge could not complete the canonical Set render artifacts.', 500);
-  const contactBytes = await composeCanonicalContactSheet(completeArtifacts.map((artifact) => artifact.bytes));
+  const cardArtifacts = await ensureCardArtifacts({ ownerUserId, document, set, cards, publicOrigin });
+  const contactBytes = await composeCanonicalContactSheet(cardArtifacts.map((artifact) => artifact.bytes));
   const artifact = await writeRenderArtifact({ ownerUserId, descriptor: contactDescriptor, bytes: contactBytes });
   return { artifact, previewSampleCount: cards.length };
 };

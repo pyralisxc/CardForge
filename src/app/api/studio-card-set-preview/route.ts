@@ -8,12 +8,20 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 
 export const dynamic = 'force-dynamic';
 
+const parseRequestedCardIds = (value: string | null): string[] | null => {
+  if (!value) return null;
+  const ids = value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  if (ids.length === 0 || ids.length > 12 || ids.some((id) => id.length > 255) || new Set(ids).size !== ids.length) return [];
+  return ids;
+};
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') ?? '';
   const setId = url.searchParams.get('setId')?.trim() ?? '';
+  const requestedCardIds = parseRequestedCardIds(url.searchParams.get('cardIds'));
   const payload = readStudioDocumentPreviewToken(token);
-  if (!payload || !setId) {
+  if (!payload || !setId || requestedCardIds?.length === 0) {
     return createApiErrorResponse(
       404,
       'studio_document_not_found',
@@ -30,7 +38,14 @@ export async function GET(request: Request) {
     if (!set) {
       return createApiErrorResponse(404, 'studio_document_not_found', 'This Set is no longer part of the current agent working revision.');
     }
-    const cards = document.document.storedCards.filter((card) => card.setId === set.id);
+    const setCards = document.document.storedCards.filter((card) => card.setId === set.id);
+    const cardsById = new Map(setCards.map((card) => [card.uniqueId, card]));
+    const cards = requestedCardIds
+      ? requestedCardIds.map((cardId) => cardsById.get(cardId)).filter((card): card is typeof setCards[number] => Boolean(card))
+      : setCards;
+    if (requestedCardIds && cards.length !== requestedCardIds.length) {
+      return createApiErrorResponse(404, 'studio_document_not_found', 'One or more requested stable card ids are no longer part of this Set.');
+    }
     const requiredTemplateIds = new Set<string>();
     if (set.frontTemplateId) requiredTemplateIds.add(set.frontTemplateId);
     if (set.backingTemplateId) requiredTemplateIds.add(set.backingTemplateId);

@@ -2,7 +2,11 @@ import { createMcpHandler } from 'mcp-handler';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
-import { summarizeProjectProductionAssets } from '@/features/project/server';
+import {
+  summarizeProjectProductionAssets,
+  type ProjectAssetBinding,
+  type ProjectAssetRequirement,
+} from '@/features/project/server';
 import {
   attachDeveloperTemplateDraftAsset,
   getDeveloperTemplateDraft,
@@ -28,6 +32,7 @@ type ToolErrorResult = {
 };
 
 type DeveloperTemplateDraft = Awaited<ReturnType<typeof getDeveloperTemplateDraft>>;
+type TemplateElement = NonNullable<DeveloperTemplateDraft['document']['userTemplates'][number]['freeformCanvas']>['elements'][number];
 
 const productionStatus = (document: DeveloperTemplateDraft) => {
   const plan = document.document.productionPlan;
@@ -52,9 +57,27 @@ const productionStatus = (document: DeveloperTemplateDraft) => {
 const imageSourceState = (source: string | undefined) => {
   if (!source) return 'empty' as const;
   if (source === 'artworkUrl') return 'placeholder' as const;
-  if (source.startsWith('data:') || source.startsWith('cardforge-studio-asset://')) return 'embedded' as const;
-  if (source.startsWith('embedded://')) return 'embedded-reference' as const;
+  if (source.startsWith('data:') || source.startsWith('cardforge-studio-asset://')) return 'stored' as const;
+  if (source.startsWith('embedded://')) return 'stored-reference' as const;
   return 'configured' as const;
+};
+
+const inferEmbeddedAssetBinding = (
+  asset: ProjectAssetRequirement,
+  elements: TemplateElement[],
+): ProjectAssetBinding | null => {
+  if (asset.binding) return asset.binding;
+  if (!asset.embeddedAssetId) return null;
+  const targetIds = asset.targetElementIds ?? [];
+  if (targetIds.length === 0) return null;
+  const targets = targetIds.map((id) => elements.find((element) => element.id === id));
+  if (targets.some((target) => !target)) return null;
+  if (targets.every((target) => target?.type === 'image')) return 'element.image';
+  if (targets.every((target) => target?.type === 'icon')) return 'element.icon';
+  if (targets.every((target) => target?.type === 'shape' && (target.shapeKind === 'line' || target.shapeRole === 'divider'))) {
+    return 'element.divider';
+  }
+  return null;
 };
 
 const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
@@ -69,12 +92,17 @@ const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
       sourceState: imageSourceState(element.imageSource),
     }));
   const imageElementById = new Map(imageElements.map((element) => [element.id, element]));
+  const effectiveBindingByAssetId = new Map((plan?.assets ?? []).map((asset) => [
+    asset.id,
+    inferEmbeddedAssetBinding(asset, elements),
+  ]));
   const assetBindings = (plan?.assets ?? []).map((asset) => ({
     id: asset.id,
     role: asset.role,
     kind: asset.kind,
     status: asset.status,
-    binding: asset.binding ?? null,
+    binding: effectiveBindingByAssetId.get(asset.id) ?? null,
+    bindingSource: asset.binding ? 'stored' as const : effectiveBindingByAssetId.get(asset.id) ? 'inferred_from_native_target' as const : 'unknown' as const,
     targetElementIds: asset.targetElementIds ?? [],
   }));
   const borderedTextElementIds = elements
@@ -91,7 +119,7 @@ const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
   const warnings: string[] = [];
 
   for (const asset of plan?.assets ?? []) {
-    if (asset.binding !== 'element.image') continue;
+    if (effectiveBindingByAssetId.get(asset.id) !== 'element.image') continue;
     const targets = asset.targetElementIds ?? [];
     if (targets.length === 0) {
       warnings.push(`Asset ${asset.id} uses element.image but does not target an image element.`);
@@ -155,7 +183,7 @@ export const registerAgentTemplateTools = ({
     'attach_template_artwork',
     {
       title: 'Attach generated artwork to a CardForge Template draft',
-      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, advances the same Studio document revision, and reports the exact native binding and target element ids. Preview after attaching to verify the intended visible slot.',
+      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge decodes, normalizes, stores, and binds it, but storage is not visual proof: use canonical preview to confirm decode/render health. Prefer attach_template_artworks for multi-asset batches.',
       inputSchema: attachTemplateAssetInputSchema,
       outputSchema: templateArtworkOutputSchema,
       annotations: {
@@ -182,12 +210,15 @@ export const registerAgentTemplateTools = ({
         const attachedRequirement = document.document.productionPlan?.assets.find(
           (asset) => asset.id === assetRequirementId,
         );
+        const compositionEnvelope = {
+          composition: compositionDiagnostics(document),
+        };
         return {
           content: [{
             type: 'text',
             text: status.productionReady
-              ? `Attached artwork to "${document.title}". Revision ${document.revision} now has every planned production asset attached or selected.`
-              : `Attached artwork to "${document.title}". Revision ${document.revision} still has ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} to complete.`,
+              ? `Stored and bound artwork for "${document.title}" at revision ${document.revision}. Every planned production asset is now attached or selected, but canonical rendering is still required before calling the artwork visually healthy.`
+              : `Stored and bound artwork for "${document.title}" at revision ${document.revision}. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain; canonical rendering has not been checked yet.`,
           }],
           structuredContent: {
             documentId: document.id,
@@ -195,7 +226,10 @@ export const registerAgentTemplateTools = ({
             assetRequirementId,
             binding: attachedRequirement?.binding ?? binding,
             targetElementIds: attachedRequirement?.targetElementIds ?? [],
-            composition: compositionDiagnostics(document),
+            composition: {
+              ...compositionEnvelope.composition,
+              renderHealth: 'not_checked',
+            },
             ...status,
           },
           };
@@ -208,7 +242,7 @@ export const registerAgentTemplateTools = ({
     'preview_template_draft',
     {
       title: 'Preview the current CardForge Template draft',
-      description: 'Export the exact current CardForge Template as a native PNG shown directly in chat for visual review. The result reports production completeness plus composition and asset-binding diagnostics, with the exact revision-bound Studio URL kept separately. Verify the intended image slot, frame structure, and text borders after meaningful layout or artwork revisions; do not call an asset-incomplete or misbound draft finished.',
+      description: 'Export the exact current CardForge Template as a native PNG shown directly in chat for visual review. Canonical rendering is the source of truth for decode/render health. The result reports production completeness plus composition and normalized asset-binding diagnostics, with the exact revision-bound Studio URL kept separately.',
       inputSchema: previewTemplateDraftInputSchema,
       outputSchema: templatePreviewOutputSchema,
       annotations: {
@@ -240,14 +274,17 @@ export const registerAgentTemplateTools = ({
           assetSummary: status.assetSummary,
           remainingAssetRequirementIds: status.remainingAssetRequirementIds,
           remainingAssetCount: status.remainingAssetRequirementIds.length,
-          composition,
+          composition: {
+            ...composition,
+            renderHealth: 'rendered',
+          },
         };
         return {
           content: [{
             type: 'text' as const,
             text: status.productionReady
-              ? `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. All planned production assets are complete; inspect this exact CardForge PNG before opening Studio.`
-              : `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
+              ? `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision; all planned production assets are complete.`
+              : `Rendered "${document.title}" revision ${document.revision} through the canonical CardForge renderer. Render health is rendered for this exact revision, but ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain.`,
           }, renderArtifactImageContent(artifact)],
           structuredContent,
           };

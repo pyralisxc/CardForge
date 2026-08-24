@@ -146,11 +146,12 @@ export const resolveTemplateCardFormat = (
     || (legacyFormatId ? getCardFormat(legacyFormatId) : null);
 
   if (inferredFormat && source.formatId !== 'custom') {
+    const hasExplicitTrim = isPositive(source.trimWidthMm) && isPositive(source.trimHeightMm);
     return {
       formatId: inferredFormat.id,
       format: inferredFormat,
-      widthMm: inferredFormat.widthMm,
-      heightMm: inferredFormat.heightMm,
+      widthMm: hasExplicitTrim ? round(Number(source.trimWidthMm)) : inferredFormat.widthMm,
+      heightMm: hasExplicitTrim ? round(Number(source.trimHeightMm)) : inferredFormat.heightMm,
       canvasWidthPx: isPositive(source.freeformCanvas?.width)
         ? Number(source.freeformCanvas?.width)
         : inferredFormat.canvasWidthPx,
