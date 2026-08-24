@@ -83,11 +83,11 @@ export function ConnectedPersonalLibraryPanel({
         <div>
           <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
             <Library className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Personal library</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected assets</span>
           </div>
-          <h2 id="connected-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Use your art without moving your library</h2>
+          <h2 id="connected-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive asset access</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            Add files you explicitly choose from connected storage. CardForge indexes their role and provider reference; the original bytes remain in your storage until you actually use an asset in a project.
+            Authorize and classify files for the unified Library. CardForge stores their role and provider reference; the original bytes remain in Google Drive until you use an asset in a project.
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={!isSignedIn || Boolean(busyAction)}>

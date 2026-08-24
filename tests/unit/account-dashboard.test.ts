@@ -10,22 +10,26 @@ describe('unified account dashboard', () => {
   const dashboard = readSource('src/features/account/components/AccountProfilePage.tsx');
   const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
   const developerStatus = readSource('src/features/account/components/AccountDeveloperStatusSection.tsx');
-  const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
+  const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
 
-  it('organizes the account around overview, creator work, account controls, and conditional developer tools', () => {
+  it('keeps the library as one part of the wider account control center', () => {
     expect(dashboard).toContain('Overview');
-    expect(dashboard).toContain('My CardForge');
+    expect(dashboard).toContain("href: '#library'");
+    expect(dashboard).toContain("href: '#storage-and-connections'");
+    expect(dashboard).toContain("href: '/profile'");
     expect(dashboard).toContain('Plan & billing');
     expect(dashboard).toContain("showDeveloper ? (");
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
   });
 
-  it('composes storage inside the account dashboard instead of stacking standalone account pages', () => {
-    expect(accountPage).toContain('storageLibrary={(');
-    expect(accountPage).toContain('cloudStorageDetails={(');
+  it('separates the unified content library from provider and location management', () => {
+    expect(accountPage).toContain('library={(');
+    expect(accountPage).toContain('storageManagement={(');
+    expect(accountPage).toContain('<UnifiedAccountLibrary');
     expect(accountPage).toContain('<AccountStorageLibrary');
     expect(accountPage).toContain('embedded');
-    expect(storageLibrary).toContain("embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'");
+    expect(accountLibrary).toContain('buildAccountLibraryItems');
+    expect(accountLibrary).toContain('Storage remains with the source named on each item.');
   });
 
   it('makes plan value and storage boundaries visible without implying automatic cloud upload', () => {
@@ -56,9 +60,9 @@ describe('unified account dashboard', () => {
     expect(developerStatus).toContain('if (!isOwner && !isDeveloper) return null;');
   });
 
-  it('uses native Next navigation when opening a local set from account storage', () => {
-    expect(storageLibrary).toContain("import { useRouter } from 'next/navigation';");
-    expect(storageLibrary).toContain("router.push('/studio')");
-    expect(storageLibrary).not.toContain("window.location.assign('/studio')");
+  it('uses native Next navigation when opening work from the account library', () => {
+    expect(accountLibrary).toContain("import { useRouter } from 'next/navigation';");
+    expect(accountLibrary).toContain("router.push('/studio')");
+    expect(accountLibrary).not.toContain("window.location.assign('/studio')");
   });
 });

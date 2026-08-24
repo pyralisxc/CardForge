@@ -140,17 +140,18 @@ The table is RLS-enabled and revoked from `public`, `anon`, and `authenticated`;
 
 After deployment:
 
-1. Open Account → Storage & Library while signed in.
+1. Open Account → Storage & connections while signed in.
 2. Connect Google Drive and complete Google's consent flow.
-3. Confirm CardForge can create/use its initial Drive project destination.
-4. Choose **Choose project folder** and select a different Drive folder through the native Picker.
-5. Confirm CardForge verifies the folder server-side and only changes the destination; existing files are not moved.
-6. Save a current Studio project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
-7. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
-8. Modify and save the attached project; verify Drive provider revision advances.
-9. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
-10. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
-11. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
+3. Open **Choose project folder** and confirm the native Google Picker starts at My Drive rather than inside the newly created empty CardForge folder.
+4. Confirm CardForge can create/use its initial Drive project destination.
+5. Choose **Choose project folder** and select a different Drive folder through the native Picker.
+6. Confirm CardForge verifies the folder server-side and only changes the destination; existing files are not moved.
+7. Save a current Studio project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
+8. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
+9. Modify and save the attached project; verify Drive provider revision advances.
+10. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
+11. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
+12. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
 
 ## Privacy boundary
 

@@ -242,11 +242,11 @@ export function AccountStorageLibrary({
           <div>
             <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
               <Database className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Storage &amp; Library</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">CardForge-managed storage</span>
             </div>
-            <h2 id="storage-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Your CardForge, in one place</h2>
+            <h2 id="storage-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Device, cloud backups, and private drafts</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-              See what lives on this device, what is backed up to your account, and what exists only as a private AI working draft. Delete actions affect only the storage location they name.
+              Inspect and manage CardForge-owned storage locations. The Library above is the combined inventory; removal here affects only the location named by the action.
             </p>
           </div>
           <Button

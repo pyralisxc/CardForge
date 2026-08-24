@@ -22,6 +22,7 @@ describe('Google Drive project folder selection', () => {
     expect(folderPicker).toContain('includeFolders: true');
     expect(folderPicker).toContain('selectFolders: true');
     expect(folderPicker).toContain('mimeTypes: [GOOGLE_DRIVE_FOLDER_MIME_TYPE]');
+    expect(folderPicker).toContain('initialFolderId: null');
   });
 
   it('keeps Picker credentials server-configured and persists only the chosen folder id', () => {

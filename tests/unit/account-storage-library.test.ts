@@ -8,13 +8,16 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('account storage library', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
+  const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
 
   it('makes storage a first-class account surface while preserving project ownership', () => {
+    expect(accountPage).toContain("UnifiedAccountLibrary");
     expect(accountPage).toContain("AccountStorageLibrary");
     expect(accountPage).toContain("createProjectPersistenceScope");
     expect(accountPage).toContain("entitlement.capabilities.cloudSetLimit");
     expect(storageLibrary).toContain("hydrateProjectWorkspaceForScope(persistenceScope)");
+    expect(unifiedLibrary).toContain('One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts.');
   });
 
   it('keeps device, cloud, and working-draft deletion boundaries explicit', () => {

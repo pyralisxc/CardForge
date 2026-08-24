@@ -24,6 +24,7 @@ import {
   ConnectedPersonalLibraryPanel,
   GoogleDriveProjectStoragePanel,
   LocalProjectFolderPanel,
+  UnifiedAccountLibrary,
 } from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -88,7 +89,14 @@ export default async function AccountPage({
         initialPlanIntent={initialPlanIntent}
         initialAuthConfigured={authConfigured}
         plans={plans}
-        storageLibrary={(
+        library={(
+          <UnifiedAccountLibrary
+            persistenceScope={persistenceScope}
+            isSignedIn={entitlement.isSignedIn}
+            cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+          />
+        )}
+        storageManagement={(
           <SiteContentProvider key="storage-library-copy" content={accountContent}>
             <div className="space-y-4">
               <AccountStorageLibrary
@@ -110,11 +118,9 @@ export default async function AccountPage({
                 isSignedIn={entitlement.isSignedIn}
                 canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
               />
+              <AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />
             </div>
           </SiteContentProvider>
-        )}
-        cloudStorageDetails={(
-          <AccountCloudStorageBreakdown key="cloud-storage-details" embedded isSignedIn={entitlement.isSignedIn} />
         )}
       />
     </CardForgeAppProviders>

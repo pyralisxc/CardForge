@@ -47,8 +47,8 @@ interface AccountProfilePageProps {
   initialPlanIntent?: 'creator' | 'designer' | null;
   initialAuthConfigured?: boolean;
   plans: McpAllowance[];
-  storageLibrary?: ReactNode;
-  cloudStorageDetails?: ReactNode;
+  library?: ReactNode;
+  storageManagement?: ReactNode;
 }
 
 const formatAccessExpiration = (value: string | null) => {
@@ -93,25 +93,28 @@ function SummaryCard({
 
 function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
   const links = [
-    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: 'my-cardforge', label: 'My CardForge', icon: <LibraryBig className="h-4 w-4" /> },
-    { id: 'account-and-billing', label: 'Plan & billing', icon: <CreditCard className="h-4 w-4" /> },
+    { href: '#overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { href: '#library', label: 'Library', icon: <LibraryBig className="h-4 w-4" /> },
+    { href: '#storage-and-connections', label: 'Storage & connections', icon: <Cloud className="h-4 w-4" /> },
+    { href: '#account-and-billing', label: 'Plan & billing', icon: <CreditCard className="h-4 w-4" /> },
+    { href: '/profile', label: 'Profile & security', icon: <LockKeyhole className="h-4 w-4" /> },
     ...(showDeveloper
-      ? [{ id: 'developer-tools', label: 'Developer', icon: <Wrench className="h-4 w-4" /> }]
+      ? [{ href: '#developer-tools', label: 'Developer', icon: <Wrench className="h-4 w-4" /> }]
       : []),
   ];
 
   return (
     <nav aria-label="Account sections" className="mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
       {links.map((link) => (
-        <a
-          key={link.id}
-          href={`#${link.id}`}
+        <Link
+          key={link.href}
+          href={link.href}
+          prefetch={false}
           className="flex min-h-10 items-center gap-2 border border-transparent px-3 py-2 text-sm font-semibold text-[var(--cf-text-muted)] transition-colors hover:border-[var(--cf-border)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
         >
           {link.icon}
           {link.label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
@@ -122,8 +125,8 @@ export function AccountProfilePage({
   initialPlanIntent = null,
   initialAuthConfigured = false,
   plans,
-  storageLibrary,
-  cloudStorageDetails,
+  library,
+  storageManagement,
 }: AccountProfilePageProps) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState<ClerkIdentity>({
@@ -320,16 +323,22 @@ export function AccountProfilePage({
               </div>
             </CardForgeSurface>
 
-            <section id="my-cardforge" className="scroll-mt-24">
+            <section id="library" className="scroll-mt-24">
               <CardForgeSectionIntro
-                eyebrow="My CardForge"
-                title="Your work across device, cloud, and AI"
-                body="Manage the things tied to your CardForge experience without mixing storage locations. Local sets, cloud backups, and AI working drafts stay visibly distinct."
+                eyebrow="Library"
+                title="Your CardForge work, wherever it lives"
+                body="Browse one inventory of sets, projects, reusable assets, and working drafts. Every item keeps its real storage source and availability visible."
               />
-              <div className="mt-4 space-y-4">
-                {storageLibrary}
-                {cloudStorageDetails}
-              </div>
+              <div className="mt-4">{library}</div>
+            </section>
+
+            <section id="storage-and-connections" className="scroll-mt-24">
+              <CardForgeSectionIntro
+                eyebrow="Storage & connections"
+                title="Control where your work is stored"
+                body="Manage device storage, CardForge Cloud, Google Drive, local-folder permissions, and location-specific removal without turning those providers into separate libraries."
+              />
+              <div className="mt-4 space-y-4">{storageManagement}</div>
             </section>
 
             <CardForgeSurface as="section" id="account-and-billing" tone="inset" className="scroll-mt-24 p-4 md:p-6">

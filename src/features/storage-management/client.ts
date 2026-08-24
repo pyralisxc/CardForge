@@ -3,3 +3,4 @@ export { AccountStorageLibrary } from './components/AccountStorageLibrary';
 export { ConnectedPersonalLibraryPanel } from './components/ConnectedPersonalLibraryPanel';
 export { GoogleDriveProjectStoragePanel } from './components/GoogleDriveProjectStoragePanel';
 export { LocalProjectFolderPanel } from './components/LocalProjectFolderPanel';
+export { UnifiedAccountLibrary } from './components/UnifiedAccountLibrary';
