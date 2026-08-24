@@ -3,6 +3,7 @@ export {
   resolveAccountEntitlement,
   type AccountEntitlement,
 } from './lib/accountEntitlement';
+export { resolveAccountSection, type AccountSection } from './lib/accountSections';
 export {
   getCardforgeEntitlementForUserId,
   getCardforgeUserAccessForUserId,

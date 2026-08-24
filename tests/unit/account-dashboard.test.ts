@@ -13,13 +13,25 @@ describe('unified account dashboard', () => {
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
 
   it('keeps the library as one part of the wider account control center', () => {
-    expect(dashboard).toContain('Overview');
-    expect(dashboard).toContain("href: '#library'");
-    expect(dashboard).toContain("href: '#storage-and-connections'");
+    expect(dashboard).toContain('Home');
+    expect(dashboard).toContain("href: '/account?section=library'");
+    expect(dashboard).toContain("href: '/account?section=storage'");
     expect(dashboard).toContain("href: '/profile'");
     expect(dashboard).toContain('Plan & billing');
     expect(dashboard).toContain("showDeveloper ? (");
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
+  });
+
+  it('behaves like an account app instead of one anchored document', () => {
+    expect(accountPage).toContain('resolveAccountSection');
+    expect(accountPage).toContain('activeSection={activeSection}');
+    expect(dashboard).toContain("activeSection === 'home'");
+    expect(dashboard).toContain("activeSection === 'library'");
+    expect(dashboard).toContain("activeSection === 'storage'");
+    expect(dashboard).toContain("activeSection === 'billing'");
+    expect(dashboard).toContain("aria-current={activeSection === link.id ? 'page' : undefined}");
+    expect(dashboard).not.toContain("href: '#library'");
+    expect(dashboard).not.toContain('id="storage-and-connections"');
   });
 
   it('separates the unified content library from provider and location management', () => {
@@ -34,7 +46,9 @@ describe('unified account dashboard', () => {
 
   it('makes plan value and storage boundaries visible without implying automatic cloud upload', () => {
     expect(dashboard).toContain('private cloud set slot');
-    expect(dashboard).toContain('Local-first by default');
+    expect(dashboard).toContain('Continue creating');
+    expect(dashboard).toContain('Browse your Library');
+    expect(dashboard).toContain('Manage storage');
     expect(dashboard).toContain('Device-only work is not automatically uploaded or exposed to ChatGPT.');
     expect(dashboard).toContain('Only sets you explicitly back up use your account cloud slots');
   });

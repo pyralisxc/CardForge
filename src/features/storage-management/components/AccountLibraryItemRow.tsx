@@ -121,7 +121,7 @@ export function AccountLibraryItemRow({
         {item.webViewLink ? (
           <Button asChild size="sm" variant="ghost"><a href={item.webViewLink} target="_blank" rel="noreferrer">View source <ExternalLink className="ml-2 h-3.5 w-3.5" /></a></Button>
         ) : null}
-        {item.references.localFolder ? <Button asChild size="sm" variant="ghost"><a href="#storage-and-connections">Manage storage</a></Button> : null}
+        {item.references.localFolder ? <Button asChild size="sm" variant="ghost"><Link href="/account?section=storage">Manage storage</Link></Button> : null}
       </div>
     </article>
   );

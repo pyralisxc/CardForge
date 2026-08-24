@@ -148,7 +148,7 @@ These are proposed ownership boundaries, not implemented route commitments.
 
 ### Account library and storage control
 
-The account is the creator's overall control center, not a storage page and not a second Studio. Its durable information architecture keeps **Overview**, **Library**, **Storage & connections**, **Plan & billing**, **Profile & security**, and conditional **Developer** access distinct.
+The account is the creator's overall control center, not a storage page and not a second Studio. `/account` is a compact home with familiar shortcuts into creation, Library, storage, billing, identity, and conditional developer work. Each account destination replaces the main panel and remains directly linkable through normal browser navigation; these surfaces must not be stacked into one long settings document. Its durable information architecture keeps **Home**, **Library**, **Storage & connections**, **Plan & billing**, **Profile & security**, and conditional **Developer** access distinct.
 
 The account Library is one inventory of the creator's sets, portable projects, reusable assets, and temporary working drafts across the browser workspace, CardForge Cloud, Google Drive, attached local folders, and future connected providers. When stable identity proves that two locations contain the same item, the Library presents one item with multiple locations instead of duplicate rows. Every entry should disclose its content kind, authoritative source or locations, availability, size when known, revision/freshness when meaningful, temporary-retention status when applicable, and the action that is valid for that source.
 

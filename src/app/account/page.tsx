@@ -5,6 +5,7 @@ import {
   getCurrentCardforgeEntitlement,
   isClerkAuthConfigured,
   resolveAccountEntitlement,
+  resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
@@ -38,7 +39,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string }>;
+  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string; section?: string }>;
 }) {
   const params = await searchParams;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
@@ -50,6 +51,11 @@ export default async function AccountPage({
   const storageStatus = params.storage === 'google-drive-connected' || params.storage === 'google-drive-error'
     ? params.storage
     : null;
+  const activeSection = resolveAccountSection({
+    requestedSection: params.section,
+    hasStorageResult: storageStatus !== null,
+    hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
+  });
   const [entitlement, businessIdentity, siteConfiguration, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement().catch((error) => {
       console.error('Unable to verify account access during page render:', error);
@@ -85,6 +91,7 @@ export default async function AccountPage({
         </div>
       ) : null}
       <AccountProfilePage
+        activeSection={activeSection}
         checkoutStatus={checkoutStatus}
         initialPlanIntent={initialPlanIntent}
         initialAuthConfigured={authConfigured}
