@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { UserProfile, useUser } from '@clerk/nextjs';
-import { FolderOpen, KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { getAccountDisplayName, toPossessiveName } from '@/features/account/lib/accountDisplay';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 const clerkAppearance = {
@@ -16,143 +15,72 @@ const clerkAppearance = {
     colorInputText: 'var(--cf-text-strong)',
     colorText: 'var(--cf-text)',
     colorTextSecondary: 'var(--cf-text-muted)',
-    borderRadius: 'var(--cf-panel-radius)',
+    borderRadius: '0px',
     fontFamily: 'var(--font-cardforge-lato), sans-serif',
   },
   elements: {
     rootBox: 'w-full',
-    cardBox: 'w-full shadow-none border border-[var(--cf-border)] bg-[var(--cf-surface)]',
-    navbar: 'bg-[var(--cf-surface-inset)]',
-    pageScrollBox: 'bg-[var(--cf-surface)]',
+    cardBox: 'w-full shadow-none border-0 bg-transparent',
+    navbar: 'bg-[var(--cf-surface-inset)] border-r border-[var(--cf-border)]',
+    pageScrollBox: 'bg-transparent p-0',
   },
 };
 
-function ProfileShell({
-  children,
-  eyebrow = 'Account profile',
-  title = 'Profile and security',
-  detail = 'Sign-in methods, profile details, and account controls in one focused place.',
-}: {
-  children: React.ReactNode;
-  eyebrow?: string;
-  title?: string;
-  detail?: string;
-}) {
-  return (
-    <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-      <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-4 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4 md:p-5">
-          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
-            <UserCircle2 className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{eyebrow}</span>
-          </div>
-          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
-            {title}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            {detail}
-          </p>
-        </div>
-        {children}
-      </section>
-    </main>
-  );
-}
-
 export function ProfileSetupFallback() {
   return (
-    <ProfileShell eyebrow="Setup required" title="Profile management is waiting on auth">
-      <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-6">
-        <div className="flex items-center gap-3 text-[var(--cf-warning)]">
-          <ShieldCheck className="h-5 w-5" />
-          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Account management unavailable</h2>
-        </div>
-        <p className="mt-4 text-sm leading-6 text-[var(--cf-text-muted)]">
-          Add the Clerk publishable key and secret key, then restart the dev server to test profile management.
-        </p>
+    <div role="status" className="border-y border-[var(--cf-warning-border)] py-5">
+      <div className="flex items-center gap-3 text-[var(--cf-warning)]">
+        <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+        <h2 className="text-sm font-semibold text-[var(--cf-text-strong)]">Profile management is waiting on authentication setup</h2>
       </div>
-    </ProfileShell>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
+        Add the Clerk publishable and secret keys, then restart this environment to manage identity and security.
+      </p>
+    </div>
   );
 }
 
-export function ProfileManagementPage() {
+export function ProfileManagementPage({ authConfigured = true }: { authConfigured?: boolean }) {
   const { isLoaded, isSignedIn, user } = useUser();
-  const displayName = getAccountDisplayName({
-    displayName: user?.fullName ?? user?.firstName ?? null,
-    email: user?.primaryEmailAddress?.emailAddress ?? null,
-  });
+
+  if (!authConfigured) return <ProfileSetupFallback />;
 
   if (!isLoaded) {
     return (
-      <ProfileShell>
-        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-6 text-[var(--cf-text-muted)]">
-          Loading your profile...
-        </div>
-      </ProfileShell>
+      <div role="status" className="flex items-center gap-2 border-y border-[var(--cf-border)] py-5 text-sm text-[var(--cf-text-muted)]">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading profile and security controls…
+      </div>
     );
   }
 
   if (!isSignedIn) {
     return (
-      <ProfileShell title="Sign in to manage your profile" detail="Profile controls are available after CardForge connects your account.">
-        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
-          <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Connect your account</h2>
-          <p className="mt-3 text-sm leading-5 text-[var(--cf-text-muted)]">
-            Sign in to manage identity, security, export access, and local custom-art permissions.
-          </p>
-          <Button asChild className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
-            <Link href={createAuthRouteHref('/sign-in', '/profile')} prefetch={false}>
-              Sign in
-            </Link>
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-[var(--cf-border)] py-5">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--cf-text-strong)]">Sign in to manage your profile</h2>
+          <p className="mt-1 text-sm text-[var(--cf-text-muted)]">Identity, sign-in methods, devices, and sessions are available after CardForge connects your account.</p>
         </div>
-      </ProfileShell>
+        <Button asChild size="sm" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
+          <Link href={createAuthRouteHref('/sign-in', '/account?section=profile')} prefetch={false}>Sign in</Link>
+        </Button>
+      </div>
     );
   }
 
   return (
-    <ProfileShell
-      eyebrow="Profile controls"
-      title={displayName ? `${toPossessiveName(displayName)} CardForge profile` : 'Your CardForge profile'}
-      detail="Compact account controls for identity, security, and connected sign-in methods."
-    >
-      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Settings</p>
-            <p className="break-words text-sm text-[var(--cf-accent-text)]">{user?.primaryEmailAddress?.emailAddress}</p>
-          </div>
-          <div className="mt-4 divide-y divide-[var(--cf-border-subtle)] border-y border-[var(--cf-border-subtle)]">
-            <div className="flex items-start gap-3 py-3">
-              <UserCircle2 className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Identity</p>
-                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Name, avatar, and email addresses.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 py-3">
-              <KeyRound className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Security</p>
-                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Password, providers, and active sessions.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 py-3">
-              <FolderOpen className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Local assets</p>
-                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Custom art is browser-local after sign-in.</p>
-              </div>
-            </div>
-          </div>
-          <Button asChild variant="outline" className="mt-4 w-full border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-            <Link href="/account" prefetch={false}>Open account summary</Link>
-          </Button>
-        </aside>
-        <div className="cardforge-clerk-profile min-w-0">
-          <UserProfile routing="hash" appearance={clerkAppearance} />
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-[var(--cf-border)] py-3">
+        <div>
+          <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Clerk-secured account</p>
+          <p className="mt-0.5 text-xs text-[var(--cf-text-muted)]">{user.primaryEmailAddress?.emailAddress ?? 'Signed-in CardForge account'}</p>
         </div>
+        <span className="inline-flex items-center gap-1.5 border border-[var(--cf-success-border)] px-2.5 py-1 text-xs font-semibold text-[var(--cf-success)]">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Security controls active
+        </span>
       </div>
-    </ProfileShell>
+      <div className="cardforge-clerk-profile mt-4 min-w-0 overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)]">
+        <UserProfile routing="hash" appearance={clerkAppearance} />
+      </div>
+    </div>
   );
 }

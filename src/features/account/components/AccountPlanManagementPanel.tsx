@@ -30,7 +30,7 @@ export function AccountPlanManagementPanel({
   canManageBilling: boolean;
   checkoutStatus: 'cancelled' | 'success' | null;
   cloudSlotLabel: string;
-  currentPlanKey: McpUsagePlanKey;
+  currentPlanKey?: McpUsagePlanKey;
   downloadLabel: string;
   effectiveSignedIn: boolean;
   initialPlanIntent: 'creator' | 'designer' | null;
@@ -64,7 +64,7 @@ export function AccountPlanManagementPanel({
         </div>
       ) : null}
 
-      <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 md:p-5">
+      <div className="border-y border-[var(--cf-border-strong)] py-4 md:py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
@@ -120,20 +120,38 @@ export function AccountPlanManagementPanel({
           </div>
         </div>
 
-        <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
-          <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Compare available plans</h3>
-          <p className="mt-2 mb-5 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">See the price, Studio benefits, CardForge for ChatGPT capacity, and private plugin workspace together before you choose.</p>
-          <PlanChoiceGrid
-            plans={plans}
-            currentPlanKey={currentPlanKey}
-            creatorHref={creatorHref}
-            designerHref={designerHref}
-            featuredPlanKey={initialPlanIntent ?? 'creator'}
-          />
-        </div>
+        <details className="group mt-5 border-t border-[var(--cf-border-subtle)] pt-1" open={Boolean(initialPlanIntent) && !canExportClean}>
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 text-left [&::-webkit-details-marker]:hidden">
+            <span>
+              <span className="block text-sm font-semibold text-[var(--cf-text-strong)]">Compare available plans</span>
+              <span className="mt-0.5 block text-xs text-[var(--cf-text-muted)]">Prices, Studio benefits, ChatGPT capacity, and private workspace retention</span>
+            </span>
+            <span className="text-lg text-[var(--cf-accent-strong)] transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+          </summary>
+          <div className="pb-5 pt-2">
+            <PlanChoiceGrid
+              plans={plans}
+              currentPlanKey={currentPlanKey}
+              creatorHref={creatorHref}
+              designerHref={designerHref}
+              featuredPlanKey={initialPlanIntent ?? 'creator'}
+            />
+          </div>
+        </details>
       </div>
 
-      {authConfigured && effectiveSignedIn ? <div className="mt-4"><AccountMcpUsageSection /></div> : null}
+      {authConfigured && effectiveSignedIn ? (
+        <details className="group border-b border-[var(--cf-border)]">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 text-left [&::-webkit-details-marker]:hidden">
+            <span>
+              <span className="block text-sm font-semibold text-[var(--cf-text-strong)]">CardForge for ChatGPT usage</span>
+              <span className="mt-0.5 block text-xs text-[var(--cf-text-muted)]">Review current assisted-action observations and plan capacity targets</span>
+            </span>
+            <span className="text-lg text-[var(--cf-accent-strong)] transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+          </summary>
+          <div className="pb-4"><AccountMcpUsageSection /></div>
+        </details>
+      ) : null}
     </>
   );
 }

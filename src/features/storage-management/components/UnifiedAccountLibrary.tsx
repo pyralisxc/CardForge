@@ -371,13 +371,13 @@ export function UnifiedAccountLibrary({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-4">
         <div>
           <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
             <LibraryBig className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em]">Library</span>
           </div>
-          <h1 className="mt-2 font-serif text-3xl text-[var(--cf-text-strong)]">Everything you can continue, reuse, or recover</h1>
+          <h1 className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">Everything you can continue, reuse, or recover</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
             One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts. Storage remains with the source named on each item.
           </p>
@@ -394,7 +394,7 @@ export function UnifiedAccountLibrary({
         </Button>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2 border-y border-[var(--cf-border-subtle)] py-3" aria-label="Library sources">
+      <div className="mt-3 flex flex-wrap gap-2 py-2" aria-label="Library sources">
         {(['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'] as const).map((source) => (
           <AccountLibrarySourceBadge key={source} source={source}>
             {getAccountLibrarySourceLabel(source)} · {sourceCounts.get(source) ?? 0}
@@ -405,7 +405,7 @@ export function UnifiedAccountLibrary({
         </span>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 md:grid-cols-[minmax(0,1fr)_auto]">
         <label className="relative block">
           <span className="sr-only">Search your CardForge library</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" />

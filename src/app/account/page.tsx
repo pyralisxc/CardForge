@@ -18,6 +18,7 @@ import {
 import {
   AccountCloudStorageBreakdown,
   AccountStorageLibrary,
+  AccountStorageWorkspace,
   ConnectedPersonalLibraryPanel,
   GoogleDriveProjectStoragePanel,
   LocalProjectFolderPanel,
@@ -93,28 +94,28 @@ export default async function AccountPage({
         )}
         storageManagement={(
           <SiteContentProvider key="storage-library-copy" content={accountContent}>
-            <div className="space-y-4">
-              <AccountStorageLibrary
+            <AccountStorageWorkspace
+              browserAndCloud={<AccountStorageLibrary
                 embedded
                 persistenceScope={persistenceScope}
                 isSignedIn={entitlement.isSignedIn}
                 cloudSetLimit={entitlement.capabilities.cloudSetLimit}
-              />
-              <LocalProjectFolderPanel
+              />}
+              localProjectFolder={<LocalProjectFolderPanel
                 persistenceScope={persistenceScope}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
-              />
-              <GoogleDriveProjectStoragePanel
+              />}
+              googleDriveProjects={<GoogleDriveProjectStoragePanel
                 persistenceScope={persistenceScope}
                 isSignedIn={entitlement.isSignedIn}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
-              />
-              <ConnectedPersonalLibraryPanel
+              />}
+              connectedAssets={<ConnectedPersonalLibraryPanel
                 isSignedIn={entitlement.isSignedIn}
                 canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
-              />
-              <AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />
-            </div>
+              />}
+              cloudDetails={<AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />}
+            />
           </SiteContentProvider>
         )}
       />

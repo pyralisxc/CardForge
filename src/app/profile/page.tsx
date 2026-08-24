@@ -1,10 +1,4 @@
-import { ProfileManagementPage, ProfileSetupFallback } from '@/features/account/client/profile';
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
-import { CardForgeAppProviders } from '@/features/app-shell/server';
-import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteHeader } from '@/features/public-site/client/shell';
-import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { redirect } from 'next/navigation';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -14,24 +8,6 @@ export const metadata = createPageMetadata({
   index: false,
 });
 
-export default async function ProfilePage() {
-  const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, siteConfiguration] = await Promise.all([
-    getCachedBusinessIdentity(),
-    getCachedPublicSiteConfiguration(),
-  ]);
-
-  return (
-    <CardForgeAppProviders scope="shell">
-      <div className="cardforge-public-tokens">
-        <PublicSiteHeader
-          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
-          businessIdentity={businessIdentity}
-          currentPath="/account"
-          siteConfiguration={siteConfiguration}
-        />
-      </div>
-      {authConfigured ? <ProfileManagementPage /> : <ProfileSetupFallback />}
-    </CardForgeAppProviders>
-  );
+export default function ProfilePage() {
+  redirect('/account?section=profile');
 }

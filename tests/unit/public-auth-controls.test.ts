@@ -37,7 +37,7 @@ describe('public header authentication controls', () => {
     expect(sources[0]).toContain("createAuthRouteHref('/sign-in', pathname)");
     expect(sources[1]).toContain("createAuthRouteHref('/sign-in', '/studio')");
     expect(sources[2]).toContain("createAuthRouteHref('/sign-up', '/account')");
-    expect(sources[3]).toContain("createAuthRouteHref('/sign-in', '/profile')");
+    expect(sources[3]).toContain("createAuthRouteHref('/sign-in', '/account?section=profile')");
     expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/developer')");
   });
 

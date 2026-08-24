@@ -11,6 +11,7 @@ describe('account section navigation', () => {
     expect(resolveAccountSection({ requestedSection: 'library' })).toBe('library');
     expect(resolveAccountSection({ requestedSection: 'storage' })).toBe('storage');
     expect(resolveAccountSection({ requestedSection: 'billing' })).toBe('billing');
+    expect(resolveAccountSection({ requestedSection: 'profile' })).toBe('profile');
     expect(resolveAccountSection({ requestedSection: 'developer' })).toBe('developer');
     expect(resolveAccountSection({ requestedSection: 'unknown' })).toBe('home');
   });
@@ -26,6 +27,7 @@ describe('account section navigation', () => {
     expect(getAccountSectionHref('library')).toBe('/account?section=library');
     expect(getAccountSectionHref('storage')).toBe('/account?section=storage');
     expect(getAccountSectionHref('billing')).toBe('/account?section=billing');
+    expect(getAccountSectionHref('profile')).toBe('/account?section=profile');
     expect(getAccountSectionHref('developer')).toBe('/account?section=developer');
   });
 });

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import { CreditCard, HardDrive, Wrench } from 'lucide-react';
+import { CreditCard, HardDrive, ShieldCheck, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -20,6 +20,7 @@ import { AccountWorkspaceHeader } from './AccountWorkspaceHeader';
 
 const AccountDeveloperStatusSection = dynamic(() => import('./AccountDeveloperStatusSection').then((module) => module.AccountDeveloperStatusSection));
 const AccountPlanManagementPanel = dynamic(() => import('./AccountPlanManagementPanel').then((module) => module.AccountPlanManagementPanel));
+const ProfileManagementPage = dynamic(() => import('./ProfileManagementPage').then((module) => module.ProfileManagementPage));
 
 interface PlatformStatusPayload {
   billing: {
@@ -163,8 +164,10 @@ export function AccountProfilePage({
           : entitlement.canExportClean
             ? 'Creator Pass'
             : 'Free';
-  const currentPlanKey: McpUsagePlanKey = isOwner || isDeveloper || entitlement.paidPlan === 'designer'
-    ? 'designer'
+  const currentPlanKey: McpUsagePlanKey | undefined = isOwner || isDeveloper
+    ? undefined
+    : entitlement.paidPlan === 'designer'
+      ? 'designer'
     : entitlement.canExportClean
       ? 'creator'
       : 'free';
@@ -226,8 +229,8 @@ export function AccountProfilePage({
               <AccountSectionHeading
                 icon={<HardDrive className="h-5 w-5" />}
                 eyebrow="Storage & connections"
-                title="Control where your work is stored"
-                body="Manage provider connections, capacity, permissions, destinations, and location-specific removal."
+                title="See and manage every storage location"
+                body="Open a location for its exact capacity, permissions, destination, and removal controls. Your Library remains the combined view of the work itself."
               />
               <div className="space-y-4">{storageManagement}</div>
             </section>
@@ -238,8 +241,8 @@ export function AccountProfilePage({
               <AccountSectionHeading
                 icon={<CreditCard className="h-5 w-5" />}
                 eyebrow="Plan & billing"
-                title="Choose, start, or manage your plan"
-                body="New subscriptions use Stripe Checkout; existing subscriptions open Stripe billing for plan changes, invoices, payment details, or cancellation."
+                title="Manage access, billing, and usage"
+                body="Your current access and next actions come first. Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation."
               />
               <AccountPlanManagementPanel
                 authConfigured={entitlement.authConfigured}
@@ -256,6 +259,18 @@ export function AccountProfilePage({
                 showCheckout={showCheckout}
                 showDesignerCheckout={showDesignerCheckout}
               />
+            </section>
+          ) : null}
+
+          {activeSection === 'profile' ? (
+            <section>
+              <AccountSectionHeading
+                icon={<ShieldCheck className="h-5 w-5" />}
+                eyebrow="Profile & security"
+                title="Manage your identity and sign-in security"
+                body="CardForge keeps this workspace consistent while Clerk securely owns profile details, sign-in methods, devices, and active sessions."
+              />
+              <ProfileManagementPage authConfigured={entitlement.authConfigured} />
             </section>
           ) : null}
 

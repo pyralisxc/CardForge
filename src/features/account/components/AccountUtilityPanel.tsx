@@ -5,9 +5,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import {
   ChevronRight,
-  Cloud,
   CreditCard,
-  Database,
   HardDrive,
   ShieldCheck,
   UserCog,
@@ -95,12 +93,10 @@ export function AccountUtilityPanel({
         </div>
 
         <nav aria-label="Account management">
-          <UtilityLink href="/profile" icon={<ShieldCheck className="h-5 w-5" />} title="Profile & security" detail="Identity, sign-in methods, and sessions" onNavigate={onNavigate} />
+          <UtilityLink href="/account?section=profile" icon={<ShieldCheck className="h-5 w-5" />} title="Profile & security" detail="Identity, sign-in methods, and sessions" onNavigate={onNavigate} />
           {isOwner ? <UtilityLink href="/owner" icon={<UserCog className="h-5 w-5" />} title="Owner access" detail="Manage CardForge operations" onNavigate={onNavigate} /> : null}
           <UtilityLink href="/account?section=billing" icon={<CreditCard className="h-5 w-5" />} title="Plan & billing" detail="Plans, payments, invoices, and cancellation" onNavigate={onNavigate} />
-          <UtilityLink href="/account?section=storage" icon={<HardDrive className="h-5 w-5" />} title="Storage & connections" detail="Providers, permissions, capacity, and removal" onNavigate={onNavigate} />
-          <UtilityLink href="/account?section=storage" icon={<Database className="h-5 w-5" />} title="Google Drive" detail="Connection and project-file settings" onNavigate={onNavigate} />
-          <UtilityLink href="/account?section=storage" icon={<Cloud className="h-5 w-5" />} title="CardForge Cloud" detail={cloudSlotLabel} onNavigate={onNavigate} />
+          <UtilityLink href="/account?section=storage" icon={<HardDrive className="h-5 w-5" />} title="Storage & connections" detail={`Providers, permissions, and ${cloudSlotLabel}`} onNavigate={onNavigate} />
           {showDeveloper ? <UtilityLink href="/account?section=developer" icon={<Wrench className="h-5 w-5" />} title="Developer tools" detail="Owner and contributor workspaces" onNavigate={onNavigate} /> : null}
         </nav>
       </div>
