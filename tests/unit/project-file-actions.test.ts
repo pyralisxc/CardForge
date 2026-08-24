@@ -51,6 +51,7 @@ describe('project file actions', () => {
           [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [{ id: 'icon-1', name: 'Icon', url: 'data:image/png;base64,abc', kind: 'icon', tileMode: 'contain', seamless: false, allowedTargets: ['icon'] }],
           [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
         },
+        customFonts: [],
       },
     });
 
