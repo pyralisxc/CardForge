@@ -49,6 +49,18 @@ export interface ProjectDocumentCustomAssets {
   [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: CardAssetOption[];
 }
 
+export interface ProjectDocumentMcpOperationReceipt {
+  operationId: string;
+  requestHash: string;
+  revision: number;
+  changedTemplateIds: string[];
+  changedElementIds: string[];
+  changedCardIds: string[];
+  changedAssetRequirementIds: string[];
+  warnings: string[];
+  canonicalRenderingRecommended: boolean;
+}
+
 export interface ProjectDocumentV1 {
   version: 1;
   userTemplates: TCGCardTemplate[];
@@ -60,6 +72,7 @@ export interface ProjectDocumentV1 {
   customAssets: ProjectDocumentCustomAssets;
   customFonts?: ProjectFontAsset[];
   productionPlan?: ProjectProductionPlan;
+  mcpOperationReceipts?: ProjectDocumentMcpOperationReceipt[];
 }
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
@@ -195,6 +208,35 @@ const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
   };
 };
 
+const normalizeMcpOperationReceipts = (value: unknown): ProjectDocumentMcpOperationReceipt[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const receipts = value.slice(-32).flatMap((entry): ProjectDocumentMcpOperationReceipt[] => {
+    if (!isRecord(entry)
+      || typeof entry.operationId !== 'string'
+      || typeof entry.requestHash !== 'string'
+      || !Number.isInteger(entry.revision)
+      || !Array.isArray(entry.changedTemplateIds)
+      || !Array.isArray(entry.changedElementIds)
+      || !Array.isArray(entry.changedCardIds)
+      || !Array.isArray(entry.changedAssetRequirementIds)
+      || !Array.isArray(entry.warnings)
+      || typeof entry.canonicalRenderingRecommended !== 'boolean') return [];
+    const stringArray = (candidate: unknown[]) => candidate.filter((item): item is string => typeof item === 'string').slice(0, 200);
+    return [{
+      operationId: entry.operationId.slice(0, 255),
+      requestHash: entry.requestHash.slice(0, 128),
+      revision: Number(entry.revision),
+      changedTemplateIds: stringArray(entry.changedTemplateIds),
+      changedElementIds: stringArray(entry.changedElementIds),
+      changedCardIds: stringArray(entry.changedCardIds),
+      changedAssetRequirementIds: stringArray(entry.changedAssetRequirementIds),
+      warnings: stringArray(entry.warnings).map((warning) => warning.slice(0, 4000)),
+      canonicalRenderingRecommended: entry.canonicalRenderingRecommended,
+    }];
+  });
+  return receipts.length > 0 ? receipts : undefined;
+};
+
 const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
   if (!isRecord(value) || value.version !== PROJECT_DOCUMENT_VERSION) return null;
   if (!Array.isArray(value.userTemplates) && !Array.isArray(value.storedCards) && !Array.isArray(value.appearanceStyles)) return null;
@@ -212,6 +254,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
   const productionPlan = normalizeProjectProductionPlan(value.productionPlan);
+  const mcpOperationReceipts = normalizeMcpOperationReceipts(value.mcpOperationReceipts);
 
   return {
     version: PROJECT_DOCUMENT_VERSION,
@@ -224,6 +267,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     customAssets: normalizeCustomAssets(value.customAssets),
     ...(customFonts.length > 0 ? { customFonts } : {}),
     ...(productionPlan ? { productionPlan } : {}),
+    ...(mcpOperationReceipts ? { mcpOperationReceipts } : {}),
   };
 };
 

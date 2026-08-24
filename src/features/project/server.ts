@@ -9,7 +9,7 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from './model/projectDocument';
-export type { ProjectDocumentV1 } from './model/projectDocument';
+export type { ProjectDocumentMcpOperationReceipt, ProjectDocumentV1 } from './model/projectDocument';
 export {
   getProjectFontValue,
   isProjectFontAssetId,

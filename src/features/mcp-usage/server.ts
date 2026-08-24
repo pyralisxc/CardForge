@@ -1,5 +1,11 @@
 export * from './server/mcpUsageStore';
 export {
+  createMcpWorkflowDocumentKey,
+  observeMcpToolExecution,
+  recordMcpWorkflowObservation,
+} from './server/mcpWorkflowTelemetry';
+export type { McpWorkflowObservation } from './server/mcpWorkflowTelemetry';
+export {
   isMcpAvailableForAccount,
   isMcpUsagePlanKey,
   resolveMcpUsagePlanKey,
