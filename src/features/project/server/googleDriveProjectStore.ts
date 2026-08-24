@@ -592,6 +592,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      Origin: getPublicAppUrl(),
       'Content-Type': 'application/json; charset=UTF-8',
       'X-Upload-Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
       'X-Upload-Content-Length': String(size),

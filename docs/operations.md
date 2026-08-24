@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 21, 2026
+Last updated: August 23, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -33,18 +33,70 @@ Use `.env.example` as the complete catalog.
 
 GitHub is the source/CI workspace. Vercel Preview is hosted integration proof, not a compile loop. Batch related work into coherent commits and avoid no-op/test-only pushes merely to retrigger provider status.
 
+### Preview lane
+
+`main` is the only production branch. Ordinary work uses one feature/objective branch and one PR into `main`; those branches do not deploy automatically. After the PR reaches its final candidate SHA and GitHub `verify` passes, move the reusable `vercel-preview` branch to that exact SHA once. Vercel then assigns the stable review URL:
+
+`https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`
+
+The stable URL is protected by Vercel Authentication. Stripe alone receives a provider-managed automation bypass on the branch webhook URL. Never copy that bypass value into Git, documentation, chat, logs, or another environment.
+
+Preview provider ownership:
+
+- Vercel project: `card-forge`, Preview environment scoped to `vercel-preview`.
+- Supabase project: `Card Forge Staging`, project ref `mjdugheniazuiqoefnnb`; the official GitHub integration applies migrations from `vercel-preview`.
+- Clerk: development instance and development-mode test identities only.
+- Stripe: sandbox account, Creator Price `price_1U7nTi9l4G37K6th7Amjpayw`, Designer Price `price_1U7oS19l4G37K6thK4ncrkkA`, and webhook `we_1U7nfP9l4G37K6thc6b6VJYR`.
+- Google Drive: `CardForge Connected Storage Preview` OAuth Web client, a branch-only token-encryption key, and the shared Picker key restricted to Google Picker API plus the stable Preview/production origins.
+- GitHub: public `pyralisxc/CardForge`; the active `Updates` ruleset protects `main` with PRs, resolved threads, strict `verify`, deletion protection, and force-push protection.
+
+Preview test identities are durable environment fixtures, not production users:
+
+| Journey | Clerk development identity | Expected state |
+| --- | --- | --- |
+| Free | `qa+clerk_test_free@cardforges.com` | Free access and one cloud-set slot |
+| Creator | `qa+clerk_test_creator@cardforges.com` | Active Creator Pass from Stripe sandbox |
+| Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
+| Contributor | `qa+clerk_test_developer@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
+| Owner | `qa+clerk_test_owner@cardforges.com` | Owner Console and owner review scopes through the branch-only owner allowlist |
+| Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; cockpit access denied |
+
+No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
+
+Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
+
 Release sequence:
 
 1. Implement with focused checks and remove temporary development-only tests/fixtures unless they protect a durable boundary.
 2. Run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, `npm run test`, and `npm run build` on the final candidate.
 3. Require GitHub `verify` and a READY Vercel Preview on that exact head.
-4. Exercise changed public/browser behavior on Preview. Provider-backed signed-in behavior must be checked with the real production owner/developer account when affected.
+4. Exercise changed public/browser and provider-backed behavior with the durable Preview test identities. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
 5. Apply production migrations only after explicit approval of the exact additive change and its postflight.
 6. Merge through the PR; do not bypass `main` safety.
 7. Require Vercel Production READY for the merge commit and run `npm run health:production`.
 8. Perform the smallest real signed-in production check needed for auth/owner/developer/billing/provider changes.
 
 Rollback application behavior with a forward code fix or existing feature gate. Never delete migrations, ledgers, votes, campaign history, delivery history, or financial records to simulate rollback.
+
+### Preview acceptance and reset
+
+Use clearly named `QA Preview` fixtures and prove only the boundaries affected by the candidate:
+
+1. Signed-out protected routes and MCP fail closed.
+2. Free, Creator, and Designer accounts resolve the expected plan and enforced cloud/MCP boundary.
+3. The active contributor creates and submits one representative asset, campaign package, or site proposal; the owner reviews it through the owning workflow.
+4. Preview MCP completes one revision-safe create/read/update or cloud-set journey through Clerk OAuth, including one invalid or stale request when that boundary changed.
+5. Stripe sandbox webhook delivery returns HTTP 200 and produces one idempotent staging ledger result when billing changed.
+6. Supabase migrations, grants/RLS, and relevant advisors pass in the staging project when persistence changed.
+7. Google Drive connects through the dedicated Preview OAuth client, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
+
+Reset through the owning product/provider path:
+
+- Cancel, reject, or archive contributor fixtures through the cockpit/Owner Console so audit history remains truthful; never delete campaign, proposal, vote, billing, or owner-activity rows with ad hoc SQL.
+- Remove temporary cloud sets through Account Storage or the revision-conditional MCP delete tool. Browser-local sets remain independent.
+- Cancel or change test subscriptions only in Stripe sandbox/Portal; retain CardForge billing ledgers as idempotency evidence.
+- Remove temporary assistant drafts through their revision-safe MCP tools or allow the staging retention lifecycle to expire them.
+- Keep the six Clerk development identities and their intentional Supabase profiles stable between releases. Re-provisioning the staging project is destructive and requires explicit approval.
 
 ### Solo-maintainer branch rule
 

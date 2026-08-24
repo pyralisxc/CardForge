@@ -37,8 +37,10 @@ describe('Google Drive project storage', () => {
     const clientTransfer = read('src/features/project/client/googleDriveProjectTransfer.ts');
     expect(serverStore).toContain("uploadType', 'resumable'");
     expect(serverStore).toContain("response.headers.get('location')");
+    expect(serverStore).toContain('Origin: getPublicAppUrl()');
     expect(clientTransfer).toContain("fetch(plan.uploadSessionUrl");
     expect(clientTransfer).toContain("method: 'PUT'");
+    expect(clientTransfer).toContain('Your browser project was left unchanged');
   });
 
   it('stores encrypted provider connections and exact project-source lineage server-side', () => {

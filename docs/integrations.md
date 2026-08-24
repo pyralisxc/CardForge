@@ -1,6 +1,6 @@
 # CardForge Integration Ownership
 
-Last reviewed: August 19, 2026
+Last reviewed: August 23, 2026
 
 This is the human trace map for CardForge's external integrations. It answers two questions: **which system owns this lifecycle?** and **where do I start reading the CardForge code?**
 
@@ -104,6 +104,20 @@ Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invoke
 **Start here:** `src/app/`, `src/proxy.ts`, `next.config.ts`, `.github/workflows/`, and `docs/operations.md`.
 
 **CardForge owns:** the canonical public URL policy in `src/infrastructure/http/publicUrl.ts`, deployment gates, and which live provider settings are required. `VERCEL_PROJECT_PRODUCTION_URL` and `VERCEL_URL` are consumed as Vercel-provided facts rather than duplicated deployment records.
+
+### Preview environment boundary
+
+Vercel's branch-specific Preview deployment is CardForge's hosted staging surface. The reusable `vercel-preview` branch points to one exact PR candidate and owns the stable review URL `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`. Ordinary branches remain deployment-disabled; GitHub CI proves code health before the candidate ref moves.
+
+Preview uses provider-native isolation rather than CardForge emulation:
+
+- Vercel branch-scoped variables select the Clerk development instance, Stripe sandbox, and the separate Supabase project `Card Forge Staging` (`mjdugheniazuiqoefnnb`).
+- Supabase's GitHub integration applies repository migrations from `vercel-preview` to that staging project. CardForge does not maintain a second migration runner or schema ledger.
+- Stripe's sandbox products and webhook endpoint exercise the same Checkout/webhook code without touching production subscriptions. The Vercel protection-bypass value remains provider-managed and must never appear in Git or logs.
+- Google Drive uses a dedicated Preview OAuth Web client and token-encryption key. The shared Picker key permits only the stable Preview and production origins and remains restricted to Google Picker API; ordinary feature-deployment hosts are not authorized.
+- The production CardForge Studio plugin remains pointed at `https://cardforges.com/mcp`. Preview MCP verification uses the stable Preview `/mcp` URL through a temporary developer/Inspector connection; it does not fork the plugin manifest or create alternate auth semantics.
+
+The only CardForge-owned bridge is release policy: mirror the exact candidate to `vercel-preview`, verify the hosted user stories, send Cameron the stable link and SHA, and wait for explicit approval before merging to `main`.
 
 ## Browser workspace — Zustand and IndexedDB
 
