@@ -3,83 +3,130 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
-
-const route = read('src/app/mcp/route.ts');
-const projectDocument = read('src/features/project/model/projectDocument.ts');
-const revisions = read('src/features/studio-documents/server/developerTemplateDrafts.ts');
-const validation = read('src/features/studio-documents/server/templateDraftSchema.ts');
-const creationLibrary = read('src/features/studio-documents/server/studioCreationLibrary.ts');
-const agentTools = read('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
-const schemas = read('src/features/studio-documents/server/mcpToolInputSchemas.ts');
-const outputSchemas = read('src/features/studio-documents/server/mcpToolOutputSchemas.ts');
-const pluginSkills = read('src/features/studio-documents/server/mcpPluginSkills.ts');
-const manifest = read('plugins/cardforge-studio/manifest.json');
-const submission = read('plugins/cardforge-studio/SUBMISSION.md');
+const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Studio MCP creative production flow', () => {
+  const route = readSource('src/app/mcp/route.ts');
+  const schemas = readSource('src/features/studio-documents/server/mcpToolInputSchemas.ts');
+  const agentSchemas = [
+    readSource('src/features/studio-documents/server/agentTemplateToolSchemas.ts'),
+    readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts'),
+  ].join('\n');
+  const agentTools = [
+    readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
+    readSource('src/features/studio-documents/server/mcpCloudSetTools.ts'),
+    readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts'),
+  ].join('\n');
+  const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
+  const templateToolResults = readSource('src/features/studio-documents/server/mcpTemplateToolResults.ts');
+  const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
+  const revisions = [
+    readSource('src/features/studio-documents/server/developerTemplateDrafts.ts'),
+    readSource('src/features/studio-documents/server/developerCardSetDrafts.ts'),
+  ].join('\n');
+  const projectDocument = readSource('src/features/project/model/projectDocument.ts');
+  const generatorFieldInput = readSource('src/features/card-generator/components/GeneratorFieldInput.tsx');
+
   it('exposes a conversation-to-plan-to-preview-to-revision workflow instead of one-shot creation', () => {
     expect(route).toContain("'get_studio_creation_guide'");
+    expect(route).toContain("'search_studio_library'");
     expect(route).toContain("'create_editable_template'");
-    expect(route).toContain("'preview_template_draft'");
+    expect(route).toContain("'get_editable_template'");
     expect(route).toContain("'update_editable_template'");
-    expect(route).toContain("'continue_template_in_pipeline'");
-    expect(route).toContain('Establish the purpose, audience, deliverable');
-    expect(route).toContain('Agree on visual direction');
-    expect(route).toContain('Show the production plan to the user');
-    expect(route).toContain('Revise and re-preview until the user is satisfied');
+    expect(route).toContain('Act as a design director and production planner');
+    expect(route).toContain('get approval unless the user already explicitly delegated');
+    expect(route).toContain('attach_template_artwork');
+    expect(route).toContain('preview_template_draft');
+    expect(agentTools).toContain("'attach_template_artwork'");
+    expect(agentTools).toContain("'preview_template_draft'");
   });
 
   it('exposes exact-contract set, individual-card, bulk-card, and maintenance authoring through one Studio document', () => {
     expect(agentTools).toContain("'get_card_generation_contract'");
-    expect(agentTools).toContain("'preview_card_set'");
     expect(agentTools).toContain("'upsert_card_set'");
     expect(agentTools).toContain("'upsert_card'");
-    expect(agentTools).toContain("'upsert_cards_bulk'");
-    expect(agentTools).toContain("'delete_card'");
+    expect(agentTools).toContain("'upsert_cards'");
+    expect(agentTools).toContain("'delete_cards'");
+    expect(agentTools).toContain("'move_cards'");
     expect(agentTools).toContain("'delete_card_set'");
+    expect(agentTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
+    expect(agentTools).not.toContain("'attach_card_artwork'");
+    expect(agentTools).toContain("'preview_card_set'");
+    expect(agentTools).toContain('Never guess card columns or image keys');
+    expect(revisions).toContain('createBulkImportContract');
+    expect(revisions).toContain('extractTemplateFieldDefinitions');
+    expect(revisions).toContain('updateStudioDocument({');
+    expect(projectDocument).toContain('cardSets: CardSet[]');
+    expect(projectDocument).toContain('activeCardSetId?: string');
   });
 
   it('supports revision-safe cloud collaboration and account-aware capability discovery', () => {
+    expect(agentTools).toContain("'get_cardforge_capabilities'");
+    expect(agentTools).toContain("'list_agent_working_documents'");
+    expect(agentTools).toContain("'get_agent_install_status'");
     expect(agentTools).toContain("'list_cloud_sets'");
+    expect(agentTools).toContain("'get_cloud_set'");
     expect(agentTools).toContain("'checkout_cloud_set'");
     expect(agentTools).toContain("'commit_cloud_set'");
-    expect(agentTools).toContain("'get_cardforge_capabilities'");
-    expect(agentTools).toContain('expectedRevision');
+    expect(agentTools).toContain("'delete_cloud_set'");
     expect(agentTools).toContain('expectedCloudRevision');
   });
 
   it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {
-    expect(route).toContain('Resolve one quality target before building the plan');
-    expect(route).toContain('simple, professional, or premium');
-    expect(route).toContain('Inventory every meaningful visual slot');
-    expect(route).toContain('hero or main art');
-    expect(route).toContain('planning is locked');
-    expect(route).toContain('Reopen planning only when');
-    expect(route).toContain('qualityTargets');
+    expect(route).toContain("id: 'simple'");
+    expect(route).toContain("id: 'professional'");
+    expect(route).toContain("id: 'premium'");
+    expect(route).toContain('ask one concise quality question');
+    expect(route).toContain('inventory every meaningful visual slot');
+    expect(route).toContain('hero/main art');
+    expect(route).toContain('fieldContract with type image');
+    expect(route).toContain('productionPlan.editableFieldKeys');
+    expect(route).toContain('PROJECT_ASSET_BINDINGS');
+    expect(templateToolResults).toContain('planningLocked: true');
+    expect(route).toContain('treat its production plan as locked');
+    expect(route).toContain('Do not ask for the same approval');
+    expect(route).toContain('materially changes purpose, deliverable, output size, quality target');
+    expect(route).toContain('do not use placeholder art unless the user explicitly asks');
+    expect(schemas).toContain("enum: ['text', 'structuredRows', 'image']");
+    expect(generatorFieldInput).toContain("field.isImage && onImageUpload");
+    expect(generatorFieldInput).toContain('Image URL or Upload');
+    expect(generatorFieldInput).toContain('Upload image for ${field.label}');
+    expect(generatorFieldInput).toContain('Image tools');
   });
 
   it('teaches frame-first composition and visible-slot artwork verification directly through MCP', () => {
-    expect(route).toContain('Treat an existing selected frame as structural artwork');
-    expect(route).toContain('Do not redraw its visible boxes');
-    expect(route).toContain('successful upload is not proof of correct placement');
-    expect(route).toContain('verify the intended visible image slot');
+    expect(route).toContain('use that frame as the composition skeleton');
+    expect(route).toContain('Do not recreate those same regions with redundant decorative borders or opaque panels');
+    expect(route).toContain('For fixed main artwork, target the actual native image element and use binding element.image');
+    expect(route).toContain('A successful upload is not proof of correct placement');
+    expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
+    expect(route).toContain('installs or updates the same Template in the user personal local Template library');
+    expect(route).toContain("version: '0.9.0'");
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
-    expect(schemas).toContain('createTemplateInputSchema');
-    expect(schemas).toContain('updateTemplateInputSchema');
-    expect(schemas).toContain('pipelineInputSchema');
-    expect(schemas).toContain('searchStudioLibraryInputSchema');
-    expect(outputSchemas).toContain('studioCreationGuideOutputSchema');
-    expect(outputSchemas).toContain('editableTemplateOutputSchema');
-    expect(outputSchemas).toContain('pipelineHandoffOutputSchema');
-    expect(manifest).toContain('CardForge Studio');
-    expect(submission).toContain('native MCP');
+    expect(schemas).toContain("required: ['title', 'productionPlan', 'template']");
+    expect(schemas).toContain("required: ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'zIndex']");
+    expect(schemas).toContain("required: ['name', 'aspectRatio', 'freeformCanvas']");
+    expect(schemas).toContain('fieldContracts');
+    expect(schemas).toContain('appearance: appearanceSchema');
+    expect(schemas).toContain('shapeRole');
+    expect(schemas).toContain('imageObjectPositionX');
+    expect(schemas).toContain('imageScale');
+    expect(schemas).not.toContain('additionalProperties: true');
+    expect(agentSchemas).toContain('additionalProperties: false');
+    expect(agentSchemas).toContain('PROJECT_ASSET_BINDINGS');
+    expect(agentSchemas).toContain('maxItems: 100');
+    expect(route).not.toContain('fromJsonSchema');
   });
 
   it('exposes native frame and border recipes instead of forcing the model to recreate them by hand', () => {
-    expect(creationLibrary).toContain('FRAME_COMPOSITION_RECIPES');
+    expect(creationLibrary).toContain("'frame-kit'");
+    expect(creationLibrary).toContain('templateFrameKitItem');
+    expect(creationLibrary).toContain('appearance: style.appearance');
+    expect(creationLibrary).toContain('elementUpdates: style.updates');
     expect(creationLibrary).toContain('templateUpdates: style.templateUpdates');
     expect(creationLibrary).toContain('cardBorderImageSource: template.cardBorderImageSource');
   });
@@ -112,5 +159,6 @@ describe('Studio MCP creative production flow', () => {
     expect(revisions).toContain('materializeTemplateForPipelineReview');
     expect(revisions).toContain('MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES');
     expect(revisions).toContain('createTemplatePipelineDraft');
+    expect(revisions).toContain("templateRegistryStatus: 'draft'");
   });
 });
