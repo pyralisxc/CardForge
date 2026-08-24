@@ -14,6 +14,11 @@ import { reconstructMinimalTemplate } from '@/domain/templates';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import {
+  mapProjectFontsToCardFontOptions,
+  PROJECT_FONT_LIBRARY_CHANGE_EVENT,
+  readProjectFonts,
+} from '@/features/project/client';
 
 interface UseTemplateEditorSessionInput {
   isActive: boolean;
@@ -48,15 +53,27 @@ export function useTemplateEditorSession({
   useEffect(() => {
     if (!isActive) return;
     let mounted = true;
-    void loadCardForgeStudioBootstrap()
-      .then((payload) => {
-        if (mounted) setFontOptions(mergeCardFontOptions(CARD_FONT_OPTIONS, payload.fonts.fonts ?? []));
-      })
-      .catch(() => {
-        if (mounted) setFontOptions(CARD_FONT_OPTIONS);
-      });
+
+    const loadFonts = async () => {
+      const [bootstrapResult, projectFonts] = await Promise.all([
+        loadCardForgeStudioBootstrap().catch(() => null),
+        readProjectFonts().catch(() => []),
+      ]);
+      if (!mounted) return;
+      const developerFonts = bootstrapResult?.fonts.fonts ?? [];
+      const personalFonts = mapProjectFontsToCardFontOptions(projectFonts);
+      setFontOptions(mergeCardFontOptions(
+        mergeCardFontOptions(CARD_FONT_OPTIONS, developerFonts),
+        personalFonts,
+      ));
+    };
+
+    void loadFonts();
+    const onFontsChanged = () => { void loadFonts(); };
+    window.addEventListener(PROJECT_FONT_LIBRARY_CHANGE_EVENT, onFontsChanged);
     return () => {
       mounted = false;
+      window.removeEventListener(PROJECT_FONT_LIBRARY_CHANGE_EVENT, onFontsChanged);
     };
   }, [isActive]);
 

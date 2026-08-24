@@ -39,7 +39,8 @@ export async function GET(request: Request) {
       if (card.backingTemplateId) requiredTemplateIds.add(card.backingTemplateId);
     });
     const templates = document.document.userTemplates.filter((template) => template.id && requiredTemplateIds.has(template.id));
-    const previewValue = { cards, templates };
+    const customFonts = document.document.customFonts ?? [];
+    const previewValue = { cards, templates, customFonts };
     const assets = await getStudioDocumentAssetDownloads({
       ownerUserId: payload.ownerUserId,
       documentId: payload.documentId,
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
       set,
       cards,
       templates,
+      customFonts,
       assets,
     });
   } catch (error) {

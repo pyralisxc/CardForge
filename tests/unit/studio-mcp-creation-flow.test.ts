@@ -144,7 +144,8 @@ describe('Studio MCP creative production flow', () => {
 
   it('persists the production plan and sets in the canonical project while revising through optimistic document authority', () => {
     expect(projectDocument).toContain('productionPlan?: ProjectProductionPlan');
-    expect(projectDocument).toContain('productionPlan: normalizeProjectProductionPlan(value.productionPlan)');
+    expect(projectDocument).toContain('const productionPlan = normalizeProjectProductionPlan(value.productionPlan)');
+    expect(projectDocument).toContain('const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan)');
     expect(projectDocument).toContain('cardSets: CardSet[]');
     expect(revisions).toContain('updateDeveloperTemplateDraft');
     expect(revisions).toContain('preserveEmbeddedTemplateAssets');

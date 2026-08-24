@@ -3,13 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { CardData } from '@/domain/cards';
-import type { DisplayCard } from '@/domain/rendering';
+import { createDeveloperFontFaceCss, type DisplayCard } from '@/domain/rendering';
 import {
   reconstructMinimalTemplateObject,
   type TCGCardTemplate,
 } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { renderCardToPngBlob } from '@/features/card-generator/client';
+import {
+  mapProjectFontsToCardFontOptions,
+  normalizeProjectFontAssets,
+  type ProjectFontAsset,
+} from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { StudioDocumentAssetDownload } from '../assetReferences';
 import { hydrateStudioDocumentAssetValue } from '../client/studioDocumentAssetHydration';
@@ -18,7 +23,12 @@ interface TemplateDraftPreviewPayload {
   title: string;
   revision: number;
   template: TCGCardTemplate;
+  customFonts: ProjectFontAsset[];
   assets: StudioDocumentAssetDownload[];
+}
+
+interface HydratedTemplateDraftPreviewPayload extends TemplateDraftPreviewPayload {
+  fontFaceCss: string;
 }
 
 interface ExportedTemplatePreview {
@@ -50,7 +60,7 @@ const templateExportFileName = (title: string, revision: number): string => (
 );
 
 export function TemplateDraftPreviewClient() {
-  const [payload, setPayload] = useState<TemplateDraftPreviewPayload | null>(null);
+  const [payload, setPayload] = useState<HydratedTemplateDraftPreviewPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exportedPreview, setExportedPreview] = useState<ExportedTemplatePreview | null>(null);
 
@@ -74,14 +84,23 @@ export function TemplateDraftPreviewClient() {
           throw new Error(await readApiErrorMessage(response, 'Unable to load this CardForge draft preview.'));
         }
         const preview = await response.json() as TemplateDraftPreviewPayload;
-        const template = reconstructMinimalTemplateObject(await hydrateStudioDocumentAssetValue(
-          preview.template,
-          preview.assets ?? [],
-        ));
+        const hydrated = await hydrateStudioDocumentAssetValue({
+          template: preview.template,
+          customFonts: preview.customFonts ?? [],
+        }, preview.assets ?? []);
+        const template = reconstructMinimalTemplateObject(hydrated.template);
+        const customFonts = normalizeProjectFontAssets(hydrated.customFonts);
         if (!template.id || !template.freeformCanvas) {
           throw new Error('This CardForge draft does not contain a renderable Template.');
         }
-        setPayload({ title: preview.title, revision: preview.revision, template, assets: [] });
+        setPayload({
+          title: preview.title,
+          revision: preview.revision,
+          template,
+          customFonts,
+          assets: [],
+          fontFaceCss: createDeveloperFontFaceCss(mapProjectFontsToCardFontOptions(customFonts)),
+        });
       } catch (error) {
         if (!controller.signal.aborted) {
           const message = error instanceof Error ? error.message : 'Unable to load this CardForge draft preview.';
@@ -113,6 +132,7 @@ export function TemplateDraftPreviewClient() {
 
     void (async () => {
       try {
+        if (document.fonts) await document.fonts.ready;
         const blob = await renderCardToPngBlob(card, 'virtual', 150);
         const dataUrl = await blobToDataUrl(blob);
         if (cancelled) return;
@@ -155,6 +175,7 @@ export function TemplateDraftPreviewClient() {
 
   return (
     <main className="flex min-h-screen items-start justify-center bg-[#090b0f] p-3 text-[var(--cf-text)]">
+      {payload?.fontFaceCss ? <style data-cardforge-preview-fonts>{payload.fontFaceCss}</style> : null}
       {exportedPreview && payload ? (
         <section className="w-full max-w-[620px] rounded-xl border border-[#2b3039] bg-[#0d1117] p-3 shadow-2xl">
           <div className="mb-3 flex items-center justify-between gap-3">

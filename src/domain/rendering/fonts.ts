@@ -6,6 +6,7 @@ export type CardFontOption = {
   category: CardFontCategory;
   cssFamily: string;
   sourceUrl?: string;
+  sourceMimeType?: string;
 };
 
 export interface RegistryFontRow {
@@ -153,6 +154,20 @@ const getFontExtension = (url: string): string => {
   return FONT_EXTENSIONS.has(extension) ? extension : '';
 };
 
+const getFontFormat = (font: Pick<CardFontOption, 'sourceUrl' | 'sourceMimeType'>): string | null => {
+  const mimeType = font.sourceMimeType?.toLowerCase();
+  if (mimeType === 'font/woff2') return 'woff2';
+  if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
+  if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'truetype';
+  if (mimeType === 'font/otf' || mimeType === 'application/x-font-opentype') return 'opentype';
+  const extension = getFontExtension(font.sourceUrl ?? '');
+  if (extension === 'woff2') return 'woff2';
+  if (extension === 'woff') return 'woff';
+  if (extension === 'ttf') return 'truetype';
+  if (extension === 'otf') return 'opentype';
+  return null;
+};
+
 export const mapRegistryRowsToCardFontOptions = (rows: RegistryFontRow[]): CardFontOption[] => rows
   .map((row): CardFontOption | null => {
     const name = row.name.trim();
@@ -195,31 +210,23 @@ export const cardFontOptionsToSelectOptions = (
 ): Array<{ name: string; value: string }> => fonts.map(({ name, value }) => ({ name, value }));
 
 export const createDeveloperFontFaceCss = (fonts: CardFontOption[]): string => fonts
-  .filter((font) => font.sourceUrl)
-  .map((font) => {
-    const extension = getFontExtension(font.sourceUrl ?? '');
-    const format = extension === 'woff2'
-      ? 'woff2'
-      : extension === 'woff'
-        ? 'woff'
-        : extension === 'ttf'
-          ? 'truetype'
-          : 'opentype';
-    return [
-      '@font-face {',
-      `  font-family: "${cssString(font.value)}";`,
-      `  src: url("${cssString(font.sourceUrl ?? '')}") format("${format}");`,
-      '  font-weight: 100 900;',
-      '  font-style: normal;',
-      '  font-display: swap;',
-      '}',
-      `.${font.value} { font-family: ${font.cssFamily}; }`,
-    ].join('\n');
-  })
+  .filter((font) => font.sourceUrl && getFontFormat(font))
+  .map((font) => [
+    '@font-face {',
+    `  font-family: "${cssString(font.value)}";`,
+    `  src: url("${cssString(font.sourceUrl ?? '')}") format("${getFontFormat(font)}");`,
+    '  font-weight: 100 900;',
+    '  font-style: normal;',
+    '  font-display: swap;',
+    '}',
+    `.${font.value} { font-family: ${font.cssFamily}; }`,
+  ].join('\n'))
   .join('\n\n');
 
 export const cardFontFamilyToCss = (fontFamily?: string): string | undefined => {
   if (!fontFamily) return undefined;
-  if (fontFamily.startsWith('font-dev-')) return `"${cssString(fontFamily)}"`;
+  if (fontFamily.startsWith('font-dev-') || fontFamily.startsWith('font-personal-')) {
+    return `"${cssString(fontFamily)}"`;
+  }
   return CARD_FONT_STACKS[fontFamily] || fontFamily;
 };

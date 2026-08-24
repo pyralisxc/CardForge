@@ -17,6 +17,7 @@ import {
 import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZxQAAAAASUVORK5CYII=';
+const tinyFontData = 'data:font/woff2;base64,AAECAwQ=';
 
 const createProject = (): ProjectDocumentV1 => ({
   version: 1,
@@ -82,6 +83,33 @@ describe('portable CardForge project packages', () => {
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
+  });
+
+  it('externalizes and restores a project-owned personal font without provider URLs', async () => {
+    const project = createProject();
+    project.customFonts = [{
+      id: 'fontasset123',
+      name: 'Connected Test Font',
+      value: 'font-personal-fontasset123',
+      mimeType: 'font/woff2',
+      dataUrl: tinyFontData,
+      fileSizeBytes: 5,
+      sourceProvider: 'google-drive',
+      sourceItemId: 'library-item-1',
+      sourceProviderFileId: 'drive_file_123',
+      sourceProviderRevision: '8',
+    }];
+
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Font Project' });
+    expect(snapshot.manifest.assets.some((asset) => asset.mimeType === 'font/woff2')).toBe(true);
+    expect(snapshot.manifest.project.customFonts?.[0]?.dataUrl).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
+    expect(JSON.stringify(snapshot.manifest)).not.toContain('googleusercontent.com');
+
+    const decoded = await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot));
+    const hydrated = hydrateCardForgeProjectSnapshot(decoded);
+    expect(hydrated.customFonts?.[0]?.dataUrl).toBe(tinyFontData);
+    expect(hydrated.customFonts?.[0]?.mimeType).toBe('font/woff2');
+    expect(hydrated.customFonts?.[0]?.value).toBe('font-personal-fontasset123');
   });
 
   it('refuses an asset whose bytes no longer match the content-addressed manifest', async () => {
