@@ -9,10 +9,14 @@ grant execute on function public.cardforge_claim_founder_beta(text, text)
   to service_role;
 
 -- This event-trigger helper is invoked by PostgreSQL, not through PostgREST.
-revoke execute on function public.rls_auto_enable()
-  from public, anon, authenticated;
-revoke execute on function public.rls_auto_enable()
-  from service_role;
+-- Older projects may have created it outside the repository; fresh projects do not.
+do $$
+begin
+  if pg_catalog.to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated, service_role';
+  end if;
+end;
+$$;
 
 -- Require every future function to opt in to Data API execution explicitly.
 alter default privileges for role postgres in schema public
