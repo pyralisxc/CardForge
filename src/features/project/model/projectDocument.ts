@@ -210,6 +210,8 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
     fallback: PROJECT_FALLBACK_SET,
   });
+  const customFonts = normalizeProjectFontAssets(value.customFonts);
+  const productionPlan = normalizeProjectProductionPlan(value.productionPlan);
 
   return {
     version: PROJECT_DOCUMENT_VERSION,
@@ -220,8 +222,8 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
     customAssets: normalizeCustomAssets(value.customAssets),
-    customFonts: normalizeProjectFontAssets(value.customFonts),
-    productionPlan: normalizeProjectProductionPlan(value.productionPlan),
+    ...(customFonts.length > 0 ? { customFonts } : {}),
+    ...(productionPlan ? { productionPlan } : {}),
   };
 };
 
@@ -252,6 +254,7 @@ export const createProjectDocumentFromState = ({
     fallback: PROJECT_FALLBACK_SET,
   });
   const normalizedFonts = normalizeProjectFontAssets(customFonts);
+  const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan);
   return {
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates,
@@ -275,7 +278,7 @@ export const createProjectDocumentFromState = ({
       [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
     },
     ...(normalizedFonts.length > 0 ? { customFonts: normalizedFonts } : {}),
-    ...(productionPlan ? { productionPlan } : {}),
+    ...(normalizedProductionPlan ? { productionPlan: normalizedProductionPlan } : {}),
   };
 };
 
