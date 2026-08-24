@@ -44,11 +44,28 @@ export interface ExtractedPlaceholder {
 
 export const TEMPLATE_PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z_][\w.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
 
-const STATIC_IMAGE_SOURCE_PREFIXES = ['http://', 'https://', 'data:', 'blob:', 'css:', 'linear-gradient', 'radial-gradient', '/'];
+const STATIC_IMAGE_SOURCE_PREFIXES = [
+  'http://',
+  'https://',
+  'data:',
+  'blob:',
+  'cardforge-studio-asset://',
+  'embedded://',
+  'css:',
+  'linear-gradient',
+  'radial-gradient',
+  '/',
+];
+const PERSISTED_IMAGE_SOURCE_PREFIXES = ['data:', 'cardforge-studio-asset://', 'embedded://'];
 
 const isStaticImageSource = (value: string): boolean => {
   const lower = value.toLowerCase();
   return STATIC_IMAGE_SOURCE_PREFIXES.some((prefix) => lower.startsWith(prefix));
+};
+
+const isPersistedImageSource = (value: string): boolean => {
+  const lower = value.toLowerCase();
+  return PERSISTED_IMAGE_SOURCE_PREFIXES.some((prefix) => lower.startsWith(prefix));
 };
 
 const sanitizeImageFieldPart = (value: string): string => {
@@ -109,6 +126,14 @@ export const extractPlaceholderKeysFromText = (text?: string): string[] => {
 };
 
 export function getBoundImageFieldKey(element: Pick<FreeformCardElement, 'imageSource' | 'content'>): string | undefined {
+  const persistedSource = element.imageSource?.trim();
+  if (persistedSource && isPersistedImageSource(persistedSource)) {
+    // An embedded/private native image is already a concrete Template asset.
+    // Ignore stale legacy content such as "artworkUrl" so diagnostics do not
+    // synthesize a phantom card image field for a structural image layer.
+    return undefined;
+  }
+
   const candidates = [element.imageSource, element.content];
 
   for (const candidate of candidates) {
@@ -152,10 +177,13 @@ export function getGeneratorImageFieldKeyForElement(
   const boundKey = getBoundImageFieldKey(element);
   if (boundKey) return boundKey;
 
+  const persistedSource = element.imageSource?.trim();
+  if (persistedSource && isPersistedImageSource(persistedSource)) return undefined;
+
   // Locked, fixed-source image layers are template composition, not card data.
   if (element.locked) return undefined;
 
-  // Preserve legacy behavior for unlocked fixed-source image layers.
+  // Preserve legacy behavior for other unlocked fixed-source image layers.
   return deriveImageFieldKey(element);
 }
 

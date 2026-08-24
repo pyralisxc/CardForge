@@ -66,6 +66,7 @@ export function CardSetDraftPreviewClient() {
     const url = new URL(window.location.href);
     const token = url.searchParams.get('token');
     const setId = url.searchParams.get('setId');
+    const requestedCardIds = url.searchParams.get('cardIds');
     const requestedRevision = Number(url.searchParams.get('revision'));
     if (!token || !setId) {
       setErrorMessage('This CardForge Set preview link is invalid.');
@@ -75,8 +76,9 @@ export function CardSetDraftPreviewClient() {
     const controller = new AbortController();
     void (async () => {
       try {
+        const cardQuery = requestedCardIds ? `&cardIds=${encodeURIComponent(requestedCardIds)}` : '';
         const response = await fetch(
-          `/api/studio-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(setId)}`,
+          `/api/studio-card-set-preview?token=${encodeURIComponent(token)}&setId=${encodeURIComponent(setId)}${cardQuery}`,
           { cache: 'no-store', signal: controller.signal },
         );
         if (!response.ok) {

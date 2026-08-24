@@ -69,21 +69,21 @@ export const normalizeEmbeddedTemplateAsset = async ({
       );
     }
 
-    const alreadyNormalized = detectedMime === 'image/webp'
-      && metadata.width <= NORMALIZED_MAX_DIMENSION
-      && metadata.height <= NORMALIZED_MAX_DIMENSION;
-    const { data: normalized, info } = alreadyNormalized
-      ? { data: source, info: { width: metadata.width, height: metadata.height } }
-      : await sharp(source, { failOn: 'error', animated: false })
-        .rotate()
-        .resize({
-          width: NORMALIZED_MAX_DIMENSION,
-          height: NORMALIZED_MAX_DIMENSION,
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 88 })
-        .toBuffer({ resolveWithObject: true });
+    // Always decode and re-encode through Sharp, including incoming WebP.
+    // Storage-level validation alone is not enough: canonical browser rendering
+    // previously exposed WebP files that Sharp could inspect but Chromium later
+    // rendered corruptly. A single normalization path keeps accepted assets on
+    // the same known-good representation regardless of source format.
+    const { data: normalized, info } = await sharp(source, { failOn: 'error', animated: false })
+      .rotate()
+      .resize({
+        width: NORMALIZED_MAX_DIMENSION,
+        height: NORMALIZED_MAX_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 88 })
+      .toBuffer({ resolveWithObject: true });
 
     return {
       dataUri: `data:image/webp;base64,${normalized.toString('base64')}`,

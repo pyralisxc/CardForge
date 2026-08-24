@@ -193,6 +193,13 @@ const REQUIRED_NORMALIZATION_OVERRIDES: Record<string, boolean> = {
   artist: false,
   subtitle: false,
 };
+const LEGACY_SYNTHESIZED_IMAGE_KEYS = new Set(['artworkurl', 'imageurl']);
+const PERSISTED_NATIVE_IMAGE_PREFIXES = ['data:', 'cardforge-studio-asset://', 'embedded://'];
+
+const isPersistedNativeImageSource = (value: string): boolean => {
+  const lower = value.toLowerCase();
+  return PERSISTED_NATIVE_IMAGE_PREFIXES.some((prefix) => lower.startsWith(prefix));
+};
 
 const inferRequiredForContract = (key: string, element: FreeformCardElement, fallback?: string): boolean => {
   const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -259,10 +266,12 @@ const buildContractFromElementKey = (
 
 export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGCardTemplate => {
   const existingContracts = template.fieldContracts || [];
-  const lockedStructuralImageContracts = new Set<string>();
+  const staleStructuralImageContracts = new Set<string>();
+  const activeUnscopedImageContractKeys = new Set<string>();
   template.freeformCanvas?.elements.forEach((element) => {
-    if (element.type !== 'image' || !element.locked) return;
+    if (element.type !== 'image') return;
     const source = (element.imageSource || element.content || '').trim();
+    if (!element.locked && !isPersistedNativeImageSource(source)) return;
     const derivedKey = deriveImageFieldKey(element);
     const staleContract = existingContracts.find((contract) => (
       contract.type === 'image'
@@ -270,10 +279,10 @@ export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGC
       && !contract.elementId
       && contract.defaultValue === source
     ));
-    if (staleContract) lockedStructuralImageContracts.add(staleContract.key);
+    if (staleContract) staleStructuralImageContracts.add(staleContract.key);
   });
   const nextContracts: TemplateFieldContract[] = existingContracts.filter((contract) => (
-    !lockedStructuralImageContracts.has(contract.key)
+    !staleStructuralImageContracts.has(contract.key)
   ));
   const upsertContract = (contract: TemplateFieldContract) => {
     const index = nextContracts.findIndex((existing) => (
@@ -299,14 +308,25 @@ export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGC
         if (!key) return;
         const existing = existingContracts.find((contract) => contract.key === key && contract.elementId === element.id)
           || existingContracts.find((contract) => contract.key === key && !contract.elementId);
-        upsertContract(buildContractFromElementKey(element, key, existing, false));
+        const next = buildContractFromElementKey(element, key, existing, false);
+        if (!next.elementId) activeUnscopedImageContractKeys.add(next.key);
+        upsertContract(next);
       }
     });
   });
 
+  const reconciledContracts = nextContracts.filter((contract) => {
+    if (contract.type !== 'image' || contract.elementId) return true;
+    const normalizedKey = contract.key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    if (LEGACY_SYNTHESIZED_IMAGE_KEYS.has(normalizedKey) && !activeUnscopedImageContractKeys.has(contract.key)) {
+      return false;
+    }
+    return true;
+  });
+
   return {
     ...template,
-    fieldContracts: nextContracts.map((contract) => {
+    fieldContracts: reconciledContracts.map((contract) => {
       if (!contract.elementId || !contract.key.includes(':')) return contract;
       return {
         ...contract,
