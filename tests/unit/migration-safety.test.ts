@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findUnsafeMigrationChanges,
+  isApprovedBootstrapRepair,
   parseMigrationChanges,
 } from '../../scripts/check-migration-safety.mjs';
 
@@ -27,5 +28,13 @@ describe('migration safety guard', () => {
     const changes = parseMigrationChanges(`${status}\t${paths}`);
 
     expect(findUnsafeMigrationChanges(changes)).toEqual(changes);
+  });
+
+  it('accepts only the hash-locked fresh-project bootstrap repairs', () => {
+    const approved = parseMigrationChanges('M\tsupabase/migrations/202607140001_harden_privileged_functions.sql')[0]!;
+    const unrelated = parseMigrationChanges('M\tsupabase/migrations/202607140004_billing_event_ledger.sql')[0]!;
+
+    expect(isApprovedBootstrapRepair(process.cwd(), approved)).toBe(true);
+    expect(isApprovedBootstrapRepair(process.cwd(), unrelated)).toBe(false);
   });
 });
