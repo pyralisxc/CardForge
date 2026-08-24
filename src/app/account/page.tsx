@@ -8,15 +8,11 @@ import {
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
-import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { SiteContentProvider } from '@/features/public-site/client';
-import { PublicSiteHeader } from '@/features/public-site/client/shell';
 import {
   createSiteContentMap,
-  getCachedPublicSiteConfiguration,
   getCachedSiteContentBlocks,
 } from '@/features/public-site/server';
 import {
@@ -56,13 +52,11 @@ export default async function AccountPage({
     hasStorageResult: storageStatus !== null,
     hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
   });
-  const [entitlement, businessIdentity, siteConfiguration, plans, accountContentBlocks] = await Promise.all([
+  const [entitlement, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement().catch((error) => {
       console.error('Unable to verify account access during page render:', error);
       return resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() });
     }),
-    getCachedBusinessIdentity(),
-    getCachedPublicSiteConfiguration(),
     getMcpAllowances(),
     getCachedSiteContentBlocks('account'),
   ]);
@@ -75,14 +69,6 @@ export default async function AccountPage({
 
   return (
     <CardForgeAppProviders scope="shell">
-      <div className="cardforge-public-tokens">
-        <PublicSiteHeader
-          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
-          businessIdentity={businessIdentity}
-          currentPath="/account"
-          siteConfiguration={siteConfiguration}
-        />
-      </div>
       {storageStatus ? (
         <div className={`mx-auto mt-4 max-w-4xl border px-4 py-3 text-sm ${storageStatus === 'google-drive-connected' ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-100' : 'border-[#8b4c35] bg-[#2a130e] text-[#efb6a4]'}`} role="status">
           {storageStatus === 'google-drive-connected'
@@ -98,9 +84,11 @@ export default async function AccountPage({
         plans={plans}
         library={(
           <UnifiedAccountLibrary
+            key="unified-account-library"
             persistenceScope={persistenceScope}
             isSignedIn={entitlement.isSignedIn}
             cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+            view={activeSection === 'home' || activeSection === 'developer' ? 'home' : 'library'}
           />
         )}
         storageManagement={(

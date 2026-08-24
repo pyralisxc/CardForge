@@ -47,17 +47,21 @@ describe('consolidated public routes and account navigation', () => {
     expect(existsSync(resolve(process.cwd(), 'src/app/access/page.tsx'))).toBe(false);
   });
 
-  it('uses the shared public header on account and owner pages', () => {
-    for (const path of ['src/app/account/page.tsx', 'src/app/owner/page.tsx']) {
-      const source = readSource(path);
-      expect(source).toContain("from '@/features/public-site/client/shell'");
-      expect(source).toContain('getCachedBusinessIdentity');
-      expect(source).toContain('<PublicSiteHeader');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
-      expect(source).toContain('className="cardforge-public-tokens"');
-      expect(source).not.toContain('className="cardforge-public"');
-      expect(source).not.toContain('StudioHeader');
-    }
+  it('keeps the owner route in the public shell and gives account its signed-in workspace shell', () => {
+    const owner = readSource('src/app/owner/page.tsx');
+    expect(owner).toContain("from '@/features/public-site/client/shell'");
+    expect(owner).toContain('getCachedBusinessIdentity');
+    expect(owner).toContain('<PublicSiteHeader');
+    expect(owner).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
+    expect(owner).toContain('className="cardforge-public-tokens"');
+    expect(owner).not.toContain('className="cardforge-public"');
+
+    const accountPage = readSource('src/app/account/page.tsx');
+    const accountWorkspace = readSource('src/features/account/components/AccountProfilePage.tsx');
+    expect(accountPage).not.toContain("from '@/features/public-site/client/shell'");
+    expect(accountPage).not.toContain('<PublicSiteHeader');
+    expect(accountWorkspace).toContain('<AccountWorkspaceHeader');
+    expect(accountWorkspace).not.toContain('StudioHeader');
   });
 
   it('shows live account state on every public marketing shell', () => {
@@ -105,7 +109,8 @@ describe('consolidated public routes and account navigation', () => {
     expect(authControls).not.toContain('SignInButton');
 
     const account = readSource('src/features/account/components/AccountProfilePage.tsx');
-    expect(account).toContain('Profile &amp; security');
+    const accountUtilities = readSource('src/features/account/components/AccountUtilityPanel.tsx');
+    expect(accountUtilities).toContain('Profile & security');
     expect(account).not.toContain('>Manage Account</Link>');
   });
 });

@@ -8,17 +8,16 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('unified account dashboard', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const dashboard = readSource('src/features/account/components/AccountProfilePage.tsx');
+  const accountUtilities = readSource('src/features/account/components/AccountUtilityPanel.tsx');
   const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
   const developerStatus = readSource('src/features/account/components/AccountDeveloperStatusSection.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
 
   it('keeps the library as one part of the wider account control center', () => {
-    expect(dashboard).toContain('Home');
-    expect(dashboard).toContain("href: '/account?section=library'");
-    expect(dashboard).toContain("href: '/account?section=storage'");
-    expect(dashboard).toContain("href: '/profile'");
+    expect(dashboard).toContain('<AccountWorkspaceHeader');
+    expect(dashboard).toContain('<AccountUtilityPanel');
+    expect(dashboard).toContain('Good to see you');
     expect(dashboard).toContain('Plan & billing');
-    expect(dashboard).toContain("showDeveloper ? (");
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
   });
 
@@ -29,7 +28,8 @@ describe('unified account dashboard', () => {
     expect(dashboard).toContain("activeSection === 'library'");
     expect(dashboard).toContain("activeSection === 'storage'");
     expect(dashboard).toContain("activeSection === 'billing'");
-    expect(dashboard).toContain("aria-current={activeSection === link.id ? 'page' : undefined}");
+    expect(dashboard).not.toContain('DashboardNav');
+    expect(dashboard).not.toContain('AccountShortcut');
     expect(dashboard).not.toContain("href: '#library'");
     expect(dashboard).not.toContain('id="storage-and-connections"');
   });
@@ -38,6 +38,7 @@ describe('unified account dashboard', () => {
     expect(accountPage).toContain('library={(');
     expect(accountPage).toContain('storageManagement={(');
     expect(accountPage).toContain('<UnifiedAccountLibrary');
+    expect(accountPage).toContain("view={activeSection === 'home' || activeSection === 'developer' ? 'home' : 'library'}");
     expect(accountPage).toContain('<AccountStorageLibrary');
     expect(accountPage).toContain('embedded');
     expect(accountLibrary).toContain('buildAccountLibraryItems');
@@ -46,11 +47,10 @@ describe('unified account dashboard', () => {
 
   it('makes plan value and storage boundaries visible without implying automatic cloud upload', () => {
     expect(dashboard).toContain('private cloud set slot');
-    expect(dashboard).toContain('Continue creating');
-    expect(dashboard).toContain('Browse your Library');
-    expect(dashboard).toContain('Manage storage');
-    expect(dashboard).toContain('Device-only work is not automatically uploaded or exposed to ChatGPT.');
-    expect(dashboard).toContain('Only sets you explicitly back up use your account cloud slots');
+    expect(accountLibrary).toContain('Continue where you left off');
+    expect(accountLibrary).toContain('Recent work');
+    expect(dashboard).toContain('Storage & connections');
+    expect(accountUtilities).toContain('CardForge Cloud');
   });
 
   it('keeps plan comparison and Stripe-owned subscription actions together', () => {

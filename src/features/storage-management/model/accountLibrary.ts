@@ -41,6 +41,13 @@ export interface AccountLibraryItem {
   references: AccountLibraryReferences;
 }
 
+export type AccountLibraryAction = 'open' | 'continue' | 'view-source' | 'manage-storage';
+
+export interface AccountLibraryMcpWorkflow {
+  availability: 'browser-only' | 'read-only' | 'revision-safe' | 'working-document';
+  tools: string[];
+}
+
 interface LocalSetInput {
   id: string;
   name: string;
@@ -254,4 +261,45 @@ export const getAccountLibrarySourceLabel = (source: AccountLibrarySource): stri
     case 'local-folder': return 'Local folder';
     case 'assistant-draft': return 'Private draft';
   }
+};
+
+export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): AccountLibraryAction[] => {
+  const actions: AccountLibraryAction[] = [];
+
+  if (item.references.workingDraftId) actions.push('continue');
+  else if (item.references.localSetId || item.references.cloudSetId || item.references.driveFileId) actions.push('open');
+
+  if (item.webViewLink) actions.push('view-source');
+  if (item.references.cloudSetId || item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');
+
+  return actions;
+};
+
+export const getAccountLibraryMcpWorkflow = (item: AccountLibraryItem): AccountLibraryMcpWorkflow => {
+  if (item.references.cloudSetId) {
+    return {
+      availability: 'revision-safe',
+      tools: ['list_cloud_sets', 'get_cloud_set', 'checkout_cloud_set', 'commit_cloud_set'],
+    };
+  }
+
+  if (item.references.driveFileId) {
+    return {
+      availability: 'revision-safe',
+      tools: ['list_connected_projects', 'checkout_project', 'commit_project'],
+    };
+  }
+
+  if (item.references.workingDraftId) {
+    return {
+      availability: 'working-document',
+      tools: ['list_agent_working_documents', 'get_agent_install_status'],
+    };
+  }
+
+  if (item.references.personalAssetId) {
+    return { availability: 'read-only', tools: ['search_personal_library'] };
+  }
+
+  return { availability: 'browser-only', tools: [] };
 };

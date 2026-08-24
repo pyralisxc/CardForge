@@ -8,16 +8,25 @@ import {
   ExternalLink,
   FileArchive,
   FolderOpen,
+  HardDrive,
   ImageIcon,
   Loader2,
+  MoreHorizontal,
   Sparkles,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import type {
-  AccountLibraryItem,
-  AccountLibraryKind,
-  AccountLibrarySource,
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  getAccountLibraryAvailableActions,
+  type AccountLibraryItem,
+  type AccountLibraryKind,
+  type AccountLibrarySource,
 } from '../model/accountLibrary';
 
 export const accountLibraryKindLabels: Record<AccountLibraryKind, string> = {
@@ -28,21 +37,21 @@ export const accountLibraryKindLabels: Record<AccountLibraryKind, string> = {
 };
 
 const sourceStyles: Record<AccountLibrarySource, string> = {
-  device: 'border-sky-700/60 bg-sky-950/35 text-sky-100',
-  'cardforge-cloud': 'border-amber-700/60 bg-amber-950/35 text-amber-100',
-  'google-drive': 'border-emerald-700/60 bg-emerald-950/35 text-emerald-100',
-  'local-folder': 'border-violet-700/60 bg-violet-950/35 text-violet-100',
-  'assistant-draft': 'border-fuchsia-700/60 bg-fuchsia-950/35 text-fuchsia-100',
+  device: 'border-sky-800/50 bg-sky-950/20 text-sky-100',
+  'cardforge-cloud': 'border-amber-800/50 bg-amber-950/20 text-amber-100',
+  'google-drive': 'border-emerald-800/50 bg-emerald-950/20 text-emerald-100',
+  'local-folder': 'border-violet-800/50 bg-violet-950/20 text-violet-100',
+  'assistant-draft': 'border-fuchsia-800/50 bg-fuchsia-950/20 text-fuchsia-100',
 };
 
-const formatBytes = (bytes: number | null) => {
+export const formatAccountLibraryBytes = (bytes: number | null) => {
   if (bytes === null || !Number.isFinite(bytes)) return null;
   if (bytes < 1024) return `${Math.max(0, Math.round(bytes))} B`;
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 };
 
-const formatDate = (value: string | null) => {
+export const formatAccountLibraryDate = (value: string | null) => {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -55,11 +64,11 @@ const formatDate = (value: string | null) => {
   }).format(date);
 };
 
-const KindIcon = ({ kind }: { kind: AccountLibraryKind }) => {
-  if (kind === 'set') return <Boxes className="h-4 w-4" />;
-  if (kind === 'project') return <FileArchive className="h-4 w-4" />;
-  if (kind === 'asset') return <ImageIcon className="h-4 w-4" />;
-  return <Sparkles className="h-4 w-4" />;
+const KindIcon = ({ kind, className = 'h-4 w-4' }: { kind: AccountLibraryKind; className?: string }) => {
+  if (kind === 'set') return <Boxes className={className} />;
+  if (kind === 'project') return <FileArchive className={className} />;
+  if (kind === 'asset') return <ImageIcon className={className} />;
+  return <Sparkles className={className} />;
 };
 
 export function AccountLibrarySourceBadge({
@@ -69,7 +78,69 @@ export function AccountLibrarySourceBadge({
   source: AccountLibrarySource;
   children: ReactNode;
 }) {
-  return <span className={`border px-2 py-0.5 text-[11px] font-semibold ${sourceStyles[source]}`}>{children}</span>;
+  return <span className={`inline-flex border px-2 py-0.5 text-[11px] font-medium ${sourceStyles[source]}`}>{children}</span>;
+}
+
+function ItemActions({
+  item,
+  featured,
+  busy,
+  anyItemBusy,
+  onOpen,
+}: {
+  item: AccountLibraryItem;
+  featured: boolean;
+  busy: boolean;
+  anyItemBusy: boolean;
+  onOpen: (item: AccountLibraryItem) => Promise<void>;
+}) {
+  const actions = getAccountLibraryAvailableActions(item);
+  const canContinue = actions.includes('continue');
+  const canOpen = actions.includes('open');
+  const canViewSource = actions.includes('view-source');
+  const canManageStorage = actions.includes('manage-storage');
+  const primaryIsSource = !canContinue && !canOpen && canViewSource;
+  const primaryIsStorage = !canContinue && !canOpen && !canViewSource && canManageStorage;
+  const hasSecondary = (canViewSource && !primaryIsSource) || (canManageStorage && !primaryIsStorage);
+
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-1">
+      {canContinue ? (
+        <Button asChild size="sm" variant={featured ? 'default' : 'ghost'}>
+          <Link href={`/studio?document=${encodeURIComponent(item.references.workingDraftId ?? '')}&revision=${encodeURIComponent(item.revision ?? '')}`}>
+            Continue
+          </Link>
+        </Button>
+      ) : canOpen ? (
+        <Button type="button" size="sm" variant={featured ? 'default' : 'ghost'} disabled={anyItemBusy} onClick={() => { void onOpen(item); }}>
+          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : featured && item.references.cloudSetId && !item.references.localSetId ? <CloudDownload className="mr-2 h-4 w-4" /> : featured ? <FolderOpen className="mr-2 h-4 w-4" /> : null}
+          {featured ? 'Resume' : 'Open'}
+        </Button>
+      ) : primaryIsSource && item.webViewLink ? (
+        <Button asChild size="sm" variant="ghost"><a href={item.webViewLink} target="_blank" rel="noreferrer">View source</a></Button>
+      ) : primaryIsStorage ? (
+        <Button asChild size="sm" variant="ghost"><Link href="/account?section=storage">Manage</Link></Button>
+      ) : null}
+
+      {hasSecondary ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="icon" variant="ghost" aria-label={`More actions for ${item.name}`}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="border-[var(--cf-border)] bg-[var(--cf-surface-raised)] text-[var(--cf-text-strong)]">
+            {canViewSource && item.webViewLink && !primaryIsSource ? (
+              <DropdownMenuItem asChild><a href={item.webViewLink} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />View source</a></DropdownMenuItem>
+            ) : null}
+            {canManageStorage && !primaryIsStorage ? (
+              <DropdownMenuItem asChild><Link href="/account?section=storage"><HardDrive className="h-4 w-4" />Manage location</Link></DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  );
 }
 
 export function AccountLibraryItemRow({
@@ -77,52 +148,57 @@ export function AccountLibraryItemRow({
   busy,
   anyItemBusy,
   onOpen,
+  variant = 'workspace',
 }: {
   item: AccountLibraryItem;
   busy: boolean;
   anyItemBusy: boolean;
   onOpen: (item: AccountLibraryItem) => Promise<void>;
+  variant?: 'featured' | 'workspace';
 }) {
-  const dateLabel = formatDate(item.updatedAt);
-  const expirationLabel = formatDate(item.expiresAt);
-  const sizeLabel = formatBytes(item.sizeBytes);
-  const canOpen = Boolean(item.references.localSetId || item.references.cloudSetId || item.references.driveFileId);
+  const dateLabel = formatAccountLibraryDate(item.updatedAt);
+  const expirationLabel = formatAccountLibraryDate(item.expiresAt);
+  const sizeLabel = formatAccountLibraryBytes(item.sizeBytes);
+
+  if (variant === 'featured') {
+    return (
+      <article className="grid gap-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center md:p-4">
+        <div className="grid h-20 w-20 place-items-center border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] text-[var(--cf-accent-strong)]">
+          <KindIcon kind={item.kind} className="h-8 w-8" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate font-serif text-xl font-semibold text-[var(--cf-text-strong)]">{item.name}</h3>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {item.locations.map((location) => (
+              <AccountLibrarySourceBadge key={`${item.id}:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
+            ))}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">
+            {[...item.details, sizeLabel, dateLabel ? `Updated ${dateLabel}` : null, expirationLabel ? `Expires ${expirationLabel}` : null].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        <ItemActions item={item} featured busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} />
+      </article>
+    );
+  }
 
   return (
-    <article className="grid [content-visibility:auto] gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-[var(--cf-accent-strong)]"><KindIcon kind={item.kind} /></span>
+    <article className="grid [content-visibility:auto] gap-3 border-b border-[var(--cf-border-subtle)] py-3 md:grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] text-[var(--cf-accent-strong)]"><KindIcon kind={item.kind} /></span>
+        <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{item.name}</h3>
-          <span className="text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{accountLibraryKindLabels[item.kind].replace(/s$/u, '')}</span>
+          <p className="mt-0.5 truncate text-xs text-[var(--cf-text-subtle)]">{item.details.join(' · ')}</p>
         </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {item.locations.map((location) => (
-            <AccountLibrarySourceBadge key={`${item.id}:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
-          ))}
-        </div>
-        <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">
-          {[...item.details, sizeLabel, dateLabel ? `Updated ${dateLabel}` : null, expirationLabel ? `Expires ${expirationLabel}` : null].filter(Boolean).join(' · ')}
-        </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {item.references.workingDraftId ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/studio?document=${encodeURIComponent(item.references.workingDraftId)}&revision=${encodeURIComponent(item.revision ?? '')}`}>
-              Continue <ExternalLink className="ml-2 h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        ) : canOpen ? (
-          <Button type="button" size="sm" variant="outline" disabled={anyItemBusy} onClick={() => { void onOpen(item); }}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : item.references.cloudSetId && !item.references.localSetId ? <CloudDownload className="mr-2 h-4 w-4" /> : <FolderOpen className="mr-2 h-4 w-4" />}
-            Open
-          </Button>
-        ) : null}
-        {item.webViewLink ? (
-          <Button asChild size="sm" variant="ghost"><a href={item.webViewLink} target="_blank" rel="noreferrer">View source <ExternalLink className="ml-2 h-3.5 w-3.5" /></a></Button>
-        ) : null}
-        {item.references.localFolder ? <Button asChild size="sm" variant="ghost"><Link href="/account?section=storage">Manage storage</Link></Button> : null}
+      <span className="text-xs text-[var(--cf-text-muted)]">{accountLibraryKindLabels[item.kind].replace(/s$/u, '')}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {item.locations.map((location) => (
+          <AccountLibrarySourceBadge key={`${item.id}:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
+        ))}
       </div>
+      <p className="text-xs leading-5 text-[var(--cf-text-muted)]">{dateLabel ?? expirationLabel ?? sizeLabel ?? '—'}</p>
+      <ItemActions item={item} featured={false} busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} />
     </article>
   );
 }

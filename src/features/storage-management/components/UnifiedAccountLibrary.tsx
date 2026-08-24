@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { LibraryBig, Loader2, RefreshCw, Search } from 'lucide-react';
 
@@ -62,6 +63,7 @@ interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
   cloudSetLimit: number;
+  view?: 'home' | 'library';
 }
 
 const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
@@ -75,6 +77,7 @@ export function UnifiedAccountLibrary({
   persistenceScope,
   isSignedIn,
   cloudSetLimit,
+  view = 'library',
 }: UnifiedAccountLibraryProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -286,16 +289,95 @@ export function UnifiedAccountLibrary({
 
   const isLoading = !hydrated || loadingSources || isLoadingCloudSets;
   const cloudLimit = cloud?.limit ?? cloudSetLimit;
+  const featuredItem = items.find((item) => (
+    item.references.localSetId
+    || item.references.workingDraftId
+    || item.references.cloudSetId
+    || item.references.driveFileId
+  )) ?? null;
+  const recentItems = featuredItem
+    ? items.filter((item) => item.id !== featuredItem.id).slice(0, 5)
+    : items.slice(0, 5);
+
+  if (view === 'home') {
+    return (
+      <div>
+        {hydrationProblem || sourceProblems.length > 0 ? (
+          <div className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]" role="status">
+            <p className="font-semibold">Some workspace sources are unavailable</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">{[hydrationProblem, ...sourceProblems].filter((problem): problem is string => Boolean(problem)).map((problem) => <li key={problem}>{problem}</li>)}</ul>
+          </div>
+        ) : null}
+
+        <section aria-labelledby="continue-work-heading">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+              <LibraryBig className="h-4 w-4" />
+              <h2 id="continue-work-heading" className="text-xs font-semibold uppercase tracking-[0.16em]">Continue where you left off</h2>
+            </div>
+            <Button type="button" size="sm" variant="ghost" disabled={isLoading} onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
+            </Button>
+          </div>
+          {featuredItem ? (
+            <AccountLibraryItemRow
+              item={featuredItem}
+              variant="featured"
+              busy={busyItemId === featuredItem.id}
+              anyItemBusy={busyItemId !== null}
+              onOpen={openItem}
+            />
+          ) : (
+            <div className="border border-[var(--cf-border)] py-8 text-center">
+              <p className="text-sm text-[var(--cf-text-muted)]">Your workspace is ready for its first set or project.</p>
+              <Button asChild size="sm" className="mt-4"><Link href="/studio">Create in Studio</Link></Button>
+            </div>
+          )}
+        </section>
+
+        <section className="mt-7" aria-labelledby="recent-work-heading">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
+            <h2 id="recent-work-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Recent work</h2>
+            <Button asChild size="sm" variant="ghost"><Link href="/account?section=library">View all in Library</Link></Button>
+          </div>
+          {recentItems.length > 0 ? (
+            <div>
+              <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
+                <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
+              </div>
+              {recentItems.map((item) => (
+                <AccountLibraryItemRow
+                  key={item.id}
+                  item={item}
+                  busy={busyItemId === item.id}
+                  anyItemBusy={busyItemId !== null}
+                  onOpen={openItem}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="border-b border-[var(--cf-border-subtle)] py-6 text-sm text-[var(--cf-text-muted)]">More sets, projects, assets, and working drafts will appear here as you create or connect them.</p>
+          )}
+        </section>
+
+        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--cf-border)] pt-4 text-xs text-[var(--cf-text-muted)]" aria-label="Workspace source status">
+          <span>CardForge Cloud · {cloud?.used ?? 0} / {cloudLimit} slots</span>
+          <span>Google Drive · {sourceCounts.get('google-drive') ?? 0} items</span>
+          <span>This device · {sourceCounts.get('device') ?? 0} items</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
             <LibraryBig className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em]">Library</span>
           </div>
-          <h2 className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Everything you can continue, reuse, or recover</h2>
+          <h1 className="mt-2 font-serif text-3xl text-[var(--cf-text-strong)]">Everything you can continue, reuse, or recover</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
             One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts. Storage remains with the source named on each item.
           </p>
@@ -312,7 +394,7 @@ export function UnifiedAccountLibrary({
         </Button>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2" aria-label="Library sources">
+      <div className="mt-5 flex flex-wrap gap-2 border-y border-[var(--cf-border-subtle)] py-3" aria-label="Library sources">
         {(['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'] as const).map((source) => (
           <AccountLibrarySourceBadge key={source} source={source}>
             {getAccountLibrarySourceLabel(source)} · {sourceCounts.get(source) ?? 0}
@@ -327,7 +409,13 @@ export function UnifiedAccountLibrary({
         <label className="relative block">
           <span className="sr-only">Search your CardForge library</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search names, sources, and details" className="pl-9" />
+          <Input
+            id="library-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search names, sources, and details"
+            className="pl-9"
+          />
         </label>
         <div className="flex flex-wrap gap-1" aria-label="Filter library by type">
           <Button type="button" size="sm" variant={kind === 'all' ? 'default' : 'outline'} onClick={() => setKind('all')}>All</Button>
@@ -353,7 +441,10 @@ export function UnifiedAccountLibrary({
           {items.length === 0 ? 'Your library is ready for its first set, project, asset, or working draft.' : 'No library items match this filter.'}
         </p>
       ) : (
-        <div className="mt-5 space-y-2">
+        <div className="mt-5">
+          <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
+            <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
+          </div>
           {visibleItems.map((item) => (
             <AccountLibraryItemRow
               key={item.id}
