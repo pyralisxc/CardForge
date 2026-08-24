@@ -6,9 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
-import { parseTextBinding } from '@/domain/rendering';
-import { shouldAutoFitTextElement } from '@/domain/rendering';
+import { parseTextBinding, shouldAutoFitTextElement } from '@/domain/rendering';
 import { textFontSizePx } from '@/features/card-rendering/client';
+import { PersonalLibraryFontPicker } from '@/features/personal-library/client';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
@@ -37,7 +37,7 @@ export function TypographyInspectorPanel({
       <details className="rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
         <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f95a3]">Text Details</summary>
         <div className="mt-2 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <div>
               <Label htmlFor="element-font">Font</Label>
               <Select value={element.fontFamily || 'font-sans'} onValueChange={(value) => onUpdateElement({ fontFamily: value })}>
@@ -45,6 +45,13 @@ export function TypographyInspectorPanel({
                 <SelectContent>{availableFonts.map((font) => <SelectItem key={font.value} value={font.value}>{font.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <PersonalLibraryFontPicker
+              onSelect={(fontValue) => {
+                const boundField = parseTextBinding(element.content).field;
+                if (boundField) onUpsertFieldContract(boundField, { elementId: element.id, fontFamily: fontValue });
+                onUpdateElement({ fontFamily: fontValue });
+              }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>

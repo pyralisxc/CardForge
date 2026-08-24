@@ -3,12 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { CardSet, StoredDisplayCard } from '@/domain/cards';
-import type { DisplayCard } from '@/domain/rendering';
+import { createDeveloperFontFaceCss, type DisplayCard } from '@/domain/rendering';
 import {
   reconstructMinimalTemplateObject,
   type TCGCardTemplate,
 } from '@/domain/templates';
 import { renderCardToPngBlob } from '@/features/card-generator/client';
+import {
+  mapProjectFontsToCardFontOptions,
+  normalizeProjectFontAssets,
+  type ProjectFontAsset,
+} from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { StudioDocumentAssetDownload } from '../assetReferences';
 import { hydrateStudioDocumentAssetValue } from '../client/studioDocumentAssetHydration';
@@ -21,7 +26,12 @@ interface CardSetDraftPreviewPayload {
   set: CardSet;
   cards: StoredDisplayCard[];
   templates: TCGCardTemplate[];
+  customFonts: ProjectFontAsset[];
   assets: StudioDocumentAssetDownload[];
+}
+
+interface HydratedCardSetDraftPreviewPayload extends CardSetDraftPreviewPayload {
+  fontFaceCss: string;
 }
 
 interface RenderedCardPreview {
@@ -48,7 +58,7 @@ const getCardTitle = (card: StoredDisplayCard, index: number) => String(
 );
 
 export function CardSetDraftPreviewClient() {
-  const [payload, setPayload] = useState<CardSetDraftPreviewPayload | null>(null);
+  const [payload, setPayload] = useState<HydratedCardSetDraftPreviewPayload | null>(null);
   const [renderedCards, setRenderedCards] = useState<RenderedCardPreview[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -76,12 +86,16 @@ export function CardSetDraftPreviewClient() {
         const hydrated = await hydrateStudioDocumentAssetValue({
           cards: preview.cards,
           templates: preview.templates,
+          customFonts: preview.customFonts ?? [],
         }, preview.assets ?? []);
+        const customFonts = normalizeProjectFontAssets(hydrated.customFonts);
         setPayload({
           ...preview,
           cards: hydrated.cards,
           templates: hydrated.templates.map((template) => reconstructMinimalTemplateObject(template)),
+          customFonts,
           assets: [],
+          fontFaceCss: createDeveloperFontFaceCss(mapProjectFontsToCardFontOptions(customFonts)),
         });
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -136,6 +150,7 @@ export function CardSetDraftPreviewClient() {
     setRenderedCards([]);
     void (async () => {
       try {
+        if (document.fonts) await document.fonts.ready;
         const previews: RenderedCardPreview[] = [];
         for (let index = 0; index < displayCards.length; index += 1) {
           const card = displayCards[index]!;
@@ -176,6 +191,7 @@ export function CardSetDraftPreviewClient() {
   if (errorMessage) {
     return (
       <main className="min-h-screen bg-[#090b0f] p-4 text-red-100">
+        {payload?.fontFaceCss ? <style data-cardforge-preview-fonts>{payload.fontFaceCss}</style> : null}
         <div className="mx-auto max-w-xl rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">{errorMessage}</div>
       </main>
     );
@@ -184,6 +200,7 @@ export function CardSetDraftPreviewClient() {
   if (!payload || renderedCards.length !== displayCards.length) {
     return (
       <main className="min-h-screen bg-[#090b0f] p-4 text-[#aab1bd]">
+        {payload?.fontFaceCss ? <style data-cardforge-preview-fonts>{payload.fontFaceCss}</style> : null}
         <div className="mx-auto max-w-xl rounded-lg border border-[#2b3039] bg-[#0d1117] px-4 py-3 text-sm">
           Exporting native CardForge Set preview…
         </div>
@@ -193,6 +210,7 @@ export function CardSetDraftPreviewClient() {
 
   return (
     <main className="min-h-screen bg-[#090b0f] p-3 text-[var(--cf-text)]">
+      {payload.fontFaceCss ? <style data-cardforge-preview-fonts>{payload.fontFaceCss}</style> : null}
       <section className="mx-auto max-w-5xl rounded-xl border border-[#2b3039] bg-[#0d1117] p-3 shadow-2xl">
         <div className="mb-3">
           <p className="text-sm font-semibold">{payload.set.name}</p>

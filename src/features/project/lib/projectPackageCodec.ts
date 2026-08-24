@@ -52,7 +52,7 @@ const decodeBase64 = (value: string): Uint8Array => {
     const binary = globalThis.atob(value.replace(/\s+/gu, ''));
     return Uint8Array.from(binary, (character) => character.charCodeAt(0));
   } catch {
-    throw new ProjectPackageError('One embedded artwork value contains invalid base64 data.');
+    throw new ProjectPackageError('One embedded project asset contains invalid base64 data.');
   }
 };
 
@@ -66,8 +66,8 @@ const encodeBase64 = (bytes: Uint8Array): string => {
   return globalThis.btoa(binary);
 };
 
-const decodeImageDataUri = (value: string): { mimeType: ProjectPackageAssetMimeType; bytes: Uint8Array } | null => {
-  if (!value.startsWith('data:image/')) return null;
+const decodeEmbeddedDataUri = (value: string): { mimeType: ProjectPackageAssetMimeType; bytes: Uint8Array } | null => {
+  if (!value.startsWith('data:')) return null;
   const commaIndex = value.indexOf(',');
   if (commaIndex < 0) return null;
   const metadata = value.slice(5, commaIndex).split(';');
@@ -78,7 +78,7 @@ const decodeImageDataUri = (value: string): { mimeType: ProjectPackageAssetMimeT
     ? decodeBase64(payload)
     : encoder.encode(decodeURIComponent(payload));
   if (bytes.length <= 0 || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
-    throw new ProjectPackageError(`Portable project artwork must be ${Math.round(MAX_PROJECT_PACKAGE_ASSET_BYTES / 1024 / 1024)} MB or smaller per embedded file.`);
+    throw new ProjectPackageError(`Portable project assets must be ${Math.round(MAX_PROJECT_PACKAGE_ASSET_BYTES / 1024 / 1024)} MB or smaller per embedded file.`);
   }
   return { mimeType, bytes };
 };
@@ -90,12 +90,12 @@ const externalizeProjectAssets = async (
 ): Promise<unknown> => {
   if (depth > 80) throw new ProjectPackageError('This project is nested too deeply to package safely.');
   if (typeof value === 'string') {
-    const decoded = decodeImageDataUri(value);
+    const decoded = decodeEmbeddedDataUri(value);
     if (!decoded) return value;
     const id = await hashBytes(decoded.bytes);
     if (!assets.has(id)) {
       if (assets.size >= MAX_PROJECT_PACKAGE_ASSETS) {
-        throw new ProjectPackageError(`A portable CardForge project can contain at most ${MAX_PROJECT_PACKAGE_ASSETS} embedded artwork files.`);
+        throw new ProjectPackageError(`A portable CardForge project can contain at most ${MAX_PROJECT_PACKAGE_ASSETS} embedded asset files.`);
       }
       assets.set(id, {
         descriptor: {
@@ -133,7 +133,7 @@ const hydrateProjectAssets = (
     if (!id) return value;
     const descriptor = descriptors.get(id);
     const bytes = assets.get(id);
-    if (!descriptor || !bytes) throw new ProjectPackageError(`This project is missing required artwork ${id.slice(0, 12)}….`);
+    if (!descriptor || !bytes) throw new ProjectPackageError(`This project is missing required asset ${id.slice(0, 12)}….`);
     return `data:${descriptor.mimeType};base64,${encodeBase64(bytes)}`;
   }
   if (Array.isArray(value)) return value.map((entry) => hydrateProjectAssets(entry, descriptors, assets, depth + 1));
@@ -157,7 +157,7 @@ const getManifestByteLength = (manifest: CardForgeProjectManifestV1): number => 
 const assertPackageBounds = (manifest: CardForgeProjectManifestV1) => {
   const metadataBytes = getManifestByteLength(manifest);
   if (metadataBytes > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
-    throw new ProjectPackageError(`This project has more than ${Math.round(MAX_PROJECT_PACKAGE_METADATA_BYTES / 1024 / 1024)} MB of non-artwork data.`);
+    throw new ProjectPackageError(`This project has more than ${Math.round(MAX_PROJECT_PACKAGE_METADATA_BYTES / 1024 / 1024)} MB of non-asset data.`);
   }
   const totalBytes = metadataBytes + manifest.assets.reduce((total, asset) => total + asset.size, 0);
   if (totalBytes > MAX_PROJECT_PACKAGE_BYTES) {
@@ -260,7 +260,7 @@ export const encodeCardForgeProjectPackage = async (
   for (const descriptor of snapshot.manifest.assets) {
     const bytes = snapshot.assets.get(descriptor.id);
     if (!bytes || bytes.length !== descriptor.size) {
-      throw new ProjectPackageError(`Packaged artwork ${descriptor.id.slice(0, 12)}… does not match its manifest.`);
+      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… does not match its manifest.`);
     }
     zip.file(descriptor.path, bytes, { compression: 'STORE' });
   }
@@ -308,14 +308,14 @@ export const decodeCardForgeProjectPackage = async (
     if (!entry) throw new ProjectPackageError(`This package is missing ${descriptor.path}.`);
     const declaredUncompressedSize = getZipUncompressedSize(entry);
     if (declaredUncompressedSize !== null && declaredUncompressedSize !== descriptor.size) {
-      throw new ProjectPackageError(`Packaged artwork ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
+      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
     }
     const bytes = await entry.async('uint8array');
     if (bytes.length !== descriptor.size || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
-      throw new ProjectPackageError(`Packaged artwork ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
+      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
     }
     const actualId = await hashBytes(bytes);
-    if (actualId !== descriptor.id) throw new ProjectPackageError(`Packaged artwork ${descriptor.id.slice(0, 12)}… failed its integrity check.`);
+    if (actualId !== descriptor.id) throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… failed its integrity check.`);
     totalAssetBytes += bytes.length;
     if (totalAssetBytes + encoder.encode(manifestText).length > MAX_PROJECT_PACKAGE_BYTES) {
       throw new ProjectPackageError('This project expands beyond the safe portable-file limit.');
