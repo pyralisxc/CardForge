@@ -36,10 +36,6 @@ alter table public.cardforge_mcp_workflow_runs enable row level security;
 revoke all privileges on table public.cardforge_mcp_workflow_runs from public, anon, authenticated;
 grant select, insert, update on table public.cardforge_mcp_workflow_runs to service_role;
 
-drop function if exists public.cardforge_record_mcp_workflow_observation(
-  text, text, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, bigint, integer, bigint, boolean, boolean
-);
-
 create or replace function public.cardforge_record_mcp_workflow_observation(
   p_owner_user_id text,
   p_document_key text,
@@ -204,10 +200,17 @@ stable
 security invoker
 set search_path = ''
 as $$
-  with relevant as (
-    select *
-    from public.cardforge_mcp_workflow_runs
-    where started_at >= pg_catalog.now() - pg_catalog.make_interval(days => pg_catalog.greatest(1, pg_catalog.least(p_days, 365)))
+  with requested_window as (
+    select case
+      when p_days < 1 then 1
+      when p_days > 365 then 365
+      else p_days
+    end as days
+  ), relevant as (
+    select workflow.*
+    from public.cardforge_mcp_workflow_runs as workflow
+    cross join requested_window
+    where workflow.started_at >= pg_catalog.now() - pg_catalog.make_interval(days => requested_window.days)
   )
   select
     pg_catalog.count(*)::bigint,
@@ -215,14 +218,14 @@ as $$
     pg_catalog.round(pg_catalog.avg(tool_calls) filter (where completion_kind = 'final_preview'), 2),
     pg_catalog.round(pg_catalog.avg(revisions), 2),
     pg_catalog.round(pg_catalog.avg(revisions) filter (where completion_kind = 'final_preview'), 2),
-    pg_catalog.round(pg_catalog.sum(canonical_renders)::numeric / pg_catalog.nullif(pg_catalog.sum(revisions), 0), 3),
-    pg_catalog.round(pg_catalog.sum(cache_hits)::numeric / pg_catalog.nullif(pg_catalog.sum(render_cache_checks), 0), 3),
-    pg_catalog.coalesce(pg_catalog.sum(retries), 0)::bigint,
-    pg_catalog.coalesce(pg_catalog.sum(validation_failures), 0)::bigint,
-    pg_catalog.coalesce(pg_catalog.sum(revision_conflicts), 0)::bigint,
-    pg_catalog.coalesce(pg_catalog.sum(duplicate_preventions), 0)::bigint,
-    pg_catalog.round(pg_catalog.sum(upload_latency_ms)::numeric / pg_catalog.nullif(pg_catalog.sum(upload_operations), 0), 2),
-    pg_catalog.round(pg_catalog.sum(render_latency_ms)::numeric / pg_catalog.nullif(pg_catalog.sum(render_operations), 0), 2)
+    pg_catalog.round(pg_catalog.sum(canonical_renders)::numeric / nullif(pg_catalog.sum(revisions), 0), 3),
+    pg_catalog.round(pg_catalog.sum(cache_hits)::numeric / nullif(pg_catalog.sum(render_cache_checks), 0), 3),
+    coalesce(pg_catalog.sum(retries), 0)::bigint,
+    coalesce(pg_catalog.sum(validation_failures), 0)::bigint,
+    coalesce(pg_catalog.sum(revision_conflicts), 0)::bigint,
+    coalesce(pg_catalog.sum(duplicate_preventions), 0)::bigint,
+    pg_catalog.round(pg_catalog.sum(upload_latency_ms)::numeric / nullif(pg_catalog.sum(upload_operations), 0), 2),
+    pg_catalog.round(pg_catalog.sum(render_latency_ms)::numeric / nullif(pg_catalog.sum(render_operations), 0), 2)
   from relevant;
 $$;
 
