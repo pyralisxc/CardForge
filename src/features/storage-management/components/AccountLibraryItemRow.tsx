@@ -87,12 +87,14 @@ function ItemActions({
   busy,
   anyItemBusy,
   onOpen,
+  className,
 }: {
   item: AccountLibraryItem;
   featured: boolean;
   busy: boolean;
   anyItemBusy: boolean;
   onOpen: (item: AccountLibraryItem) => Promise<void>;
+  className?: string;
 }) {
   const actions = getAccountLibraryAvailableActions(item);
   const canContinue = actions.includes('continue');
@@ -104,7 +106,7 @@ function ItemActions({
   const hasSecondary = (canViewSource && !primaryIsSource) || (canManageStorage && !primaryIsStorage);
 
   return (
-    <div className="flex shrink-0 items-center justify-end gap-1">
+    <div className={`flex shrink-0 items-center justify-end gap-1 ${className ?? ''}`}>
       {canContinue ? (
         <Button asChild size="sm" variant={featured ? 'default' : 'ghost'}>
           <Link href={`/studio?document=${encodeURIComponent(item.references.workingDraftId ?? '')}&revision=${encodeURIComponent(item.revision ?? '')}`}>
@@ -162,28 +164,28 @@ export function AccountLibraryItemRow({
 
   if (variant === 'featured') {
     return (
-      <article className="grid gap-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center md:p-4">
-        <div className="grid h-20 w-20 place-items-center border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] text-[var(--cf-accent-strong)]">
-          <KindIcon kind={item.kind} className="h-8 w-8" />
-        </div>
+      <article className="grid gap-3 border-y border-[var(--cf-border)] py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-5">
         <div className="min-w-0">
-          <h3 className="truncate font-serif text-xl font-semibold text-[var(--cf-text-strong)]">{item.name}</h3>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <KindIcon kind={item.kind} className="h-4 w-4 shrink-0 text-[var(--cf-accent-strong)]" />
+            <h3 className="truncate font-serif text-lg font-semibold text-[var(--cf-text-strong)] sm:text-xl">{item.name}</h3>
+          </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {item.locations.map((location) => (
               <AccountLibrarySourceBadge key={`${item.id}:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
             ))}
           </div>
-          <p className="mt-2 text-xs leading-5 text-[var(--cf-text-muted)]">
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--cf-text-muted)] sm:line-clamp-none">
             {[...item.details, sizeLabel, dateLabel ? `Updated ${dateLabel}` : null, expirationLabel ? `Expires ${expirationLabel}` : null].filter(Boolean).join(' · ')}
           </p>
         </div>
-        <ItemActions item={item} featured busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} />
+        <ItemActions item={item} featured busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} className="justify-start sm:justify-end" />
       </article>
     );
   }
 
   return (
-    <article className="grid [content-visibility:auto] gap-3 border-b border-[var(--cf-border-subtle)] py-3 md:grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] md:items-center">
+    <article className="grid [content-visibility:auto] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-[var(--cf-border-subtle)] py-3 md:grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] md:gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] text-[var(--cf-accent-strong)]"><KindIcon kind={item.kind} /></span>
         <div className="min-w-0">
@@ -191,14 +193,22 @@ export function AccountLibraryItemRow({
           <p className="mt-0.5 truncate text-xs text-[var(--cf-text-subtle)]">{item.details.join(' · ')}</p>
         </div>
       </div>
-      <span className="text-xs text-[var(--cf-text-muted)]">{accountLibraryKindLabels[item.kind].replace(/s$/u, '')}</span>
-      <div className="flex flex-wrap gap-1.5">
+      <span className="hidden text-xs text-[var(--cf-text-muted)] md:block">{accountLibraryKindLabels[item.kind].replace(/s$/u, '')}</span>
+      <div className="hidden flex-wrap gap-1.5 md:flex">
         {item.locations.map((location) => (
           <AccountLibrarySourceBadge key={`${item.id}:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
         ))}
       </div>
-      <p className="text-xs leading-5 text-[var(--cf-text-muted)]">{dateLabel ?? expirationLabel ?? sizeLabel ?? '—'}</p>
-      <ItemActions item={item} featured={false} busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} />
+      <p className="hidden text-xs leading-5 text-[var(--cf-text-muted)] md:block">{dateLabel ?? expirationLabel ?? sizeLabel ?? '—'}</p>
+      <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-[var(--cf-text-muted)] md:hidden">
+        <span>{accountLibraryKindLabels[item.kind].replace(/s$/u, '')}</span>
+        <span aria-hidden="true">·</span>
+        {item.locations.map((location) => (
+          <AccountLibrarySourceBadge key={`${item.id}:mobile:${location.source}`} source={location.source}>{location.label}</AccountLibrarySourceBadge>
+        ))}
+        <span className="truncate">{dateLabel ?? expirationLabel ?? sizeLabel ?? '—'}</span>
+      </div>
+      <ItemActions item={item} featured={false} busy={busy} anyItemBusy={anyItemBusy} onOpen={onOpen} className="col-start-2 row-start-1 md:col-auto md:row-auto" />
     </article>
   );
 }

@@ -25,7 +25,7 @@ export function PlanChoiceGrid({
 }) {
   return (
     <>
-      <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(16.5rem,82%)] gap-3 overflow-x-auto pb-3 lg:auto-cols-[minmax(17rem,42%)] xl:grid-flow-row xl:grid-cols-4 xl:auto-cols-auto xl:overflow-visible xl:pb-0">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {plans.filter((plan) => plan.isVisible).map((plan) => {
         const isCurrent = currentPlanKey === plan.planKey;
         const href = plan.planKey === 'creator' && creatorHref
@@ -41,7 +41,7 @@ export function PlanChoiceGrid({
             : `Assistant drafts stay active for ${plan.draftRetentionHours} hours`,
         ];
         return (
-          <article key={plan.planKey} className={`flex min-h-full snap-start flex-col border bg-[var(--cf-surface)] p-5 ${isFeatured ? 'border-[var(--cf-accent)]' : 'border-[var(--cf-border)]'}`}>
+          <article key={plan.planKey} className={`flex min-h-full flex-col border bg-[var(--cf-surface)] p-4 sm:p-5 ${isFeatured ? 'border-[var(--cf-accent)]' : 'border-[var(--cf-border)]'}`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <h3 className="font-serif text-2xl font-semibold text-[var(--cf-text-strong)]">{plan.displayName}</h3>
               {isCurrent ? <span className="border border-[var(--cf-success-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-success)]">Current</span> : null}

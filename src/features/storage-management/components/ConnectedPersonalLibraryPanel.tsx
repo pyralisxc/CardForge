@@ -25,9 +25,11 @@ const formatBytes = (bytes: number) => {
 
 export function ConnectedPersonalLibraryPanel({
   canUseConnectedStorage,
+  embedded = false,
   isSignedIn,
 }: {
   canUseConnectedStorage: boolean;
+  embedded?: boolean;
   isSignedIn: boolean;
 }) {
   const { toast } = useToast();
@@ -78,18 +80,20 @@ export function ConnectedPersonalLibraryPanel({
   }, [refresh, toast]);
 
   return (
-    <section className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5" aria-labelledby="connected-library-title">
+    <section className={embedded ? 'py-1' : 'border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5'} aria-labelledby={embedded ? undefined : 'connected-library-title'}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-            <Library className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected assets</span>
+        {!embedded ? (
+          <div>
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+              <Library className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected assets</span>
+            </div>
+            <h2 id="connected-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive asset access</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
+              Authorize and classify files for the unified Library. CardForge stores their role and provider reference; the original bytes remain in Google Drive until you use an asset in a project.
+            </p>
           </div>
-          <h2 id="connected-library-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive asset access</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            Authorize and classify files for the unified Library. CardForge stores their role and provider reference; the original bytes remain in Google Drive until you use an asset in a project.
-          </p>
-        </div>
+        ) : <span className="text-xs leading-5 text-[var(--cf-text-muted)]">Files stay in Drive until you use them in a project.</span>}
         <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={!isSignedIn || Boolean(busyAction)}>
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>

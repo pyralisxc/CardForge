@@ -9,12 +9,16 @@ describe('unified account dashboard', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const dashboard = readSource('src/features/account/components/AccountProfilePage.tsx');
   const accountUtilities = readSource('src/features/account/components/AccountUtilityPanel.tsx');
+  const mobileNavigation = readSource('src/features/account/components/AccountMobileNavigation.tsx');
   const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
+  const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
   const developerStatus = readSource('src/features/account/components/AccountDeveloperStatusSection.tsx');
   const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
   const profileRoute = readSource('src/app/profile/page.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
+  const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
   it('keeps the library as one part of the wider account control center', () => {
     expect(dashboard).toContain('<AccountWorkspaceHeader');
@@ -38,6 +42,28 @@ describe('unified account dashboard', () => {
     expect(dashboard).not.toContain('id="storage-and-connections"');
   });
 
+  it('gives phone users persistent labeled destinations without duplicating the desktop header', () => {
+    expect(dashboard).toContain('<AccountMobileNavigation');
+    expect(mobileNavigation).toContain('Home');
+    expect(mobileNavigation).toContain('Library');
+    expect(mobileNavigation).toContain('Storage');
+    expect(mobileNavigation).toContain('Profile');
+    expect(mobileNavigation).toContain('More');
+    expect(mobileNavigation).toContain('sm:hidden');
+  });
+
+  it('recomposes dense account content instead of clipping desktop layouts on phones', () => {
+    expect(planChoiceGrid).toContain('md:grid-cols-2');
+    expect(planChoiceGrid).toContain('xl:grid-cols-4');
+    expect(planChoiceGrid).not.toContain('grid-flow-col');
+    expect(planChoiceGrid).not.toContain('overflow-x-auto');
+    expect(accountLibraryRow).toContain('md:hidden');
+    expect(accountLibraryRow).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(accountPage).toContain('<LocalProjectFolderPanel\n                embedded');
+    expect(accountPage).toContain('<GoogleDriveProjectStoragePanel\n                embedded');
+    expect(accountPage).toContain('<ConnectedPersonalLibraryPanel\n                embedded');
+  });
+
   it('separates the unified content library from provider and location management', () => {
     expect(accountPage).toContain('library={(');
     expect(accountPage).toContain('storageManagement={(');
@@ -56,6 +82,28 @@ describe('unified account dashboard', () => {
     expect(accountLibrary).toContain('Recent work');
     expect(dashboard).toContain('Storage & connections');
     expect(storageWorkspace).toContain('CardForge Cloud space');
+  });
+
+  it('uses a compact home command band and one account status snapshot', () => {
+    expect(accountLibrary).toContain('Account at a glance');
+    expect(accountLibrary).toContain('homeAccessStatus');
+    expect(accountLibrary).toContain('Connections');
+    expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
+    expect(accountLibraryRow).not.toContain('grid-cols-[3.5rem_minmax(0,1fr)]');
+  });
+
+  it('keeps library controls in one responsive toolbar', () => {
+    expect(accountLibrary).toContain('Filter by source');
+    expect(accountLibrary).toContain('Filter by type');
+    expect(accountLibrary).toContain('Sort library');
+    expect(accountLibrary).not.toContain('aria-label="Library sources"');
+    expect(accountLibrary).not.toContain('cardforge-horizontal-strip');
+  });
+
+  it('presents storage measurements and records as flat information rows', () => {
+    expect(storageLibrary).toContain('function StorageMetric');
+    expect(storageLibrary).not.toContain('function StorageSummaryCard');
+    expect(storageLibrary).not.toContain('space-y-2');
   });
 
   it('keeps plan comparison and Stripe-owned subscription actions together', () => {

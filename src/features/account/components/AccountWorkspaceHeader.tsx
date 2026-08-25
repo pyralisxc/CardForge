@@ -32,14 +32,14 @@ export function AccountWorkspaceHeader({
   return (
     <header className="border-b border-[var(--cf-border)] bg-[var(--cf-surface-inset)]">
       <div className="mx-auto flex min-h-16 max-w-[96rem] items-center gap-3 px-4 md:px-6">
-        <Link href="/" prefetch={false} className="inline-flex min-h-11 items-center gap-3 text-[var(--cf-text-strong)]">
+        <Link href="/" prefetch={false} aria-label="CardForge home" className="inline-flex min-h-11 items-center gap-3 text-[var(--cf-text-strong)]">
           <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)]">
             <Image src="/brand/cardforge-studio/brand-mark.svg" alt="" fill priority className="object-contain p-1.5" />
           </span>
           <span className="hidden font-serif text-xl font-semibold sm:inline">CardForge</span>
         </Link>
 
-        <nav aria-label="Workspace destinations" className="ml-1 flex min-w-0 items-center gap-1 md:ml-auto">
+        <nav aria-label="Workspace destinations" className="ml-1 hidden min-w-0 items-center gap-1 sm:flex md:ml-auto">
           <Link href="/account" prefetch={false} aria-current={activeSection === 'home' ? 'page' : undefined} className={workspaceLinkClass(activeSection === 'home')}>
             <Home className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Home</span>
           </Link>
@@ -50,6 +50,14 @@ export function AccountWorkspaceHeader({
             <LibraryBig className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Library</span>
           </Link>
         </nav>
+
+        <Link
+          href="/studio"
+          prefetch={false}
+          className="ml-auto inline-flex min-h-10 items-center gap-2 border border-[var(--cf-border)] px-3 text-xs font-semibold text-[var(--cf-accent-text)] sm:hidden"
+        >
+          <WandSparkles className="h-4 w-4" aria-hidden="true" /> Studio
+        </Link>
 
         <Link
           href="/account?section=library#library-search"
@@ -76,7 +84,7 @@ export function AccountWorkspaceHeader({
           type="button"
           onClick={onOpenMobileAccount}
           aria-label="Open account panel"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center text-[var(--cf-text-strong)] xl:hidden"
+          className="hidden min-h-11 min-w-11 items-center justify-center text-[var(--cf-text-strong)] sm:inline-flex xl:hidden"
         >
           {avatarUrl ? (
             <Image src={avatarUrl} alt="" width={36} height={36} className="h-9 w-9 rounded-full object-cover" unoptimized />

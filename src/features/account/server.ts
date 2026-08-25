@@ -4,6 +4,7 @@ export {
   type AccountEntitlement,
 } from './lib/accountEntitlement';
 export { resolveAccountSection, type AccountSection } from './lib/accountSections';
+export { getAccountAccessLabel } from './lib/accountDisplay';
 export {
   getCardforgeEntitlementForUserId,
   getCardforgeUserAccessForUserId,

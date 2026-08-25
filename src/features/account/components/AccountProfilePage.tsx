@@ -9,13 +9,14 @@ import { CreditCard, HardDrive, ShieldCheck, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
-import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
+import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import type { AccountSection } from '@/features/account/lib/accountSections';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 import type { McpAllowance, McpUsagePlanKey } from '@/features/mcp-usage/client/plans';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { cn } from '@/shared/classNames';
 import { AccountUtilityPanel } from './AccountUtilityPanel';
+import { AccountMobileNavigation } from './AccountMobileNavigation';
 import { AccountWorkspaceHeader } from './AccountWorkspaceHeader';
 
 const AccountDeveloperStatusSection = dynamic(() => import('./AccountDeveloperStatusSection').then((module) => module.AccountDeveloperStatusSection));
@@ -47,17 +48,6 @@ interface AccountProfilePageProps {
   storageManagement?: ReactNode;
 }
 
-const formatAccessExpiration = (value: string | null) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-};
-
 function AccountSectionHeading({
   icon,
   eyebrow,
@@ -70,13 +60,13 @@ function AccountSectionHeading({
   body: string;
 }) {
   return (
-    <div className="mb-6 border-b border-[var(--cf-border)] pb-5">
+    <div className="mb-5 border-b border-[var(--cf-border)] pb-4 md:mb-6 md:pb-5">
       <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
         {icon}
         <span className="text-xs font-semibold uppercase tracking-[0.16em]">{eyebrow}</span>
       </div>
-      <h1 className="mt-2 font-serif text-3xl font-semibold text-[var(--cf-text-strong)]">{title}</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">{body}</p>
+      <h1 className="mt-2 max-w-4xl font-serif text-[1.75rem] font-semibold leading-tight text-[var(--cf-text-strong)] md:text-3xl">{title}</h1>
+      <p className="mt-2 max-w-4xl text-sm leading-5 text-[var(--cf-text-muted)] md:leading-6">{body}</p>
     </div>
   );
 }
@@ -147,23 +137,18 @@ export function AccountProfilePage({
   const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const showCheckout = canStartCheckout && Boolean(platformStatus?.billing.productAccessConfigured);
   const showDesignerCheckout = canStartCheckout && Boolean(platformStatus?.billing.designerPassConfigured);
-  const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
   const showDeveloper = isDeveloper || isOwner;
   const cloudSetLimit = entitlement.capabilities.cloudSetLimit;
 
-  const planLabel = isOwner
-    ? 'Owner access'
-    : isDeveloper
-      ? 'Contributor access'
-      : accessExpiresOn
-        ? `Creator Pass through ${accessExpiresOn}`
-        : entitlement.paidPlan === 'designer'
-          ? 'Designer Pass'
-          : entitlement.canExportClean
-            ? 'Creator Pass'
-            : 'Free';
+  const planLabel = getAccountAccessLabel({
+    isOwner,
+    isDeveloper,
+    accessExpiresAt: entitlement.accessExpiresAt,
+    paidPlan: entitlement.paidPlan,
+    canExportClean: entitlement.canExportClean,
+  });
   const currentPlanKey: McpUsagePlanKey | undefined = isOwner || isDeveloper
     ? undefined
     : entitlement.paidPlan === 'designer'
@@ -195,9 +180,9 @@ export function AccountProfilePage({
 
       <div className={cn(
         'mx-auto grid min-h-[calc(100vh-4rem)] max-w-[96rem]',
-        desktopAccountOpen ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : 'grid-cols-1',
+        desktopAccountOpen ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1',
       )}>
-        <section className="min-w-0 px-4 py-6 md:px-8 md:py-8 xl:px-10">
+        <section className="min-w-0 px-4 pb-24 pt-5 sm:pb-8 md:px-8 md:py-8 xl:px-10">
           {entitlement.entitlementError ? (
             <div role="status" className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">
               Account access could not be verified, so CardForge is not presenting this as signed-out or Free. Local work remains available. Retry account or cloud actions after the service recovers.
@@ -206,8 +191,8 @@ export function AccountProfilePage({
 
           {showHome ? (
             <div>
-              <div className="mb-6 border-b border-[var(--cf-border)] pb-6">
-                <h1 className="font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
+              <div className="mb-5 border-b border-[var(--cf-border)] pb-5 md:mb-6 md:pb-6">
+                <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
                   {effectiveSignedIn ? `Good to see you, ${accountDisplayName ?? 'creator'}.` : 'Your CardForge workspace'}
                 </h1>
                 <p className="mt-2 text-sm text-[var(--cf-text-muted)]">{heroDetail}</p>
@@ -292,17 +277,19 @@ export function AccountProfilePage({
             <AccountUtilityPanel
               accountEmail={effectiveSignedIn ? accountEmail : 'Sign in to connect your account'}
               accountName={accountName}
+              activeSection={displayedSection}
               avatarUrl={clerkIdentity.imageUrl}
               cloudSlotLabel={cloudSlotLabel}
               isOwner={isOwner}
               onClose={() => setDesktopAccountOpen(false)}
-              onNavigate={() => setDesktopAccountOpen(false)}
               planLabel={planLabel}
               showDeveloper={showDeveloper}
             />
           </aside>
         ) : null}
       </div>
+
+      <AccountMobileNavigation activeSection={displayedSection} onOpenMore={() => setMobileAccountOpen(true)} />
 
       <Sheet open={mobileAccountOpen} onOpenChange={setMobileAccountOpen}>
         <SheetContent side="right" className="w-[min(92vw,24rem)] border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-0 sm:max-w-sm">
@@ -311,6 +298,7 @@ export function AccountProfilePage({
           <AccountUtilityPanel
             accountEmail={effectiveSignedIn ? accountEmail : 'Sign in to connect your account'}
             accountName={accountName}
+            activeSection={displayedSection}
             avatarUrl={clerkIdentity.imageUrl}
             cloudSlotLabel={cloudSlotLabel}
             isOwner={isOwner}

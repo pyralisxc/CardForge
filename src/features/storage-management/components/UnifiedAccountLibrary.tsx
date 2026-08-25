@@ -7,6 +7,7 @@ import { LibraryBig, Loader2, RefreshCw, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import type { CardAssetOption } from '@/domain/templates';
 import {
@@ -44,12 +45,8 @@ import {
   type AccountLibraryKind,
   type AccountLibrarySource,
 } from '../model/accountLibrary';
-import {
-  AccountLibraryItemRow,
-  AccountLibrarySourceBadge,
-  accountLibraryKindLabels,
-} from './AccountLibraryItemRow';
-
+import { AccountLibraryItemRow, accountLibraryKindLabels } from './AccountLibraryItemRow';
+import { AccountHomeStatusRow, type AccountHomeStatus } from './AccountHomeStatusRow';
 interface StudioDocumentSummary {
   id: string;
   title: string;
@@ -58,25 +55,27 @@ interface StudioDocumentSummary {
   updatedAt: string;
   expiresAt: string;
 }
-
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
   cloudSetLimit: number;
+  homeAccessStatus?: AccountHomeStatus;
+  homeSecurityStatus?: AccountHomeStatus;
   view?: 'home' | 'library';
 }
-
+const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'];
 const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
   [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
   [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
   [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
   [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
 });
-
 export function UnifiedAccountLibrary({
   persistenceScope,
   isSignedIn,
   cloudSetLimit,
+  homeAccessStatus,
+  homeSecurityStatus,
   view = 'library',
 }: UnifiedAccountLibraryProps) {
   const router = useRouter();
@@ -95,6 +94,8 @@ export function UnifiedAccountLibrary({
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<AccountLibraryKind | 'all'>('all');
+  const [source, setSource] = useState<AccountLibrarySource | 'all'>('all');
+  const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
   const deferredQuery = useDeferredValue(query);
 
   const cardSets = useProjectStore((state) => state.cardSets);
@@ -106,7 +107,6 @@ export function UnifiedAccountLibrary({
     loadSetFromCloud,
     refreshCloudSets,
   } = useCloudSetActions({ toast, enabled: isSignedIn });
-
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
@@ -117,10 +117,9 @@ export function UnifiedAccountLibrary({
         if (cancelled) return;
         setHydrationProblem(error instanceof Error ? error.message : 'This device workspace is unavailable.');
         setHydrated(true);
-      });
+    });
     return () => { cancelled = true; };
   }, [persistenceScope]);
-
   const refreshLibrarySources = useCallback(async () => {
     setLoadingSources(true);
     const problems: string[] = [];
@@ -243,15 +242,21 @@ export function UnifiedAccountLibrary({
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       if (kind !== 'all' && item.kind !== kind) return false;
+      if (source !== 'all' && !item.locations.some((location) => location.source === source)) return false;
       if (!normalizedQuery) return true;
       return [item.name, ...item.details, ...item.locations.map((location) => location.label)]
         .join(' ')
         .toLocaleLowerCase()
         .includes(normalizedQuery);
     });
-  }, [deferredQuery, items, kind]);
+    return filtered.toSorted((left, right) => {
+      if (sort === 'name') return left.name.localeCompare(right.name);
+      if (sort === 'kind') return accountLibraryKindLabels[left.kind].localeCompare(accountLibraryKindLabels[right.kind]) || left.name.localeCompare(right.name);
+      return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
+    });
+  }, [deferredQuery, items, kind, sort, source]);
 
   const sourceCounts = useMemo(() => {
     const counts = new Map<AccountLibrarySource, number>();
@@ -298,6 +303,31 @@ export function UnifiedAccountLibrary({
   const recentItems = featuredItem
     ? items.filter((item) => item.id !== featuredItem.id).slice(0, 5)
     : items.slice(0, 5);
+  const hasConnectionProblem = sourceProblems.some((problem) => /drive|connect|asset/iu.test(problem));
+  const connectionStatus: AccountHomeStatus = {
+    label: 'Connections',
+    value: !isSignedIn
+      ? 'Sign in to connect'
+      : loadingSources
+        ? 'Checking connections'
+        : hasConnectionProblem
+          ? 'Connection unavailable'
+          : driveLibrary !== null
+            ? 'Google Drive connected'
+            : 'No provider connected',
+    detail: hasConnectionProblem
+      ? 'A provider could not be reached. Existing work has not been relabeled or removed.'
+      : `${sourceCounts.get('google-drive') ?? 0} Google Drive item${(sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'} available to your Library.`,
+    href: '/account?section=storage',
+    action: 'Manage',
+  };
+  const storageStatus: AccountHomeStatus = {
+    label: 'Storage',
+    value: 'Work is available',
+    detail: `${sourceCounts.get('device') ?? 0} on this device · ${cloud?.used ?? 0} of ${cloudLimit} cloud slots used`,
+    href: '/account?section=storage',
+    action: 'Review',
+  };
 
   if (view === 'home') {
     return (
@@ -310,12 +340,12 @@ export function UnifiedAccountLibrary({
         ) : null}
 
         <section aria-labelledby="continue-work-heading">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
               <LibraryBig className="h-4 w-4" />
-              <h2 id="continue-work-heading" className="text-xs font-semibold uppercase tracking-[0.16em]">Continue where you left off</h2>
+              <h2 id="continue-work-heading" className="text-[11px] font-semibold uppercase tracking-[0.14em] sm:text-xs sm:tracking-[0.16em]">Continue where you left off</h2>
             </div>
-            <Button type="button" size="sm" variant="ghost" disabled={isLoading} onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}>
+            <Button type="button" size="sm" variant="ghost" className="shrink-0 px-2 sm:px-3" disabled={isLoading} onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
             </Button>
           </div>
@@ -333,6 +363,16 @@ export function UnifiedAccountLibrary({
               <Button asChild size="sm" className="mt-4"><Link href="/studio">Create in Studio</Link></Button>
             </div>
           )}
+        </section>
+
+        <section className="mt-7" aria-labelledby="account-status-heading">
+          <div className="border-b border-[var(--cf-border)] pb-3">
+            <h2 id="account-status-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Account at a glance</h2>
+          </div>
+          {homeAccessStatus ? <AccountHomeStatusRow status={homeAccessStatus} /> : null}
+          <AccountHomeStatusRow status={storageStatus} />
+          <AccountHomeStatusRow status={connectionStatus} />
+          {homeSecurityStatus ? <AccountHomeStatusRow status={homeSecurityStatus} /> : null}
         </section>
 
         <section className="mt-7" aria-labelledby="recent-work-heading">
@@ -360,11 +400,6 @@ export function UnifiedAccountLibrary({
           )}
         </section>
 
-        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--cf-border)] pt-4 text-xs text-[var(--cf-text-muted)]" aria-label="Workspace source status">
-          <span>CardForge Cloud · {cloud?.used ?? 0} / {cloudLimit} slots</span>
-          <span>Google Drive · {sourceCounts.get('google-drive') ?? 0} items</span>
-          <span>This device · {sourceCounts.get('device') ?? 0} items</span>
-        </div>
       </div>
     );
   }
@@ -394,18 +429,7 @@ export function UnifiedAccountLibrary({
         </Button>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2 py-2" aria-label="Library sources">
-        {(['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'] as const).map((source) => (
-          <AccountLibrarySourceBadge key={source} source={source}>
-            {getAccountLibrarySourceLabel(source)} · {sourceCounts.get(source) ?? 0}
-          </AccountLibrarySourceBadge>
-        ))}
-        <span className="border border-[var(--cf-border-subtle)] px-2.5 py-1 text-xs text-[var(--cf-text-muted)]">
-          Cloud slots {cloud?.used ?? 0} / {cloudLimit}
-        </span>
-      </div>
-
-      <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_12rem_12rem_10rem]" aria-label="Library toolbar">
         <label className="relative block">
           <span className="sr-only">Search your CardForge library</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" />
@@ -417,14 +441,28 @@ export function UnifiedAccountLibrary({
             className="pl-9"
           />
         </label>
-        <div className="flex flex-wrap gap-1" aria-label="Filter library by type">
-          <Button type="button" size="sm" variant={kind === 'all' ? 'default' : 'outline'} onClick={() => setKind('all')}>All</Button>
-          {ACCOUNT_LIBRARY_KINDS.map((option) => (
-            <Button key={option} type="button" size="sm" variant={kind === option ? 'default' : 'outline'} onClick={() => setKind(option)}>
-              {accountLibraryKindLabels[option]}
-            </Button>
-          ))}
-        </div>
+        <Select value={source} onValueChange={(value) => setSource(value as AccountLibrarySource | 'all')}>
+          <SelectTrigger aria-label="Filter by source"><SelectValue placeholder="All sources" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sources · {items.length}</SelectItem>
+            {LIBRARY_SOURCES.map((option) => <SelectItem key={option} value={option}>{getAccountLibrarySourceLabel(option)} · {sourceCounts.get(option) ?? 0}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={kind} onValueChange={(value) => setKind(value as AccountLibraryKind | 'all')}>
+          <SelectTrigger aria-label="Filter by type"><SelectValue placeholder="All types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {ACCOUNT_LIBRARY_KINDS.map((option) => <SelectItem key={option} value={option}>{accountLibraryKindLabels[option]}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(value) => setSort(value as 'recent' | 'name' | 'kind')}>
+          <SelectTrigger aria-label="Sort library"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Recently updated</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="kind">Type</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {hydrationProblem || sourceProblems.length > 0 ? (

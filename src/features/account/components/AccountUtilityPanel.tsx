@@ -14,7 +14,11 @@ import {
   X,
 } from 'lucide-react';
 
+import type { AccountSection } from '../lib/accountSections';
+import { cn } from '@/shared/classNames';
+
 interface AccountUtilityPanelProps {
+  activeSection: AccountSection;
   accountEmail: string;
   accountName: string;
   avatarUrl: string | null;
@@ -31,12 +35,14 @@ function UtilityLink({
   icon,
   title,
   detail,
+  active,
   onNavigate,
 }: {
   href: string;
   icon: ReactNode;
   title: string;
   detail: string;
+  active: boolean;
   onNavigate?: () => void;
 }) {
   return (
@@ -44,7 +50,13 @@ function UtilityLink({
       href={href}
       prefetch={false}
       onClick={onNavigate}
-      className="group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--cf-border-subtle)] py-3 text-left"
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--cf-border-subtle)] px-2 py-3 text-left transition-colors',
+        active
+          ? 'border-l-2 border-l-[var(--cf-accent-strong)] bg-[var(--cf-surface-raised)]'
+          : 'hover:bg-[var(--cf-surface-hover)]',
+      )}
     >
       <span className="text-[var(--cf-accent-strong)]">{icon}</span>
       <span className="min-w-0">
@@ -57,6 +69,7 @@ function UtilityLink({
 }
 
 export function AccountUtilityPanel({
+  activeSection,
   accountEmail,
   accountName,
   avatarUrl,
@@ -93,11 +106,11 @@ export function AccountUtilityPanel({
         </div>
 
         <nav aria-label="Account management">
-          <UtilityLink href="/account?section=profile" icon={<ShieldCheck className="h-5 w-5" />} title="Profile & security" detail="Identity, sign-in methods, and sessions" onNavigate={onNavigate} />
-          {isOwner ? <UtilityLink href="/owner" icon={<UserCog className="h-5 w-5" />} title="Owner access" detail="Manage CardForge operations" onNavigate={onNavigate} /> : null}
-          <UtilityLink href="/account?section=billing" icon={<CreditCard className="h-5 w-5" />} title="Plan & billing" detail="Plans, payments, invoices, and cancellation" onNavigate={onNavigate} />
-          <UtilityLink href="/account?section=storage" icon={<HardDrive className="h-5 w-5" />} title="Storage & connections" detail={`Providers, permissions, and ${cloudSlotLabel}`} onNavigate={onNavigate} />
-          {showDeveloper ? <UtilityLink href="/account?section=developer" icon={<Wrench className="h-5 w-5" />} title="Developer tools" detail="Owner and contributor workspaces" onNavigate={onNavigate} /> : null}
+          <UtilityLink active={activeSection === 'profile'} href="/account?section=profile" icon={<ShieldCheck className="h-5 w-5" />} title="Profile & security" detail="Identity, sign-in methods, and sessions" onNavigate={onNavigate} />
+          {isOwner ? <UtilityLink active={false} href="/owner" icon={<UserCog className="h-5 w-5" />} title="Owner access" detail="Manage CardForge operations" onNavigate={onNavigate} /> : null}
+          <UtilityLink active={activeSection === 'billing'} href="/account?section=billing" icon={<CreditCard className="h-5 w-5" />} title="Plan & billing" detail="Plans, payments, invoices, and cancellation" onNavigate={onNavigate} />
+          <UtilityLink active={activeSection === 'storage'} href="/account?section=storage" icon={<HardDrive className="h-5 w-5" />} title="Storage & connections" detail={`Providers, permissions, and ${cloudSlotLabel}`} onNavigate={onNavigate} />
+          {showDeveloper ? <UtilityLink active={activeSection === 'developer'} href="/account?section=developer" icon={<Wrench className="h-5 w-5" />} title="Developer tools" detail="Owner and contributor workspaces" onNavigate={onNavigate} /> : null}
         </nav>
       </div>
     </div>

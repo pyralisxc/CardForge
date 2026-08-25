@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { AccountProfilePage } from '@/features/account/client/profile';
 import {
   getCurrentCardforgeEntitlement,
+  getAccountAccessLabel,
   isClerkAuthConfigured,
   resolveAccountEntitlement,
   resolveAccountSection,
@@ -67,6 +68,15 @@ export default async function AccountPage({
     accountUserId: entitlement.accountUserId,
   });
   const accountContent = createSiteContentMap(accountContentBlocks);
+  const isOwner = entitlement.isSignedIn && entitlement.ownerAccess.isOwner;
+  const isDeveloper = entitlement.isSignedIn && entitlement.accessMode === 'dev';
+  const accessLabel = getAccountAccessLabel({
+    isOwner,
+    isDeveloper,
+    accessExpiresAt: entitlement.accessExpiresAt,
+    paidPlan: entitlement.paidPlan,
+    canExportClean: entitlement.canExportClean,
+  });
 
   return (
     <CardForgeAppProviders scope="shell">
@@ -89,6 +99,20 @@ export default async function AccountPage({
             persistenceScope={persistenceScope}
             isSignedIn={entitlement.isSignedIn}
             cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+            homeAccessStatus={{
+              label: 'Access',
+              value: accessLabel,
+              detail: `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
+              href: '/account?section=billing',
+              action: 'Review',
+            }}
+            homeSecurityStatus={{
+              label: 'Security',
+              value: entitlement.isSignedIn ? 'Connected account' : 'Sign-in required',
+              detail: entitlement.isSignedIn ? 'Clerk manages identity, sign-in methods, devices, and sessions.' : 'Connect an account to manage identity and sessions.',
+              href: '/account?section=profile',
+              action: entitlement.isSignedIn ? 'Review' : 'Sign in',
+            }}
             view={activeSection === 'home' || activeSection === 'developer' ? 'home' : 'library'}
           />
         )}
@@ -102,15 +126,18 @@ export default async function AccountPage({
                 cloudSetLimit={entitlement.capabilities.cloudSetLimit}
               />}
               localProjectFolder={<LocalProjectFolderPanel
+                embedded
                 persistenceScope={persistenceScope}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
               />}
               googleDriveProjects={<GoogleDriveProjectStoragePanel
+                embedded
                 persistenceScope={persistenceScope}
                 isSignedIn={entitlement.isSignedIn}
                 canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
               />}
               connectedAssets={<ConnectedPersonalLibraryPanel
+                embedded
                 isSignedIn={entitlement.isSignedIn}
                 canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
               />}
