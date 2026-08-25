@@ -125,6 +125,7 @@ describe('unified account dashboard', () => {
   it('keeps provider-native profile controls inside the account workspace', () => {
     expect(accountUtilities).toContain('href="/account?section=profile"');
     expect(profileManagement).toContain('<UserProfile');
+    expect(profileManagement).not.toContain('elements:');
     expect(profileManagement).not.toContain('ProfileShell');
     expect(profileRoute).toContain("redirect('/account?section=profile')");
     expect(profileRoute).not.toContain('<PublicSiteHeader');

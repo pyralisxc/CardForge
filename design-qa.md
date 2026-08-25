@@ -10,7 +10,7 @@
 **Findings**
 
 - No actionable P0, P1, or P2 mismatch remains.
-- [P3] The local signed-out capture cannot prove owner-only destinations, a connected Google Drive identity, or Clerk's native signed-in profile controls. Those require the Vercel Preview owner session and are part of hosted verification, not a visual implementation gap.
+- [P3] The local signed-out capture could not prove owner-only destinations, connected Google Drive identity, or Clerk's native signed-in profile controls. The first hosted candidate proved those states and exposed a Clerk structural-customization warning; the unsupported structural appearance overrides were removed for the final candidate.
 - [P3] Account Home intentionally keeps CardForge's existing workspace header and optional right utility rail. The selected concept explicitly defined a hierarchy contract rather than a replacement theme.
 
 **Fidelity surfaces checked**
@@ -29,7 +29,7 @@
 - Desktop Storage: expanding the device/cloud location reveals flat capacity metrics and exact-location actions without creating nested dashboard cards.
 - Mobile Home and Library at 390 × 844: no horizontal overflow (`scrollWidth === clientWidth === 375`); headings, controls, rows, Resume action, and persistent account dock recompose without clipping.
 - Mobile Storage: all five location disclosures remain visible, compact, and keyboard-native.
-- Console review: local errors are limited to expected environment boundaries—production Clerk keys reject localhost and the provider-backed MCP allowance read is unavailable locally. Neither error is caused by the Account UI changes; hosted Preview is the valid proof path for those integrations.
+- Console review: local errors are limited to expected environment boundaries—production Clerk keys reject localhost and the provider-backed MCP allowance read is unavailable locally. The first hosted candidate surfaced a Clerk structural-customization warning, which was corrected by retaining supported appearance variables and removing structural element overrides. Extension-origin warnings are external to CardForge.
 
 **Focused region comparison**
 
@@ -40,6 +40,7 @@
 
 - Initial implementation evidence showed no P0/P1/P2 visual mismatch against the selected hierarchy contract.
 - Code-health review found a public-interface violation and a Library owner above the repository's readability threshold. The access-label helper was routed through Account's public server interface, and the Home status-row presentation was extracted to its own component. Post-fix architecture verification reports zero violations and no Account file-size warning.
+- First hosted verification proved Owner access, five cloud slots, one connected Google Drive project, unified filtering, and native account destinations. It also exposed Clerk's structural appearance warning; removing the `appearance.elements` overrides leaves Clerk's prebuilt profile structure provider-owned while CardForge retains supported color and typography variables.
 
 **Follow-up polish**
 

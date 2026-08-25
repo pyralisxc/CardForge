@@ -23,12 +23,6 @@ const clerkAppearance = {
     borderRadius: '0px',
     fontFamily: 'var(--font-cardforge-lato), sans-serif',
   },
-  elements: {
-    rootBox: 'w-full',
-    cardBox: 'w-full shadow-none border-0 bg-transparent',
-    navbar: 'bg-[var(--cf-surface-inset)] border-r border-[var(--cf-border)]',
-    pageScrollBox: 'bg-transparent p-0',
-  },
 };
 
 export function ProfileSetupFallback() {
