@@ -1,64 +1,55 @@
-# Environment Foundation Design QA
+# CardForge Account Home Design QA
 
-## Result
+## Evidence
 
-Final result: passed
+- Source visual truth: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\local-foundation-source.png`
+- Implementation: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\local-account-home-desktop.png`
+- Combined comparison: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-home-design-comparison.png`
+- Mobile implementation: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\local-account-home-mobile.png`
+- Mobile detail state: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\local-account-home-mobile-detail.png`
+- Post-fix selected-detail evidence: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\local-account-home-mobile-detail-final.png`
+- Desktop source pixels: 1264 × 855. Desktop implementation pixels: 1264 × 768. Both were captured at the same default browser width and 1× browser density; the height difference is content-driven because the source includes a laboratory banner and simulated recent objects.
+- Mobile implementation pixels and CSS viewport: 390 × 844 at 1× density.
+- State: approved Home recipe with simulated owner data compared against the live local Account Home with real signed-out/local workspace data. Permission-specific zone count, greeting, and object content are expected data-state differences.
 
-## Sources and implementation evidence
+## Full-view comparison
 
-- Home reference: `assets/brand/cardforge-studio/concepts/home-zone-alpha.png` — 1484 × 1060.
-- Profile reference: `assets/brand/cardforge-studio/concepts/profile-zone-alpha.png` — 1487 × 1058.
-- Studio reference: `assets/brand/cardforge-studio/concepts/studio-set-desk-alpha.png` — 1487 × 1058.
-- Desktop implementation: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-1484x1060-final.png` — 1484 × 877 captured browser area at the reference width.
-- Tablet master/detail: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-library-tablet-foundation.png` — 900 × 1024 requested viewport.
-- Mobile Home: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-mobile-320x568-verified.png` — 320 × 568 requested viewport; 305 × 541 browser content area.
-- Mobile detail: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-mobile-detail-320x568-verified.png` — 320 × 568.
-- Guest Studio: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-guest-studio-mobile-final.png` — 320 × 568 requested viewport.
-- Short landscape: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-landscape-844x390.png` — 844 × 390.
+The implementation preserves the selected Environment Foundation composition: narrow zone rail, compact command band, one primary surface, fine-divided current-work/account/more-work groups, low-chrome status footer, and the same dark brass product tokens. No major-region proportion, density, overflow, or hierarchy mismatch remains.
 
-The source and implementation were opened together for direct comparison. The Home comparison used the exact reference width; the in-app browser capped the available capture height below the 1060-pixel reference height, so the focused density and navigation comparison uses the complete visible implementation plus the mobile captures.
+## Focused comparison
 
-## Compared state
+The compact current-work row, four account truth rows, selected-row treatment, desktop inspector, and mobile bottom sheet were inspected separately because their text and interaction state are too small to judge from the combined full view. Mobile keeps the same hierarchy in 48–55 px rows and does not turn status information into oversized cards.
 
-- Owner-mode Home, default selection, command band visible.
-- Library with a Google Drive project selected and the responsive detail surface open.
-- Profile grouped settings.
-- Studio Set Desk.
-- Signed-out Guest Studio.
-- Mobile account snapshot and Plan progressive-disclosure sheet.
+## Required fidelity surfaces
 
-## Five fidelity surfaces
+- Fonts and typography: the implementation reuses the exact CardForge display/body tokens and Environment component weights, sizes, line heights, and tracking. Mobile headings and labels wrap without clipping.
+- Spacing and layout rhythm: command, section, row, footer, inspector, and sheet spacing match the shared Foundation components. The real Home is shorter only because its real local state has no additional recent objects.
+- Colors and visual tokens: implementation and source use the same canvas, inset surface, brass accent, border, success, warning, and muted-text tokens. Contrast and state meaning are not color-only.
+- Image quality and asset fidelity: both use the existing CardForge brand-mark asset and Lucide icon set already selected for the Foundation. No placeholder, generated, CSS-drawn, or approximate logo asset was introduced.
+- Copy and content: fixture language was replaced with authentic account, storage, source, and temporary-work wording. CardForge Cloud is explicitly labeled as retiring rather than presented as the long-term storage direction.
 
-1. Structure: passed. Zone rail, command band, primary surface, detail surface, and footer retain the concept hierarchy. Mobile transforms to a bottom zone bar and modal sheet.
-2. Visual language: passed. Existing CardForge canvas, warm gold accent, serif headings, border rhythm, icon family, and real brand/card assets are preserved.
-3. Density: passed. The concept's large Home hero is intentionally replaced by the approved compact-row direction. At 320 × 568, Account snapshot rows are 48 pixels high and grouped rather than presented as large cards.
-4. Responsive behavior: passed. No horizontal overflow at 320 × 568, 900 × 1024, or 844 × 390. The mobile sheet contains the primary object action, layers above navigation, closes with Escape, and restores row focus.
-5. Product semantics: passed. Provider/source labels remain visible; role-specific actions do not leak; Guest Studio exposes only Studio; boundary states preserve available work; simulation data is unmistakably labeled.
+## Interaction and browser checks
 
-## Focused region comparison
-
-The mobile Account snapshot was compared separately because it is the explicit correction target. The final layout shows compact Plan, Storage, Connections, and Security rows in one grouped ledger, with values visible inline and secondary explanation removed from the collapsed mobile row. Detail and customization are revealed in the bottom sheet.
+- Opened and closed the current Set detail through the row.
+- Confirmed `aria-expanded`, `aria-controls`, inspector visibility, close behavior, and focus-return target.
+- Confirmed the real `Open in Studio` action resolves for the active device Set.
+- Confirmed desktop inspector and mobile bottom-sheet composition.
+- Checked browser logs. The only errors were expected localhost provider-environment failures from production Clerk/Supabase-backed settings and allowances; no new Account Home rendering or interaction exception appeared.
 
 ## Comparison history
 
-- P0: none.
-- P1 resolved: large mobile information cards; overlapping navigation; command-band wrapping; mobile primary actions hidden behind detail; false recipe-wide actions; invented MCP tool names; authenticated MCP claims for Guest Studio; private Lab types leaking into reusable components; custom dialog/menu focus behavior; hidden/disabled action leakage; missing guest proof; missing context restoration; desktop page hidden by an always-open Radix modal.
-- P2 resolved: simulation notice, preview-only route isolation, visible source location, 320-pixel overflow, protected-zone menu, boundary vocabulary sampler, tablet command layout, compact mobile values.
-- Remaining intentional difference: this foundation follows the approved compact information model instead of recreating the alpha Home hero card. That difference is the purpose of this iteration, not a fidelity miss.
+### Iteration 1
 
-## Interaction and accessibility verification
+- [P2] Selected disclosure styling still targeted the former `aria-pressed` attribute after the row semantics were corrected to `aria-expanded`.
+- Fix: linked rows to `environment-detail-panel` with `aria-controls`, kept `aria-expanded` as the disclosure truth, and updated selected-row CSS selectors to the same state.
+- Post-fix evidence: the selected Set retains the Foundation highlight while the desktop inspector/mobile sheet is open, and the state returns to false after close.
 
-- Zone navigation: Home, Library, Studio, Profile, Developer, and Owner.
-- Protected mobile zones: Radix dropdown.
-- Library search and partial-provider retry affordance.
-- Object-specific and role-specific primary/supporting actions.
-- Owner publication actions present only for Owner review objects.
-- Guest/Owner laboratory switch and full-width single-destination Guest Studio mobile nav.
-- Radix mobile sheet: focus containment, Escape close, primary action parity, row-focus restoration.
-- Per-zone selection/detail restoration across zone switches.
-- Boundary sampler: loading, empty, authentication, authorization, invalid, conflict, not found, limit, unavailable, and offline.
-- Reduced-motion CSS and status text/icon redundancy.
+## Findings
 
-## Console check
+No actionable P0, P1, or P2 visual or interaction differences remain in this cut.
 
-A clean browser tab showed no current Environment Lab runtime or component error. Localhost records the known Clerk production-key origin rejection because the repository uses `cardforges.com` production Clerk keys; this is outside the fixture-only Lab and must be checked again on Vercel Preview. Historical Fast Refresh errors from intermediate edits were excluded by using a clean verification tab. The dev-only Next issue badge seen in mobile screenshots is caused by that same localhost Clerk origin rejection and is not part of the product UI.
+## Follow-up polish
+
+- [P3] Verify the personalized greeting and full Home/Library/Profile/Developer/Owner rail with the signed-in Preview owner identity; localhost intentionally cannot authenticate against the production Clerk domain.
+
+final result: passed

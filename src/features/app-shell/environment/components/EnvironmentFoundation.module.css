@@ -410,11 +410,11 @@
 }
 
 .ledgerRow:hover,
-.ledgerRow[aria-pressed="true"] {
+.ledgerRow[aria-expanded="true"] {
   background: var(--cf-surface-raised);
 }
 
-.ledgerRow[aria-pressed="true"] {
+.ledgerRow[aria-expanded="true"] {
   box-shadow: inset 0.18rem 0 var(--cf-accent-strong);
 }
 
@@ -516,11 +516,11 @@
 }
 
 .settingRow:hover,
-.settingRow[aria-pressed="true"] {
+.settingRow[aria-expanded="true"] {
   background: var(--cf-surface-raised);
 }
 
-.settingRow[aria-pressed="true"] {
+.settingRow[aria-expanded="true"] {
   box-shadow: inset 0.18rem 0 var(--cf-accent-strong);
 }
 

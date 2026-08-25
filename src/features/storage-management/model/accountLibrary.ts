@@ -48,6 +48,34 @@ export interface AccountLibraryMcpWorkflow {
   tools: string[];
 }
 
+export interface AccountHomeLibraryProjection {
+  featuredItem: AccountLibraryItem | null;
+  moreItems: AccountLibraryItem[];
+}
+
+export const resolveAccountHomeLibraryProjection = (
+  items: readonly AccountLibraryItem[],
+  activeSetId: string | null,
+  limit = 5,
+): AccountHomeLibraryProjection => {
+  const byRecency = [...items].sort((left, right) => {
+    const leftTime = Date.parse(left.updatedAt ?? '');
+    const rightTime = Date.parse(right.updatedAt ?? '');
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return rightTime - leftTime;
+    if (Number.isFinite(leftTime)) return -1;
+    if (Number.isFinite(rightTime)) return 1;
+    return left.name.localeCompare(right.name);
+  });
+  const featuredItem = items.find((item) => activeSetId !== null && item.references.localSetId === activeSetId)
+    ?? byRecency.find((item) => item.references.workingDraftId || item.references.driveFileId || item.references.cloudSetId)
+    ?? byRecency[0]
+    ?? null;
+  return {
+    featuredItem,
+    moreItems: (featuredItem ? byRecency.filter((item) => item.id !== featuredItem.id) : byRecency).slice(0, limit),
+  };
+};
+
 interface LocalSetInput {
   id: string;
   name: string;

@@ -2,18 +2,15 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { CreditCard, HardDrive, ShieldCheck, Wrench } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import type { AccountSection } from '@/features/account/lib/accountSections';
-import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
+import { completeSignUpIntent } from '@/features/analytics/client/tracking';
 import type { McpAllowance, McpUsagePlanKey } from '@/features/mcp-usage/client/plans';
-import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { cn } from '@/shared/classNames';
 import { AccountUtilityPanel } from './AccountUtilityPanel';
 import { AccountMobileNavigation } from './AccountMobileNavigation';
@@ -132,7 +129,6 @@ export function AccountProfilePage({
     displayName: clerkIdentity.displayName,
     email: clerkIdentity.email ?? entitlement.accountEmail,
   });
-  const isClerkSetupIncomplete = !entitlement.authConfigured;
   const canStartCheckout = entitlement.authConfigured && effectiveSignedIn && !entitlement.canExportClean;
   const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const showCheckout = canStartCheckout && Boolean(platformStatus?.billing.productAccessConfigured);
@@ -156,16 +152,25 @@ export function AccountProfilePage({
     : entitlement.canExportClean
       ? 'creator'
       : 'free';
-  const heroDetail = isClerkSetupIncomplete
-    ? 'Sign-in is not ready in this environment.'
-    : effectiveSignedIn
-      ? 'Here is what you were working on.'
-      : 'Sign in to connect your library, cloud saves, account security, and Creator Pass access.';
   const cloudSlotLabel = `${cloudSetLimit} private cloud set slot${cloudSetLimit === 1 ? '' : 's'}`;
   const downloadLabel = entitlement.canExportClean ? 'Watermark-free downloads' : 'Free exports include the CardForge watermark';
   const showHome = activeSection === 'home' || (activeSection === 'developer' && !showDeveloper);
   const displayedSection = showHome ? 'home' : activeSection;
   const accountName = effectiveSignedIn ? accountDisplayName ?? accountEmail : 'Creator account';
+
+  if (showHome) {
+    return (
+      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
+        {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
+        {entitlement.entitlementError ? (
+          <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-3 text-sm text-[#efb6a4]">
+            Account access is unavailable. Local work remains available and has not been relabeled as signed-out or Free.
+          </div>
+        ) : null}
+        {library}
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
@@ -186,24 +191,6 @@ export function AccountProfilePage({
           {entitlement.entitlementError ? (
             <div role="status" className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">
               Account access could not be verified, so CardForge is not presenting this as signed-out or Free. Local work remains available. Retry account or cloud actions after the service recovers.
-            </div>
-          ) : null}
-
-          {showHome ? (
-            <div>
-              <div className="mb-5 border-b border-[var(--cf-border)] pb-5 md:mb-6 md:pb-6">
-                <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
-                  {effectiveSignedIn ? `Good to see you, ${accountDisplayName ?? 'creator'}.` : 'Your CardForge workspace'}
-                </h1>
-                <p className="mt-2 text-sm text-[var(--cf-text-muted)]">{heroDetail}</p>
-                {!effectiveSignedIn && entitlement.authConfigured ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button asChild size="sm"><Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link></Button>
-                    <Button asChild size="sm" variant="outline" onClick={markSignUpIntent}><Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link></Button>
-                  </div>
-                ) : null}
-              </div>
-              {library}
             </div>
           ) : null}
 

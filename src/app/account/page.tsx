@@ -54,14 +54,18 @@ export default async function AccountPage({
     hasStorageResult: storageStatus !== null,
     hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
   });
-  const [entitlement, plans, accountContentBlocks] = await Promise.all([
-    getCurrentCardforgeEntitlement().catch((error) => {
+  const [entitlementResult, plans, accountContentBlocks] = await Promise.all([
+    getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
-      return resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() });
+      return {
+        entitlement: resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() }),
+        unavailable: true,
+      };
     }),
     getMcpAllowances(),
     getCachedSiteContentBlocks('account'),
   ]);
+  const { entitlement, unavailable: entitlementUnavailable } = entitlementResult;
   const authConfigured = entitlement.authConfigured;
   const persistenceScope = createProjectPersistenceScope({
     authConfigured,
@@ -98,11 +102,15 @@ export default async function AccountPage({
             key="unified-account-library"
             persistenceScope={persistenceScope}
             isSignedIn={entitlement.isSignedIn}
+            isDeveloper={isDeveloper}
+            isOwner={isOwner}
             cloudSetLimit={entitlement.capabilities.cloudSetLimit}
             homeAccessStatus={{
               label: 'Access',
-              value: accessLabel,
-              detail: `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
+              value: entitlementUnavailable ? 'Access unavailable' : accessLabel,
+              detail: entitlementUnavailable
+                ? 'CardForge could not verify account access. Local work remains available and is not being relabeled as Free.'
+                : `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
               href: '/account?section=billing',
               action: 'Review',
             }}

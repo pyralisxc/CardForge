@@ -17,13 +17,15 @@ describe('unified account dashboard', () => {
   const profileRoute = readSource('src/app/profile/page.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
   const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
   it('keeps the library as one part of the wider account control center', () => {
     expect(dashboard).toContain('<AccountWorkspaceHeader');
     expect(dashboard).toContain('<AccountUtilityPanel');
-    expect(dashboard).toContain('Good to see you');
+    expect(accountLibrary).toContain('Your CardForge home');
+    expect(accountLibrary).toContain('<EnvironmentShell');
     expect(dashboard).toContain('Plan & billing');
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
   });
@@ -72,20 +74,21 @@ describe('unified account dashboard', () => {
     expect(accountPage).toContain('<AccountStorageWorkspace');
     expect(storageWorkspace).toContain('<details');
     expect(storageWorkspace).toContain('Storage locations');
-    expect(accountLibrary).toContain('buildAccountLibraryItems');
+    expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
+    expect(accountLibrary).toContain('useAccountLibraryProjection');
     expect(accountLibrary).toContain('Storage remains with the source named on each item.');
   });
 
   it('makes plan value and storage boundaries visible without implying automatic cloud upload', () => {
     expect(dashboard).toContain('private cloud set slot');
-    expect(accountLibrary).toContain('Continue where you left off');
-    expect(accountLibrary).toContain('Recent work');
+    expect(accountLibrary).toContain('Current work');
+    expect(accountLibrary).toContain('More work');
     expect(dashboard).toContain('Storage & connections');
     expect(storageWorkspace).toContain('CardForge Cloud space');
   });
 
   it('uses a compact home command band and one account status snapshot', () => {
-    expect(accountLibrary).toContain('Account at a glance');
+    expect(accountLibrary).toContain('Account snapshot');
     expect(accountLibrary).toContain('homeAccessStatus');
     expect(accountLibrary).toContain('Connections');
     expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
@@ -140,8 +143,8 @@ describe('unified account dashboard', () => {
   });
 
   it('uses native Next navigation when opening work from the account library', () => {
-    expect(accountLibrary).toContain("import { useRouter } from 'next/navigation';");
-    expect(accountLibrary).toContain("router.push('/studio')");
-    expect(accountLibrary).not.toContain("window.location.assign('/studio')");
+    expect(accountLibraryProjection).toContain("import { useRouter } from 'next/navigation';");
+    expect(accountLibraryProjection).toContain("router.push('/studio')");
+    expect(accountLibraryProjection).not.toContain("window.location.assign('/studio')");
   });
 });

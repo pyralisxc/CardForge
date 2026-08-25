@@ -4,6 +4,7 @@ import {
   buildAccountLibraryItems,
   getAccountLibraryAvailableActions,
   getAccountLibraryMcpWorkflow,
+  resolveAccountHomeLibraryProjection,
 } from '@/features/storage-management/model/accountLibrary';
 
 describe('account library model', () => {
@@ -140,5 +141,29 @@ describe('account library model', () => {
       availability: 'working-document',
       tools: ['list_agent_working_documents', 'get_agent_install_status'],
     });
+  });
+
+  it('uses the active local Set as Home even when a provider item has the newest timestamp', () => {
+    const items = buildAccountLibraryItems({
+      localSets: [{ id: 'active-set', name: 'Active Set', cardCount: 12, sizeBytes: 1200 }],
+      cloudSets: [],
+      driveProjects: [{
+        fileId: 'recent-drive',
+        name: 'Newest.cardforge',
+        providerRevision: '8',
+        projectRevision: 'project-revision',
+        modifiedAt: '2026-08-25T11:00:00.000Z',
+        size: 2400,
+        webViewLink: null,
+      }],
+      driveBindingFileId: null,
+      localFolder: null,
+      personalAssets: [],
+      workingDrafts: [],
+    });
+
+    const home = resolveAccountHomeLibraryProjection(items, 'active-set');
+    expect(home.featuredItem?.references.localSetId).toBe('active-set');
+    expect(home.moreItems[0]?.references.driveFileId).toBe('recent-drive');
   });
 });

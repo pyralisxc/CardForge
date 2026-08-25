@@ -1,499 +1,276 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { LibraryBig, Loader2, RefreshCw, Search } from 'lucide-react';
+import { useRef, useState } from 'react';
+import {
+  Boxes, CreditCard, FileArchive, HardDrive, ImageIcon, LibraryBig, Link2,
+  Loader2, RefreshCw, Search, ShieldCheck, Sparkles, type LucideIcon,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import type { CardAssetOption } from '@/domain/templates';
 import {
-  createCardSetTransfer,
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getGoogleDriveProjectBinding,
-  getLocalProjectFolderStatus,
-  getProjectAssetStorage,
-  hydrateProjectWorkspaceForScope,
-  loadGoogleDriveProjectLibrary,
-  openGoogleDriveProject,
-  readTypedProjectAssetListFromStorage,
-  selectAllTemplates,
-  useCloudSetActions,
-  useProjectStore,
-  type GoogleDriveProjectListResult,
-  type LocalProjectFolderStatus,
-  type ProjectDocumentCustomAssets,
-  type ProjectPersistenceScope,
-} from '@/features/project/client';
+  CollectionLedgerRow, CompactSettingRow, ENVIRONMENT_ZONES, EnvironmentBoundaryNotice,
+  EnvironmentSectionHeading, EnvironmentShell, EnvironmentStatus, EnvironmentSurfaceHeader,
+  closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
+  type ActionAutomation, type ActionDescriptor, type ActionSource, type ActionSourceContext,
+  type EnvironmentCollectionRecord, type EnvironmentDetailRecord, type EnvironmentSettingRecord,
+  type EnvironmentStatusTone, type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
+} from '@/features/app-shell/client/environment';
+import { markSignUpIntent } from '@/features/analytics/client/tracking';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
+import type { ProjectPersistenceScope } from '@/features/project/client';
+
+import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
 import {
-  getPersonalLibraryRoleLabel,
-  loadPersonalLibrary,
-  type PersonalLibraryListResult,
-} from '@/features/personal-library/client';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
-import {
-  ACCOUNT_LIBRARY_KINDS,
-  buildAccountLibraryItems,
-  getAccountLibrarySourceLabel,
-  type AccountLibraryItem,
-  type AccountLibraryKind,
-  type AccountLibrarySource,
+  ACCOUNT_LIBRARY_KINDS, getAccountLibraryAvailableActions, getAccountLibrarySourceLabel,
+  type AccountLibraryItem, type AccountLibraryKind, type AccountLibrarySource,
 } from '../model/accountLibrary';
-import { AccountLibraryItemRow, accountLibraryKindLabels } from './AccountLibraryItemRow';
-import { AccountHomeStatusRow, type AccountHomeStatus } from './AccountHomeStatusRow';
-interface StudioDocumentSummary {
-  id: string;
-  title: string;
-  creationSource: string;
-  revision: number;
-  updatedAt: string;
-  expiresAt: string;
-}
+import {
+  AccountLibraryItemRow, accountLibraryKindLabels, formatAccountLibraryBytes, formatAccountLibraryDate,
+} from './AccountLibraryItemRow';
+import type { AccountHomeStatus } from './AccountHomeStatusRow';
+
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
+  isDeveloper?: boolean;
+  isOwner?: boolean;
   cloudSetLimit: number;
   homeAccessStatus?: AccountHomeStatus;
   homeSecurityStatus?: AccountHomeStatus;
   view?: 'home' | 'library';
 }
+
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'];
-const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
-  [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
-});
-export function UnifiedAccountLibrary({
-  persistenceScope,
-  isSignedIn,
-  cloudSetLimit,
-  homeAccessStatus,
-  homeSecurityStatus,
-  view = 'library',
-}: UnifiedAccountLibraryProps) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [hydrated, setHydrated] = useState(false);
-  const [hydrationProblem, setHydrationProblem] = useState<string | null>(null);
-  const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
-  const [portableSetBytes, setPortableSetBytes] = useState<Record<string, number>>({});
-  const [driveLibrary, setDriveLibrary] = useState<GoogleDriveProjectListResult | null>(null);
-  const [driveBindingFileId, setDriveBindingFileId] = useState<string | null>(null);
-  const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
-  const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
-  const [workingDrafts, setWorkingDrafts] = useState<StudioDocumentSummary[]>([]);
-  const [sourceProblems, setSourceProblems] = useState<string[]>([]);
-  const [loadingSources, setLoadingSources] = useState(false);
-  const [busyItemId, setBusyItemId] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState<AccountLibraryKind | 'all'>('all');
-  const [source, setSource] = useState<AccountLibrarySource | 'all'>('all');
-  const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
-  const deferredQuery = useDeferredValue(query);
-
-  const cardSets = useProjectStore((state) => state.cardSets);
-  const storedCards = useProjectStore((state) => state.storedCards);
-  const userTemplates = useProjectStore((state) => state.userTemplates);
-  const {
-    cloud,
-    isLoadingCloudSets,
-    loadSetFromCloud,
-    refreshCloudSets,
-  } = useCloudSetActions({ toast, enabled: isSignedIn });
-  useEffect(() => {
-    let cancelled = false;
-    setHydrated(false);
-    setHydrationProblem(null);
-    void hydrateProjectWorkspaceForScope(persistenceScope)
-      .then(() => { if (!cancelled) setHydrated(true); })
-      .catch((error) => {
-        if (cancelled) return;
-        setHydrationProblem(error instanceof Error ? error.message : 'This device workspace is unavailable.');
-        setHydrated(true);
-    });
-    return () => { cancelled = true; };
-  }, [persistenceScope]);
-  const refreshLibrarySources = useCallback(async () => {
-    setLoadingSources(true);
-    const problems: string[] = [];
-    const assetStorage = getProjectAssetStorage();
-    const deviceAssetsPromise = Promise.all([
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-    ]).catch((error) => {
-      problems.push(error instanceof Error ? error.message : 'Device assets are unavailable.');
-      return [[], [], [], []] as CardAssetOption[][];
-    });
-    const localFolderPromise = getLocalProjectFolderStatus().catch((error) => {
-      problems.push(error instanceof Error ? error.message : 'Local-folder status is unavailable.');
-      return null;
-    });
-
-    const signedInSourcesPromise = isSignedIn
-      ? Promise.all([
-          loadGoogleDriveProjectLibrary().catch((error) => {
-            problems.push(error instanceof Error ? error.message : 'Google Drive projects are unavailable.');
-            return null;
-          }),
-          getGoogleDriveProjectBinding().catch(() => null),
-          loadPersonalLibrary().catch((error) => {
-            problems.push(error instanceof Error ? error.message : 'Connected assets are unavailable.');
-            return null;
-          }),
-          fetch('/api/studio-documents', { cache: 'no-store' })
-            .then(async (response) => {
-              if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Private working drafts are unavailable.'));
-              return await response.json() as { documents?: StudioDocumentSummary[] };
-            })
-            .catch((error) => {
-              problems.push(error instanceof Error ? error.message : 'Private working drafts are unavailable.');
-              return null;
-            }),
-        ] as const)
-      : Promise.resolve([null, null, null, null] as const);
-
-    const [[textures, dividers, icons, images], folderResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
-      deviceAssetsPromise,
-      localFolderPromise,
-      signedInSourcesPromise,
-    ]);
-    setCustomAssets({
-      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
-      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
-      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: icons,
-      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
-    });
-    setLocalFolder(folderResult);
-    setDriveLibrary(driveResult);
-    setDriveBindingFileId(bindingResult?.fileId ?? null);
-    setPersonalLibrary(assetsResult);
-    setWorkingDrafts(Array.isArray(draftsResult?.documents) ? draftsResult.documents : []);
-    setSourceProblems(problems);
-    setLoadingSources(false);
-  }, [isSignedIn]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    void refreshLibrarySources();
-  }, [hydrated, refreshLibrarySources]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    const templates = selectAllTemplates(useProjectStore.getState());
-    const next: Record<string, number> = {};
-    cardSets.forEach((set) => {
-      const transfer = createCardSetTransfer({ set, storedCards, templates, customAssets });
-      next[set.id] = new Blob([JSON.stringify(transfer)]).size;
-    });
-    setPortableSetBytes(next);
-  }, [cardSets, customAssets, hydrated, storedCards, userTemplates]);
-
-  const cardCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    storedCards.forEach((card) => {
-      if (card.setId) counts.set(card.setId, (counts.get(card.setId) ?? 0) + 1);
-    });
-    return counts;
-  }, [storedCards]);
-
-  const items = useMemo(() => buildAccountLibraryItems({
-    localSets: cardSets.map((set) => ({
-      id: set.id,
-      name: set.name,
-      cardCount: cardCounts.get(set.id) ?? 0,
-      sizeBytes: portableSetBytes[set.id] ?? null,
-    })),
-    cloudSets: (cloud?.sets ?? []).map((set) => ({
-      setId: set.setId,
-      name: set.name,
-      cardCount: set.cardCount,
-      revision: set.revision,
-      storageBytes: set.storageBytes,
-      updatedAt: set.updatedAt,
-    })),
-    driveProjects: driveLibrary?.projects ?? [],
-    driveBindingFileId,
-    localFolder: localFolder?.binding ? {
-      folderName: localFolder.binding.folderName,
-      sourceRevision: localFolder.binding.sourceRevision,
-      lastSavedAt: localFolder.binding.lastSavedAt,
-      permission: localFolder.permission,
-    } : null,
-    personalAssets: (personalLibrary?.items ?? []).map((item) => ({
-      id: item.id,
-      displayName: item.displayName,
-      roleLabel: getPersonalLibraryRoleLabel(item.role),
-      byteSize: item.byteSize,
-      providerRevision: item.providerRevision,
-      providerModifiedAt: item.providerModifiedAt,
-      providerWebViewLink: item.providerWebViewLink,
-    })),
-    workingDrafts,
-  }), [cardCounts, cardSets, cloud?.sets, driveBindingFileId, driveLibrary?.projects, localFolder, personalLibrary?.items, portableSetBytes, workingDrafts]);
-
-  const visibleItems = useMemo(() => {
-    const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
-    const filtered = items.filter((item) => {
-      if (kind !== 'all' && item.kind !== kind) return false;
-      if (source !== 'all' && !item.locations.some((location) => location.source === source)) return false;
-      if (!normalizedQuery) return true;
-      return [item.name, ...item.details, ...item.locations.map((location) => location.label)]
-        .join(' ')
-        .toLocaleLowerCase()
-        .includes(normalizedQuery);
-    });
-    return filtered.toSorted((left, right) => {
-      if (sort === 'name') return left.name.localeCompare(right.name);
-      if (sort === 'kind') return accountLibraryKindLabels[left.kind].localeCompare(accountLibraryKindLabels[right.kind]) || left.name.localeCompare(right.name);
-      return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
-    });
-  }, [deferredQuery, items, kind, sort, source]);
-
-  const sourceCounts = useMemo(() => {
-    const counts = new Map<AccountLibrarySource, number>();
-    items.forEach((item) => item.locations.forEach((location) => counts.set(location.source, (counts.get(location.source) ?? 0) + 1)));
-    return counts;
-  }, [items]);
-
-  const openItem = useCallback(async (item: AccountLibraryItem) => {
-    setBusyItemId(item.id);
-    try {
-      if (item.references.localSetId) {
-        useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
-        router.push('/studio');
-        return;
-      }
-      if (item.references.cloudSetId) {
-        await loadSetFromCloud(item.references.cloudSetId);
-        router.push('/studio');
-        return;
-      }
-      if (item.references.driveFileId) {
-        await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
-        router.push('/studio');
-      }
-    } catch (error) {
-      toast({
-        title: 'Library item could not be opened',
-        description: error instanceof Error ? error.message : 'CardForge could not open that library item.',
-        variant: 'destructive',
-      });
-    } finally {
-      setBusyItemId(null);
-    }
-  }, [loadSetFromCloud, router, toast]);
-
-  const isLoading = !hydrated || loadingSources || isLoadingCloudSets;
-  const cloudLimit = cloud?.limit ?? cloudSetLimit;
-  const featuredItem = items.find((item) => (
-    item.references.localSetId
-    || item.references.workingDraftId
-    || item.references.cloudSetId
-    || item.references.driveFileId
-  )) ?? null;
-  const recentItems = featuredItem
-    ? items.filter((item) => item.id !== featuredItem.id).slice(0, 5)
-    : items.slice(0, 5);
-  const hasConnectionProblem = sourceProblems.some((problem) => /drive|connect|asset/iu.test(problem));
-  const connectionStatus: AccountHomeStatus = {
-    label: 'Connections',
-    value: !isSignedIn
-      ? 'Sign in to connect'
-      : loadingSources
-        ? 'Checking connections'
-        : hasConnectionProblem
-          ? 'Connection unavailable'
-          : driveLibrary !== null
-            ? 'Google Drive connected'
-            : 'No provider connected',
-    detail: hasConnectionProblem
-      ? 'A provider could not be reached. Existing work has not been relabeled or removed.'
-      : `${sourceCounts.get('google-drive') ?? 0} Google Drive item${(sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'} available to your Library.`,
-    href: '/account?section=storage',
-    action: 'Manage',
+const sourceMap: Record<AccountLibrarySource, ActionSource> = {
+  device: 'browser-local',
+  'cardforge-cloud': 'cardforge-cloud',
+  'google-drive': 'google-drive',
+  'local-folder': 'local-folder',
+  'assistant-draft': 'temporary',
+};
+const kindIcons: Record<AccountLibraryKind, LucideIcon> = {
+  set: Boxes, project: FileArchive, asset: ImageIcon, 'working-draft': Sparkles,
+};
+const itemOwner = (item: AccountLibraryItem): ActionDescriptor['ownerFeature'] => (
+  item.kind === 'asset' ? 'personal-library' : item.kind === 'working-draft' ? 'studio-documents' : 'project'
+);
+const actionSources = (item: AccountLibraryItem): ActionSourceContext[] => item.locations.map((location, index) => ({
+  id: `${item.id}:${location.source}:${index}`,
+  label: location.label,
+  source: sourceMap[location.source],
+  currentRevisionAvailable: location.source === 'device' || item.revision !== null,
+}));
+const automationFor = (item: AccountLibraryItem): ActionAutomation => (
+  item.references.cloudSetId
+    ? { kind: 'published-mcp', tools: ['get_cloud_set', 'checkout_cloud_set'] }
+    : item.references.driveFileId
+      ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
+      : { kind: 'human-only', owner: 'cardforge' }
+);
+const itemStatus = (item: AccountLibraryItem): { label: string; tone: EnvironmentStatusTone } => (
+  item.locations.some((location) => location.status === 'needs-permission')
+    ? { label: 'Permission required', tone: 'warning' }
+    : item.kind === 'working-draft'
+      ? { label: 'Temporary work', tone: 'warning' }
+      : { label: 'Available', tone: 'success' }
+);
+const itemRecord = (item: AccountLibraryItem): EnvironmentCollectionRecord => {
+  const state = itemStatus(item);
+  const meta: Array<readonly [string, string] | null> = [
+    ['Type', accountLibraryKindLabels[item.kind].replace(/s$/u, '')],
+    ['Locations', item.locations.map((location) => location.label).join(' · ')],
+    item.details.length ? ['Details', item.details.join(' · ')] : null,
+    formatAccountLibraryBytes(item.sizeBytes) ? ['Size', formatAccountLibraryBytes(item.sizeBytes)!] : null,
+    item.revision ? ['Revision', item.revision] : null,
+    formatAccountLibraryDate(item.updatedAt) ? ['Updated', formatAccountLibraryDate(item.updatedAt)!] : null,
+    formatAccountLibraryDate(item.expiresAt) ? ['Expires', formatAccountLibraryDate(item.expiresAt)!] : null,
+  ];
+  return {
+    id: item.id, kind: item.kind, eyebrow: accountLibraryKindLabels[item.kind].replace(/s$/u, ''),
+    title: item.name, summary: item.details.join(' · ') || 'Ready to inspect.',
+    status: state.label, tone: state.tone, actionSources: actionSources(item),
+    meta: meta.filter((entry): entry is readonly [string, string] => entry !== null),
+    location: item.locations.map((location) => location.label).join(' + '),
+    updated: formatAccountLibraryDate(item.updatedAt) ?? formatAccountLibraryDate(item.expiresAt) ?? 'No timestamp',
+    icon: kindIcons[item.kind],
   };
-  const storageStatus: AccountHomeStatus = {
-    label: 'Storage',
-    value: 'Work is available',
-    detail: `${sourceCounts.get('device') ?? 0} on this device · ${cloud?.used ?? 0} of ${cloudLimit} cloud slots used`,
-    href: '/account?section=storage',
-    action: 'Review',
+};
+const statusTone = (status: AccountHomeStatus): EnvironmentStatusTone => (
+  /unavailable|error/iu.test(status.value) ? 'danger' : /required|connect|checking/iu.test(status.value) ? 'warning' : 'success'
+);
+const statusRecord = (status: AccountHomeStatus, icon: LucideIcon, source: ActionSource): EnvironmentSettingRecord => ({
+  id: `account-status-${status.label.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/gu, '-')}`,
+  kind: 'account-status', eyebrow: status.label, title: status.label, summary: status.detail,
+  status: status.value, tone: statusTone(status),
+  actionSources: [{ id: status.label, label: status.label, source, currentRevisionAvailable: true }],
+  meta: [['Current state', status.value], ['What it means', status.detail]], value: status.value, icon,
+});
+
+const actionsForItem = (item: AccountLibraryItem): ActionDescriptor[] => {
+  const available = getAccountLibraryAvailableActions(item);
+  const sources = item.locations.map((location) => sourceMap[location.source]);
+  const actions: ActionDescriptor[] = [];
+  if (available.includes('open') || available.includes('continue')) actions.push({
+    id: 'library.open-work', label: available.includes('continue') ? 'Continue in Studio' : 'Open in Studio',
+    ownerFeature: itemOwner(item), supportedObjectKinds: [item.kind], supportedSources: sources,
+    revisionPolicy: 'none', requiredPermission: item.kind === 'working-draft' || item.references.cloudSetId || item.references.driveFileId ? 'creator' : 'guest',
+    scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: 'none',
+    automation: automationFor(item), result: 'navigation',
+  });
+  if (available.includes('view-source') && item.webViewLink) actions.push({
+    id: 'library.view-source', label: 'View provider source', ownerFeature: itemOwner(item),
+    supportedObjectKinds: [item.kind], supportedSources: ['google-drive'], revisionPolicy: 'none',
+    requiredPermission: 'creator', scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' },
+    commitment: 'none', automation: { kind: 'human-only', owner: 'provider' }, result: 'provider-handoff',
+  });
+  if (available.includes('manage-storage')) actions.push({
+    id: 'library.manage-location', label: 'Manage location', ownerFeature: 'storage-management',
+    supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none',
+    requiredPermission: 'creator', scope: 'object', hierarchy: 'overflow', availability: { kind: 'available' },
+    commitment: 'permission', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+  });
+  return actions;
+};
+
+export function UnifiedAccountLibrary({
+  persistenceScope, isSignedIn, isDeveloper = false, isOwner = false, cloudSetLimit,
+  homeAccessStatus, homeSecurityStatus, view = 'library',
+}: UnifiedAccountLibraryProps) {
+  const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn, cloudSetLimit });
+  const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  const viewer: EnvironmentViewer = { signedIn: isSignedIn, developer: isDeveloper || isOwner, owner: isOwner };
+  const visibleZones = getVisibleEnvironmentZones(viewer);
+  const zones = visibleZones.some((zone) => zone.id === 'home')
+    ? visibleZones
+    : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'studio');
+
+  const connectionFailure = projection.failures.some((failure) => failure.id === 'google-drive' || failure.id === 'personal-library');
+  const statuses: AccountHomeStatus[] = [
+    ...(homeAccessStatus ? [homeAccessStatus] : []),
+    {
+      label: 'Storage',
+      value: projection.failures.some((failure) => failure.id === 'workspace') ? 'Device workspace unavailable' : 'Work is available',
+      detail: `${projection.sourceCounts.get('device') ?? 0} on this device · ${projection.cloud?.used ?? 0} of ${projection.cloudLimit} retiring cloud slots used`,
+      href: '/account?section=storage', action: 'Review',
+    },
+    {
+      label: 'Connections',
+      value: !isSignedIn ? 'Sign in to connect' : projection.loadingSources ? 'Checking connections' : connectionFailure ? 'Connection unavailable' : projection.sourceCounts.get('google-drive') ? 'Google Drive connected' : 'No provider connected',
+      detail: connectionFailure ? 'A connected source could not be reached. Existing work remains visible and unchanged.' : `${projection.sourceCounts.get('google-drive') ?? 0} Google Drive item${(projection.sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'} available to your Library.`,
+      href: '/account?section=storage', action: 'Manage',
+    },
+    ...(homeSecurityStatus ? [homeSecurityStatus] : []),
+  ];
+  const statusIcons: Record<string, LucideIcon> = { Access: CreditCard, Storage: HardDrive, Connections: Link2, Security: ShieldCheck };
+  const statusRecords = statuses.map((status) => statusRecord(status, statusIcons[status.label] ?? ShieldCheck, status.label === 'Storage' ? 'browser-local' : 'provider-native'));
+  const itemMap = new Map(projection.items.map((item) => [item.id, item]));
+  const recordMap = new Map<string, EnvironmentDetailRecord>([
+    ...projection.items.map((item) => [item.id, itemRecord(item)] as const),
+    ...statusRecords.map((record) => [record.id, record] as const),
+  ]);
+  const currentRecord = selection.objectId ? recordMap.get(selection.objectId) ?? null : null;
+  const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
+  const currentStatus = selection.objectId ? statusRecords.find((record) => record.id === selection.objectId) ?? null : null;
+  const actions: ActionDescriptor[] = currentItem ? actionsForItem(currentItem) : currentStatus ? [{
+    id: 'account.review-status', label: currentStatus.title === 'Security' ? 'Open profile' : currentStatus.title === 'Access' ? 'Review access' : 'Manage locations',
+    ownerFeature: currentStatus.title === 'Access' ? 'billing' : currentStatus.title === 'Security' ? 'account' : 'storage-management',
+    supportedObjectKinds: ['account-status'], supportedSources: currentStatus.actionSources.map((source) => source.source),
+    revisionPolicy: 'none', requiredPermission: isSignedIn ? 'creator' : 'guest', scope: 'object', hierarchy: 'primary',
+    availability: { kind: 'available' }, commitment: 'none',
+    automation: { kind: 'human-only', owner: currentStatus.title === 'Security' ? 'provider' : 'cardforge' }, result: 'navigation',
+  }] : [{
+    id: 'home.open-studio', label: projection.featuredItem ? 'Resume in Studio' : 'Create in Studio',
+    ownerFeature: 'app-shell', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
+    requiredPermission: 'guest', scope: 'zone', hierarchy: 'primary', availability: { kind: 'available' },
+    commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+  }];
+
+  const openDetail = (record: EnvironmentDetailRecord) => {
+    const listOffset = surfaceRef.current?.scrollTop ?? 0;
+    setSelection((current) => openEnvironmentDetail({ ...current, listOffset }, {
+      objectId: record.id, listOffset, focusReturnId: `environment-object-${record.id}`,
+    }));
+  };
+  const closeDetail = () => {
+    const restore = selection.detailRestore;
+    const focusId = selection.focusReturnId;
+    setSelection(closeEnvironmentDetail);
+    requestAnimationFrame(() => {
+      if (restore) surfaceRef.current?.scrollTo({ top: restore.listOffset });
+      if (focusId) document.getElementById(focusId)?.focus();
+    });
+  };
+  const runAction = (action: ActionDescriptor) => {
+    if (action.id === 'home.open-studio') {
+      if (projection.featuredItem) void projection.openItem(projection.featuredItem); else projection.router.push('/studio');
+    } else if (action.id === 'library.open-work' && currentItem) {
+      void projection.openItem(currentItem);
+    } else if (action.id === 'library.view-source' && currentItem?.webViewLink) {
+      window.open(currentItem.webViewLink, '_blank', 'noopener,noreferrer');
+    } else if (action.id === 'library.manage-location') {
+      projection.router.push('/account?section=storage');
+    } else if (action.id === 'account.review-status' && currentStatus) {
+      projection.router.push(currentStatus.title === 'Security' ? '/profile' : currentStatus.title === 'Access' ? '/account?section=billing' : '/account?section=storage');
+    }
   };
 
   if (view === 'home') {
-    return (
-      <div>
-        {hydrationProblem || sourceProblems.length > 0 ? (
-          <div className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]" role="status">
-            <p className="font-semibold">Some workspace sources are unavailable</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">{[hydrationProblem, ...sourceProblems].filter((problem): problem is string => Boolean(problem)).map((problem) => <li key={problem}>{problem}</li>)}</ul>
-          </div>
-        ) : null}
-
-        <section aria-labelledby="continue-work-heading">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-              <LibraryBig className="h-4 w-4" />
-              <h2 id="continue-work-heading" className="text-[11px] font-semibold uppercase tracking-[0.14em] sm:text-xs sm:tracking-[0.16em]">Continue where you left off</h2>
-            </div>
-            <Button type="button" size="sm" variant="ghost" className="shrink-0 px-2 sm:px-3" disabled={isLoading} onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
-            </Button>
-          </div>
-          {featuredItem ? (
-            <AccountLibraryItemRow
-              item={featuredItem}
-              variant="featured"
-              busy={busyItemId === featuredItem.id}
-              anyItemBusy={busyItemId !== null}
-              onOpen={openItem}
-            />
-          ) : (
-            <div className="border border-[var(--cf-border)] py-8 text-center">
-              <p className="text-sm text-[var(--cf-text-muted)]">Your workspace is ready for its first set or project.</p>
-              <Button asChild size="sm" className="mt-4"><Link href="/studio">Create in Studio</Link></Button>
-            </div>
-          )}
-        </section>
-
-        <section className="mt-7" aria-labelledby="account-status-heading">
-          <div className="border-b border-[var(--cf-border)] pb-3">
-            <h2 id="account-status-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Account at a glance</h2>
-          </div>
-          {homeAccessStatus ? <AccountHomeStatusRow status={homeAccessStatus} /> : null}
-          <AccountHomeStatusRow status={storageStatus} />
-          <AccountHomeStatusRow status={connectionStatus} />
-          {homeSecurityStatus ? <AccountHomeStatusRow status={homeSecurityStatus} /> : null}
-        </section>
-
-        <section className="mt-7" aria-labelledby="recent-work-heading">
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
-            <h2 id="recent-work-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Recent work</h2>
-            <Button asChild size="sm" variant="ghost"><Link href="/account?section=library">View all in Library</Link></Button>
-          </div>
-          {recentItems.length > 0 ? (
-            <div>
-              <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
-                <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
-              </div>
-              {recentItems.map((item) => (
-                <AccountLibraryItemRow
-                  key={item.id}
-                  item={item}
-                  busy={busyItemId === item.id}
-                  anyItemBusy={busyItemId !== null}
-                  onOpen={openItem}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="border-b border-[var(--cf-border-subtle)] py-6 text-sm text-[var(--cf-text-muted)]">More sets, projects, assets, and working drafts will appear here as you create or connect them.</p>
-          )}
-        </section>
-
-      </div>
-    );
+    const featured = projection.featuredItem ? itemRecord(projection.featuredItem) : null;
+    return <EnvironmentShell
+      ariaLabel="CardForge account home"
+      brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
+      viewer={viewer} zones={zones} activeZone="home" viewportPolicy="flow"
+      detail={currentRecord} actions={actions} focusReturnId={selection.focusReturnId ?? undefined}
+      surfaceRef={surfaceRef}
+      statusContent={<><EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${projection.items.length} library object${projection.items.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} /><EnvironmentStatus label={projection.failures.length ? `${projection.failures.length} source issue${projection.failures.length === 1 ? '' : 's'}` : 'Available sources checked'} tone={projection.failures.length ? 'warning' : 'success'} /></>}
+      footerContent={isSignedIn ? <span>Private creator environment</span> : (
+        <span className="flex items-center gap-3">
+          <span>Local creator workspace</span>
+          <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
+          <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-up', '/account')} prefetch={false} onClick={markSignUpIntent}>Create account</Link>
+        </span>
+      )}
+      onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)}
+      onCommand={() => projection.router.push('/account?section=library')}
+      onAction={runAction} onCloseDetail={closeDetail}
+    >
+      <EnvironmentSurfaceHeader eyebrow="Home" title={isSignedIn ? 'Your CardForge home' : 'Your local CardForge workspace'} body="Resume the object already in motion, scan the account truths that need attention, or move into the zone that owns the next task." />
+      {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Existing work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}
+      <section aria-labelledby="home-current-work-heading">
+        <EnvironmentSectionHeading id="home-current-work-heading" title="Current work" meta={projection.isLoading ? 'Checking workspace' : featured ? 'Active object' : 'Ready to begin'} />
+        {featured ? <CollectionLedgerRow item={featured} selected={selection.objectId === featured.id} onOpen={openDetail} /> : <p className="border-b border-[var(--cf-border-subtle)] px-3 py-5 text-sm text-[var(--cf-text-muted)]">No current work yet. Create a Set in Studio or connect an existing project.</p>}
+      </section>
+      <section className="mt-5" aria-labelledby="home-account-snapshot-heading">
+        <EnvironmentSectionHeading id="home-account-snapshot-heading" title="Account snapshot" meta={`${statusRecords.length} grouped truths`} />
+        {statusRecords.map((record) => <CompactSettingRow key={record.id} item={record} selected={selection.objectId === record.id} onOpen={openDetail} />)}
+      </section>
+      <section className="mt-5" aria-labelledby="home-more-work-heading">
+        <EnvironmentSectionHeading id="home-more-work-heading" title="More work" meta={`${projection.recentItems.length} available`} />
+        {projection.recentItems.length ? projection.recentItems.map((item) => {
+          const record = itemRecord(item);
+          return <CollectionLedgerRow key={record.id} item={record} selected={selection.objectId === record.id} onOpen={openDetail} />;
+        }) : <p className="border-b border-[var(--cf-border-subtle)] px-3 py-5 text-sm text-[var(--cf-text-muted)]">More Sets, projects, assets, and temporary drafts will appear here as you create or connect them.</p>}
+      </section>
+    </EnvironmentShell>;
   }
 
-  return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-            <LibraryBig className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Library</span>
-          </div>
-          <h1 className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">Everything you can continue, reuse, or recover</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts. Storage remains with the source named on each item.
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isLoading}
-          onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}
-        >
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Refresh
-        </Button>
-      </div>
-
-      <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_12rem_12rem_10rem]" aria-label="Library toolbar">
-        <label className="relative block">
-          <span className="sr-only">Search your CardForge library</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" />
-          <Input
-            id="library-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search names, sources, and details"
-            className="pl-9"
-          />
-        </label>
-        <Select value={source} onValueChange={(value) => setSource(value as AccountLibrarySource | 'all')}>
-          <SelectTrigger aria-label="Filter by source"><SelectValue placeholder="All sources" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sources · {items.length}</SelectItem>
-            {LIBRARY_SOURCES.map((option) => <SelectItem key={option} value={option}>{getAccountLibrarySourceLabel(option)} · {sourceCounts.get(option) ?? 0}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={kind} onValueChange={(value) => setKind(value as AccountLibraryKind | 'all')}>
-          <SelectTrigger aria-label="Filter by type"><SelectValue placeholder="All types" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {ACCOUNT_LIBRARY_KINDS.map((option) => <SelectItem key={option} value={option}>{accountLibraryKindLabels[option]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={sort} onValueChange={(value) => setSort(value as 'recent' | 'name' | 'kind')}>
-          <SelectTrigger aria-label="Sort library"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="recent">Recently updated</SelectItem>
-            <SelectItem value="name">Name</SelectItem>
-            <SelectItem value="kind">Type</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {hydrationProblem || sourceProblems.length > 0 ? (
-        <div className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]" role="status">
-          <p className="font-semibold">Some library sources are unavailable</p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">{[hydrationProblem, ...sourceProblems].filter((problem): problem is string => Boolean(problem)).map((problem) => <li key={problem}>{problem}</li>)}</ul>
-        </div>
-      ) : null}
-
-      {isLoading && items.length === 0 ? (
-        <p className="mt-5 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading your library…</p>
-      ) : visibleItems.length === 0 ? (
-        <p className="mt-5 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-4 text-sm text-[var(--cf-text-muted)]">
-          {items.length === 0 ? 'Your library is ready for its first set, project, asset, or working draft.' : 'No library items match this filter.'}
-        </p>
-      ) : (
-        <div className="mt-5">
-          <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
-            <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
-          </div>
-          {visibleItems.map((item) => (
-            <AccountLibraryItemRow
-              key={item.id}
-              item={item}
-              busy={busyItemId === item.id}
-              anyItemBusy={busyItemId !== null}
-              onOpen={openItem}
-            />
-          ))}
-        </div>
-      )}
+  return <div>
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-4">
+      <div><div className="flex items-center gap-2 text-[var(--cf-accent-strong)]"><LibraryBig className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-[0.18em]">Library</span></div><h1 className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">Everything you can continue, reuse, or recover</h1><p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts. Storage remains with the source named on each item.</p></div>
+      <Button type="button" size="sm" variant="outline" disabled={projection.isLoading} onClick={projection.refresh}>{projection.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh</Button>
     </div>
-  );
+    <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_12rem_12rem_10rem]" aria-label="Library toolbar">
+      <label className="relative block"><span className="sr-only">Search your CardForge library</span><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" /><Input id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder="Search names, sources, and details" className="pl-9" /></label>
+      <Select value={projection.source} onValueChange={(value) => projection.setSource(value as AccountLibrarySource | 'all')}><SelectTrigger aria-label="Filter by source"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources · {projection.items.length}</SelectItem>{LIBRARY_SOURCES.map((option) => <SelectItem key={option} value={option}>{getAccountLibrarySourceLabel(option)} · {projection.sourceCounts.get(option) ?? 0}</SelectItem>)}</SelectContent></Select>
+      <Select value={projection.kind} onValueChange={(value) => projection.setKind(value as AccountLibraryKind | 'all')}><SelectTrigger aria-label="Filter by type"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All types</SelectItem>{ACCOUNT_LIBRARY_KINDS.map((option) => <SelectItem key={option} value={option}>{accountLibraryKindLabels[option]}</SelectItem>)}</SelectContent></Select>
+      <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
+    </div>
+    {projection.failures.length ? <div className="mt-4"><EnvironmentBoundaryNotice title="Some library sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Existing work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /></div> : null}
+    {projection.isLoading && !projection.items.length ? <p className="mt-5 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" />Loading your library…</p> : !projection.visibleItems.length ? <p className="mt-5 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-4 text-sm text-[var(--cf-text-muted)]">{projection.items.length ? 'No library items match this filter.' : 'Your library is ready for its first set, project, asset, or working draft.'}</p> : <div className="mt-5">{projection.visibleItems.map((item) => <AccountLibraryItemRow key={item.id} item={item} busy={projection.busyItemId === item.id} anyItemBusy={projection.busyItemId !== null} onOpen={projection.openItem} />)}</div>}
+    <Button asChild variant="ghost" size="sm" className="mt-5"><Link href="/account?section=storage">Open locations & connections</Link></Button>
+  </div>;
 }

@@ -16,7 +16,7 @@ export {
 export { projectApiClientErrorBoundary } from '../environment/environmentBoundary';
 export { EnvironmentCommandBand } from '../environment/components/EnvironmentCommandBand';
 export { EnvironmentDesktopInspector, EnvironmentMobileSheet } from '../environment/components/EnvironmentDetail';
-export { CollectionLedgerRow, CompactSettingRow, EnvironmentLedgerRow, EnvironmentSectionHeading, EnvironmentSurfaceHeader } from '../environment/components/EnvironmentLedger';
+export { CollectionLedgerRow, CompactSettingRow, EnvironmentBoundaryNotice, EnvironmentLedgerRow, EnvironmentSectionHeading, EnvironmentSurfaceHeader } from '../environment/components/EnvironmentLedger';
 export { EnvironmentNavigation } from '../environment/components/EnvironmentNavigation';
 export { EnvironmentShell } from '../environment/components/EnvironmentShell';
 export { EnvironmentStatus } from '../environment/components/EnvironmentStatus';
