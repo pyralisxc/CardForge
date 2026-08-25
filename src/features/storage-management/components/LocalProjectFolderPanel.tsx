@@ -21,9 +21,11 @@ import {
 
 export function LocalProjectFolderPanel({
   canUseProjectFiles,
+  embedded = false,
   persistenceScope,
 }: {
   canUseProjectFiles: boolean;
+  embedded?: boolean;
   persistenceScope: ProjectPersistenceScope;
 }) {
   const router = useRouter();
@@ -101,16 +103,18 @@ export function LocalProjectFolderPanel({
   const permission = status?.permission ?? 'prompt';
 
   return (
-    <div className="mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+    <div className={embedded ? 'py-1' : 'mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3'}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-semibold text-[var(--cf-text-strong)]">
-            <FolderOpen className="h-4 w-4 text-[var(--cf-accent-strong)]" /> Local project folder
-          </p>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--cf-text-muted)]">
-            Store a real {getLocalProjectFileName()} inside a folder you choose. The browser workspace remains a recovery copy; CardForge never receives the folder path or gains access without browser permission.
-          </p>
-        </div>
+        {!embedded ? (
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--cf-text-strong)]">
+              <FolderOpen className="h-4 w-4 text-[var(--cf-accent-strong)]" /> Local project folder
+            </p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--cf-text-muted)]">
+              Store a real {getLocalProjectFileName()} inside a folder you choose. The browser workspace remains a recovery copy; CardForge never receives the folder path or gains access without browser permission.
+            </p>
+          </div>
+        ) : <span className="text-xs text-[var(--cf-text-muted)]">Browser-authorized folder access</span>}
         <Button type="button" size="sm" variant="ghost" onClick={() => void refresh()} disabled={Boolean(busyAction)}>
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>

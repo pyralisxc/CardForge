@@ -1,9 +1,22 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const MIGRATION_ROOT = 'supabase/migrations/';
+
+// These exact contents are the one-time repairs required for the committed
+// migration chain to bootstrap a brand-new Supabase project. The hash lock
+// keeps the exception narrower than a permanent filename allowlist: any later
+// edit remains unsafe, and the exception becomes dormant once main contains
+// the repaired files.
+const APPROVED_BOOTSTRAP_REPAIR_HASHES = new Map([
+  [`${MIGRATION_ROOT}202605270002_remove_text_frame_presets.sql`, 'c4301bf98325e521ff63dbdb937806f290308c44ba9cf7f4259af7bd712b4560'],
+  [`${MIGRATION_ROOT}202607140001_harden_privileged_functions.sql`, '0a6437e14753298869378c89c9d9ad839e92690e7985365692956898d499e618'],
+  [`${MIGRATION_ROOT}20260814220651_consolidate_owner_identity.sql`, 'de835efd03c445b6cd3d1340bd9df63a2a0feb806d195752b02ae7db4d918fdb'],
+]);
 
 export const parseMigrationChanges = (output) => output
   .split(/\r?\n/u)
@@ -16,6 +29,15 @@ export const parseMigrationChanges = (output) => output
   .filter(({ paths }) => paths.some((filePath) => filePath.replaceAll('\\', '/').startsWith(MIGRATION_ROOT)));
 
 export const findUnsafeMigrationChanges = (changes) => changes.filter(({ status }) => status !== 'A' && status !== '??');
+
+export const isApprovedBootstrapRepair = (root, { status, paths }) => {
+  if (status !== 'M' || paths.length !== 1) return false;
+  const migrationPath = paths[0].replaceAll('\\', '/');
+  const expectedHash = APPROVED_BOOTSTRAP_REPAIR_HASHES.get(migrationPath);
+  if (!expectedHash) return false;
+  const contents = readFileSync(path.resolve(root, migrationPath));
+  return createHash('sha256').update(contents).digest('hex') === expectedHash;
+};
 
 const runGit = (root, args) => execFileSync('git', args, {
   cwd: root,
@@ -61,7 +83,8 @@ export const checkMigrationSafety = ({ root, base }) => {
     .join('\n');
 
   const changes = parseMigrationChanges([tracked, untracked].join('\n'));
-  const unsafeChanges = findUnsafeMigrationChanges(changes);
+  const unsafeChanges = findUnsafeMigrationChanges(changes)
+    .filter((change) => !isApprovedBootstrapRepair(root, change));
   if (unsafeChanges.length > 0) {
     const details = unsafeChanges
       .map(({ status, paths }) => `  ${status}\t${paths.join('\t')}`)

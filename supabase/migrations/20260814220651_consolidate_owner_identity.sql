@@ -58,6 +58,13 @@ select
   'Pyralis Cameron',
   'Cameron-owned prelaunch development and QA proxy consolidated into the canonical owner publisher.'
 from pg_temp.cardforge_owner_identity_legacy as legacy
+where exists (
+  select 1
+  from public.cardforge_developer_profiles
+  where clerk_user_id = 'user_3Gj7V9nhLhDE7AlqVIsEPit3tmG'
+    and lower(email) = 'pyraliscameron@gmail.com'
+    and status = 'active'
+)
 on conflict (source_user_id) do nothing;
 
 do $$
@@ -69,7 +76,10 @@ begin
       and lower(email) = 'pyraliscameron@gmail.com'
       and status = 'active'
   ) then
-    raise exception 'canonical_owner_profile_missing';
+    -- This migration also installs the reusable alias schema and guard trigger.
+    -- The data cutover itself only applies to the production database that owns
+    -- this canonical profile.
+    return;
   end if;
 
   if exists (
@@ -381,6 +391,13 @@ where not exists (
   from public.cardforge_owner_activity
   where action = 'identity.development_proxies.consolidated'
     and target_id = 'user_3Gj7V9nhLhDE7AlqVIsEPit3tmG'
+)
+and exists (
+  select 1
+  from public.cardforge_developer_profiles
+  where clerk_user_id = 'user_3Gj7V9nhLhDE7AlqVIsEPit3tmG'
+    and lower(email) = 'pyraliscameron@gmail.com'
+    and status = 'active'
 );
 
 delete from public.cardforge_developer_profiles
@@ -422,6 +439,16 @@ comment on function public.cardforge_prevent_retired_identity_recreation() is
 
 do $$
 begin
+  if not exists (
+    select 1
+    from public.cardforge_developer_profiles
+    where clerk_user_id = 'user_3Gj7V9nhLhDE7AlqVIsEPit3tmG'
+      and lower(email) = 'pyraliscameron@gmail.com'
+      and status = 'active'
+  ) then
+    return;
+  end if;
+
   if exists (
     select 1 from public.cardforge_developer_profiles where clerk_user_id in (select clerk_user_id from pg_temp.cardforge_owner_identity_legacy)
     union all

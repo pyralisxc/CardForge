@@ -55,12 +55,12 @@ describe('critical-path provider ownership', () => {
   it('uses the shell-only provider for account and protected workspaces', () => {
     for (const path of [
       'src/app/account/page.tsx',
-      'src/app/profile/page.tsx',
       'src/app/owner/page.tsx',
       'src/app/developer/cockpit/page.tsx',
     ]) {
       expect(readSource(path)).toContain('<CardForgeAppProviders scope="shell">');
     }
+    expect(readSource('src/app/profile/page.tsx')).toContain("redirect('/account?section=profile')");
   });
 
   it('does not allow analytics consent UI to intercept auth, account, private, or MCP preview routes', () => {

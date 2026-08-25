@@ -1,0 +1,25 @@
+.simulationBanner {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border-bottom: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+  padding: 0.4rem 1rem;
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.simulationBanner strong { color: var(--cf-accent-strong); text-transform: uppercase; }
+
+.viewerToggle { display: inline-flex; border: 1px solid var(--cf-border-subtle); }
+.viewerToggle button { min-height: 1.8rem; border: 0; background: transparent; color: var(--cf-text-muted); padding: 0.2rem 0.45rem; font: inherit; cursor: pointer; }
+.viewerToggle button[aria-pressed="true"] { background: var(--cf-accent-strong); color: var(--cf-canvas); }
+
+@media (max-width: 767px) {
+  .simulationBanner { min-height: 2rem; justify-content: flex-start; gap: 0.4rem; padding: 0.35rem 0.75rem; font-size: 0.62rem; line-height: 1.25; }
+  .simulationBanner > span { display: none; }
+  .viewerToggle { margin-left: auto; }
+}

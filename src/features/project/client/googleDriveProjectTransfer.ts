@@ -113,11 +113,16 @@ const uploadPackage = async (
 ): Promise<GoogleDriveUploadCompletion> => {
   const uploadBytes = new Uint8Array(bytes.byteLength);
   uploadBytes.set(bytes);
-  const response = await fetch(plan.uploadSessionUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE },
-    body: uploadBytes.buffer,
-  });
+  let response: Response;
+  try {
+    response = await fetch(plan.uploadSessionUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE },
+      body: uploadBytes.buffer,
+    });
+  } catch {
+    throw new ProjectPackageError('Google Drive project upload is unavailable. Your browser project was left unchanged; retry when Drive is reachable.');
+  }
   if (!response.ok) {
     const text = await response.text().catch(() => '');
     throw new ProjectPackageError(text ? `Google Drive did not accept the project upload. ${text.slice(0, 240)}` : 'Google Drive did not accept the project upload.');

@@ -6,7 +6,7 @@ where asset_id in (
 );
 
 delete from public.cardforge_developer_asset_submissions
-where asset_id in (
+where registry_asset_id in (
   'frame-gilded-relic-premium',
   'frame-mtg-rules',
   'frame-ttrpg-vellum-premium'

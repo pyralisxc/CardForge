@@ -246,6 +246,16 @@
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+.cardforge-horizontal-strip {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+.cardforge-horizontal-strip::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) {
     height: 100dvh;

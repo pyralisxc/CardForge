@@ -146,6 +146,14 @@ Potential future surfaces:
 
 These are proposed ownership boundaries, not implemented route commitments.
 
+### Account library and storage control
+
+The account is the creator's overall control center, not a storage page and not a second Studio. `/account` is a compact home with familiar shortcuts into creation, Library, storage, billing, identity, and conditional developer work. Each account destination replaces the main panel and remains directly linkable through normal browser navigation; these surfaces must not be stacked into one long settings document. Its durable information architecture keeps **Home**, **Library**, **Storage & connections**, **Plan & billing**, **Profile & security**, and conditional **Developer** access distinct.
+
+The account Library is one inventory of the creator's sets, portable projects, reusable assets, and temporary working drafts across the browser workspace, CardForge Cloud, Google Drive, attached local folders, and future connected providers. When stable identity proves that two locations contain the same item, the Library presents one item with multiple locations instead of duplicate rows. Every entry should disclose its content kind, authoritative source or locations, availability, size when known, revision/freshness when meaningful, temporary-retention status when applicable, and the action that is valid for that source.
+
+This is a read model over existing owners, not a new file registry, sync engine, or persistence layer. Studio remains the creation and production workspace. Provider APIs remain authoritative for provider files and permissions. **Storage & connections** owns capacity, connection health, destination selection, permissions, and location-specific removal; destructive actions must name the exact location they affect. Adding a storage provider should therefore add one source adapter to the account Library and one provider-native connection surface, not another user-facing library.
+
 ### Specialty-aware library discovery
 
 Library placement needs several separate classification dimensions. They should not be collapsed into one tag:
@@ -880,4 +888,3 @@ CardForge has one canonical visual rendering implementation. Templates and struc
 Canonical render artifacts are immutable derivatives bound to source identity, source revision, render subject, face, output profile, and a renderer contract version. A source revision can therefore remain unchanged while a renderer fix produces a new derivative contract, preventing stale pixels from surviving a rendering bug fix. Private render artifacts are cache/output data, not a second source of truth.
 
 MCP static creative review returns these exact CardForge-rendered artifacts as native image content. Rich widget/iframe UI is reserved for interactions that actually require persistent controls; displaying a finished CardForge render does not. Set contact sheets may compose canonical card PNGs downstream, but they must never re-render or reinterpret the underlying Template.
-

@@ -54,9 +54,10 @@ describe('Studio set workspace navigation', () => {
     expect(sets).toContain('<ExportControlsPanel');
   });
 
-  it('uses Sets as the production library while Account remains the storage lens', () => {
+  it('uses Sets as the production workspace while Account separates inventory from storage control', () => {
     const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
     const accountStorage = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
+    const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
 
     expect(sets).toContain('useProjectStore');
     expect(sets).toContain('useCloudSetActions');
@@ -66,7 +67,9 @@ describe('Studio set workspace navigation', () => {
     expect(sets).not.toContain('AssistantDraftLibrary');
     expect(sets).not.toContain('Browser storage');
 
-    expect(accountStorage).toContain('Storage &amp; Library');
+    expect(accountLibrary).toContain('buildAccountLibraryItems');
+    expect(accountLibrary).toContain('Storage remains with the source named on each item.');
+    expect(accountStorage).toContain('CardForge-managed storage');
     expect(accountStorage).toContain('This device');
     expect(accountStorage).toContain('CardForge cloud');
     expect(accountStorage).toContain('AssistantDraftLibrary');

@@ -1,32 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import {
-  ArrowRight,
-  CheckCircle2,
-  Cloud,
-  CreditCard,
-  FolderOpen,
-  LayoutDashboard,
-  LibraryBig,
-  LockKeyhole,
-  ShieldCheck,
-  Sparkles,
-  UserCircle2,
-  Wrench,
-} from 'lucide-react';
+import { CreditCard, HardDrive, ShieldCheck, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardForgeSectionIntro, CardForgeSurface } from '@/components/ui/cardforge-presentation';
-import { AccountDeveloperStatusSection } from '@/features/account/components/AccountDeveloperStatusSection';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
-import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
+import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
+import type { AccountSection } from '@/features/account/lib/accountSections';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 import type { McpAllowance, McpUsagePlanKey } from '@/features/mcp-usage/client/plans';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
-import { AccountPlanManagementPanel } from './AccountPlanManagementPanel';
+import { cn } from '@/shared/classNames';
+import { AccountUtilityPanel } from './AccountUtilityPanel';
+import { AccountMobileNavigation } from './AccountMobileNavigation';
+import { AccountWorkspaceHeader } from './AccountWorkspaceHeader';
+
+const AccountDeveloperStatusSection = dynamic(() => import('./AccountDeveloperStatusSection').then((module) => module.AccountDeveloperStatusSection));
+const AccountPlanManagementPanel = dynamic(() => import('./AccountPlanManagementPanel').then((module) => module.AccountPlanManagementPanel));
+const ProfileManagementPage = dynamic(() => import('./ProfileManagementPage').then((module) => module.ProfileManagementPage));
 
 interface PlatformStatusPayload {
   billing: {
@@ -40,90 +35,50 @@ interface ClerkIdentity {
   isSignedIn: boolean;
   email: string | null;
   displayName: string | null;
+  imageUrl: string | null;
 }
 
 interface AccountProfilePageProps {
+  activeSection: AccountSection;
   checkoutStatus?: 'cancelled' | 'success' | null;
   initialPlanIntent?: 'creator' | 'designer' | null;
   initialAuthConfigured?: boolean;
   plans: McpAllowance[];
-  storageLibrary?: ReactNode;
-  cloudStorageDetails?: ReactNode;
+  library?: ReactNode;
+  storageManagement?: ReactNode;
 }
 
-const formatAccessExpiration = (value: string | null) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-};
-
-function SummaryCard({
+function AccountSectionHeading({
   icon,
-  label,
+  eyebrow,
   title,
-  detail,
-  footer,
-  children,
+  body,
 }: {
   icon: ReactNode;
-  label: string;
+  eyebrow: string;
   title: string;
-  detail: string;
-  footer?: ReactNode;
-  children?: ReactNode;
+  body: string;
 }) {
   return (
-    <CardForgeSurface className="flex h-full flex-col p-4 md:p-5">
+    <div className="mb-5 border-b border-[var(--cf-border)] pb-4 md:mb-6 md:pb-5">
       <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
         {icon}
-        <span className="text-xs font-semibold uppercase tracking-[0.15em]">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.16em]">{eyebrow}</span>
       </div>
-      <h3 className="mt-3 font-serif text-xl text-[var(--cf-text-strong)]">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">{detail}</p>
-      {footer ? <div className="mt-4 text-xs leading-5 text-[var(--cf-text-subtle)]">{footer}</div> : null}
-      {children ? <div className="mt-auto pt-5">{children}</div> : null}
-    </CardForgeSurface>
-  );
-}
-
-function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
-  const links = [
-    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: 'my-cardforge', label: 'My CardForge', icon: <LibraryBig className="h-4 w-4" /> },
-    { id: 'account-and-billing', label: 'Plan & billing', icon: <CreditCard className="h-4 w-4" /> },
-    ...(showDeveloper
-      ? [{ id: 'developer-tools', label: 'Developer', icon: <Wrench className="h-4 w-4" /> }]
-      : []),
-  ];
-
-  return (
-    <nav aria-label="Account sections" className="mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
-      {links.map((link) => (
-        <a
-          key={link.id}
-          href={`#${link.id}`}
-          className="flex min-h-10 items-center gap-2 border border-transparent px-3 py-2 text-sm font-semibold text-[var(--cf-text-muted)] transition-colors hover:border-[var(--cf-border)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"
-        >
-          {link.icon}
-          {link.label}
-        </a>
-      ))}
-    </nav>
+      <h1 className="mt-2 max-w-4xl font-serif text-[1.75rem] font-semibold leading-tight text-[var(--cf-text-strong)] md:text-3xl">{title}</h1>
+      <p className="mt-2 max-w-4xl text-sm leading-5 text-[var(--cf-text-muted)] md:leading-6">{body}</p>
+    </div>
   );
 }
 
 export function AccountProfilePage({
+  activeSection,
   checkoutStatus = null,
   initialPlanIntent = null,
   initialAuthConfigured = false,
   plans,
-  storageLibrary,
-  cloudStorageDetails,
+  library,
+  storageManagement,
 }: AccountProfilePageProps) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState<ClerkIdentity>({
@@ -131,8 +86,11 @@ export function AccountProfilePage({
     isSignedIn: entitlement.isSignedIn,
     email: entitlement.accountEmail,
     displayName: null,
+    imageUrl: null,
   });
   const [platformStatus, setPlatformStatus] = useState<PlatformStatusPayload | null>(null);
+  const [desktopAccountOpen, setDesktopAccountOpen] = useState(true);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const refreshEntitlement = entitlement.refreshEntitlement;
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
     ? clerkIdentity.isSignedIn || entitlement.isSignedIn
@@ -179,238 +137,177 @@ export function AccountProfilePage({
   const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const showCheckout = canStartCheckout && Boolean(platformStatus?.billing.productAccessConfigured);
   const showDesignerCheckout = canStartCheckout && Boolean(platformStatus?.billing.designerPassConfigured);
-  const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
   const showDeveloper = isDeveloper || isOwner;
   const cloudSetLimit = entitlement.capabilities.cloudSetLimit;
 
-  const planLabel = isOwner
-    ? 'Owner access'
-    : isDeveloper
-      ? 'Contributor access'
-      : accessExpiresOn
-        ? `Creator Pass through ${accessExpiresOn}`
-        : entitlement.paidPlan === 'designer'
-          ? 'Designer Pass'
-          : entitlement.canExportClean
-            ? 'Creator Pass'
-            : 'Free';
-  const currentPlanKey: McpUsagePlanKey = isOwner || isDeveloper || entitlement.paidPlan === 'designer'
-    ? 'designer'
+  const planLabel = getAccountAccessLabel({
+    isOwner,
+    isDeveloper,
+    accessExpiresAt: entitlement.accessExpiresAt,
+    paidPlan: entitlement.paidPlan,
+    canExportClean: entitlement.canExportClean,
+  });
+  const currentPlanKey: McpUsagePlanKey | undefined = isOwner || isDeveloper
+    ? undefined
+    : entitlement.paidPlan === 'designer'
+      ? 'designer'
     : entitlement.canExportClean
       ? 'creator'
       : 'free';
-  const accountTitle = isClerkSetupIncomplete
-    ? 'Account setup needed'
-    : effectiveSignedIn && accountDisplayName
-      ? `${accountDisplayName}'s CardForge`
-      : effectiveSignedIn
-        ? 'Your CardForge'
-        : 'Your CardForge account';
-
   const heroDetail = isClerkSetupIncomplete
     ? 'Sign-in is not ready in this environment.'
     : effectiveSignedIn
-      ? 'Your plan, private library, device workspace, security, and billing are organized here.'
-      : 'Sign in to connect your private cloud library, cross-device saves, account security, and Creator Pass access.';
-
+      ? 'Here is what you were working on.'
+      : 'Sign in to connect your library, cloud saves, account security, and Creator Pass access.';
   const cloudSlotLabel = `${cloudSetLimit} private cloud set slot${cloudSetLimit === 1 ? '' : 's'}`;
   const downloadLabel = entitlement.canExportClean ? 'Watermark-free downloads' : 'Free exports include the CardForge watermark';
+  const showHome = activeSection === 'home' || (activeSection === 'developer' && !showDeveloper);
+  const displayedSection = showHome ? 'home' : activeSection;
+  const accountName = effectiveSignedIn ? accountDisplayName ?? accountEmail : 'Creator account';
 
   return (
     <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
-      <section className="mx-auto max-w-7xl px-4 py-5 md:px-6 lg:py-7">
-        {entitlement.entitlementError ? (
-          <div role="status" className="mb-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">
-            Account access could not be verified, so CardForge is not presenting this as signed-out or Free. Local work remains available. Retry account or cloud actions after the service recovers.
-          </div>
-        ) : null}
-        <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-          <CardForgeSurface as="aside" tone="inset" className="p-4 lg:sticky lg:top-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">CardForge account</p>
-            <p className="mt-2 break-words font-serif text-lg text-[var(--cf-text-strong)]">
-              {effectiveSignedIn ? accountDisplayName ?? accountEmail : 'Creator dashboard'}
-            </p>
-            <p className="mt-1 break-words text-xs leading-5 text-[var(--cf-text-subtle)]">
-              {effectiveSignedIn ? accountEmail : 'Sign in to connect cloud saves and account controls.'}
-            </p>
-            <div className="mt-4 inline-flex border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--cf-accent-text)]">
-              {planLabel}
+      <AccountWorkspaceHeader
+        activeSection={displayedSection}
+        accountLabel={accountName}
+        avatarUrl={clerkIdentity.imageUrl}
+        onOpenDesktopAccount={() => setDesktopAccountOpen((open) => !open)}
+        onOpenMobileAccount={() => setMobileAccountOpen(true)}
+      />
+
+      <div className={cn(
+        'mx-auto grid min-h-[calc(100vh-4rem)] max-w-[96rem]',
+        desktopAccountOpen ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'grid-cols-1',
+      )}>
+        <section className="min-w-0 px-4 pb-24 pt-5 sm:pb-8 md:px-8 md:py-8 xl:px-10">
+          {entitlement.entitlementError ? (
+            <div role="status" className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">
+              Account access could not be verified, so CardForge is not presenting this as signed-out or Free. Local work remains available. Retry account or cloud actions after the service recovers.
             </div>
-            <DashboardNav showDeveloper={showDeveloper} />
-            <Button asChild className="mt-5 w-full bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
-              <Link href="/studio" prefetch={false}>Open Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </CardForgeSurface>
+          ) : null}
 
-          <div className="min-w-0 space-y-5">
-            <CardForgeSurface as="section" id="overview" tone="inset" className="scroll-mt-24 p-4 md:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-                    <LayoutDashboard className="h-5 w-5" />
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em]">Overview</span>
+          {showHome ? (
+            <div>
+              <div className="mb-5 border-b border-[var(--cf-border)] pb-5 md:mb-6 md:pb-6">
+                <h1 className="font-serif text-[1.75rem] font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
+                  {effectiveSignedIn ? `Good to see you, ${accountDisplayName ?? 'creator'}.` : 'Your CardForge workspace'}
+                </h1>
+                <p className="mt-2 text-sm text-[var(--cf-text-muted)]">{heroDetail}</p>
+                {!effectiveSignedIn && entitlement.authConfigured ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button asChild size="sm"><Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link></Button>
+                    <Button asChild size="sm" variant="outline" onClick={markSignUpIntent}><Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link></Button>
                   </div>
-                  <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">{accountTitle}</h1>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">{heroDetail}</p>
-                </div>
-                <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-raised)] px-3 py-2 text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--cf-text-subtle)]">Current plan</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--cf-accent-text)]">{planLabel}</p>
-                </div>
+                ) : null}
               </div>
+              {library}
+            </div>
+          ) : null}
 
-              <div className="mt-5 grid gap-3 xl:grid-cols-3">
-                <SummaryCard
-                  icon={<Cloud className="h-4 w-4" />}
-                  label="Plan & access"
-                  title={planLabel}
-                  detail={`${cloudSlotLabel}. ${downloadLabel}.`}
-                  footer={accessExpiresOn && !isOwner && !isDeveloper ? `Current paid access runs through ${accessExpiresOn}.` : 'Cloud slot limits apply only to account backups; local creation remains unlimited.'}
-                >
-                  {entitlement.canExportClean ? (
-                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--cf-success)]">
-                      <CheckCircle2 className="h-4 w-4" /> Creator export access active
-                    </div>
-                  ) : (
-                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                      <Link href="/plans" prefetch={false}>Compare plans</Link>
-                    </Button>
-                  )}
-                </SummaryCard>
+          {activeSection === 'library' ? <section aria-label="Library">{library}</section> : null}
 
-                <SummaryCard
-                  icon={<FolderOpen className="h-4 w-4" />}
-                  label="Workspace"
-                  title="Local-first by default"
-                  detail="Your active CardForge workspace stays on this device. You choose which sets become private account cloud backups."
-                  footer="Device-only work is not automatically uploaded or exposed to ChatGPT."
-                >
-                  <Button asChild size="sm" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
-                    <Link href="/studio" prefetch={false}>Create in Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                  </Button>
-                </SummaryCard>
-
-                <SummaryCard
-                  icon={<LockKeyhole className="h-4 w-4" />}
-                  label="Identity & security"
-                  title={effectiveSignedIn ? 'Account connected' : 'Sign in to connect'}
-                  detail={effectiveSignedIn ? accountEmail : 'Connect an account to manage security, cloud saves, billing, and cross-device access.'}
-                  footer={effectiveSignedIn ? 'Profile details, sign-in methods, passwords, and active sessions live under Profile & security.' : undefined}
-                >
-                  {effectiveSignedIn ? (
-                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                      <Link href="/profile" prefetch={false}>Profile &amp; security</Link>
-                    </Button>
-                  ) : entitlement.authConfigured ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                        <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="ghost" onClick={markSignUpIntent} className="text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                        <Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button disabled size="sm" variant="outline">Account setup needed</Button>
-                  )}
-                </SummaryCard>
-              </div>
-            </CardForgeSurface>
-
-            <section id="my-cardforge" className="scroll-mt-24">
-              <CardForgeSectionIntro
-                eyebrow="My CardForge"
-                title="Your work across device, cloud, and AI"
-                body="Manage the things tied to your CardForge experience without mixing storage locations. Local sets, cloud backups, and AI working drafts stay visibly distinct."
+          {activeSection === 'storage' ? (
+            <section>
+              <AccountSectionHeading
+                icon={<HardDrive className="h-5 w-5" />}
+                eyebrow="Storage & connections"
+                title="See and manage every storage location"
+                body="Open a location for its exact capacity, permissions, destination, and removal controls. Your Library remains the combined view of the work itself."
               />
-              <div className="mt-4 space-y-4">
-                {storageLibrary}
-                {cloudStorageDetails}
-              </div>
+              <div className="space-y-4">{storageManagement}</div>
             </section>
+          ) : null}
 
-            <CardForgeSurface as="section" id="account-and-billing" tone="inset" className="scroll-mt-24 p-4 md:p-6">
-              <CardForgeSectionIntro
+          {activeSection === 'billing' ? (
+            <section>
+              <AccountSectionHeading
+                icon={<CreditCard className="h-5 w-5" />}
                 eyebrow="Plan & billing"
-                title="Choose, start, or manage your plan"
-                body="Compare the full offer here, then use the action tied to this account. New subscriptions use Stripe Checkout; existing subscriptions open Stripe billing for plan changes, invoices, payment details, or cancellation."
+                title="Manage access, billing, and usage"
+                body="Your current access and next actions come first. Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation."
               />
+              <AccountPlanManagementPanel
+                authConfigured={entitlement.authConfigured}
+                canExportClean={entitlement.canExportClean}
+                canManageBilling={canManageBilling}
+                checkoutStatus={checkoutStatus}
+                cloudSlotLabel={cloudSlotLabel}
+                currentPlanKey={currentPlanKey}
+                downloadLabel={downloadLabel}
+                effectiveSignedIn={effectiveSignedIn}
+                initialPlanIntent={initialPlanIntent}
+                planLabel={planLabel}
+                plans={plans}
+                showCheckout={showCheckout}
+                showDesignerCheckout={showDesignerCheckout}
+              />
+            </section>
+          ) : null}
 
-              <div className="mt-4">
-                <AccountPlanManagementPanel
-                  authConfigured={entitlement.authConfigured}
-                  canExportClean={entitlement.canExportClean}
-                  canManageBilling={canManageBilling}
-                  checkoutStatus={checkoutStatus}
-                  cloudSlotLabel={cloudSlotLabel}
-                  currentPlanKey={currentPlanKey}
-                  downloadLabel={downloadLabel}
-                  effectiveSignedIn={effectiveSignedIn}
-                  initialPlanIntent={initialPlanIntent}
-                  planLabel={planLabel}
-                  plans={plans}
-                  showCheckout={showCheckout}
-                  showDesignerCheckout={showDesignerCheckout}
-                />
-              </div>
+          {activeSection === 'profile' ? (
+            <section>
+              <AccountSectionHeading
+                icon={<ShieldCheck className="h-5 w-5" />}
+                eyebrow="Profile & security"
+                title="Manage your identity and sign-in security"
+                body="CardForge keeps this workspace consistent while Clerk securely owns profile details, sign-in methods, devices, and active sessions."
+              />
+              <ProfileManagementPage authConfigured={entitlement.authConfigured} />
+            </section>
+          ) : null}
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <SummaryCard
-                  icon={<UserCircle2 className="h-4 w-4" />}
-                  label="Profile & security"
-                  title={effectiveSignedIn ? accountDisplayName ?? 'Your profile' : 'Account identity'}
-                  detail={effectiveSignedIn ? `Signed in as ${accountEmail}` : 'Sign in to manage your name, avatar, email addresses, password, providers, and active sessions.'}
-                >
-                  {effectiveSignedIn ? (
-                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                      <Link href="/profile" prefetch={false}><ShieldCheck className="mr-2 h-4 w-4" />Manage security</Link>
-                    </Button>
-                  ) : entitlement.authConfigured ? (
-                    <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-                      <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
-                    </Button>
-                  ) : null}
-                </SummaryCard>
+          {activeSection === 'developer' && showDeveloper ? (
+            <section>
+              <AccountSectionHeading
+                icon={<Wrench className="h-5 w-5" />}
+                eyebrow="Developer"
+                title={isOwner ? 'Owner and contributor tools' : 'Contributor tools'}
+                body="Developer surfaces appear only for accounts that actually have contributor or owner access."
+              />
+              <AccountDeveloperStatusSection isOwner={isOwner} isDeveloper={isDeveloper} />
+            </section>
+          ) : null}
+        </section>
 
-                <CardForgeSurface className="p-4 md:p-5">
-                  <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-[0.15em]">Your data boundaries</span>
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    {[
-                      ['This device', 'The normal workspace, personal Templates, and local uploads stay browser-owned.'],
-                      ['Private cloud', 'Only sets you explicitly back up use your account cloud slots and become available across devices.'],
-                      ['AI working drafts', 'Temporary Studio/ChatGPT collaboration documents remain separate from permanent cloud backups.'],
-                    ].map(([title, detail]) => (
-                      <CardForgeSurface key={title} tone="inset" className="border-[var(--cf-border-subtle)] p-3">
-                        <p className="text-sm font-semibold text-[var(--cf-text-strong)]">{title}</p>
-                        <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">{detail}</p>
-                      </CardForgeSurface>
-                    ))}
-                  </div>
-                </CardForgeSurface>
-              </div>
-            </CardForgeSurface>
+        {desktopAccountOpen ? (
+          <aside className="hidden min-h-0 border-l border-[var(--cf-border)] xl:block" aria-label="Account utilities">
+            <AccountUtilityPanel
+              accountEmail={effectiveSignedIn ? accountEmail : 'Sign in to connect your account'}
+              accountName={accountName}
+              activeSection={displayedSection}
+              avatarUrl={clerkIdentity.imageUrl}
+              cloudSlotLabel={cloudSlotLabel}
+              isOwner={isOwner}
+              onClose={() => setDesktopAccountOpen(false)}
+              planLabel={planLabel}
+              showDeveloper={showDeveloper}
+            />
+          </aside>
+        ) : null}
+      </div>
 
-            {showDeveloper ? (
-              <section id="developer-tools" className="scroll-mt-24">
-                <CardForgeSectionIntro
-                  eyebrow="Developer"
-                  title={isOwner ? 'Owner and contributor tools' : 'Contributor tools'}
-                  body="Developer surfaces appear only for accounts that actually have contributor or owner access."
-                />
-                <div className="mt-4">
-                  <AccountDeveloperStatusSection isOwner={isOwner} isDeveloper={isDeveloper} />
-                </div>
-              </section>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      <AccountMobileNavigation activeSection={displayedSection} onOpenMore={() => setMobileAccountOpen(true)} />
+
+      <Sheet open={mobileAccountOpen} onOpenChange={setMobileAccountOpen}>
+        <SheetContent side="right" className="w-[min(92vw,24rem)] border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-0 sm:max-w-sm">
+          <SheetTitle className="sr-only">Account utilities</SheetTitle>
+          <SheetDescription className="sr-only">Manage profile, billing, storage, connections, and developer access.</SheetDescription>
+          <AccountUtilityPanel
+            accountEmail={effectiveSignedIn ? accountEmail : 'Sign in to connect your account'}
+            accountName={accountName}
+            activeSection={displayedSection}
+            avatarUrl={clerkIdentity.imageUrl}
+            cloudSlotLabel={cloudSlotLabel}
+            isOwner={isOwner}
+            onNavigate={() => setMobileAccountOpen(false)}
+            planLabel={planLabel}
+            showDeveloper={showDeveloper}
+          />
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }
@@ -424,7 +321,8 @@ function ClerkIdentityBridge({ onChange }: { onChange: (identity: ClerkIdentity)
       isSignedIn: Boolean(isSignedIn),
       email: user?.primaryEmailAddress?.emailAddress ?? null,
       displayName: user?.fullName ?? user?.firstName ?? null,
+      imageUrl: user?.imageUrl ?? null,
     });
-  }, [isLoaded, isSignedIn, onChange, user?.createdAt, user?.firstName, user?.fullName, user?.primaryEmailAddress?.emailAddress]);
+  }, [isLoaded, isSignedIn, onChange, user?.createdAt, user?.firstName, user?.fullName, user?.imageUrl, user?.primaryEmailAddress?.emailAddress]);
   return null;
 }

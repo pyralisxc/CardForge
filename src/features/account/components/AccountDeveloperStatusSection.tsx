@@ -13,25 +13,25 @@ export function AccountDeveloperStatusSection({
   if (!isOwner && !isDeveloper) return null;
 
   return (
-    <section className="border border-[var(--cf-accent)] bg-[var(--cf-surface-raised)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] md:p-5">
-      <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
+    <section>
+      <div className="flex items-center gap-3 border-b border-[var(--cf-border)] pb-4 text-[var(--cf-accent-strong)]">
         {isOwner ? <Crown className="h-5 w-5" aria-hidden="true" /> : <Wrench className="h-5 w-5" aria-hidden="true" />}
-        <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">{isOwner ? 'Owner & developer access' : 'Developer Program access'}</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--cf-text-strong)]">{isOwner ? 'Owner & developer access' : 'Developer Program access'}</h3>
+          <p className="mt-1 text-xs text-[var(--cf-text-muted)]">{isOwner ? 'Operational and contributor permissions are active.' : 'Contributor permissions are active.'}</p>
+        </div>
       </div>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-        {isOwner
-          ? 'Manage the live CardForge product and use the contributor workspace for reviewable shared-library work.'
-          : 'Use your private contributor workspace to prepare and submit shared CardForge assets for owner review.'}
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="divide-y divide-[var(--cf-border-subtle)] border-b border-[var(--cf-border)]">
         {isOwner ? (
-          <Button asChild className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
-            <Link href="/owner" prefetch={false}>Open Owner Console <ArrowRight className="ml-2 h-4 w-4" /></Link>
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div><p className="text-sm font-semibold text-[var(--cf-text-strong)]">Owner Console</p><p className="mt-1 text-xs text-[var(--cf-text-muted)]">Manage live product operations, governance, people, and growth.</p></div>
+            <Button asChild size="sm" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110"><Link href="/owner" prefetch={false}>Open console <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+          </div>
         ) : null}
-        <Button asChild variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
-          <Link href="/developer/cockpit" prefetch={false}>Open Developer Cockpit <ArrowRight className="ml-2 h-4 w-4" /></Link>
-        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <div><p className="text-sm font-semibold text-[var(--cf-text-strong)]">Developer Cockpit</p><p className="mt-1 text-xs text-[var(--cf-text-muted)]">Prepare reviewable shared-library work and contribution proposals.</p></div>
+          <Button asChild size="sm" variant="outline" className="border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]"><Link href="/developer/cockpit" prefetch={false}>Open cockpit <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+        </div>
       </div>
     </section>
   );

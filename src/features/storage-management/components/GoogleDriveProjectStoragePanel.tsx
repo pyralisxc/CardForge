@@ -30,10 +30,12 @@ const formatBytes = (bytes: number) => {
 
 export function GoogleDriveProjectStoragePanel({
   canUseProjectFiles,
+  embedded = false,
   isSignedIn,
   persistenceScope,
 }: {
   canUseProjectFiles: boolean;
+  embedded?: boolean;
   isSignedIn: boolean;
   persistenceScope: ProjectPersistenceScope;
 }) {
@@ -111,18 +113,20 @@ export function GoogleDriveProjectStoragePanel({
   const connection = library?.connection ?? null;
 
   return (
-    <section className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5" aria-labelledby="google-drive-storage-title">
+    <section className={embedded ? 'py-1' : 'border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5'} aria-labelledby={embedded ? undefined : 'google-drive-storage-title'}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-            <Cloud className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected storage</span>
+        {!embedded ? (
+          <div>
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+              <Cloud className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected storage</span>
+            </div>
+            <h2 id="google-drive-storage-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive projects</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
+              Keep durable .cardforge projects in your own Google Drive. CardForge stores only the encrypted connection credential and temporary AI working copies; the project files use your Google storage quota.
+            </p>
           </div>
-          <h2 id="google-drive-storage-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive projects</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            Keep durable .cardforge projects in your own Google Drive. CardForge stores only the encrypted connection credential and temporary AI working copies; the project files use your Google storage quota.
-          </p>
-        </div>
+        ) : <span className="text-xs leading-5 text-[var(--cf-text-muted)]">Drive remains authoritative for files and permissions.</span>}
         <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={Boolean(busyAction) || !isSignedIn}>
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>

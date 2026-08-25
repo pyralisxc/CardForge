@@ -26,6 +26,7 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
     mimeTypes: [GOOGLE_DRIVE_FOLDER_MIME_TYPE],
     includeFolders: true,
     selectFolders: true,
+    initialFolderId: null,
   });
   if (!selectedItems) return null;
   const selected = selectedItems[0];

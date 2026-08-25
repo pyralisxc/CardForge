@@ -41,6 +41,15 @@ describe('repository maintenance policy', () => {
 
     const envExample = await readFile(rootPath('.env.example'), 'utf8');
     expect(envExample).not.toContain('CARDFORGE_QA_ACCOUNT_PASSWORD');
+    for (const connectedStorageVariable of [
+      'CARDFORGE_GOOGLE_STORAGE_CLIENT_ID=',
+      'CARDFORGE_GOOGLE_STORAGE_CLIENT_SECRET=',
+      'CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY=',
+      'CARDFORGE_GOOGLE_PICKER_API_KEY=',
+      'CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER=',
+    ]) {
+      expect(envExample).toContain(connectedStorageVariable);
+    }
   });
 
   it('runs zero-exception architecture enforcement in normal CI', async () => {

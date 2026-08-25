@@ -1,0 +1,499 @@
+"use client";
+
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { LibraryBig, Loader2, RefreshCw, Search } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import type { CardAssetOption } from '@/domain/templates';
+import {
+  createCardSetTransfer,
+  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+  getGoogleDriveProjectBinding,
+  getLocalProjectFolderStatus,
+  getProjectAssetStorage,
+  hydrateProjectWorkspaceForScope,
+  loadGoogleDriveProjectLibrary,
+  openGoogleDriveProject,
+  readTypedProjectAssetListFromStorage,
+  selectAllTemplates,
+  useCloudSetActions,
+  useProjectStore,
+  type GoogleDriveProjectListResult,
+  type LocalProjectFolderStatus,
+  type ProjectDocumentCustomAssets,
+  type ProjectPersistenceScope,
+} from '@/features/project/client';
+import {
+  getPersonalLibraryRoleLabel,
+  loadPersonalLibrary,
+  type PersonalLibraryListResult,
+} from '@/features/personal-library/client';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import {
+  ACCOUNT_LIBRARY_KINDS,
+  buildAccountLibraryItems,
+  getAccountLibrarySourceLabel,
+  type AccountLibraryItem,
+  type AccountLibraryKind,
+  type AccountLibrarySource,
+} from '../model/accountLibrary';
+import { AccountLibraryItemRow, accountLibraryKindLabels } from './AccountLibraryItemRow';
+import { AccountHomeStatusRow, type AccountHomeStatus } from './AccountHomeStatusRow';
+interface StudioDocumentSummary {
+  id: string;
+  title: string;
+  creationSource: string;
+  revision: number;
+  updatedAt: string;
+  expiresAt: string;
+}
+interface UnifiedAccountLibraryProps {
+  persistenceScope: ProjectPersistenceScope;
+  isSignedIn: boolean;
+  cloudSetLimit: number;
+  homeAccessStatus?: AccountHomeStatus;
+  homeSecurityStatus?: AccountHomeStatus;
+  view?: 'home' | 'library';
+}
+const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'];
+const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
+  [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
+  [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
+  [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
+  [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
+});
+export function UnifiedAccountLibrary({
+  persistenceScope,
+  isSignedIn,
+  cloudSetLimit,
+  homeAccessStatus,
+  homeSecurityStatus,
+  view = 'library',
+}: UnifiedAccountLibraryProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [hydrated, setHydrated] = useState(false);
+  const [hydrationProblem, setHydrationProblem] = useState<string | null>(null);
+  const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
+  const [portableSetBytes, setPortableSetBytes] = useState<Record<string, number>>({});
+  const [driveLibrary, setDriveLibrary] = useState<GoogleDriveProjectListResult | null>(null);
+  const [driveBindingFileId, setDriveBindingFileId] = useState<string | null>(null);
+  const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
+  const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
+  const [workingDrafts, setWorkingDrafts] = useState<StudioDocumentSummary[]>([]);
+  const [sourceProblems, setSourceProblems] = useState<string[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [kind, setKind] = useState<AccountLibraryKind | 'all'>('all');
+  const [source, setSource] = useState<AccountLibrarySource | 'all'>('all');
+  const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
+  const deferredQuery = useDeferredValue(query);
+
+  const cardSets = useProjectStore((state) => state.cardSets);
+  const storedCards = useProjectStore((state) => state.storedCards);
+  const userTemplates = useProjectStore((state) => state.userTemplates);
+  const {
+    cloud,
+    isLoadingCloudSets,
+    loadSetFromCloud,
+    refreshCloudSets,
+  } = useCloudSetActions({ toast, enabled: isSignedIn });
+  useEffect(() => {
+    let cancelled = false;
+    setHydrated(false);
+    setHydrationProblem(null);
+    void hydrateProjectWorkspaceForScope(persistenceScope)
+      .then(() => { if (!cancelled) setHydrated(true); })
+      .catch((error) => {
+        if (cancelled) return;
+        setHydrationProblem(error instanceof Error ? error.message : 'This device workspace is unavailable.');
+        setHydrated(true);
+    });
+    return () => { cancelled = true; };
+  }, [persistenceScope]);
+  const refreshLibrarySources = useCallback(async () => {
+    setLoadingSources(true);
+    const problems: string[] = [];
+    const assetStorage = getProjectAssetStorage();
+    const deviceAssetsPromise = Promise.all([
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    ]).catch((error) => {
+      problems.push(error instanceof Error ? error.message : 'Device assets are unavailable.');
+      return [[], [], [], []] as CardAssetOption[][];
+    });
+    const localFolderPromise = getLocalProjectFolderStatus().catch((error) => {
+      problems.push(error instanceof Error ? error.message : 'Local-folder status is unavailable.');
+      return null;
+    });
+
+    const signedInSourcesPromise = isSignedIn
+      ? Promise.all([
+          loadGoogleDriveProjectLibrary().catch((error) => {
+            problems.push(error instanceof Error ? error.message : 'Google Drive projects are unavailable.');
+            return null;
+          }),
+          getGoogleDriveProjectBinding().catch(() => null),
+          loadPersonalLibrary().catch((error) => {
+            problems.push(error instanceof Error ? error.message : 'Connected assets are unavailable.');
+            return null;
+          }),
+          fetch('/api/studio-documents', { cache: 'no-store' })
+            .then(async (response) => {
+              if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Private working drafts are unavailable.'));
+              return await response.json() as { documents?: StudioDocumentSummary[] };
+            })
+            .catch((error) => {
+              problems.push(error instanceof Error ? error.message : 'Private working drafts are unavailable.');
+              return null;
+            }),
+        ] as const)
+      : Promise.resolve([null, null, null, null] as const);
+
+    const [[textures, dividers, icons, images], folderResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
+      deviceAssetsPromise,
+      localFolderPromise,
+      signedInSourcesPromise,
+    ]);
+    setCustomAssets({
+      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
+      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
+      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: icons,
+      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
+    });
+    setLocalFolder(folderResult);
+    setDriveLibrary(driveResult);
+    setDriveBindingFileId(bindingResult?.fileId ?? null);
+    setPersonalLibrary(assetsResult);
+    setWorkingDrafts(Array.isArray(draftsResult?.documents) ? draftsResult.documents : []);
+    setSourceProblems(problems);
+    setLoadingSources(false);
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void refreshLibrarySources();
+  }, [hydrated, refreshLibrarySources]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const templates = selectAllTemplates(useProjectStore.getState());
+    const next: Record<string, number> = {};
+    cardSets.forEach((set) => {
+      const transfer = createCardSetTransfer({ set, storedCards, templates, customAssets });
+      next[set.id] = new Blob([JSON.stringify(transfer)]).size;
+    });
+    setPortableSetBytes(next);
+  }, [cardSets, customAssets, hydrated, storedCards, userTemplates]);
+
+  const cardCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    storedCards.forEach((card) => {
+      if (card.setId) counts.set(card.setId, (counts.get(card.setId) ?? 0) + 1);
+    });
+    return counts;
+  }, [storedCards]);
+
+  const items = useMemo(() => buildAccountLibraryItems({
+    localSets: cardSets.map((set) => ({
+      id: set.id,
+      name: set.name,
+      cardCount: cardCounts.get(set.id) ?? 0,
+      sizeBytes: portableSetBytes[set.id] ?? null,
+    })),
+    cloudSets: (cloud?.sets ?? []).map((set) => ({
+      setId: set.setId,
+      name: set.name,
+      cardCount: set.cardCount,
+      revision: set.revision,
+      storageBytes: set.storageBytes,
+      updatedAt: set.updatedAt,
+    })),
+    driveProjects: driveLibrary?.projects ?? [],
+    driveBindingFileId,
+    localFolder: localFolder?.binding ? {
+      folderName: localFolder.binding.folderName,
+      sourceRevision: localFolder.binding.sourceRevision,
+      lastSavedAt: localFolder.binding.lastSavedAt,
+      permission: localFolder.permission,
+    } : null,
+    personalAssets: (personalLibrary?.items ?? []).map((item) => ({
+      id: item.id,
+      displayName: item.displayName,
+      roleLabel: getPersonalLibraryRoleLabel(item.role),
+      byteSize: item.byteSize,
+      providerRevision: item.providerRevision,
+      providerModifiedAt: item.providerModifiedAt,
+      providerWebViewLink: item.providerWebViewLink,
+    })),
+    workingDrafts,
+  }), [cardCounts, cardSets, cloud?.sets, driveBindingFileId, driveLibrary?.projects, localFolder, personalLibrary?.items, portableSetBytes, workingDrafts]);
+
+  const visibleItems = useMemo(() => {
+    const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
+    const filtered = items.filter((item) => {
+      if (kind !== 'all' && item.kind !== kind) return false;
+      if (source !== 'all' && !item.locations.some((location) => location.source === source)) return false;
+      if (!normalizedQuery) return true;
+      return [item.name, ...item.details, ...item.locations.map((location) => location.label)]
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(normalizedQuery);
+    });
+    return filtered.toSorted((left, right) => {
+      if (sort === 'name') return left.name.localeCompare(right.name);
+      if (sort === 'kind') return accountLibraryKindLabels[left.kind].localeCompare(accountLibraryKindLabels[right.kind]) || left.name.localeCompare(right.name);
+      return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
+    });
+  }, [deferredQuery, items, kind, sort, source]);
+
+  const sourceCounts = useMemo(() => {
+    const counts = new Map<AccountLibrarySource, number>();
+    items.forEach((item) => item.locations.forEach((location) => counts.set(location.source, (counts.get(location.source) ?? 0) + 1)));
+    return counts;
+  }, [items]);
+
+  const openItem = useCallback(async (item: AccountLibraryItem) => {
+    setBusyItemId(item.id);
+    try {
+      if (item.references.localSetId) {
+        useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
+        router.push('/studio');
+        return;
+      }
+      if (item.references.cloudSetId) {
+        await loadSetFromCloud(item.references.cloudSetId);
+        router.push('/studio');
+        return;
+      }
+      if (item.references.driveFileId) {
+        await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
+        router.push('/studio');
+      }
+    } catch (error) {
+      toast({
+        title: 'Library item could not be opened',
+        description: error instanceof Error ? error.message : 'CardForge could not open that library item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyItemId(null);
+    }
+  }, [loadSetFromCloud, router, toast]);
+
+  const isLoading = !hydrated || loadingSources || isLoadingCloudSets;
+  const cloudLimit = cloud?.limit ?? cloudSetLimit;
+  const featuredItem = items.find((item) => (
+    item.references.localSetId
+    || item.references.workingDraftId
+    || item.references.cloudSetId
+    || item.references.driveFileId
+  )) ?? null;
+  const recentItems = featuredItem
+    ? items.filter((item) => item.id !== featuredItem.id).slice(0, 5)
+    : items.slice(0, 5);
+  const hasConnectionProblem = sourceProblems.some((problem) => /drive|connect|asset/iu.test(problem));
+  const connectionStatus: AccountHomeStatus = {
+    label: 'Connections',
+    value: !isSignedIn
+      ? 'Sign in to connect'
+      : loadingSources
+        ? 'Checking connections'
+        : hasConnectionProblem
+          ? 'Connection unavailable'
+          : driveLibrary !== null
+            ? 'Google Drive connected'
+            : 'No provider connected',
+    detail: hasConnectionProblem
+      ? 'A provider could not be reached. Existing work has not been relabeled or removed.'
+      : `${sourceCounts.get('google-drive') ?? 0} Google Drive item${(sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'} available to your Library.`,
+    href: '/account?section=storage',
+    action: 'Manage',
+  };
+  const storageStatus: AccountHomeStatus = {
+    label: 'Storage',
+    value: 'Work is available',
+    detail: `${sourceCounts.get('device') ?? 0} on this device · ${cloud?.used ?? 0} of ${cloudLimit} cloud slots used`,
+    href: '/account?section=storage',
+    action: 'Review',
+  };
+
+  if (view === 'home') {
+    return (
+      <div>
+        {hydrationProblem || sourceProblems.length > 0 ? (
+          <div className="mb-5 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]" role="status">
+            <p className="font-semibold">Some workspace sources are unavailable</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">{[hydrationProblem, ...sourceProblems].filter((problem): problem is string => Boolean(problem)).map((problem) => <li key={problem}>{problem}</li>)}</ul>
+          </div>
+        ) : null}
+
+        <section aria-labelledby="continue-work-heading">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+              <LibraryBig className="h-4 w-4" />
+              <h2 id="continue-work-heading" className="text-[11px] font-semibold uppercase tracking-[0.14em] sm:text-xs sm:tracking-[0.16em]">Continue where you left off</h2>
+            </div>
+            <Button type="button" size="sm" variant="ghost" className="shrink-0 px-2 sm:px-3" disabled={isLoading} onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
+            </Button>
+          </div>
+          {featuredItem ? (
+            <AccountLibraryItemRow
+              item={featuredItem}
+              variant="featured"
+              busy={busyItemId === featuredItem.id}
+              anyItemBusy={busyItemId !== null}
+              onOpen={openItem}
+            />
+          ) : (
+            <div className="border border-[var(--cf-border)] py-8 text-center">
+              <p className="text-sm text-[var(--cf-text-muted)]">Your workspace is ready for its first set or project.</p>
+              <Button asChild size="sm" className="mt-4"><Link href="/studio">Create in Studio</Link></Button>
+            </div>
+          )}
+        </section>
+
+        <section className="mt-7" aria-labelledby="account-status-heading">
+          <div className="border-b border-[var(--cf-border)] pb-3">
+            <h2 id="account-status-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Account at a glance</h2>
+          </div>
+          {homeAccessStatus ? <AccountHomeStatusRow status={homeAccessStatus} /> : null}
+          <AccountHomeStatusRow status={storageStatus} />
+          <AccountHomeStatusRow status={connectionStatus} />
+          {homeSecurityStatus ? <AccountHomeStatusRow status={homeSecurityStatus} /> : null}
+        </section>
+
+        <section className="mt-7" aria-labelledby="recent-work-heading">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
+            <h2 id="recent-work-heading" className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Recent work</h2>
+            <Button asChild size="sm" variant="ghost"><Link href="/account?section=library">View all in Library</Link></Button>
+          </div>
+          {recentItems.length > 0 ? (
+            <div>
+              <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
+                <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
+              </div>
+              {recentItems.map((item) => (
+                <AccountLibraryItemRow
+                  key={item.id}
+                  item={item}
+                  busy={busyItemId === item.id}
+                  anyItemBusy={busyItemId !== null}
+                  onOpen={openItem}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="border-b border-[var(--cf-border-subtle)] py-6 text-sm text-[var(--cf-text-muted)]">More sets, projects, assets, and working drafts will appear here as you create or connect them.</p>
+          )}
+        </section>
+
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-4">
+        <div>
+          <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+            <LibraryBig className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Library</span>
+          </div>
+          <h1 className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">Everything you can continue, reuse, or recover</h1>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
+            One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts. Storage remains with the source named on each item.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isLoading}
+          onClick={() => { void refreshLibrarySources(); void refreshCloudSets(); }}
+        >
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          Refresh
+        </Button>
+      </div>
+
+      <div className="mt-3 grid gap-2 border-y border-[var(--cf-border-subtle)] py-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_12rem_12rem_10rem]" aria-label="Library toolbar">
+        <label className="relative block">
+          <span className="sr-only">Search your CardForge library</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" />
+          <Input
+            id="library-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search names, sources, and details"
+            className="pl-9"
+          />
+        </label>
+        <Select value={source} onValueChange={(value) => setSource(value as AccountLibrarySource | 'all')}>
+          <SelectTrigger aria-label="Filter by source"><SelectValue placeholder="All sources" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sources · {items.length}</SelectItem>
+            {LIBRARY_SOURCES.map((option) => <SelectItem key={option} value={option}>{getAccountLibrarySourceLabel(option)} · {sourceCounts.get(option) ?? 0}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={kind} onValueChange={(value) => setKind(value as AccountLibraryKind | 'all')}>
+          <SelectTrigger aria-label="Filter by type"><SelectValue placeholder="All types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {ACCOUNT_LIBRARY_KINDS.map((option) => <SelectItem key={option} value={option}>{accountLibraryKindLabels[option]}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(value) => setSort(value as 'recent' | 'name' | 'kind')}>
+          <SelectTrigger aria-label="Sort library"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Recently updated</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="kind">Type</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {hydrationProblem || sourceProblems.length > 0 ? (
+        <div className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]" role="status">
+          <p className="font-semibold">Some library sources are unavailable</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">{[hydrationProblem, ...sourceProblems].filter((problem): problem is string => Boolean(problem)).map((problem) => <li key={problem}>{problem}</li>)}</ul>
+        </div>
+      ) : null}
+
+      {isLoading && items.length === 0 ? (
+        <p className="mt-5 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading your library…</p>
+      ) : visibleItems.length === 0 ? (
+        <p className="mt-5 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-4 text-sm text-[var(--cf-text-muted)]">
+          {items.length === 0 ? 'Your library is ready for its first set, project, asset, or working draft.' : 'No library items match this filter.'}
+        </p>
+      ) : (
+        <div className="mt-5">
+          <div className="hidden grid-cols-[minmax(12rem,1.5fr)_0.6fr_minmax(10rem,1fr)_0.8fr_auto] gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)] md:grid">
+            <span>Work</span><span>Kind</span><span>Locations</span><span>Updated</span><span className="text-right">Action</span>
+          </div>
+          {visibleItems.map((item) => (
+            <AccountLibraryItemRow
+              key={item.id}
+              item={item}
+              busy={busyItemId === item.id}
+              anyItemBusy={busyItemId !== null}
+              onOpen={openItem}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

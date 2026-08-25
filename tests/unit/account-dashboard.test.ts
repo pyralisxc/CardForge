@@ -8,45 +8,127 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('unified account dashboard', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const dashboard = readSource('src/features/account/components/AccountProfilePage.tsx');
+  const accountUtilities = readSource('src/features/account/components/AccountUtilityPanel.tsx');
+  const mobileNavigation = readSource('src/features/account/components/AccountMobileNavigation.tsx');
   const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
+  const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
   const developerStatus = readSource('src/features/account/components/AccountDeveloperStatusSection.tsx');
+  const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
+  const profileRoute = readSource('src/app/profile/page.tsx');
+  const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
+  const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
-  it('organizes the account around overview, creator work, account controls, and conditional developer tools', () => {
-    expect(dashboard).toContain('Overview');
-    expect(dashboard).toContain('My CardForge');
+  it('keeps the library as one part of the wider account control center', () => {
+    expect(dashboard).toContain('<AccountWorkspaceHeader');
+    expect(dashboard).toContain('<AccountUtilityPanel');
+    expect(dashboard).toContain('Good to see you');
     expect(dashboard).toContain('Plan & billing');
-    expect(dashboard).toContain("showDeveloper ? (");
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
   });
 
-  it('composes storage inside the account dashboard instead of stacking standalone account pages', () => {
-    expect(accountPage).toContain('storageLibrary={(');
-    expect(accountPage).toContain('cloudStorageDetails={(');
-    expect(accountPage).toContain('<AccountStorageLibrary');
-    expect(accountPage).toContain('embedded');
-    expect(storageLibrary).toContain("embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'");
+  it('behaves like an account app instead of one anchored document', () => {
+    expect(accountPage).toContain('resolveAccountSection');
+    expect(accountPage).toContain('activeSection={activeSection}');
+    expect(dashboard).toContain("activeSection === 'home'");
+    expect(dashboard).toContain("activeSection === 'library'");
+    expect(dashboard).toContain("activeSection === 'storage'");
+    expect(dashboard).toContain("activeSection === 'billing'");
+    expect(dashboard).toContain("activeSection === 'profile'");
+    expect(dashboard).not.toContain('DashboardNav');
+    expect(dashboard).not.toContain('AccountShortcut');
+    expect(dashboard).not.toContain("href: '#library'");
+    expect(dashboard).not.toContain('id="storage-and-connections"');
+  });
+
+  it('gives phone users persistent labeled destinations without duplicating the desktop header', () => {
+    expect(dashboard).toContain('<AccountMobileNavigation');
+    expect(mobileNavigation).toContain('Home');
+    expect(mobileNavigation).toContain('Library');
+    expect(mobileNavigation).toContain('Storage');
+    expect(mobileNavigation).toContain('Profile');
+    expect(mobileNavigation).toContain('More');
+    expect(mobileNavigation).toContain('sm:hidden');
+  });
+
+  it('recomposes dense account content instead of clipping desktop layouts on phones', () => {
+    expect(planChoiceGrid).toContain('md:grid-cols-2');
+    expect(planChoiceGrid).toContain('xl:grid-cols-4');
+    expect(planChoiceGrid).not.toContain('grid-flow-col');
+    expect(planChoiceGrid).not.toContain('overflow-x-auto');
+    expect(accountLibraryRow).toContain('md:hidden');
+    expect(accountLibraryRow).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(accountPage).toContain('<LocalProjectFolderPanel\n                embedded');
+    expect(accountPage).toContain('<GoogleDriveProjectStoragePanel\n                embedded');
+    expect(accountPage).toContain('<ConnectedPersonalLibraryPanel\n                embedded');
+  });
+
+  it('separates the unified content library from provider and location management', () => {
+    expect(accountPage).toContain('library={(');
+    expect(accountPage).toContain('storageManagement={(');
+    expect(accountPage).toContain('<UnifiedAccountLibrary');
+    expect(accountPage).toContain("view={activeSection === 'home' || activeSection === 'developer' ? 'home' : 'library'}");
+    expect(accountPage).toContain('<AccountStorageWorkspace');
+    expect(storageWorkspace).toContain('<details');
+    expect(storageWorkspace).toContain('Storage locations');
+    expect(accountLibrary).toContain('buildAccountLibraryItems');
+    expect(accountLibrary).toContain('Storage remains with the source named on each item.');
   });
 
   it('makes plan value and storage boundaries visible without implying automatic cloud upload', () => {
     expect(dashboard).toContain('private cloud set slot');
-    expect(dashboard).toContain('Local-first by default');
-    expect(dashboard).toContain('Device-only work is not automatically uploaded or exposed to ChatGPT.');
-    expect(dashboard).toContain('Only sets you explicitly back up use your account cloud slots');
+    expect(accountLibrary).toContain('Continue where you left off');
+    expect(accountLibrary).toContain('Recent work');
+    expect(dashboard).toContain('Storage & connections');
+    expect(storageWorkspace).toContain('CardForge Cloud space');
+  });
+
+  it('uses a compact home command band and one account status snapshot', () => {
+    expect(accountLibrary).toContain('Account at a glance');
+    expect(accountLibrary).toContain('homeAccessStatus');
+    expect(accountLibrary).toContain('Connections');
+    expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
+    expect(accountLibraryRow).not.toContain('grid-cols-[3.5rem_minmax(0,1fr)]');
+  });
+
+  it('keeps library controls in one responsive toolbar', () => {
+    expect(accountLibrary).toContain('Filter by source');
+    expect(accountLibrary).toContain('Filter by type');
+    expect(accountLibrary).toContain('Sort library');
+    expect(accountLibrary).not.toContain('aria-label="Library sources"');
+    expect(accountLibrary).not.toContain('cardforge-horizontal-strip');
+  });
+
+  it('presents storage measurements and records as flat information rows', () => {
+    expect(storageLibrary).toContain('function StorageMetric');
+    expect(storageLibrary).not.toContain('function StorageSummaryCard');
+    expect(storageLibrary).not.toContain('space-y-2');
   });
 
   it('keeps plan comparison and Stripe-owned subscription actions together', () => {
     expect(accountPage).toContain('getMcpAllowances()');
     expect(accountPage).toContain('plans={plans}');
-    expect(dashboard).toContain('Choose, start, or manage your plan');
+    expect(dashboard).toContain('Manage access, billing, and usage');
     expect(dashboard).toContain('<AccountPlanManagementPanel');
     expect(planManagement).toContain('<PlanChoiceGrid');
+    expect(planManagement).toContain('<details');
+    expect(planManagement).toContain('Compare available plans');
     expect(planManagement).toContain('id="account-actions"');
     expect(planManagement).toContain('<AccountBillingActions');
-    expect(dashboard).toContain('New subscriptions use Stripe Checkout');
+    expect(dashboard).toContain('Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation.');
     expect(planManagement).toContain('Selected: {intendedPlanLabel}');
     expect(accountPage).toContain('checkoutStatus={checkoutStatus}');
     expect(accountPage).toContain('initialPlanIntent={initialPlanIntent}');
+  });
+
+  it('keeps provider-native profile controls inside the account workspace', () => {
+    expect(accountUtilities).toContain('href="/account?section=profile"');
+    expect(profileManagement).toContain('<UserProfile');
+    expect(profileManagement).not.toContain('elements:');
+    expect(profileManagement).not.toContain('ProfileShell');
+    expect(profileRoute).toContain("redirect('/account?section=profile')");
+    expect(profileRoute).not.toContain('<PublicSiteHeader');
   });
 
   it('supports both contributor and owner account destinations', () => {
@@ -54,11 +136,12 @@ describe('unified account dashboard', () => {
     expect(developerStatus).toContain('/developer/cockpit');
     expect(developerStatus).toContain('/owner');
     expect(developerStatus).toContain('if (!isOwner && !isDeveloper) return null;');
+    expect(developerStatus).toContain('divide-y');
   });
 
-  it('uses native Next navigation when opening a local set from account storage', () => {
-    expect(storageLibrary).toContain("import { useRouter } from 'next/navigation';");
-    expect(storageLibrary).toContain("router.push('/studio')");
-    expect(storageLibrary).not.toContain("window.location.assign('/studio')");
+  it('uses native Next navigation when opening work from the account library', () => {
+    expect(accountLibrary).toContain("import { useRouter } from 'next/navigation';");
+    expect(accountLibrary).toContain("router.push('/studio')");
+    expect(accountLibrary).not.toContain("window.location.assign('/studio')");
   });
 });

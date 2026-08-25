@@ -48,8 +48,21 @@ describe('Vercel build cadence', () => {
       '**': false,
       main: true,
       'vercel-preview': true,
-      'codex/mcp-account-journey': true,
     });
     expect(config.ignoreCommand).toBe('node scripts/vercel-build-cadence.mjs');
+  });
+
+  it('requires Cameron to review the stable Preview candidate before main merges', () => {
+    const agentRules = readFileSync(join(process.cwd(), 'AGENTS.md'), 'utf8');
+    const leanSkill = readFileSync(
+      join(process.cwd(), '.agents/skills/lean-repository-execution/SKILL.md'),
+      'utf8',
+    );
+
+    for (const source of [agentRules, leanSkill]) {
+      expect(source).toContain('https://card-forge-git-vercel-preview-pyralis-projects.vercel.app');
+      expect(source).toContain('exact candidate SHA');
+      expect(source).toContain('explicit approval');
+    }
   });
 });
