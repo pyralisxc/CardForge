@@ -1,49 +1,64 @@
-**Comparison target**
+# Environment Foundation Design QA
 
-- Source visual truth: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-consolidation-board\qa-proposed-home.jpg`
-- Rendered implementation: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\account-consolidation-board\implementation-home-desktop.png`
-- Mobile source and implementation: `qa-mobile-target.jpg` and `implementation-home-mobile.png` in the same directory.
-- Full-view comparison input: `implementation-comparison-desktop.jpg` in the same directory.
-- Viewports: 1440 × 900 desktop and 390 × 844 mobile CSS pixels at device pixel ratio 1. Browser content measured 1425 × 868 and 375 × 812 pixels because browser chrome and scrollbars are outside the captured page viewport. Source and implementation captures have matching pixel dimensions, so no density normalization was needed.
-- State: local dark-theme Account workspace, signed out, one browser-local Set, empty cloud and provider inventory.
+## Result
 
-**Findings**
+Final result: passed
 
-- No actionable P0, P1, or P2 mismatch remains.
-- [P3] The local signed-out capture could not prove owner-only destinations, connected Google Drive identity, or Clerk's native signed-in profile controls. The first hosted candidate proved those states and exposed a Clerk structural-customization warning; the unsupported structural appearance overrides were removed for the final candidate.
-- [P3] Account Home intentionally keeps CardForge's existing workspace header and optional right utility rail. The selected concept explicitly defined a hierarchy contract rather than a replacement theme.
+## Sources and implementation evidence
 
-**Fidelity surfaces checked**
+- Home reference: `assets/brand/cardforge-studio/concepts/home-zone-alpha.png` — 1484 × 1060.
+- Profile reference: `assets/brand/cardforge-studio/concepts/profile-zone-alpha.png` — 1487 × 1058.
+- Studio reference: `assets/brand/cardforge-studio/concepts/studio-set-desk-alpha.png` — 1487 × 1058.
+- Desktop implementation: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-1484x1060-final.png` — 1484 × 877 captured browser area at the reference width.
+- Tablet master/detail: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-library-tablet-foundation.png` — 900 × 1024 requested viewport.
+- Mobile Home: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-mobile-320x568-verified.png` — 320 × 568 requested viewport; 305 × 541 browser content area.
+- Mobile detail: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-mobile-detail-320x568-verified.png` — 320 × 568.
+- Guest Studio: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-guest-studio-mobile-final.png` — 320 × 568 requested viewport.
+- Short landscape: `C:/Users/Pyralis/.codex/visualizations/2026/08/23/01a02f7b-56c7-7613-b5f0-d700030ea6a2/environment-lab-home-landscape-844x390.png` — 844 × 390.
 
-- Fonts and typography: CardForge's Spectral display treatment and compact utility text preserve the existing product hierarchy. Headings wrap without collision at 390 px; labels remain readable and do not truncate critical state.
-- Spacing and layout rhythm: Home follows the selected order of one current object, four account truths, and recent work. The command band and status rows use dividers rather than legacy container cards. The mobile dock does not cover content because the workspace reserves bottom space.
-- Colors and visual tokens: existing CardForge canvas, surface, border, accent, text, provider, and error tokens remain authoritative. No new decorative palette or elevation system was introduced.
-- Image quality and asset fidelity: the real CardForge brand-mark asset is used. The target contains no required illustration or product imagery, so no generated, placeholder, CSS-drawn, or handcrafted SVG substitute was introduced.
-- Copy and content: labels use the product's existing nouns—Set, Library, Storage, Connections, Profile, Billing, Studio—and preserve provider ownership and boundary meaning. Provider failure remains unavailable rather than being flattened into signed-out or disconnected state.
-- Accessibility and interaction: semantic headings, labeled navigation, labeled filter/sort controls, native disclosure controls, keyboard-reachable actions, practical mobile tap targets, and `aria-current` destinations are present.
+The source and implementation were opened together for direct comparison. The Home comparison used the exact reference width; the in-app browser capped the available capture height below the 1060-pixel reference height, so the focused density and navigation comparison uses the complete visible implementation plus the mobile captures.
 
-**Responsive and interaction evidence**
+## Compared state
 
-- Desktop Home at 1440 × 900: no horizontal overflow (`scrollWidth === clientWidth === 1425`); command band, account snapshot, recent work, and utility rail remain distinct.
-- Desktop Library: search, source filter, type filter, and sort are one responsive toolbar; the real Set row remains visible and actionable.
-- Desktop Storage: expanding the device/cloud location reveals flat capacity metrics and exact-location actions without creating nested dashboard cards.
-- Mobile Home and Library at 390 × 844: no horizontal overflow (`scrollWidth === clientWidth === 375`); headings, controls, rows, Resume action, and persistent account dock recompose without clipping.
-- Mobile Storage: all five location disclosures remain visible, compact, and keyboard-native.
-- Console review: local errors are limited to expected environment boundaries—production Clerk keys reject localhost and the provider-backed MCP allowance read is unavailable locally. The first hosted candidate surfaced a Clerk structural-customization warning, which was corrected by retaining supported appearance variables and removing structural element overrides. Extension-origin warnings are external to CardForge.
+- Owner-mode Home, default selection, command band visible.
+- Library with a Google Drive project selected and the responsive detail surface open.
+- Profile grouped settings.
+- Studio Set Desk.
+- Signed-out Guest Studio.
+- Mobile account snapshot and Plan progressive-disclosure sheet.
 
-**Focused region comparison**
+## Five fidelity surfaces
 
-- The current-work command band and account snapshot were readable in the combined desktop comparison input, so no additional crop was needed.
-- The mobile source and implementation were also inspected at equal 375 × 812 capture dimensions to verify wrapping, vertical rhythm, action placement, and bottom-navigation clearance.
+1. Structure: passed. Zone rail, command band, primary surface, detail surface, and footer retain the concept hierarchy. Mobile transforms to a bottom zone bar and modal sheet.
+2. Visual language: passed. Existing CardForge canvas, warm gold accent, serif headings, border rhythm, icon family, and real brand/card assets are preserved.
+3. Density: passed. The concept's large Home hero is intentionally replaced by the approved compact-row direction. At 320 × 568, Account snapshot rows are 48 pixels high and grouped rather than presented as large cards.
+4. Responsive behavior: passed. No horizontal overflow at 320 × 568, 900 × 1024, or 844 × 390. The mobile sheet contains the primary object action, layers above navigation, closes with Escape, and restores row focus.
+5. Product semantics: passed. Provider/source labels remain visible; role-specific actions do not leak; Guest Studio exposes only Studio; boundary states preserve available work; simulation data is unmistakably labeled.
 
-**Comparison history**
+## Focused region comparison
 
-- Initial implementation evidence showed no P0/P1/P2 visual mismatch against the selected hierarchy contract.
-- Code-health review found a public-interface violation and a Library owner above the repository's readability threshold. The access-label helper was routed through Account's public server interface, and the Home status-row presentation was extracted to its own component. Post-fix architecture verification reports zero violations and no Account file-size warning.
-- First hosted verification proved Owner access, five cloud slots, one connected Google Drive project, unified filtering, and native account destinations. It also exposed Clerk's structural appearance warning; removing the `appearance.elements` overrides leaves Clerk's prebuilt profile structure provider-owned while CardForge retains supported color and typography variables.
+The mobile Account snapshot was compared separately because it is the explicit correction target. The final layout shows compact Plan, Storage, Connections, and Security rows in one grouped ledger, with values visible inline and secondary explanation removed from the collapsed mobile row. Detail and customization are revealed in the bottom sheet.
 
-**Follow-up polish**
+## Comparison history
 
-- [P3] Recheck the same Account states on the signed-in Vercel Preview owner account so real Drive, Clerk, Stripe, cloud-slot, and developer data can replace the local empty/provider-unavailable state.
+- P0: none.
+- P1 resolved: large mobile information cards; overlapping navigation; command-band wrapping; mobile primary actions hidden behind detail; false recipe-wide actions; invented MCP tool names; authenticated MCP claims for Guest Studio; private Lab types leaking into reusable components; custom dialog/menu focus behavior; hidden/disabled action leakage; missing guest proof; missing context restoration; desktop page hidden by an always-open Radix modal.
+- P2 resolved: simulation notice, preview-only route isolation, visible source location, 320-pixel overflow, protected-zone menu, boundary vocabulary sampler, tablet command layout, compact mobile values.
+- Remaining intentional difference: this foundation follows the approved compact information model instead of recreating the alpha Home hero card. That difference is the purpose of this iteration, not a fidelity miss.
 
-final result: passed
+## Interaction and accessibility verification
+
+- Zone navigation: Home, Library, Studio, Profile, Developer, and Owner.
+- Protected mobile zones: Radix dropdown.
+- Library search and partial-provider retry affordance.
+- Object-specific and role-specific primary/supporting actions.
+- Owner publication actions present only for Owner review objects.
+- Guest/Owner laboratory switch and full-width single-destination Guest Studio mobile nav.
+- Radix mobile sheet: focus containment, Escape close, primary action parity, row-focus restoration.
+- Per-zone selection/detail restoration across zone switches.
+- Boundary sampler: loading, empty, authentication, authorization, invalid, conflict, not found, limit, unavailable, and offline.
+- Reduced-motion CSS and status text/icon redundancy.
+
+## Console check
+
+A clean browser tab showed no current Environment Lab runtime or component error. Localhost records the known Clerk production-key origin rejection because the repository uses `cardforges.com` production Clerk keys; this is outside the fixture-only Lab and must be checked again on Vercel Preview. Historical Fast Refresh errors from intermediate edits were excluded by using a clean verification tab. The dev-only Next issue badge seen in mobile screenshots is caused by that same localhost Clerk origin rejection and is not part of the product UI.

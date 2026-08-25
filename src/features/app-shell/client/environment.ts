@@ -1,0 +1,47 @@
+export {
+  ENVIRONMENT_ZONE_IDS,
+  ENVIRONMENT_ZONES,
+  closeEnvironmentDetail,
+  canViewerRunAction,
+  createSelectionSession,
+  getApplicableActionSources,
+  getAvailableEnvironmentZones,
+  getViewerAccess,
+  getVisibleEnvironmentZones,
+  isActionApplicable,
+  isActionAvailable,
+  openEnvironmentDetail,
+  selectEnvironmentObject,
+} from '../environment/model';
+export { projectApiClientErrorBoundary } from '../environment/environmentBoundary';
+export { EnvironmentCommandBand } from '../environment/components/EnvironmentCommandBand';
+export { EnvironmentDesktopInspector, EnvironmentMobileSheet } from '../environment/components/EnvironmentDetail';
+export { CollectionLedgerRow, CompactSettingRow, EnvironmentLedgerRow, EnvironmentSectionHeading, EnvironmentSurfaceHeader } from '../environment/components/EnvironmentLedger';
+export { EnvironmentNavigation } from '../environment/components/EnvironmentNavigation';
+export { EnvironmentShell } from '../environment/components/EnvironmentShell';
+export { EnvironmentStatus } from '../environment/components/EnvironmentStatus';
+export type {
+  ActionAutomation,
+  ActionAvailability,
+  ActionCommitment,
+  ActionDescriptor,
+  ActionHierarchy,
+  ActionPermission,
+  ActionRevisionPolicy,
+  ActionScope,
+  ActionSource,
+  ActionSourceContext,
+  EnvironmentBoundaryFailure,
+  EnvironmentBoundaryState,
+  EnvironmentContentState,
+  EnvironmentViewer,
+  FeatureOwnerId,
+  PublishedMcpToolName,
+  SelectionSession,
+  SelectionTarget,
+  ZoneAccess,
+  ZoneDefinition,
+  ZoneId,
+  ZoneViewportPolicy,
+} from '../environment/model';
+export type { EnvironmentCollectionRecord, EnvironmentDetailRecord, EnvironmentSettingRecord, EnvironmentStatusTone } from '../environment/presentation';
