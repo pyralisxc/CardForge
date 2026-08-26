@@ -59,7 +59,7 @@ function DetailBody({ record, actions, showClose, sheetContext = false, onClose,
 }
 
 export function EnvironmentDesktopInspector(props: Omit<DetailBodyProps, 'showClose' | 'sheetContext'>) {
-  return <aside className={styles.detailPane} aria-label={`Details for ${props.record.title}`}><DetailBody {...props} showClose /></aside>;
+  return <aside id="environment-detail-panel" className={styles.detailPane} aria-label={`Details for ${props.record.title}`}><DetailBody {...props} showClose /></aside>;
 }
 
 export function EnvironmentMobileSheet({ open, focusReturnId, ...props }: Omit<DetailBodyProps, 'showClose' | 'sheetContext'> & { open: boolean; focusReturnId?: string }) {

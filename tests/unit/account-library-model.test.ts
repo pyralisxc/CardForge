@@ -4,7 +4,12 @@ import {
   buildAccountLibraryItems,
   getAccountLibraryAvailableActions,
   getAccountLibraryMcpWorkflow,
+  resolveAccountHomeLibraryProjection,
 } from '@/features/storage-management/model/accountLibrary';
+import {
+  getAccountLibraryActionSources,
+  getAccountLibraryEnvironmentActions,
+} from '@/features/storage-management/model/accountLibraryEnvironment';
 
 describe('account library model', () => {
   it('shows one set with every location instead of duplicating the item by storage provider', () => {
@@ -140,5 +145,98 @@ describe('account library model', () => {
       availability: 'working-document',
       tools: ['list_agent_working_documents', 'get_agent_install_status'],
     });
+  });
+
+  it('uses the active local Set as Home even when a provider item has the newest timestamp', () => {
+    const items = buildAccountLibraryItems({
+      localSets: [{ id: 'active-set', name: 'Active Set', cardCount: 12, sizeBytes: 1200 }],
+      cloudSets: [],
+      driveProjects: [{
+        fileId: 'recent-drive',
+        name: 'Newest.cardforge',
+        providerRevision: '8',
+        projectRevision: 'project-revision',
+        modifiedAt: '2026-08-25T11:00:00.000Z',
+        size: 2400,
+        webViewLink: null,
+      }],
+      driveBindingFileId: null,
+      localFolder: null,
+      personalAssets: [],
+      workingDrafts: [],
+    });
+
+    const home = resolveAccountHomeLibraryProjection(items, 'active-set');
+    expect(home.featuredItem?.references.localSetId).toBe('active-set');
+    expect(home.moreItems[0]?.references.driveFileId).toBe('recent-drive');
+  });
+
+  it('projects provider actions and revisions into the Environment contract', () => {
+    const [project, draft] = buildAccountLibraryItems({
+      localSets: [],
+      cloudSets: [],
+      driveProjects: [{
+        fileId: 'drive-project',
+        name: 'Connected.cardforge',
+        providerRevision: '7',
+        projectRevision: 'project-revision',
+        modifiedAt: '2026-08-24T11:00:00.000Z',
+        size: 2400,
+        webViewLink: 'https://drive.google.com/file/d/drive-project/view',
+      }],
+      driveBindingFileId: null,
+      localFolder: null,
+      personalAssets: [],
+      workingDrafts: [{
+        id: 'draft',
+        title: 'Assistant draft',
+        revision: 4,
+        creationSource: 'gpt',
+        updatedAt: '2026-08-24T10:00:00.000Z',
+        expiresAt: '2026-08-25T10:00:00.000Z',
+      }],
+    });
+
+    expect(getAccountLibraryActionSources(project!)).toEqual([{
+      id: 'drive-project:drive-project:google-drive:0',
+      label: 'Google Drive',
+      source: 'google-drive',
+      currentRevisionAvailable: true,
+    }]);
+    expect(getAccountLibraryEnvironmentActions(project!).map((action) => ({
+      id: action.id,
+      hierarchy: action.hierarchy,
+      revisionPolicy: action.revisionPolicy,
+      automation: action.automation,
+    }))).toEqual([
+      {
+        id: 'library.open', hierarchy: 'primary', revisionPolicy: 'none',
+        automation: { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] },
+      },
+      {
+        id: 'library.view-source', hierarchy: 'supporting', revisionPolicy: 'none',
+        automation: { kind: 'human-only', owner: 'provider' },
+      },
+      {
+        id: 'library.manage-location', hierarchy: 'overflow', revisionPolicy: 'none',
+        automation: { kind: 'human-only', owner: 'cardforge' },
+      },
+    ]);
+    expect(getAccountLibraryEnvironmentActions(draft!).map((action) => action.id)).toEqual(['library.continue']);
+  });
+
+  it('keeps local work open to guests while requiring an account for provider work', () => {
+    const [localSet, driveProject] = buildAccountLibraryItems({
+      localSets: [{ id: 'local-set', name: 'Local Set', cardCount: 12, sizeBytes: 1200 }],
+      cloudSets: [],
+      driveProjects: [{ fileId: 'drive-project', name: 'Connected.cardforge', providerRevision: '7', projectRevision: 'project-revision', modifiedAt: '2026-08-24T11:00:00.000Z', size: 2400, webViewLink: null }],
+      driveBindingFileId: null,
+      localFolder: null,
+      personalAssets: [],
+      workingDrafts: [],
+    });
+
+    expect(getAccountLibraryEnvironmentActions(localSet!)[0]).toMatchObject({ requiredPermission: 'guest' });
+    expect(getAccountLibraryEnvironmentActions(driveProject!)[0]).toMatchObject({ requiredPermission: 'creator' });
   });
 });

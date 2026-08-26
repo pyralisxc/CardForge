@@ -41,6 +41,7 @@ interface AccountStorageLibraryProps {
   isSignedIn: boolean;
   cloudSetLimit: number;
   embedded?: boolean;
+  focus?: 'overview' | 'device' | 'cloud' | 'drafts';
 }
 
 const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
@@ -101,6 +102,7 @@ export function AccountStorageLibrary({
   isSignedIn,
   cloudSetLimit,
   embedded = false,
+  focus = 'overview',
 }: AccountStorageLibraryProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -194,6 +196,9 @@ export function AccountStorageLibrary({
   const cloudLimit = cloud?.limit ?? cloudSetLimit;
   const cloudBytes = useMemo(() => (cloud?.sets ?? []).reduce((total, set) => total + set.storageBytes, 0), [cloud?.sets]);
   const localSetIds = useMemo(() => new Set(cardSets.map((set) => set.id)), [cardSets]);
+  const showDevice = focus === 'overview' || focus === 'device';
+  const showCloud = focus === 'overview' || focus === 'cloud';
+  const showDrafts = focus === 'overview' || focus === 'drafts';
 
   const removeLocalSet = useCallback((setId: string) => {
     const state = useProjectStore.getState();
@@ -262,28 +267,28 @@ export function AccountStorageLibrary({
           </Button>
         </div>
 
-        <div className={`${embedded ? 'mt-3' : 'mt-5'} grid gap-x-6 md:grid-cols-2`}>
-          <StorageMetric
+        {showDevice || showCloud ? <div className={`${embedded ? 'mt-3' : 'mt-5'} grid gap-x-6 ${showDevice && showCloud ? 'md:grid-cols-2' : ''}`}>
+          {showDevice ? <StorageMetric
             icon={<HardDrive className="h-4 w-4" />}
             eyebrow="This device"
             title={deviceHealth?.usageBytes !== null && deviceHealth?.usageBytes !== undefined ? `${formatBytes(deviceHealth.usageBytes)} used` : 'Browser storage'}
             detail={deviceHealth?.quotaBytes ? `of ${formatBytes(deviceHealth.quotaBytes)} available to this site` : 'Your local workspace remains browser-owned.'}
             ratio={deviceHealth?.usageRatio ?? null}
             footer={`${cardSets.length} set${cardSets.length === 1 ? '' : 's'} · ${storedCards.length} cards · ${userTemplates.length} personal Templates · ${customAssetCount} custom assets (${formatBytes(customAssetBytes)} serialized)`}
-          />
-          <StorageMetric
+          /> : null}
+          {showCloud ? <StorageMetric
             icon={<Cloud className="h-4 w-4" />}
             eyebrow="CardForge cloud"
             title={isSignedIn ? `${cloudUsed} / ${cloudLimit} set slots` : 'Sign in to back up sets'}
             detail={isSignedIn ? `${formatBytes(cloudBytes)} stored across your cloud sets` : 'Cloud saves are account-owned and available across devices.'}
             ratio={isSignedIn && cloudLimit > 0 ? cloudUsed / cloudLimit : null}
             footer={`Each cloud set can use up to ${Math.round(MAX_CLOUD_SET_BYTES / 1024 / 1024)} MB. Slot limits are separate from byte usage.`}
-          />
-        </div>
+          /> : null}
+        </div> : null}
 
         {hydrationError ? <p className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">{hydrationError}</p> : null}
 
-        <div className="mt-6">
+        {showDevice ? <div className="mt-6">
           <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">On this device</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Portable-size estimates can overlap because Templates and artwork may be shared by multiple sets.</p>
           {!hydrated ? (
@@ -324,9 +329,9 @@ export function AccountStorageLibrary({
               })}
             </div>
           )}
-        </div>
+        </div> : null}
 
-        <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
+        {showCloud ? <div className="mt-6 border-t border-[var(--cf-border-subtle)] pt-5">
           <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Cloud sets</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Removing a cloud backup never deletes a copy already stored on a device.</p>
           {!isSignedIn ? (
@@ -362,9 +367,9 @@ export function AccountStorageLibrary({
               ))}
             </div>
           ) : <p className="mt-3 text-sm text-[var(--cf-text-muted)]">No cloud-saved sets yet.</p>}
-        </div>
+        </div> : null}
 
-        <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} />
+        {showDrafts ? <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} /> : null}
       </div>
     </section>
   );

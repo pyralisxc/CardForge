@@ -17,10 +17,10 @@ export interface ZoneDefinition {
 }
 
 export const ENVIRONMENT_ZONES = [
-  { id: 'home', href: '/account', label: 'Home', shortLabel: 'Home', minimumAccess: 'creator', showInPrivateRail: true, viewportPolicy: 'flow' },
-  { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'creator', showInPrivateRail: true, viewportPolicy: 'flow' },
+  { id: 'home', href: '/account', label: 'Home', shortLabel: 'Home', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
+  { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'studio', href: '/studio', label: 'Studio', shortLabel: 'Studio', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'desk' },
-  { id: 'profile', href: '/profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'creator', showInPrivateRail: true, viewportPolicy: 'flow' },
+  { id: 'profile', href: '/account?section=profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'developer', href: '/developer/cockpit', label: 'Developer', shortLabel: 'Dev', minimumAccess: 'developer', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'owner', href: '/owner', label: 'Owner', shortLabel: 'Owner', minimumAccess: 'owner', showInPrivateRail: true, viewportPolicy: 'flow' },
 ] as const satisfies readonly ZoneDefinition[];

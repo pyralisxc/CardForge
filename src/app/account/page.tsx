@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-import { AccountProfilePage } from '@/features/account/client/profile';
+import { AccountHomeBoundary } from '@/features/account/client/profile';
 import {
   getCurrentCardforgeEntitlement,
   getAccountAccessLabel,
@@ -19,13 +20,14 @@ import {
 import {
   AccountCloudStorageBreakdown,
   AccountStorageLibrary,
-  AccountStorageWorkspace,
   ConnectedPersonalLibraryPanel,
   GoogleDriveProjectStoragePanel,
+  LibraryStorageConnectionsTool,
   LocalProjectFolderPanel,
   UnifiedAccountLibrary,
 } from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
+import { AccountProfileEnvironment } from './_components/AccountProfileEnvironment';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Account',
@@ -37,7 +39,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string; section?: string }>;
+  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string; section?: string; utility?: string }>;
 }) {
   const params = await searchParams;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
@@ -54,14 +56,18 @@ export default async function AccountPage({
     hasStorageResult: storageStatus !== null,
     hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
   });
-  const [entitlement, plans, accountContentBlocks] = await Promise.all([
-    getCurrentCardforgeEntitlement().catch((error) => {
+  const [entitlementResult, plans, accountContentBlocks] = await Promise.all([
+    getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
-      return resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() });
+      return {
+        entitlement: resolveAccountEntitlement({ authConfigured: isClerkAuthConfigured() }),
+        unavailable: true,
+      };
     }),
     getMcpAllowances(),
     getCachedSiteContentBlocks('account'),
   ]);
+  const { entitlement, unavailable: entitlementUnavailable } = entitlementResult;
   const authConfigured = entitlement.authConfigured;
   const persistenceScope = createProjectPersistenceScope({
     authConfigured,
@@ -77,75 +83,96 @@ export default async function AccountPage({
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
   });
+  const homeAccessStatus = {
+    label: 'Access',
+    value: entitlementUnavailable ? 'Access unavailable' : accessLabel,
+    detail: entitlementUnavailable
+      ? 'CardForge could not verify account access. Local work remains available and is not being relabeled as Free.'
+      : `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
+    href: '/account?section=billing',
+    action: 'Review',
+  };
+  const homeSecurityStatus = {
+    label: 'Security',
+    value: entitlement.isSignedIn ? 'Connected account' : 'Sign-in required',
+    detail: entitlement.isSignedIn ? 'Clerk manages identity, sign-in methods, devices, and sessions.' : 'Connect an account to manage identity and sessions.',
+    href: '/account?section=profile',
+    action: entitlement.isSignedIn ? 'Review' : 'Sign in',
+  };
+  const storageConnections = (
+    <SiteContentProvider key="storage-library-copy" content={accountContent}>
+      <LibraryStorageConnectionsTool
+        browserAndCloud={<AccountStorageLibrary
+          embedded
+          persistenceScope={persistenceScope}
+          isSignedIn={entitlement.isSignedIn}
+          cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+        />}
+        localProjectFolder={<LocalProjectFolderPanel
+          embedded
+          persistenceScope={persistenceScope}
+          canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
+        />}
+        googleDriveProjects={<GoogleDriveProjectStoragePanel
+          embedded
+          persistenceScope={persistenceScope}
+          isSignedIn={entitlement.isSignedIn}
+          canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
+        />}
+        connectedAssets={<ConnectedPersonalLibraryPanel
+          embedded
+          isSignedIn={entitlement.isSignedIn}
+          canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
+        />}
+        cloudDetails={<AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />}
+      />
+    </SiteContentProvider>
+  );
+
+  if (activeSection === 'developer' && (isDeveloper || isOwner)) redirect('/developer/cockpit');
+
+  if (activeSection === 'library' || activeSection === 'storage') {
+    return (
+      <CardForgeAppProviders scope="shell">
+        <UnifiedAccountLibrary
+          persistenceScope={persistenceScope}
+          isSignedIn={entitlement.isSignedIn}
+          isDeveloper={isDeveloper}
+          isOwner={isOwner}
+          cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+          homeAccessStatus={homeAccessStatus}
+          homeSecurityStatus={homeSecurityStatus}
+          initialTool={activeSection === 'storage' ? 'locations' : null}
+          storageConnections={storageConnections}
+          view="library"
+        />
+      </CardForgeAppProviders>
+    );
+  }
 
   return (
     <CardForgeAppProviders scope="shell">
-      {storageStatus ? (
-        <div className={`mx-auto mt-4 max-w-4xl border px-4 py-3 text-sm ${storageStatus === 'google-drive-connected' ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-100' : 'border-[#8b4c35] bg-[#2a130e] text-[#efb6a4]'}`} role="status">
-          {storageStatus === 'google-drive-connected'
-            ? 'Google Drive is connected. Your CardForge project files can now live in your Google storage and remain reachable to CardForge services.'
-            : params.message || 'Google Drive could not be connected. Review the storage panel and try again.'}
-        </div>
-      ) : null}
-      <AccountProfilePage
-        activeSection={activeSection}
-        checkoutStatus={checkoutStatus}
-        initialPlanIntent={initialPlanIntent}
-        initialAuthConfigured={authConfigured}
-        plans={plans}
-        library={(
+      {activeSection === 'profile' || activeSection === 'billing' ? (
+        <AccountProfileEnvironment
+          checkoutStatus={checkoutStatus}
+          initialAuthConfigured={authConfigured}
+          initialPlanIntent={initialPlanIntent}
+          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : null}
+          plans={plans}
+        />
+      ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
           <UnifiedAccountLibrary
             key="unified-account-library"
             persistenceScope={persistenceScope}
             isSignedIn={entitlement.isSignedIn}
+            isDeveloper={isDeveloper}
+            isOwner={isOwner}
             cloudSetLimit={entitlement.capabilities.cloudSetLimit}
-            homeAccessStatus={{
-              label: 'Access',
-              value: accessLabel,
-              detail: `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
-              href: '/account?section=billing',
-              action: 'Review',
-            }}
-            homeSecurityStatus={{
-              label: 'Security',
-              value: entitlement.isSignedIn ? 'Connected account' : 'Sign-in required',
-              detail: entitlement.isSignedIn ? 'Clerk manages identity, sign-in methods, devices, and sessions.' : 'Connect an account to manage identity and sessions.',
-              href: '/account?section=profile',
-              action: entitlement.isSignedIn ? 'Review' : 'Sign in',
-            }}
-            view={activeSection === 'home' || activeSection === 'developer' ? 'home' : 'library'}
+            homeAccessStatus={homeAccessStatus}
+            homeSecurityStatus={homeSecurityStatus}
+            view="home"
           />
-        )}
-        storageManagement={(
-          <SiteContentProvider key="storage-library-copy" content={accountContent}>
-            <AccountStorageWorkspace
-              browserAndCloud={<AccountStorageLibrary
-                embedded
-                persistenceScope={persistenceScope}
-                isSignedIn={entitlement.isSignedIn}
-                cloudSetLimit={entitlement.capabilities.cloudSetLimit}
-              />}
-              localProjectFolder={<LocalProjectFolderPanel
-                embedded
-                persistenceScope={persistenceScope}
-                canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
-              />}
-              googleDriveProjects={<GoogleDriveProjectStoragePanel
-                embedded
-                persistenceScope={persistenceScope}
-                isSignedIn={entitlement.isSignedIn}
-                canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}
-              />}
-              connectedAssets={<ConnectedPersonalLibraryPanel
-                embedded
-                isSignedIn={entitlement.isSignedIn}
-                canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
-              />}
-              cloudDetails={<AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />}
-            />
-          </SiteContentProvider>
-        )}
-      />
+      </AccountHomeBoundary>}
     </CardForgeAppProviders>
   );
 }

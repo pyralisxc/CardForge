@@ -58,6 +58,7 @@ describe('Studio set workspace navigation', () => {
     const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
     const accountStorage = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
     const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+    const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
 
     expect(sets).toContain('useProjectStore');
     expect(sets).toContain('useCloudSetActions');
@@ -67,7 +68,8 @@ describe('Studio set workspace navigation', () => {
     expect(sets).not.toContain('AssistantDraftLibrary');
     expect(sets).not.toContain('Browser storage');
 
-    expect(accountLibrary).toContain('buildAccountLibraryItems');
+    expect(accountLibrary).toContain('useAccountLibraryProjection');
+    expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
     expect(accountLibrary).toContain('Storage remains with the source named on each item.');
     expect(accountStorage).toContain('CardForge-managed storage');
     expect(accountStorage).toContain('This device');

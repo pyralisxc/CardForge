@@ -29,7 +29,7 @@ describe('Account and Billing ownership', () => {
   it('gives Account focused identity and administration owners', async () => {
     const requiredPaths = [
       ['src', 'features', 'account', 'components', 'AccountIdentitySection.tsx'],
-      ['src', 'features', 'account', 'components', 'AccountDeveloperStatusSection.tsx'],
+      ['src', 'features', 'account', 'components', 'AccountHomeBoundary.tsx'],
       ['src', 'features', 'account', 'server', 'accountAdministration.ts'],
     ];
 
@@ -49,7 +49,7 @@ describe('Account and Billing ownership', () => {
 
   it('keeps the Account page independent of Owner and App Shell internals', async () => {
     const source = await readFile(
-      rootPath('src', 'features', 'account', 'components', 'AccountProfilePage.tsx'),
+      rootPath('src', 'features', 'account', 'components', 'AccountHomeBoundary.tsx'),
       'utf8',
     );
     expect(source).not.toContain('@/features/owner');

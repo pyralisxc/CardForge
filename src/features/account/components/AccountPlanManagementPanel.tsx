@@ -10,6 +10,17 @@ import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import { PlanChoiceGrid, type McpAllowance, type McpUsagePlanKey } from '@/features/mcp-usage/client/plans';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
+export function AccountCheckoutStatusNotice({ checkoutStatus }: { checkoutStatus: 'cancelled' | 'success' | null }) {
+  if (!checkoutStatus) return null;
+  return (
+    <div role="status" className={`mb-4 border px-4 py-3 text-sm leading-6 ${checkoutStatus === 'success' ? 'border-[var(--cf-success-border)] bg-[var(--cf-surface-raised)] text-[var(--cf-success)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] text-[var(--cf-warning)]'}`}>
+      {checkoutStatus === 'success'
+        ? 'Checkout is complete. CardForge is confirming the subscription and refreshing the access shown on this account.'
+        : 'Checkout was closed before payment. No subscription change was made, and you can review the plans again below.'}
+    </div>
+  );
+}
+
 export function AccountPlanManagementPanel({
   authConfigured,
   canExportClean,
@@ -45,24 +56,18 @@ export function AccountPlanManagementPanel({
       ? plans.find((plan) => plan.planKey === 'creator')?.displayName ?? 'Creator Pass'
       : null;
   const accountSignUpReturnPath = initialPlanIntent
-    ? `/account?intent=${initialPlanIntent}#account-and-billing`
-    : '/account#account-and-billing';
+    ? `/account?section=billing&intent=${initialPlanIntent}#account-and-billing`
+    : '/account?section=billing#account-and-billing';
   const creatorHref = effectiveSignedIn
     ? '#account-actions'
-    : createAuthRouteHref('/sign-up', '/account?intent=creator#account-and-billing');
+    : createAuthRouteHref('/sign-up', '/account?section=billing&intent=creator#account-and-billing');
   const designerHref = effectiveSignedIn
     ? '#account-actions'
-    : createAuthRouteHref('/sign-up', '/account?intent=designer#account-and-billing');
+    : createAuthRouteHref('/sign-up', '/account?section=billing&intent=designer#account-and-billing');
 
   return (
     <>
-      {checkoutStatus ? (
-        <div role="status" className={`mb-4 border px-4 py-3 text-sm leading-6 ${checkoutStatus === 'success' ? 'border-[var(--cf-success-border)] bg-[var(--cf-surface-raised)] text-[var(--cf-success)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] text-[var(--cf-warning)]'}`}>
-          {checkoutStatus === 'success'
-            ? 'Checkout is complete. CardForge is confirming the subscription and refreshing the access shown on this account.'
-            : 'Checkout was closed before payment. No subscription change was made, and you can review the plans again below.'}
-        </div>
-      ) : null}
+      <AccountCheckoutStatusNotice checkoutStatus={checkoutStatus} />
 
       <div className="border-y border-[var(--cf-border-strong)] py-4 md:py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
