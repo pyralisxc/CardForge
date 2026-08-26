@@ -44,6 +44,12 @@ The compact current-work row, four account truth rows, selected-row treatment, d
 - Fix: linked rows to `environment-detail-panel` with `aria-controls`, kept `aria-expanded` as the disclosure truth, and updated selected-row CSS selectors to the same state.
 - Post-fix evidence: the selected Set retains the Foundation highlight while the desktop inspector/mobile sheet is open, and the state returns to false after close.
 
+### Iteration 2
+
+- [P2] Hosted mobile verification at 390 × 844 exposed the desktop-only object type cells as orphaned `set` and `project` lines beneath otherwise compact ledger rows.
+- Fix: hide collection ledger cells at the compact breakpoint while retaining the source location inline with the object summary. Queue-specific compact metadata remains unaffected.
+- Post-fix evidence: Current work and More work each render as one compact row before opening the progressive-disclosure sheet.
+
 ## Findings
 
 No actionable P0, P1, or P2 visual or interaction differences remain in this cut.

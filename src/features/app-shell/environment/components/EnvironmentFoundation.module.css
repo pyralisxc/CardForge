@@ -749,6 +749,10 @@
     display: none;
   }
 
+  .ledgerRow:not(.queueRow) > .ledgerCell {
+    display: none;
+  }
+
   .rowChevron {
     grid-column: 2;
     grid-row: 1 / span 2;
