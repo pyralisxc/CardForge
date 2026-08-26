@@ -42,6 +42,8 @@ Home, Library, and Profile now share one Environment composition: a stable zone 
 - Verified the 390 × 844 storage detail sheet sits above the fixed bottom navigation and restores the selected row as its return target.
 - Verified 390 × 844 and 320 × 568 layouts have no horizontal document overflow.
 - Local browser errors were limited to expected production-domain Clerk restrictions and unavailable provider-backed allowances/settings. Those hosted states must be checked on the exact Preview deployment.
+- Verified the READY stable Preview with the signed-in owner account: all six permission-aware zones resolve, Google Drive reports its connected account and real project revision, billing reports Owner access without inventing a Stripe action, and the native Clerk profile/security surface renders inside the focused Profile utility.
+- Rechecked Preview at 390 × 844: Home, Profile, the protected-zone overflow entry, Library locations, and the storage detail sheet preserve the same hierarchy with no horizontal overflow. The only site-origin warning is the expected Clerk development-key notice for this test lane; observed extension warnings are outside CardForge.
 
 ## Comparison history
 
@@ -65,6 +67,6 @@ Home, Library, and Profile now share one Environment composition: a stable zone 
 
 ## Findings
 
-No actionable local P0, P1, or P2 visual or interaction difference remains. Exact signed-in Clerk, Stripe, Google Drive, Developer, and Owner states remain gated on hosted Preview verification.
+No actionable P0, P1, or P2 visual or interaction difference remains in the verified Preview candidate.
 
-final result: pending Preview verification
+final result: passed
