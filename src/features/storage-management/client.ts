@@ -1,6 +1,7 @@
 export { AccountCloudStorageBreakdown } from './components/AccountCloudStorageBreakdown';
 export { AccountStorageLibrary } from './components/AccountStorageLibrary';
-export { AccountStorageWorkspace } from './components/AccountStorageWorkspace';
+export { AccountStorageWorkspace, LibraryStorageConnectionsTool } from './components/AccountStorageWorkspace';
+export type { LibraryStorageConnectionsToolProps } from './components/AccountStorageWorkspace';
 export { ConnectedPersonalLibraryPanel } from './components/ConnectedPersonalLibraryPanel';
 export { GoogleDriveProjectStoragePanel } from './components/GoogleDriveProjectStoragePanel';
 export { LocalProjectFolderPanel } from './components/LocalProjectFolderPanel';

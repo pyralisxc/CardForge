@@ -7,6 +7,7 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 
 describe('account storage library', () => {
   const accountPage = readSource('src/app/account/page.tsx');
+  const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
   const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
@@ -17,7 +18,7 @@ describe('account storage library', () => {
     expect(accountPage).toContain("createProjectPersistenceScope");
     expect(accountPage).toContain("entitlement.capabilities.cloudSetLimit");
     expect(storageLibrary).toContain("hydrateProjectWorkspaceForScope(persistenceScope)");
-    expect(unifiedLibrary).toContain('One inventory across this device, CardForge Cloud, Google Drive, local project folders, and private working drafts.');
+    expect(unifiedLibrary).toContain('Work available across your connected locations');
   });
 
   it('keeps device, cloud, and working-draft deletion boundaries explicit', () => {
@@ -48,5 +49,28 @@ describe('account storage library', () => {
     expect(storageLibrary).toContain('useCloudSetActions');
     expect(assistantDraftLibrary).toContain('AI &amp; Studio working drafts');
     expect(storageLibrary).toContain('Cloud sets');
+  });
+
+  it('projects every storage lifecycle into one compact Library-owned focused tool', () => {
+    expect(storageWorkspace).toContain('LibraryStorageConnectionsTool');
+    expect(storageWorkspace).toContain('<CompactSettingRow');
+    expect(storageWorkspace).toContain('<Sheet');
+    expect(storageWorkspace).toContain("id: 'browser-workspace'");
+    expect(storageWorkspace).toContain("id: 'cloud-mirrors'");
+    expect(storageWorkspace).toContain("id: 'working-drafts'");
+    expect(storageWorkspace).toContain("id: 'local-project-folder'");
+    expect(storageWorkspace).toContain("id: 'google-drive-projects'");
+    expect(storageWorkspace).toContain("id: 'connected-assets'");
+    expect(storageWorkspace).toContain("id: 'cloud-usage'");
+    expect(storageWorkspace).toContain("focusedStorageContent(browserAndCloud, 'device')");
+    expect(storageWorkspace).toContain('overlayClassName="z-[95]"');
+    expect(storageWorkspace).toContain('className="z-[100]');
+    expect(unifiedLibrary).toContain('Nothing moves between locations automatically');
+    expect(unifiedLibrary).toContain("status === 'google-drive-connected'");
+    expect(unifiedLibrary).toContain("status === 'google-drive-error'");
+    expect(storageLibrary).toContain("focus = 'overview'");
+    expect(storageLibrary).toContain("focus === 'device'");
+    expect(storageLibrary).toContain("focus === 'cloud'");
+    expect(storageLibrary).toContain("focus === 'drafts'");
   });
 });

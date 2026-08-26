@@ -38,7 +38,7 @@ export function PlansPageContent({ plans }: { plans: McpAllowance[] }) {
             {siteContent['plans.hero.body']}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/account#account-and-billing" prefetch={false} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 font-bold text-[var(--public-obsidian)] hover:bg-[#f0bd58]">
+            <Link href="/account?section=billing#account-and-billing" prefetch={false} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 font-bold text-[var(--public-obsidian)] hover:bg-[#f0bd58]">
               View your plan <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center justify-center border border-[var(--public-border)] px-5 font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)]">

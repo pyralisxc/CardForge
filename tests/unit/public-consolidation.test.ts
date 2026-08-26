@@ -57,10 +57,11 @@ describe('consolidated public routes and account navigation', () => {
     expect(owner).not.toContain('className="cardforge-public"');
 
     const accountPage = readSource('src/app/account/page.tsx');
-    const accountWorkspace = readSource('src/features/account/components/AccountProfilePage.tsx');
+    const accountWorkspace = readSource('src/features/account/components/AccountHomeBoundary.tsx');
     expect(accountPage).not.toContain("from '@/features/public-site/client/shell'");
     expect(accountPage).not.toContain('<PublicSiteHeader');
-    expect(accountWorkspace).toContain('<AccountWorkspaceHeader');
+    expect(accountPage).toContain('<AccountHomeBoundary');
+    expect(accountWorkspace).not.toContain('<AccountWorkspaceHeader');
     expect(accountWorkspace).not.toContain('StudioHeader');
   });
 
@@ -108,9 +109,8 @@ describe('consolidated public routes and account navigation', () => {
     expect(authControls).toContain("createAuthRouteHref('/sign-in', pathname)");
     expect(authControls).not.toContain('SignInButton');
 
-    const account = readSource('src/features/account/components/AccountProfilePage.tsx');
-    const accountUtilities = readSource('src/features/account/components/AccountUtilityPanel.tsx');
-    expect(accountUtilities).toContain('Profile & security');
-    expect(account).not.toContain('>Manage Account</Link>');
+    const profileEnvironment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');
+    expect(profileEnvironment).toContain('Identity & security');
+    expect(profileEnvironment).not.toContain('>Manage Account</Link>');
   });
 });

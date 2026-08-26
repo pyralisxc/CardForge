@@ -1,1 +1,1 @@
-export { buildForgeTitle, getAccountDisplayName, toPossessiveName } from '../lib/accountDisplay';
+export { buildForgeTitle, getAccountAccessLabel, getAccountDisplayName, toPossessiveName } from '../lib/accountDisplay';

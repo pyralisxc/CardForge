@@ -23,8 +23,8 @@ describe('Environment Foundation model', () => {
     expect(ENVIRONMENT_ZONES.find((zone) => zone.id === 'studio')?.viewportPolicy).toBe('desk');
 
     const signedOut = { signedIn: false, developer: false, owner: false };
-    expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['studio']);
-    expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['studio']);
+    expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
+    expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
     expect(getVisibleEnvironmentZones({ signedIn: true, developer: false, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
     expect(getVisibleEnvironmentZones({ signedIn: true, developer: true, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'developer']);
     expect(getVisibleEnvironmentZones({ signedIn: true, developer: false, owner: true }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'developer', 'owner']);
