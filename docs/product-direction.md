@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: August 22, 2026
+Last updated: August 26, 2026
 
 Status: living product direction. This document records the intended product model and the questions that still require product decisions. It does not describe shipped behavior. [architecture.md](architecture.md) remains the source of truth for the current application, while the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -31,6 +31,8 @@ Use these terms consistently while the model is developed:
 - **Field contract:** the typed data expected by a template or component recipe.
 - **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment.
 - **Project:** the creator's local work, including its records, layouts, artifacts, assets, and output settings.
+- **Zone:** a stable CardForge environment organized around one recurring kind of work, one current object or queue, and a consistent set of tools. Zones are not created merely to separate settings or technical owners.
+- **Set Desk:** the spatial Studio overview for one active Set. It keeps the Set's artifacts, linked Templates or masters, groups, selection, and working position visible while focused tools open around them.
 
 The recommended internal and owner-facing name is **Studio Specialty**. “Studio variation” describes the idea, but “specialty” better communicates that the underlying Studio remains the same.
 
@@ -55,7 +57,7 @@ A specialty is guidance, not a prison. Generic Studio tools remain available, an
 
 ## Studio Workbench Doctrine
 
-CardForge should reveal capability progressively without turning each Specialty, Kit, or artifact into a separate editor. The creator's current work object is Home: tools open around it, and closing a tool returns to the same object, selection, and working position.
+CardForge should reveal capability progressively without turning each Specialty, Kit, artifact, or technical owner into a separate editor or page. The creator's current work object is Home: tools open around it, and closing a tool returns to the same object, selection, zoom, grouping, and working position. In Studio, the active Set Desk is Home.
 
 - Keep orientation and the primary next action visible. A new creator must be able to complete the workflow without discovering a hidden gesture, shortcut, or command surface.
 - Move secondary and advanced controls into clearly labeled panels, drawers, or focused tool sections that preserve the work object on screen whenever space allows.
@@ -65,6 +67,71 @@ CardForge should reveal capability progressively without turning each Specialty,
 - Defer radial, marking-menu, and other pointer-local command systems until the stable Game/Set/artifact workflows are proven and observed use shows that the visible progressive workbench still needs an expert accelerator.
 
 The progressive workbench is a delivery rule for the product direction below, not a separate platform rewrite or prerequisite framework.
+
+## CardForge Environment and Zone Grammar
+
+CardForge should feel like one crafted working environment containing a small number of purposeful desks. The color system, typography, and materials establish the atmosphere; the interface establishes the spatial behavior. A creator should feel that they enter a zone, pick up an object, inspect or change it with the appropriate tools, put it back down, and return to the exact broader context they left.
+
+The intended private zones are:
+
+| Zone | Current object or queue | Primary job |
+| --- | --- | --- |
+| **Home** | Current and recent creator work plus account attention | Resume work, understand what needs attention, and enter the correct working zone. |
+| **Library** | Creator-owned projects, Sets, artifacts, assets, and temporary AI drafts across available locations | Find, inspect, organize, open, move, preserve, or remove work at an explicitly named location. |
+| **Studio** | One active Set Desk and its selected group, artifact, Template/master, record, or element | Create, generate, arrange, edit, review, validate, and output coordinated work. |
+| **Profile** | The creator's identity and account relationship | Manage identity, sign-in methods, sessions, preferences, security, and account access. |
+| **Developer** | A contribution, proposal, campaign package, or review response | Prepare and revise work for owner-governed publication. This zone exists only for approved contributors and the owner. |
+| **Owner** | An operational queue, live control area, or governed record | Operate CardForge, publish reviewed truth, manage people and services, and inspect accountable history. |
+| **Orders & production** | A frozen production bundle or provider order | Review proofs, quotes, checkout handoff, production state, shipment, and recovery. This becomes a zone only when persistent orders exist. |
+
+The public site is CardForge's entrance and explanation surface, not another private desk. A capability earns a new zone only when it has a persistent current object or queue, a repeated job users intentionally return to, its own orientation and tools, and state worth preserving between visits. Otherwise it belongs as a tool or layer inside its natural owner:
+
+- Storage capacity, connections, permissions, destinations, and location-specific removal are **Library location tools**, not a Storage zone.
+- Plan and billing are a focused account ledger reached from Home or Profile, not a dashboard family.
+- Export, review, generation, validation, and output preparation are scope-aware Studio tools, not separate editors.
+- Settings appear beside the work they affect instead of accumulating in one universal settings document.
+- Specialties configure Studio vocabulary, recommendations, grouping, validation, and outputs; they do not create separate Studios.
+
+Every zone uses the same interaction grammar:
+
+1. Keep one current object or queue visibly central.
+2. Use a compact command band for the primary actions valid at the current selection scope.
+3. Use rows, tables, lists, and aligned fields for comparable information rather than wrapping every fact in a card.
+4. Open investigation and secondary controls in an inspector, drawer, focused panel, or sheet that preserves the current object whenever space allows.
+5. Use a popover or small tray for quick reversible choices, and a dialog only for a destructive, financial, permission, or commitment boundary.
+6. Reserve card-like object treatment for real authored objects, mutually exclusive choices, or true boundaries. A card must communicate objecthood, not merely provide another rectangle around a section.
+
+The alpha zone family is therefore a product-scope and hierarchy reference, not a feature-reduction exercise or a pixel specification. Every shipped feature remains available until an explicit retirement or migration is approved and completed. [`product-surface-map.md`](product-surface-map.md) owns the living feature-to-zone ledger and shared UI grammar; redesign work must update that ledger and prove parity before replacing an old destination.
+
+Expanded, compact, and narrow layouts rearrange this same grammar. Desktop may keep a desk and inspector visible together; mobile may replace the secondary pane with a sheet or focused view. Narrow layouts must not turn the product into a long stack of oversized cards or change the meaning of selection, grouping, focus, or pulling back.
+
+## Set Desk: Studio's Home
+
+Studio opens to one active Set Desk rather than three separate Templates, generation, and Sets applications. A creator may switch Sets quickly without losing either Set's selection, grouping, zoom, or working position. A new Set begins as a calm blank desk with visible ways to add an artifact, start from a Kit or Template, import structured records, or resume a recent source.
+
+A Set may coordinate multiple artifact types and multiple Templates or masters. Cards, shared backs, rules pages, boards, tokens, packaging, reference sheets, promotional graphics, and later Specialty-specific artifacts may coexist when supported by the Set's Project and Kit. Templates remain reusable layout masters; generated or manually created artifacts remain stable record-backed objects that reference those masters.
+
+The consistent focus path is:
+
+> Set overview → group or stack → individual artifact → element-level editing
+
+Pulling back one level restores the exact prior selection and spatial context. Full Studio power follows the focused object; the overview does not run every artifact as a live editor. Distant or collapsed objects use efficient canonical previews, progressive detail, and virtualization so large Sets remain responsive.
+
+Commands resolve against an explicit selection scope:
+
+| Selection | Command scope |
+| --- | --- |
+| No object selected | The active Set. |
+| One artifact selected | That artifact and the tools valid for its type. |
+| Several artifacts selected | The resolved batch selection. |
+| A group or stack selected | The stable members of that group. |
+| A Template or master selected | The master and, when requested, its referencing artifacts. |
+
+Single and bulk generation use the same Set Desk. Creating ten variants from one selected card or Template opens the quick structured-import workflow, creates ten stable record-backed artifacts, and returns all resulting objects to the desk as a visible generation batch. The creator may then expand, collapse, edit, tag, reorganize, validate, or output the batch without leaving the Set.
+
+CardForge may present automatic groups by Template/master, artifact type, generation batch, tag, validation state, output profile, or Specialty role. These are saved or derived views over stable artifact IDs, not duplicate ownership containers. Manual stacks and named collections may preserve intentional organization, while decks and other domain objects retain their own explicit ordering and quantity contracts.
+
+Edit, duplicate, move/copy, tag, generate, validate, and export all use the same scope contract. Export therefore opens as a focused output tool already aware of whether the creator selected one object, several objects, a group, or the complete Set. A Specialty changes the suggested objects, labels, grouping, validation, and outputs on this desk without changing the desk's interaction model.
 
 ## What a Specialty Can Configure
 
@@ -101,6 +168,7 @@ The missing product layer is above those systems:
 - Versioned Kits within each Specialty.
 - Composite component recipes with explicit semantic roles.
 - A project model that can coordinate multiple artifact layouts, rather than treating the project only as a card-template collection.
+- A Set Desk that makes the active Set and its artifacts the stable Studio context while focused tools open and close around them.
 - Shared project-, set-, and record-level data used by multiple artifacts.
 - Output bundles and provider-independent print profiles.
 - A safe version-pinning policy so published configuration changes do not silently alter existing projects.
@@ -116,6 +184,7 @@ The product should preserve CardForge's current separation of ownership:
 | Code | Allowed specialty capabilities, renderer behavior, element and field types, validation engines, compatibility rules, access control, output engines, and provider interfaces. |
 | Supabase | Published specialty and kit metadata, revisions, launcher placement, ordering, featured state, reviewed asset assignments, recommendation order, and owner publication decisions. |
 | Browser-local project | Creator records, layouts, local assets, output settings, and the resolved specialty/kit version used by that project. |
+| Temporary AI workspace | Private revisioned Studio documents and artwork needed for bounded agent collaboration, subject to explicit account capacity and retention policy; it is not durable creator storage. |
 | External provider | Printer product specifications, production availability, prices, orders, shipping, delivery, and provider-owned status. |
 
 The existing `cardforge_asset_registry` should remain the canonical registry for templates, styles, media, fonts, and similar library assets. A specialty is an orchestration definition, not an asset, so its record should not be forced into the asset registry. Specialty-to-asset assignments may reference registry IDs.
@@ -148,11 +217,21 @@ These are proposed ownership boundaries, not implemented route commitments.
 
 ### Account library and storage control
 
-The account is the creator's overall control center, not a storage page and not a second Studio. `/account` is a compact home with familiar shortcuts into creation, Library, storage, billing, identity, and conditional developer work. Each account destination replaces the main panel and remains directly linkable through normal browser navigation; these surfaces must not be stacked into one long settings document. Its durable information architecture keeps **Home**, **Library**, **Storage & connections**, **Plan & billing**, **Profile & security**, and conditional **Developer** access distinct.
+The account is the creator's personal control center, not a storage page and not a second Studio. Home, Library, and Profile are compact directly linkable zones rather than one long settings document. Home resumes work and surfaces only meaningful account attention. Library owns the unified inventory experience. Profile owns identity, sign-in, security, preferences, and entry into the focused plan and billing ledger. Conditional Developer and Owner access link into their own working zones rather than nesting their full workspaces inside Account.
 
-The account Library is one inventory of the creator's sets, portable projects, reusable assets, and temporary working drafts across the browser workspace, CardForge Cloud, Google Drive, attached local folders, and future connected providers. When stable identity proves that two locations contain the same item, the Library presents one item with multiple locations instead of duplicate rows. Every entry should disclose its content kind, authoritative source or locations, availability, size when known, revision/freshness when meaningful, temporary-retention status when applicable, and the action that is valid for that source.
+The account Library is one inventory of the creator's Sets, portable projects, reusable assets, and temporary AI drafts across the browser workspace, Google Drive, attached local folders, portable Project or Set packages the creator opens or indexes, and future connected providers. When stable identity proves that two locations contain the same item, the Library presents one item with multiple locations instead of duplicate rows. Every entry should disclose its content kind, authoritative source or locations, availability, size when known, revision/freshness when meaningful, temporary-retention status when applicable, and the action that is valid for that source.
 
-This is a read model over existing owners, not a new file registry, sync engine, or persistence layer. Studio remains the creation and production workspace. Provider APIs remain authoritative for provider files and permissions. **Storage & connections** owns capacity, connection health, destination selection, permissions, and location-specific removal; destructive actions must name the exact location they affect. Adding a storage provider should therefore add one source adapter to the account Library and one provider-native connection surface, not another user-facing library.
+This is a read model over existing owners, not a new file registry, sync engine, or persistence layer. Studio remains the creation and production workspace. Provider APIs remain authoritative for provider files and permissions. Library composes a **Locations & connections** tool that owns capacity presentation, connection health, destination selection, permissions, and location-specific removal without becoming Library's persistence owner. Destructive actions must name the exact location they affect. Adding a storage provider should add one source adapter to Library and one provider-native connection surface, not another user-facing library or top-level storage destination.
+
+### Durable creator storage and temporary AI workspace
+
+CardForge should retire the durable first-party cloud-set mirror. Creator work is durably saved in the browser workspace, a portable Project or Set package, Google Drive, an attached local folder, or another creator-chosen provider. CardForge should not maintain a second durable backup product merely to provide another location beside those native paths.
+
+This retirement is a migration, not permission to discard authored work. Before the existing cloud-set capability is removed, CardForge must inventory saved content and give each affected creator a verified way to download it or move it to a supported durable location. Only after that transition is complete may the cloud-set routes, plan slots, MCP cloud-set tools, database records, private artwork bucket, and related UI be cold-cut.
+
+CardForge may continue to own a bounded **temporary AI workspace** because agent collaboration requires private revisioned documents and artwork long enough to create, inspect, preview, revise, and hand work into Studio. That workspace has an explicit per-account capacity, inactivity window, recoverable-trash window, and visible expiration. It must always disclose that it is temporary and provide a direct **Save to device**, **Save to Drive**, or equivalent durable-provider action. AI workspace capacity is a service allowance, not a general cloud-drive entitlement and not a promise of permanent backup or synchronization.
+
+Agent tools operate on these temporary Studio documents or on provider-authorized files. Removing cloud sets therefore removes the separate agent-facing cloud-set listing path; it must not create a replacement CardForge file registry or silently make browser-only work available to agents.
 
 ### Specialty-aware library discovery
 
@@ -815,12 +894,13 @@ The foundation prevents Arcane from becoming a hard-coded demo. The physical pro
 
 ### Focused core strengthening
 
-The current Template Studio, renderer, Generator, local asset system, and Forge Pipeline remain the foundation. They should not be rewritten. The structural work belongs at four missing ownership seams:
+The current Template Studio, renderer, Generator, local asset system, and Forge Pipeline remain the foundation. They should not be rewritten. The structural work belongs at five missing ownership seams:
 
 1. **Game Project, Set, and artifact ownership.** Replace the current project file's loose snapshot of Templates and generated cards with shared Game identity, one or more named Sets, and artifact collections. The first repeated artifact type is `card-collection` or `card-deck`, owning its records, ordering, quantities, front system, and shared or per-card backs. Import existing version-1 project files into a recovered Set so creator-authored work is protected.
-2. **Specialty and Kit publication.** Add validated, immutable Specialty/Kit manifests and controlled asset classifications around the current registry. Developers propose reusable content and metadata; the owner publishes reviewed revisions; creator projects pin the resolved version they started with.
-3. **Production profiles.** Distinguish finished trim from artwork extent and bleed. A versioned profile owns current provider product identity, dimensions, safe areas, sides, resolution, output format, overlay or dieline references, retrieved-at time, and compatibility rules. Provider measurements must not become permanent assumptions in the general card-format registry.
-4. **Frozen production bundles.** A bundle records the project revision, Game Set and artifact manifest, profile version, rendered files, checksums, preflight result, and proof previews the creator approved. Studio edits after bundling never silently alter the files intended for an order.
+2. **Set Desk workbench.** Make the active Set the stable Studio home, with heterogeneous artifact objects, multiple linked Templates/masters, persistent selection and spatial context, automatic and manual grouping, scope-aware commands, and focused editing that returns to the same desk position.
+3. **Specialty and Kit publication.** Add validated, immutable Specialty/Kit manifests and controlled asset classifications around the current registry. Developers propose reusable content and metadata; the owner publishes reviewed revisions; creator projects pin the resolved version they started with.
+4. **Production profiles.** Distinguish finished trim from artwork extent and bleed. A versioned profile owns current provider product identity, dimensions, safe areas, sides, resolution, output format, overlay or dieline references, retrieved-at time, and compatibility rules. Provider measurements must not become permanent assumptions in the general card-format registry.
+5. **Frozen production bundles.** A bundle records the project revision, Game Set and artifact manifest, profile version, rendered files, checksums, preflight result, and proof previews the creator approved. Studio edits after bundling never silently alter the files intended for an order.
 
 This is a focused core revision, not a universal document engine. New artifact types should be added only when the next proven Kit requires them.
 
@@ -830,16 +910,17 @@ The first print-profile decision must be explicit when the Arcane proof begins. 
 
 | Gate | Deliverable | Evidence required before moving on |
 | --- | --- | --- |
-| 0. Games contract | Finite Game/Set/artifact hierarchy, six initial Kit families, controlled classification vocabulary, identity scopes, and Kit-manifest contract | The terms and allowed values are code-owned, documented, non-contradictory, and represented by contract fixtures |
-| 1. Set core | Game identity, named Sets, artifact ownership, active Set selection, version-1 recovery migration, and saved deck/collection state | Generated cards cannot become ownerless; existing projects import safely; Sets survive save, close, and reopen with references intact |
-| 2. Forge publishing | Developer-proposed Games classifications, derived payload facts, editable unpublished proposal metadata, owner corrections, and immutable Kit publication | A valid Template can travel from Studio authoring/import through review into the correct Games library and Kit without contradictory tags |
-| 3. Set generation and portability | Set-aware single/bulk generation, grouped review, move/copy actions, progressive Set workbench, Project package, and Game Set package import/export | A complete Set round-trips without lost Templates, assets, ordering, quantities, backs, or cross-artifact references; the active Set and artifact remain Home while setup, review, organization, and output tools open and close around them |
-| 4. Starter catalog | One coherent reviewed path for Playing Cards, Tarot/Oracle, TCG, Prototype, RPG Reference, and Prompt/Party/Trivia plus initial rules and packaging masters | Each Kit starts a structurally valid Set and its library recommendations reflect Specialty, artifact, format, semantic, and visual-pack classification |
-| 5. Arcane first run and print core | **Enter the Studio → Games → Playing Card Deck → Arcane**, canonical 54-card Set, trim/bleed-aware production profile, preflight, and frozen bundle | A first-time user reaches an exact-size reviewed production bundle without understanding raw Template or provider mechanics or relying on hidden gestures |
-| 6. Physical deck proof | Manual provider upload and Sample A order | No image editing outside CardForge; the physical deck passes the documented quality checklist or creates one bounded correction cycle |
-| 7. Coordinated Game Product proof | Fixed-page rules artifact, Arcane tuck box, shared identity bindings, component summary, and Sample B | Cards, rules, and packaging stay synchronized; the dieline, warnings, orientation, and physical fit are correct |
-| 8. Prepared checkout beta | Consented upload, provider cart creation, provider-hosted checkout handoff, and clear vendor responsibility | A creator can go from approved Game Product bundle to checkout without downloading or manually uploading files |
-| 9. Second Specialty proof | One coordinated Events and Signage Kit using the same project, artifact, library, generation, and production contracts | The shared core supports a genuinely different job without Games-specific branching leaking into it |
+| 0. Environment and storage contract | Canonical zone map, Set Desk interaction grammar, selection-scope commands, durable-location boundary, temporary AI workspace policy, and cloud-set transition plan | Each capability has one natural zone or tool owner; temporary storage cannot be mistaken for durable backup; existing cloud-set content has a protected exit path |
+| 1. Games contract | Finite Game/Set/artifact hierarchy, six initial Kit families, controlled classification vocabulary, identity scopes, and Kit-manifest contract | The terms and allowed values are code-owned, documented, non-contradictory, and represented by contract fixtures |
+| 2. Set core and Desk | Game identity, named Sets, artifact ownership, active Set selection, version-1 recovery migration, heterogeneous Set Desk objects, persistent focus/context, and saved deck/collection state | Generated artifacts cannot become ownerless; existing projects import safely; Sets survive save, close, reopen, and switching with references, grouping, selection, and working context intact |
+| 3. Forge publishing | Developer-proposed Games classifications, derived payload facts, editable unpublished proposal metadata, owner corrections, and immutable Kit publication | A valid Template can travel from Studio authoring/import through review into the correct Games library and Kit without contradictory tags |
+| 4. Set generation and portability | Set-aware single/bulk generation, quick structured variant entry, automatic/manual groups, scope-aware edit/validation/output, Project package, and Game Set package import/export | A complete Set round-trips without lost Templates, assets, groups, tags, ordering, quantities, backs, or cross-artifact references; focusing and pulling back restore the same Set Desk context |
+| 5. Starter catalog | One coherent reviewed path for Playing Cards, Tarot/Oracle, TCG, Prototype, RPG Reference, and Prompt/Party/Trivia plus initial rules and packaging masters | Each Kit starts a structurally valid Set and its desk/library recommendations reflect Specialty, artifact, format, semantic, and visual-pack classification |
+| 6. Arcane first run and print core | **Enter the Studio → Games → Playing Card Deck → Arcane**, canonical 54-card Set Desk, trim/bleed-aware production profile, preflight, and frozen bundle | A first-time user creates, organizes, focuses, edits, and outputs the exact-size deck without understanding raw Template or provider mechanics or relying on hidden gestures |
+| 7. Physical deck proof | Manual provider upload and Sample A order | No image editing outside CardForge; the physical deck passes the documented quality checklist or creates one bounded correction cycle |
+| 8. Coordinated Game Product proof | Fixed-page rules artifact, Arcane tuck box, shared identity bindings, component summary, and Sample B | Cards, rules, and packaging coexist visibly on the Set Desk and stay synchronized; the dieline, warnings, orientation, and physical fit are correct |
+| 9. Prepared checkout beta | Consented upload, provider cart creation, provider-hosted checkout handoff, and clear vendor responsibility | A creator can go from approved Game Product bundle to checkout without downloading or manually uploading files |
+| 10. Second Specialty proof | One coordinated Events and Signage Kit using the same Project, Set Desk, artifact, Library, generation, and production contracts | The shared core supports a genuinely different job without Games-specific branching or a separate editor |
 
 ### Business and partner lane
 
@@ -865,21 +946,25 @@ Product delivery and partner readiness can move together, but commerce does not 
 - Should Tarot and Oracle begin as one Kit with variants or two adjacent Kits sharing the same artifact recipes?
 - Which exact fixed rules pages and packaging masters form the minimum coordinated Game Product Kit?
 - How should a creator add another Kit's artifact recipes to an existing Set while preserving the Set's pinned origins and explicit choices?
+- Which automatic Set Desk groups ship first, which group definitions persist, and how do manual stacks coexist with domain-owned decks and collections?
+- What temporary AI workspace capacity and inactivity window belongs to each account tier without implying permanent cloud storage?
 - Which secondary packaging provider should be sampled beside The Game Crafter?
 - Which additional rights, attribution, and provenance checks are required before an example Game Set may be published as reusable platform content?
 - Which Specialty capabilities belong to free access, one-time project/export purchases, a founding license, or recurring service tiers?
 
 ## Next Product Workshop
 
-The next workshop is implementation preparation for the Games Specialty Foundation. Establish:
+The next workshop is implementation preparation for the CardForge environment and Games Specialty Foundation. Establish:
 
-1. The exact Game Project, Game Set, card collection, deck, artifact, and product contracts and their stable IDs/references.
-2. The first controlled Games classification vocabulary and which values are derived from payloads versus proposed by contributors.
-3. The immutable Specialty/Kit manifest shape and the developer/owner revision workflow.
-4. The version-2 Project and portable Game Set package contracts, including version-1 recovery behavior and merge conflict rules.
-5. The acceptance checklist for each of the six initial Kit families and the first coordinated rules/packaging masters.
+1. The canonical zone map, zone-versus-tool test, Set Desk focus path, selection scopes, and responsive interaction contract.
+2. The durable creator-location boundary, temporary AI workspace capacity/retention contract, and protected migration path for existing cloud-set content.
+3. The exact Game Project, Game Set, card collection, deck, artifact, Template/master, grouping, and product contracts and their stable IDs/references.
+4. The first controlled Games classification vocabulary and which values are derived from payloads versus proposed by contributors.
+5. The immutable Specialty/Kit manifest shape and the developer/owner revision workflow.
+6. The version-2 Project and portable Game Set package contracts, including desk arrangement/grouping state, version-1 recovery behavior, and merge conflict rules.
+7. The acceptance checklist for each of the six initial Kit families and the first coordinated rules/packaging masters.
 
-Once those five items are concrete, implementation can proceed through Gates 1–4 as one coherent Games-foundation objective. The Arcane production proof follows as Gates 5–7. Checkout remains a separate high-risk objective after the physical production contract is proven.
+Once these items are concrete, implementation can proceed through Gates 0–5 as the environment and Games-foundation objectives, split only where the cloud-set migration needs an independently protected data transition. The Arcane production proof follows as Gates 6–8. Checkout remains a separate high-risk objective after the physical production contract is proven.
 
 ## Canonical rendering doctrine
 

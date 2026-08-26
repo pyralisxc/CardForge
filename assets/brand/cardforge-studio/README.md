@@ -27,6 +27,21 @@ Set watermark opacity in the renderer rather than baking translucency into the s
 - Brass gold: `#B08D45`
 - Ivory: `#F6F3EA`
 
+## Product concept references
+
+The alpha environment family described by `docs/product-direction.md` and `docs/product-surface-map.md` lives under `concepts/`:
+
+- `home-zone-alpha.png`: orientation, attention, current work, and recent-work ledger.
+- `library-zone-alpha.png`: unified inventory with selected-object location and dependency detail.
+- `studio-set-desk-alpha.png`: spatial active-Set workspace and scope-aware object actions.
+- `profile-zone-alpha.png`: identity, security, personal defaults, access, and provider handoffs.
+- `developer-zone-alpha.png`: contribution preparation, evidence, readiness, and Forge Review handoff.
+- `owner-zone-alpha.png`: ordered operational action center and explicit owner decision surface.
+
+These images guide hierarchy and environment design. They are not runtime assets or pixel-perfect implementation contracts.
+
+The family intentionally shares one zone rail, command-band hierarchy, ledger rhythm, selected-object detail pattern, action order, status language, and responsive transformation model. Implementation should reuse those presentation foundations while leaving feature actions, state, permissions, validation, and provider ownership with their existing feature owners. The concepts do not authorize feature removal; `docs/product-surface-map.md` is the living preservation and placement ledger.
+
 ## Usage boundary
 
 This folder is the only editable source. The matching SVG files under
