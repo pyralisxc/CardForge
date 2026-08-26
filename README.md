@@ -127,6 +127,7 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 - `docs/architecture.md`: current architecture and source-of-truth behavior.
 - `docs/product-direction.md`: intended product model, boundaries, and delivery sequence.
+- `docs/product-surface-map.md`: canonical zones, feature placement, and shipped-versus-direction inventory.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current operations, release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
