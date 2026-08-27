@@ -690,4 +690,60 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().pdfMarginMm).toBe(8);
     expect(useProjectStore.getState().pdfDuplexLayout).toBe('same-page');
   });
+
+  it('renames one set without changing the selected work and keeps card ownership aligned', () => {
+    useProjectStore.setState({
+      cardSets: [
+        { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+      ],
+      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      storedCards: [{ uniqueId: 'card-b', templateId: 'template', setId: 'set-b', setName: 'Beta', data: {} }],
+    });
+
+    expect(useProjectStore.getState().renameCardSet('set-b', 'Beta revised')).toBe(true);
+    expect(useProjectStore.getState().activeCardSet.name).toBe('Alpha');
+    expect(useProjectStore.getState().cardSets.find((set) => set.id === 'set-b')?.name).toBe('Beta revised');
+    expect(useProjectStore.getState().storedCards[0]?.setName).toBe('Beta revised');
+  });
+
+  it('duplicates a set and its cards as independently owned work', () => {
+    useProjectStore.setState({
+      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
+      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      storedCards: [{ uniqueId: 'card-a', templateId: 'template', setId: 'set-a', setName: 'Alpha', data: { title: 'One' } }],
+    });
+
+    const duplicateId = useProjectStore.getState().duplicateCardSet('set-a');
+    const next = useProjectStore.getState();
+    expect(duplicateId).toBeTruthy();
+    expect(next.activeCardSet.id).toBe(duplicateId);
+    expect(next.cardSets.find((set) => set.id === duplicateId)?.name).toBe('Alpha copy');
+    expect(next.storedCards).toHaveLength(2);
+    expect(next.storedCards.find((card) => card.setId === duplicateId)).toMatchObject({
+      setName: 'Alpha copy',
+      data: { title: 'One' },
+    });
+    expect(next.storedCards[1]?.uniqueId).not.toBe('card-a');
+  });
+
+  it('deletes a non-final set with its cards and moves selection to surviving work', () => {
+    useProjectStore.setState({
+      cardSets: [
+        { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+      ],
+      activeCardSet: { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+      storedCards: [
+        { uniqueId: 'card-a', templateId: 'template', setId: 'set-a', setName: 'Alpha', data: {} },
+        { uniqueId: 'card-b', templateId: 'template', setId: 'set-b', setName: 'Beta', data: {} },
+      ],
+    });
+
+    expect(useProjectStore.getState().deleteCardSet('set-b')).toBe(true);
+    expect(useProjectStore.getState().cardSets.map((set) => set.id)).toEqual(['set-a']);
+    expect(useProjectStore.getState().activeCardSet.id).toBe('set-a');
+    expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).toEqual(['card-a']);
+    expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(false);
+  });
 });

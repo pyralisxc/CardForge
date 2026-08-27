@@ -17,17 +17,20 @@ describe('unified account environment', () => {
   const profileRoute = readSource('src/app/profile/page.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
   const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
   const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
   it('makes Home, Library, and Profile direct zones instead of nested account pages', () => {
     expect(accountPage).toContain('<AccountHomeBoundary');
-    expect(accountLibrary).toContain('Your CardForge home');
+    expect(accountPage).toContain('<HomeDesk');
+    expect(homeDesk).toContain('Your creative desk');
+    expect(homeDesk).toContain('<EnvironmentShell');
     expect(accountLibrary).toContain('<EnvironmentShell');
     expect(accountPage).toContain("activeSection === 'library' || activeSection === 'storage'");
     expect(accountPage).toContain("activeSection === 'profile' || activeSection === 'billing'");
-    expect(accountPage).toContain('view="library"');
+    expect(accountPage).toContain('<UnifiedAccountLibrary');
     expect(profileEnvironment).toContain('<EnvironmentShell');
     expect(homeBoundary).not.toContain('<AccountWorkspaceHeader');
   });
@@ -54,8 +57,8 @@ describe('unified account environment', () => {
 
   it('keeps inventory separate from Library-owned location tools', () => {
     expect(accountPage).toContain('<UnifiedAccountLibrary');
-    expect(accountPage).toContain('view="library"');
-    expect(accountPage).toContain('view="home"');
+    expect(accountPage).toContain('<HomeDesk');
+    expect(accountLibrary).not.toContain("view === 'home'");
     expect(accountPage).toContain('<LibraryStorageConnectionsTool');
     expect(accountPage).toContain("initialTool={activeSection === 'storage' ? 'locations' : null}");
     expect(storageWorkspace).toContain('<CompactSettingRow');
@@ -75,9 +78,10 @@ describe('unified account environment', () => {
   });
 
   it('keeps account status and storage measurement semantics compact', () => {
-    expect(accountLibrary).toContain('Account snapshot');
-    expect(accountLibrary).toContain('homeAccessStatus');
-    expect(accountLibrary).toContain('Connections');
+    expect(homeDesk).toContain('Account essentials');
+    expect(homeDesk).toContain('homeAccessStatus');
+    expect(homeDesk).toContain('Connections');
+    expect(homeDesk).not.toContain('Account snapshot');
     expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
     expect(storageLibrary).toContain('function StorageMetric');
     expect(storageLibrary).not.toContain('function StorageSummaryCard');

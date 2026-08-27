@@ -1,0 +1,1020 @@
+.spatialPlane {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  background: var(--cf-canvas);
+}
+
+.desk {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  grid-template-rows: auto minmax(25rem, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.deskIntro {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0.25rem 0.45rem;
+}
+
+.deskIntro p,
+.deskIntro h1,
+.deskIntro span {
+  margin: 0;
+}
+
+.deskIntro p {
+  color: var(--cf-accent-strong);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deskIntro h1 {
+  margin-top: 0.1rem;
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-size: clamp(1.4rem, 2.3vw, 1.9rem);
+  font-weight: 600;
+}
+
+.deskIntro span {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+}
+
+.deskIntro > strong {
+  flex: 0 0 auto;
+  color: var(--cf-text-subtle);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.workSurface {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 25rem;
+  border-top: 1px solid var(--cf-border-subtle);
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  overflow: hidden;
+}
+
+.workSurfaceHeader {
+  position: absolute;
+  z-index: 6;
+  top: 0.85rem;
+  left: 1rem;
+  pointer-events: none;
+}
+
+.workSurfaceHeader h2,
+.focusIdentity h1,
+.contentHeading h2 {
+  margin: 0;
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-weight: 600;
+}
+
+.workSurfaceHeader h2 {
+  font-size: 0.86rem;
+}
+
+.workSurfaceHeader span {
+  display: block;
+  margin-top: 0.08rem;
+  color: var(--cf-text-subtle);
+  font-size: 0.6rem;
+}
+
+.deskToolbar {
+  position: absolute;
+  z-index: 12;
+  top: 0.65rem;
+  right: 0.8rem;
+  display: flex;
+  max-width: calc(100% - 1.6rem);
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 94%, transparent);
+  box-shadow: var(--cf-panel-shadow);
+}
+
+.searchField {
+  position: relative;
+  width: min(15rem, 100%);
+}
+
+.searchField svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0.7rem;
+  width: 0.92rem;
+  height: 0.92rem;
+  transform: translateY(-50%);
+  color: var(--cf-text-subtle);
+  pointer-events: none;
+}
+
+.searchField input {
+  height: 2.2rem;
+  padding-left: 2rem;
+}
+
+.sourceSelect,
+.arrangeSelect {
+  height: 2.2rem;
+}
+
+.sourceSelect {
+  width: 7.75rem;
+}
+
+.arrangeSelect {
+  width: 8.75rem;
+}
+
+.workGrid {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 25rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(2.6rem, 1fr));
+  gap: 0.25rem 0.8rem;
+  align-items: center;
+  padding: 2.75rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
+}
+
+.workTile {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  grid-column: span 3;
+  grid-row: 2 / span 4;
+  align-self: center;
+  transition: filter 160ms ease, transform 180ms ease;
+}
+
+.workTile[data-featured="true"] {
+  z-index: 4;
+  grid-column: 5 / span 4;
+  grid-row: 1 / span 6;
+}
+
+.workTile[data-slot="1"] {
+  grid-column: 1 / span 3;
+  grid-row: 2 / span 4;
+  transform: translateY(-0.5rem) rotate(0.7deg);
+}
+
+.workTile[data-slot="2"] {
+  grid-column: 9 / span 3;
+  grid-row: 3 / span 4;
+  transform: translateY(0.65rem) rotate(-0.8deg);
+}
+
+.workTile[data-slot="3"] {
+  grid-column: 2 / span 3;
+  grid-row: 4 / span 3;
+  transform: translateX(0.8rem) rotate(0.45deg);
+}
+
+.workTile[data-slot="4"] {
+  grid-column: 9 / span 3;
+  grid-row: 1 / span 4;
+  transform: translateY(-0.4rem) rotate(-0.55deg);
+}
+
+.workTile[data-slot="5"] {
+  grid-column: 10 / span 3;
+  grid-row: 1 / span 3;
+  transform: translateX(-0.5rem) rotate(0.8deg);
+}
+
+.workTile:hover,
+.workTile:focus-within {
+  z-index: 10;
+  filter: brightness(1.08);
+  transform: translateY(-0.45rem) rotate(0deg);
+}
+
+.workTileMain {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  justify-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.workVisual {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 8rem;
+  place-items: center;
+  overflow: visible;
+}
+
+.workTile[data-featured="true"] .workVisual {
+  min-height: 14rem;
+}
+
+.previewStack {
+  position: relative;
+  display: grid;
+  min-width: 8rem;
+  min-height: 9rem;
+  place-items: center;
+  filter: drop-shadow(0 1rem 1.2rem rgb(0 0 0 / 32%));
+}
+
+.previewStack > * {
+  position: absolute;
+  z-index: 3;
+  transform: rotate(-0.6deg);
+}
+
+.previewStack > :nth-child(2) {
+  z-index: 2;
+  transform: translate(1.55rem, 0.25rem) rotate(5deg);
+  opacity: 0.86;
+}
+
+.previewStack > :nth-child(3) {
+  z-index: 1;
+  transform: translate(-1.55rem, 0.5rem) rotate(-5deg);
+  opacity: 0.74;
+}
+
+.sourceFallback {
+  display: grid;
+  width: 6.8rem;
+  min-height: 8.4rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface);
+  box-shadow: 0.45rem 0.55rem 0 -0.15rem var(--cf-canvas), 0.5rem 0.6rem 0 var(--cf-border-subtle), var(--cf-panel-shadow);
+  color: var(--cf-accent-strong);
+}
+
+.workTile[data-featured="true"] .sourceFallback {
+  width: 10rem;
+  min-height: 12rem;
+}
+
+.sourceFallback svg {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.sourceFallback span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+}
+
+.workMeta {
+  display: grid;
+  max-width: 17rem;
+  justify-items: center;
+  gap: 0.1rem;
+  margin-top: 0.55rem;
+  padding: 0.25rem 0.55rem;
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+}
+
+.workMeta strong,
+.workMeta span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workMeta strong {
+  color: var(--cf-text-strong);
+  font-size: 0.8rem;
+}
+
+.workMeta span {
+  color: var(--cf-text-muted);
+  font-size: 0.62rem;
+}
+
+.tileActions {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.workTile:hover .tileActions,
+.workTile:focus-within .tileActions,
+.workTile[data-pinned="true"] .tileActions {
+  opacity: 1;
+}
+
+.iconButton,
+.backButton,
+.quietAction {
+  display: inline-flex;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  background: var(--cf-canvas);
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible,
+.iconButton[data-active="true"],
+.backButton:hover,
+.backButton:focus-visible,
+.quietAction:hover,
+.quietAction:focus-visible {
+  border-color: var(--cf-border-strong);
+  color: var(--cf-accent-text);
+}
+
+.emptyDesk {
+  display: grid;
+  min-height: 20rem;
+  place-items: center;
+  text-align: center;
+}
+
+.emptyDeskInner {
+  display: grid;
+  max-width: 24rem;
+  justify-items: center;
+  gap: 0.7rem;
+}
+
+.emptyDeskInner svg {
+  width: 2.7rem;
+  height: 2.7rem;
+  color: var(--cf-accent-strong);
+}
+
+.emptyCopy {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.utilityStrip {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.utilityButton {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-right: 1px solid var(--cf-border-subtle);
+  background: transparent;
+  padding: 0.45rem 0.65rem;
+  color: var(--cf-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.utilityButton:last-child {
+  border-right: 0;
+}
+
+.utilityButton:hover,
+.utilityButton:focus-visible {
+  background: var(--cf-surface-inset);
+}
+
+.utilityButton > svg {
+  color: var(--cf-accent-strong);
+}
+
+.utilityText,
+.utilityText strong,
+.utilityText span {
+  min-width: 0;
+}
+
+.utilityText strong,
+.utilityText span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utilityText strong {
+  color: var(--cf-text-strong);
+  font-size: 0.67rem;
+}
+
+.utilityText span {
+  margin-top: 0.08rem;
+  font-size: 0.61rem;
+}
+
+.focusSurface {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  place-items: center;
+  padding: 3.5rem clamp(5rem, 10vw, 9rem) 2rem;
+  overflow: hidden;
+}
+
+.backButton {
+  position: absolute;
+  z-index: 20;
+  top: 4.1rem;
+  left: 0.25rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.focusOrbit {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.nearbyObject {
+  position: absolute;
+  display: grid;
+  width: 7.5rem;
+  min-width: 0;
+  justify-items: center;
+  gap: 0.3rem;
+  border: 0;
+  background: transparent;
+  padding: 0.3rem;
+  color: var(--cf-text-muted);
+  text-align: center;
+  cursor: pointer;
+  opacity: 0.52;
+  pointer-events: auto;
+  transform: scale(0.88);
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.nearbyObject[data-slot="0"] {
+  top: 18%;
+  left: 0.5rem;
+}
+
+.nearbyObject[data-slot="1"] {
+  right: 0.3rem;
+  bottom: 18%;
+}
+
+.nearbyObject[data-slot="2"] {
+  left: 1rem;
+  bottom: 8%;
+}
+
+.nearbyObject[data-slot="3"] {
+  top: 10%;
+  right: 0.5rem;
+}
+
+.nearbyObject[data-slot="4"] {
+  top: 4%;
+  left: 12%;
+}
+
+.nearbyObject:hover,
+.nearbyObject:focus-visible {
+  color: var(--cf-text-strong);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.nearbyVisual {
+  display: grid;
+  min-height: 4.8rem;
+  place-items: center;
+  color: var(--cf-accent-strong);
+  filter: drop-shadow(0 0.7rem 0.8rem rgb(0 0 0 / 28%));
+}
+
+.nearbyVisual svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.nearbyObject strong,
+.nearbyObject small {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nearbyObject strong {
+  color: currentColor;
+  font-size: 0.66rem;
+}
+
+.nearbyObject small {
+  margin-top: 0.08rem;
+  font-size: 0.56rem;
+}
+
+.focusWorkspace {
+  position: relative;
+  z-index: 5;
+  width: min(64rem, 100%);
+  min-width: 0;
+  min-height: 34rem;
+  padding: 1rem 1.15rem 1.2rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface-inset);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%), inset 0 0 0 1px color-mix(in srgb, var(--cf-accent-strong) 10%, transparent);
+}
+
+.focusHeader,
+.contentHeading,
+.contentToolbar,
+.focusActions,
+.selectionBar,
+.renameRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.focusHeader {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+}
+
+.focusIdentity {
+  min-width: 0;
+}
+
+.focusIdentity h1 {
+  overflow: hidden;
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focusIdentity p,
+.contentHeading p {
+  margin: 0.15rem 0 0;
+  color: var(--cf-text-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.focusActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.15rem;
+}
+
+.quietAction {
+  background: transparent;
+  padding: 0.35rem 0.5rem;
+}
+
+.renameRow {
+  gap: 0.45rem;
+}
+
+.renameRow input {
+  min-width: 15rem;
+}
+
+.contentHeading {
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--cf-border-subtle);
+}
+
+.contentHeading h2 {
+  font-size: 1rem;
+}
+
+.contentToolbar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.selectionBar {
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.selectionBar > span {
+  color: var(--cf-accent-text);
+  font-size: 0.68rem;
+}
+
+.moveSelect {
+  width: min(14rem, 100%);
+}
+
+.contentStage {
+  position: relative;
+  min-height: 23rem;
+  margin-top: 0.7rem;
+  padding: 1rem;
+  background: var(--cf-canvas);
+  overflow: hidden;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+.cardButton {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.5rem;
+  color: var(--cf-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.cardButton:nth-child(3n + 2) {
+  transform: translateY(0.65rem);
+}
+
+.cardButton:hover,
+.cardButton[aria-pressed="true"] {
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+  transform: translateY(-0.25rem);
+}
+
+.cardButton[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--cf-accent-strong);
+}
+
+.cardButton strong {
+  margin-top: 0.45rem;
+  color: var(--cf-text-strong);
+  font-size: 0.7rem;
+}
+
+.cardButton span {
+  margin-top: 0.1rem;
+  color: var(--cf-text-subtle);
+  font-size: 0.6rem;
+}
+
+.remoteFocus {
+  display: grid;
+  min-height: 24rem;
+  margin-top: 0.7rem;
+  place-items: center;
+  background: var(--cf-canvas);
+  text-align: center;
+}
+
+.remoteFocusInner {
+  display: grid;
+  max-width: 26rem;
+  justify-items: center;
+  gap: 0.7rem;
+}
+
+.remoteFocusInner > svg {
+  width: 3rem;
+  height: 3rem;
+  color: var(--cf-accent-strong);
+}
+
+@media (max-width: 1040px) {
+  .workGrid {
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+  }
+
+  .workTile[data-featured="true"] {
+    grid-column: span 4;
+  }
+
+  .workTile,
+  .workTile[data-slot] {
+    grid-column: span 3;
+  }
+
+  .focusSurface {
+    padding-right: 6rem;
+    padding-left: 6rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .desk {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 0.45rem;
+  }
+
+  .deskIntro {
+    padding-bottom: 0.35rem;
+  }
+
+  .deskIntro h1 {
+    font-size: 1.3rem;
+  }
+
+  .deskIntro span {
+    max-width: 17rem;
+    font-size: 0.66rem;
+    line-height: 1.35;
+  }
+
+  .workSurface {
+    min-height: 28rem;
+  }
+
+  .workSurfaceHeader {
+    top: 0.65rem;
+    left: 0.45rem;
+  }
+
+  .deskToolbar {
+    position: absolute;
+    top: 3.3rem;
+    right: 0.35rem;
+    bottom: auto;
+    left: 0.35rem;
+    display: grid;
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) 6.75rem 7.6rem;
+    border-right: 0;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .searchField,
+  .sourceSelect,
+  .arrangeSelect {
+    width: 100%;
+  }
+
+  .workGrid {
+    display: flex;
+    min-height: 27.5rem;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 7rem 0.8rem 1.2rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .workGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workTile,
+  .workTile[data-slot],
+  .workTile[data-featured="true"] {
+    width: min(78vw, 17rem);
+    min-width: min(78vw, 17rem);
+    transform: none;
+    scroll-snap-align: center;
+  }
+
+  .workTile:first-child {
+    margin-left: 0.25rem;
+  }
+
+  .workTile:last-child {
+    margin-right: 2.5rem;
+  }
+
+  .workVisual,
+  .workTile[data-featured="true"] .workVisual {
+    min-height: 12.5rem;
+  }
+
+  .workTile[data-featured="true"] .sourceFallback,
+  .sourceFallback {
+    width: 8.75rem;
+    min-height: 10.5rem;
+  }
+
+  .tileActions {
+    opacity: 1;
+  }
+
+  .utilityStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .utilityButton:nth-child(2) {
+    border-right: 0;
+  }
+
+  .utilityButton:nth-child(n + 3) {
+    border-top: 1px solid var(--cf-border-subtle);
+  }
+
+  .focusSurface {
+    display: block;
+    min-height: 100%;
+    padding: 8.3rem 0.25rem 0.5rem;
+    overflow: visible;
+  }
+
+  .backButton {
+    left: 0.1rem;
+  }
+
+  .focusOrbit {
+    z-index: 8;
+    top: 4rem;
+    right: 0.25rem;
+    bottom: auto;
+    left: 7rem;
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .focusOrbit::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nearbyObject,
+  .nearbyObject[data-slot] {
+    position: relative;
+    inset: auto;
+    width: 5.5rem;
+    min-width: 5.5rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    gap: 0.3rem;
+    padding: 0.2rem;
+    text-align: left;
+    opacity: 0.75;
+    transform: none;
+  }
+
+  .nearbyVisual {
+    min-height: 2.75rem;
+  }
+
+  .nearbyVisual svg {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .nearbyObject small {
+    display: none;
+  }
+
+  .focusWorkspace {
+    width: 100%;
+    min-height: 36rem;
+    padding: 0.8rem 0.6rem 1rem;
+  }
+
+  .focusHeader,
+  .contentHeading {
+    display: grid;
+  }
+
+  .focusActions {
+    justify-content: flex-start;
+    margin-top: 0.45rem;
+  }
+
+  .quietAction {
+    padding-right: 0.35rem;
+    padding-left: 0.35rem;
+  }
+
+  .renameRow input {
+    min-width: 0;
+  }
+
+  .contentToolbar {
+    align-items: stretch;
+  }
+
+  .selectionBar {
+    display: grid;
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
+
+  .moveSelect {
+    width: 100%;
+  }
+
+  .contentStage {
+    min-height: 24rem;
+    padding: 0.6rem;
+  }
+
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .cardButton:nth-child(3n + 2) {
+    transform: none;
+  }
+}
+
+@media (max-width: 390px) {
+  .deskToolbar {
+    grid-template-columns: minmax(0, 1fr) 6.25rem;
+  }
+
+  .arrangeSelect {
+    grid-column: 1 / -1;
+  }
+
+  .workGrid {
+    padding-top: 9.15rem;
+  }
+
+  .deskIntro > strong {
+    display: none;
+  }
+
+  .focusActions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quietAction {
+    min-width: 0;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workTile,
+  .nearbyObject,
+  .cardButton {
+    transition: none;
+  }
+}

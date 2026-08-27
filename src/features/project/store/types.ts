@@ -57,6 +57,9 @@ export interface SettingsSlice {
   setRichTextHighlightColor: (color: string) => void;
   createCardSet: (name?: string) => string;
   setActiveCardSetId: (id: string) => void;
+  renameCardSet: (id: string, name: string) => boolean;
+  duplicateCardSet: (id: string) => string | null;
+  deleteCardSet: (id: string) => boolean;
   setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
