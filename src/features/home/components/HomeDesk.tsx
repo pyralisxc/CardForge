@@ -42,7 +42,6 @@ import {
   EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
-  EnvironmentSurfaceHeader,
   getVisibleEnvironmentZones,
   type ActionDescriptor,
   type EnvironmentViewer,
@@ -361,116 +360,103 @@ export function HomeDesk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        {focusedItem ? (
-          <div className={styles.focusSurface} data-home-desk="focused">
-            <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
-              <ArrowLeft size={16} aria-hidden="true" /> Back to desk
-            </button>
-            <header className={styles.focusHeader}>
-              <div className={styles.focusIdentity}>
-                {renaming && focusedLocalSetId ? (
-                  <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); commitRename(); }}>
-                    <Input id="home-work-name" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} aria-label="Work name" />
-                    <Button type="submit" size="sm">Save</Button>
-                  </form>
-                ) : <h1>{focusedItem.name}</h1>}
-                <p>{focusedCards.length} card{focusedCards.length === 1 ? '' : 's'} · {workSourceLabel(focusedItem)}</p>
-              </div>
-              <div className={styles.focusActions}>
-                {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => setRenaming((current) => !current)}><Pencil size={15} aria-hidden="true" />Rename</button> : null}
-                {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => duplicateWork(focusedItem)}><Copy size={15} aria-hidden="true" />Duplicate</button> : null}
-                <button type="button" className={styles.quietAction} onClick={() => togglePin(focusedItem.id)}><Pin size={15} aria-hidden="true" />{pinnedIds.includes(focusedItem.id) ? 'Unpin' : 'Pin'}</button>
-                <button id={`home-work-info-${focusedItem.id}`} type="button" className={styles.quietAction} onClick={() => inspectItem(focusedItem)}><Info size={15} aria-hidden="true" />Details</button>
-              </div>
-            </header>
-
-            {focusedLocalSetId ? <>
-              <div className={styles.contentHeading}>
-                <div>
-                  <h2>Cards in this work</h2>
-                  <p>Select cards to edit, move between Sets, or remove from this work.</p>
+        <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
+          {focusedItem ? (
+            <div className={styles.focusSurface} data-home-desk="focused">
+              <aside className={styles.focusContext} aria-label="Nearby work">
+                <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
+                  <ArrowLeft size={16} aria-hidden="true" /> Back to desk
+                </button>
+                <div className={styles.nearbyWork}>
+                  {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item) => {
+                    const cards = workCards(item);
+                    return <button key={item.id} type="button" className={styles.nearbyObject} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
+                      <span className={styles.nearbyVisual}>{cards[0] ? <CardPreview card={cards[0]} targetWidthPx={58} /> : <WorkSourceIcon item={item} />}</span>
+                      <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
+                    </button>;
+                  })}
                 </div>
-                <span className="text-xs text-[var(--cf-text-subtle)]">{visibleCards.length} shown</span>
-              </div>
-              <div className={styles.contentToolbar}>
-                <label className={styles.searchField}>
-                  <span className="sr-only">Search cards in this work</span>
-                  <Search aria-hidden="true" />
-                  <Input value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" />
-                </label>
-                {selectedCard ? <div className={styles.selectionBar}>
-                  <span>{getCardTitle(selectedCard, 0)} selected</span>
-                  {otherSets.length ? <Select value={effectiveMoveTargetId} onValueChange={setMoveTargetId}>
-                    <SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {otherSets.find((set) => set.id === effectiveMoveTargetId)?.name ?? 'Set'}</span></SelectTrigger>
-                    <SelectContent>{otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent>
-                  </Select> : null}
-                  {otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={moveSelectedCard}>Move</Button> : null}
-                  <Button type="button" size="sm" variant="outline" onClick={editSelectedCard}>Edit in Studio</Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setPendingDeleteCard(selectedCard)}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
-                </div> : null}
-              </div>
-              {visibleCards.length ? <div className={styles.cardGrid}>
-                {visibleCards.slice(0, 24).map((card, index) => (
-                  <button key={card.uniqueId} type="button" className={styles.cardButton} aria-pressed={selectedCardId === card.uniqueId} onClick={() => setSelectedCardId((current) => current === card.uniqueId ? null : card.uniqueId)}>
-                    <CardPreview card={card} targetWidthPx={132} />
-                    <strong>{getCardTitle(card, index)}</strong>
-                    <span>{card.template.name}</span>
-                  </button>
-                ))}
-              </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>No cards here yet</strong><p className={styles.emptyCopy}>Open this work in Studio to add its first coordinated cards.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Add cards in Studio</Button></div></div>}
-              {visibleCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 matching cards. Narrow the search or open Studio for the complete production view.</p> : null}
-            </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the normal CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Open in Studio</Button></div></div>}
-          </div>
-        ) : (
-          <div className={styles.desk} data-home-desk="overview">
-            <EnvironmentSurfaceHeader eyebrow="Home" title="Your creative desk" body="Arrange the work you have open, then focus into one to organize its contents without losing your place." />
-            {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Available work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}
-            <div className={styles.deskToolbar}>
-              <label className={styles.searchField}>
-                <span className="sr-only">Search open work</span>
-                <Search aria-hidden="true" />
-                <Input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your open work" />
-              </label>
-              <div className={styles.sourceFilters} aria-label="Filter open work by source">
-                {sourceFilterOptions.map((option) => <button key={option.id} type="button" className={styles.filterButton} aria-pressed={sourceFilter === option.id} onClick={() => setSourceFilter(option.id)}>{option.label}</button>)}
-              </div>
-              <Select value={sort} onValueChange={(value) => setSort(value as HomeSort)}>
-                <SelectTrigger aria-label="Arrange open work" className="w-[10.5rem]"><span>{sort === 'desk' ? 'Desk order' : sort === 'name' ? 'Name' : 'Largest first'}</span></SelectTrigger>
-                <SelectContent><SelectItem value="desk">Desk order</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="size">Largest first</SelectItem></SelectContent>
-              </Select>
+              </aside>
+              <section className={styles.focusWorkspace} aria-label={focusedItem.name}>
+                <header className={styles.focusHeader}>
+                  <div className={styles.focusIdentity}>
+                    {renaming && focusedLocalSetId ? (
+                      <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); commitRename(); }}>
+                        <Input id="home-work-name" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} aria-label="Work name" />
+                        <Button type="submit" size="sm">Save</Button>
+                      </form>
+                    ) : <h1>{focusedItem.name}</h1>}
+                    <p>{focusedCards.length} card{focusedCards.length === 1 ? '' : 's'} · {workSourceLabel(focusedItem)}</p>
+                  </div>
+                  <div className={styles.focusActions}>
+                    {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => setRenaming((current) => !current)}><Pencil size={15} aria-hidden="true" />Rename</button> : null}
+                    {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => duplicateWork(focusedItem)}><Copy size={15} aria-hidden="true" />Duplicate</button> : null}
+                    <button type="button" className={styles.quietAction} onClick={() => togglePin(focusedItem.id)}><Pin size={15} aria-hidden="true" />{pinnedIds.includes(focusedItem.id) ? 'Unpin' : 'Pin'}</button>
+                    <button id={`home-work-info-${focusedItem.id}`} type="button" className={styles.quietAction} onClick={() => inspectItem(focusedItem)}><Info size={15} aria-hidden="true" />Details</button>
+                  </div>
+                </header>
+
+                {focusedLocalSetId ? <>
+                  <div className={styles.contentHeading}>
+                    <div><h2>Cards in this work</h2><p>Select a card to edit, move, or remove it.</p></div>
+                    <span className="text-xs text-[var(--cf-text-subtle)]">{visibleCards.length} shown</span>
+                  </div>
+                  <div className={styles.contentToolbar}>
+                    <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" /></label>
+                    {selectedCard ? <div className={styles.selectionBar}>
+                      <span>{getCardTitle(selectedCard, 0)} selected</span>
+                      {otherSets.length ? <Select value={effectiveMoveTargetId} onValueChange={setMoveTargetId}><SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {otherSets.find((set) => set.id === effectiveMoveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
+                      {otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={moveSelectedCard}>Move</Button> : null}
+                      <Button type="button" size="sm" variant="outline" onClick={editSelectedCard}>Edit in Studio</Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setPendingDeleteCard(selectedCard)}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
+                    </div> : null}
+                  </div>
+                  <div className={styles.contentStage}>
+                    {visibleCards.length ? <div className={styles.cardGrid}>{visibleCards.slice(0, 24).map((card, index) => (
+                      <button key={card.uniqueId} type="button" className={styles.cardButton} aria-pressed={selectedCardId === card.uniqueId} onClick={() => setSelectedCardId((current) => current === card.uniqueId ? null : card.uniqueId)}>
+                        <CardPreview card={card} targetWidthPx={132} /><strong>{getCardTitle(card, index)}</strong><span>{card.template.name}</span>
+                      </button>
+                    ))}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>This Set is ready for its first card</strong><p className={styles.emptyCopy}>Open Studio and the new card will return to this exact work surface.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Add cards in Studio</Button></div></div>}
+                  </div>
+                  {visibleCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 matching cards. Narrow the search or open Studio for the complete production view.</p> : null}
+                </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Open in Studio</Button></div></div>}
+              </section>
             </div>
-            <section className={styles.workSurface} aria-labelledby="home-open-work-heading">
-              <header className={styles.workSurfaceHeader}>
-                <div><h2 id="home-open-work-heading">Open work</h2><p>Everything here is one work container, wherever it is stored.</p></div>
-                <span className="text-xs text-[var(--cf-text-subtle)]">{visibleWork.length} visible</span>
+          ) : (
+            <div className={styles.desk} data-home-desk="overview">
+              <header className={styles.deskIntro}>
+                <div><p>Home</p><h1>Your creative desk</h1><span>Move across the work you have open, then focus into one Set without losing the rest of your desk.</span></div>
+                <strong>{visibleWork.length} open</strong>
               </header>
-              {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div className={styles.workGrid}>
-                {visibleWork.map((item, index) => {
-                  const cards = workCards(item);
-                  const featured = index === 0;
-                  return <article key={item.id} className={styles.workTile} data-featured={featured}>
-                    <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                      <div className={styles.workVisual}>
-                        {cards.length ? <div className={styles.previewStack}>{cards.map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={featured ? 150 : 112} />)}</div> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>{getAccountLibrarySourceLabel(workSource(item))}</span></div>}
+              {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Available work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}
+              <section className={styles.workSurface} aria-labelledby="home-open-work-heading">
+                <div className={styles.deskToolbar}>
+                  <div className={styles.workSurfaceHeader}><h2 id="home-open-work-heading">Open work</h2><span>Location follows the work</span></div>
+                  <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find work" /></label>
+                  <div className={styles.sourceFilters} aria-label="Filter open work by source">{sourceFilterOptions.map((option) => <button key={option.id} type="button" className={styles.filterButton} aria-pressed={sourceFilter === option.id} onClick={() => setSourceFilter(option.id)}>{option.label}</button>)}</div>
+                  <Select value={sort} onValueChange={(value) => setSort(value as HomeSort)}><SelectTrigger aria-label="Arrange open work" className={styles.arrangeSelect}><span>{sort === 'desk' ? 'Desk order' : sort === 'name' ? 'Name' : 'Largest first'}</span></SelectTrigger><SelectContent><SelectItem value="desk">Desk order</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="size">Largest first</SelectItem></SelectContent></Select>
+                </div>
+                {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div className={styles.workGrid}>
+                  {visibleWork.map((item, index) => {
+                    const cards = workCards(item);
+                    const featured = index === 0;
+                    return <article key={item.id} className={styles.workTile} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
+                      <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
+                        <div className={styles.workVisual}>{cards.length ? <div className={styles.previewStack}>{cards.map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={featured ? 150 : 112} />)}</div> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>{getAccountLibrarySourceLabel(workSource(item))}</span></div>}</div>
+                        <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
+                      </button>
+                      <div className={styles.tileActions}>
+                        <button type="button" className={styles.iconButton} data-active={pinnedIds.includes(item.id)} onClick={() => togglePin(item.id)} aria-label={`${pinnedIds.includes(item.id) ? 'Unpin' : 'Pin'} ${item.name}`} title={pinnedIds.includes(item.id) ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
+                        <button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} onClick={() => inspectItem(item)} aria-label={`Details for ${item.name}`} title="Details"><Info size={15} aria-hidden="true" /></button>
                       </div>
-                      <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
-                    </button>
-                    <div className={styles.tileActions}>
-                      <button type="button" className={styles.iconButton} data-active={pinnedIds.includes(item.id)} onClick={() => togglePin(item.id)} aria-label={`${pinnedIds.includes(item.id) ? 'Unpin' : 'Pin'} ${item.name}`} title={pinnedIds.includes(item.id) ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-                      <button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} onClick={() => inspectItem(item)} aria-label={`Details for ${item.name}`} title="Details"><Info size={15} aria-hidden="true" /></button>
-                    </div>
-                  </article>;
-                })}
-              </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{workItems.length ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{workItems.length ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{workItems.length ? <Button type="button" variant="outline" onClick={() => { setQuery(''); setSourceFilter('all'); }}>Show all work</Button> : <Button type="button" onClick={createWork}>Create your first Set</Button>}</div></div>}
-            </section>
-            <div className={styles.utilityStrip} aria-label="Account essentials">
-              {statuses.map((status) => {
-                const Icon = statusIcons[status.label] ?? ShieldCheck;
-                return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => projection.router.push(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>;
-              })}
+                    </article>;
+                  })}
+                </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{workItems.length ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{workItems.length ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{workItems.length ? <Button type="button" variant="outline" onClick={() => { setQuery(''); setSourceFilter('all'); }}>Show all work</Button> : <Button type="button" onClick={createWork}>Create your first Set</Button>}</div></div>}
+              </section>
+              <div className={styles.utilityStrip} aria-label="Account essentials">{statuses.map((status) => { const Icon = statusIcons[status.label] ?? ShieldCheck; return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => projection.router.push(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>; })}</div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </EnvironmentShell>
 
       <AlertDialog open={Boolean(pendingDeleteWork)} onOpenChange={(open) => { if (!open) setPendingDeleteWork(null); }}>

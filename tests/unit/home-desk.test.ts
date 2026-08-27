@@ -23,6 +23,9 @@ describe('Home spatial desk', () => {
   it('implements one authored-work object at two spatial scales', () => {
     expect(homeDesk).toContain('data-home-desk="overview"');
     expect(homeDesk).toContain('data-home-desk="focused"');
+    expect(homeDesk).toContain('data-home-desk-plane');
+    expect(homeDesk).toContain('data-home-work-object');
+    expect(homeDesk).toContain('aria-label="Nearby work"');
     expect(homeDesk).toContain('<CardPreview');
     expect(homeDesk).toContain('Cards in this work');
     expect(homeDesk).toContain('Back to desk');
