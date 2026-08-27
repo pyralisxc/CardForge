@@ -104,6 +104,30 @@ describe('repository maintenance policy', () => {
     expect(catalog).not.toContain('id: style.id || row.asset_id');
   });
 
+  it('keeps Template revisions and their binary media under one durable owner', async () => {
+    const [migration, browserAssets, pipelineAssets, studioHandoff, ttrpg, nameCard, eventBadge] = await Promise.all([
+      readFile(rootPath('supabase', 'migrations', '20260827090000_content_addressed_template_assets.sql'), 'utf8'),
+      readFile(rootPath('src', 'features', 'project', 'persistence', 'contentAddressedBrowserAssets.ts'), 'utf8'),
+      readFile(rootPath('src', 'features', 'developer-assets', 'lib', 'pipelineTemplateAssets.ts'), 'utf8'),
+      readFile(rootPath('src', 'features', 'studio-documents', 'server', 'developerTemplateDrafts.ts'), 'utf8'),
+      readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-ttrpg-stat-sheet.json'), 'utf8'),
+      readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-name-card-theme.json'), 'utf8'),
+      readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-event-badge-theme.json'), 'utf8'),
+    ]);
+
+    expect(browserAssets).toContain("BROWSER_PROJECT_ASSET_REFERENCE_PREFIX = 'cardforge-browser-asset://'");
+    expect(pipelineAssets).toContain("PIPELINE_TEMPLATE_ASSET_REFERENCE_PREFIX = 'cardforge-pipeline-asset://'");
+    expect(studioHandoff).toContain('storePipelineTemplateAsset(bytes)');
+    expect(studioHandoff).not.toContain("bytes.toString('base64')");
+    expect(migration).toContain('create table if not exists public.cardforge_pipeline_template_assets');
+    expect(migration).toContain("metadata - 'template'");
+    expect(migration).toContain('cardforge_template_payload_has_no_embedded_media');
+    expect(migration).not.toContain("'template', submission.source_payload");
+    for (const bootstrapTemplate of [ttrpg, nameCard, eventBadge]) {
+      expect(bootstrapTemplate).not.toContain('data:image/');
+    }
+  });
+
   it('keeps developer upload and submission in one route', async () => {
     await expect(pathExists('src', 'app', 'api', 'developer-assets', 'upload', 'route.ts')).resolves.toBe(false);
     const developerAssetRoute = await readFile(

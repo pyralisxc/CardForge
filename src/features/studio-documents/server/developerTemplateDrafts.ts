@@ -4,7 +4,9 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
+  DeveloperAssetRegistryCommandError,
   isRepositoryTemplate,
+  storePipelineTemplateAsset,
 } from '@/features/developer-assets/server';
 import {
   requireContributionScope,
@@ -253,7 +255,19 @@ const materializeTemplateForPipelineReview = async ({
         413,
       );
     }
-    replacements.set(asset.id, `data:${asset.mimeType};base64,${bytes.toString('base64')}`);
+    try {
+      replacements.set(asset.id, await storePipelineTemplateAsset(bytes));
+    } catch (error) {
+      throw new StudioDocumentStoreError(
+        error instanceof Error
+          ? error.message
+          : 'CardForge could not carry one of the Template’s private artwork files into Forge Review.',
+        error instanceof DeveloperAssetRegistryCommandError
+          && (error.status === 400 || error.status === 413 || error.status === 503)
+          ? error.status
+          : 503,
+      );
+    }
   }
   return replaceStudioDocumentAssetReferences(template, replacements) as TCGCardTemplate;
 };

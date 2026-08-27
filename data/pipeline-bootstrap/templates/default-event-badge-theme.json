@@ -422,7 +422,7 @@
   },
   "templateOrder": 5,
   "templatePreviewData": {
-    "EventLogo": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20400%22%3E%3Crect%20width%3D%22400%22%20height%3D%22400%22%20rx%3D%2272%22%20fill%3D%22%230f172a%22%2F%3E%3Ccircle%20cx%3D%22150%22%20cy%3D%22154%22%20r%3D%2282%22%20fill%3D%22%2338bdf8%22%2F%3E%3Ccircle%20cx%3D%22250%22%20cy%3D%22246%22%20r%3D%2282%22%20fill%3D%22%23facc15%22%2F%3E%3Cpath%20d%3D%22M120%20260%20L280%20100%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%2228%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M122%20102%20H278%20V298%20H122Z%22%20fill%3D%22none%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%2216%22%20opacity%3D%22.75%22%2F%3E%3C%2Fsvg%3E",
+    "EventLogo": "/card-assets/images/default-event-logo.svg",
     "EventName": "ForgeCon 2026",
     "AttendeeName": "Morgan Lee",
     "BadgeType": "Speaker",

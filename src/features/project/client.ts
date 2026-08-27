@@ -158,6 +158,7 @@ export {
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
 export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
+export { BROWSER_PROJECT_ASSET_REFERENCE_PREFIX } from './persistence/contentAddressedBrowserAssets';
 export {
   readStructuredBrowserValue,
   removeStructuredBrowserValue,

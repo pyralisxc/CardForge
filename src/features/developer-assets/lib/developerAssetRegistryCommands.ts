@@ -10,13 +10,10 @@ import type { StudioAssetDestination, StudioAssetRoutingMode, TCGCardTemplate } 
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 import { getUniqueActiveDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { DeveloperAssetRegistryCommandError } from './developerAssetRegistryCommandsError';
+import { externalizePipelineTemplateAssets } from './pipelineTemplateAssets';
 
-export class DeveloperAssetRegistryCommandError extends Error {
-  constructor(message: string, public readonly status: number) {
-    super(message);
-    this.name = 'DeveloperAssetRegistryCommandError';
-  }
-}
+export { DeveloperAssetRegistryCommandError } from './developerAssetRegistryCommandsError';
 
 export interface SetDeveloperAssetOwnerOverrideInput {
   submissionId: string;
@@ -214,13 +211,14 @@ export const createTemplatePipelineDraft = async ({
   submissionKey,
 }: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
   const supabase = requireSupabase();
+  const storedTemplate = await externalizePipelineTemplateAssets(template);
   const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
-    p_asset_id: template.id,
-    p_name: template.name,
+    p_asset_id: storedTemplate.id,
+    p_name: storedTemplate.name,
     p_developer_id: developerId,
     p_developer_email: developerEmail ?? '',
     p_template_payload: {
-      ...template,
+      ...storedTemplate,
       templateSource: 'default',
       templateLibrarySource: 'pipeline',
       templateRegistryStatus: 'draft',
@@ -276,16 +274,17 @@ const writeTemplateRevision = async ({
   submissionKey,
 }: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
+  const storedTemplate = await externalizePipelineTemplateAssets(template);
   const { data: revisionId, error } = await supabase.rpc(
     publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
     {
-      p_asset_id: template.id,
-      p_name: template.name,
-      p_description: template.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
+      p_asset_id: storedTemplate.id,
+      p_name: storedTemplate.name,
+      p_description: storedTemplate.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
       p_developer_id: developerId,
       p_developer_email: developerEmail ?? '',
       p_template_payload: {
-        ...template,
+        ...storedTemplate,
         templateSource: 'default',
         templateLibrarySource: 'pipeline',
         templateRegistryStatus: publishDirectly ? 'published' : 'submitted',

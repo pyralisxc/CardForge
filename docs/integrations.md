@@ -33,7 +33,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 Production uses the Supabase project `Card Forge` (`mpmmhjjhdxjedbmuctiv`). Preview uses the separately named staging project documented below. Destructive inventory or cleanup must identify the project by both name and ref; a clean staging result is never evidence that production is empty.
 
-Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
+Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. Template revision media is normalized server-side to content-addressed WebP in the public developer-assets bucket; `cardforge_pipeline_template_assets` records the binary owner, the immutable submission revision holds hash references, and the registry holds only the active revision pointer plus routing/discovery metadata. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
 
 ## Stripe — checkout, subscriptions, and billing portal
 
@@ -131,8 +131,9 @@ The only CardForge-owned bridge is release policy: mirror the exact candidate to
 1. `src/features/project/store/workspaceStore.ts` — Zustand slices and the persisted workspace contract.
 2. `src/features/project/persistence/projectPersistenceScope.ts` — account/guest/local namespaces and corruption quarantine.
 3. `src/features/project/persistence/indexedDbStorage.ts` — the `StateStorage` adapter, recovery snapshot, save status, quota health, and local-art optimization.
+4. `src/features/project/persistence/contentAddressedBrowserAssets.ts` — SHA-256 Blob ownership plus runtime hydration for workspace and local-asset JSON.
 
-**CardForge owns:** account-scoped namespace selection, project recovery, asset bounds, and export/import portability. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent a universal provider-sync layer; each supported provider earns a narrow native adapter and explicit capability contract.
+**CardForge owns:** account-scoped namespace selection, project recovery, content-addressed Blob references, asset bounds, and export/import portability. Base64 remains valid only at transient file/import/render boundaries; browser persistence stores one Blob per content hash and hydrates ordinary data URLs only for the existing runtime contract. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent a universal provider-sync layer; each supported provider earns a narrow native adapter and explicit capability contract.
 
 Browser capacity is not a CardForge allowance. The UI may show device usage in the storage/account lens, but normal local creation is not proactively gated by an estimated browser quota. Actual rejected writes, corrupt reads, and unsafe individual files remain explicit failures.
 

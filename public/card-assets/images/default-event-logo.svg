@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="ForgeCon sample event mark">
+  <rect width="400" height="400" rx="72" fill="#0f172a"/>
+  <circle cx="150" cy="154" r="82" fill="#38bdf8"/>
+  <circle cx="250" cy="246" r="82" fill="#facc15"/>
+  <path d="m120 260 160-160" fill="none" stroke="#f8fafc" stroke-width="28" stroke-linecap="round"/>
+  <path d="M122 102h156v196H122Z" fill="none" stroke="#f8fafc" stroke-width="16" opacity=".75"/>
+</svg>
