@@ -163,6 +163,25 @@ const main = async () => {
       source_file_size_bytes: Buffer.byteLength(JSON.stringify(payload)),
     }).eq('id', row.id);
     if (updated.error) throw updated.error;
+
+    const registryResult = await supabase.from('cardforge_asset_registry')
+      .select('asset_id,metadata')
+      .eq('developer_submission_id', row.id)
+      .maybeSingle();
+    if (registryResult.error) throw registryResult.error;
+    const registryMetadata = registryResult.data?.metadata;
+    if (
+      registryResult.data?.asset_id
+      && registryMetadata
+      && typeof registryMetadata === 'object'
+      && !Array.isArray(registryMetadata)
+      && Object.hasOwn(registryMetadata, 'template')
+    ) {
+      const registryUpdate = await supabase.from('cardforge_asset_registry').update({
+        metadata: { ...registryMetadata, template: payload },
+      }).eq('asset_id', registryResult.data.asset_id);
+      if (registryUpdate.error) throw registryUpdate.error;
+    }
   }
 
   const { data: remaining, error: remainingError } = await supabase

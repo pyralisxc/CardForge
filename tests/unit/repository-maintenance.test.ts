@@ -105,8 +105,9 @@ describe('repository maintenance policy', () => {
   });
 
   it('keeps Template revisions and their binary media under one durable owner', async () => {
-    const [migration, browserAssets, pipelineAssets, studioHandoff, ttrpg, nameCard, eventBadge] = await Promise.all([
+    const [migration, compatibilityMigration, browserAssets, pipelineAssets, studioHandoff, ttrpg, nameCard, eventBadge] = await Promise.all([
       readFile(rootPath('supabase', 'migrations', '20260827090000_content_addressed_template_assets.sql'), 'utf8'),
+      readFile(rootPath('supabase', 'migrations', '20260827103000_template_registry_runtime_compatibility.sql'), 'utf8'),
       readFile(rootPath('src', 'features', 'project', 'persistence', 'contentAddressedBrowserAssets.ts'), 'utf8'),
       readFile(rootPath('src', 'features', 'developer-assets', 'lib', 'pipelineTemplateAssets.ts'), 'utf8'),
       readFile(rootPath('src', 'features', 'studio-documents', 'server', 'developerTemplateDrafts.ts'), 'utf8'),
@@ -123,6 +124,7 @@ describe('repository maintenance policy', () => {
     expect(migration).toContain("metadata - 'template'");
     expect(migration).toContain('cardforge_template_payload_has_no_embedded_media');
     expect(migration).not.toContain("'template', submission.source_payload");
+    expect(compatibilityMigration).toContain('Temporary one-release projection');
     for (const bootstrapTemplate of [ttrpg, nameCard, eventBadge]) {
       expect(bootstrapTemplate).not.toContain('data:image/');
     }
