@@ -25,7 +25,7 @@ describe('public header authentication controls', () => {
     const sources = [
       'src/features/account/components/PublicAuthControls.tsx',
       'src/features/account/components/AccountControls.tsx',
-      'src/features/storage-management/components/UnifiedAccountLibrary.tsx',
+      'src/features/home/components/HomeDesk.tsx',
       'src/features/account/components/ProfileManagementPage.tsx',
       'src/features/developer-program/components/DeveloperProgramPage.tsx',
     ].map((relativePath) => readFileSync(resolve(process.cwd(), relativePath), 'utf8'));

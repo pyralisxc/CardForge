@@ -64,6 +64,7 @@ npm run brand:export
 - `src/app/`: Next.js routes and HTTP composition.
 - `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell/`: Studio shell and workspace bootstrap.
+- `src/features/home/`: the two-scale Home Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: card creation, bulk generation, gallery, and export.
 - `src/features/card-rendering/`: shared card rendering and rich-text/vector presentation.

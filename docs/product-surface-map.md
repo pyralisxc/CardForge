@@ -1,6 +1,6 @@
 # CardForge Product Surface Map
 
-Last updated: August 26, 2026
+Last updated: August 27, 2026
 
 This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
 
@@ -28,9 +28,9 @@ This document is the canonical placement map connecting current shipped capabili
 
 | Surface | Kind | Primary object/question | Role |
 | --- | --- | --- | --- |
-| **Home** | User surface | User-owned Sets/Projects and active work | The spatial Desk: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. |
+| **Home** | User surface | User-owned work containers and active work | The spatial Desk: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. The current domain name is Set; provider/package labels may say Project without creating a second object. |
 | **Library** | User surface | Reusable objects across Personal / Published / Contributor-only Pipeline scopes | Find, inspect, compare, vote, source, reuse, and manage resource locations without becoming a persistence owner. |
-| **Studio** | User surface | Active Set/Project and selected artifact/Template/record/element | The one enhanced workbench for authoring, generation, validation, review-in-context, save, and output. |
+| **Studio** | User surface | Active work container and selected artifact/Template/record/element | The one enhanced workbench for authoring, generation, validation, review-in-context, save, and output. |
 | **Profile** | User surface | The person and personal relationship to CardForge | Identity, security, access, preferences, billing handoff, connection summary, temporary AI capacity, personal Contributor configuration. |
 | **Owner** | Protected operational environment | CardForge operational queue/control record | Run CardForge, publish reviewed truth, manage people/services, operate public experience, governance, marketing, and accountable history. |
 | **Production / Orders** | Future candidate | Frozen production bundle/order | Earns a zone only after CardForge owns durable quote/order/proof/tracking/reorder lifecycle. Until then production/output stays a Studio tool. |
@@ -56,9 +56,11 @@ The existing Developer/Cockpit route remains shipped legacy composition until it
 
 ### Shipped foundation
 
-- Account Home already uses the shared Environment shell.
-- Recent/resumable local/provider/temporary work can be projected from the unified account Library model.
-- Compact access/security status and protected entries exist.
+- Home uses the shared Environment shell through the dedicated `home` feature owner.
+- Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; the untouched bootstrap Set stays out of the meaningful-work view.
+- Search, source filters, sort, persistent pinning, real card-preview stacks, source fallbacks, and compact account utilities are present.
+- Focusing local work reveals its contained cards in place with search, selection, move, edit, and confirmed removal; Back restores the Home Desk.
+- Rename, duplicate, confirmed local deletion, source-aware detail, and provider-owned open/manage actions resolve to their native owners.
 
 ### Direction
 
@@ -66,7 +68,7 @@ Home becomes the user's real higher-level spatial Desk, not merely a router/dash
 
 Required behavior:
 
-- show meaningful Sets/Projects as visual authored objects;
+- show meaningful work containers as visual authored objects;
 - do not promote untouched bootstrap `Untitled Set` state as meaningful work;
 - allow constrained spatial grouping/stacks/saved views rather than a filesystem folder metaphor;
 - preserve selection/position/context;
@@ -326,7 +328,8 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 
 | Feature owner | Current responsibility | Target home |
 | --- | --- | --- |
-| `account` | identity/access projection, Home/Profile composition | Home, Profile |
+| `account` | identity/access projection and Profile composition | Profile + compact Home status |
+| `home` | two-scale Home Desk composition over native work/Library owners | Home |
 | `app-shell` | Studio bootstrap/navigation/handoffs | Studio + shared environment grammar |
 | `card-generator` | generation, gallery, Set management, output | Home quick actions + Studio tools |
 | `card-rendering` | canonical preview/render/watermark | Cross-surface service |
@@ -366,7 +369,7 @@ All other existing feature owners keep their native records/providers; placement
 
 1. Exact spatial geometry/persistence for Home Desk.
 2. Exact Set Desk geometry/virtualization across screen sizes.
-3. Project-vs-Set hierarchy once multi-artifact Projects are first-class.
+3. Final public name for the one work container currently called Set in CardForge and Project by some provider/package paths.
 4. Which Home objects get direct Generate/Export versus opening focused Studio tool.
 5. Generalized revision-lineage schema for media/fonts/component recipes.
 6. Heavy revision payload retention policy.

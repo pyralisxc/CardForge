@@ -1,0 +1,140 @@
+import type { DisplayCard } from '@/domain/rendering';
+import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
+import {
+  getAccountLibraryActionSources,
+  type AccountLibraryItem,
+  type AccountLibrarySource,
+} from '@/features/storage-management/client';
+
+export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
+export type HomeSort = 'desk' | 'name' | 'size';
+
+export const HOME_PINS_KEY = 'home-desk-pins';
+export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'project', 'working-draft']);
+export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }> = [
+  { id: 'all', label: 'All work' },
+  { id: 'device', label: 'Device' },
+  { id: 'connected', label: 'Connected' },
+  { id: 'temporary', label: 'Temporary' },
+];
+
+export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
+  item.locations[0]?.source ?? 'device'
+);
+
+export const isUntouchedBootstrapWork = (item: AccountLibraryItem): boolean => (
+  item.kind === 'set'
+  && item.references.localSetId === 'active-card-set'
+  && item.name === 'Untitled Set'
+  && item.details[0] === '0 cards'
+);
+
+export const workSourceLabel = (item: AccountLibraryItem): string => (
+  item.locations.map((location) => location.label).join(' + ') || 'Unknown source'
+);
+
+export const getCardTitle = (card: DisplayCard, index: number): string => String(
+  card.data.cardName
+    ?? card.data.name
+    ?? card.data.title
+    ?? `Card ${index + 1}`,
+);
+
+export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRecord => ({
+  id: item.id,
+  kind: 'home-work',
+  eyebrow: 'Work',
+  title: item.name,
+  summary: item.details.join(' · ') || 'Ready to continue.',
+  status: item.locations.some((location) => location.status === 'needs-permission')
+    ? 'Permission required'
+    : item.kind === 'working-draft'
+      ? 'Temporary work'
+      : 'Available',
+  tone: item.locations.some((location) => location.status === 'needs-permission') || item.kind === 'working-draft'
+    ? 'warning'
+    : 'success',
+  actionSources: getAccountLibraryActionSources(item),
+  meta: [
+    ['Source', workSourceLabel(item)],
+    ['Contents', item.details.join(' · ') || 'No content summary'],
+    ...(item.revision ? [['Revision', item.revision] as const] : []),
+    ...(item.expiresAt ? [['Expires', new Date(item.expiresAt).toLocaleString()] as const] : []),
+  ],
+});
+
+export const zoneAction = (
+  id: ActionDescriptor['id'],
+  label: string,
+  result: ActionDescriptor['result'] = 'navigation',
+): ActionDescriptor => ({
+  id,
+  label,
+  ownerFeature: id === 'home.create-work' ? 'card-generator' : 'project',
+  supportedObjectKinds: [],
+  supportedSources: [],
+  revisionPolicy: 'none',
+  requiredPermission: 'guest',
+  scope: 'zone',
+  hierarchy: 'primary',
+  availability: { kind: 'available' },
+  commitment: 'none',
+  automation: { kind: 'human-only', owner: 'cardforge' },
+  result,
+});
+
+export const getWorkActions = (
+  item: AccountLibraryItem,
+  pinned: boolean,
+  canDelete: boolean,
+): ActionDescriptor[] => {
+  const sources = getAccountLibraryActionSources(item).map((source) => source.source);
+  const localSet = Boolean(item.references.localSetId);
+  const openAutomation: ActionDescriptor['automation'] = item.references.driveFileId
+    ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
+    : { kind: 'human-only', owner: 'cardforge' };
+  return [
+    {
+      id: 'home.open-work', label: 'Open in Studio', ownerFeature: item.kind === 'working-draft' ? 'studio-documents' : 'project',
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'creator',
+      scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
+      automation: openAutomation, result: 'navigation',
+    },
+    {
+      id: 'home.pin-work', label: pinned ? 'Unpin from desk' : 'Pin to desk', ownerFeature: 'project',
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: 'guest',
+      scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'none',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
+    },
+    ...(localSet ? [{
+      id: 'home.rename-work' as const, label: 'Rename', ownerFeature: 'project' as const,
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
+      scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+    }, {
+      id: 'home.duplicate-work' as const, label: 'Duplicate', ownerFeature: 'project' as const,
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
+      scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+    }, {
+      id: 'home.delete-work' as const, label: 'Delete from this device', ownerFeature: 'project' as const,
+      supportedObjectKinds: ['home-work'], supportedSources: ['browser-local'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
+      scope: 'object' as const, hierarchy: 'overflow' as const,
+      availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'Keep at least one local Set on this device.' },
+      commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+    }] : [{
+      id: 'home.manage-location' as const, label: 'Manage source', ownerFeature: 'storage-management' as const,
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
+      scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }]),
+  ];
+};
+
+export const matchesSourceFilter = (item: AccountLibraryItem, filter: HomeSourceFilter): boolean => {
+  if (filter === 'all') return true;
+  const sources = item.locations.map((location) => location.source);
+  if (filter === 'device') return sources.includes('device') || sources.includes('local-folder');
+  if (filter === 'temporary') return sources.includes('assistant-draft');
+  return sources.includes('google-drive');
+};

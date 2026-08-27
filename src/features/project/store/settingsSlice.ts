@@ -99,6 +99,70 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       const requested = state.cardSets.find((candidate) => candidate.id === id);
       return requested ? activateCardSet(state, requested) : state;
     }),
+    renameCardSet: (id, name) => {
+      const requestedName = name.trim() || 'Untitled Set';
+      if (!get().cardSets.some((candidate) => candidate.id === id)) return false;
+      set((state) => {
+        const currentSet = state.cardSets.find((candidate) => candidate.id === id);
+        if (!currentSet) return state;
+        const renamedSet = { ...currentSet, name: requestedName };
+        return {
+          cardSets: upsertCardSet(state.cardSets, renamedSet),
+          activeCardSet: state.activeCardSet.id === id ? renamedSet : state.activeCardSet,
+          storedCards: state.storedCards.map((card) => card.setId === id
+            ? { ...card, setName: requestedName }
+            : card),
+        };
+      });
+      return true;
+    },
+    duplicateCardSet: (id) => {
+      const source = get().cardSets.find((candidate) => candidate.id === id);
+      if (!source) return null;
+      const duplicateId = `set-${nanoid()}`;
+      const duplicateName = `${source.name} copy`;
+      set((state) => {
+        const duplicate = normalizeSetForState(state, {
+          ...source,
+          id: duplicateId,
+          name: duplicateName,
+        });
+        return {
+          ...activateCardSet(state, duplicate),
+          storedCards: [
+            ...state.storedCards,
+            ...state.storedCards
+              .filter((card) => card.setId === id)
+              .map((card) => ({
+                ...card,
+                uniqueId: `card-${nanoid()}`,
+                setId: duplicateId,
+                setName: duplicateName,
+              })),
+          ],
+        };
+      });
+      return duplicateId;
+    },
+    deleteCardSet: (id) => {
+      const current = get();
+      if (current.cardSets.length <= 1 || !current.cardSets.some((candidate) => candidate.id === id)) return false;
+      set((state) => {
+        const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
+        const requested = state.activeCardSet.id === id
+          ? cardSets[0]
+          : cardSets.find((candidate) => candidate.id === state.activeCardSet.id);
+        if (!requested) return state;
+        const activeCardSet = normalizeSetForState(state, requested);
+        return {
+          cardSets,
+          activeCardSet,
+          singleCardGeneratorSelectedTemplateId: activeCardSet.frontTemplateId,
+          storedCards: state.storedCards.filter((card) => card.setId !== id),
+        };
+      });
+      return true;
+    },
     setCardSetsFromFiles: (sets, activeSetId) => {
       const state = get();
       const fallback = createDefaultActiveCardSet();

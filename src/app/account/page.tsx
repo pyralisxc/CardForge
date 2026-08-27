@@ -10,6 +10,7 @@ import {
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
+import { HomeDesk } from '@/features/home/client';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { SiteContentProvider } from '@/features/public-site/client';
@@ -138,11 +139,8 @@ export default async function AccountPage({
           isSignedIn={entitlement.isSignedIn}
           isDeveloper={isDeveloper}
           isOwner={isOwner}
-          homeAccessStatus={homeAccessStatus}
-          homeSecurityStatus={homeSecurityStatus}
           initialTool={activeSection === 'storage' ? 'locations' : null}
           storageConnections={storageConnections}
-          view="library"
         />
       </CardForgeAppProviders>
     );
@@ -159,15 +157,14 @@ export default async function AccountPage({
           plans={plans}
         />
       ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
-          <UnifiedAccountLibrary
-            key="unified-account-library"
+          <HomeDesk
+            key="home-desk"
             persistenceScope={persistenceScope}
             isSignedIn={entitlement.isSignedIn}
             isDeveloper={isDeveloper}
             isOwner={isOwner}
             homeAccessStatus={homeAccessStatus}
             homeSecurityStatus={homeSecurityStatus}
-            view="home"
           />
       </AccountHomeBoundary>}
     </CardForgeAppProviders>
