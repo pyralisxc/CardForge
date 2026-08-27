@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ExternalLink, FolderSearch, Library, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { ExternalLink, FolderSearch, Library, Loader2, LogIn, RefreshCw, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import {
   chooseGoogleDrivePersonalLibraryItems,
   getPersonalLibraryRoleLabel,
@@ -100,7 +102,14 @@ export function ConnectedPersonalLibraryPanel({
       </div>
 
       {!isSignedIn ? (
-        <p className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 text-sm text-[var(--cf-text-muted)]">Sign in to build a connected personal library.</p>
+        <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+          <p className="text-sm text-[var(--cf-text-muted)]">Sign in to build a connected personal library.</p>
+          <Button asChild className="mt-3" size="sm">
+            <Link href={createAuthRouteHref('/sign-in', '/account?section=storage')} prefetch={false}>
+              <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
+            </Link>
+          </Button>
+        </div>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-end gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">

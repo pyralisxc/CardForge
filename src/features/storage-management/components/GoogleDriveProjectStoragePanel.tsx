@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import {
   chooseGoogleDriveProjectFolder,
   deleteGoogleDriveProjectFromLibrary,
@@ -133,7 +135,14 @@ export function GoogleDriveProjectStoragePanel({
       </div>
 
       {!isSignedIn ? (
-        <p className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3 text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
+        <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+          <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
+          <Button asChild className="mt-3" size="sm">
+            <Link href={createAuthRouteHref('/sign-in', '/account?section=storage')} prefetch={false}>
+              <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
+            </Link>
+          </Button>
+        </div>
       ) : !connection ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading Google Drive storage…</p>
       ) : !connection.configured ? (
