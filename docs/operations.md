@@ -79,6 +79,8 @@ Release sequence:
 
 Cloud Set Mirror retirement follows that two-release boundary. The runtime release removes new saves, restore/update UI, plan slots, Cloud Mirror MCP tools, and all normal product promotion while remaining compatible with the empty legacy table and Studio lineage columns. Production identity verification established that the two remaining mirrors belonged only to the owner-approved test accounts; their 10 cards, two rows, and 12 artwork objects were explicitly erased, and the dedicated Storage bucket was deleted through the Supabase Storage API. After the runtime release is production READY, a separate forward migration drops `cardforge_cloud_sets` and the two unused `source_cloud_*` columns. Verify zero rows/lineage before that migration and table/column absence plus Supabase advisors afterward.
 
+The immutable historical chain still creates the now-retired `cardforge-cloud-set-assets` bucket when provisioning a fresh Supabase project. Provisioning postflight must verify that bucket is empty and delete it through the native Storage API; do not mutate Supabase-owned `storage.*` tables from a database migration.
+
 Rollback application behavior with a forward code fix or existing feature gate. Never delete migrations, ledgers, votes, campaign history, delivery history, or financial records to simulate rollback.
 
 ### Preview acceptance and reset

@@ -32,4 +32,16 @@ describe('cloud Set mirror retirement', () => {
     expect(environment).not.toContain('list_cloud_sets');
     expect(account).not.toContain('cloudSetLimit');
   });
+
+  it('contracts the retired schema only after proving legacy data is empty', () => {
+    const migration = readSource(
+      'supabase/migrations/20260827062638_retire_cloud_set_mirror_schema.sql',
+    );
+
+    expect(migration).toContain('cardforge_cloud_set_mirrors_must_be_empty_before_retirement');
+    expect(migration).toContain('cardforge_cloud_set_lineage_must_be_empty_before_retirement');
+    expect(migration).toContain('drop column source_cloud_set_id');
+    expect(migration).toContain('drop column source_cloud_revision');
+    expect(migration).toContain('drop table public.cardforge_cloud_sets');
+  });
 });
