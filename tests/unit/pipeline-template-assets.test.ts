@@ -67,5 +67,19 @@ describe('Pipeline Template assets', () => {
     expect(published.cardBackgroundImageUrl).toContain('https://assets.example/template-assets/');
     expect(published.templatePreviewData?.Artwork).toContain('https://assets.example/template-assets/');
     expect(published.name).toBe('Template');
+
+    const retiredRegistryCopy = await mapRegistryRowsToTemplateLibrary([{
+      asset_id: 'template-without-revision',
+      developer_submission_id: 'missing-revision',
+      name: 'Legacy registry copy',
+      url: '/api/templates#template-without-revision',
+      status: 'published',
+      access_tier: 'free',
+      library_source: 'official',
+      metadata: {
+        template: { id: 'retired-copy', name: 'Retired', aspectRatio: '1:1' },
+      },
+    }]);
+    expect(retiredRegistryCopy).toEqual([]);
   });
 });

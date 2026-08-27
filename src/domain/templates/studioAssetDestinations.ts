@@ -81,12 +81,7 @@ const readStyleKind = (metadata: unknown): string | null => {
 
 const readTemplateUsage = (metadata: unknown): string | null => {
   if (!isRecord(metadata)) return null;
-  const template = isRecord(metadata.template)
-    ? metadata.template
-    : isRecord(metadata.payload)
-      ? metadata.payload
-      : null;
-  return template && typeof template.templateUsage === 'string' ? template.templateUsage : null;
+  return typeof metadata.templateUsage === 'string' ? metadata.templateUsage : null;
 };
 
 const readConfiguredDefaultDestination = (

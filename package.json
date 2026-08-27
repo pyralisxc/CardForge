@@ -19,8 +19,7 @@
     "test:watch": "vitest",
     "smoke:ui": "playwright test tests/smoke/developer-cockpit-ux.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",
-    "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs",
-    "pipeline:migrate-template-assets": "node scripts/migrate-template-assets.mjs"
+    "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },
   "dependencies": {
     "@clerk/mcp-tools": "^0.6.0",

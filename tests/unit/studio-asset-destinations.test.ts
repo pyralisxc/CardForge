@@ -10,12 +10,16 @@ describe('Studio asset destinations', () => {
   it('routes Templates by their front/back contract', () => {
     expect(getDefaultStudioAssetDestinations({
       kind: 'template',
-      metadata: { template: { templateUsage: 'standard' } },
+      metadata: { templateUsage: 'standard' },
     })).toEqual(['template.front']);
     expect(getCompatibleStudioAssetDestinations({
       kind: 'template',
-      metadata: { template: { templateUsage: 'back-preset' } },
+      metadata: { templateUsage: 'back-preset' },
     })).toEqual(['template.back']);
+    expect(getCompatibleStudioAssetDestinations({
+      kind: 'template',
+      metadata: { template: { templateUsage: 'back-preset' } },
+    })).toEqual(['template.front']);
   });
 
   it('keeps pictures, foundations, and professional border overlays as explicit image destinations', () => {
