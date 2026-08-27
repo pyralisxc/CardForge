@@ -55,7 +55,7 @@ export type ActionScope = 'zone' | 'selection' | 'object' | 'group';
 export type ActionHierarchy = 'primary' | 'supporting' | 'overflow';
 export type ActionCommitment = 'none' | 'destructive' | 'financial' | 'permission' | 'publication';
 export type ActionPermission = 'guest' | 'creator' | 'developer' | 'owner';
-export type ActionSource = 'browser-local' | 'cardforge-cloud' | 'google-drive' | 'local-folder' | 'temporary' | 'provider-native';
+export type ActionSource = 'browser-local' | 'google-drive' | 'local-folder' | 'temporary' | 'provider-native';
 export type ActionRevisionPolicy = 'none' | 'current-required' | 'conflict-safe';
 export type FeatureOwnerId =
   | 'account'
@@ -76,10 +76,6 @@ export type FeatureOwnerId =
 
 export type PublishedMcpToolName =
   | 'search_personal_library'
-  | 'list_cloud_sets'
-  | 'get_cloud_set'
-  | 'checkout_cloud_set'
-  | 'commit_cloud_set'
   | 'list_connected_projects'
   | 'checkout_project'
   | 'commit_project'

@@ -72,7 +72,6 @@ describe('CardForge Studio plugin', () => {
       'src/features/studio-documents/server/mcpAccountWorkflowTools.ts',
       'src/features/studio-documents/server/mcpAgentCardTools.ts',
       'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
-      'src/features/studio-documents/server/mcpCloudSetTools.ts',
     ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
 
     expect(toolSources).toContain('observeMcpToolExecution');
@@ -112,7 +111,7 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('globally wherever ChatGPT plugins');
     expect(submission).toContain('Initial-submission release notes for 0.9.0');
     expect(submission).toContain('ordinary Free account scope with no developer, owner, billing, or provider-console privileges');
-    expect(submission).toContain('cloud-saved set named `OpenAI Review Fixture`');
+    expect(submission).toContain('temporary working Set named OpenAI Review Fixture');
     expect(submission).toContain('temporary assistant drafts are created by the review cases');
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
     expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');

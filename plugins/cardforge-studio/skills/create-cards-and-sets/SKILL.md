@@ -1,26 +1,26 @@
 ---
 name: create-cards-and-sets
-description: Create, revise, organize, visually review, and cloud-sync CardForge Sets, cards, and per-card artwork from an approved editable Template.
+description: Create, revise, organize, visually review, and safely commit CardForge Sets, cards, and per-card artwork from an approved editable Template.
 ---
 
 # Create and revise CardForge cards and Sets
 
-Use this skill when the user wants actual card instances: one card, a deck/Set, bulk generation from a list, unique artwork across cards, cleanup/reorganization, or collaborative work on a Set they saved to CardForge cloud. The reusable Template stays separate from card data.
+Use this skill when the user wants actual card instances: one card, a deck/Set, bulk generation from a list, unique artwork across cards, cleanup/reorganization, or collaborative work on a connected CardForge project. The reusable Template stays separate from card data.
 
 ## Core model
 
 - **Template** = reusable visual design.
 - **Card** = one filled instance of that design with a stable card id.
 - **Set** = a named collection of cards using a front Template and optional compatible back.
-- **Cloud-saved Set** = one Set the signed-in user explicitly saved to an account cloud slot so CardForge and the linked agent can continue it across devices.
-- **Agent working document** = a private revisioned collaboration copy used for agent edits and exact Studio handoff. A successful agent write changes this document, not the browser workspace or permanent cloud Set automatically.
+- **Connected project** = a durable `.cardforge` project in a user-authorized provider such as Google Drive.
+- **Agent working document** = a temporary private revisioned collaboration copy used for agent edits and exact Studio handoff. A successful agent write changes this document, not the browser workspace or connected provider project automatically.
 - **Project** = the complete local CardForge workspace.
 
-CardForge remains local-first, but cloud Sets are a deliberate agent-collaboration surface as well as cross-device backup. Browser-only Sets remain private to that device until the user explicitly saves them to CardForge cloud or transfers them through an existing CardForge workflow.
+CardForge remains local-first. Browser-only Sets stay private to that device until the user explicitly moves them through a portable file, local folder, connected provider project, or temporary agent handoff.
 
 ## Capability rule
 
-Use `get_cardforge_capabilities` when the account tier, cloud capacity, developer/owner role, or allowed workflow matters. Normal signed-in customers can use private Studio/card/cloud collaboration tools. Forge Review, shared-library publication, and owner operations remain separately scope-gated; never imply higher privileges merely because those capabilities exist in CardForge.
+Use `get_cardforge_capabilities` when the account tier, project capability, developer/owner role, or allowed workflow matters. Normal signed-in customers can use private Studio/card collaboration and connected-project tools. Forge Review, shared-library publication, and owner operations remain separately scope-gated; never imply higher privileges merely because those capabilities exist in CardForge.
 
 When continuing prior agent work without a known document id, use `list_agent_working_documents` before creating another draft.
 
@@ -32,19 +32,19 @@ Artwork source limits are real workflow constraints. One incoming artwork source
 
 Storage success is not visual proof. Private/reference diagnostics establish that data can be resolved; canonical CardForge rendering establishes whether it actually decodes and renders correctly.
 
-## Existing cloud Set workflow
+## Connected project workflow
 
-When the user says things such as “my saved Set”, “the Set I backed up”, “the one I made on my other device”, or otherwise asks the agent to work on account cloud content:
+When the user asks the agent to work on a durable connected project:
 
-1. Call `list_cloud_sets` instead of guessing what exists.
-2. Call `get_cloud_set` for the intended Set and note its exact cloud revision. Page through cards when necessary.
-3. For reading only, stop there. For edits, call `checkout_cloud_set` at that revision. This creates a private agent working document while leaving the cloud save unchanged.
+1. Call `list_connected_projects` instead of guessing what exists.
+2. Call `checkout_project` for the intended project and retain its exact provider and CardForge project revisions. This creates a temporary private working document while leaving the provider project unchanged.
+3. For reading only, stop after the checkout state is understood. For edits, continue against that exact working-document revision.
 4. Read the working state/contract once, retain its stable ids, and use the efficient revision workflow below.
 5. Use selective canonical rendering while iterating and `preview_card_set` once at final/important review. The full contact sheet is composed only from canonical CardForge-rendered cards; it is not a separate Template interpretation.
-6. If the user wants the permanent cloud Set updated, call `commit_cloud_set` with both the exact working-document revision and the original/current cloud revision. CardForge refuses stale commits rather than overwriting newer cloud work.
-7. Use `delete_cloud_set` only when the user explicitly asks to remove the account cloud save. It requires the exact cloud revision and does not delete browser-local copies.
+6. If the user wants the durable provider project updated, call `commit_project` with the exact working-document, provider, and project revisions. CardForge refuses stale commits rather than overwriting newer provider work.
+7. Provider deletion remains a provider-owned human action unless a published tool explicitly supports that exact commitment boundary.
 
-Do not describe a checkout as a cloud update, and do not describe a successful agent document write as visible in Studio until the exact revision has been applied there.
+Do not describe a checkout as a provider update, and do not describe a successful agent document write as visible in Studio until the exact revision has been applied there.
 
 ## Exact-contract and identity rule
 
@@ -84,6 +84,6 @@ A normal request such as “move these medallions under the frame, update their 
 6. Use selective preview during revision work, then full `preview_card_set` for final Set review. Structural diagnostics alone are not sufficient visual proof.
 7. Open the exact returned Studio revision to apply/update the normal local Template, Set, and cards. Finished card work opens in **Sets**, not Make Cards.
 8. When needed, call `get_agent_install_status` to distinguish “revision exists on the server” from “this exact revision has been acknowledged as applied by Studio.” Never tell the user a revision is visible locally without that evidence.
-9. In CardForge Studio, users can continue editing, export finished media, transfer editable CardForge files, and explicitly manage cloud Sets. Do not invent a parallel transfer format in chat.
+9. In CardForge Studio, users can continue editing, export finished media, transfer editable CardForge files, and manage connected project locations. Do not invent a parallel transfer format in chat.
 
-If CardForge reports a working-document or cloud revision conflict, reload the current state and retry the intended operation with the new expected revision while preserving stable identities. Never choose a winner silently.
+If CardForge reports a working-document, provider, or project revision conflict, reload the current state and retry the intended operation with the new expected revision while preserving stable identities. Never choose a winner silently.

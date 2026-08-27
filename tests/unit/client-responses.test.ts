@@ -19,27 +19,25 @@ describe('client API responses', () => {
     const response = Response.json({
       ok: false,
       error: {
-        code: 'cloud_set_conflict',
-        message: 'All cloud slots are in use.',
+        code: 'studio_document_conflict',
+        message: 'The working document changed.',
         kind: 'limit',
         retryable: false,
-        nextAction: 'Remove a cloud save before adding another.',
-        limit: { resource: 'cloud_set_slots', current: 1, maximum: 1, unit: 'sets' },
+        nextAction: 'Reload the current revision before retrying.',
       },
       correlationId: 'request-123',
     }, { status: 409 });
 
-    const error = await readApiError(response, 'Cloud save failed.');
+    const error = await readApiError(response, 'Working document update failed.');
 
     expect(error).toBeInstanceOf(ApiClientError);
     expect(error).toMatchObject({
       status: 409,
-      code: 'cloud_set_conflict',
+      code: 'studio_document_conflict',
       kind: 'limit',
       retryable: false,
       correlationId: 'request-123',
-      nextAction: 'Remove a cloud save before adding another.',
-      limit: { resource: 'cloud_set_slots', current: 1, maximum: 1, unit: 'sets' },
+      nextAction: 'Reload the current revision before retrying.',
     });
   });
 });

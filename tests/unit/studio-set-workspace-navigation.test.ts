@@ -40,7 +40,7 @@ describe('Studio set workspace navigation', () => {
 
     expect(makeCards).toContain('Bulk generation');
     expect(makeCards).toContain('<BulkGenerator');
-    expect(makeCards).toContain('Sets to inspect, edit, share, back up, and export');
+    expect(makeCards).toContain('Sets to inspect, edit, share, and export');
     expect(makeCards).not.toContain('<GeneratedCardGallery');
     expect(makeCards).not.toContain('<ExportControlsPanel');
 
@@ -61,19 +61,19 @@ describe('Studio set workspace navigation', () => {
     const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
 
     expect(sets).toContain('useProjectStore');
-    expect(sets).toContain('useCloudSetActions');
+    expect(sets).not.toContain('useCloudSetActions');
     expect(sets).toContain('useCardTransferActions');
     expect(sets).toContain('Add cards');
-    expect(sets).toContain('Cloud only');
+    expect(sets).not.toContain('Cloud only');
     expect(sets).not.toContain('AssistantDraftLibrary');
     expect(sets).not.toContain('Browser storage');
 
     expect(accountLibrary).toContain('useAccountLibraryProjection');
     expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
     expect(accountLibrary).toContain('Storage remains with the source named on each item.');
-    expect(accountStorage).toContain('CardForge-managed storage');
+    expect(accountStorage).toContain('CardForge workspace storage');
     expect(accountStorage).toContain('This device');
-    expect(accountStorage).toContain('CardForge cloud');
+    expect(accountStorage).not.toContain('CardForge cloud');
     expect(accountStorage).toContain('AssistantDraftLibrary');
   });
 

@@ -60,8 +60,6 @@ export interface StudioDocumentSummary {
   lastInstalledRevision: number | null;
   lastInstalledAt: string | null;
   lastInstallSummary: StudioDocumentInstallSummary | null;
-  sourceCloudSetId: string | null;
-  sourceCloudRevision: number | null;
   sourceProjectProvider: StudioDocumentProjectSourceProvider | null;
   sourceProjectExternalId: string | null;
   sourceProviderRevision: string | null;

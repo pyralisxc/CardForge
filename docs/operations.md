@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 23, 2026
+Last updated: August 26, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -10,7 +10,7 @@ This is the current runbook for `https://cardforges.com`. It contains only proce
 - `www.cardforges.com` redirects to the apex domain.
 - Clerk owns authentication and trusted private account metadata.
 - Stripe owns Creator Pass, Designer Pass, support checkout, customers, subscriptions, webhooks, and Billing Portal.
-- Supabase owns shared product state, private temporary ChatGPT Studio documents and their normalized artwork, cloud-set backups, and managed public/protected media; ordinary browser projects remain local.
+- Supabase owns shared product state, private temporary ChatGPT Studio documents and their normalized artwork, and managed public/protected media; ordinary browser projects remain local and durable provider projects remain provider-owned.
 - Resend owns transactional email delivery.
 - GA4, PostHog, and Search Console own analytics/search records.
 - Meta owns Facebook/Instagram authorization and provider posts; CardForge owns marketing approval/scheduling/delivery history.
@@ -54,7 +54,7 @@ Preview test identities are durable environment fixtures, not production users:
 
 | Journey | Clerk development identity | Expected state |
 | --- | --- | --- |
-| Free | `qa+clerk_test_free@cardforges.com` | Free access and one cloud-set slot |
+| Free | `qa+clerk_test_free@cardforges.com` | Free access and the Free temporary-working-document retention policy |
 | Creator | `qa+clerk_test_creator@cardforges.com` | Active Creator Pass from Stripe sandbox |
 | Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
 | Contributor | `qa+clerk_test_developer@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
@@ -71,10 +71,13 @@ Release sequence:
 2. Run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, `npm run test`, and `npm run build` on the final candidate.
 3. Require GitHub `verify` and a READY Vercel Preview on that exact head.
 4. Exercise changed public/browser and provider-backed behavior with the durable Preview test identities. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
-5. Apply production migrations only after explicit approval of the exact additive change and its postflight.
+5. Apply production migrations before merge only when the exact change is additive and the current production runtime remains compatible with it.
 6. Merge through the PR; do not bypass `main` safety.
 7. Require Vercel Production READY for the merge commit and run `npm run health:production`.
-8. Perform the smallest real signed-in production check needed for auth/owner/developer/billing/provider changes.
+8. Apply a destructive schema contraction only after the compatible runtime is already READY in production and provider postflight proves the retired records or objects are empty. If deployment order cannot be guaranteed, split runtime retirement and schema contraction into separate reviewed releases.
+9. Perform the smallest real signed-in production check needed for auth/owner/developer/billing/provider changes.
+
+Cloud Set Mirror retirement follows that two-release boundary. The runtime release removes new saves, restore/update UI, plan slots, Cloud Mirror MCP tools, and all normal product promotion while remaining compatible with the empty legacy table and Studio lineage columns. Production identity verification established that the two remaining mirrors belonged only to the owner-approved test accounts; their 10 cards, two rows, and 12 artwork objects were explicitly erased, and the dedicated Storage bucket was deleted through the Supabase Storage API. After the runtime release is production READY, a separate forward migration drops `cardforge_cloud_sets` and the two unused `source_cloud_*` columns. Verify zero rows/lineage before that migration and table/column absence plus Supabase advisors afterward.
 
 Rollback application behavior with a forward code fix or existing feature gate. Never delete migrations, ledgers, votes, campaign history, delivery history, or financial records to simulate rollback.
 
@@ -83,9 +86,9 @@ Rollback application behavior with a forward code fix or existing feature gate. 
 Use clearly named `QA Preview` fixtures and prove only the boundaries affected by the candidate:
 
 1. Signed-out protected routes and MCP fail closed.
-2. Free, Creator, and Designer accounts resolve the expected plan and enforced cloud/MCP boundary.
+2. Free, Creator, and Designer accounts resolve the expected plan and temporary-work/MCP boundary.
 3. The active contributor creates and submits one representative asset, campaign package, or site proposal; the owner reviews it through the owning workflow.
-4. Preview MCP completes one revision-safe create/read/update or cloud-set journey through Clerk OAuth, including one invalid or stale request when that boundary changed.
+4. Preview MCP completes one revision-safe temporary-document or connected-project journey through Clerk OAuth, including one invalid or stale request when that boundary changed.
 5. Stripe sandbox webhook delivery returns HTTP 200 and produces one idempotent staging ledger result when billing changed.
 6. Supabase migrations, grants/RLS, and relevant advisors pass in the staging project when persistence changed.
 7. Google Drive connects through the dedicated Preview OAuth client, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
@@ -93,7 +96,7 @@ Use clearly named `QA Preview` fixtures and prove only the boundaries affected b
 Reset through the owning product/provider path:
 
 - Cancel, reject, or archive contributor fixtures through the cockpit/Owner Console so audit history remains truthful; never delete campaign, proposal, vote, billing, or owner-activity rows with ad hoc SQL.
-- Remove temporary cloud sets through Account Storage or the revision-conditional MCP delete tool. Browser-local sets remain independent.
+- Remove temporary assistant drafts through Account Library. Browser-local Sets and provider-owned projects remain independent.
 - Cancel or change test subscriptions only in Stripe sandbox/Portal; retain CardForge billing ledgers as idempotency evidence.
 - Remove temporary assistant drafts through their revision-safe MCP tools or allow the staging retention lifecycle to expire them.
 - Keep the six Clerk development identities and their intentional Supabase profiles stable between releases. Re-provisioning the staging project is destructive and requires explicit approval.
@@ -202,7 +205,7 @@ For a development-beta release:
 2. Verify MCP discovery/OAuth against the real signed-in owner/developer account and confirm signed-out requests fail closed.
 3. In the MCP Inspector, confirm every tool exposes an input schema, output schema, and accurate annotations; confirm `skills/list`, `skills/get`, and each listed `resources/read` digest resolve.
 4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
-5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
+5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and connected-project list/checkout/commit when that provider boundary changed.
 6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
 7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
 

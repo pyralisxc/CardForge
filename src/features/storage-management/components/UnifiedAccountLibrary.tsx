@@ -40,7 +40,6 @@ interface UnifiedAccountLibraryProps {
   isSignedIn: boolean;
   isDeveloper?: boolean;
   isOwner?: boolean;
-  cloudSetLimit: number;
   homeAccessStatus?: AccountHomeStatus;
   homeSecurityStatus?: AccountHomeStatus;
   initialTool?: 'locations' | null;
@@ -48,7 +47,7 @@ interface UnifiedAccountLibraryProps {
   view?: 'home' | 'library';
 }
 
-const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'cardforge-cloud', 'google-drive', 'local-folder', 'assistant-draft'];
+const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 const kindIcons: Record<AccountLibraryKind, LucideIcon> = {
   set: Boxes, project: FileArchive, asset: ImageIcon, 'working-draft': Sparkles,
 };
@@ -92,10 +91,10 @@ const statusRecord = (status: AccountHomeStatus, icon: LucideIcon, source: Actio
 });
 
 export function UnifiedAccountLibrary({
-  persistenceScope, isSignedIn, isDeveloper = false, isOwner = false, cloudSetLimit,
+  persistenceScope, isSignedIn, isDeveloper = false, isOwner = false,
   homeAccessStatus, homeSecurityStatus, initialTool = null, storageConnections, view = 'library',
 }: UnifiedAccountLibraryProps) {
-  const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn, cloudSetLimit });
+  const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
   const [activeTool, setActiveTool] = useState<'locations' | null>(() => initialTool);
   const [storageCallback, setStorageCallback] = useState<{ title: string; message: string } | null>(null);
@@ -142,7 +141,7 @@ export function UnifiedAccountLibrary({
     {
       label: 'Storage',
       value: projection.failures.some((failure) => failure.id === 'workspace') ? 'Device workspace unavailable' : 'Work is available',
-      detail: `${projection.sourceCounts.get('device') ?? 0} on this device · ${projection.cloud?.used ?? 0} of ${projection.cloudLimit} retiring cloud slots used`,
+      detail: `${projection.sourceCounts.get('device') ?? 0} on this device · ${projection.sourceCounts.get('assistant-draft') ?? 0} temporary working draft${(projection.sourceCounts.get('assistant-draft') ?? 0) === 1 ? '' : 's'}`,
       href: '/account?section=storage', action: 'Review',
     },
     {
@@ -266,7 +265,7 @@ export function UnifiedAccountLibrary({
         {featured ? <CollectionLedgerRow item={featured} selected={selection.objectId === featured.id} onOpen={openDetail} /> : <p className="border-b border-[var(--cf-border-subtle)] px-3 py-5 text-sm text-[var(--cf-text-muted)]">No current work yet. Create a Set in Studio or connect an existing project.</p>}
       </section>
       <section className="mt-5" aria-labelledby="home-account-snapshot-heading">
-        <EnvironmentSectionHeading id="home-account-snapshot-heading" title="Account snapshot" meta={`${statusRecords.length} grouped truths`} />
+        <EnvironmentSectionHeading id="home-account-snapshot-heading" title="Account snapshot" meta={`${statusRecords.length} essentials`} />
         {statusRecords.map((record) => <CompactSettingRow key={record.id} item={record} selected={selection.objectId === record.id} onOpen={openDetail} />)}
       </section>
       <section className="mt-5" aria-labelledby="home-more-work-heading">
@@ -285,7 +284,7 @@ export function UnifiedAccountLibrary({
       brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
       viewer={viewer} zones={zones} activeZone="library" viewportPolicy="flow"
       detail={null} actions={actions} surfaceRef={surfaceRef}
-      statusContent={<><EnvironmentStatus label="Library location tools" tone="neutral" /><EnvironmentStatus label="Provider actions stay source-owned" tone="success" /></>}
+      statusContent={<><EnvironmentStatus label="Library locations" tone="neutral" /><EnvironmentStatus label="Changes affect only this location" tone="success" /></>}
       footerContent={<span>Nothing moves between locations automatically</span>}
       onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)}
       onCommand={() => projection.router.push('/account?section=library#library-search')}
@@ -313,7 +312,7 @@ export function UnifiedAccountLibrary({
     onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
-    <EnvironmentSurfaceHeader eyebrow="Library" title="Work available across your connected locations" body="Sets, projects, connected assets, and private working drafts from this device, CardForge Cloud, Google Drive, and local project folders. Storage remains with the source named on each item." />
+    <EnvironmentSurfaceHeader eyebrow="Library" title="Work available across your connected locations" body="Sets, projects, connected assets, and private working drafts from this device, Google Drive, local project folders, and the temporary AI workspace. Storage remains with the source named on each item." />
 
     {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
 

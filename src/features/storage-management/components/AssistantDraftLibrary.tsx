@@ -110,7 +110,7 @@ export function AssistantDraftLibrary({
       await refreshDocuments();
       toast({
         title: 'Working draft moved to trash',
-        description: `“${document.title}” can be restored for 24 hours. Installed local work and cloud sets were not deleted.`,
+        description: `“${document.title}” can be restored for 24 hours. Installed local work and provider projects were not deleted.`,
       });
     } catch (error) {
       toast({
@@ -228,8 +228,8 @@ export function AssistantDraftLibrary({
             <AlertDialogTitle>Move this private working draft to trash?</AlertDialogTitle>
             <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
               {pendingDocumentDelete
-                ? `“${pendingDocumentDelete.title}” will be hidden now and remain recoverable for 24 hours. Installed local work and cloud sets will remain.`
-                : 'The private working draft will be hidden now and remain recoverable for 24 hours. Installed local work and cloud sets will remain.'}
+                ? `“${pendingDocumentDelete.title}” will be hidden now and remain recoverable for 24 hours. Installed local work and provider projects will remain.`
+                : 'The private working draft will be hidden now and remain recoverable for 24 hours. Installed local work and provider projects will remain.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

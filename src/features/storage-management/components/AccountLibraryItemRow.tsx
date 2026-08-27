@@ -4,7 +4,6 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import {
   Boxes,
-  CloudDownload,
   ExternalLink,
   FileArchive,
   FolderOpen,
@@ -38,7 +37,6 @@ export const accountLibraryKindLabels: Record<AccountLibraryKind, string> = {
 
 const sourceStyles: Record<AccountLibrarySource, string> = {
   device: 'border-sky-800/50 bg-sky-950/20 text-sky-100',
-  'cardforge-cloud': 'border-amber-800/50 bg-amber-950/20 text-amber-100',
   'google-drive': 'border-emerald-800/50 bg-emerald-950/20 text-emerald-100',
   'local-folder': 'border-violet-800/50 bg-violet-950/20 text-violet-100',
   'assistant-draft': 'border-fuchsia-800/50 bg-fuchsia-950/20 text-fuchsia-100',
@@ -115,7 +113,7 @@ function ItemActions({
         </Button>
       ) : canOpen ? (
         <Button type="button" size="sm" variant={featured ? 'default' : 'ghost'} disabled={anyItemBusy} onClick={() => { void onOpen(item); }}>
-          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : featured && item.references.cloudSetId && !item.references.localSetId ? <CloudDownload className="mr-2 h-4 w-4" /> : featured ? <FolderOpen className="mr-2 h-4 w-4" /> : null}
+          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : featured ? <FolderOpen className="mr-2 h-4 w-4" /> : null}
           {featured ? 'Resume' : 'Open'}
         </Button>
       ) : primaryIsSource && item.webViewLink ? (

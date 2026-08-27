@@ -81,7 +81,9 @@ describe('unified account environment', () => {
     expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
     expect(storageLibrary).toContain('function StorageMetric');
     expect(storageLibrary).not.toContain('function StorageSummaryCard');
-    expect(storageWorkspace).toContain('Cloud space breakdown');
+    expect(storageWorkspace).toContain('Owners & locations');
+    expect(storageWorkspace).toContain('Temporary workspace');
+    expect(storageWorkspace).not.toContain('Cloud space breakdown');
   });
 
   it('keeps Library search, filters, sorting, and refresh together', () => {

@@ -34,8 +34,6 @@ interface StudioDocumentRow {
   last_installed_revision: number | null;
   last_installed_at: string | null;
   last_install_summary: unknown;
-  source_cloud_set_id: string | null;
-  source_cloud_revision: number | null;
   source_project_provider: StudioDocumentProjectSourceProvider | null;
   source_project_external_id: string | null;
   source_provider_revision: string | null;
@@ -43,7 +41,7 @@ interface StudioDocumentRow {
   source_project_name: string | null;
 }
 
-const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_cloud_set_id,source_cloud_revision,source_project_provider,source_project_external_id,source_provider_revision,source_project_revision,source_project_name';
+const SUMMARY_COLUMNS = 'id,title,creation_source,revision,created_at,updated_at,last_activity_at,expires_at,retention_hours,deleted_at,purge_after,last_installed_revision,last_installed_at,last_install_summary,source_project_provider,source_project_external_id,source_provider_revision,source_project_revision,source_project_name';
 const DOCUMENT_COLUMNS = `${SUMMARY_COLUMNS},document_payload`;
 const STUDIO_DOCUMENT_LIST_LIMIT = 100;
 
@@ -81,8 +79,6 @@ const toSummary = (row: Omit<StudioDocumentRow, 'document_payload'>): StudioDocu
   lastInstalledRevision: row.last_installed_revision,
   lastInstalledAt: row.last_installed_at,
   lastInstallSummary: readInstallSummary(row.last_install_summary),
-  sourceCloudSetId: row.source_cloud_set_id,
-  sourceCloudRevision: row.source_cloud_revision,
   sourceProjectProvider: row.source_project_provider,
   sourceProjectExternalId: row.source_project_external_id,
   sourceProviderRevision: row.source_provider_revision,
@@ -228,8 +224,6 @@ export const createStudioDocument = async ({
   creationSource,
   document,
   retentionHours,
-  sourceCloudSetId = null,
-  sourceCloudRevision = null,
   sourceProject = null,
 }: {
   ownerUserId: string;
@@ -237,17 +231,9 @@ export const createStudioDocument = async ({
   creationSource: StudioDocumentSource;
   document: ProjectDocumentV1;
   retentionHours: number;
-  sourceCloudSetId?: string | null;
-  sourceCloudRevision?: number | null;
   sourceProject?: StudioDocumentProjectSourceLineage | null;
 }): Promise<StudioDocument> => {
-  if ((sourceCloudSetId === null) !== (sourceCloudRevision === null)) {
-    throw new StudioDocumentStoreError('Cloud checkout lineage requires both a Set id and source revision.', 400);
-  }
   validateProjectSourceLineage(sourceProject);
-  if (sourceCloudSetId && sourceProject) {
-    throw new StudioDocumentStoreError('A Studio document can have one durable checkout source at a time.', 400);
-  }
   const documentId = randomUUID();
   const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
@@ -263,8 +249,6 @@ export const createStudioDocument = async ({
       last_activity_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString(),
       retention_grace_until: null,
-      source_cloud_set_id: sourceCloudSetId,
-      source_cloud_revision: sourceCloudRevision,
       source_project_provider: sourceProject?.provider ?? null,
       source_project_external_id: sourceProject?.externalId ?? null,
       source_provider_revision: sourceProject?.providerRevision ?? null,

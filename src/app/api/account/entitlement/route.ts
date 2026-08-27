@@ -35,7 +35,7 @@ export async function GET() {
       'account_entitlement_unavailable',
       'Unable to verify account access right now.',
       {
-        nextAction: 'Keep working locally and retry account or cloud actions when the identity service recovers.',
+        nextAction: 'Keep working locally and retry account or connected-service actions when the identity service recovers.',
       },
     );
   }

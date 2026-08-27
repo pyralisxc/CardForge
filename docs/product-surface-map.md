@@ -28,7 +28,7 @@ The alpha environment family is product scope for hierarchy, placement, and inte
 
 - Every **Shipped** capability remains available through the redesign until a separately approved retirement, migration, or provider-native replacement is complete.
 - Consolidating destinations may relocate a feature, turn a page into a tool or layer, or combine several entry points. It must not make the feature undiscoverable, remove its failure states, or strand authored work.
-- A feature may be removed only when the product direction explicitly names the cold cut, identifies the replacement, protects existing user data, and records the rollout boundary. The planned CardForge cloud Set-mirror retirement is one such explicit transition; it is not precedent for incidental feature loss.
+- A feature may be removed only when the product direction explicitly names the cold cut, identifies the replacement, protects existing user data, and records the rollout boundary. The CardForge Cloud Set Mirror retirement meets that bar through exact owner verification, explicitly authorized data cleanup, a code-first runtime cut, and a separate post-deploy schema contraction; it is not precedent for incidental feature loss.
 - Advanced actions may move into inspectors, menus, command access, or scoped tools, but normal expected actions must remain visible at the object or queue where a user would look for them.
 - Human and MCP surfaces must resolve to the same object owner, permissions, revision rules, validation, and outcomes even when their interaction styles differ.
 - Any implementation that adds, moves, retires, or materially changes a user-facing capability updates this document in the same change. `docs/architecture.md` is updated when shipped behavior actually changes.
@@ -92,7 +92,7 @@ The public site is not another workspace. It is the front door to the workspace 
 | Capability | Status | Home and behavior |
 | --- | --- | --- |
 | Recent and resumable work | Shipped foundation | The account home uses the unified Library read model to surface recent Sets, projects, and working drafts. |
-| Continue work | Shipped foundation | Resume a local Set, connected project, cloud-only Set, or temporary draft through the action appropriate to its location and state. |
+| Continue work | Shipped foundation | Resume a local Set, connected project, or temporary draft through the action appropriate to its location and state. |
 | Access and security status | Shipped | Compact status rows report current plan/access and Clerk-backed account security without turning either into a dashboard of cards. |
 | Studio, Library, Profile, Developer, and Owner entry | Shipped foundation | Relevant destinations are reachable from the account shell and utilities; protected entries appear only when granted. |
 | Attention strip | Direction | Show a small ordered list of meaningful interruptions: expiring AI work, reconnect-required storage, conflicts, failed exports, pending review, or provider unavailability. Empty status should stay quiet. |
@@ -107,7 +107,7 @@ Home is a landing surface, not a second Library, Profile, or Owner overview. It 
 
 | Capability | Status | Home and behavior |
 | --- | --- | --- |
-| Unified inventory | Shipped | Pool local Sets, CardForge cloud mirrors, Google Drive projects, attached local folders, connected personal assets, and temporary Studio drafts into one read model. |
+| Unified inventory | Shipped | Pool local Sets, Google Drive projects, attached local folders, connected personal assets, and temporary Studio drafts into one read model. |
 | Sets | Shipped | Show card count, revision, locations, update time, size when known, and actions to open or manage the Set. |
 | Projects | Shipped | Show durable `.cardforge` projects from Google Drive and attached local folders, including revision and attachment state. |
 | Personal assets | Shipped | Index explicitly authorized Google Drive artwork, frames, and fonts without copying or deleting the provider source. |
@@ -128,9 +128,9 @@ Home is a landing surface, not a second Library, Profile, or Owner overview. It 
 | Local project folder | Shipped | Attach a folder, save and reopen the current project, report permission state, and disconnect without deleting authored work. |
 | Google Drive projects | Shipped | Connect Drive, create/list/open/commit project files with provider revision checks, and disconnect without deleting Drive content. |
 | Connected personal asset library | Shipped | Add or remove Drive file references by semantic role; removal only changes CardForge's index. |
-| CardForge cloud Set mirror | Shipped, retiring | Current private Set backup with slots, metadata/artwork limits, revision-safe load/save, and explicit removal. The approved direction removes this durable mirror after protected migration because Drive, local folders, browser work, and portable packages own durable creator storage. |
+| CardForge Cloud Set Mirror | Retiring — runtime cut | New saves, updates, plan slots, normal UI promotion, and MCP tools are removed. The two owner-approved test mirrors and their dedicated bucket were erased with a zero-state postflight. The empty table and checkout-lineage columns contract in a separate forward migration only after the compatible runtime reaches production. |
 | Temporary AI workspace | Shipped foundation, Direction | Private Studio documents use plan-based capacity, retention, expiry, recoverable trash, and revision-safe handoff. Present this as temporary working space, never as durable project storage. |
-| Locations and connections tool | Shipped | One compact Library tool presents browser, cloud, draft, local-folder, Google Drive project/asset, and usage sources with their available status and native actions. |
+| Locations and connections tool | Shipped | One compact Library tool presents browser, temporary-draft, local-folder, and Google Drive project/asset sources with their available status and native actions. |
 | Per-object location manager | Direction | One compact layer attached to the selected Library object shows every copy/reference and the valid connect, reconnect, save, move, detach, or delete-from-location action. |
 | Save-to destination chooser | Direction | At creation, handoff, and export boundaries, choose browser, project package, local folder, Google Drive, or a future provider through one consistent location picker. |
 
@@ -315,13 +315,13 @@ This ledger is checked against the current `src/features/*` owners. It connects 
 | `mcp-usage` | Plan allowances, account usage, owner plan/usage controls, workflow telemetry | Profile and Owner Growth & People | Preserve usage truth, plan targets, temporary-work allowance meaning, and owner controls without presenting it as durable storage. |
 | `owner` | Authorization, action/readiness summary, services, people, inbox, site controls, media, founder, governance, activity | Owner | Preserve all six current owner workspaces and their feature-owned controls. The alpha Action Center is the entry hierarchy, not a reduction to one review queue. |
 | `personal-library` | Connected Drive asset/font references, pickers, import, search, MCP access | Library and Studio | Preserve semantic roles, provider revisions, provider-source links, removal-without-source-deletion, Studio insertion, and read-only MCP discovery. |
-| `project` | Browser workspace, IndexedDB, recovery, assets/fonts, preferences, portable packages, local folders, Drive projects, cloud-set bridge, production plan | Library and Studio; Home resume | Preserve local-first work, snapshots, import/merge/replace, assets, project files, revision conflicts, and recoverability. Cloud-set behavior remains until its explicit protected retirement is complete. |
+| `project` | Browser workspace, IndexedDB, recovery, assets/fonts, preferences, portable packages, local folders, Drive projects, production plan | Library and Studio; Home resume | Preserve local-first work, snapshots, import/merge/replace, assets, project files, revision conflicts, and recoverability. Durable copies remain user/provider-owned. |
 | `public-site` | Public shell, navigation, landing, examples, plans, founder, configurable content/media, SEO/structured data | Public entrance; Owner Site Controls | Preserve every public route and proof surface while keeping owner-editable content within code-owned structural and accessibility boundaries. |
 | `render-artifacts` | Canonical server/browser render artifacts and contact sheets | Cross-zone service | Preserve exact render evidence for MCP, review, export, and public/product proofs; do not introduce a parallel preview renderer. |
 | `roadmap` | Public roadmap, suggestions, voting, shipped history, developer/owner controls, funding checkpoints | Public entrance; Owner Site Controls; limited Developer tools | Preserve live status/votes/history, suggestion rules, developer publication scope, and owner-only financial control. |
 | `social-publishing` | Provider-native Meta publication bridge | Owner Marketing | Preserve owner approval, exact destination, external result meaning, and release gating. It remains a publishing service, not another zone. |
-| `storage-management` | Unified account Library read model, storage health, cloud mirrors, local folder, Drive projects, connected assets, temporary drafts | Library; compact Profile connection summary | Preserve every current location action and status inside Library's shipped locations tool. Extend selected-object detail toward multi-location management without restoring Storage as a destination. |
-| `studio-documents` | Private Template/card/working documents, revisions, assets, previews, install/handoff, agent/MCP tools, project/cloud bridges | Library temporary shelf; Studio; Developer contribution bridge; MCP service | Preserve revision-safe creation/update, temporary retention, recoverable deletion, asset hydration, exact preview, Studio installation, project-source workflows, and failure semantics. Retire cloud-set MCP tools only with the cloud-mirror cutover. |
+| `storage-management` | Unified account Library read model, browser health, local folder, Drive projects, connected assets, temporary drafts | Library; compact Profile connection summary | Preserve every current location action and status inside Library's shipped locations tool. Extend selected-object detail toward multi-location management without restoring Storage as a destination. |
+| `studio-documents` | Private Template/card/working documents, revisions, assets, previews, install/handoff, agent/MCP tools, project bridges | Library temporary shelf; Studio; Developer contribution bridge; MCP service | Preserve revision-safe creation/update, temporary retention, recoverable deletion, asset hydration, exact preview, Studio installation, connected-project workflows, and failure semantics. |
 | `template-editor` | Canvas, layers, library, variables, element editing, inspectors, commands, Template lifecycle | Studio Set Desk | Preserve full Template editing power, every supported element/inspector, responsive controls, draft recovery, library actions, and front/back workflows when Templates become selectable Set objects. |
 
 When a new `src/features/*` owner appears, add it here before the UI is considered placed. When an owner is retired, remove it only in the same reviewed change that removes or transfers its shipped responsibility.
@@ -330,7 +330,7 @@ When a new `src/features/*` owner appears, add it here before the UI is consider
 
 - **Storage has been retired as an account destination.** Storage locations and connections now operate as tools inside Library, with Profile reserved for compact personal and connection summaries.
 - Retire **Templates**, **Make Cards**, and **Sets** as competing Studio destinations. Preserve their capabilities as modes on one active Set Desk.
-- Retire durable **CardForge Cloud** Set storage after protected migration. Keep limited CardForge-managed capacity only for temporary AI working documents and required platform records; durable creator work belongs in browser storage, portable packages, local folders, Google Drive, or a later provider chosen deliberately.
+- Durable **CardForge Cloud** Set storage is retired at the product/runtime layer. Keep limited CardForge-managed capacity only for temporary AI working documents and required platform records; durable creator work belongs in browser storage, portable packages, local folders, Google Drive, or a later provider chosen deliberately. Remove the verified-empty legacy schema only after the compatible runtime is deployed.
 - Keep **billing** native to Stripe and present it as a compact Profile/account utility, not a custom finance workspace.
 - Keep **export**, **share**, **validation**, and **production** attached to the selected scope instead of sending the person to detached pages.
 - Keep **review** attached to the object being contributed and the protected queue that owns the decision.
@@ -341,6 +341,6 @@ When a new `src/features/*` owner appears, add it here before the UI is consider
 
 1. Define the exact Set Desk object geometry and grouping rules that work on desktop, tablet, and mobile without turning the surface into an infinite-canvas toy.
 2. Decide which personal Studio defaults belong to Profile versus the active project.
-3. Specify the protected migration and removal sequence for existing CardForge cloud Set mirrors and MCP cloud-set tools.
+3. Define the narrow provider-capability contract needed to add a second user storage provider and to show Owner readiness without inventing runtime-pluggable adapters.
 4. Decide when Production has enough durable lifecycle to earn a top-level zone.
 5. Reconcile current Studio navigation with this map before visual polish; Account already uses the shared environment shell and no longer preserves Storage as a peer destination.

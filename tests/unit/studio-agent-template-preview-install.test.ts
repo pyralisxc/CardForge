@@ -209,7 +209,6 @@ describe('agent Studio install and chat preview architecture', () => {
     readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
     readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
     readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
-    readSource('src/features/studio-documents/server/mcpCloudSetTools.ts'),
     readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts'),
   ].join('\n');
   const pluginSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
@@ -280,7 +279,7 @@ describe('agent Studio install and chat preview architecture', () => {
     expect(mcpTools).toContain('Asset ${asset.id} is selected but image element ${targetId} still has ${target.sourceState} artwork.');
   });
 
-  it('exposes exact-contract revision-safe card maintenance and editable cloud Set tools', () => {
+  it('exposes exact-contract revision-safe card maintenance tools', () => {
     expect(mcpTools).toContain("'get_card_generation_contract'");
     expect(mcpTools).toContain("'upsert_card_set'");
     expect(mcpTools).toContain("'upsert_card'");
@@ -288,16 +287,13 @@ describe('agent Studio install and chat preview architecture', () => {
     expect(mcpTools).toContain("'delete_cards'");
     expect(mcpTools).toContain("'move_cards'");
     expect(mcpTools).toContain("'delete_card_set'");
-    expect(mcpTools).toContain("'checkout_cloud_set'");
-    expect(mcpTools).toContain("'commit_cloud_set'");
-    expect(mcpTools).toContain("'delete_cloud_set'");
     expect(mcpTools).toContain('writeMode revise');
     expect(mcpTools).not.toContain("'attach_card_artwork'");
   });
 
-  it('teaches the agent cloud collaboration, stable revision ids, and visual verification', () => {
-    expect(cardSkill).toContain('`checkout_cloud_set`');
-    expect(cardSkill).toContain('`commit_cloud_set`');
+  it('teaches the agent stable revision ids and visual verification', () => {
+    expect(cardSkill).toContain('`checkout_project`');
+    expect(cardSkill).toContain('`commit_project`');
     expect(cardSkill).toContain('`writeMode: revise`');
     expect(cardSkill).toContain('native CardForge-rendered representative cards');
     expect(cardSkill).toContain('Never tell the user a revision is visible locally without that evidence.');

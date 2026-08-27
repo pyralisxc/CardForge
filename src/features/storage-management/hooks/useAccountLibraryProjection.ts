@@ -19,7 +19,6 @@ import {
   openGoogleDriveProject,
   readTypedProjectAssetListFromStorage,
   selectAllTemplates,
-  useCloudSetActions,
   useProjectStore,
   type GoogleDriveProjectListResult,
   type LocalProjectFolderStatus,
@@ -72,7 +71,6 @@ export interface AccountLibrarySourceFailure {
 interface UseAccountLibraryProjectionOptions {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
-  cloudSetLimit: number;
 }
 
 const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
@@ -121,7 +119,6 @@ const compareRecent = (left: AccountLibraryItem, right: AccountLibraryItem) => {
 export function useAccountLibraryProjection({
   persistenceScope,
   isSignedIn,
-  cloudSetLimit,
 }: UseAccountLibraryProjectionOptions) {
   const router = useRouter();
   const { toast } = useToast();
@@ -147,8 +144,6 @@ export function useAccountLibraryProjection({
   const activeSetId = useProjectStore((state) => state.activeCardSet.id);
   const storedCards = useProjectStore((state) => state.storedCards);
   const userTemplates = useProjectStore((state) => state.userTemplates);
-  const { cloud, isLoadingCloudSets, loadSetFromCloud, refreshCloudSets } = useCloudSetActions({ toast, enabled: isSignedIn });
-
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
@@ -257,14 +252,6 @@ export function useAccountLibraryProjection({
       cardCount: cardCounts.get(set.id) ?? 0,
       sizeBytes: portableSetBytes[set.id] ?? null,
     })),
-    cloudSets: (cloud?.sets ?? []).map((set) => ({
-      setId: set.setId,
-      name: set.name,
-      cardCount: set.cardCount,
-      revision: set.revision,
-      storageBytes: set.storageBytes,
-      updatedAt: set.updatedAt,
-    })),
     driveProjects: driveLibrary?.projects ?? [],
     driveBindingFileId,
     localFolder: localFolder?.binding ? {
@@ -283,7 +270,7 @@ export function useAccountLibraryProjection({
       providerWebViewLink: item.providerWebViewLink,
     })),
     workingDrafts,
-  }), [cardCounts, cardSets, cloud?.sets, driveBindingFileId, driveLibrary?.projects, localFolder, personalLibrary?.items, portableSetBytes, workingDrafts]);
+  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localFolder, personalLibrary?.items, portableSetBytes, workingDrafts]);
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
@@ -323,11 +310,6 @@ export function useAccountLibraryProjection({
         router.push('/studio');
         return;
       }
-      if (item.references.cloudSetId) {
-        await loadSetFromCloud(item.references.cloudSetId);
-        router.push('/studio');
-        return;
-      }
       if (item.references.driveFileId) {
         await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
         router.push('/studio');
@@ -341,7 +323,7 @@ export function useAccountLibraryProjection({
     } finally {
       setBusyItemId(null);
     }
-  }, [loadSetFromCloud, router, toast]);
+  }, [router, toast]);
 
   return {
     items,
@@ -350,11 +332,9 @@ export function useAccountLibraryProjection({
     recentItems: home.moreItems,
     sourceCounts,
     failures: [hydrationFailure, ...sourceFailures].filter((failure): failure is AccountLibrarySourceFailure => Boolean(failure)),
-    isLoading: !hydrated || loadingSources || isLoadingCloudSets,
+    isLoading: !hydrated || loadingSources,
     loadingSources,
     busyItemId,
-    cloud,
-    cloudLimit: cloud?.limit ?? cloudSetLimit,
     query,
     kind,
     source,
@@ -364,7 +344,7 @@ export function useAccountLibraryProjection({
     setSource,
     setSort,
     openItem,
-    refresh: () => { void refreshLibrarySources(); void refreshCloudSets(); },
+    refresh: () => { void refreshLibrarySources(); },
     router,
   };
 }

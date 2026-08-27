@@ -7,7 +7,6 @@ export type ProjectCapabilities = {
   canGenerate: boolean;
   canExportClean: boolean;
   canUseProjectFiles: boolean;
-  cloudSetLimit: number;
 };
 
 export type ExportEntitlementCopy = {
@@ -34,8 +33,6 @@ const readEnvironment = (env?: AccessEnvironment): AccessEnvironment => env ?? {
   CARDFORGE_ACCESS_MODE: process.env.CARDFORGE_ACCESS_MODE,
 };
 
-export const getCloudSetLimit = (mode: AccessMode): number => mode === 'free' ? 1 : 5;
-
 export const getProjectCapabilities = (
   mode: AccessMode,
   projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
@@ -44,7 +41,6 @@ export const getProjectCapabilities = (
   canGenerate: true,
   canExportClean: mode !== 'free',
   canUseProjectFiles: mode !== 'free' || projectFileAccess === 'free',
-  cloudSetLimit: getCloudSetLimit(mode),
 });
 
 export const isWatermarkRequired = (canExportClean: boolean): boolean =>
@@ -83,7 +79,7 @@ export const getExportEntitlementCopy = (
       canExportClean,
       gateMessage,
       projectFileGateMessage,
-      panelMessage: 'Watermark-free downloads, portable project files, and up to 5 cloud-saved card sets are available. Local projects remain unlimited on this device.',
+      panelMessage: 'Watermark-free downloads and portable project files are available. Local projects remain unlimited on this device.',
     };
   }
 
@@ -93,7 +89,7 @@ export const getExportEntitlementCopy = (
       canExportClean,
       gateMessage,
       projectFileGateMessage,
-      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads, portable project files, and up to 5 cloud-saved card sets are available. Local projects remain unlimited on this device.',
+      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Local projects remain unlimited on this device.',
     };
   }
 
@@ -103,8 +99,8 @@ export const getExportEntitlementCopy = (
     gateMessage,
     projectFileGateMessage,
     panelMessage: projectFileAccess === 'free'
-      ? 'Build unlimited local Templates and card sets, keep 1 set backed up in the cloud when signed in, move portable project files for free, and download watermarked finished files. Creator Pass adds 5 cloud set slots and removes the watermark.'
-      : 'Build unlimited local Templates and card sets, keep 1 set backed up in the cloud when signed in, and download watermarked finished files. Creator Pass adds 5 cloud set slots, removes the watermark, and adds portable project files.',
+      ? 'Build unlimited local Templates and card sets, move portable project files for free, and download watermarked finished files. Creator Pass removes the watermark.'
+      : 'Build unlimited local Templates and card sets and download watermarked finished files. Creator Pass removes the watermark and adds portable project files.',
   };
 };
 

@@ -303,7 +303,7 @@ function GoogleDriveProjectRow({
           variant="ghost"
           disabled={Boolean(busyAction) || !project.projectRevision}
           onClick={() => {
-            if (window.confirm(`Delete “${project.name}” from Google Drive? This does not delete browser or CardForge Cloud copies.`)) onDelete();
+            if (window.confirm(`Delete “${project.name}” from Google Drive? This does not delete browser or local-folder copies.`)) onDelete();
           }}
         >
           {busyAction === `delete:${project.fileId}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}

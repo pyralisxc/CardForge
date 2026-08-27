@@ -119,7 +119,6 @@ export function AccountProfileEnvironment({
   const isOwner = isSignedIn && entitlement.ownerAccess.isOwner;
   const isDeveloper = isSignedIn && entitlement.accessMode === 'dev';
   const entitlementUnavailable = Boolean(entitlement.entitlementError);
-  const cloudSlotLabel = `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`;
   const planLabel = getAccountAccessLabel({
     isOwner,
     isDeveloper,
@@ -135,14 +134,13 @@ export function AccountProfileEnvironment({
   const groups = useMemo(() => buildAccountProfileUtilityGroups({
     accountEmail,
     authConfigured: entitlement.authConfigured,
-    cloudSlotLabel,
     entitlementLoading: entitlement.isLoadingEntitlement,
     entitlementUnavailable,
     isDeveloper,
     isOwner,
     isSignedIn,
     planLabel,
-  }), [accountEmail, cloudSlotLabel, entitlement.authConfigured, entitlement.isLoadingEntitlement, entitlementUnavailable, isDeveloper, isOwner, isSignedIn, planLabel]);
+  }), [accountEmail, entitlement.authConfigured, entitlement.isLoadingEntitlement, entitlementUnavailable, isDeveloper, isOwner, isSignedIn, planLabel]);
   const actions = activeUtility ? [closeUtilityAction] : [defaultAction];
 
   useEffect(() => {

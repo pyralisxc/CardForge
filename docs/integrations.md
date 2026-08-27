@@ -1,6 +1,6 @@
 # CardForge Integration Ownership
 
-Last reviewed: August 23, 2026
+Last reviewed: August 26, 2026
 
 This is the human trace map for CardForge's external integrations. It answers two questions: **which system owns this lifecycle?** and **where do I start reading the CardForge code?**
 
@@ -31,7 +31,9 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 **CardForge owns:** the application schema, feature stores, lifecycle rules, and the decision to keep browser writes out of Supabase. There is no browser-direct Supabase client and no second shared catalog outside `cardforge_asset_registry`.
 
-Forge Review source files and cloud-set artwork use server-issued, short-lived signed Storage upload URLs so large bytes travel directly from the browser to Supabase rather than through a Vercel Function. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
+Production uses the Supabase project `Card Forge` (`mpmmhjjhdxjedbmuctiv`). Preview uses the separately named staging project documented below. Destructive inventory or cleanup must identify the project by both name and ref; a clean staging result is never evidence that production is empty.
+
+Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
 
 ## Stripe — checkout, subscriptions, and billing portal
 
@@ -91,7 +93,7 @@ Every published tool declares an explicit output schema matching its `structured
 
 Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` transaction. Artwork uses an exact image field from the current generation contract and arrives as either a generated/uploaded public HTTPS source or bounded raw base64. CardForge pins each validated public DNS result for the HTTPS request, caps one write at 64 artwork files and 32 MB of aggregate input, and processes normalization without unbounded fan-out. It stores a private content-addressed WebP in the Studio-document asset bucket and leaves only a stable reference in the document JSON; failed uploads and revision conflicts reconcile newly created objects against the persisted document so they do not become billable orphans. The Studio document API issues short-lived signed URLs and the browser rehydrates those references before applying the normal local project import. `preview_card_set` reports private resolution, renderable references, unresolved values, Template fallback, and placeholders separately.
 
-`list_cloud_sets` and `get_cloud_set` expose only account sets the user explicitly saved to CardForge cloud slots. They reuse the entitlement already resolved during MCP authentication and do not perform a second Clerk identity fetch. Browser-only projects remain invisible to the connector.
+`list_connected_projects`, `checkout_project`, and `commit_project` expose only provider files the linked account explicitly authorized. Checkout creates a temporary private Studio document; commit requires exact provider, CardForge project, and working-document revisions. Browser-only and local-folder projects remain invisible to the remote connector unless the user explicitly hands them into a reachable workflow.
 
 Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, capacity targets, and assistant-draft inactivity window. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved developers and the owner retain their separately validated developer scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
 
@@ -130,7 +132,7 @@ The only CardForge-owned bridge is release policy: mirror the exact candidate to
 2. `src/features/project/persistence/projectPersistenceScope.ts` — account/guest/local namespaces and corruption quarantine.
 3. `src/features/project/persistence/indexedDbStorage.ts` — the `StateStorage` adapter, recovery snapshot, save status, quota health, and local-art optimization.
 
-**CardForge owns:** account-scoped namespace selection, project recovery, asset bounds, and export/import portability. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent cloud project sync until that becomes a product decision.
+**CardForge owns:** account-scoped namespace selection, project recovery, asset bounds, and export/import portability. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent a universal provider-sync layer; each supported provider earns a narrow native adapter and explicit capability contract.
 
 Browser capacity is not a CardForge allowance. The UI may show device usage in the storage/account lens, but normal local creation is not proactively gated by an estimated browser quota. Actual rejected writes, corrupt reads, and unsafe individual files remain explicit failures.
 

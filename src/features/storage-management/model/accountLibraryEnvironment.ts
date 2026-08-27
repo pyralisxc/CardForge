@@ -15,7 +15,6 @@ import {
 
 const sourceMap: Record<AccountLibrarySource, ActionSource> = {
   device: 'browser-local',
-  'cardforge-cloud': 'cardforge-cloud',
   'google-drive': 'google-drive',
   'local-folder': 'local-folder',
   'assistant-draft': 'temporary',
@@ -32,9 +31,6 @@ const openAutomation = (item: AccountLibraryItem): ActionAutomation => {
   }
   if (item.references.driveFileId) {
     return { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] };
-  }
-  if (item.references.cloudSetId && !item.references.localSetId) {
-    return { kind: 'published-mcp', tools: ['list_cloud_sets', 'get_cloud_set', 'checkout_cloud_set'] };
   }
   return human();
 };

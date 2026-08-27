@@ -120,8 +120,6 @@ export function AccountPlanBillingUtility({
     );
   }
 
-  const cloudSetLimit = entitlement.capabilities.cloudSetLimit;
-  const cloudSlotLabel = `${cloudSetLimit} private cloud set slot${cloudSetLimit === 1 ? '' : 's'}`;
   const downloadLabel = entitlement.canExportClean
     ? 'Watermark-free downloads'
     : 'Free exports include the CardForge watermark';
@@ -138,7 +136,6 @@ export function AccountPlanBillingUtility({
         canExportClean={entitlement.canExportClean}
         canManageBilling={projection.canManageBilling}
         checkoutStatus={checkoutStatus}
-        cloudSlotLabel={cloudSlotLabel}
         currentPlanKey={projection.currentPlanKey}
         downloadLabel={downloadLabel}
         effectiveSignedIn={signedIn}

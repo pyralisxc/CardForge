@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 21, 2026
+Last updated: August 26, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
 
@@ -10,8 +10,8 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Studio: `/studio` contains three product workspaces: Templates, Make Cards, and Sets.
 - Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, developer, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
-- Shared platform state: Supabase owns CardForge shared records, private account cloud-set mirrors, and approved managed media.
-- User projects: Templates, generated cards, project uploads, preferences, and project files use the browser-local workspace as the normal working copy. Signed-in users may explicitly mirror selected card sets to their private CardForge cloud library; arbitrary local workspace state is not automatically uploaded.
+- Shared platform state: Supabase owns CardForge shared records, temporary private Studio documents, and approved managed media.
+- User projects: Templates, generated cards, project uploads, preferences, and project files use the browser-local workspace as the normal working copy. Durable copies belong in portable `.cardforge`/Set files, user-authorized local folders, or connected providers such as Google Drive; arbitrary local workspace state is not automatically uploaded.
 - Email: Resend owns delivery; CardForge owns support/developer request validation/routing/history.
 - Analytics: GA4, PostHog, and Search Console own provider records; CardForge owns consent, event vocabulary, and owner report composition.
 - Social publication: Meta owns external authorization/posts; CardForge owns approval, destination policy, scheduling, retries, and delivery history.
@@ -24,23 +24,17 @@ CardForge has four deliberate storage lanes.
 
 `src/features/project` owns Zustand workspace state, IndexedDB persistence, account/guest scoping, recovery snapshots, storage-health handling, local project assets, and portable project files. The browser workspace remains the normal working copy, local sets remain unlimited, and there is no parallel localStorage compatibility owner.
 
-### Account cloud set mirror
+### User-owned durable locations
 
-Signed-in users may explicitly back up selected CardForge sets to their account. Free accounts receive one cloud-set slot; Creator Pass, developer, and owner-grade access receive five. The quota limits cloud mirrors, not local creation.
+Portable Set/Project files, browser-authorized local project folders, and connected providers own durable creator copies outside the browser workspace. `src/features/project` owns the shared project package and revision contracts; each location adapter owns only its native permission, read, write, and conflict lifecycle. Google Drive currently supports revision-safe project listing, checkout, and commit for agents. Browser-only and local-folder work remain unavailable to remote agents unless the user explicitly hands it into the temporary Studio-document workspace or saves it to a server-reachable provider.
 
-Cloud-slot controls remain actionable when the known slot count is full so the attempted save can explain the enforced account boundary and recovery step. The server remains authoritative. CardForge does not proactively meter or warn about browser-local capacity; it reports actual browser write/read failure and refuses to create a knowingly incomplete export or cloud mirror.
-
-`cardforge_cloud_sets` stores one private account-owned CardForge Transfer V1 set manifest per saved set, including its cards and required personal Templates. Embedded artwork is removed from that JSON manifest, content-hashed, and stored in the private `cardforge-cloud-set-assets` Supabase Storage bucket. A cloud set is capped at 128 MB total, including up to 3 MB of metadata and an 8 MB ceiling for each artwork file crossing into CardForge-managed cloud storage. Local artwork is not subject to that cloud ceiling.
-
-Cloud artwork does not pass through Next.js request bodies. CardForge server routes authorize the account, enforce slot/storage limits, validate the manifest, and issue short-lived signed Supabase Storage URLs; the browser transfers the artwork directly to/from the private bucket. Loading a cloud set rehydrates the same Transfer V1 payload and merges it through the normal local CardForge import path. Removing a cloud mirror never deletes a device-local copy.
-
-The cloud set layer is a durable account backup/cross-device mirror, not a second editor state store or a replacement for browser persistence.
+CardForge does not operate a durable first-party creator backup lane. Cloud Set Mirror creation, updates, account promotion, and agent workflows are retired from the runtime. Production ownership was resolved before deletion: the two remaining mirrors belonged to the explicitly approved owner test accounts, and the mirror rows plus dedicated artwork bucket were erased through their Supabase-native owners. The now-empty legacy table and Studio lineage columns remain only until the runtime cut reaches production; a separate forward schema contraction removes them afterward so the old production runtime is never pointed at missing columns or tables.
 
 ### Supabase platform state
 
 Server-only CardForge code reaches Supabase through `src/infrastructure/database/supabaseServer.ts`, preferring `SUPABASE_SECRET_KEY` with a deploy-safe legacy service-role fallback. Browser-direct database writes are not a product path; direct browser object transfers occur only through server-issued signed URLs.
 
-Supabase stores owner/public settings, legal/business identity, roadmap/votes, billing ledgers, developer profiles/submissions/votes, asset registry state, campaign content/media/distribution history, contact history, private Studio documents, cloud-set manifests/private set artwork, and other shared control-plane records.
+Supabase stores owner/public settings, legal/business identity, roadmap/votes, billing ledgers, developer profiles/submissions/votes, asset registry state, campaign content/media/distribution history, contact history, temporary private Studio documents, and other shared control-plane records.
 
 ### Pipeline-owned Studio catalog
 
@@ -53,9 +47,9 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/features/template-editor`: Template Studio session/draft lifecycle, canvas/layer/inspector commands, history, and native Template-library commands.
-- `src/features/card-generator`: single/bulk card creation, generated output gallery, Studio Set Library composition, image controls, set/cloud-save controls, and exports.
+- `src/features/card-generator`: single/bulk card creation, generated output gallery, Studio Set Library composition, image controls, portable Set transfer, and exports.
 - `src/features/card-rendering`: shared preview/rendering, rich text, vector shapes, thumbnails, appearance, and watermarks.
-- `src/features/project`: browser workspace/persistence/recovery/assets/project files plus the account cloud-set mirror and its canonical Transfer V1 packing/hydration.
+- `src/features/project`: browser workspace/persistence/recovery/assets, portable project/Set files, local-folder persistence, and connected-project adapters.
 - `src/features/account`: current Clerk-backed user projection, entitlement surfaces, profile, and account administration.
 - `src/features/billing`: Stripe checkout/portal/webhooks, product/support classification, durable billing event/subscription records, and reconciliation.
 - `src/features/developer-access`: developer identity/profile status/contribution-scope owner and the only runtime access owner for developer profiles.
@@ -95,18 +89,18 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 ## Access model
 
-- Free: local design/generation, one signed-in cloud-set slot, and whatever portable-project access the owner-controlled experience policy currently allows.
-- Creator Pass: clean paid finished-output entitlement, portable-project access, and five cloud-set slots.
-- Designer Pass: Creator Pass-grade Studio access and cloud storage plus the higher Designer MCP capacity target; it does not grant contributor access.
-- Developer: Creator Pass-grade output, five cloud-set slots, plus contribution/pipeline capabilities according to active developer profile/scopes.
-- Owner: owner console plus developer-grade tooling and five cloud-set slots.
+- Free: local design/generation and whatever portable-project access the owner-controlled experience policy currently allows.
+- Creator Pass: clean paid finished-output entitlement and portable-project access.
+- Designer Pass: Creator Pass-grade Studio access plus the higher Designer MCP capacity target; it does not grant contributor access.
+- Developer: Creator Pass-grade output plus contribution/pipeline capabilities according to active developer profile/scopes.
+- Owner: owner console plus developer-grade tooling.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
 
 Current account resolution uses Clerk's current-user identity directly; CardForge does not maintain a second session/profile fallback. Explicit user-id administration uses Clerk's Backend API.
 
 ## Card and Template model
 
-Studio navigation has three product workspaces over the same project state. **Templates** owns reusable front Templates and separate card-back Templates. **Make Cards** owns active production for the currently selected set: its selected front Template/back, card values, generation, review, and export settings. **Sets** is the normal production library for browsing local sets, loading cloud mirrors into the local workspace, renaming/selecting sets, reviewing their cards, importing/exporting, backing up a set, and handing the selected set to Make Cards. Sets composes the existing `cardSets`, transfer, renderer, and cloud-mirror owners; it does not create another set registry. Account Home, Library, and Profile use the shared CardForge Environment shell and its stable zone rail, compact command band, aligned object/setting rows, detail inspector or mobile sheet, and boundary vocabulary. Home resolves the active local Set first, then recent provider or temporary work, without letting unavailable account or provider state masquerade as Free, signed-out, disconnected, or missing work. The account **Library** is a combined read model over device sets, cloud mirrors, connected projects/assets, local-folder bindings, and temporary working drafts. It merges proven duplicate locations but owns no bytes, sync protocol, or second content registry. **Storage & connections** is a focused Library tool, not a peer destination: it composes the existing browser, CardForge Cloud, local-folder, Google Drive, personal-library, and temporary-draft lifecycle owners while keeping every save, reconnect, restore, detach, and location-specific deletion scoped to the named source. **Profile** owns compact identity, security, access, personal utility, Developer, and Owner entries. Clerk identity/security and Stripe billing open as focused Profile views and retain their provider-native controls, callback routes, and failure meanings. Developer and Owner remain permission-separated environments rather than Account tabs. Generated cards own independent front `data` and back `backingData`; layouts remain reusable blueprints.
+Studio navigation has three product workspaces over the same project state. **Templates** owns reusable front Templates and separate card-back Templates. **Make Cards** owns active production for the currently selected Set: its selected front Template/back, card values, and generation. **Sets** is the normal production library for browsing local Sets, renaming/selecting them, reviewing their cards, importing/exporting portable Set data, and handing the selected Set to Make Cards. Sets composes the existing `cardSets`, transfer, and renderer owners; it does not create another Set registry. Account Home, Library, and Profile use the shared CardForge Environment shell and its stable zone rail, compact command band, aligned object/setting rows, detail inspector or mobile sheet, and boundary vocabulary. Home resolves active local work first, then recent provider or temporary work, without letting unavailable account or provider state masquerade as Free, signed-out, disconnected, or missing work. The account **Library** is a combined read model over device Sets, connected projects/assets, local-folder bindings, and temporary working drafts. It owns no bytes, sync protocol, or second content registry. **Storage & connections** is a focused Library tool that composes browser, local-folder, Google Drive, personal-library, and temporary-draft lifecycle owners while keeping every save, reconnect, detach, and location-specific deletion scoped to the named source. **Profile** owns compact identity, security, access, personal utility, Developer, and Owner entries. Clerk identity/security and Stripe billing open as focused Profile views and retain their provider-native controls, callback routes, and failure meanings. Developer and Owner remain permission-separated environments rather than Account tabs. Generated cards own independent front `data` and back `backingData`; layouts remain reusable blueprints.
 
 Text/image editability is expressed through native field contracts and real canvas elements. Image fields retain generator-side fit/position/scale/rotation/offset/flip controls.
 
@@ -126,7 +120,7 @@ The Owner Console controls both monthly submission count and the maximum source-
 
 ## Boundary failures
 
-CardForge uses one reusable boundary vocabulary across browser UI, HTTP APIs, and agent-facing tools: authentication, authorization, invalid input, conflict, not found, limit, and unavailable. API errors include a stable code and kind, retryability, a correlation id, and optional next-action, retry timing, or structured limit metadata. Provider failure must never masquerade as a lower entitlement or missing user-owned content. Tolerant reads remain appropriate for optional visual lists; portability, cloud, billing, entitlement, and permission boundaries use strict reads and explicit failures.
+CardForge uses one reusable boundary vocabulary across browser UI, HTTP APIs, and agent-facing tools: authentication, authorization, invalid input, conflict, not found, limit, and unavailable. API errors include a stable code and kind, retryability, a correlation id, and optional next-action, retry timing, or structured limit metadata. Provider failure must never masquerade as a lower entitlement or missing user-owned content. Tolerant reads remain appropriate for optional visual lists; portability, provider, billing, entitlement, and permission boundaries use strict reads and explicit failures.
 
 ## Campaign and publication model
 
@@ -144,7 +138,7 @@ Published MCP tools pair concise model-visible results with explicit output sche
 
 `mcp-usage` owns plan presentation, capacity targets, and usage observation; it does not create billing entitlements. The Owner Console is the only mutable source for plan names, descriptions, feature lines, CTA labels, visibility, and capacity targets. MCP access itself follows authenticated account identity: signed-out requests fail closed, signed-in Free/Creator/Designer accounts receive the shared Studio assistant scope, and approved developers or the owner must still pass the developer-access boundary for developer scopes. Tool telemetry fails open so an observation outage cannot break an otherwise authorized action. Because observation writes aggregate usage, every observed MCP tool declares a non-read-only side effect even when its product action only reads data. Successful user-visible mutations count as assisted actions; reads, previews, failures, and retries remain visible operational calls but consume no action unit. Numeric plan and storage targets are informational until a separately reviewed quota and billing policy is approved.
 
-Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Their owner-controlled inactivity windows default to 12 hours for Free, 24 for Creator, and 48 for Designer/owner/developer accounts. Only a real document open or update refreshes activity; account listing does not. Expired and manually deleted drafts enter 24-hour recoverable trash before an idempotent Supabase retention worker removes their complete private Storage prefix and database row. Raster artwork is normalized to WebP and content-addressed in a private Studio-document bucket rather than repeated as base64 inside JSON; short-lived signed URLs rehydrate the normal browser Studio handoff. Revision updates never eagerly delete unreferenced objects because a stale revision must not race a newer upload; the short draft lifecycle owns whole-prefix cleanup instead. Storage observation counts both the compact JSON and the real private object bytes. Account cloud-set saves are the separate durable backup/cross-device library, and the MCP read-only `list_cloud_sets` / `get_cloud_set` tools expose only sets the account intentionally saved there.
+Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Their owner-controlled inactivity windows default to 12 hours for Free, 24 for Creator, and 48 for Designer/owner/developer accounts. Only a real document open or update refreshes activity; account listing does not. Expired and manually deleted drafts enter 24-hour recoverable trash before an idempotent Supabase retention worker removes their complete private Storage prefix and database row. Raster artwork is normalized to WebP and content-addressed in a private Studio-document bucket rather than repeated as base64 inside JSON; short-lived signed URLs rehydrate the normal browser Studio handoff. Revision updates never eagerly delete unreferenced objects because a stale revision must not race a newer upload; the short draft lifecycle owns whole-prefix cleanup instead. Storage observation counts both the compact JSON and the real private object bytes. Durable agent commits use provider-authorized project files with exact provider and CardForge revisions; temporary documents never become silent permanent backups.
 
 ## Roadmap and voting
 

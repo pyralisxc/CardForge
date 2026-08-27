@@ -16,7 +16,6 @@ describe('Studio MCP creative production flow', () => {
     readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
     readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
     readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
-    readSource('src/features/studio-documents/server/mcpCloudSetTools.ts'),
     readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts'),
   ].join('\n');
   const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
@@ -62,16 +61,11 @@ describe('Studio MCP creative production flow', () => {
     expect(projectDocument).toContain('activeCardSetId?: string');
   });
 
-  it('supports revision-safe cloud collaboration and account-aware capability discovery', () => {
+  it('supports revision-safe working documents and account-aware capability discovery', () => {
     expect(agentTools).toContain("'get_cardforge_capabilities'");
     expect(agentTools).toContain("'list_agent_working_documents'");
     expect(agentTools).toContain("'get_agent_install_status'");
-    expect(agentTools).toContain("'list_cloud_sets'");
-    expect(agentTools).toContain("'get_cloud_set'");
-    expect(agentTools).toContain("'checkout_cloud_set'");
-    expect(agentTools).toContain("'commit_cloud_set'");
-    expect(agentTools).toContain("'delete_cloud_set'");
-    expect(agentTools).toContain('expectedCloudRevision');
+    expect(agentTools).not.toContain("'list_cloud_sets'");
   });
 
   it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {

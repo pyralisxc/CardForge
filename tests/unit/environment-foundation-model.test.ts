@@ -36,27 +36,27 @@ describe('Environment Foundation model', () => {
       label: 'Open in Studio',
       ownerFeature: 'studio-documents',
       supportedObjectKinds: ['set'],
-      supportedSources: ['cardforge-cloud'],
+      supportedSources: ['google-drive'],
       revisionPolicy: 'current-required',
       requiredPermission: 'creator',
       scope: 'object',
       hierarchy: 'primary',
       availability: { kind: 'disabled', reason: 'Reconnect this location before opening its copy.' },
       commitment: 'permission',
-      automation: { kind: 'published-mcp', tools: ['get_cloud_set', 'checkout_cloud_set'] },
+      automation: { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] },
       result: 'navigation',
     };
 
     expect(action.availability).toEqual({ kind: 'disabled', reason: 'Reconnect this location before opening its copy.' });
     const creator = { signedIn: true, developer: false, owner: false };
-    const currentCloud = { id: 'cloud-current', label: 'CardForge cloud', source: 'cardforge-cloud' as const, currentRevisionAvailable: true };
-    const staleCloud = { ...currentCloud, id: 'cloud-stale', currentRevisionAvailable: false };
+    const currentDrive = { id: 'drive-current', label: 'Google Drive', source: 'google-drive' as const, currentRevisionAvailable: true };
+    const staleDrive = { ...currentDrive, id: 'drive-stale', currentRevisionAvailable: false };
     const currentDevice = { id: 'device-current', label: 'This device', source: 'browser-local' as const, currentRevisionAvailable: true };
-    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentCloud], viewer: creator })).toBe(true);
+    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: creator })).toBe(true);
     expect(isActionApplicable(action, { objectKind: 'template', sources: [currentDevice], viewer: creator })).toBe(false);
-    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentCloud], viewer: { signedIn: false, developer: false, owner: false } })).toBe(false);
-    expect(isActionApplicable(action, { objectKind: 'set', sources: [staleCloud], viewer: creator })).toBe(false);
-    expect(getApplicableActionSources(action, { objectKind: 'set', sources: [staleCloud, currentCloud, currentDevice], viewer: creator })).toEqual([currentCloud]);
+    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: { signedIn: false, developer: false, owner: false } })).toBe(false);
+    expect(isActionApplicable(action, { objectKind: 'set', sources: [staleDrive], viewer: creator })).toBe(false);
+    expect(getApplicableActionSources(action, { objectKind: 'set', sources: [staleDrive, currentDrive, currentDevice], viewer: creator })).toEqual([currentDrive]);
   });
 
   it('keeps content lifecycle separate from transport boundary failures', () => {

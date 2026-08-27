@@ -70,7 +70,7 @@ export const registerAccountWorkflowTools = ({
     'get_cardforge_capabilities',
     {
       title: 'Get the linked CardForge account capabilities',
-      description: 'Read the signed-in user’s current CardForge tier, cloud capacity, owner/developer role, and contribution scopes. Use before assuming that a developer, owner, paid, or cloud capability is available. Normal Studio/card tools remain available to signed-in customers even when developer contribution tools are not.',
+      description: 'Read the signed-in user’s current CardForge tier, Studio capabilities, owner/developer role, and contribution scopes. Use before assuming that a developer, owner, or paid capability is available. Normal Studio/card tools remain available to signed-in customers even when developer contribution tools are not.',
       outputSchema: accountCapabilitiesOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
@@ -89,7 +89,7 @@ export const registerAccountWorkflowTools = ({
               ? 'This linked CardForge account is an owner account. Customer Studio tools and all granted owner/developer contribution scopes may be used.'
               : access.isDeveloper
                 ? 'This linked CardForge account is a developer account. Customer Studio tools plus its granted contribution scopes may be used.'
-                : `This linked CardForge account is a normal ${access.entitlement.accessMode} customer account. Use customer Studio/card/cloud tools; do not imply owner or developer powers.`,
+                : `This linked CardForge account is a normal ${access.entitlement.accessMode} customer account. Use customer Studio, card, project, and temporary working-document tools; do not imply owner or developer powers.`,
           }],
           structuredContent: {
             account: {
@@ -103,7 +103,6 @@ export const registerAccountWorkflowTools = ({
             studio: {
               canUseAgentStudio: access.scopes.includes('studio.ai.create'),
               canExportClean: access.entitlement.canExportClean,
-              cloudSetLimit: access.entitlement.capabilities.cloudSetLimit,
               projectCapabilities: access.entitlement.capabilities,
               nativeRenderArtifacts: true,
               renderReviewMode: 'canonical CardForge PNGs returned directly in chat',
@@ -113,7 +112,7 @@ export const registerAccountWorkflowTools = ({
               ...contribution,
             },
             guidance: {
-              normalCustomerTools: ['Template creation/revision', 'card and Set creation/revision', 'cloud Set read/checkout/commit/delete'],
+              normalCustomerTools: ['Template creation/revision', 'card and Set creation/revision', 'temporary working documents', 'connected-project checkout and commit'],
               gatedContributionTools: 'Forge Review, shared-library publication, and owner-only publication actions remain scope-gated even though the same MCP server can describe them.',
               renderGuidance: 'Preview tools never prove that a revision was installed in Studio. They render the exact server revision; use get_agent_install_status separately when local application state matters.',
             },

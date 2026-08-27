@@ -71,7 +71,7 @@ const selectTemplates = (
   const ids = collectTemplateIds(sets, cards);
   // Published CardForge Library Templates keep stable catalog ids and are resolved
   // from the current library. Only personal Templates travel with portable cards/Sets.
-  // Agent cloud checkouts can temporarily materialize a published pipeline Template
+  // Agent project checkouts can temporarily materialize a published pipeline Template
   // into the working document, so preserve its pipeline provenance instead of
   // accidentally exporting that transient copy as a personal dependency.
   return templates.filter((template) => (

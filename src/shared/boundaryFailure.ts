@@ -64,7 +64,7 @@ const nextActionForStatus = (status: number): string => {
   if (status === 403) return 'Ask the CardForge owner for access if this action should be available.';
   if (status === 404) return 'Refresh the current CardForge state before retrying.';
   if (status === 409) return 'Reload the current object, preserve stable ids, and retry against its latest revision.';
-  if (status === 413) return 'Reduce the cloud payload or file size, then retry.';
+  if (status === 413) return 'Reduce the payload or file size, then retry.';
   if (status === 429) return 'Wait for the retry window before sending the action again.';
   if (status >= 500) return 'Retry later without replacing known local state with an empty result.';
   return 'Correct the request using the error message, then retry.';
