@@ -37,4 +37,11 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('deleteCardSet');
     expect(homeDesk).toContain('<AlertDialog');
   });
+
+  it('keeps a newly created Set in rename mode after it becomes the focused work', () => {
+    const focusEffect = homeDesk.slice(homeDesk.indexOf('if (!focusedItemId) return;'), homeDesk.indexOf('const statuses'));
+    expect(homeDesk).toContain('setFocusedWorkId(`set:${id}`);');
+    expect(homeDesk).toContain('setRenaming(true);');
+    expect(focusEffect).not.toContain('setRenaming(false)');
+  });
 });

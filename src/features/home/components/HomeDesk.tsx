@@ -225,7 +225,6 @@ export function HomeDesk({
   useEffect(() => {
     if (!focusedItemId) return;
     setRenameDraft(focusedItemName);
-    setRenaming(false);
     setSelectedCardId(null);
     setCardQuery('');
   }, [focusedItemId, focusedItemName]);
@@ -259,6 +258,7 @@ export function HomeDesk({
 
   const focusWork = (item: AccountLibraryItem) => {
     if (item.references.localSetId) setActiveCardSetId(item.references.localSetId);
+    setRenaming(false);
     setFocusedWorkId(item.id);
     setInspectorWorkId(null);
   };
@@ -274,6 +274,7 @@ export function HomeDesk({
     if (!item.references.localSetId) return;
     const duplicateId = duplicateCardSet(item.references.localSetId);
     if (!duplicateId) return;
+    setRenaming(false);
     setFocusedWorkId(`set:${duplicateId}`);
     setInspectorWorkId(null);
     toast({ title: 'Work duplicated', description: 'The copied Set and its cards are independently editable.' });
@@ -362,7 +363,7 @@ export function HomeDesk({
       >
         {focusedItem ? (
           <div className={styles.focusSurface} data-home-desk="focused">
-            <button type="button" className={styles.backButton} onClick={() => { setFocusedWorkId(null); setInspectorWorkId(null); }}>
+            <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
               <ArrowLeft size={16} aria-hidden="true" /> Back to desk
             </button>
             <header className={styles.focusHeader}>
