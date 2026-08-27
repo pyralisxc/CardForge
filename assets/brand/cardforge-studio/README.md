@@ -29,26 +29,49 @@ Set watermark opacity in the renderer rather than baking translucency into the s
 
 ## Product concept references
 
-The alpha environment family described by `docs/product-direction.md` and `docs/product-surface-map.md` lives under `concepts/`:
+The `concepts/` directory contains **one current visual-intent family only**. Git history is the archive for retired concepts; do not keep parallel alpha/current generations in the working tree.
 
-- `home-zone-alpha.png`: orientation, attention, current work, and recent-work ledger.
-- `library-zone-alpha.png`: unified inventory with selected-object location and dependency detail.
-- `studio-set-desk-alpha.png`: spatial active-Set workspace and scope-aware object actions.
-- `profile-zone-alpha.png`: identity, security, personal defaults, access, and provider handoffs.
-- `developer-zone-alpha.png`: contribution preparation, evidence, readiness, and Forge Review handoff.
-- `owner-zone-alpha.png`: ordered operational action center and explicit owner decision surface.
+Current references:
 
-These images guide hierarchy and environment design. They are not runtime assets or pixel-perfect implementation contracts.
+- `home-current.svg`: Home as the higher-level spatial Project/Set Desk. Authored Sets/Projects should feel arranged on a working surface rather than filed in folders; selected work exposes quick actions without abandoning context.
+- `library-current.svg`: Library as the structured collection with Personal / Published / Contributor-only Pipeline scopes, visual discovery, provider/source identity, voting, revision inspection, and selected-object detail.
+- `studio-current.svg`: Studio as the spatial Set Desk/workbench, with the active object central and Generate, Export, Save, Pipeline/revision/voting, validation, and other tools revealed around it rather than as separate pages.
+- `profile-current.svg`: Profile as quiet personal configuration for identity, security, access, provider summary, temporary AI capacity/retention, billing handoff, and Contributor role status.
+- `owner-current.png`: the current approved Owner operating-environment reference. Owner remains a separate protected environment because operating CardForge is a different recurring job. This reference stays current until Owner is deliberately redesigned.
 
-The family intentionally shares one zone rail, command-band hierarchy, ledger rhythm, selected-object detail pattern, action order, status language, and responsive transformation model. Implementation should reuse those presentation foundations while leaving feature actions, state, permissions, validation, and provider ownership with their existing feature owners. The concepts do not authorize feature removal; `docs/product-surface-map.md` is the living preservation and placement ledger.
+There is **no standalone Contributor/Developer concept image**. Contributor is a capability layer that enhances Home, Library, Studio, and Profile; it must not create a separate visual universe or permanent destination.
+
+These images guide hierarchy and interaction direction. They are not runtime assets or pixel-perfect implementation contracts. `docs/product-direction.md` owns the product model, and `docs/product-surface-map.md` owns shipped-versus-direction placement and parity.
+
+## Visual hierarchy rule
+
+Use:
+
+- real authored previews for Sets, Projects, Templates, artwork, fonts, and other objects;
+- recognizable provider/source marks;
+- semantic icons for actions/status;
+- subtle depth/material changes for selection and focus;
+- inspectors/sheets for detail;
+- spatial object grouping on Home and Studio where it improves orientation.
+
+Avoid:
+
+- folder/file-manager metaphors on Home;
+- walls of equal dashboard cards;
+- decorative borders as the primary hierarchy signal;
+- long nested tab bars;
+- exposing every revision by default;
+- creating a separate visual universe for Contributor access.
+
+Home should feel more spatial than Library. Library should remain denser and collection-like. Studio should preserve object position/context while focused tools open. Profile should remain calm and utilitarian. Owner may use denser operational queues because its job is different.
 
 ## Usage boundary
 
-This folder is the only editable source. The matching SVG files under
-`public/brand/cardforge-studio/` are generated runtime mirrors, not independent
-masters. Run `npm run brand:export` after changing a source SVG; the command
-resynchronizes the required runtime files before producing PNG derivatives.
+This folder is the only editable source for CardForge Studio identity assets. The matching SVG files under `public/brand/cardforge-studio/` are generated runtime mirrors, not independent masters. Run `npm run brand:export` after changing a source SVG; the command resynchronizes required runtime files before producing PNG derivatives.
+
 Do not edit the `public/` copies directly or introduce a second asset catalog.
+
+Concept images are design references only. Replacing them does not automatically change runtime UI, product behavior, or feature ownership.
 
 ## Raster exports
 
