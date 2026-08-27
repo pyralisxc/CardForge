@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 26, 2026
+Last updated: August 27, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
 
@@ -22,7 +22,7 @@ CardForge has four deliberate storage lanes.
 
 ### Browser workspace
 
-`src/features/project` owns Zustand workspace state, IndexedDB persistence, account/guest scoping, recovery snapshots, storage-health handling, local project assets, and portable project files. The browser workspace remains the normal working copy, local sets remain unlimited, and there is no parallel localStorage compatibility owner.
+`src/features/project` owns Zustand workspace state, IndexedDB persistence, account/guest scoping, recovery snapshots, storage-health handling, local project assets, and portable project files. Persisted workspace and asset-catalog JSON reference account/project-scoped content-addressed Blob records; Base64 data URLs are accepted only as an import/runtime boundary and are externalized lazily for existing browser work. The browser workspace remains the normal working copy, local sets remain unlimited, and there is no parallel localStorage compatibility owner.
 
 ### User-owned durable locations
 
@@ -38,7 +38,7 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 
 ### Pipeline-owned Studio catalog
 
-`cardforge_asset_registry` is the single runtime shared Studio catalog. `data/pipeline-bootstrap` is importer input only and `public/site-fallbacks` is public-page fallback art only; neither competes with the registry.
+`cardforge_asset_registry` is the single runtime shared Studio catalog and discovery index. A published Template's linked immutable `cardforge_developer_asset_submissions.source_payload` revision owns its structured document; the new runtime reads that revision while the registry otherwise stores the active pointer, routing, access, ordering, and discovery metadata. Embedded Template media is normalized once into content-addressed WebP objects recorded by `cardforge_pipeline_template_assets`, while revision JSON stores `cardforge-pipeline-asset://` references. One explicitly temporary registry payload projection keeps the pre-cut production runtime compatible during this release; it is removed only after this submission-owned runtime is production READY and legacy media migration is verified. `data/pipeline-bootstrap` is importer input only and `public/site-fallbacks` is public-page fallback art only; neither competes with the registry.
 
 `npm run pipeline:sync-defaults` imports missing stable IDs and referenced media without overwriting owner decisions or recreating tombstoned assets. Code owns finite Studio destinations/compatibility; Supabase owns live placement, ordering, featured state, and owner overrides.
 

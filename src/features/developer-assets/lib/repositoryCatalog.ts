@@ -14,6 +14,7 @@ import {
   isRepositoryStyle,
   isRepositoryTemplate,
 } from '@/features/developer-assets/lib/registryContentValidation';
+import { hydratePipelineTemplateAssetReferences } from './pipelineTemplateAssets';
 
 const getPipelineContributorName = (): string => 'Pyralis Cameron';
 
@@ -40,7 +41,7 @@ export const mapRegistryRowsToTemplateLibrary = async (
       : {};
     const revisionNumber = Number(metadata.revisionNumber);
     return {
-      ...template,
+      ...hydratePipelineTemplateAssetReferences(template),
       id: row.asset_id,
       name: template.name || row.name,
       templateSource: 'default' as const,

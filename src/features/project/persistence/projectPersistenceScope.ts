@@ -1,6 +1,10 @@
 import type { StateStorage } from 'zustand/middleware';
 
 import type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
+import {
+  externalizeBrowserProjectAssetJson,
+  hydrateBrowserProjectAssetJson,
+} from './contentAddressedBrowserAssets';
 import { createIndexedDbStorage } from './indexedDbStorage';
 
 export { createProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
@@ -36,10 +40,19 @@ export const createScopedProjectStorage = (
   options: Parameters<typeof createIndexedDbStorage>[1] = {},
 ): StateStorage => ({
   getItem: async (key) => {
-    const storage = createIndexedDbStorage(getScopedProjectStorageNamespace(baseNamespace), options);
+    const scope = activeProjectPersistenceScope;
+    const storage = createIndexedDbStorage(getScopedProjectStorageNamespace(baseNamespace, scope), options);
     const value = await storage.getItem(key);
-    if (baseNamespace !== 'project-workspace' || value === null || isValidWorkspacePayload(value)) {
-      return value;
+    if (value === null) return null;
+    try {
+      const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+      if (externalized.changed) await storage.setItem(key, externalized.storedValue);
+      if (baseNamespace !== 'project-workspace' || isValidWorkspacePayload(externalized.storedValue)) {
+        return hydrateBrowserProjectAssetJson(externalized.storedValue, scope);
+      }
+    } catch {
+      // The recovery copy below is authoritative when structured artwork or JSON
+      // cannot be read safely. Never hydrate a partial/empty replacement.
     }
 
     // Preserve a recovery copy, but never let corrupt or pathological workspace JSON
@@ -48,10 +61,14 @@ export const createScopedProjectStorage = (
     await storage.removeItem(key);
     return null;
   },
-  setItem: (key, value) => createIndexedDbStorage(
-    getScopedProjectStorageNamespace(baseNamespace),
-    options,
-  ).setItem(key, value),
+  setItem: async (key, value) => {
+    const scope = activeProjectPersistenceScope;
+    const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+    await createIndexedDbStorage(
+      getScopedProjectStorageNamespace(baseNamespace, scope),
+      options,
+    ).setItem(key, externalized.storedValue);
+  },
   removeItem: (key) => createIndexedDbStorage(
     getScopedProjectStorageNamespace(baseNamespace),
     options,

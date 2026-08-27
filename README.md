@@ -89,11 +89,11 @@ Retired root ownership lanes `src/lib/`, `src/store/`, and `src/types/` must not
 
 CardForge has three deliberate storage lanes:
 
-- **Browser workspace:** user templates, cards, uploaded project assets, preferences, and portable project files.
+- **Browser workspace:** user templates, cards, uploaded project assets, preferences, and portable project files; persisted JSON points to content-addressed IndexedDB Blobs rather than repeating Base64 bytes.
 - **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, developer profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
-`cardforge_asset_registry` is the single runtime shared Studio catalog. Template Studio publishes structured Template revisions through the native Template workflow; generic developer uploads accept media/fonts rather than parallel JSON authoring. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+`cardforge_asset_registry` is the single runtime shared Studio catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. During the runtime cutover only, the registry projects that payload for compatibility with the prior production build; the next forward schema contraction removes the projection after the new runtime and legacy-media migration are proven. Generic developer uploads accept media/fonts rather than parallel JSON authoring. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
 
 ## Agent authoring
 

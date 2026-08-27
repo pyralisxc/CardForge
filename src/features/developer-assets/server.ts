@@ -3,6 +3,7 @@ export * from './lib/developerAssets';
 export * from './lib/developerAssetProgram';
 export * from './lib/developerAssetStore';
 export * from './lib/developerAssetRegistryCommands';
+export * from './lib/pipelineTemplateAssets';
 export * from './lib/developerAssetUploadPolicy';
 export * from './lib/developerAssetUploadSubmission';
 export * from './lib/registryContentAssets';

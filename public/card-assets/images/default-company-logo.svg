@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Northstar sample company mark">
+  <rect width="400" height="400" rx="58" fill="#111827"/>
+  <path d="M200 54 238 160H350L260 228 294 344 200 276 106 344 140 228 50 160H162Z" fill="#e6c85f"/>
+  <circle cx="200" cy="200" r="58" fill="#f8fafc" opacity=".92"/>
+  <path d="m166 218 34-86 34 86Z" fill="#111827"/>
+</svg>

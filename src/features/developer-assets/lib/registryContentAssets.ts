@@ -17,12 +17,14 @@ export const getVisibleRegistryAccessTiers = (
 
 export interface RegistryContentAssetRow {
   asset_id: string;
+  developer_submission_id?: string | null;
   name: string;
   url: string;
   status?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
   access_tier?: 'free' | 'paid' | 'developer' | 'hidden';
   library_source?: 'official' | 'developer';
   metadata: unknown;
+  content_payload?: unknown;
   studio_destinations?: StudioAssetDestination[];
   studio_sort_order?: number;
   studio_featured?: boolean;
@@ -93,10 +95,36 @@ export const readRegistryContentAsset = async <T>(
   keys: string[],
   isContent: (value: unknown) => value is T,
 ): Promise<T | null> => {
+  if (isContent(row.content_payload)) return row.content_payload;
   const embedded = getEmbeddedRegistryContent(row.metadata, keys, isContent);
   if (embedded) return embedded;
 
   return fetchRegistryJsonContent(row.url, isContent);
+};
+
+const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  rows: Row[],
+): Promise<Row[]> => {
+  const submissionIds = [...new Set(rows.flatMap((row) => (
+    row.developer_submission_id ? [row.developer_submission_id] : []
+  )))];
+  if (submissionIds.length === 0) return rows;
+  const { data, error } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('id,source_payload')
+    .in('id', submissionIds);
+  if (error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
+  const payloadsById = new Map((data ?? []).flatMap((entry) => {
+    const row = entry as { id?: unknown; source_payload?: unknown };
+    return typeof row.id === 'string' ? [[row.id, row.source_payload] as const] : [];
+  }));
+  return rows.map((row) => ({
+    ...row,
+    content_payload: row.developer_submission_id
+      ? payloadsById.get(row.developer_submission_id)
+      : undefined,
+  }));
 };
 
 export const getPublishedRegistryContentRows = async (
@@ -111,7 +139,7 @@ export const getPublishedRegistryContentRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+        .select('asset_id,developer_submission_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('asset_type', assetType)
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
@@ -137,7 +165,7 @@ export const getPublishedRegistryContentRows = async (
     return [];
   }
 
-  return (data ?? []) as RegistryContentAssetRow[];
+  return attachSubmissionPayloads(supabase, (data ?? []) as RegistryContentAssetRow[]);
 };
 
 export const getPublishedRegistryRows = async (
@@ -151,7 +179,7 @@ export const getPublishedRegistryRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+        .select('asset_id,developer_submission_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
         .order('asset_type', { ascending: true })
@@ -175,5 +203,5 @@ export const getPublishedRegistryRows = async (
     }
     throw new Error('Published CardForge catalog is temporarily unavailable.');
   }
-  return (data ?? []) as PublishedRegistryAssetRow[];
+  return attachSubmissionPayloads(supabase, (data ?? []) as PublishedRegistryAssetRow[]);
 };

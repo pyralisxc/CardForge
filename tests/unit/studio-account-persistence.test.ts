@@ -10,8 +10,11 @@ import {
   createIndexedDbStorage,
   createProjectPersistenceScope,
   createScopedProjectStorage,
+  getProjectAssetStorage,
   getScopedProjectStorageNamespace,
+  readTypedProjectAssetListFromStorage,
   setProjectPersistenceScope,
+  writeProjectAssetListToStorage,
 } from '@/features/project/client';
 
 const rootPath = (...parts: string[]) => path.join(process.cwd(), ...parts);
@@ -52,6 +55,47 @@ describe('Studio account-scoped persistence', () => {
     setProjectPersistenceScope('account:user-b');
     await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
       .resolves.toContain('"marker":"b"');
+  });
+
+  it('persists repeated browser artwork once by content hash and hydrates it for the editor', async () => {
+    const artwork = 'data:image/png;base64,AAECAwQ=';
+    setProjectPersistenceScope('account:user-assets');
+    const workspace = createScopedProjectStorage('project-workspace');
+
+    await workspace.setItem('workspace', JSON.stringify({
+      state: {
+        userTemplates: [{ id: 'template-1', imageSource: artwork }],
+        storedCards: [{ uniqueId: 'card-1', data: { Artwork: artwork } }],
+      },
+      version: 1,
+    }));
+
+    const raw = createIndexedDbStorage(getScopedProjectStorageNamespace('project-workspace'));
+    const stored = await raw.getItem('workspace');
+    expect(stored).not.toContain('base64');
+    expect(stored?.match(/cardforge-browser-asset:\/\//g)).toHaveLength(2);
+    expect(new Set(stored?.match(/cardforge-browser-asset:\/\/[a-f0-9]{64}/g))).toHaveLength(1);
+
+    const hydrated = await workspace.getItem('workspace');
+    expect(hydrated?.match(new RegExp(artwork, 'g'))).toHaveLength(2);
+  });
+
+  it('uses the same content-addressed persistence for the local asset catalog', async () => {
+    const artwork = 'data:image/webp;base64,V0VCUA==';
+    setProjectPersistenceScope('account:user-library-assets');
+    const storage = getProjectAssetStorage();
+
+    await writeProjectAssetListToStorage(storage, 'images', [{
+      id: 'asset-1',
+      name: 'Artwork',
+      kind: 'image',
+      url: artwork,
+    }]);
+
+    const raw = createIndexedDbStorage(getScopedProjectStorageNamespace('project-assets'));
+    expect(await raw.getItem('images')).toMatch(/cardforge-browser-asset:\/\/[a-f0-9]{64}/);
+    await expect(readTypedProjectAssetListFromStorage<{ url: string }>(storage, 'images'))
+      .resolves.toEqual([expect.objectContaining({ url: artwork })]);
   });
 
   it('never hydrates the legacy browser-global workspace into an account', async () => {

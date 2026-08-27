@@ -99,7 +99,8 @@ describe('MCP workflow hardening', () => {
     expect(drafts).toContain('getStudioDocumentAssetDownloads');
     expect(drafts).toContain('replaceStudioDocumentAssetReferences');
     expect(drafts).toContain('MAX_PIPELINE_EMBEDDED_TEMPLATE_ASSET_BYTES = 10 * 1024 * 1024');
-    expect(drafts).toContain('data:${asset.mimeType};base64,${bytes.toString');
+    expect(drafts).toContain('storePipelineTemplateAsset(bytes)');
+    expect(drafts).not.toContain("bytes.toString('base64')");
   });
 
   it('documents and enforces the known artwork limits in the agent workflow', () => {
