@@ -11,6 +11,8 @@ describe('account storage library', () => {
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
   const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
+  const googleDriveProjects = readSource('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
+  const connectedPersonalLibrary = readSource('src/features/storage-management/components/ConnectedPersonalLibraryPanel.tsx');
 
   it('makes storage a first-class account surface while preserving project ownership', () => {
     expect(accountPage).toContain("UnifiedAccountLibrary");
@@ -67,5 +69,12 @@ describe('account storage library', () => {
     expect(storageLibrary).toContain("focus = 'overview'");
     expect(storageLibrary).toContain("focus === 'device'");
     expect(storageLibrary).toContain("focus === 'drafts'");
+  });
+
+  it('keeps signed-out connected-storage states actionable', () => {
+    expect(googleDriveProjects).toContain("createAuthRouteHref('/sign-in', '/account?section=storage')");
+    expect(googleDriveProjects).toContain('Sign in to connect');
+    expect(connectedPersonalLibrary).toContain("createAuthRouteHref('/sign-in', '/account?section=storage')");
+    expect(connectedPersonalLibrary).toContain('Sign in to connect');
   });
 });
