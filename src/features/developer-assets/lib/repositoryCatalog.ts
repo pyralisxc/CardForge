@@ -32,7 +32,7 @@ export const mapRegistryRowsToTemplateLibrary = async (
   const templates = await Promise.all(rows.map(async (row) => {
     const template = await readRegistryContentAsset<TCGCardTemplate>(
       row,
-      ['template', 'payload'],
+      [],
       isRepositoryTemplate,
     );
     if (!template) return null;
