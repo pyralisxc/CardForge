@@ -225,13 +225,13 @@ This is a read model over existing owners, not a new file registry, sync engine,
 
 ### Durable creator storage and temporary AI workspace
 
-CardForge should retire the durable first-party cloud-set mirror. Creator work is durably saved in the browser workspace, a portable Project or Set package, Google Drive, an attached local folder, or another creator-chosen provider. CardForge should not maintain a second durable backup product merely to provide another location beside those native paths.
+CardForge is retiring the durable first-party Cloud Set Mirror. Creator work is durably saved in the browser workspace, a portable Project or Set package, Google Drive, an attached local folder, or another creator-chosen provider. CardForge does not maintain a second durable backup product merely to provide another location beside those native paths.
 
-This retirement is a migration, not permission to discard authored work. Before the existing cloud-set capability is removed, CardForge must inventory saved content and give each affected creator a verified way to download it or move it to a supported durable location. Only after that transition is complete may the cloud-set routes, plan slots, MCP cloud-set tools, database records, private artwork bucket, and related UI be cold-cut.
+The protected production inventory found two remaining mirrors owned only by the two explicitly approved owner test accounts. After exact Clerk identity verification, those 10 cards, two mirror rows, and 12 artwork objects were authorized for full erasure; Supabase postflight confirmed zero mirrors, zero checkout lineage, zero objects, and no legacy bucket. Runtime routes, plan slots, MCP tools, and related UI are removed first while the empty table and lineage columns remain compatible with the currently deployed code. A separate forward migration removes that schema only after the compatible runtime is production READY.
 
 CardForge may continue to own a bounded **temporary AI workspace** because agent collaboration requires private revisioned documents and artwork long enough to create, inspect, preview, revise, and hand work into Studio. That workspace has an explicit per-account capacity, inactivity window, recoverable-trash window, and visible expiration. It must always disclose that it is temporary and provide a direct **Save to device**, **Save to Drive**, or equivalent durable-provider action. AI workspace capacity is a service allowance, not a general cloud-drive entitlement and not a promise of permanent backup or synchronization.
 
-Agent tools operate on these temporary Studio documents or on provider-authorized files. Removing cloud sets therefore removes the separate agent-facing cloud-set listing path; it must not create a replacement CardForge file registry or silently make browser-only work available to agents.
+Agent tools operate on these temporary Studio documents or on provider-authorized files. There is no separate agent-facing Cloud Set registry, and browser-only work never becomes remotely available without an explicit user handoff.
 
 ### Specialty-aware library discovery
 
@@ -910,7 +910,7 @@ The first print-profile decision must be explicit when the Arcane proof begins. 
 
 | Gate | Deliverable | Evidence required before moving on |
 | --- | --- | --- |
-| 0. Environment and storage contract | Canonical zone map, Set Desk interaction grammar, selection-scope commands, durable-location boundary, temporary AI workspace policy, and cloud-set transition plan | Each capability has one natural zone or tool owner; temporary storage cannot be mistaken for durable backup; existing cloud-set content has a protected exit path |
+| 0. Environment and storage contract | Canonical zone map, Set Desk interaction grammar, selection-scope commands, durable-location boundary, temporary AI workspace policy, and protected Cloud Set retirement | Each capability has one natural zone or tool owner; temporary storage cannot be mistaken for durable backup; no retired Cloud Set runtime path remains; the empty schema contracts only after the compatible runtime reaches production |
 | 1. Games contract | Finite Game/Set/artifact hierarchy, six initial Kit families, controlled classification vocabulary, identity scopes, and Kit-manifest contract | The terms and allowed values are code-owned, documented, non-contradictory, and represented by contract fixtures |
 | 2. Set core and Desk | Game identity, named Sets, artifact ownership, active Set selection, version-1 recovery migration, heterogeneous Set Desk objects, persistent focus/context, and saved deck/collection state | Generated artifacts cannot become ownerless; existing projects import safely; Sets survive save, close, reopen, and switching with references, grouping, selection, and working context intact |
 | 3. Forge publishing | Developer-proposed Games classifications, derived payload facts, editable unpublished proposal metadata, owner corrections, and immutable Kit publication | A valid Template can travel from Studio authoring/import through review into the correct Games library and Kit without contradictory tags |
@@ -957,14 +957,14 @@ Product delivery and partner readiness can move together, but commerce does not 
 The next workshop is implementation preparation for the CardForge environment and Games Specialty Foundation. Establish:
 
 1. The canonical zone map, zone-versus-tool test, Set Desk focus path, selection scopes, and responsive interaction contract.
-2. The durable creator-location boundary, temporary AI workspace capacity/retention contract, and protected migration path for existing cloud-set content.
+2. The durable creator-location boundary, temporary AI workspace capacity/retention contract, and narrow provider-capability contract for future connected locations.
 3. The exact Game Project, Game Set, card collection, deck, artifact, Template/master, grouping, and product contracts and their stable IDs/references.
 4. The first controlled Games classification vocabulary and which values are derived from payloads versus proposed by contributors.
 5. The immutable Specialty/Kit manifest shape and the developer/owner revision workflow.
 6. The version-2 Project and portable Game Set package contracts, including desk arrangement/grouping state, version-1 recovery behavior, and merge conflict rules.
 7. The acceptance checklist for each of the six initial Kit families and the first coordinated rules/packaging masters.
 
-Once these items are concrete, implementation can proceed through Gates 0–5 as the environment and Games-foundation objectives, split only where the cloud-set migration needs an independently protected data transition. The Arcane production proof follows as Gates 6–8. Checkout remains a separate high-risk objective after the physical production contract is proven.
+Once these items are concrete, implementation can proceed through Gates 0–5 as the environment and Games-foundation objectives. The Arcane production proof follows as Gates 6–8. Checkout remains a separate high-risk objective after the physical production contract is proven.
 
 ## Canonical rendering doctrine
 

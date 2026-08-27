@@ -9,7 +9,7 @@ Tests should normally exercise exported functions, stores, parsers, policies, AP
 Good permanent regression tests answer questions such as:
 
 - Does a Free account receive the correct entitlement?
-- Does a cloud-set save reject invalid or oversized data?
+- Does a temporary working-document or connected-project write reject invalid, oversized, or stale data without altering authored work?
 - Does an import preserve the editable CardForge document contract?
 - Does a security boundary fail closed?
 - Does bulk generation produce the expected card data?
@@ -42,7 +42,7 @@ Do keep tests for:
 - serialization/import/export and persistence contracts;
 - CardForge rendering and generation behavior;
 - MCP/plugin published contracts;
-- cloud save/load behavior;
+- temporary working-document and connected-project behavior;
 - architecture and migration-safety tooling itself.
 
 ## Regression-test lifecycle

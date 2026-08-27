@@ -11,7 +11,7 @@ describe('boundary failures', () => {
       status: 413,
       kind: 'limit',
       retryable: false,
-      nextAction: 'Reduce the cloud payload or file size, then retry.',
+      nextAction: 'Reduce the payload or file size, then retry.',
     });
   });
 
@@ -28,14 +28,14 @@ describe('boundary failures', () => {
     expect(describeAgentBoundaryFailure({
       status: 409,
       kind: 'limit',
-      nextAction: 'Remove one cloud save, then retry.',
-      limit: { resource: 'cloud_set_slots', current: 5, maximum: 5, unit: 'sets' },
+      nextAction: 'Remove one temporary draft, then retry.',
+      limit: { resource: 'assistant_documents', current: 5, maximum: 5, unit: 'documents' },
     })).toMatchObject({
       status: 409,
       kind: 'limit',
       retryable: false,
-      nextAction: 'Remove one cloud save, then retry.',
-      limit: { resource: 'cloud_set_slots', current: 5, maximum: 5, unit: 'sets' },
+      nextAction: 'Remove one temporary draft, then retry.',
+      limit: { resource: 'assistant_documents', current: 5, maximum: 5, unit: 'documents' },
     });
   });
 

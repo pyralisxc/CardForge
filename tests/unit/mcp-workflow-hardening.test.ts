@@ -68,17 +68,6 @@ describe('MCP workflow hardening', () => {
     expect(cardTools).toContain("'delete_card_set'");
   });
 
-  it('binds cloud commits to both working-document and source-cloud revisions', () => {
-    const bridge = readSource('src/features/studio-documents/server/mcpCloudSetBridge.ts');
-    const cloudStore = readSource('src/features/project/server/cloudSetStore.ts');
-
-    expect(bridge).toContain('sourceCloudSetId: set.id');
-    expect(bridge).toContain('sourceCloudRevision: cloud.summary.revision');
-    expect(bridge).toContain('document.sourceCloudSetId !== setId');
-    expect(bridge).toContain('document.sourceCloudRevision !== expectedCloudRevision');
-    expect(cloudStore).toContain("deletion = deletion.eq('revision', expectedRevision)");
-  });
-
   it('tracks exact browser installation acknowledgements and resumable work', () => {
     const store = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
     const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');

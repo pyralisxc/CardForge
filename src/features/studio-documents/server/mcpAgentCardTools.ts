@@ -356,7 +356,7 @@ export const registerAgentCardTools = ({
     'delete_cards',
     {
       title: 'Delete cards from an agent working Set',
-      description: 'Remove one or more cards by stable card id from the private agent working document. Use only after the user asks to remove those cards. This does not change a browser-local or cloud-saved Set until the relevant revision is applied or committed.',
+      description: 'Remove one or more cards by stable card id from the private agent working document. Use only after the user asks to remove those cards. This does not change a browser-local Set or connected provider project until the relevant revision is applied or committed.',
       inputSchema: deleteCardsInputSchema,
       outputSchema: cardDeleteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
@@ -503,7 +503,6 @@ export const registerAgentCardTools = ({
             ...workflowMeta('card_set_reviewed', [
               { action: 'upsert_cards', reason: 'Use writeMode revise with these stable ids for any remaining copy or artwork changes.' },
               { action: 'open_in_studio', reason: 'Open openInStudioUrl to apply this exact revision to the normal local CardForge workspace.' },
-              { action: 'commit_cloud_set', reason: 'If this working document came from a cloud checkout and the user wants the cloud save updated, commit only after visual review.' },
             ]),
           },
         };

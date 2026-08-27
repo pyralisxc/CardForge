@@ -26,7 +26,6 @@ export function AccountPlanManagementPanel({
   canExportClean,
   canManageBilling,
   checkoutStatus,
-  cloudSlotLabel,
   currentPlanKey,
   downloadLabel,
   effectiveSignedIn,
@@ -40,7 +39,6 @@ export function AccountPlanManagementPanel({
   canExportClean: boolean;
   canManageBilling: boolean;
   checkoutStatus: 'cancelled' | 'success' | null;
-  cloudSlotLabel: string;
   currentPlanKey?: McpUsagePlanKey;
   downloadLabel: string;
   effectiveSignedIn: boolean;
@@ -86,9 +84,9 @@ export function AccountPlanManagementPanel({
                     ? intendedPlanLabel
                       ? `You selected ${intendedPlanLabel}. Confirm the choice below, then continue through secure Stripe Checkout.`
                       : 'You are on Free. Compare Creator and Designer below before starting a subscription.'
-                    : 'Free Studio access needs no account. Create one when you want private cloud saves, ChatGPT plugin access, or a paid plan.'}
+                    : 'Free Studio access needs no account. Create one when you want ChatGPT collaboration, connected providers, or a paid plan.'}
             </p>
-            <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">{cloudSlotLabel}. {downloadLabel}.</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">{downloadLabel}.</p>
           </div>
           <div id="account-actions" className="scroll-mt-24">
             {intendedPlanLabel && !canExportClean ? (

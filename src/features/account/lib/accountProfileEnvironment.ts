@@ -23,7 +23,6 @@ export interface AccountProfileUtilityGroup {
 interface BuildAccountProfileUtilitiesInput {
   accountEmail: string;
   authConfigured: boolean;
-  cloudSlotLabel: string;
   entitlementLoading: boolean;
   entitlementUnavailable: boolean;
   isDeveloper: boolean;
@@ -35,7 +34,6 @@ interface BuildAccountProfileUtilitiesInput {
 export function buildAccountProfileUtilityGroups({
   accountEmail,
   authConfigured,
-  cloudSlotLabel,
   entitlementLoading,
   entitlementUnavailable,
   isDeveloper,
@@ -90,7 +88,7 @@ export function buildAccountProfileUtilityGroups({
       ? 'Account locations unavailable'
       : entitlementLoading
         ? 'Checking locations'
-        : cloudSlotLabel;
+        : 'Device and provider locations';
 
   const groups: AccountProfileUtilityGroup[] = [{
     id: 'identity-security',
@@ -152,14 +150,14 @@ export function buildAccountProfileUtilityGroups({
       kind: 'profile-storage-connections',
       eyebrow: 'Connections',
       title: 'Storage & connections',
-      summary: 'Provider permissions, locations, and retiring cloud mirrors',
+      summary: 'Provider permissions, durable locations, and temporary AI work',
       value: storageValue,
       status: 'Managed by source',
       tone: 'neutral',
       target: 'storage',
       meta: [
         ['Durable locations', 'This device, project files, local folders, and Google Drive'],
-        ['Current cloud mirror', !authConfigured ? 'Authentication setup required' : entitlementUnavailable ? 'Account access unavailable' : entitlementLoading ? 'Checking account access' : cloudSlotLabel],
+        ['Temporary AI work', 'Retention-managed CardForge workspace'],
         ['Provider permissions', 'Managed at the source'],
         ['Management', 'Open location controls'],
       ],

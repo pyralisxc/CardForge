@@ -37,7 +37,7 @@ const boundarySamples = {
   invalid: ['Invalid input', 'One field needs correction before continuing.', 'Review field'],
   conflict: ['Revision conflict', 'A newer revision exists. Authored work is unchanged.', 'Reload revision'],
   not_found: ['Not found', 'The requested object is no longer in this location.', 'Return to Library'],
-  limit: ['Limit reached', 'This plan has no remaining cloud slots.', 'Compare plans'],
+  limit: ['Limit reached', 'This plan has no remaining temporary workspace capacity.', 'Compare plans'],
   unavailable: ['Service unavailable', 'The provider cannot respond right now.', 'Retry'],
   offline: ['Offline', 'Local work remains available; provider actions are paused.', 'Work locally'],
 } as const;
@@ -67,7 +67,7 @@ export function HomeRecipe({ selectedId, onOpen }: RecipeProps) {
         <div className={styles.settingsGroup}><CompactSettingRow item={homeCurrentWork} selected={selectedId === homeCurrentWork.id} onOpen={onOpen} /></div>
       </section>
       <section className={styles.sectionGroup} aria-labelledby="home-account-snapshot-heading">
-        <EnvironmentSectionHeading id="home-account-snapshot-heading" title="Account snapshot" meta="4 grouped truths" />
+        <EnvironmentSectionHeading id="home-account-snapshot-heading" title="Account snapshot" meta="4 essentials" />
         <div className={styles.settingsGroup}>{homeSnapshotItems.map((item) => <CompactSettingRow key={item.id} item={item} selected={selectedId === item.id} onOpen={onOpen} />)}</div>
       </section>
       <section className={styles.sectionGroup} aria-labelledby="home-recent-work-heading">

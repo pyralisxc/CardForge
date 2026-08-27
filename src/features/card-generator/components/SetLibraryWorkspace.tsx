@@ -2,14 +2,10 @@
 
 import { useMemo, useRef, useState } from 'react';
 import {
-  Cloud,
-  CloudDownload,
-  CloudUpload,
   Eye,
   FileJson2,
   FolderOpen,
   FolderPlus,
-  Loader2,
   PackagePlus,
   Pencil,
   Search,
@@ -19,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { useAccountEntitlement } from '@/features/account/client';
 import {
   CardPreview,
   CardWatermarkOverlay,
@@ -30,7 +25,6 @@ import {
   selectAllGeneratedDisplayCards,
   selectAllTemplates,
   useCardTransferActions,
-  useCloudSetActions,
   useProjectStore,
   type ProjectState,
 } from '@/features/project/client';
@@ -108,7 +102,6 @@ export function SetLibraryWorkspace({
   const importInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [previewCard, setPreviewCard] = useState<DisplayCard | null>(null);
-  const account = useAccountEntitlement();
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const storedCards = useProjectStore((state) => state.storedCards);
@@ -119,19 +112,6 @@ export function SetLibraryWorkspace({
   const setActiveCardSetId = useProjectStore((state) => state.setActiveCardSetId);
   const setActiveCardSetName = useProjectStore((state) => state.setActiveCardSetName);
   const { exportSet, handleImportTransfer } = useCardTransferActions({ toast });
-  const {
-    cloud,
-    cloudBySetId,
-    isLoadingCloudSets,
-    loadingSetId,
-    loadSetFromCloud,
-    saveSetToCloud,
-    savingSetId,
-  } = useCloudSetActions({
-    toast,
-    enabled: account.isSignedIn && !account.isLoadingEntitlement,
-  });
-
   const templates = useMemo(
     () => selectAllTemplates({ defaultTemplates, userTemplates }),
     [defaultTemplates, userTemplates],
@@ -141,7 +121,6 @@ export function SetLibraryWorkspace({
     userTemplates,
     storedCards,
   } as ProjectState), [defaultTemplates, storedCards, userTemplates]);
-  const localSetIds = useMemo(() => new Set(cardSets.map((set) => set.id)), [cardSets]);
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>();
     storedCards.forEach((card) => {
@@ -153,31 +132,17 @@ export function SetLibraryWorkspace({
   const filteredLocalSets = useMemo(() => (
     query ? cardSets.filter((set) => set.name.toLowerCase().includes(query)) : cardSets
   ), [cardSets, query]);
-  const cloudOnlySets = useMemo(() => (
-    (cloud?.sets ?? []).filter((summary) => (
-      !localSetIds.has(summary.setId)
-      && (!query || summary.name.toLowerCase().includes(query))
-    ))
-  ), [cloud?.sets, localSetIds, query]);
   const activeCards = useMemo(() => displayCards.filter((card) => (
     card.setId === activeCardSet.id
     || (!card.setId && cardSets[0]?.id === activeCardSet.id)
   )), [activeCardSet.id, cardSets, displayCards]);
   const activeFrontTemplate = templates.find((template) => template.id === activeCardSet.frontTemplateId) ?? null;
   const activeBackTemplate = templates.find((template) => template.id === activeCardSet.backingTemplateId) ?? null;
-  const activeCloudSet = cloudBySetId.get(activeCardSet.id);
-  const cloudLimit = cloud?.limit ?? account.capabilities.cloudSetLimit;
-  const cloudUsed = cloud?.used ?? 0;
-  const canBackUpActiveSet = Boolean(activeCloudSet) || cloudUsed < cloudLimit;
   const showWatermark = shouldShowVisibleCardWatermark(canExportClean);
 
   const openSetForProduction = (setId: string) => {
     setActiveCardSetId(setId);
     onOpenMakeCards();
-  };
-
-  const loadCloudSet = async (setId: string) => {
-    if (await loadSetFromCloud(setId)) setActiveCardSetId(setId);
   };
 
   return (
@@ -192,13 +157,8 @@ export function SetLibraryWorkspace({
             <FolderOpen className="h-4 w-4 text-[var(--cf-accent-strong)]" />
             <h2 id="studio-set-library-title" className="font-serif text-lg font-semibold text-[var(--cf-text-strong)]">Set Library</h2>
           </div>
-          <p className="mt-0.5 text-xs text-[var(--cf-text-muted)]">Review, inspect, share, back up, and export finished sets here.</p>
+          <p className="mt-0.5 text-xs text-[var(--cf-text-muted)]">Review, inspect, share, and export finished sets here.</p>
         </div>
-        {account.isSignedIn ? (
-          <span className="inline-flex min-h-8 items-center gap-1.5 border border-[var(--cf-border-subtle)] px-2 text-xs text-[var(--cf-text-muted)]">
-            <Cloud className="h-3.5 w-3.5" /> {cloudUsed}/{cloudLimit} cloud
-          </span>
-        ) : null}
         <Button type="button" size="sm" variant="outline" onClick={() => importInputRef.current?.click()}>
           <Upload className="mr-1.5 h-4 w-4" /> Import editable set
         </Button>
@@ -234,7 +194,6 @@ export function SetLibraryWorkspace({
             <div className="space-y-1">
               {filteredLocalSets.map((set) => {
                 const active = set.id === activeCardSet.id;
-                const backedUp = cloudBySetId.has(set.id);
                 return (
                   <button
                     key={set.id}
@@ -250,7 +209,6 @@ export function SetLibraryWorkspace({
                       <span className="block truncate text-sm font-medium">{set.name}</span>
                       <span className="block text-[10px] text-[var(--cf-text-subtle)]">{cardCounts.get(set.id) ?? 0} cards</span>
                     </span>
-                    {backedUp ? <Cloud className="h-3.5 w-3.5 shrink-0 text-[var(--cf-success)]" aria-label="Backed up to cloud" /> : null}
                   </button>
                 );
               })}
@@ -258,37 +216,6 @@ export function SetLibraryWorkspace({
                 <p className="px-2 py-3 text-xs text-[var(--cf-text-subtle)]">No local sets match that search.</p>
               ) : null}
             </div>
-
-            {account.isSignedIn ? (
-              <div className="mt-4 border-t border-[var(--cf-border-subtle)] pt-3">
-                <div className="flex items-center justify-between px-1 pb-1.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Cloud only</p>
-                  {isLoadingCloudSets ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--cf-text-subtle)]" /> : null}
-                </div>
-                <div className="space-y-1">
-                  {cloudOnlySets.map((summary) => (
-                    <button
-                      key={summary.setId}
-                      type="button"
-                      disabled={Boolean(loadingSetId)}
-                      onClick={() => void loadCloudSet(summary.setId)}
-                      className="flex w-full items-center gap-2 border border-dashed border-[var(--cf-border-subtle)] px-2.5 py-2 text-left text-[var(--cf-text-muted)] transition hover:bg-[var(--cf-surface-hover)] disabled:opacity-60"
-                    >
-                      {loadingSetId === summary.setId
-                        ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                        : <CloudDownload className="h-4 w-4 shrink-0 text-[var(--cf-accent-strong)]" />}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{summary.name}</span>
-                        <span className="block text-[10px] text-[var(--cf-text-subtle)]">{summary.cardCount} cards · load to edit</span>
-                      </span>
-                    </button>
-                  ))}
-                  {!isLoadingCloudSets && cloudOnlySets.length === 0 ? (
-                    <p className="px-2 py-2 text-xs text-[var(--cf-text-subtle)]">No cloud-only sets.</p>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
           </div>
         </aside>
 
@@ -310,20 +237,6 @@ export function SetLibraryWorkspace({
               <Button type="button" size="sm" variant="outline" onClick={() => void exportSet(activeCardSet.id)} title="Download editable CardForge set data">
                 <FileJson2 className="mr-1.5 h-4 w-4" /> Editable set
               </Button>
-              {account.isSignedIn ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={Boolean(savingSetId) || isLoadingCloudSets}
-                  onClick={() => void saveSetToCloud(activeCardSet.id)}
-                >
-                  {savingSetId === activeCardSet.id
-                    ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                    : <CloudUpload className="mr-1.5 h-4 w-4" />}
-                  {activeCloudSet ? 'Update backup' : canBackUpActiveSet ? 'Back up' : 'Cloud full — review'}
-                </Button>
-              ) : null}
               <Button type="button" size="sm" onClick={() => openSetForProduction(activeCardSet.id)}>
                 <PackagePlus className="mr-1.5 h-4 w-4" /> Add cards
               </Button>

@@ -12,7 +12,6 @@ describe('account profile environment', () => {
     const groups = buildAccountProfileUtilityGroups({
       accountEmail: 'owner@example.com',
       authConfigured: true,
-      cloudSlotLabel: '5 private cloud set slots',
       entitlementLoading: false,
       entitlementUnavailable: false,
       isDeveloper: true,
@@ -31,7 +30,6 @@ describe('account profile environment', () => {
     const groups = buildAccountProfileUtilityGroups({
       accountEmail: 'maker@example.com',
       authConfigured: true,
-      cloudSlotLabel: '1 private cloud set slot',
       entitlementLoading: false,
       entitlementUnavailable: true,
       isDeveloper: false,
@@ -47,11 +45,11 @@ describe('account profile environment', () => {
 
   it('keeps loading and unconfigured identity distinct from signed-out and Free', () => {
     const loading = buildAccountProfileUtilityGroups({
-      accountEmail: 'No signed-in account', authConfigured: true, cloudSlotLabel: '1 private cloud set slot',
+      accountEmail: 'No signed-in account', authConfigured: true,
       entitlementLoading: true, entitlementUnavailable: false, isDeveloper: false, isOwner: false, isSignedIn: false, planLabel: 'Free',
     }).flatMap((group) => group.items);
     const unconfigured = buildAccountProfileUtilityGroups({
-      accountEmail: 'No signed-in account', authConfigured: false, cloudSlotLabel: '1 private cloud set slot',
+      accountEmail: 'No signed-in account', authConfigured: false,
       entitlementLoading: false, entitlementUnavailable: false, isDeveloper: false, isOwner: false, isSignedIn: false, planLabel: 'Creator Pass',
     }).flatMap((group) => group.items);
 

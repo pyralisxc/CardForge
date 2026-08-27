@@ -25,7 +25,8 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
-  const cloudTools = readSource('src/features/studio-documents/server/mcpCloudSetTools.ts');
+  const projectTools = readSource('src/features/studio-documents/server/mcpProjectSourceTools.ts');
+  const workingDocumentTools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
   const pluginSkills = readSource('src/features/studio-documents/server/mcpPluginSkills.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
   const cardDrafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
@@ -41,41 +42,46 @@ describe('CardForge MCP and plugin product hygiene', () => {
     interface: { shortDescription: string; longDescription: string; defaultPrompt: string[] };
   };
 
-  it('keeps the published MCP action names explicit as cloud collaboration is added', () => {
+  it('keeps the published MCP action names explicit', () => {
     const names = [
       ...toolNames(route),
       ...toolNames(accountTools),
       ...toolNames(templateTools),
       ...toolNames(cardTools),
-      ...toolNames(cloudTools),
+      ...toolNames(projectTools),
+      ...toolNames(workingDocumentTools),
     ].sort();
 
     expect(names).toEqual([
       'attach_template_artwork',
-      'checkout_cloud_set',
-      'commit_cloud_set',
+      'attach_template_artworks',
+      'checkout_project',
+      'commit_project',
       'continue_template_in_pipeline',
       'create_editable_template',
       'delete_card_set',
       'delete_cards',
-      'delete_cloud_set',
       'get_agent_install_status',
       'get_card_generation_contract',
       'get_cardforge_capabilities',
-      'get_cloud_set',
       'get_editable_template',
       'get_studio_creation_guide',
+      'get_working_document_operation_status',
       'list_agent_working_documents',
-      'list_cloud_sets',
+      'list_connected_projects',
       'list_editable_templates',
       'move_cards',
+      'patch_cards',
+      'patch_working_document',
       'preview_card_set',
+      'preview_cards',
       'preview_template_draft',
       'search_studio_library',
       'update_editable_template',
       'upsert_card',
       'upsert_card_set',
       'upsert_cards',
+      'validate_working_document',
     ]);
   });
 
@@ -92,25 +98,27 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('publishes an explicit output schema for every structured MCP tool', () => {
-    const sources = [route, accountTools, templateTools, cardTools, cloudTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
   });
 
   it('labels private overwrites and external artwork retrieval accurately', () => {
-    const sources = [route, accountTools, templateTools, cardTools, cloudTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools].join('\n');
     const destructiveTools = new Set([
       'attach_template_artwork',
-      'commit_cloud_set',
+      'attach_template_artworks',
+      'commit_project',
       'delete_card_set',
       'delete_cards',
-      'delete_cloud_set',
       'move_cards',
+      'patch_cards',
+      'patch_working_document',
       'update_editable_template',
       'upsert_card',
       'upsert_card_set',
       'upsert_cards',
     ]);
-    const openWorldTools = new Set(['upsert_card', 'upsert_cards']);
+    const openWorldTools = new Set(['attach_template_artworks', 'patch_working_document', 'upsert_card', 'upsert_cards']);
 
     for (const name of toolNames(sources)) {
       const registration = toolRegistration(sources, name);
@@ -137,8 +145,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('Visually review a CardForge Set before applying or committing it');
     expect(cardTools).toContain('working Set');
     expect(cardTools).toContain('list/CSV/JSON conversion');
-    expect(cloudTools).toContain('List cloud-saved CardForge Sets');
-    expect(cloudTools).toContain('Read a cloud-saved CardForge Set');
   });
 
   it('keeps account AI work separate from developer publication permissions', () => {
@@ -146,12 +152,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(developerAccess).toContain('{ allowStudioAiOnly: true }');
     expect(developerAccess).toContain("requireContributionScope");
     expect(route).toContain('continueDeveloperTemplateDraftInPipeline');
-  });
-
-  it('reuses the authenticated account entitlement for cloud reads and observes those calls once', () => {
-    expect(cloudTools).toContain('access.entitlement');
-    expect(cloudTools).toContain('observeMcpToolExecution');
-    expect(cloudTools).not.toContain('getCardforgeEntitlementForUserId');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {

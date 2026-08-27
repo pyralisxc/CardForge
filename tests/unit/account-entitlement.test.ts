@@ -202,11 +202,12 @@ describe('accountEntitlement', () => {
       source: 'clerk',
     });
     expect(entitlement.capabilities.canExportClean).toBe(true);
-    expect(entitlement.capabilities.cloudSetLimit).toBe(5);
-    expect(entitlement.copy.panelMessage).toContain('5 cloud-saved card sets');
+    expect(entitlement.capabilities.canUseProjectFiles).toBe(true);
+    expect(entitlement.copy.panelMessage).toContain('portable project files');
+    expect(entitlement.copy.panelMessage).not.toContain('cloud set');
   });
 
-  it('gives free signed-in accounts one cloud set slot', () => {
+  it('does not advertise retired durable CardForge cloud storage', () => {
     const entitlement = resolveAccountEntitlement({
       accountUserId: 'user_free',
       authConfigured: true,
@@ -217,8 +218,8 @@ describe('accountEntitlement', () => {
     });
 
     expect(entitlement.accessMode).toBe('free');
-    expect(entitlement.capabilities.cloudSetLimit).toBe(1);
-    expect(entitlement.copy.panelMessage).toContain('1 set backed up in the cloud');
+    expect(entitlement.capabilities).not.toHaveProperty('cloudSetLimit');
+    expect(entitlement.copy.panelMessage).not.toContain('cloud');
   });
 
   it('applies the owner project-file policy without changing finished export access', () => {
@@ -277,6 +278,6 @@ describe('accountEntitlement', () => {
         source: 'clerk_private_metadata',
       },
     });
-    expect(entitlement.capabilities.cloudSetLimit).toBe(5);
+    expect(entitlement.capabilities.canUseProjectFiles).toBe(true);
   });
 });

@@ -372,7 +372,7 @@ export function CardForgeStudioShell({
 
       {accountEntitlement.entitlementError ? (
         <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
-          Account and cloud access could not be verified. Local Studio work remains available; retry cloud or account actions after the service recovers.
+          Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
         </div>
       ) : null}
 

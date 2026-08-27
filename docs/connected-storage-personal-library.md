@@ -8,7 +8,7 @@ CardForge supports four storage roles:
 
 1. **Local workspace** — browser IndexedDB remains the fast working/recovery copy.
 2. **Portable project** — a versioned `.cardforge` package is the canonical portable project unit.
-3. **Durable project provider** — a user may keep `.cardforge` projects in CardForge Cloud, Google Drive, a local folder, or future providers.
+3. **Durable project provider** — a user may keep `.cardforge` projects in Google Drive, a local folder, portable packages, or future user-chosen providers.
 4. **Personal library provider** — reusable artwork, fonts, Templates, icons, dividers, textures, and other assets may remain in user-owned storage and be indexed by CardForge without being permanently copied into CardForge-managed storage.
 
 The MCP does not edit provider-specific files directly. It checks a durable project into the private revisioned CardForge collaboration workspace, performs normal CardForge edits and canonical renders there, then commits back to the exact source lineage.

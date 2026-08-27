@@ -3,7 +3,6 @@ export type AccountLibraryKind = typeof ACCOUNT_LIBRARY_KINDS[number];
 
 export const ACCOUNT_LIBRARY_SOURCES = [
   'device',
-  'cardforge-cloud',
   'google-drive',
   'local-folder',
   'assistant-draft',
@@ -20,7 +19,6 @@ export interface AccountLibraryLocation {
 
 export interface AccountLibraryReferences {
   localSetId?: string;
-  cloudSetId?: string;
   driveFileId?: string;
   localFolder?: boolean;
   personalAssetId?: string;
@@ -67,7 +65,7 @@ export const resolveAccountHomeLibraryProjection = (
     return left.name.localeCompare(right.name);
   });
   const featuredItem = items.find((item) => activeSetId !== null && item.references.localSetId === activeSetId)
-    ?? byRecency.find((item) => item.references.workingDraftId || item.references.driveFileId || item.references.cloudSetId)
+    ?? byRecency.find((item) => item.references.workingDraftId || item.references.driveFileId)
     ?? byRecency[0]
     ?? null;
   return {
@@ -81,15 +79,6 @@ interface LocalSetInput {
   name: string;
   cardCount: number;
   sizeBytes: number | null;
-}
-
-interface CloudSetInput {
-  setId: string;
-  name: string;
-  cardCount: number;
-  revision: number;
-  storageBytes: number;
-  updatedAt: string;
 }
 
 interface DriveProjectInput {
@@ -130,7 +119,6 @@ interface WorkingDraftInput {
 
 export interface BuildAccountLibraryItemsInput {
   localSets: LocalSetInput[];
-  cloudSets: CloudSetInput[];
   driveProjects: DriveProjectInput[];
   driveBindingFileId: string | null;
   localFolder: LocalFolderInput | null;
@@ -151,7 +139,6 @@ const compareLibraryItems = (left: AccountLibraryItem, right: AccountLibraryItem
 
 export const buildAccountLibraryItems = ({
   localSets,
-  cloudSets,
   driveProjects,
   driveBindingFileId,
   localFolder,
@@ -159,48 +146,23 @@ export const buildAccountLibraryItems = ({
   workingDrafts,
 }: BuildAccountLibraryItemsInput): AccountLibraryItem[] => {
   const items: AccountLibraryItem[] = [];
-  const cloudBySetId = new Map(cloudSets.map((set) => [set.setId, set]));
 
   for (const localSet of localSets) {
-    const cloudSet = cloudBySetId.get(localSet.id) ?? null;
-    cloudBySetId.delete(localSet.id);
     items.push({
       id: `set:${localSet.id}`,
       kind: 'set',
       name: localSet.name,
-      locations: [
-        { source: 'device', status: 'available', label: 'This device' },
-        ...(cloudSet ? [{ source: 'cardforge-cloud', status: 'available', label: 'CardForge Cloud' } as const] : []),
-      ],
+      locations: [{ source: 'device', status: 'available', label: 'This device' }],
       details: [
         `${localSet.cardCount} card${localSet.cardCount === 1 ? '' : 's'}`,
-        cloudSet ? `Cloud revision ${cloudSet.revision}` : 'Device only',
+        'Device only',
       ],
-      sizeBytes: cloudSet?.storageBytes ?? localSet.sizeBytes,
-      revision: cloudSet ? String(cloudSet.revision) : null,
-      updatedAt: cloudSet?.updatedAt ?? null,
+      sizeBytes: localSet.sizeBytes,
+      revision: null,
+      updatedAt: null,
       expiresAt: null,
       webViewLink: null,
-      references: {
-        localSetId: localSet.id,
-        ...(cloudSet ? { cloudSetId: cloudSet.setId } : {}),
-      },
-    });
-  }
-
-  for (const cloudSet of cloudBySetId.values()) {
-    items.push({
-      id: `set:${cloudSet.setId}`,
-      kind: 'set',
-      name: cloudSet.name,
-      locations: [{ source: 'cardforge-cloud', status: 'available', label: 'CardForge Cloud' }],
-      details: [`${cloudSet.cardCount} card${cloudSet.cardCount === 1 ? '' : 's'}`, `Cloud revision ${cloudSet.revision}`],
-      sizeBytes: cloudSet.storageBytes,
-      revision: String(cloudSet.revision),
-      updatedAt: cloudSet.updatedAt,
-      expiresAt: null,
-      webViewLink: null,
-      references: { cloudSetId: cloudSet.setId },
+      references: { localSetId: localSet.id },
     });
   }
 
@@ -284,7 +246,6 @@ export const buildAccountLibraryItems = ({
 export const getAccountLibrarySourceLabel = (source: AccountLibrarySource): string => {
   switch (source) {
     case 'device': return 'This device';
-    case 'cardforge-cloud': return 'CardForge Cloud';
     case 'google-drive': return 'Google Drive';
     case 'local-folder': return 'Local folder';
     case 'assistant-draft': return 'Private draft';
@@ -295,22 +256,15 @@ export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): Acc
   const actions: AccountLibraryAction[] = [];
 
   if (item.references.workingDraftId) actions.push('continue');
-  else if (item.references.localSetId || item.references.cloudSetId || item.references.driveFileId) actions.push('open');
+  else if (item.references.localSetId || item.references.driveFileId) actions.push('open');
 
   if (item.webViewLink) actions.push('view-source');
-  if (item.references.cloudSetId || item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');
+  if (item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');
 
   return actions;
 };
 
 export const getAccountLibraryMcpWorkflow = (item: AccountLibraryItem): AccountLibraryMcpWorkflow => {
-  if (item.references.cloudSetId) {
-    return {
-      availability: 'revision-safe',
-      tools: ['list_cloud_sets', 'get_cloud_set', 'checkout_cloud_set', 'commit_cloud_set'],
-    };
-  }
-
   if (item.references.driveFileId) {
     return {
       availability: 'revision-safe',

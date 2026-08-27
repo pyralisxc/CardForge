@@ -9,7 +9,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { Cloud, FileArchive, FolderOpen, HardDrive, Images, Laptop, Sparkles, X, type LucideIcon } from 'lucide-react';
+import { FolderOpen, HardDrive, Images, Laptop, Sparkles, X, type LucideIcon } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -18,7 +18,7 @@ import {
   type EnvironmentSettingRecord,
 } from '@/features/app-shell/client/environment';
 
-type AccountStorageLibraryFocus = 'device' | 'cloud' | 'drafts';
+type AccountStorageLibraryFocus = 'device' | 'drafts';
 
 interface StorageToolLocation extends EnvironmentSettingRecord {
   content: ReactNode;
@@ -27,8 +27,7 @@ interface StorageToolLocation extends EnvironmentSettingRecord {
 }
 
 export interface LibraryStorageConnectionsToolProps {
-  browserAndCloud: ReactNode;
-  cloudDetails: ReactNode;
+  workspaceStorage: ReactNode;
   connectedAssets: ReactNode;
   googleDriveProjects: ReactNode;
   localProjectFolder: ReactNode;
@@ -51,7 +50,7 @@ function StorageToolDetail({ location, onClose }: { location: StorageToolLocatio
           <h3 className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">{location.title}</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{location.summary}</p>
         </div>
-        <button type="button" className="grid h-9 w-9 shrink-0 place-items-center border border-[var(--cf-border-subtle)] text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]" aria-label={`Close ${location.title}`} onClick={onClose}><X className="h-4 w-4" /></button>
+        <button type="button" className="grid h-11 w-11 shrink-0 place-items-center border border-[var(--cf-border-subtle)] text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]" aria-label={`Close ${location.title}`} onClick={onClose}><X className="h-4 w-4" /></button>
       </div>
       <div className={`pt-3 ${selectedContentClass}`}>{location.content}</div>
     </div>
@@ -59,8 +58,7 @@ function StorageToolDetail({ location, onClose }: { location: StorageToolLocatio
 }
 
 export function LibraryStorageConnectionsTool({
-  browserAndCloud,
-  cloudDetails,
+  workspaceStorage,
   connectedAssets,
   googleDriveProjects,
   localProjectFolder,
@@ -83,15 +81,7 @@ export function LibraryStorageConnectionsTool({
       status: 'Available in this browser', tone: 'success', value: 'Browser workspace', icon: Laptop,
       actionSources: [{ id: 'storage:browser-workspace', label: 'This device', source: 'browser-local', currentRevisionAvailable: true }],
       meta: [['Ownership', 'This browser'], ['Removal', 'Only the named local Set and its local cards']],
-      focus: 'device', content: focusedStorageContent(browserAndCloud, 'device'),
-    },
-    {
-      id: 'cloud-mirrors', kind: 'storage-location', eyebrow: 'CardForge-owned', title: 'Cloud mirrors',
-      summary: 'Private Set backups, revision-safe restore or merge, account slot limits, and cloud-only removal.',
-      status: 'Account storage', tone: 'neutral', value: 'Private mirrors', icon: Cloud,
-      actionSources: [{ id: 'storage:cloud-mirrors', label: 'CardForge Cloud', source: 'cardforge-cloud', currentRevisionAvailable: true }],
-      meta: [['Ownership', 'Signed-in CardForge account'], ['Removal', 'Cloud mirror only; device copies remain']],
-      focus: 'cloud', content: focusedStorageContent(browserAndCloud, 'cloud'),
+      focus: 'device', content: focusedStorageContent(workspaceStorage, 'device'),
     },
     {
       id: 'working-drafts', kind: 'storage-location', eyebrow: 'Temporary work', title: 'Working drafts',
@@ -99,7 +89,7 @@ export function LibraryStorageConnectionsTool({
       status: 'Retention-managed', tone: 'warning', value: 'Private drafts', icon: Sparkles,
       actionSources: [{ id: 'storage:working-drafts', label: 'Temporary workspace', source: 'temporary', currentRevisionAvailable: true }],
       meta: [['Ownership', 'Signed-in CardForge account'], ['Removal', 'Recoverable for 24 hours before purge']],
-      focus: 'drafts', content: focusedStorageContent(browserAndCloud, 'drafts'),
+      focus: 'drafts', content: focusedStorageContent(workspaceStorage, 'drafts'),
     },
     {
       id: 'local-project-folder', kind: 'storage-location', eyebrow: 'Portable project ownership', title: 'Local project folder',
@@ -125,15 +115,7 @@ export function LibraryStorageConnectionsTool({
       meta: [['Ownership', 'Your Google Drive'], ['Removal', 'CardForge index only; source file remains']],
       content: connectedAssets,
     },
-    {
-      id: 'cloud-usage', kind: 'storage-location', eyebrow: 'Usage detail', title: 'Cloud space breakdown',
-      summary: 'Exact artwork and editable project-data usage for each private Set mirror.',
-      status: 'Read-only usage', tone: 'neutral', value: 'Per-Set totals', icon: FileArchive,
-      actionSources: [{ id: 'storage:cloud-usage', label: 'CardForge Cloud usage', source: 'cardforge-cloud', currentRevisionAvailable: true }],
-      meta: [['Ownership', 'Signed-in CardForge account'], ['Limit', '128 MB per cloud Set']],
-      content: cloudDetails,
-    },
-  ], [browserAndCloud, cloudDetails, connectedAssets, googleDriveProjects, localProjectFolder]);
+  ], [connectedAssets, googleDriveProjects, localProjectFolder, workspaceStorage]);
 
   const selected = locations.find((location) => location.id === selectedId) ?? null;
   const closeDetail = () => {
@@ -146,11 +128,11 @@ export function LibraryStorageConnectionsTool({
     <section aria-label="Storage and connections">
       <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
         <div className="min-w-0">
-          <EnvironmentSectionHeading id="storage-location-list-heading" title="Owners & locations" meta={`${locations.length} focused tools`} />
+          <EnvironmentSectionHeading id="storage-location-list-heading" title="Owners & locations" meta={`${locations.length} locations`} />
           {locations.map((location) => <CompactSettingRow key={location.id} item={location} selected={selectedId === location.id} onOpen={() => setSelectedId(location.id)} />)}
         </div>
         <aside className="hidden min-w-0 border-l border-[var(--cf-border-subtle)] pl-5 md:block" aria-live="polite">
-          {selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="py-8"><p className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a location</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Actions appear only with the owner they affect, so removing a cloud mirror, local copy, provider file, index reference, or temporary draft cannot be mistaken for deleting authored work everywhere.</p></div>}
+          {selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="py-8"><p className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a location</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Actions stay with the location they affect, so removing a local copy, provider file, index reference, or temporary draft cannot be mistaken for deleting authored work everywhere.</p></div>}
         </aside>
       </div>
 

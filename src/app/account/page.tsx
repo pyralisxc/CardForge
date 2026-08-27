@@ -18,7 +18,6 @@ import {
   getCachedSiteContentBlocks,
 } from '@/features/public-site/server';
 import {
-  AccountCloudStorageBreakdown,
   AccountStorageLibrary,
   ConnectedPersonalLibraryPanel,
   GoogleDriveProjectStoragePanel,
@@ -88,7 +87,9 @@ export default async function AccountPage({
     value: entitlementUnavailable ? 'Access unavailable' : accessLabel,
     detail: entitlementUnavailable
       ? 'CardForge could not verify account access. Local work remains available and is not being relabeled as Free.'
-      : `${entitlement.capabilities.cloudSetLimit} private cloud set slot${entitlement.capabilities.cloudSetLimit === 1 ? '' : 's'}`,
+      : entitlement.capabilities.canUseProjectFiles
+        ? 'Portable project files and connected storage are available.'
+        : 'Local work is available; Creator Pass adds portable project files.',
     href: '/account?section=billing',
     action: 'Review',
   };
@@ -102,11 +103,10 @@ export default async function AccountPage({
   const storageConnections = (
     <SiteContentProvider key="storage-library-copy" content={accountContent}>
       <LibraryStorageConnectionsTool
-        browserAndCloud={<AccountStorageLibrary
+        workspaceStorage={<AccountStorageLibrary
           embedded
           persistenceScope={persistenceScope}
           isSignedIn={entitlement.isSignedIn}
-          cloudSetLimit={entitlement.capabilities.cloudSetLimit}
         />}
         localProjectFolder={<LocalProjectFolderPanel
           embedded
@@ -124,7 +124,6 @@ export default async function AccountPage({
           isSignedIn={entitlement.isSignedIn}
           canUseConnectedStorage={entitlement.capabilities.canUseProjectFiles}
         />}
-        cloudDetails={<AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />}
       />
     </SiteContentProvider>
   );
@@ -139,7 +138,6 @@ export default async function AccountPage({
           isSignedIn={entitlement.isSignedIn}
           isDeveloper={isDeveloper}
           isOwner={isOwner}
-          cloudSetLimit={entitlement.capabilities.cloudSetLimit}
           homeAccessStatus={homeAccessStatus}
           homeSecurityStatus={homeSecurityStatus}
           initialTool={activeSection === 'storage' ? 'locations' : null}
@@ -167,7 +165,6 @@ export default async function AccountPage({
             isSignedIn={entitlement.isSignedIn}
             isDeveloper={isDeveloper}
             isOwner={isOwner}
-            cloudSetLimit={entitlement.capabilities.cloudSetLimit}
             homeAccessStatus={homeAccessStatus}
             homeSecurityStatus={homeSecurityStatus}
             view="home"

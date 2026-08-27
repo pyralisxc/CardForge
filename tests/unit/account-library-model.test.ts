@@ -12,17 +12,9 @@ import {
 } from '@/features/storage-management/model/accountLibraryEnvironment';
 
 describe('account library model', () => {
-  it('shows one set with every location instead of duplicating the item by storage provider', () => {
+  it('shows browser Sets as device-owned work', () => {
     const items = buildAccountLibraryItems({
       localSets: [{ id: 'set-1', name: 'Arcane Deck', cardCount: 52, sizeBytes: 1200 }],
-      cloudSets: [{
-        setId: 'set-1',
-        name: 'Arcane Deck',
-        cardCount: 52,
-        revision: 4,
-        storageBytes: 4800,
-        updatedAt: '2026-08-24T12:00:00.000Z',
-      }],
       driveProjects: [],
       driveBindingFileId: null,
       localFolder: null,
@@ -34,18 +26,14 @@ describe('account library model', () => {
     expect(items[0]).toMatchObject({
       kind: 'set',
       name: 'Arcane Deck',
-      locations: [
-        { source: 'device', status: 'available' },
-        { source: 'cardforge-cloud', status: 'available' },
-      ],
-      references: { localSetId: 'set-1', cloudSetId: 'set-1' },
+      locations: [{ source: 'device', status: 'available' }],
+      references: { localSetId: 'set-1' },
     });
   });
 
   it('keeps provider-owned projects, assets, folders, and temporary drafts explicit', () => {
     const items = buildAccountLibraryItems({
       localSets: [],
-      cloudSets: [],
       driveProjects: [{
         fileId: 'drive-project-1',
         name: 'Campaign.cardforge',
@@ -91,14 +79,6 @@ describe('account library model', () => {
   it('keeps browser actions complete while matching the MCP lifecycle for reachable sources', () => {
     const items = buildAccountLibraryItems({
       localSets: [{ id: 'local-set', name: 'Local Set', cardCount: 12, sizeBytes: 1200 }],
-      cloudSets: [{
-        setId: 'cloud-set',
-        name: 'Cloud Set',
-        cardCount: 8,
-        revision: 3,
-        storageBytes: 2200,
-        updatedAt: '2026-08-24T12:00:00.000Z',
-      }],
       driveProjects: [{
         fileId: 'drive-project',
         name: 'Connected.cardforge',
@@ -121,18 +101,11 @@ describe('account library model', () => {
       }],
     });
     const localSet = items.find((item) => item.references.localSetId === 'local-set');
-    const cloudSet = items.find((item) => item.references.cloudSetId === 'cloud-set');
     const connectedProject = items.find((item) => item.references.driveFileId === 'drive-project');
     const draft = items.find((item) => item.references.workingDraftId === 'draft');
 
     expect(getAccountLibraryAvailableActions(localSet!)).toEqual(['open']);
     expect(getAccountLibraryMcpWorkflow(localSet!)).toEqual({ availability: 'browser-only', tools: [] });
-
-    expect(getAccountLibraryAvailableActions(cloudSet!)).toEqual(['open', 'manage-storage']);
-    expect(getAccountLibraryMcpWorkflow(cloudSet!)).toMatchObject({
-      availability: 'revision-safe',
-      tools: ['list_cloud_sets', 'get_cloud_set', 'checkout_cloud_set', 'commit_cloud_set'],
-    });
 
     expect(getAccountLibraryAvailableActions(connectedProject!)).toEqual(['open', 'view-source', 'manage-storage']);
     expect(getAccountLibraryMcpWorkflow(connectedProject!)).toMatchObject({
@@ -150,7 +123,6 @@ describe('account library model', () => {
   it('uses the active local Set as Home even when a provider item has the newest timestamp', () => {
     const items = buildAccountLibraryItems({
       localSets: [{ id: 'active-set', name: 'Active Set', cardCount: 12, sizeBytes: 1200 }],
-      cloudSets: [],
       driveProjects: [{
         fileId: 'recent-drive',
         name: 'Newest.cardforge',
@@ -174,7 +146,6 @@ describe('account library model', () => {
   it('projects provider actions and revisions into the Environment contract', () => {
     const [project, draft] = buildAccountLibraryItems({
       localSets: [],
-      cloudSets: [],
       driveProjects: [{
         fileId: 'drive-project',
         name: 'Connected.cardforge',
@@ -228,7 +199,6 @@ describe('account library model', () => {
   it('keeps local work open to guests while requiring an account for provider work', () => {
     const [localSet, driveProject] = buildAccountLibraryItems({
       localSets: [{ id: 'local-set', name: 'Local Set', cardCount: 12, sizeBytes: 1200 }],
-      cloudSets: [],
       driveProjects: [{ fileId: 'drive-project', name: 'Connected.cardforge', providerRevision: '7', projectRevision: 'project-revision', modifiedAt: '2026-08-24T11:00:00.000Z', size: 2400, webViewLink: null }],
       driveBindingFileId: null,
       localFolder: null,

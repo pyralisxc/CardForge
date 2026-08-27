@@ -45,7 +45,7 @@ export function AccountMcpUsageSection() {
       </div>
       {failed ? (
         <div className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-4 text-sm text-[var(--cf-warning)]" role="alert">
-          <p>Current cloud usage is temporarily unavailable. This does not limit local Studio work or change your plan.</p>
+          <p>Current assisted-work usage is temporarily unavailable. This does not limit local Studio work or change your plan.</p>
           <button
             type="button"
             className="mt-3 border border-current px-3 py-1.5 font-semibold"
