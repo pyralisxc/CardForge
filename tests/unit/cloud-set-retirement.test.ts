@@ -35,7 +35,7 @@ describe('cloud Set mirror retirement', () => {
 
   it('contracts the retired schema only after proving legacy data is empty', () => {
     const migration = readSource(
-      'supabase/migrations/20260827062638_retire_cloud_set_mirror_schema.sql',
+      'supabase/migrations/20260827063958_retire_cloud_set_mirror_schema.sql',
     );
 
     expect(migration).toContain('cardforge_cloud_set_mirrors_must_be_empty_before_retirement');
