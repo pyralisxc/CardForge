@@ -25,10 +25,12 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('data-home-desk="focused"');
     expect(homeDesk).toContain('data-home-desk-plane');
     expect(homeDesk).toContain('data-home-work-object');
-    expect(homeDesk).toContain('aria-label="Nearby work"');
+    expect(homeDesk).toContain('data-home-set-stack');
+    expect(homeDesk).toContain('data-home-set-board');
+    expect(homeDesk).toContain('aria-label="Work surrounding the focused Set"');
     expect(homeDesk).toContain('<CardPreview');
-    expect(homeDesk).toContain('Cards in this work');
-    expect(homeDesk).toContain('Back to desk');
+    expect(homeDesk).toContain('Inside this Set');
+    expect(homeDesk).toContain('Pull back');
     expect(homeDesk).toContain('isUntouchedBootstrapWork');
     expect(homeModel).toContain("item.references.localSetId === 'active-card-set'");
   });

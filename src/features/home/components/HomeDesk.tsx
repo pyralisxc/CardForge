@@ -58,7 +58,6 @@ import {
   type ProjectState,
 } from '@/features/project/client';
 import {
-  getAccountLibrarySourceLabel,
   useAccountLibraryProjection,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -363,21 +362,19 @@ export function HomeDesk({
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
           {focusedItem ? (
             <div className={styles.focusSurface} data-home-desk="focused">
-              <aside className={styles.focusContext} aria-label="Nearby work">
-                <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
-                  <ArrowLeft size={16} aria-hidden="true" /> Back to desk
-                </button>
-                <div className={styles.nearbyWork}>
-                  {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item) => {
-                    const cards = workCards(item);
-                    return <button key={item.id} type="button" className={styles.nearbyObject} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                      <span className={styles.nearbyVisual}>{cards[0] ? <CardPreview card={cards[0]} targetWidthPx={58} /> : <WorkSourceIcon item={item} />}</span>
-                      <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
-                    </button>;
-                  })}
-                </div>
+              <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
+                <ArrowLeft size={16} aria-hidden="true" /> Pull back
+              </button>
+              <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
+                {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
+                  const cards = workCards(item);
+                  return <button key={item.id} type="button" className={styles.nearbyObject} data-slot={index} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
+                    <span className={styles.nearbyVisual} data-home-set-stack>{cards[0] ? <CardPreview card={cards[0]} targetWidthPx={64} /> : <WorkSourceIcon item={item} />}</span>
+                    <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
+                  </button>;
+                })}
               </aside>
-              <section className={styles.focusWorkspace} aria-label={focusedItem.name}>
+              <section className={styles.focusWorkspace} data-home-set-board aria-label={focusedItem.name}>
                 <header className={styles.focusHeader}>
                   <div className={styles.focusIdentity}>
                     {renaming && focusedLocalSetId ? (
@@ -398,7 +395,7 @@ export function HomeDesk({
 
                 {focusedLocalSetId ? <>
                   <div className={styles.contentHeading}>
-                    <div><h2>Cards in this work</h2><p>Select a card to edit, move, or remove it.</p></div>
+                    <div><h2>Inside this Set</h2><p>Select a card to edit, move, or remove it.</p></div>
                     <span className="text-xs text-[var(--cf-text-subtle)]">{visibleCards.length} shown</span>
                   </div>
                   <div className={styles.contentToolbar}>
@@ -411,7 +408,7 @@ export function HomeDesk({
                       <Button type="button" size="sm" variant="ghost" onClick={() => setPendingDeleteCard(selectedCard)}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
                     </div> : null}
                   </div>
-                  <div className={styles.contentStage}>
+                  <div className={styles.contentStage} aria-label={`${focusedItem.name} contents`}>
                     {visibleCards.length ? <div className={styles.cardGrid}>{visibleCards.slice(0, 24).map((card, index) => (
                       <button key={card.uniqueId} type="button" className={styles.cardButton} aria-pressed={selectedCardId === card.uniqueId} onClick={() => setSelectedCardId((current) => current === card.uniqueId ? null : card.uniqueId)}>
                         <CardPreview card={card} targetWidthPx={132} /><strong>{getCardTitle(card, index)}</strong><span>{card.template.name}</span>
@@ -425,15 +422,15 @@ export function HomeDesk({
           ) : (
             <div className={styles.desk} data-home-desk="overview">
               <header className={styles.deskIntro}>
-                <div><p>Home</p><h1>Your creative desk</h1><span>Move across the work you have open, then focus into one Set without losing the rest of your desk.</span></div>
+                <div><p>Home</p><h1>Your creative desk</h1><span>Your open Sets stay arranged here. Choose one to move closer.</span></div>
                 <strong>{visibleWork.length} open</strong>
               </header>
               {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Available work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}
               <section className={styles.workSurface} aria-labelledby="home-open-work-heading">
+                <div className={styles.workSurfaceHeader}><h2 id="home-open-work-heading">Open work</h2><span>Each pile is one Set</span></div>
                 <div className={styles.deskToolbar}>
-                  <div className={styles.workSurfaceHeader}><h2 id="home-open-work-heading">Open work</h2><span>Location follows the work</span></div>
                   <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find work" /></label>
-                  <div className={styles.sourceFilters} aria-label="Filter open work by source">{sourceFilterOptions.map((option) => <button key={option.id} type="button" className={styles.filterButton} aria-pressed={sourceFilter === option.id} onClick={() => setSourceFilter(option.id)}>{option.label}</button>)}</div>
+                  <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as HomeSourceFilter)}><SelectTrigger aria-label="Filter open work by source" className={styles.sourceSelect}><span>{sourceFilterOptions.find((option) => option.id === sourceFilter)?.label ?? 'All work'}</span></SelectTrigger><SelectContent>{sourceFilterOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent></Select>
                   <Select value={sort} onValueChange={(value) => setSort(value as HomeSort)}><SelectTrigger aria-label="Arrange open work" className={styles.arrangeSelect}><span>{sort === 'desk' ? 'Desk order' : sort === 'name' ? 'Name' : 'Largest first'}</span></SelectTrigger><SelectContent><SelectItem value="desk">Desk order</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="size">Largest first</SelectItem></SelectContent></Select>
                 </div>
                 {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div className={styles.workGrid}>
@@ -442,7 +439,7 @@ export function HomeDesk({
                     const featured = index === 0;
                     return <article key={item.id} className={styles.workTile} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
                       <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                        <div className={styles.workVisual}>{cards.length ? <div className={styles.previewStack}>{cards.map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={featured ? 150 : 112} />)}</div> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>{getAccountLibrarySourceLabel(workSource(item))}</span></div>}</div>
+                        <div className={styles.workVisual} data-home-set-stack>{cards.length ? <div className={styles.previewStack}>{cards.map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={featured ? 150 : 112} />)}</div> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Empty Set</span></div>}</div>
                         <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
                       </button>
                       <div className={styles.tileActions}>

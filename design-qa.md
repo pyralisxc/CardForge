@@ -2,65 +2,73 @@
 
 ## Evidence
 
-- Source visual truth: `C:\My Files\CardForge\assets\brand\cardforge-studio\concepts\home-current.webp` (1024 × 512 reference board; desktop and phone shown together).
-- Final desktop overview: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\03-overview-sized.png` (1280 × 720 screenshot at a 1280 × 720 CSS viewport, 1× browser density).
-- Final desktop focus: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\02-focused-desktop.png` (1280 × 720 at the same viewport).
-- Final mobile overview: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\05-overview-mobile-fixed.png` (390 × 844 screenshot at a 390 × 844 CSS viewport, 1× browser density).
-- Final mobile focus: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\06-focused-mobile.png` (390 × 844 at the same viewport).
-- Narrow implementation: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\07-overview-320.png` (320 × 800 screenshot at a 320 × 800 CSS viewport, 1× browser density).
-- Superseded first mobile pass: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-revision\04-overview-mobile.png` (390 × 844; retained as the pre-fix comparison).
+- Source visual truth: `C:\My Files\CardForge\assets\brand\cardforge-studio\concepts\home-current.webp` (1024 × 512 reference board containing desktop and phone compositions).
+- Audited prior desktop overview: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\01-current-overview.png` (1280 × 720 screenshot at a 1280 × 720 CSS viewport, 1× browser density).
+- Audited prior desktop focus: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\02-current-focus.png` (1280 × 720 at the same viewport).
+- Final desktop overview: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\03-revised-overview.png` (1280 × 720 at a 1280 × 720 CSS viewport, 1× browser density).
+- Final desktop focus: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\04-revised-focus.png` (1280 × 720 at the same viewport).
+- Final mobile focus: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\05-revised-mobile-focus.png` (390 × 844 at a 390 × 844 CSS viewport, 1× browser density).
+- Final mobile overview: `C:\Users\Pyralis\.codex\visualizations\2026\08\23\01a02f7b-56c7-7613-b5f0-d700030ea6a2\home-spatial-pass3\06-revised-mobile-overview.png` (390 × 844 at the same viewport).
 
-The reference board contains authored card imagery and multiple populated work objects. The local browser evidence uses three safe, empty browser-only Sets created solely to exercise the spatial composition without altering provider data. Fidelity judgments therefore compare shell, hierarchy, density, spatial behavior, responsive composition, and focus/return behavior. Populated `CardPreview` combinations remain a hosted-data check rather than being simulated with fake imagery.
+The reference uses populated authored cards while the safe local evidence uses four empty browser-only Sets. The comparison therefore judges hierarchy, spatial grouping, scale transition, responsive composition, and empty-state treatment. Populated Sets use the canonical `CardPreview` renderer; no fake card imagery was introduced to force a closer screenshot.
 
 ## Full-view comparison
 
-The reference establishes a dark brass creative environment, stable zone navigation, one dominant working surface, asymmetrical authored-object emphasis, and a compact mobile translation. The implementation preserves that grammar with the existing CardForge serif/body typography, tokens, brand mark, Lucide action family, restrained dividers, and a constrained Desk. Home no longer reads as a stack of account cards or an equal-tile file manager. Sets occupy deliberately different footprints and positions on one surface; utilities remain a compact lower strip.
+The source makes authored work feel physically arranged: one dominant Set sits among smaller piles, and its contents remain visible as part of the Set object. The final overview now uses the same grammar. The active Set occupies the central, largest position; secondary Sets sit irregularly around it; the control dock stays compact at the work-surface edge; and account utilities remain outside the creative desk.
 
-The overview gives current/first work greater visual weight and staggers secondary work without introducing a freeform infinite canvas. When cards exist, each Set renders up to three canonical `CardPreview` images; empty work uses a source-owned packet treatment only as a semantic fallback. Mobile translates the same model to a horizontal snap desk with the next Set peeking into view.
+The final focus state changes scale without changing place. The selected Set becomes a bordered work board in the center of the same surface while neighboring Sets remain visible around its edges. “Pull back” returns to the overview. This replaces the prior master-detail/sidebar composition with a camera-like spatial transition.
 
-## Focused comparison
+## Required fidelity surfaces
 
-- Typography: display and UI type reuse the approved CardForge font tokens. Heading, supporting copy, filter labels, object titles, and utility text retain clear optical hierarchy at desktop, 390 px, and 320 px widths.
-- Spacing/layout: desktop keeps orientation, organization controls, work surface, and quiet utilities within one application viewport. Selecting a Set expands it beside a compact nearby-work rail instead of replacing Home. Mobile rearranges the desk into horizontal object browsing and the focused state into a nearby-work strip over the expanded Set. At both 390 px and 320 px, document scroll width equals viewport width.
-- Colors/tokens: the implementation uses existing canvas/surface/brass/border/status tokens and no gradients or decorative palette additions. Contrast remains consistent with the Environment foundation.
-- Image quality/assets: real authored cards use the canonical `CardPreview` renderer. The existing CardForge brand mark and approved Lucide icons are reused. No fake product image, CSS illustration, handcrafted SVG, emoji, or placeholder art was introduced.
-- Copy/content: Home uses outcome language—“Your creative desk,” “Open work,” and “Everything here is one work container”—instead of architecture labels. Set remains the current creation label while Project remains a provider/package synonym, not a second hierarchy.
-- Interactions: search, source filters, sort, pinning, details, creation, work focus/back, nearby-work switching, rename, duplicate, confirmed delete, card search/select/move/edit/confirmed removal, and Studio/source handoff are wired. Focused work preserves neighboring Sets and the Desk as the return context.
-- Accessibility: controls have semantic labels, pressed/selected state where needed, 44 px-class compact targets, keyboard-native buttons/inputs/selects, destructive confirmations, reduced-motion handling, and responsive inspector/sheet behavior from the shared Environment shell.
+- Fonts and typography: existing CardForge display and body tokens are preserved. The compact desk label, Set names, board title, metadata, and action labels remain readable at desktop and mobile sizes without introducing a new type system.
+- Spacing and layout rhythm: the creative surface now dominates the viewport. Sets are arranged with unequal scale and position rather than equal grid cards. The focused Set is centered with surrounding work at the edges. At 390 px and 320 px, document width equals viewport width; internal Set browsing may scroll horizontally by design.
+- Colors and visual tokens: the implementation reuses the existing canvas, inset surface, brass accent, border, status, and shadow tokens. No gradient or decorative palette was added.
+- Image quality and asset fidelity: populated work renders real canonical `CardPreview` output. Empty Sets use the existing Lucide Set/source mark and a restrained stacked-paper surface. No fake product imagery, handwritten SVG, emoji, CSS illustration, or placeholder card art was added.
+- Copy and content: Home speaks in user terms—“Your creative desk,” “Each pile is one Set,” “Inside this Set,” and “Pull back.” Provider and architecture details remain compact metadata rather than becoming the page model.
+- Icons and actions: existing Lucide action icons remain consistent with the Environment. Search, source filter, ordering, pin, details, rename, duplicate, delete confirmation, card selection, move, edit, remove, and Studio handoff remain wired.
+- Accessibility: the work objects and surrounding Sets are native buttons with explicit accessible names. Source and ordering controls are labeled. Destructive actions retain confirmation. Focus indicators, reduced-motion handling, and practical mobile action targets remain intact.
 
-No additional crop comparison was needed: the desktop and mobile full-view captures make the important navigation, controls, typography, object/empty surface, and fixed mobile navigation readable. The focused-work capture separately verifies the second scale of the interaction.
+No focused crop comparison was needed beyond the dedicated focused-state screenshots: the full desktop overview, desktop focus, and mobile focus make the spatial transition, type hierarchy, controls, and surrounding Set context readable at inspection size.
 
 ## Comparison history
 
 ### Pass 1 — blocked
 
-- [P2] The desktop work surface used a large bordered panel with a 28 rem minimum height, so the account utility strip fell below the initial viewport and the Desk still read like a page-sized card.
-- [P2] At 390 px the featured work object was forced into the same half-width column as secondary work, making the primary object cramped and unlike the reference’s mobile hierarchy.
-- [P2] The untouched bootstrap `Untitled Set` appeared as resumable authored work even though it contained no cards or user intent.
+- [P2] The initial Home revision retained a large dashboard-card frame and forced utilities below the first viewport.
+- [P2] Mobile treated the featured Set like an equal half-width tile.
+- [P2] The untouched bootstrap Set appeared as meaningful resumable work.
 
-Fixes: removed the surrounding dashboard-card treatment, reduced forced height, introduced the constrained Desk, improved mobile hierarchy, quieted the empty surface, and filtered only the exact untouched bootstrap Set.
+Fixes: removed the dashboard frame, improved mobile hierarchy, quieted empty state, and filtered only the exact untouched bootstrap Set.
 
 ### Pass 2 — blocked
 
-The first constrained implementation remained too regular: equal rectangular work tiles read as a catalog, and focus replaced the overview with another full-width page. Direct source/implementation comparison therefore still found a [P1] mismatch in the core spatial behavior.
+- [P1] The work surface still read as an equal rectangular catalog.
+- [P1] Focusing a Set replaced the overview with another full-width page.
 
-Fixes: made Set objects uneven in scale and placement, removed tile-container dominance, kept nearby work visibly present during focus, expanded the active Set within the same plane, and made mobile browsing horizontally spatial rather than a stacked grid.
+Fixes: introduced unequal Set footprints, retained nearby work during focus, and added horizontal mobile work browsing.
 
-### Pass 3 — passed
+### Pass 3 — blocked
 
-The final desktop comparison shows three Sets occupying one bounded plane with clear primary/secondary weight. The focused comparison shows the selected Set expanded while neighboring Sets remain visible and actionable. The 390 px and 320 px evidence shows the same model translated to swipeable work objects and a compact nearby-work strip without page overflow. Direct source/implementation comparison found no remaining actionable Home P0, P1, or P2 mismatch. Populated Preview data remains the appropriate release-level proof for exact `CardPreview` balance.
+- [P1] Fresh source/Preview comparison showed that the unequal rectangles were still cards on a page rather than visible Set piles.
+- [P1] Focus still reorganized neighboring work into a left navigation rail instead of changing camera scale.
+- [P2] The large filter row consumed the spatial surface and weakened authored-object hierarchy.
+
+Fixes: made each overview object a Set stack, centered the active Set among irregular surrounding piles, collapsed filters into a compact dock, made the focused Set a central board, and positioned neighboring Sets around its edges. Mobile now keeps a compact surrounding-work strip above the focused board.
+
+### Pass 4 — passed
+
+The final source/implementation comparison found no remaining actionable Home P0, P1, or P2 mismatch. The overview reads as one bounded creative desk, Set identity and visible contents share one object treatment, focus behaves like moving closer, and mobile preserves both scale and surrounding context without page overflow.
 
 ## Browser and behavior checks
 
-- Verified the Home overview structure, filter/sort controls, safe browser-only Set creation/rename, and account utility destinations in the in-app browser.
-- Verified overview → focused Set → nearby Set switch → Back to desk while preserving spatial context.
-- Verified responsive layout at 1280 × 720, 390 × 844, and 320 × 800 requested CSS viewports.
-- Browser/server console was checked. Localhost reports expected production-Clerk origin rejection and unavailable live-provider fetches; the route falls back through existing boundaries and no Home compile/runtime error was observed.
-- Focused tests cover Home ownership/composition and Set/card mutations; the complete repository gate is recorded separately by the implementation handoff.
+- Verified local overview, compact search/source/order controls, focus, surrounding-Set switching, Pull back, creation, rename, and empty Set behavior in the in-app browser.
+- Verified desktop at 1280 × 720, mobile at 390 × 844, and narrow overflow safety at 320 × 800.
+- Browser console was checked. Localhost reports the expected production-Clerk origin rejection and unavailable live MCP allowance lookup; no Home compile, hydration, CSS, or runtime error was observed.
+- Focused Home tests, type checking, and targeted lint passed. The complete repository gate and hosted Preview proof are recorded by the implementation handoff.
 
 ## Follow-up polish
 
-- [P3] Recheck the exact spatial balance on Preview with several real Sets, mixed card aspect ratios, a Drive project, and a temporary draft. The safe local fixtures cannot visually prove every populated combination.
-- [P3] Choose the final public noun for the one work container after using Set/Project language with real users; do not change the schema or create a parent object merely to settle copy.
+- [P3] Judge exact pile balance on Preview with real populated Sets, mixed card aspect ratios, connected-provider work, and a temporary draft. Safe empty fixtures cannot prove every real `CardPreview` combination.
+- [P3] Persist user-authored Set positions only when the drag/reorder interaction has a clear accessible keyboard equivalent; this visual correction deliberately does not invent a second ordering model.
 
 final result: passed
