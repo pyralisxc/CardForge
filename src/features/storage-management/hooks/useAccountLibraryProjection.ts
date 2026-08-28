@@ -5,6 +5,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'rea
 
 import { useToast } from '@/components/ui/use-toast';
 import type { CardAssetOption } from '@/domain/templates';
+import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client';
 import {
   createCardSetTransfer,
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
@@ -55,6 +56,7 @@ interface StudioDocumentSummary {
 
 export type AccountLibrarySourceId =
   | 'workspace'
+  | 'published-library'
   | 'device-assets'
   | 'local-folder'
   | 'google-drive'
@@ -148,6 +150,7 @@ export function useAccountLibraryProjection({
   const activeSetId = useProjectStore((state) => state.activeCardSet.id);
   const storedCards = useProjectStore((state) => state.storedCards);
   const userTemplates = useProjectStore((state) => state.userTemplates);
+  const setDefaultTemplatesFromFiles = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
@@ -183,6 +186,10 @@ export function useAccountLibraryProjection({
       failures.push(sourceFailure('local-folder', error, 'Saved local-folder locations are unavailable.'));
       return [] as LocalProjectWorkBindingStatus[];
     });
+    const studioBootstrapPromise = loadCardForgeStudioBootstrap().catch((error) => {
+      failures.push(sourceFailure('published-library', error, 'CardForge previews are unavailable.'));
+      return null;
+    });
     const signedInSourcesPromise = isSignedIn
       ? Promise.all([
           loadGoogleDriveProjectLibrary().catch((error) => {
@@ -209,10 +216,11 @@ export function useAccountLibraryProjection({
         ] as const)
       : Promise.resolve([null, null, null, null] as const);
 
-    const [[textures, dividers, icons, images], folderResult, workFolderResults, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
+    const [[textures, dividers, icons, images], folderResult, workFolderResults, bootstrapResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
       deviceAssetsPromise,
       localFolderPromise,
       localWorkFoldersPromise,
+      studioBootstrapPromise,
       signedInSourcesPromise,
     ]);
     setCustomAssets({
@@ -223,13 +231,19 @@ export function useAccountLibraryProjection({
     });
     setLocalFolder(folderResult);
     setLocalWorkFolders(workFolderResults);
+    if (bootstrapResult) {
+      setDefaultTemplatesFromFiles(
+        bootstrapResult.templates.defaults,
+        bootstrapResult.studioDefaults.defaultTemplateId,
+      );
+    }
     setDriveLibrary(driveResult);
     setDriveBindingFileId(bindingResult?.fileId ?? null);
     setPersonalLibrary(assetsResult);
     setWorkingDrafts(Array.isArray(draftsResult?.documents) ? draftsResult.documents : []);
     setSourceFailures(failures);
     setLoadingSources(false);
-  }, [isSignedIn]);
+  }, [isSignedIn, setDefaultTemplatesFromFiles]);
 
   useEffect(() => {
     if (!hydrated) return;

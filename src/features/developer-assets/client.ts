@@ -5,4 +5,5 @@ export type {
   DeveloperAssetSubmission,
 } from './lib/developerAssetProgram';
 export type { CardForgeCatalogManifest } from './lib/catalogManifest';
+export { loadCardForgeStudioBootstrap } from './client/catalog';
 export { DeveloperAssetHubPanel } from './components/DeveloperAssetHubPanel';
