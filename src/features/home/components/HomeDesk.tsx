@@ -254,7 +254,7 @@ export function HomeDesk({
     },
     {
       label: 'Connections',
-      value: !isSignedIn ? 'Sign in to connect' : projection.loadingSources ? 'Checking' : projection.sourceCounts.get('google-drive') ? 'Drive connected' : 'Not connected',
+      value: !isSignedIn ? 'Sign in to connect' : projection.loadingSources ? 'Checking' : projection.driveConnection?.connected ? 'Drive connected' : 'Not connected',
       detail: `${projection.sourceCounts.get('google-drive') ?? 0} connected work item${(projection.sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'}`,
       href: '/account?section=storage',
       action: 'Manage',

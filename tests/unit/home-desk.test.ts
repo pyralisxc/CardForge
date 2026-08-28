@@ -48,6 +48,11 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('<AlertDialog');
   });
 
+  it('reports provider connection health independently from whether Drive already contains work', () => {
+    expect(homeDesk).toContain('projection.driveConnection?.connected');
+    expect(homeDesk).not.toContain("projection.sourceCounts.get('google-drive') ? 'Drive connected'");
+  });
+
   it('keeps a newly created Set in rename mode after it becomes the focused work', () => {
     const focusEffect = homeDesk.slice(homeDesk.indexOf('if (!focusedItemId) return;'), homeDesk.indexOf('const statuses'));
     expect(homeDesk).toContain('setFocusedWorkId(`set:${id}`);');
