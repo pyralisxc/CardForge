@@ -255,6 +255,24 @@ const defaultAssetMetadata = (registryType, relativePath) => {
 };
 
 const upsertRegistryItem = async (supabase, item, ownerProfile) => {
+  if (item.registry_asset_type === 'template') {
+    const { error } = await supabase.rpc('cardforge_upsert_pipeline_template_asset', {
+      p_asset_id: item.asset_id,
+      p_name: item.name,
+      p_url: item.url,
+      p_preview_url: item.preview_url,
+      p_description: item.description,
+      p_developer_id: ownerProfile.clerk_user_id,
+      p_developer_email: ownerProfile.email,
+      p_file_size_bytes: item.file_size_bytes,
+      p_source_mime_type: item.source_mime_type,
+      p_metadata: item.metadata,
+      p_template_payload: item.template_payload,
+    });
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase.rpc('cardforge_upsert_pipeline_registry_asset', {
     p_asset_id: item.asset_id,
     p_name: item.name,
@@ -446,17 +464,17 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
       file_size_bytes: Buffer.byteLength(JSON.stringify(template)),
       source_mime_type: 'application/json',
       description: template.templateDescription || `${template.name} starter template imported into the Forge Pipeline.`,
+      template_payload: {
+        ...template,
+        templateSource: 'default',
+        templateLibrarySource: 'pipeline',
+        templateAccessTier: 'free',
+        templateRegistryStatus: 'published',
+        templateContributorName: 'Pyralis Cameron',
+      },
       metadata: {
         sourceKind: 'pipeline-owner-import',
         sourcePath: `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/templates/${file}`,
-        template: {
-          ...template,
-          templateSource: 'default',
-          templateLibrarySource: 'pipeline',
-          templateAccessTier: 'free',
-          templateRegistryStatus: 'published',
-          templateContributorName: 'Pyralis Cameron',
-        },
       },
     });
   }

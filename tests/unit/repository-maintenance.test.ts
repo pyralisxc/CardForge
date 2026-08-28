@@ -105,9 +105,11 @@ describe('repository maintenance policy', () => {
   });
 
   it('keeps Template revisions and their binary media under one durable owner', async () => {
-    const [migration, compatibilityMigration, browserAssets, pipelineAssets, studioHandoff, ttrpg, nameCard, eventBadge] = await Promise.all([
+    const [migration, compatibilityMigration, bootstrapOwnershipMigration, bootstrapSync, browserAssets, pipelineAssets, studioHandoff, ttrpg, nameCard, eventBadge] = await Promise.all([
       readFile(rootPath('supabase', 'migrations', '20260827090000_content_addressed_template_assets.sql'), 'utf8'),
       readFile(rootPath('supabase', 'migrations', '20260827103000_template_registry_runtime_compatibility.sql'), 'utf8'),
+      readFile(rootPath('supabase', 'migrations', '20260828151709_bootstrap_template_payload_ownership.sql'), 'utf8'),
+      readFile(rootPath('scripts', 'sync-pipeline-defaults.mjs'), 'utf8'),
       readFile(rootPath('src', 'features', 'project', 'persistence', 'contentAddressedBrowserAssets.ts'), 'utf8'),
       readFile(rootPath('src', 'features', 'developer-assets', 'lib', 'pipelineTemplateAssets.ts'), 'utf8'),
       readFile(rootPath('src', 'features', 'studio-documents', 'server', 'developerTemplateDrafts.ts'), 'utf8'),
@@ -125,6 +127,10 @@ describe('repository maintenance policy', () => {
     expect(migration).toContain('cardforge_template_payload_has_no_embedded_media');
     expect(migration).not.toContain("'template', submission.source_payload");
     expect(compatibilityMigration).toContain('Temporary one-release projection');
+    expect(bootstrapOwnershipMigration).toContain("coalesce(p_metadata, '{}'::jsonb) - 'template' - 'payload'");
+    expect(bootstrapOwnershipMigration).toContain('source_payload = p_template_payload');
+    expect(bootstrapSync).toContain("supabase.rpc('cardforge_upsert_pipeline_template_asset'");
+    expect(bootstrapSync).toContain('p_template_payload: item.template_payload');
     for (const bootstrapTemplate of [ttrpg, nameCard, eventBadge]) {
       expect(bootstrapTemplate).not.toContain('data:image/');
     }
