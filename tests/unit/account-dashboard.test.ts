@@ -67,13 +67,18 @@ describe('unified account environment', () => {
     expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
   });
 
-  it('runs the live Library as a compact ledger with exact detail actions', () => {
+  it('runs the live Library as a scoped visual collection with exact detail actions', () => {
     expect(accountLibrary).toContain('activeZone="library"');
-    expect(accountLibrary).toContain('<CollectionLedgerRow');
+    expect(accountLibrary).toContain('getLibraryScopeDefinitions');
+    expect(accountLibrary).toContain("scope: 'personal'");
+    expect(accountLibrary).toContain("scope: 'published'");
+    expect(accountLibrary).toContain("scope: 'pipeline'");
+    expect(accountLibrary).toContain('<LibraryVisual');
     expect(accountLibrary).toContain('getAccountLibraryEnvironmentActions');
     expect(accountLibrary).toContain("action.id === 'library.view-source'");
     expect(accountLibrary).toContain("action.id === 'library.manage-location'");
-    expect(accountLibrary).toContain('projection.failures.map');
+    expect(accountLibrary).toContain('getAccountLibraryMcpWorkflow');
+    expect(accountLibrary).toContain("activeTool === 'locations'");
     expect(accountLibrary).not.toContain('<AccountLibraryItemRow');
   });
 

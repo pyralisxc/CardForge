@@ -637,11 +637,12 @@ The old Developer-zone concept is superseded by Contributor enhancements across 
 1. **Four-surface contract and visual grammar** — update product docs, naming, shared action/source contracts, and spatial Home/Studio design rules.
 2. **Home Desk** — meaningful owned-work projection, object thumbnails/spatial grouping, focused-work contents, scope actions, real Set duplicate/delete, return-state preservation.
 3. **Library scopes** — Personal/Published/Pipeline, lineage grouping, gallery/list/expanded review, current filters/votes, revision inspector, Studio test handoff.
-4. **Studio consolidation** — remove Templates/Make Cards/Sets as competing destinations only after parity; Generate/Export/Save become contextual tools; Set Desk becomes stable context.
-5. **Pipeline in context** — exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline from selected Studio objects, Contributor withdraw/retire.
+4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
+5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the four-surface grammar while keeping explicit authority and parity with their current owners.
 6. **Source/MCP parity** — shared source capability projection, provider reachability clarity, connected personal assets, broader agent contribution where appropriate.
-7. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, output profiles.
-8. **Campaign/site integration** — migrate legacy Contributor-focused flows into the four-surface grammar only after parity.
+7. **Campaign/site integration** — migrate legacy Contributor-focused flows into the four-surface grammar only after parity.
+8. **Studio consolidation and Pipeline in context** — make the Set Desk the final core-surface overhaul after the surrounding surfaces have stabilized; remove Templates/Make Cards/Sets as competing destinations only after parity, then add exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
+9. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
 
 ## Product Constraints
 

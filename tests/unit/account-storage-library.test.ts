@@ -20,7 +20,10 @@ describe('account storage library', () => {
     expect(accountPage).toContain("createProjectPersistenceScope");
     expect(accountPage).not.toContain('cloudSetLimit');
     expect(storageLibrary).toContain("hydrateProjectWorkspaceForScope(persistenceScope)");
-    expect(unifiedLibrary).toContain('Work available across your connected locations');
+    expect(unifiedLibrary).toContain('Your materials and work');
+    expect(unifiedLibrary).toContain('Personal');
+    expect(unifiedLibrary).toContain('Published');
+    expect(unifiedLibrary).toContain('Pipeline');
   });
 
   it('keeps device and working-draft deletion boundaries explicit', () => {

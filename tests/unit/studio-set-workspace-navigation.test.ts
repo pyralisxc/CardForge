@@ -70,7 +70,8 @@ describe('Studio set workspace navigation', () => {
 
     expect(accountLibrary).toContain('useAccountLibraryProjection');
     expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
-    expect(accountLibrary).toContain('Storage remains with the source named on each item.');
+    expect(accountLibrary).toContain('Locations &amp; connections');
+    expect(accountLibrary).toContain('Changes affect only the named location.');
     expect(accountStorage).toContain('CardForge workspace storage');
     expect(accountStorage).toContain('This device');
     expect(accountStorage).not.toContain('CardForge cloud');

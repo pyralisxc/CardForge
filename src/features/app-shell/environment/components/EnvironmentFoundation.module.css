@@ -282,6 +282,22 @@
   overscroll-behavior: contain;
 }
 
+.detailVisual {
+  display: grid;
+  min-height: 9rem;
+  margin-top: 1rem;
+  place-items: center;
+  border-block: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  overflow: hidden;
+}
+
+.detailVisual > img {
+  width: 100%;
+  max-height: 15rem;
+  object-fit: contain;
+}
+
 .surfaceHeader {
   display: flex;
   align-items: flex-end;
