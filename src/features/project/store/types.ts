@@ -28,7 +28,10 @@ export interface OutputSlice {
   addGeneratedCards: (newCards: DisplayCard[]) => void;
   clearGeneratedCards: () => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
+  removeGeneratedCards: (cardUniqueIds: string[]) => number;
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
+  moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
+  reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;

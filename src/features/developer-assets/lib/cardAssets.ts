@@ -4,7 +4,7 @@ export type { CardAssetOption } from '@/domain/templates';
 
 export type CardAssetMetadataOverride = Partial<Pick<
   CardAssetOption,
-  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'defaultWidth' | 'defaultHeight' | 'packId' | 'packName' | 'studioDestinations' | 'studioOrder' | 'studioFeatured' | 'studioRoutingMode' | 'studioDefaultDestination'
+  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'defaultWidth' | 'defaultHeight' | 'packId' | 'packName' | 'studioDestinations' | 'studioOrder' | 'studioFeatured' | 'studioRoutingMode' | 'studioDefaultDestination' | 'style'
 >>;
 
 export interface CardAssetDiscoveryInput {

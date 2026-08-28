@@ -63,7 +63,7 @@ export function DeveloperAssetSubmissionPanel({
 }) {
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<DeveloperUploadAssetType>('icons');
-  const [studioDestination, setStudioDestination] = useState<StudioAssetDestination>('element.icon');
+  const [studioDestination, setStudioDestination] = useState<StudioAssetDestination | null>('element.icon');
   const [specialtyTags, setSpecialtyTags] = useState<string[]>([]);
   const [useCaseTags, setUseCaseTags] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -220,7 +220,7 @@ export function DeveloperAssetSubmissionPanel({
       <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit a Library Candidate</h3>
         <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
-          Media and font candidates enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used: inside Template Studio.
+          Media, fonts, and portable Sets enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used inside Template Studio.
         </p>
         <div className="mt-4 flex flex-col gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -234,8 +234,8 @@ export function DeveloperAssetSubmissionPanel({
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <GuidanceCard
             eyebrow="Destination"
-            title={getDeveloperAssetStudioDestinationLabel(studioDestination)}
-            body={`${getDeveloperAssetTypeLabel(assetType)} publish to this Studio surface after voting, owner review, and cap checks.`}
+            title={studioDestination ? getDeveloperAssetStudioDestinationLabel(studioDestination) : 'Home & Library'}
+            body={`${getDeveloperAssetTypeLabel(assetType)} publish to this creator surface after voting, owner review, and cap checks.`}
           />
           <GuidanceCard
             eyebrow="Source"
@@ -266,7 +266,7 @@ export function DeveloperAssetSubmissionPanel({
                     onClick={() => changeAssetType(type)}
                   >
                     <span className="block text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
-                      {type === 'fonts' ? 'Font upload' : 'Asset upload'}
+                      {type === 'sets' ? 'Set package' : type === 'fonts' ? 'Font upload' : 'Asset upload'}
                     </span>
                     <span className="mt-1 block font-medium">{getDeveloperAssetTypeLabel(type, { plural: false })}</span>
                   </button>
@@ -284,7 +284,7 @@ export function DeveloperAssetSubmissionPanel({
               ))}
             </select>
           </div>
-          <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+          {studioDestination ? <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
               Studio destination
               <FieldHelp text="Choose where creators should find this asset. CardForge only permits destinations compatible with the selected asset family." />
@@ -300,7 +300,7 @@ export function DeveloperAssetSubmissionPanel({
               ))}
             </select>
             <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">{submissionGuidance.destination}</span>
-          </label>
+          </label> : <div className="grid gap-1 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm"><strong className="text-[var(--cf-accent-text)]">Published Set destination</strong><span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Sets become immutable starters in Home and Published Library. Creators receive a new independent browser copy.</span></div>}
           <div className="grid gap-3 md:grid-cols-2">
             <ControlledTaxonomySelect
               label="Specialties"
@@ -351,7 +351,7 @@ export function DeveloperAssetSubmissionPanel({
                   </select>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-[var(--cf-text-subtle)]">
-                  Pull locally saved art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
+                  Pull locally saved Sets and art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
                 </p>
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
                   {visiblePersonalLibraryItems.length === 0 ? (

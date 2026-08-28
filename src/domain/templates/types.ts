@@ -35,6 +35,7 @@ export interface CardAssetOption {
   studioFeatured?: boolean;
   studioRoutingMode?: StudioAssetRoutingMode;
   studioDefaultDestination?: StudioAssetDestination;
+  style?: AppearanceStylePreset;
 }
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';

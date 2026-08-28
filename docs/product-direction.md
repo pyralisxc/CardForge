@@ -146,6 +146,8 @@ Home's primary content is user-owned Sets/Projects and resumable work. It is not
 
 Home may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Home's organizing principle.
 
+New work has one creation boundary: start with a fresh Set or instantiate an independent browser-owned copy of a Published Set. Published starters are immutable reviewed `.cardforge` package revisions, not a second starter document format or a special Set subtype. The same portable package contract owns import, export, provider transfer, Pipeline publication, and starter installation; installation re-keys local object identity so editing a starter never mutates its published lineage.
+
 A Contributor sees contribution/Pipeline state on their own objects when relevant. Other contributors' Pipeline objects do not appear on Home simply because they are reviewable.
 
 Home quick actions use the same scope contract as Studio:
@@ -172,6 +174,8 @@ User-owned reusable resources and provider-backed objects, including Templates, 
 ### Published
 
 Stable reviewed CardForge shared resources available for normal creator use according to entitlement/compatibility.
+
+Published Sets are reusable starting work, beginning with complete outcomes such as a standard playing-card deck. Their catalog entry points to one immutable portable package revision. Creators receive an independent Set copy; publication remains owned by Pipeline and durable creator storage remains browser, package, folder, or connected-provider owned.
 
 ### Pipeline — Contributor-only
 

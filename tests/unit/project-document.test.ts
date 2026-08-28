@@ -7,6 +7,7 @@ import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
+  instantiateProjectDocumentCopy,
   isolateProjectDocumentToSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
@@ -184,6 +185,39 @@ describe('project document serialization', () => {
     expect(state.selectedPaperSize).toEqual(paperSize);
     expect(state.pdfDuplexLayout).toBe('same-page');
     expect(state.customAssets?.['cardforge-maker-custom-textures']).toEqual([textureAsset]);
+  });
+
+  it('instantiates a portable Set as independently owned work without a second package format', () => {
+    let sequence = 0;
+    const copied = instantiateProjectDocumentCopy({
+      version: 1,
+      userTemplates: [template],
+      cardSets: [{ ...cardSet, backingTemplateId: null }],
+      activeCardSetId: cardSet.id,
+      storedCards: [{ ...storedCard, backingTemplateId: null }],
+      appearanceStyles: [style],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [textureAsset],
+        'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [],
+        'cardforge-maker-custom-images': [],
+      },
+      mcpOperationReceipts: [{
+        operationId: 'published-operation', requestHash: 'hash', revision: 1,
+        changedTemplateIds: [], changedElementIds: [], changedCardIds: [], changedAssetRequirementIds: [],
+        warnings: [], canonicalRenderingRecommended: false,
+      }],
+    }, (kind) => `${kind}-copy-${sequence += 1}`);
+
+    expect(copied.cardSets[0]?.id).not.toBe(cardSet.id);
+    expect(copied.storedCards[0]?.uniqueId).not.toBe(storedCard.uniqueId);
+    expect(copied.storedCards[0]?.setId).toBe(copied.cardSets[0]?.id);
+    expect(copied.storedCards[0]?.templateId).toBe(copied.userTemplates[0]?.id);
+    expect(copied.userTemplates[0]).toMatchObject({ templateSource: 'user', templateLibrarySource: 'personal', templateRegistryStatus: 'localOnly' });
+    expect(copied.appearanceStyles[0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });
+    expect(copied.customAssets['cardforge-maker-custom-textures'][0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });
+    expect(copied.mcpOperationReceipts).toBeUndefined();
   });
 
   it('parses modern project document JSON', () => {

@@ -24,8 +24,8 @@ import {
   type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
   type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
-import { AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
+import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
@@ -63,7 +63,7 @@ type LibraryViewItem =
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, template: Boxes, asset: ImageIcon, 'working-draft': Sparkles };
-const sharedKindIcons: Record<string, LucideIcon> = { Template: Boxes, Image: ImageIcon, Texture: ImageIcon, Divider: ImageIcon, Icon: Sparkles, Style: Sparkles, Font: ImageIcon };
+const sharedKindIcons: Record<string, LucideIcon> = { Set: Boxes, Template: Boxes, Image: ImageIcon, Texture: ImageIcon, Divider: ImageIcon, Icon: Sparkles, Style: Sparkles, Font: ImageIcon };
 
 const personalStatus = (item: AccountLibraryItem): { label: string; tone: EnvironmentStatusTone } => (
   item.locations.some((location) => location.status === 'needs-permission')
@@ -103,6 +103,9 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   if (item.scope === 'published' && item.published.template) {
     return <AuthoredObjectPreview template={item.published.template} label={item.name} size="standard" />;
   }
+  if (item.scope === 'published' && item.published.style) {
+    return <span className={styles.stylePreview} style={appearanceToStyle(item.published.style.appearance)} aria-label={`${item.name} style preview`} />;
+  }
   if (previewUrl && !previewFailed) {
     return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
   }
@@ -141,6 +144,7 @@ const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
     actionSources: [{ id: `${item.id}:catalog`, label: 'CardForge catalog', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
       ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
+      ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
       ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
       ['Studio access', 'Ready to use'],
     ],
@@ -173,7 +177,7 @@ const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pi
     availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
   }];
   const actions: ActionDescriptor[] = [{
-    id: 'library.use-published', label: item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'developer-assets', supportedObjectKinds: ['published-asset'],
+    id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'developer-assets', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
     availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'select a published catalog asset for Studio' }, result: 'navigation',
   }];
@@ -334,7 +338,18 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     else if (actionId === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=storage'); }
   };
 
-  const runPublishedAction = (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
+  const runPublishedAction = async (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
+    if (item.published.kind === 'set' && item.published.packageUrl) {
+      try {
+        const result = await createPublishedSetCopy({ packageUrl: item.published.packageUrl, expectedName: item.name });
+        toast({ title: 'Set created', description: `${result.setName} is now independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
+        projection.refresh();
+        projection.router.push('/account');
+      } catch (error) {
+        toast({ title: 'Set was not created', description: error instanceof Error ? error.message : 'The published Set package is unavailable.', variant: 'destructive' });
+      }
+      return;
+    }
     const template = item.published.template;
     if (!template) {
       projection.router.push('/studio');
@@ -362,7 +377,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
       setActiveTool(null); projection.router.replace(`/account?section=library&scope=${scope}`);
       requestAnimationFrame(() => document.getElementById('library-locations-trigger')?.focus());
     } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
-    else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') runPublishedAction(action.id, currentItem);
+    else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
     else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(currentItem.pipeline.submission.id)}`);
     else if (action.id === 'library.refresh') refresh();
   };
@@ -450,7 +465,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
               </DropdownMenu> : item.scope === 'published' ? <DropdownMenu>
                 <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {sharedActions(item).map((action) => <DropdownMenuItem key={action.id} onSelect={() => runPublishedAction(action.id, item)}>
+                  {sharedActions(item).map((action) => <DropdownMenuItem key={action.id} onSelect={() => void runPublishedAction(action.id, item)}>
                     {action.id === 'library.copy-published-template' ? <Copy aria-hidden="true" /> : null}
                     {action.label}
                   </DropdownMenuItem>)}

@@ -8,8 +8,12 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+  buildCardForgeProjectSnapshot,
+  captureCardSetProjectDocument,
+  encodeCardForgeProjectPackage,
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
+  useProjectStore,
 } from '@/features/project/client';
 import {
   createAssetFile,
@@ -30,6 +34,7 @@ const emptyPersonalAssets = {
 export function useDeveloperPersonalLibrary() {
   const [filter, setFilter] = useState<PersonalLibraryFilter>('all');
   const [assets, setAssets] = useState(emptyPersonalAssets);
+  const cardSets = useProjectStore((state) => state.cardSets);
 
   useEffect(() => {
     const storage = getProjectAssetStorage();
@@ -69,8 +74,28 @@ export function useDeveloperPersonalLibrary() {
       };
     }));
 
-    return deduplicatePersonalLibraryItems(assetItems);
-  }, [assets]);
+    const setItems: PersonalLibraryItem[] = cardSets.map((set) => {
+      const fileNameStem = slugifyFileName(set.name, 'cardforge-set');
+      return {
+        id: `set-${set.id}`,
+        name: set.name,
+        sourceLabel: 'Browser Set',
+        assetType: 'sets',
+        fileName: `${fileNameStem}.cardforge`,
+        helperText: 'A complete portable Set package with its cards, Templates, settings, and embedded assets.',
+        createFile: async () => {
+          const document = await captureCardSetProjectDocument(set.id);
+          const snapshot = await buildCardForgeProjectSnapshot({ document, name: set.name });
+          const encoded = await encodeCardForgeProjectPackage(snapshot);
+          const copy = new Uint8Array(encoded.byteLength);
+          copy.set(encoded);
+          return new File([copy.buffer], `${fileNameStem}.cardforge`, { type: 'application/vnd.cardforge.project+zip' });
+        },
+      };
+    });
+
+    return deduplicatePersonalLibraryItems([...setItems, ...assetItems]);
+  }, [assets, cardSets]);
 
   const visibleItems = useMemo(
     () => filter === 'all' ? items : items.filter((item) => item.assetType === filter),

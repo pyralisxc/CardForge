@@ -98,6 +98,15 @@ export const developerAssetSubmissionGuidance: Record<DeveloperUploadAssetType, 
     notesHelp: 'Mention license rights, best text role, readable size range, category, and whether it is display-only or body-safe.',
     checklist: ['License rights clear', 'Readable sample role', 'Weights/styles noted'],
   },
+  sets: {
+    destination: 'Published Set starters in Home and Library',
+    sourceLabel: 'Portable Set package',
+    sourceHelp: 'Submit one complete Set as the exact portable .cardforge package creators will instantiate as independent work.',
+    acceptedFileTypes: 'CardForge project package',
+    accept: '.cardforge,application/vnd.cardforge.project+zip,application/octet-stream',
+    notesHelp: 'Describe the Set’s purpose, card count, included Templates, specialties, and what a creator can safely customize.',
+    checklist: ['One complete Set', 'Portable import verified', 'Editable contents reviewed'],
+  },
 };
 
 export const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer'];
@@ -183,6 +192,7 @@ export const isCurrentContributorSubmission = (
 ) => program.currentContributorIds.includes(submission.developerId);
 
 export const getCandidateSourceEmptyMessage = (assetType: DeveloperUploadAssetType): string => {
+  if (assetType === 'sets') return 'Create a Set on Home or in Studio first, then select its portable package here.';
   if (assetType === 'fonts') {
     return 'Fonts are submitted from a local font file. Use the font file drop zone or browse for WOFF2, WOFF, TTF, or OTF.';
   }
@@ -190,6 +200,7 @@ export const getCandidateSourceEmptyMessage = (assetType: DeveloperUploadAssetTy
 };
 
 export const getCandidateBrowseLabel = (assetType: DeveloperUploadAssetType): string => {
+  if (assetType === 'sets') return 'Choose a Set above or browse a .cardforge package';
   if (assetType === 'fonts') return 'Drop or browse a font file';
   return 'Drop a file or browse';
 };
@@ -218,6 +229,7 @@ export const getContributorLabel = (submission: DeveloperAssetSubmission) => {
 export const canRenderImagePreview = (submission: DeveloperAssetSubmission) => (
   Boolean(submission.previewUrl)
   && submission.assetType !== 'fonts'
+  && submission.assetType !== 'sets'
   && !submission.previewUrl.startsWith('/api/templates')
   && !submission.previewUrl.startsWith('/api/styles')
 );
@@ -246,6 +258,7 @@ export const getExtensionForMimeType = (mimeType: string) => {
   if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
   if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
   if (mimeType === 'font/otf' || mimeType === 'application/x-font-otf') return 'otf';
+  if (mimeType === 'application/vnd.cardforge.project+zip') return 'cardforge';
   return 'bin';
 };
 

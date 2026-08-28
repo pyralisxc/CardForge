@@ -21,12 +21,18 @@ import {
   type DeveloperAssetUploadPlan,
 } from '@/features/developer-assets/lib/developerAssetUploadPolicy';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import {
+  decodeCardForgeProjectPackage,
+  hydrateCardForgeProjectSnapshot,
+  ProjectPackageError,
+} from '@/features/project/server';
 import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxonomy';
 
 const ALLOWED_MIME_TYPES = new Set<string>(DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
 const IMAGE_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp']);
 const BORDER_OVERLAY_EXTENSIONS = new Set(['svg', 'png', 'webp']);
+const SET_EXTENSIONS = new Set(['cardforge']);
 
 const sanitizePathSegment = (value: string, fallback: string, maxLength = 100): string => (
   value
@@ -53,6 +59,7 @@ const getFileExtension = (fileName: string, mimeType: string): string => {
   if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
   if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
   if (mimeType === 'font/otf' || mimeType === 'application/x-font-otf') return 'otf';
+  if (mimeType === 'application/vnd.cardforge.project+zip') return 'cardforge';
   return '';
 };
 
@@ -61,7 +68,7 @@ const isBorderOverlayDestination = (destination: StudioAssetDestination): boolea
 
 interface ValidatedUploadDescriptor {
   assetType: DeveloperUploadAssetType;
-  studioDestination: StudioAssetDestination;
+  studioDestination: StudioAssetDestination | null;
   fileName: string;
   fileSizeBytes: number;
   mimeType: string;
@@ -90,10 +97,15 @@ export const validateDeveloperAssetUploadDescriptor = ({
       400,
     );
   }
-  if (
-    !isStudioAssetDestination(studioDestination)
-    || !getDeveloperAssetStudioDestinationOptions(assetType).includes(studioDestination)
-  ) {
+  const normalizedDestination = assetType === 'sets'
+    ? null
+    : isStudioAssetDestination(studioDestination)
+      ? studioDestination
+      : null;
+  if (assetType !== 'sets' && (
+    !normalizedDestination
+    || !getDeveloperAssetStudioDestinationOptions(assetType).includes(normalizedDestination)
+  )) {
     throw new DeveloperAssetStoreError('Choose a Studio destination compatible with this asset type.', 400);
   }
   const normalizedFileName = typeof fileName === 'string' ? fileName.trim().slice(0, 240) : '';
@@ -124,18 +136,23 @@ export const validateDeveloperAssetUploadDescriptor = ({
 
   const extension = getFileExtension(normalizedFileName, normalizedMimeType);
   const isFontUpload = assetType === 'fonts';
-  const extensionAllowed = isFontUpload
-    ? FONT_EXTENSIONS.has(extension)
-    : IMAGE_EXTENSIONS.has(extension);
+  const isSetUpload = assetType === 'sets';
+  const extensionAllowed = isSetUpload
+    ? SET_EXTENSIONS.has(extension)
+    : isFontUpload
+      ? FONT_EXTENSIONS.has(extension)
+      : IMAGE_EXTENSIONS.has(extension);
   if (!extensionAllowed || !ALLOWED_MIME_TYPES.has(normalizedMimeType)) {
     throw new DeveloperAssetStoreError(
-      isFontUpload
+      isSetUpload
+        ? 'Upload a portable .cardforge Set package.'
+        : isFontUpload
         ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
         : 'Upload SVG, PNG, JPG, or WEBP artwork.',
       400,
     );
   }
-  if (isBorderOverlayDestination(studioDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
+  if (normalizedDestination && isBorderOverlayDestination(normalizedDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
     throw new DeveloperAssetStoreError(
       'Professional border overlays must use SVG, PNG, or WEBP so transparency can be preserved.',
       400,
@@ -143,7 +160,7 @@ export const validateDeveloperAssetUploadDescriptor = ({
   }
   return {
     assetType,
-    studioDestination,
+    studioDestination: normalizedDestination,
     fileName: normalizedFileName,
     fileSizeBytes: normalizedFileSize,
     mimeType: normalizedMimeType,
@@ -256,6 +273,30 @@ const assertUploadedObjectComplete = async (
   }
 };
 
+const assertUploadedSetPackage = async (storagePath: string): Promise<void> => {
+  const { data, error } = await requireStorage().download(storagePath);
+  if (error || !data) {
+    throw new DeveloperAssetStoreError('The uploaded Set package could not be read for validation.', 503);
+  }
+  try {
+    const snapshot = await decodeCardForgeProjectPackage(data);
+    const document = hydrateCardForgeProjectSnapshot(snapshot);
+    if (document.cardSets.length !== 1) {
+      throw new DeveloperAssetStoreError('Publish one Set per portable package.', 400);
+    }
+    const setId = document.cardSets[0]?.id;
+    if (!setId || !document.storedCards.some((card) => card.setId === setId)) {
+      throw new DeveloperAssetStoreError('Published Set packages must contain at least one card.', 400);
+    }
+  } catch (error) {
+    if (error instanceof DeveloperAssetStoreError) throw error;
+    throw new DeveloperAssetStoreError(
+      error instanceof ProjectPackageError ? error.message : 'The uploaded file is not a valid portable CardForge Set.',
+      400,
+    );
+  }
+};
+
 export const removePendingDeveloperAssetUpload = async ({
   developerId,
   assetType,
@@ -329,6 +370,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
 
   try {
     await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
+    if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedFile.storagePath);
     const { data } = storage.getPublicUrl(uploadedFile.storagePath);
     return await createDeveloperAssetSubmission({
       developerId,

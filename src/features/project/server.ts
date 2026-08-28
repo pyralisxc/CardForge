@@ -2,6 +2,7 @@ export { createProjectPersistenceScope } from './lib/projectPersistenceIdentity'
 export type { ProjectPersistenceScope } from './lib/projectPersistenceIdentity';
 export {
   createProjectDocumentFromState,
+  instantiateProjectDocumentCopy,
   parseProjectDocumentValue,
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_FONT_ASSETS_STORAGE_KEY,

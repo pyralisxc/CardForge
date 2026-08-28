@@ -40,4 +40,5 @@ export const DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES = [
   'application/x-font-ttf',
   'application/x-font-otf',
   'application/octet-stream',
+  'application/vnd.cardforge.project+zip',
 ] as const;

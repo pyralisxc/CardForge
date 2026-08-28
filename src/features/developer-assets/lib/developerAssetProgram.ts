@@ -257,10 +257,15 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
   if (!isDeveloperAssetType(value.assetType)) {
     return { ok: false, message: 'Choose a supported asset type.' };
   }
-  if (
-    !isStudioAssetDestination(value.studioDestination)
-    || !getDeveloperAssetStudioDestinationOptions(value.assetType).includes(value.studioDestination)
-  ) {
+  const requestedStudioDestination = value.assetType === 'sets'
+    ? null
+    : isStudioAssetDestination(value.studioDestination)
+      ? value.studioDestination
+      : null;
+  if (value.assetType !== 'sets' && (
+    !requestedStudioDestination
+    || !getDeveloperAssetStudioDestinationOptions(value.assetType).includes(requestedStudioDestination)
+  )) {
     return { ok: false, message: 'Choose a Studio destination compatible with this asset type.' };
   }
   const specialtyTags = normalizeSpecialtyTags(value.specialtyTags);
@@ -277,7 +282,7 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
     ok: true,
     value: {
       assetType: value.assetType,
-      requestedStudioDestination: value.studioDestination,
+      requestedStudioDestination,
       specialtyTags,
       useCaseTags,
       name,

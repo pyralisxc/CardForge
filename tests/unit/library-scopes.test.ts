@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
   getLibraryScopeDefinitions,
@@ -7,6 +9,8 @@ import {
 } from '@/features/storage-management/model/libraryScopes';
 
 describe('Library scopes', () => {
+  const library = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/UnifiedAccountLibrary.tsx'), 'utf8');
+  const sharedProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useLibrarySharedProjection.ts'), 'utf8');
   it('keeps Personal and Published visible while protecting Pipeline', () => {
     expect(getLibraryScopeDefinitions({ developer: false, owner: false }).map((scope) => scope.id))
       .toEqual(['personal', 'published']);
@@ -38,5 +42,11 @@ describe('Library scopes', () => {
       ['pipeline', 'empty'],
       ['personal', 'ready'],
     ]);
+  });
+
+  it('renders real catalog media and structured appearance styles before generic fallbacks', () => {
+    expect(sharedProjection).toContain('style: asset.style ?? null');
+    expect(library).toContain('appearanceToStyle(item.published.style.appearance)');
+    expect(library).toContain('className={styles.stylePreview}');
   });
 });

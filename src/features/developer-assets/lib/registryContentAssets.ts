@@ -20,6 +20,7 @@ export interface RegistryContentAssetRow {
   developer_submission_id?: string | null;
   name: string;
   url: string;
+  preview_url?: string | null;
   status?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
   access_tier?: 'free' | 'paid' | 'developer' | 'hidden';
   library_source?: 'official' | 'developer';
@@ -179,7 +180,7 @@ export const getPublishedRegistryRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,developer_submission_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+        .select('asset_id,developer_submission_id,name,asset_type,url,preview_url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
         .order('asset_type', { ascending: true })

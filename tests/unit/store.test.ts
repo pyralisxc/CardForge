@@ -419,6 +419,34 @@ describe('app store helpers', () => {
     expect(cards[0].data['__cardforgeFieldStyle.cardName.textColor']).toBe('#00ffaa');
   });
 
+  it('organizes selected cards as one native project mutation', () => {
+    useProjectStore.setState({
+      cardSets: [
+        { id: 'set-a', name: 'Set A', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-b', name: 'Set B', frontTemplateId: null, backingTemplateId: null },
+      ],
+      activeCardSet: { id: 'set-a', name: 'Set A', frontTemplateId: null, backingTemplateId: null },
+      storedCards: [
+        { uniqueId: 'a-1', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
+        { uniqueId: 'a-2', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
+        { uniqueId: 'a-3', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
+        { uniqueId: 'b-1', templateId: 'template', setId: 'set-b', setName: 'Set B', data: {} },
+      ],
+    });
+
+    expect(useProjectStore.getState().reorderGeneratedCard('a-3', 'earlier')).toBe(true);
+    expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId))
+      .toEqual(['a-1', 'a-3', 'a-2', 'b-1']);
+
+    expect(useProjectStore.getState().moveGeneratedCardsToSet(['a-1', 'a-3'], 'set-b')).toBe(2);
+    expect(useProjectStore.getState().storedCards.filter((card) => card.setId === 'set-b').map((card) => card.uniqueId))
+      .toEqual(['a-1', 'a-3', 'b-1']);
+
+    expect(useProjectStore.getState().removeGeneratedCards(['a-1', 'a-3'])).toBe(2);
+    expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId))
+      .toEqual(['a-2', 'b-1']);
+  });
+
   it('preserves generated output field style metadata when importing local stored cards', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'import-template',

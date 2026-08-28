@@ -19,6 +19,20 @@
 .card[data-card-position='1'] { z-index: 2; transform: translate(-16%, 7%) rotate(-6deg); opacity: 0.86; }
 .card[data-card-position='2'] { z-index: 1; transform: translate(16%, 8%) rotate(6deg); opacity: 0.72; }
 
+.emptyBadge {
+  position: absolute;
+  z-index: 4;
+  inset-block-end: 0.15rem;
+  padding: 0.2rem 0.42rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-canvas) 94%, transparent);
+  color: var(--cf-text-muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .fallback {
   display: grid;
   min-block-size: 8.5rem;

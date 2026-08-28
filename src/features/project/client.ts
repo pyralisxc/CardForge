@@ -24,6 +24,7 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   isolateProjectDocumentToSet,
+  instantiateProjectDocumentCopy,
   isUntouchedBootstrapCardSet,
   parseProjectDocumentFile,
   parseProjectDocumentValue,
@@ -106,6 +107,8 @@ export {
   captureCurrentProjectDocument,
   captureCardSetProjectDocument,
 } from './client/projectWorkspaceDocument';
+export { createPublishedSetCopy } from './client/publishedSet';
+export type { PublishedSetCopyResult } from './client/publishedSet';
 export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,

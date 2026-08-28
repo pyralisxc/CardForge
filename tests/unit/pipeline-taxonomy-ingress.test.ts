@@ -44,5 +44,11 @@ describe('Forge Review taxonomy ingress architecture', () => {
     const uploader = read('src/features/developer-assets/lib/developerAssetUploadSubmission.ts');
     expect(uploader).toContain('createDeveloperAssetSubmission');
     expect(uploader).toContain('DEVELOPER_ASSET_STORAGE_BUCKET');
+    expect(uploader).toContain('decodeCardForgeProjectPackage');
+    expect(uploader).toContain('Published Set packages must contain at least one card.');
+    const publishedSet = read('supabase/migrations/20260827120000_published_set_registry.sql');
+    expect(publishedSet).toContain('cardforge_sync_studio_asset_registry');
+    expect(publishedSet).toContain("asset_type <> 'sets'");
+    expect(publishedSet).toContain("'portableProject', true");
   });
 });

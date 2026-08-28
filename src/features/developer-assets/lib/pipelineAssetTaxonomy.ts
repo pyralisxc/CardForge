@@ -14,7 +14,9 @@ export type RegistryCreationAssetKind = Extract<
   'texture' | 'divider' | 'icon' | 'image' | 'template' | 'elementPreset'
 > | 'font';
 
-const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: string; plural: string }> = {
+export type PipelineRegistryObjectKind = RegistryCreationAssetKind | 'set';
+
+const assetKindLabels: Record<CardAssetOption['kind'] | 'font' | 'set', { singular: string; plural: string }> = {
   texture: { singular: 'Texture', plural: 'Textures' },
   divider: { singular: 'Divider', plural: 'Dividers' },
   border: { singular: 'Border', plural: 'Borders' },
@@ -24,22 +26,24 @@ const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: stri
   template: { singular: 'Template', plural: 'Templates' },
   elementPreset: { singular: 'Style', plural: 'Styles' },
   font: { singular: 'Font', plural: 'Fonts' },
+  set: { singular: 'Set', plural: 'Sets' },
 };
 
 export const developerAssetTypeToRegistryAssetKind = (
   assetType: DeveloperAssetType
-): RegistryCreationAssetKind => {
+): PipelineRegistryObjectKind => {
   if (assetType === 'templates') return 'template';
   if (assetType === 'elementPresets') return 'elementPreset';
   if (assetType === 'textures') return 'texture';
   if (assetType === 'dividers') return 'divider';
   if (assetType === 'icons') return 'icon';
   if (assetType === 'imageAssets') return 'image';
-  return 'font';
+  if (assetType === 'fonts') return 'font';
+  return 'set';
 };
 
 export const getAssetKindLabel = (
-  kind: CardAssetOption['kind'] | 'font',
+  kind: CardAssetOption['kind'] | 'font' | 'set',
   options: { plural?: boolean } = {},
 ): string => {
   const labels = assetKindLabels[kind];
@@ -64,12 +68,13 @@ export const getDeveloperAssetStudioDestinationOptions = (
   if (assetType === 'imageAssets') {
     return ['image.picture', 'image.frame.front', 'image.frame.back', 'image.border.front', 'image.border.back'];
   }
-  return ['typography.font'];
+  if (assetType === 'fonts') return ['typography.font'];
+  return [];
 };
 
 export const getDefaultDeveloperAssetStudioDestination = (
   assetType: DeveloperAssetType,
-): StudioAssetDestination => getDeveloperAssetStudioDestinationOptions(assetType)[0];
+): StudioAssetDestination | null => getDeveloperAssetStudioDestinationOptions(assetType)[0] ?? null;
 
 export const getDeveloperAssetStudioDestinationLabel = (
   destination: StudioAssetDestination,

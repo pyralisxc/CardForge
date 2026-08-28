@@ -14,6 +14,7 @@ export interface AuthoredObjectPreviewProps {
   label: string;
   size?: 'compact' | 'standard' | 'large';
   className?: string;
+  emptyLabel?: string;
 }
 
 const widthBySize = {
@@ -41,6 +42,7 @@ export function AuthoredObjectPreview({
   label,
   size = 'standard',
   className,
+  emptyLabel,
 }: AuthoredObjectPreviewProps) {
   const renderedCards = cards.slice(0, 3);
   const fallbackCard = renderedCards.length === 0 && template
@@ -63,6 +65,7 @@ export function AuthoredObjectPreview({
           <CardPreview card={card} targetWidthPx={widthBySize[size]} isEditorPreview />
         </span>
       ))}
+      {fallbackCard && emptyLabel ? <span className={styles.emptyBadge}>{emptyLabel}</span> : null}
     </span>
   );
 }

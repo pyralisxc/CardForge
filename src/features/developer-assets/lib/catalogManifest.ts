@@ -30,6 +30,23 @@ export interface CardForgeCatalogManifest {
     fonts: CardFontOption[];
     registry: AssetRegistryPayload['registry'];
   };
+  sets: {
+    items: PublishedSetCatalogItem[];
+  };
+}
+
+export interface PublishedSetCatalogItem {
+  id: string;
+  name: string;
+  packageUrl: string;
+  previewUrl: string | null;
+  access: 'free' | 'paid' | 'developer';
+  source: 'official' | 'developer';
+  fileSizeBytes: number | null;
+  revision: number;
+  description: string;
+  specialtyTags: string[];
+  useCaseTags: string[];
 }
 
 export interface CardForgeStudioBootstrapManifest {
@@ -130,8 +147,27 @@ export const getCardForgeCatalogManifest = async (
 ): Promise<CardForgeCatalogManifest> => {
   const rows = await getPublishedRegistryRows(access);
   const bootstrap = await mapStudioBootstrap(access, rows);
+  const sets = rows.filter((row) => row.asset_type === 'set').map((row): PublishedSetCatalogItem => {
+    const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+      ? row.metadata as Record<string, unknown>
+      : {};
+    return {
+      id: row.asset_id,
+      name: row.name,
+      packageUrl: row.url,
+      previewUrl: row.preview_url ?? null,
+      access: row.access_tier,
+      source: row.library_source,
+      fileSizeBytes: row.file_size_bytes,
+      revision: typeof metadata.revisionNumber === 'number' ? metadata.revisionNumber : 1,
+      description: typeof metadata.description === 'string' ? metadata.description : 'A published CardForge Set starter.',
+      specialtyTags: Array.isArray(metadata.specialtyTags) ? metadata.specialtyTags.filter((tag): tag is string => typeof tag === 'string') : [],
+      useCaseTags: Array.isArray(metadata.useCaseTags) ? metadata.useCaseTags.filter((tag): tag is string => typeof tag === 'string') : [],
+    };
+  });
   return {
     ...bootstrap,
     assets: mapAssetRegistryRowsToPayload(rows, getSupabaseServerConfigStatus().configured),
+    sets: { items: sets },
   };
 };

@@ -213,4 +213,17 @@ describe('developer asset upload submission', () => {
       maxFileSizeMb: 25,
     })).toThrow('Templates and Styles are authored in Studio');
   });
+
+  it('accepts one canonical portable Set package without inventing a Studio destination', () => {
+    const descriptor = validateDeveloperAssetUploadDescriptor({
+      assetType: 'sets',
+      studioDestination: null,
+      fileName: 'playing-card-deck.cardforge',
+      fileSizeBytes: 1024,
+      mimeType: 'application/vnd.cardforge.project+zip',
+      maxFileSizeMb: 25,
+    });
+
+    expect(descriptor).toMatchObject({ assetType: 'sets', studioDestination: null, extension: 'cardforge' });
+  });
 });

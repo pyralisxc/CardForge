@@ -10,6 +10,7 @@ export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
 export type HomeSort = 'desk' | 'name' | 'size';
 
 export const HOME_PINS_KEY = 'home-desk-pins';
+export const HOME_ORDER_KEY = 'home-desk-order';
 export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
 export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }> = [
   { id: 'all', label: 'All work' },
@@ -17,6 +18,35 @@ export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }>
   { id: 'connected', label: 'Connected' },
   { id: 'temporary', label: 'Temporary' },
 ];
+
+export const normalizeDeskOrder = (
+  availableIds: string[],
+  storedOrder: string[],
+): string[] => {
+  const available = new Set(availableIds);
+  const admitted = storedOrder.filter((id, index) => available.has(id) && storedOrder.indexOf(id) === index);
+  const admittedSet = new Set(admitted);
+  return [...admitted, ...availableIds.filter((id) => !admittedSet.has(id))];
+};
+
+export const reorderDeskItem = (
+  order: string[],
+  itemId: string,
+  target: string | 'earlier' | 'later',
+): string[] => {
+  const currentIndex = order.indexOf(itemId);
+  if (currentIndex < 0) return order;
+  const targetIndex = target === 'earlier'
+    ? Math.max(0, currentIndex - 1)
+    : target === 'later'
+      ? Math.min(order.length - 1, currentIndex + 1)
+      : order.indexOf(target);
+  if (targetIndex < 0 || targetIndex === currentIndex) return order;
+  const next = [...order];
+  next.splice(currentIndex, 1);
+  next.splice(targetIndex, 0, itemId);
+  return next;
+};
 
 export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
   item.locations[0]?.source ?? 'device'

@@ -60,6 +60,7 @@ The existing Developer/Cockpit route remains shipped legacy composition until it
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; the untouched bootstrap Set stays out of the meaningful-work view.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
 - Focusing local work reveals its contained cards in place with search, selection, move, edit, duplicate, export handoff, and confirmed removal; Back restores the Home Desk.
+- New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
 - Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, and exact-copy deletion resolve to their native owners.
 
 ### Direction
@@ -87,7 +88,7 @@ Home is **more spatial than Library** and less detailed than Studio.
 - one Set identity pooled across device, Google Drive, and attached-folder copies, plus personal assets/fonts and temporary Studio drafts;
 - search, source/location information, object detail, locations & connections tool;
 - the same canonical authored-object preview used by Home, including real published Template rendering;
-- shared reviewed registry feeds Studio;
+- shared reviewed registry feeds Studio and exposes immutable Published Set package revisions without creating another starter registry;
 - Developer Asset Hub / Forge Review currently exposes voteable Pipeline submissions, filters, previews, status/tier/quality/votes/revisions.
 
 ### Direction
@@ -264,6 +265,8 @@ Direction:
 - local folders;
 - Google Drive projects;
 - future deliberate providers.
+
+The `.cardforge` package is the one portability contract for import, export, provider transfer, Pipeline Set publication, and Published Set installation. Installing a Published Set creates new local Set/card/Template/resource identities while retaining the package as immutable published source material.
 
 ### Temporary CardForge-owned work
 

@@ -78,6 +78,13 @@ describe('developer asset program rules', () => {
 
     expect(developerAssetSubmissionGuidance.icons.accept).toContain('image/svg+xml');
     expect(developerAssetSubmissionGuidance.fonts.accept).toContain('font/woff2');
+    expect(developerAssetSubmissionGuidance.sets.accept).toContain('.cardforge');
+  });
+
+  it('routes Sets through the portable package lane instead of Studio asset placement', () => {
+    expect(getCandidateBrowseLabel('sets')).toContain('.cardforge');
+    expect(getCandidateSourceEmptyMessage('sets')).toContain('Home or in Studio');
+    expect(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.sets).toEqual({ free: 4, paid: 2 });
   });
 
   it('gives font submissions a visible file-source affordance', () => {

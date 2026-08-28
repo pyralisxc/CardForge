@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
 import {
   getAssetKindLabel,
   getDeveloperAssetStatusLabel,
@@ -17,7 +17,7 @@ import type { LibraryScope } from '../model/libraryScopes';
 export interface PublishedLibraryObject {
   id: string;
   name: string;
-  kind: CardAssetOption['kind'] | 'font';
+  kind: CardAssetOption['kind'] | 'font' | 'set';
   kindLabel: string;
   sourceLabel: string;
   accessLabel: string;
@@ -25,6 +25,9 @@ export interface PublishedLibraryObject {
   sizeBytes: number | null;
   fontFamily: string | null;
   template: TCGCardTemplate | null;
+  style: AppearanceStylePreset | null;
+  packageUrl: string | null;
+  revision: number | null;
 }
 
 export interface PipelineLibraryObject {
@@ -66,6 +69,9 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     template: asset.kind === 'template'
       ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null
       : null,
+    style: asset.style ?? null,
+    packageUrl: null,
+    revision: null,
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -78,8 +84,26 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     sizeBytes: null,
     fontFamily: font.cssFamily,
     template: null,
+    style: null,
+    packageUrl: null,
+    revision: null,
   }));
-  return [...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
+  const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
+    id: `published:set:${set.id}`,
+    name: set.name,
+    kind: 'set',
+    kindLabel: 'Set',
+    sourceLabel: set.source === 'developer' ? 'Community' : 'CardForge',
+    accessLabel: set.access === 'paid' ? 'Creator Pass' : 'Starter Library',
+    previewUrl: set.previewUrl,
+    sizeBytes: set.fileSizeBytes,
+    fontFamily: null,
+    template: null,
+    style: null,
+    packageUrl: set.packageUrl,
+    revision: set.revision,
+  }));
+  return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
 
 const pipelineObjects = (program: DeveloperAssetProgramView): PipelineLibraryObject[] => {

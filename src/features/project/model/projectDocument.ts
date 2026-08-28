@@ -374,6 +374,85 @@ export const isolateProjectDocumentToSet = (
   };
 };
 
+/**
+ * Instantiates a portable project as new, independently owned browser work.
+ * Published starters, imported examples, and future catalog Kits all use this
+ * one identity boundary before entering a creator workspace.
+ */
+export const instantiateProjectDocumentCopy = (
+  document: ProjectDocumentV1,
+  createId: (kind: 'set' | 'card' | 'template' | 'style' | 'asset') => string,
+): ProjectDocumentV1 => {
+  const templateIds = new Map(document.userTemplates.flatMap((template) => (
+    template.id ? [[template.id, createId('template')] as const] : []
+  )));
+  const setIds = new Map(document.cardSets.map((set) => [set.id, createId('set')] as const));
+  const styleIds = new Map(document.appearanceStyles.map((style) => [style.id, createId('style')] as const));
+  const remapTemplateId = (id: string | null | undefined): string | null => (
+    id ? templateIds.get(id) ?? id : null
+  );
+  const copyAssets = (assets: CardAssetOption[]) => assets.map((asset) => ({
+      ...asset,
+      id: createId('asset'),
+      librarySource: 'local' as const,
+      registryStatus: 'localOnly' as const,
+      accessTier: undefined,
+    }));
+  const customAssets: ProjectDocumentCustomAssets = {
+    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+    [CUSTOM_ICON_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+    [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+  };
+
+  return {
+    ...document,
+    userTemplates: document.userTemplates.map((template) => ({
+      ...template,
+      id: template.id ? templateIds.get(template.id)! : createId('template'),
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateAccessTier: undefined,
+      templateRegistryStatus: 'localOnly',
+      templateContributorName: undefined,
+      templateRevision: undefined,
+      templateRevisionId: undefined,
+    })),
+    cardSets: document.cardSets.map((set) => ({
+      ...set,
+      id: setIds.get(set.id)!,
+      frontTemplateId: remapTemplateId(set.frontTemplateId),
+      backingTemplateId: remapTemplateId(set.backingTemplateId),
+    })),
+    activeCardSetId: document.activeCardSetId
+      ? setIds.get(document.activeCardSetId) ?? setIds.get(document.cardSets[0]?.id ?? '')
+      : setIds.get(document.cardSets[0]?.id ?? ''),
+    storedCards: document.storedCards.map((card) => {
+      const originalSetId = card.setId ?? document.cardSets[0]?.id;
+      const nextSetId = originalSetId ? setIds.get(originalSetId) : undefined;
+      const nextSet = originalSetId ? document.cardSets.find((set) => set.id === originalSetId) : undefined;
+      return {
+        ...card,
+        uniqueId: createId('card'),
+        templateId: remapTemplateId(card.templateId) ?? card.templateId,
+        backingTemplateId: remapTemplateId(card.backingTemplateId),
+        setId: nextSetId,
+        setName: nextSet?.name ?? card.setName,
+      };
+    }),
+    appearanceStyles: document.appearanceStyles.map((style) => ({
+      ...style,
+      id: styleIds.get(style.id)!,
+      librarySource: 'local',
+      accessTier: undefined,
+      registryStatus: 'localOnly',
+      contributorName: undefined,
+    })),
+    customAssets,
+    mcpOperationReceipts: undefined,
+  };
+};
+
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
   if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {
     const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
