@@ -7,6 +7,8 @@ import {
   projectDeveloperPipelineLibrary,
 } from '@/features/developer-assets/lib/developerPipelineLibrary';
 import type { DeveloperAssetSubmission } from '@/features/developer-assets/lib/developerAssetProgram';
+import type { CardForgeCatalogManifest } from '@/features/developer-assets/lib/catalogManifest';
+import { projectPipelineLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
 
 const submission = (
   id: string,
@@ -112,5 +114,65 @@ describe('Pipeline Library projection', () => {
       previewUrl: '/api/templates#classic-front',
       sourceMimeType: 'application/json',
     }))).toBeNull();
+  });
+
+  it('reuses the published catalog visual for a published Pipeline lineage', () => {
+    const publishedImage = submission('published-image', {
+      assetType: 'imageAssets',
+      status: 'published',
+      targetRegistryAssetId: 'ember-art',
+      previewUrl: 'https://storage.example.test/ember-art.cardforge',
+      sourceMimeType: 'application/vnd.cardforge.project+zip',
+    });
+    const catalog = {
+      version: 'test',
+      access: 'dev',
+      templates: { defaults: [], userTemplates: [] },
+      styles: { version: 1, styles: [] },
+      assets: {
+        textures: [], dividers: [], icons: [], templates: [], elementPresets: [],
+        imageAssets: [{
+          id: 'ember-art', name: 'Ember Art', kind: 'image', url: '/card-assets/ember-art.png', previewUrl: '/card-assets/ember-art-preview.webp',
+          tileMode: 'contain', seamless: false, allowedTargets: ['image'],
+        }],
+        registry: { configured: true, source: 'database', total: 1 },
+      },
+      fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } },
+      sets: { items: [] },
+    } as CardForgeCatalogManifest;
+
+    const projected = projectPipelineLibraryObjects(program([publishedImage]), catalog);
+
+    expect(projected[0].previewUrl).toBe('/card-assets/ember-art-preview.webp');
+  });
+
+  it('reuses the published font family for a Pipeline font sample', () => {
+    const publishedFont = submission('published-font', {
+      assetType: 'fonts',
+      status: 'published',
+      targetRegistryAssetId: 'font-arcane',
+      previewUrl: 'https://storage.example.test/font-arcane.woff2',
+      sourceMimeType: 'font/woff2',
+    });
+    const catalog = {
+      version: 'test',
+      access: 'dev',
+      templates: { defaults: [], userTemplates: [] },
+      styles: { version: 1, styles: [] },
+      assets: {
+        textures: [], dividers: [], icons: [], templates: [], elementPresets: [], imageAssets: [],
+        registry: { configured: true, source: 'database', total: 0 },
+      },
+      fonts: {
+        fonts: [{ name: 'Arcane', value: 'font-arcane', category: 'Fantasy', cssFamily: 'Arcane, serif' }],
+        registry: { configured: true, source: 'database', total: 1 },
+      },
+      sets: { items: [] },
+    } as CardForgeCatalogManifest;
+
+    const projected = projectPipelineLibraryObjects(program([publishedFont]), catalog);
+
+    expect(projected[0].previewUrl).toBeNull();
+    expect(projected[0].fontFamily).toBe('Arcane, serif');
   });
 });

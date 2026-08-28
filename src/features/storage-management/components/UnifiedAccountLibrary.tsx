@@ -60,7 +60,7 @@ interface UnifiedAccountLibraryProps {
 type LibraryViewItem =
   | { id: string; scope: 'personal'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: null; fontFamily: null; personal: AccountLibraryItem }
   | { id: string; scope: 'published'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; published: PublishedLibraryObject }
-  | { id: string; scope: 'pipeline'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: string | null; fontFamily: null; pipeline: PipelineLibraryObject };
+  | { id: string; scope: 'pipeline'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; pipeline: PipelineLibraryObject };
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, template: Boxes, asset: ImageIcon, 'working-draft': Sparkles };
@@ -283,7 +283,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     sourceLabel: item.ownership === 'mine' ? 'Your contribution' : item.submission.developerDisplayName ?? 'Shared Pipeline', statusLabel: item.statusLabel,
     summary: item.submission.description || `${item.kindLabel} in Forge Review.`, updatedAt: item.submission.updatedAt ?? item.submission.submittedAt,
     sizeBytes: item.submission.sourceFileSizeBytes, previewUrl: item.previewUrl,
-    fontFamily: null, pipeline: item,
+    fontFamily: item.fontFamily, pipeline: item,
   })), [shared.pipelineItems]);
 
   const scopeItems = scope === 'personal' ? personalItems : scope === 'published' ? publishedItems : pipelineItems;

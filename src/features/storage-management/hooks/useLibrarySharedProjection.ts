@@ -44,6 +44,7 @@ export interface PipelineLibraryObject {
   ownership: DeveloperPipelineLibraryItem['ownership'];
   reviewState: DeveloperPipelineLibraryItem['reviewState'];
   previewUrl: string | null;
+  fontFamily: string | null;
   template: TCGCardTemplate | null;
   style: AppearanceStylePreset | null;
 }
@@ -118,9 +119,79 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
 
-const pipelineObjects = (program: DeveloperAssetProgramView): PipelineLibraryObject[] => (
+interface CatalogLibraryVisual {
+  previewUrl: string | null;
+  fontFamily: string | null;
+  template: TCGCardTemplate | null;
+  style: AppearanceStylePreset | null;
+}
+
+const EMPTY_CATALOG_VISUAL: CatalogLibraryVisual = {
+  previewUrl: null,
+  fontFamily: null,
+  template: null,
+  style: null,
+};
+
+const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<string, CatalogLibraryVisual> => {
+  const visuals = new Map<string, CatalogLibraryVisual>();
+  if (!catalog) return visuals;
+
+  const templateByIdentity = new Map<string, TCGCardTemplate>();
+  catalog.templates.defaults.forEach((template) => {
+    if (template.id) templateByIdentity.set(template.id, template);
+    templateByIdentity.set(template.name, template);
+  });
+  const styleByIdentity = new Map<string, AppearanceStylePreset>();
+  catalog.styles.styles.forEach((style) => {
+    styleByIdentity.set(style.id, style);
+    styleByIdentity.set(style.name, style);
+  });
+
+  [
+    ...catalog.assets.templates,
+    ...catalog.assets.imageAssets,
+    ...catalog.assets.textures,
+    ...catalog.assets.dividers,
+    ...catalog.assets.icons,
+    ...catalog.assets.elementPresets,
+  ].forEach((asset) => {
+    const previewUrl = asset.previewUrl
+      || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null);
+    visuals.set(asset.id, {
+      previewUrl,
+      fontFamily: null,
+      template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null : null,
+      style: asset.style ?? styleByIdentity.get(asset.id) ?? styleByIdentity.get(asset.name) ?? null,
+    });
+  });
+  catalog.fonts.fonts.forEach((font) => visuals.set(font.value, {
+    previewUrl: null,
+    fontFamily: font.cssFamily,
+    template: null,
+    style: null,
+  }));
+  catalog.sets.items.forEach((set) => visuals.set(set.id, {
+    previewUrl: set.previewUrl,
+    fontFamily: null,
+    template: null,
+    style: null,
+  }));
+  return visuals;
+};
+
+export const projectPipelineLibraryObjects = (
+  program: Pick<DeveloperAssetProgramView, 'submissions' | 'votingQueue' | 'currentContributorIds' | 'settings'>,
+  catalog: CardForgeCatalogManifest | null,
+): PipelineLibraryObject[] => {
+  const visuals = catalogLibraryVisuals(catalog);
+  return (
   projectDeveloperPipelineLibrary(program).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
+    const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId]
+      .flatMap((identity) => identity ? [visuals.get(identity)] : [])
+      .find((visual): visual is CatalogLibraryVisual => Boolean(visual))
+      ?? EMPTY_CATALOG_VISUAL;
     return {
       submission: item.submission,
       revisions: item.revisions,
@@ -129,12 +200,14 @@ const pipelineObjects = (program: DeveloperAssetProgramView): PipelineLibraryObj
       statusLabel: getDeveloperAssetStatusLabel(item.submission.status),
       ownership: item.ownership,
       reviewState: item.reviewState,
-      previewUrl: getDeveloperAssetImagePreviewUrl(item.submission),
-      template: isRepositoryTemplate(sourcePayload) ? sourcePayload : null,
-      style: isRepositoryStyle(sourcePayload) ? sourcePayload : null,
+      previewUrl: getDeveloperAssetImagePreviewUrl(item.submission) ?? lineageVisual.previewUrl,
+      fontFamily: lineageVisual.fontFamily,
+      template: isRepositoryTemplate(sourcePayload) ? sourcePayload : lineageVisual.template,
+      style: isRepositoryStyle(sourcePayload) ? sourcePayload : lineageVisual.style,
     };
   })
-);
+  );
+};
 
 export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { pipelineEnabled: boolean; activeScope: LibraryScope }) {
   const [catalog, setCatalog] = useState<CardForgeCatalogManifest | null>(null);
@@ -152,7 +225,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
       setPipelineLoading(true);
       setPipelineFailure(null);
     }
-    const catalogRequest = activeScope === 'published' ? fetch('/api/catalog', { cache: 'no-store' })
+    const catalogRequest = activeScope === 'published' || (activeScope === 'pipeline' && pipelineEnabled) ? fetch('/api/catalog', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw await readApiError(response, 'The published Library is unavailable.');
         return response.json() as Promise<CardForgeCatalogManifest>;
@@ -185,7 +258,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
 
   return {
     publishedItems: useMemo(() => catalog ? publishedAssets(catalog) : [], [catalog]),
-    pipelineItems: useMemo(() => program ? pipelineObjects(program) : [], [program]),
+    pipelineItems: useMemo(() => program ? projectPipelineLibraryObjects(program, catalog) : [], [catalog, program]),
     program,
     catalogFailure,
     pipelineFailure,
