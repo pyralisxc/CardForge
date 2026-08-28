@@ -4,7 +4,7 @@ import {
   getDeveloperAssetLibraryProgramView,
   getDeveloperContributorIds,
   projectDeveloperAssetProgramForViewer,
-  syncDeveloperAssetRequestProfile,
+  requireDeveloperAssetRequestScope,
 } from '@/features/developer-assets/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
@@ -15,7 +15,7 @@ export async function GET() {
   const timing = createServerTimingTracker();
   try {
     const access = await timing.track('developer_access', getCurrentDeveloperAssetRequestAccess);
-    await timing.track('profile_sync', () => syncDeveloperAssetRequestProfile(access));
+    requireDeveloperAssetRequestScope(access, 'assets.review');
     const program = await timing.track('library_program', () => getDeveloperAssetLibraryProgramView(
       access.user.id,
       getDeveloperContributorIds(access.user.id),

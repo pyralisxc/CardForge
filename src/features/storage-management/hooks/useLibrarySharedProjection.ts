@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
 import {
@@ -228,6 +228,15 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
   const [pipelineFailure, setPipelineFailure] = useState<LibrarySharedFailure | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [pipelineLoading, setPipelineLoading] = useState(false);
+  const pipelineEnabledRef = useRef(pipelineEnabled);
+  pipelineEnabledRef.current = pipelineEnabled;
+
+  useEffect(() => {
+    if (pipelineEnabled) return;
+    setProgram(null);
+    setPipelineFailure(null);
+    setPipelineLoading(false);
+  }, [pipelineEnabled]);
 
   const refresh = useCallback(async () => {
     if (activeScope === 'published') {
@@ -255,13 +264,19 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
             if (!response.ok) throw await readApiError(response, 'Forge Review is unavailable.');
             return response.json() as Promise<{ program: DeveloperAssetProgramView }>;
           })
-          .then((payload) => setProgram(payload.program))
-          .catch((error: unknown) => setPipelineFailure({
-            message: error instanceof Error ? error.message : 'Forge Review is unavailable.',
-            retryable: typeof error === 'object' && error !== null && 'retryable' in error ? Boolean(error.retryable) : true,
-            ...(typeof error === 'object' && error !== null && 'nextAction' in error && typeof error.nextAction === 'string' ? { nextAction: error.nextAction } : {}),
-          }))
-          .finally(() => setPipelineLoading(false))
+          .then((payload) => {
+            if (pipelineEnabledRef.current) setProgram(payload.program);
+          })
+          .catch((error: unknown) => {
+            if (pipelineEnabledRef.current) setPipelineFailure({
+              message: error instanceof Error ? error.message : 'Forge Review is unavailable.',
+              retryable: typeof error === 'object' && error !== null && 'retryable' in error ? Boolean(error.retryable) : true,
+              ...(typeof error === 'object' && error !== null && 'nextAction' in error && typeof error.nextAction === 'string' ? { nextAction: error.nextAction } : {}),
+            });
+          })
+          .finally(() => {
+            if (pipelineEnabledRef.current) setPipelineLoading(false);
+          })
       : Promise.resolve();
     await Promise.all([catalogRequest, pipelineRequest]);
   }, [activeScope, pipelineEnabled]);
@@ -270,12 +285,12 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
 
   return {
     publishedItems: useMemo(() => catalog ? publishedAssets(catalog) : [], [catalog]),
-    pipelineItems: useMemo(() => program ? projectPipelineLibraryObjects(program, catalog) : [], [catalog, program]),
-    program,
+    pipelineItems: useMemo(() => pipelineEnabled && program ? projectPipelineLibraryObjects(program, catalog) : [], [catalog, pipelineEnabled, program]),
+    program: pipelineEnabled ? program : null,
     catalogFailure,
-    pipelineFailure,
+    pipelineFailure: pipelineEnabled ? pipelineFailure : null,
     catalogLoading,
-    pipelineLoading,
+    pipelineLoading: pipelineEnabled && pipelineLoading,
     refresh,
   };
 }

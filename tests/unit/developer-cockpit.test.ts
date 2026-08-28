@@ -66,23 +66,23 @@ describe('developer contribution cockpit', () => {
 
   it('projects owner revision controls from the current trusted account session', () => {
     expect(resolveDeveloperAccessProjectionForSession({
+      eligible: true,
       isOwner: true,
       sessionKey: 'owner-session',
       state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
     })).toMatchObject({
       hasCockpitAccess: true,
-      canSubmitTemplateRevisions: true,
-      canPublishSharedLibrary: true,
+      scopes: expect.arrayContaining(['library.submit', 'library.publish']),
     });
 
     expect(resolveDeveloperAccessProjectionForSession({
+      eligible: true,
       isOwner: true,
       sessionKey: null,
       state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
     })).toMatchObject({
       hasCockpitAccess: false,
-      canSubmitTemplateRevisions: false,
-      canPublishSharedLibrary: false,
+      scopes: [],
     });
   });
 
@@ -93,23 +93,49 @@ describe('developer contribution cockpit', () => {
     };
 
     expect(shouldClearStoredDeveloperAccess({
+      eligible: true,
       isOwner: true,
       sessionKey: 'owner-session',
       state: priorOwnerState,
     })).toBe(true);
     expect(resolveDeveloperAccessProjectionForSession({
+      eligible: true,
       isOwner: true,
       sessionKey: null,
       state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
     })).toBe(EMPTY_DEVELOPER_ACCESS_SESSION_STATE.projection);
     expect(resolveDeveloperAccessProjectionForSession({
+      eligible: true,
       isOwner: false,
       sessionKey: 'owner-session',
       state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
     })).toMatchObject({
-      canSubmitTemplateRevisions: false,
-      canPublishSharedLibrary: false,
+      scopes: [],
     });
+  });
+
+  it('removes a cached contributor projection as soon as trusted eligibility is revoked', () => {
+    const priorContributorState = {
+      sessionKey: 'contributor-session',
+      projection: {
+        hasCockpitAccess: true,
+        cockpitHref: '/developer/cockpit' as const,
+        scopes: ['assets.review', 'library.submit'] as const,
+      },
+    };
+
+    expect(resolveDeveloperAccessProjectionForSession({
+      eligible: false,
+      isOwner: false,
+      sessionKey: 'contributor-session',
+      state: priorContributorState,
+    })).toBe(EMPTY_DEVELOPER_ACCESS_SESSION_STATE.projection);
+    expect(shouldClearStoredDeveloperAccess({
+      eligible: false,
+      isOwner: false,
+      sessionKey: 'contributor-session',
+      state: priorContributorState,
+    })).toBe(true);
   });
 
   it('normalizes complete channel-specific campaign packages', () => {

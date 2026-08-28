@@ -9,7 +9,7 @@ export interface LibraryScopeDefinition {
 }
 
 export interface LibraryScopeViewer {
-  developer: boolean;
+  contributor: boolean;
   owner: boolean;
 }
 
@@ -42,8 +42,15 @@ const LIBRARY_SCOPE_DEFINITIONS: readonly LibraryScopeDefinition[] = [
 export const getLibraryScopeDefinitions = (
   viewer: LibraryScopeViewer,
 ): LibraryScopeDefinition[] => LIBRARY_SCOPE_DEFINITIONS.filter((scope) => (
-  scope.id !== 'pipeline' || viewer.developer || viewer.owner
+  scope.id !== 'pipeline' || viewer.contributor || viewer.owner
 ));
+
+export const resolveLibraryScopeForViewer = (
+  scope: LibraryScope,
+  viewer: LibraryScopeViewer,
+): LibraryScope => (
+  scope === 'pipeline' && !viewer.contributor && !viewer.owner ? 'personal' : scope
+);
 
 export const getLibraryScopeStatus = ({
   loading,

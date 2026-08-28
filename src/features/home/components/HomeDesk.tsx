@@ -63,6 +63,7 @@ import {
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
+import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { AuthoredObjectPreview, CardPreview } from '@/features/card-rendering/client';
 import {
   readProjectPreference,
@@ -111,9 +112,7 @@ export interface HomeAccountStatus {
 
 export interface HomeDeskProps {
   persistenceScope: ProjectPersistenceScope;
-  isSignedIn: boolean;
-  isDeveloper?: boolean;
-  isOwner?: boolean;
+  experience: AccountExperienceProjection;
   homeAccessStatus?: HomeAccountStatus;
   homeSecurityStatus?: HomeAccountStatus;
 }
@@ -139,17 +138,16 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
 
 export function HomeDesk({
   persistenceScope,
-  isSignedIn,
-  isDeveloper = false,
-  isOwner = false,
+  experience,
   homeAccessStatus,
   homeSecurityStatus,
 }: HomeDeskProps) {
   const { toast } = useToast();
+  const isSignedIn = experience.signedIn;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const searchRef = useRef<HTMLInputElement | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
-  const viewer: EnvironmentViewer = { signedIn: isSignedIn, developer: isDeveloper || isOwner, owner: isOwner };
+  const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const zones = getVisibleEnvironmentZones(viewer);
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<HomeSourceFilter>('all');
@@ -387,7 +385,7 @@ export function HomeDesk({
   };
 
   const actions: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, isDeveloper || isOwner)
+    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem
       ? [zoneAction('home.open-work', 'Open in Studio')]
       : [zoneAction('home.create-work', 'New Set', 'mutation')];
@@ -601,8 +599,8 @@ export function HomeDesk({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-                            <DropdownMenuItem onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move</DropdownMenuItem>
-                            {(isDeveloper || isOwner) && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+                            <DropdownMenuItem disabled={!experience.capabilities.canUseProjectFiles} onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move{experience.capabilities.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
+                            {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => duplicateWork(item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={index === 0} onSelect={() => moveDeskWork(item.id, 'earlier')}><ArrowUp aria-hidden="true" />Move earlier on desk</DropdownMenuItem>
                             <DropdownMenuItem disabled={index === visibleWork.length - 1} onSelect={() => moveDeskWork(item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>
@@ -627,6 +625,7 @@ export function HomeDesk({
         open={Boolean(locationItem)}
         onOpenChange={(open) => { if (!open) setLocationItem(null); }}
         isSignedIn={isSignedIn}
+        canUseProjectFiles={experience.capabilities.canUseProjectFiles}
         driveConnected={projection.driveConnection?.connected ?? false}
         localFolderSupported={projection.localFolderSupported}
         onChanged={projection.refresh}

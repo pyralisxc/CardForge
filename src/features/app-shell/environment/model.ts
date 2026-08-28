@@ -3,7 +3,7 @@ import type { BoundaryFailureKind, BoundaryLimit } from '@/shared/boundaryFailur
 export const ENVIRONMENT_ZONE_IDS = ['home', 'library', 'studio', 'profile', 'developer', 'owner'] as const;
 
 export type ZoneId = typeof ENVIRONMENT_ZONE_IDS[number];
-export type ZoneAccess = 'guest' | 'creator' | 'developer' | 'owner';
+export type ZoneAccess = 'guest' | 'member' | 'contributor' | 'owner';
 export type ZoneViewportPolicy = 'flow' | 'desk';
 
 export interface ZoneDefinition {
@@ -21,23 +21,23 @@ export const ENVIRONMENT_ZONES = [
   { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'studio', href: '/studio', label: 'Studio', shortLabel: 'Studio', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'desk' },
   { id: 'profile', href: '/account?section=profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
-  { id: 'developer', href: '/developer/cockpit', label: 'Developer', shortLabel: 'Dev', minimumAccess: 'developer', showInPrivateRail: true, viewportPolicy: 'flow' },
+  { id: 'developer', href: '/developer/cockpit', label: 'Developer', shortLabel: 'Dev', minimumAccess: 'contributor', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'owner', href: '/owner', label: 'Owner', shortLabel: 'Owner', minimumAccess: 'owner', showInPrivateRail: true, viewportPolicy: 'flow' },
 ] as const satisfies readonly ZoneDefinition[];
 
 export interface EnvironmentViewer {
   signedIn: boolean;
-  developer: boolean;
+  contributor: boolean;
   owner: boolean;
 }
 
-const accessRank: Record<ZoneAccess, number> = { guest: 0, creator: 1, developer: 2, owner: 3 };
+const accessRank: Record<ZoneAccess, number> = { guest: 0, member: 1, contributor: 2, owner: 3 };
 
 export const getViewerAccess = (viewer: EnvironmentViewer): ZoneAccess => {
   if (!viewer.signedIn) return 'guest';
   if (viewer.owner) return 'owner';
-  if (viewer.developer) return 'developer';
-  return 'creator';
+  if (viewer.contributor) return 'contributor';
+  return 'member';
 };
 
 export const getAvailableEnvironmentZones = (viewer: EnvironmentViewer): readonly ZoneDefinition[] => {
@@ -54,7 +54,7 @@ export const getVisibleEnvironmentZones = (viewer: EnvironmentViewer): readonly 
 export type ActionScope = 'zone' | 'selection' | 'object' | 'group';
 export type ActionHierarchy = 'primary' | 'supporting' | 'overflow';
 export type ActionCommitment = 'none' | 'destructive' | 'financial' | 'permission' | 'publication';
-export type ActionPermission = 'guest' | 'creator' | 'developer' | 'owner';
+export type ActionPermission = ZoneAccess;
 export type ActionSource = 'browser-local' | 'google-drive' | 'local-folder' | 'temporary' | 'provider-native';
 export type ActionRevisionPolicy = 'none' | 'current-required' | 'conflict-safe';
 export type FeatureOwnerId =

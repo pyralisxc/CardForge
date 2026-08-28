@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   EMPTY_DEVELOPER_ACCESS_PROJECTION,
@@ -12,43 +12,66 @@ import {
 } from '@/features/developer-access/model';
 
 export const useDeveloperAccess = (
-  sessionKey: string | null,
-  initialState: DeveloperAccessSessionState = EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
-  isOwner = false,
+  {
+    eligible,
+    initialState = EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+    isOwner = false,
+    sessionKey,
+  }: {
+    eligible: boolean;
+    initialState?: DeveloperAccessSessionState;
+    isOwner?: boolean;
+    sessionKey: string | null;
+  },
 ): DeveloperAccessProjection & { isLoading: boolean } => {
   const [state, setState] = useState<DeveloperAccessSessionState>(initialState);
+  const [isLoading, setIsLoading] = useState(false);
+  const stateRef = useRef(state);
+  const requestIdRef = useRef(0);
+  stateRef.current = state;
+
+  const loadProjection = useCallback(async ({ clearFirst = false }: { clearFirst?: boolean } = {}) => {
+    if (!sessionKey || !eligible || isOwner) return;
+    const requestId = ++requestIdRef.current;
+    if (clearFirst) {
+      setState({ sessionKey, projection: EMPTY_DEVELOPER_ACCESS_PROJECTION });
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/developer-access', { cache: 'no-store' });
+      const projection = response.ok
+        ? await response.json() as DeveloperAccessProjection
+        : EMPTY_DEVELOPER_ACCESS_PROJECTION;
+      if (requestId === requestIdRef.current) setState({ sessionKey, projection });
+    } catch {
+      if (requestId === requestIdRef.current) {
+        setState({ sessionKey, projection: EMPTY_DEVELOPER_ACCESS_PROJECTION });
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setIsLoading(false);
+    }
+  }, [eligible, isOwner, sessionKey]);
 
   useEffect(() => {
-    if (!sessionKey || isOwner) {
-      if (shouldClearStoredDeveloperAccess({ isOwner, sessionKey, state })) {
+    if (!sessionKey || !eligible || isOwner) {
+      requestIdRef.current += 1;
+      if (shouldClearStoredDeveloperAccess({ eligible, isOwner, sessionKey, state: stateRef.current })) {
         setState(EMPTY_DEVELOPER_ACCESS_SESSION_STATE);
       }
+      setIsLoading(false);
       return;
     }
-    if (state.sessionKey === sessionKey) return;
-    let cancelled = false;
+    if (stateRef.current.sessionKey !== sessionKey) void loadProjection();
 
-    void fetch('/api/developer-access', { cache: 'no-store' })
-      .then(async (response) => response.ok
-        ? await response.json() as DeveloperAccessProjection
-        : EMPTY_DEVELOPER_ACCESS_PROJECTION)
-      .then((projection) => {
-        if (!cancelled) setState({ sessionKey, projection });
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setState({ sessionKey, projection: EMPTY_DEVELOPER_ACCESS_PROJECTION });
-        }
-      });
+    const handleFocus = () => { void loadProjection({ clearFirst: true }); };
+    window.addEventListener('focus', handleFocus);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isOwner, sessionKey, state]);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [eligible, isOwner, loadProjection, sessionKey]);
 
   const isCurrentSession = Boolean(sessionKey && state.sessionKey === sessionKey);
   return {
-    ...resolveDeveloperAccessProjectionForSession({ isOwner, sessionKey, state }),
-    isLoading: Boolean(sessionKey && !isOwner && !isCurrentSession),
+    ...resolveDeveloperAccessProjectionForSession({ eligible, isOwner, sessionKey, state }),
+    isLoading: Boolean(sessionKey && eligible && !isOwner && (isLoading || !isCurrentSession)),
   };
 };

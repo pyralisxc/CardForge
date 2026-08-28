@@ -40,6 +40,7 @@ interface WorkLocationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isSignedIn: boolean;
+  canUseProjectFiles: boolean;
   driveConnected: boolean;
   localFolderSupported: boolean;
   onChanged?: () => void;
@@ -47,6 +48,7 @@ interface WorkLocationDialogProps {
 
 interface DefaultWorkLocationControlProps {
   isSignedIn: boolean;
+  canUseProjectFiles: boolean;
   driveConnected: boolean;
   localFolderSupported: boolean;
 }
@@ -92,8 +94,8 @@ const useDefaultWorkLocation = (capabilities: ReturnType<typeof getWorkLocationC
   return { defaultLocation, changeDefault };
 };
 
-export function DefaultWorkLocationControl({ isSignedIn, driveConnected, localFolderSupported }: DefaultWorkLocationControlProps) {
-  const capabilities = useMemo(() => getWorkLocationCapabilities({ signedIn: isSignedIn, driveConnected, localFolderSupported }), [driveConnected, isSignedIn, localFolderSupported]);
+export function DefaultWorkLocationControl({ isSignedIn, canUseProjectFiles, driveConnected, localFolderSupported }: DefaultWorkLocationControlProps) {
+  const capabilities = useMemo(() => getWorkLocationCapabilities({ signedIn: isSignedIn, canUseProjectFiles, driveConnected, localFolderSupported }), [canUseProjectFiles, driveConnected, isSignedIn, localFolderSupported]);
   const { defaultLocation, changeDefault } = useDefaultWorkLocation(capabilities);
   return <div className={styles.locationPreference}>
     <div><strong>Default save location</strong><span>New Save actions start here. You can choose another destination per Set.</span></div>
@@ -109,6 +111,7 @@ export function WorkLocationDialog({
   open,
   onOpenChange,
   isSignedIn,
+  canUseProjectFiles,
   driveConnected,
   localFolderSupported,
   onChanged,
@@ -117,9 +120,10 @@ export function WorkLocationDialog({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const capabilities = useMemo(() => getWorkLocationCapabilities({
     signedIn: isSignedIn,
+    canUseProjectFiles,
     driveConnected,
     localFolderSupported,
-  }), [driveConnected, isSignedIn, localFolderSupported]);
+  }), [canUseProjectFiles, driveConnected, isSignedIn, localFolderSupported]);
   const { defaultLocation, changeDefault } = useDefaultWorkLocation(capabilities);
   const orderedCapabilities = useMemo(() => capabilities.toSorted((left, right) => (
     Number(right.id === defaultLocation) - Number(left.id === defaultLocation)

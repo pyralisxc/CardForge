@@ -20,12 +20,14 @@ export interface WorkLocationCapability {
 
 export interface WorkLocationContext {
   signedIn: boolean;
+  canUseProjectFiles: boolean;
   driveConnected: boolean;
   localFolderSupported: boolean;
 }
 
 export const getWorkLocationCapabilities = ({
   signedIn,
+  canUseProjectFiles,
   driveConnected,
   localFolderSupported,
 }: WorkLocationContext): WorkLocationCapability[] => [
@@ -34,15 +36,15 @@ export const getWorkLocationCapabilities = ({
     create: true, read: true, write: true, remove: true, revisionSafe: false, serverReachable: false,
   },
   {
-    id: 'google-drive', label: 'Google Drive', available: signedIn && driveConnected,
-    reason: !signedIn ? 'Sign in before saving to Google Drive.' : !driveConnected ? 'Connect Google Drive in Locations first.' : null,
-    create: signedIn && driveConnected, read: signedIn && driveConnected, write: signedIn && driveConnected,
-    remove: signedIn && driveConnected, revisionSafe: true, serverReachable: true,
+    id: 'google-drive', label: 'Google Drive', available: canUseProjectFiles && signedIn && driveConnected,
+    reason: !canUseProjectFiles ? 'Creator Pass is required for connected project locations.' : !signedIn ? 'Sign in before saving to Google Drive.' : !driveConnected ? 'Connect Google Drive in Locations first.' : null,
+    create: canUseProjectFiles && signedIn && driveConnected, read: canUseProjectFiles && signedIn && driveConnected, write: canUseProjectFiles && signedIn && driveConnected,
+    remove: canUseProjectFiles && signedIn && driveConnected, revisionSafe: true, serverReachable: true,
   },
   {
-    id: 'local-folder', label: 'Local project folder', available: localFolderSupported,
-    reason: localFolderSupported ? null : 'Direct folder access is not supported by this browser.',
-    create: localFolderSupported, read: localFolderSupported, write: localFolderSupported,
+    id: 'local-folder', label: 'Local project folder', available: canUseProjectFiles && localFolderSupported,
+    reason: !canUseProjectFiles ? 'Creator Pass is required for portable Set locations.' : localFolderSupported ? null : 'Direct folder access is not supported by this browser.',
+    create: canUseProjectFiles && localFolderSupported, read: canUseProjectFiles && localFolderSupported, write: canUseProjectFiles && localFolderSupported,
     remove: false, revisionSafe: false, serverReachable: false,
   },
 ];

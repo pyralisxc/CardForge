@@ -77,21 +77,35 @@ const resolveDeveloperCockpitAccess = async ({
     firstName: user.firstName,
     lastName: user.lastName,
   });
-  const capabilities = await getDeveloperProfileCapabilities(user.id);
   const isOwner = ownerAccess.isOwner;
-  if (!isOwner && capabilities.status !== 'active') {
-    throw new DeveloperCockpitAccessError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
-  }
-  const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
-  return {
+  const baseProjection = {
     user,
     entitlement,
     isDeveloper,
     isOwner,
     email: user.email,
     displayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+  };
+  if (isOwner) {
+    return {
+      ...baseProjection,
+      scopes: resolveDeveloperContributionScopes({
+        isOwner: true,
+        profileStatus: null,
+        canDraftCampaigns: false,
+        canProposeSiteContent: false,
+      }),
+    };
+  }
+  const capabilities = await getDeveloperProfileCapabilities(user.id);
+  if (capabilities.status !== 'active') {
+    throw new DeveloperCockpitAccessError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
+  }
+  const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
+  return {
+    ...baseProjection,
     scopes: resolveDeveloperContributionScopes({
-      isOwner,
+      isOwner: false,
       profileStatus: capabilities.status,
       canDraftCampaigns: capabilities.canDraftCampaigns && extendedContributionsEnabled,
       canProposeSiteContent: capabilities.canProposeSiteContent && extendedContributionsEnabled,
@@ -136,8 +150,7 @@ export const getCurrentDeveloperAccessSessionState = async (): Promise<Developer
       projection: {
         hasCockpitAccess: true,
         cockpitHref: '/developer/cockpit',
-        canSubmitTemplateRevisions: hasContributionScope(access.scopes, 'library.submit'),
-        canPublishSharedLibrary: hasContributionScope(access.scopes, 'library.publish'),
+        scopes: access.scopes,
       },
     };
   } catch (error) {

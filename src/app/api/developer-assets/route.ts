@@ -6,7 +6,7 @@ import {
   getDeveloperContributorIds,
   getDeveloperAssetProgramView,
   projectDeveloperAssetProgramForViewer,
-  syncDeveloperAssetRequestProfile,
+  requireDeveloperAssetRequestScope,
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/features/developer-assets/server';
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const timing = createServerTimingTracker();
   try {
     const access = await timing.track('developer_access', getCurrentDeveloperAssetRequestAccess);
-    await timing.track('profile_sync', () => syncDeveloperAssetRequestProfile(access));
+    requireDeveloperAssetRequestScope(access, 'assets.review');
     const url = new URL(request.url);
     const program = await timing.track(
       'program_view',
@@ -99,6 +99,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'assets.submit');
     const rateLimit = await consumeRateLimit({
       action: 'developer-submission',
       identity: access.user.id,
@@ -114,8 +115,6 @@ export async function POST(request: Request) {
         unit: 'attempts_per_hour',
       });
     }
-    await syncDeveloperAssetRequestProfile(access);
-
     const body = await request.json() as Record<string, unknown>;
     const uploadedFile = body.uploadedFile;
     if (!uploadedFile || typeof uploadedFile !== 'object' || Array.isArray(uploadedFile)) {

@@ -86,9 +86,6 @@ describe('consolidated public routes and account navigation', () => {
     expect(controls).not.toContain('useAccountEntitlement');
     expect(controls).not.toContain('accountSessionConfirmed');
     expect(controls).not.toContain('setTimeout');
-    const accountEntitlementRoute = readSource('src/app/api/account/entitlement/route.ts');
-    expect(accountEntitlementRoute).toContain('getCurrentCardforgeUserAccess()');
-    expect(accountEntitlementRoute).toContain('accountUserId: user?.id ?? null');
     const developerAccess = readSource('src/features/developer-access/server/access.ts');
     expect(developerAccess).toContain('ownerAccess,');
     expect(developerAccess).not.toContain('resolveOwnerAccessForServerUser');

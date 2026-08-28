@@ -1,13 +1,12 @@
-import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import {
   DeveloperAssetStoreError,
+  getCurrentDeveloperAssetRequestAccess,
   getDeveloperAssetVotePolicy,
   projectDeveloperAssetProgramForViewer,
+  requireDeveloperAssetRequestScope,
   voteOnDeveloperAssetSubmission,
 } from '@/features/developer-assets/server';
-import { upsertDeveloperProfile } from '@/features/developer-access/server';
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 
@@ -20,26 +19,12 @@ export async function POST(
   { params }: { params: Promise<{ submissionId: string }> }
 ) {
   try {
-    const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
-    if (!user) {
-      return createApiErrorResponse(401, 'sign_in_required', 'Sign in before voting on developer assets.');
-    }
-
-    const entitlement = resolveAccountEntitlement({
-      authConfigured,
-      isSignedIn: true,
-      emailAddresses: user.emailAddresses,
-      privateMetadata: user.privateMetadata,
-      ownerAccess,
-    });
-
-    if (entitlement.accessMode !== 'dev' && !ownerAccess.isOwner) {
-      return createApiErrorResponse(403, 'developer_access_required', 'Developer access is required to vote on asset submissions.');
-    }
+    const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'assets.review');
 
     const rateLimit = await consumeRateLimit({
       action: 'developer-vote',
-      identity: user.id,
+      identity: access.user.id,
       limit: 120,
       windowSeconds: 3600,
     });
@@ -53,7 +38,7 @@ export async function POST(
     }
 
     const { submissionId } = await params;
-    const contributorIds = getContributorIds(user.id);
+    const contributorIds = getContributorIds(access.user.id);
     const votePolicy = await getDeveloperAssetVotePolicy(submissionId);
     if (!votePolicy.submissionStatus) {
       return createApiErrorResponse(404, 'developer_asset_request_invalid', 'Developer asset submission was not found.');
@@ -70,26 +55,19 @@ export async function POST(
     }
 
     const body = await request.json() as { voteValue?: unknown };
-    await upsertDeveloperProfile({
-      developerId: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    });
-
     const program = await voteOnDeveloperAssetSubmission({
       submissionId,
-      developerId: user.id,
+      developerId: access.user.id,
       voteValue: body.voteValue,
       currentContributorIds: contributorIds,
-      ownerDeveloperId: ownerAccess.isOwner ? user.id : null,
+      ownerDeveloperId: access.isOwner ? access.user.id : null,
     });
     revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {
-        currentUserId: user.id,
-        isOwner: ownerAccess.isOwner,
+        currentUserId: access.user.id,
+        isOwner: access.isOwner,
       }),
     });
   } catch (error) {
@@ -102,7 +80,13 @@ export async function POST(
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        error.status === 401
+          ? 'sign_in_required'
+          : error.status === 403
+            ? 'developer_access_required'
+            : error.status === 503
+              ? 'developer_asset_unavailable'
+              : 'developer_asset_request_invalid',
         error.message
       );
     }

@@ -8,7 +8,7 @@ import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app
 import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
-import { useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
+import { hasContributionScope, useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
 import { CardTemplateMaker, EditCardDialog, GenerationWorkspace, SetLibraryWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
@@ -43,11 +43,14 @@ export function CardForgeStudioShell({
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
-  const developerAccess = useDeveloperAccess(
-    accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
-    initialDeveloperAccess,
-    accountEntitlement.ownerAccess.isOwner,
-  );
+  const developerAccess = useDeveloperAccess({
+    eligible: accountEntitlement.accessMode === 'dev' || accountEntitlement.ownerAccess.isOwner,
+    initialState: initialDeveloperAccess,
+    isOwner: accountEntitlement.ownerAccess.isOwner,
+    sessionKey: accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
+  });
+  const canSubmitTemplateRevisions = hasContributionScope(developerAccess.scopes, 'library.submit');
+  const canPublishSharedLibrary = hasContributionScope(developerAccess.scopes, 'library.publish');
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
@@ -161,8 +164,8 @@ export function CardForgeStudioShell({
     deleteAppearanceStyle: deleteAppearanceStyleAction,
     deleteTemplate: deleteTemplateAction,
     projectCapabilities: {
-      canSubmitTemplateRevisions: developerAccess.canSubmitTemplateRevisions,
-      canPublishSharedLibrary: developerAccess.canPublishSharedLibrary,
+      canSubmitTemplateRevisions,
+      canPublishSharedLibrary,
     },
     setSingleCardGeneratorSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
@@ -457,8 +460,8 @@ export function CardForgeStudioShell({
               projectFileGateMessage={projectFileGateMessage}
               selectedTemplateIdForEditing={templateEditorSelectedTemplateId}
               onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}
-              canSubmitSharedTemplateRevision={developerAccess.canSubmitTemplateRevisions}
-              canPublishSharedLibrary={developerAccess.canPublishSharedLibrary}
+              canSubmitSharedTemplateRevision={canSubmitTemplateRevisions}
+              canPublishSharedLibrary={canPublishSharedLibrary}
               canUploadCustomAssets={canUploadCustomAssets}
               onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
               requestedBackFormat={matchingBackRequest}

@@ -40,7 +40,7 @@ const openOwner = (item: AccountLibraryItem): FeatureOwnerId => (
 );
 
 const openPermission = (item: AccountLibraryItem): ActionPermission => (
-  item.references.localSetId || item.references.localTemplateId ? 'guest' : 'creator'
+  item.references.localSetId || item.references.localTemplateId ? 'guest' : 'member'
 );
 
 export const getAccountLibraryActionSources = (item: AccountLibraryItem): ActionSourceContext[] => (
@@ -54,13 +54,22 @@ export const getAccountLibraryActionSources = (item: AccountLibraryItem): Action
 
 export const getAccountLibraryEnvironmentActions = (
   item: AccountLibraryItem,
-  disabledReason?: string,
+  options: {
+    disabledReason?: string;
+    canUseProjectFiles?: boolean;
+  } = {},
 ): ActionDescriptor[] => {
+  const { disabledReason, canUseProjectFiles = true } = options;
   const availableActions = getAccountLibraryAvailableActions(item);
   const sources = getAccountLibraryActionSources(item).map((source) => source.source);
   const availability = disabledReason
     ? { kind: 'disabled', reason: disabledReason } as const
     : { kind: 'available' } as const;
+  const projectFileAvailability = disabledReason
+    ? availability
+    : canUseProjectFiles
+      ? availability
+      : { kind: 'disabled', reason: 'Creator Pass is required to use portable Set files and connected project locations.' } as const;
   const actions: ActionDescriptor[] = [];
 
   if (availableActions.includes('continue')) {
@@ -71,7 +80,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: 'current-required',
-      requiredPermission: 'creator',
+      requiredPermission: 'member',
       scope: 'object',
       hierarchy: 'primary',
       availability,
@@ -95,7 +104,7 @@ export const getAccountLibraryEnvironmentActions = (
       requiredPermission: openPermission(item),
       scope: 'object',
       hierarchy: 'primary',
-      availability,
+      availability: item.references.localSetId || item.references.localTemplateId ? availability : projectFileAvailability,
       commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation(item),
       result: 'navigation',
@@ -110,10 +119,10 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: 'none',
-      requiredPermission: item.references.localSetId ? 'guest' : 'creator',
+      requiredPermission: item.references.localSetId ? 'guest' : 'member',
       scope: 'object',
       hierarchy: 'supporting',
-      availability,
+      availability: projectFileAvailability,
       commitment: 'permission',
       automation: human(),
       result: 'mutation',
@@ -136,7 +145,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: ['google-drive'],
       revisionPolicy: 'none',
-      requiredPermission: 'creator',
+      requiredPermission: 'member',
       scope: 'object',
       hierarchy: actions.length === 0 ? 'primary' : 'supporting',
       availability,
@@ -154,7 +163,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: 'none',
-      requiredPermission: item.references.localFolder ? 'guest' : 'creator',
+      requiredPermission: item.references.localFolder ? 'guest' : 'member',
       scope: 'object',
       hierarchy: actions.length === 0 ? 'primary' : 'overflow',
       availability,
@@ -172,7 +181,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
       revisionPolicy: item.references.driveFileId && !item.references.localSetId ? 'conflict-safe' : 'none',
-      requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'creator',
+      requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'member',
       scope: 'object', hierarchy: 'overflow', availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'mutation',
     });
   }

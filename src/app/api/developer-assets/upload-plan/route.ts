@@ -5,7 +5,7 @@ import {
   getDeveloperContributorIds,
   prepareDeveloperAssetUpload,
   removePendingDeveloperAssetUpload,
-  syncDeveloperAssetRequestProfile,
+  requireDeveloperAssetRequestScope,
 } from '@/features/developer-assets/server';
 import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
@@ -44,6 +44,7 @@ const toErrorResponse = (error: unknown, fallback: string) => {
 export async function POST(request: Request) {
   try {
     const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'assets.submit');
     const rateLimit = await consumeRateLimit({
       action: 'developer-upload-plan',
       identity: access.user.id,
@@ -59,7 +60,6 @@ export async function POST(request: Request) {
         unit: 'attempts_per_hour',
       });
     }
-    await syncDeveloperAssetRequestProfile(access);
     const program = await getDeveloperAssetProgramView(
       access.user.id,
       getDeveloperContributorIds(access.user.id),
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'assets.submit');
     const body = await request.json() as Record<string, unknown>;
     await removePendingDeveloperAssetUpload({
       developerId: access.user.id,

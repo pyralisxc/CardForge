@@ -1,56 +1,36 @@
-import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 import {
   DeveloperAssetStoreError,
   finalizeDeveloperTemplatePipelineDraft,
+  getCurrentDeveloperAssetRequestAccess,
   permanentlyDeleteDeveloperAssetSubmission,
   projectDeveloperAssetProgramForViewer,
+  requireDeveloperAssetRequestScope,
   updateDeveloperAssetSubmissionDetails,
   updateDeveloperAssetSubmissionStatus,
 } from '@/features/developer-assets/server';
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 
-const getDeveloperAccess = async () => {
-  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
-
-  if (!user) {
-    return {
-      ok: false as const,
-      response: createApiErrorResponse(401, 'sign_in_required', 'Sign in before editing developer assets.'),
-    };
-  }
-
-  const entitlement = resolveAccountEntitlement({
-    authConfigured,
-    isSignedIn: true,
-    emailAddresses: user.emailAddresses,
-    privateMetadata: user.privateMetadata,
-    ownerAccess,
-  });
-
-  if (entitlement.accessMode !== 'dev' && !ownerAccess.isOwner) {
-    return {
-      ok: false as const,
-      response: createApiErrorResponse(403, 'developer_access_required', 'Developer access is required to edit asset submissions.'),
-    };
-  }
-
-  return { ok: true as const, user, ownerAccess };
-};
-
 const getContributorIds = (userId: string) => [userId];
+
+const getDeveloperAssetErrorCode = (status: number) => status === 401
+  ? 'sign_in_required'
+  : status === 403
+    ? 'developer_access_required'
+    : status === 503
+      ? 'developer_asset_unavailable'
+      : 'developer_asset_request_invalid';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ submissionId: string }> }
 ) {
   try {
-    const access = await getDeveloperAccess();
-    if (!access.ok) return access.response;
+    const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'assets.submit');
 
     const { submissionId } = await params;
     const body = await request.json() as {
@@ -66,7 +46,7 @@ export async function PATCH(
       submissionId,
       developerId: access.user.id,
       input: body,
-      allowOwnerEdit: access.ownerAccess.isOwner,
+      allowOwnerEdit: access.isOwner,
       currentContributorIds: getContributorIds(access.user.id),
     });
     revalidateCardForgeCatalog();
@@ -74,7 +54,7 @@ export async function PATCH(
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {
         currentUserId: access.user.id,
-        isOwner: access.ownerAccess.isOwner,
+        isOwner: access.isOwner,
       }),
     });
   } catch (error) {
@@ -84,7 +64,7 @@ export async function PATCH(
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        getDeveloperAssetErrorCode(error.status),
         error.message
       );
     }
@@ -103,8 +83,8 @@ export async function POST(
   { params }: { params: Promise<{ submissionId: string }> }
 ) {
   try {
-    const access = await getDeveloperAccess();
-    if (!access.ok) return access.response;
+    const access = await getCurrentDeveloperAssetRequestAccess();
+    requireDeveloperAssetRequestScope(access, 'library.submit');
     const { submissionId } = await params;
     const body = await request.json() as {
       name?: unknown;
@@ -120,13 +100,13 @@ export async function POST(
       developerId: access.user.id,
       input: body,
       currentContributorIds: getContributorIds(access.user.id),
-      includeRegistryRecipePayloads: access.ownerAccess.isOwner,
+      includeRegistryRecipePayloads: access.isOwner,
     });
     revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {
         currentUserId: access.user.id,
-        isOwner: access.ownerAccess.isOwner,
+        isOwner: access.isOwner,
       }),
     });
   } catch (error) {
@@ -136,7 +116,7 @@ export async function POST(
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        getDeveloperAssetErrorCode(error.status),
         error.message,
       );
     }
@@ -191,7 +171,7 @@ export async function PUT(
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        getDeveloperAssetErrorCode(error.status),
         error.message
       );
     }
@@ -241,7 +221,7 @@ export async function DELETE(
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        getDeveloperAssetErrorCode(error.status),
         error.message
       );
     }

@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import {
   getLibraryScopeDefinitions,
   getLibraryScopeStatus,
+  resolveLibraryScopeForViewer,
   type LibraryScope,
 } from '@/features/storage-management/model/libraryScopes';
 
@@ -12,16 +13,22 @@ describe('Library scopes', () => {
   const library = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/UnifiedAccountLibrary.tsx'), 'utf8');
   const sharedProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useLibrarySharedProjection.ts'), 'utf8');
   it('keeps Personal and Published visible while protecting Pipeline', () => {
-    expect(getLibraryScopeDefinitions({ developer: false, owner: false }).map((scope) => scope.id))
+    expect(getLibraryScopeDefinitions({ contributor: false, owner: false }).map((scope) => scope.id))
       .toEqual(['personal', 'published']);
-    expect(getLibraryScopeDefinitions({ developer: true, owner: false }).map((scope) => scope.id))
+    expect(getLibraryScopeDefinitions({ contributor: true, owner: false }).map((scope) => scope.id))
       .toEqual(['personal', 'published', 'pipeline']);
-    expect(getLibraryScopeDefinitions({ developer: false, owner: true }).map((scope) => scope.id))
+    expect(getLibraryScopeDefinitions({ contributor: false, owner: true }).map((scope) => scope.id))
       .toEqual(['personal', 'published', 'pipeline']);
   });
 
+  it('returns a downgraded same-session viewer to Personal immediately', () => {
+    expect(resolveLibraryScopeForViewer('pipeline', { contributor: true, owner: false })).toBe('pipeline');
+    expect(resolveLibraryScopeForViewer('pipeline', { contributor: false, owner: false })).toBe('personal');
+    expect(resolveLibraryScopeForViewer('pipeline', { contributor: false, owner: true })).toBe('pipeline');
+  });
+
   it('names each scope in creator language', () => {
-    const definitions = getLibraryScopeDefinitions({ developer: true, owner: false });
+    const definitions = getLibraryScopeDefinitions({ contributor: true, owner: false });
     expect(definitions).toMatchObject([
       { id: 'personal', label: 'Personal', owner: 'You and your providers' },
       { id: 'published', label: 'Published', owner: 'CardForge catalog' },

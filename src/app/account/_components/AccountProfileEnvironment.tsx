@@ -18,6 +18,7 @@ import {
   type EnvironmentViewer,
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
+import { projectAccountExperience } from '@/features/account/client/experience';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/client/identity';
 import {
@@ -27,6 +28,7 @@ import {
   type AccountProfileUtility,
   type AccountProfileUtilityTarget,
 } from '@/features/account/client/profile';
+import { hasContributionScope, useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
 import type { McpAllowance } from '@/features/mcp-usage/client/plans';
 
 interface AccountProfileEnvironmentProps {
@@ -34,6 +36,7 @@ interface AccountProfileEnvironmentProps {
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
   initialUtility?: 'billing' | 'identity' | null;
+  initialDeveloperAccess: DeveloperAccessSessionState;
   plans?: McpAllowance[];
 }
 
@@ -101,6 +104,7 @@ export function AccountProfileEnvironment({
   initialAuthConfigured,
   initialPlanIntent = null,
   initialUtility = null,
+  initialDeveloperAccess,
   plans = [],
 }: AccountProfileEnvironmentProps) {
   const router = useRouter();
@@ -113,11 +117,26 @@ export function AccountProfileEnvironment({
         : null
   ));
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
+  const developerAccess = useDeveloperAccess({
+    eligible: entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner,
+    initialState: initialDeveloperAccess,
+    isOwner: entitlement.ownerAccess.isOwner,
+    sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null,
+  });
+  const experience = projectAccountExperience({
+    entitlement,
+    contribution: {
+      active: developerAccess.hasCockpitAccess,
+      canSubmit: hasContributionScope(developerAccess.scopes, 'library.submit'),
+      canReview: hasContributionScope(developerAccess.scopes, 'assets.review'),
+      canPublish: hasContributionScope(developerAccess.scopes, 'library.publish'),
+    },
+  });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
   const accountName = getAccountDisplayName({ email: entitlement.accountEmail }) ?? 'Creator';
-  const isSignedIn = entitlement.isSignedIn;
-  const isOwner = isSignedIn && entitlement.ownerAccess.isOwner;
-  const isDeveloper = isSignedIn && entitlement.accessMode === 'dev';
+  const isSignedIn = experience.signedIn;
+  const isOwner = experience.owner;
+  const isDeveloper = experience.contributor.active;
   const entitlementUnavailable = Boolean(entitlement.entitlementError);
   const planLabel = getAccountAccessLabel({
     isOwner,
@@ -126,7 +145,7 @@ export function AccountProfileEnvironment({
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
   });
-  const viewer: EnvironmentViewer = { signedIn: isSignedIn, developer: isDeveloper || isOwner, owner: isOwner };
+  const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: isDeveloper, owner: isOwner };
   const availableZones = getVisibleEnvironmentZones(viewer);
   const zones = availableZones.some((zone) => zone.id === 'profile')
     ? availableZones

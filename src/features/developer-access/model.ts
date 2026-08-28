@@ -49,8 +49,7 @@ export interface DeveloperAccessProfile {
 export interface DeveloperAccessProjection {
   hasCockpitAccess: boolean;
   cockpitHref: '/developer/cockpit';
-  canSubmitTemplateRevisions: boolean;
-  canPublishSharedLibrary: boolean;
+  scopes: readonly DeveloperContributionScope[];
 }
 
 export interface DeveloperAccessSessionState {
@@ -61,15 +60,13 @@ export interface DeveloperAccessSessionState {
 export const EMPTY_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   hasCockpitAccess: false,
   cockpitHref: '/developer/cockpit',
-  canSubmitTemplateRevisions: false,
-  canPublishSharedLibrary: false,
+  scopes: [],
 };
 
 export const OWNER_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   hasCockpitAccess: true,
   cockpitHref: '/developer/cockpit',
-  canSubmitTemplateRevisions: true,
-  canPublishSharedLibrary: true,
+  scopes: DEVELOPER_CONTRIBUTION_SCOPES,
 };
 
 export const EMPTY_DEVELOPER_ACCESS_SESSION_STATE: DeveloperAccessSessionState = {
@@ -78,15 +75,17 @@ export const EMPTY_DEVELOPER_ACCESS_SESSION_STATE: DeveloperAccessSessionState =
 };
 
 export const resolveDeveloperAccessProjectionForSession = ({
+  eligible,
   isOwner,
   sessionKey,
   state,
 }: {
+  eligible: boolean;
   isOwner: boolean;
   sessionKey: string | null;
   state: DeveloperAccessSessionState;
 }): DeveloperAccessProjection => {
-  if (!sessionKey) return EMPTY_DEVELOPER_ACCESS_PROJECTION;
+  if (!sessionKey || !eligible) return EMPTY_DEVELOPER_ACCESS_PROJECTION;
   if (isOwner) return OWNER_DEVELOPER_ACCESS_PROJECTION;
   return state.sessionKey === sessionKey
     ? state.projection
@@ -94,15 +93,17 @@ export const resolveDeveloperAccessProjectionForSession = ({
 };
 
 export const shouldClearStoredDeveloperAccess = ({
+  eligible,
   isOwner,
   sessionKey,
   state,
 }: {
+  eligible: boolean;
   isOwner: boolean;
   sessionKey: string | null;
   state: DeveloperAccessSessionState;
 }): boolean => (
-  (!sessionKey || isOwner) && state.sessionKey !== null
+  (!sessionKey || !eligible || isOwner) && state.sessionKey !== null
 );
 
 export const resolveDeveloperContributionScopes = ({

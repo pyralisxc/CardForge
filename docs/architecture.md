@@ -99,6 +99,8 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 - Owner: owner console plus developer-grade tooling.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
 
+`src/features/account/lib/accountExperience.ts` projects those independent axes into the shared product surfaces: plan (`free`, `creator`, or `designer`), active scoped contribution access, and explicit owner authority. Home, Library, Studio, and Profile remain the same environments for every account; catalog visibility, portable-project capability, Pipeline scope/actions, and owner governance layer onto them. A `dev` entitlement without an active developer profile grants no contributor surface, and every Forge Review HTTP mutation independently requires its exact contribution scope. In the Environment vocabulary, `member` means any signed-in account and never means Creator Pass.
+
 Current account resolution uses Clerk's current-user identity directly; CardForge does not maintain a second session/profile fallback. Explicit user-id administration uses Clerk's Backend API.
 
 ## Card and Template model

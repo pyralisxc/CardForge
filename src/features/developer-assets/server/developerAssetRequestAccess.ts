@@ -6,7 +6,10 @@ import {
 import {
   DeveloperAccessStoreError,
   getDeveloperProfileCapabilities,
+  hasContributionScope,
+  resolveDeveloperContributionScopes,
   upsertDeveloperProfile,
+  type DeveloperContributionScope,
 } from '@/features/developer-access/server';
 import { DeveloperAssetStoreError } from '../lib/developerAssetStoreError';
 
@@ -16,6 +19,7 @@ export interface DeveloperAssetRequestAccess {
   isOwner: boolean;
   isDeveloper: boolean;
   email: string | null;
+  scopes: readonly DeveloperContributionScope[];
 }
 
 export const getCurrentDeveloperAssetRequestAccess = async (): Promise<DeveloperAssetRequestAccess> => {
@@ -44,30 +48,30 @@ export const getCurrentDeveloperAssetRequestAccess = async (): Promise<Developer
   if (!isDeveloper && !ownerAccess.isOwner) {
     throw new DeveloperAssetStoreError('Developer access is required for asset submissions.', 403);
   }
-  return {
-    user,
-    ownerAccess,
-    isOwner: ownerAccess.isOwner,
-    isDeveloper,
-    email: user.email,
-  };
-};
-
-export const getDeveloperContributorIds = (userId: string): string[] => [userId];
-
-export const syncDeveloperAssetRequestProfile = async (
-  access: DeveloperAssetRequestAccess,
-): Promise<void> => {
   await upsertDeveloperProfile({
-    developerId: access.user.id,
-    email: access.email,
-    firstName: access.user.firstName,
-    lastName: access.user.lastName,
+    developerId: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
   });
-  if (access.isOwner) return;
+  if (ownerAccess.isOwner) {
+    return {
+      user,
+      ownerAccess,
+      isOwner: true,
+      isDeveloper,
+      email: user.email,
+      scopes: resolveDeveloperContributionScopes({
+        isOwner: true,
+        profileStatus: null,
+        canDraftCampaigns: false,
+        canProposeSiteContent: false,
+      }),
+    };
+  }
   let profile: Awaited<ReturnType<typeof getDeveloperProfileCapabilities>>;
   try {
-    profile = await getDeveloperProfileCapabilities(access.user.id);
+    profile = await getDeveloperProfileCapabilities(user.id);
   } catch (error) {
     if (error instanceof DeveloperAccessStoreError) {
       throw new DeveloperAssetStoreError(error.message, error.status);
@@ -79,5 +83,29 @@ export const syncDeveloperAssetRequestProfile = async (
       'This developer profile is not active. Contact the CardForge owner if access should be restored.',
       403,
     );
+  }
+  return {
+    user,
+    ownerAccess,
+    isOwner: false,
+    isDeveloper,
+    email: user.email,
+    scopes: resolveDeveloperContributionScopes({
+      isOwner: false,
+      profileStatus: profile.status,
+      canDraftCampaigns: profile.canDraftCampaigns,
+      canProposeSiteContent: profile.canProposeSiteContent,
+    }),
+  };
+};
+
+export const getDeveloperContributorIds = (userId: string): string[] => [userId];
+
+export const requireDeveloperAssetRequestScope = (
+  access: DeveloperAssetRequestAccess,
+  scope: DeveloperContributionScope,
+): void => {
+  if (!hasContributionScope(access.scopes, scope)) {
+    throw new DeveloperAssetStoreError('Your contributor account does not have permission for this Forge Review action.', 403);
   }
 };

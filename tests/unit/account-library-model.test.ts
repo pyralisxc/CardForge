@@ -238,7 +238,7 @@ describe('account library model', () => {
     const localSet = items.find((item) => item.references.localSetId === 'local-set');
     const driveProject = items.find((item) => item.references.driveFileId === 'drive-project');
     expect(getAccountLibraryEnvironmentActions(localSet!)[0]).toMatchObject({ requiredPermission: 'guest' });
-    expect(getAccountLibraryEnvironmentActions(driveProject!)[0]).toMatchObject({ requiredPermission: 'creator' });
+    expect(getAccountLibraryEnvironmentActions(driveProject!)[0]).toMatchObject({ requiredPermission: 'member' });
   });
 
   it('pools copies of one Set into one Library object with multiple locations', () => {

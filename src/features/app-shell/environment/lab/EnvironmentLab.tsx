@@ -43,8 +43,8 @@ const recipeForZone = (zone: ZoneId): RecipeId => {
 export function EnvironmentLab() {
   const [viewerMode, setViewerMode] = useState<'owner' | 'guest'>('owner');
   const viewer: EnvironmentViewer = useMemo(() => viewerMode === 'owner'
-    ? { signedIn: true, developer: true, owner: true }
-    : { signedIn: false, developer: false, owner: false }, [viewerMode]);
+    ? { signedIn: true, contributor: true, owner: true }
+    : { signedIn: false, contributor: false, owner: false }, [viewerMode]);
   const zones = useMemo(() => getVisibleEnvironmentZones(viewer), [viewer]);
   const [activeZone, setActiveZone] = useState<ZoneId>('home');
   const [selections, setSelections] = useState(initialSelections);
