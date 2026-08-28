@@ -239,33 +239,6 @@
   min-height: 14rem;
 }
 
-.previewStack {
-  position: relative;
-  display: grid;
-  min-width: 8rem;
-  min-height: 9rem;
-  place-items: center;
-  filter: drop-shadow(0 1rem 1.2rem rgb(0 0 0 / 32%));
-}
-
-.previewStack > * {
-  position: absolute;
-  z-index: 3;
-  transform: rotate(-0.6deg);
-}
-
-.previewStack > :nth-child(2) {
-  z-index: 2;
-  transform: translate(1.55rem, 0.25rem) rotate(5deg);
-  opacity: 0.86;
-}
-
-.previewStack > :nth-child(3) {
-  z-index: 1;
-  transform: translate(-1.55rem, 0.5rem) rotate(-5deg);
-  opacity: 0.74;
-}
-
 .sourceFallback {
   display: grid;
   width: 6.8rem;

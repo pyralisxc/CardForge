@@ -26,6 +26,13 @@ const PROJECT_FALLBACK_SET: CardSet = {
   backingTemplateId: null,
 };
 
+export const isUntouchedBootstrapCardSet = (
+  set: Pick<CardSet, 'id' | 'name'>,
+  cardCount: number,
+): boolean => set.id === PROJECT_FALLBACK_SET.id
+  && set.name === PROJECT_FALLBACK_SET.name
+  && cardCount === 0;
+
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
 export const CUSTOM_ICON_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-icons';
@@ -336,6 +343,36 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
   customAssets: normalizeCustomAssets(document.customAssets),
   customFonts: normalizeProjectFontAssets(document.customFonts),
 });
+
+/**
+ * Produces the durable package for one authored Set without changing the
+ * workspace. Older multi-Set packages remain readable, but every new
+ * location-level copy created by Home or Library owns one clear work object.
+ */
+export const isolateProjectDocumentToSet = (
+  document: ProjectDocumentV1,
+  setId: string,
+): ProjectDocumentV1 => {
+  const set = document.cardSets.find((candidate) => candidate.id === setId);
+  if (!set) throw new Error('The selected Set is no longer available in this browser workspace.');
+  const firstSetId = document.cardSets[0]?.id;
+  const storedCards = document.storedCards.filter((card) => (
+    card.setId === setId || (!card.setId && firstSetId === setId)
+  )).map((card) => ({ ...card, setId, setName: set.name }));
+  const templateIds = new Set<string>([
+    set.frontTemplateId,
+    set.backingTemplateId,
+    ...storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((value): value is string => Boolean(value)));
+
+  return {
+    ...document,
+    userTemplates: document.userTemplates.filter((template) => Boolean(template.id && templateIds.has(template.id))),
+    cardSets: [set],
+    activeCardSetId: set.id,
+    storedCards,
+  };
+};
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
   if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {

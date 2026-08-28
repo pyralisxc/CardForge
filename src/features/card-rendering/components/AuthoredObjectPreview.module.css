@@ -1,0 +1,33 @@
+.stack {
+  position: relative;
+  display: grid;
+  min-block-size: 8.5rem;
+  place-items: center;
+  overflow: visible;
+}
+
+.stack[data-size='compact'] { min-block-size: 5.8rem; }
+.stack[data-size='large'] { min-block-size: 14rem; }
+
+.card {
+  grid-area: 1 / 1;
+  transform-origin: 50% 80%;
+  filter: drop-shadow(0 0.7rem 1rem rgb(0 0 0 / 30%));
+}
+
+.card[data-card-position='0'] { z-index: 3; }
+.card[data-card-position='1'] { z-index: 2; transform: translate(-16%, 7%) rotate(-6deg); opacity: 0.86; }
+.card[data-card-position='2'] { z-index: 1; transform: translate(16%, 8%) rotate(6deg); opacity: 0.72; }
+
+.fallback {
+  display: grid;
+  min-block-size: 8.5rem;
+  inline-size: 100%;
+  place-items: center;
+  color: var(--cf-text-subtle);
+}
+
+.fallback[data-size='compact'] { min-block-size: 5.8rem; }
+.fallback[data-size='large'] { min-block-size: 14rem; }
+.fallback svg { inline-size: 2rem; block-size: 2rem; }
+.fallback[data-size='large'] svg { inline-size: 3rem; block-size: 3rem; }

@@ -13,10 +13,12 @@ import {
   removeStructuredBrowserValue,
   writeStructuredBrowserValue,
 } from '../persistence/structuredBrowserStorage';
-import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from './projectWorkspaceDocument';
+import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from './projectWorkspaceDocument';
 
 const LOCAL_PROJECT_FILE_NAME = `project${CARDFORGE_PROJECT_FILE_EXTENSION}`;
 const LOCAL_FOLDER_BINDING_KEY = 'local-project-folder-binding';
+const LOCAL_WORK_FOLDER_BINDING_KEY = 'local-work-folder-binding';
+const LOCAL_WORK_FOLDER_INDEX_KEY = 'local-work-folder-binding-index';
 
 type FileSystemPermissionMode = 'read' | 'readwrite';
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
@@ -39,6 +41,7 @@ export interface LocalProjectFolderBinding {
   folderName: string;
   sourceRevision: string | null;
   lastSavedAt: string | null;
+  workId?: string | null;
 }
 
 export interface LocalProjectFolderStatus {
@@ -48,9 +51,28 @@ export interface LocalProjectFolderStatus {
   source: ProjectSourceDescriptor;
 }
 
+export interface LocalProjectWorkBindingStatus extends LocalProjectFolderBinding {
+  workId: string;
+  permission: FileSystemPermissionState | 'unavailable';
+}
+
 const getBindingStorageKey = () => (
   `${getScopedProjectStorageNamespace('project-assets')}:${LOCAL_FOLDER_BINDING_KEY}`
 );
+
+const getWorkBindingStorageKey = (workId: string) => (
+  `${getScopedProjectStorageNamespace('project-assets')}:${LOCAL_WORK_FOLDER_BINDING_KEY}:${workId}`
+);
+
+const getWorkBindingIndexStorageKey = () => (
+  `${getScopedProjectStorageNamespace('project-assets')}:${LOCAL_WORK_FOLDER_INDEX_KEY}`
+);
+
+const indexWorkBinding = async (workId: string): Promise<void> => {
+  const current = await readStructuredBrowserValue<unknown>(getWorkBindingIndexStorageKey()).catch(() => null);
+  const ids = Array.isArray(current) ? current.filter((value): value is string => typeof value === 'string') : [];
+  if (!ids.includes(workId)) await writeStructuredBrowserValue(getWorkBindingIndexStorageKey(), [...ids, workId]);
+};
 
 const getPermission = async (
   handle: FileSystemDirectoryHandle,
@@ -94,9 +116,10 @@ const chooseDirectory = async (): Promise<FileSystemDirectoryHandle> => {
 const writeSnapshotToDirectory = async (
   directory: FileSystemDirectoryHandle,
   existingBinding?: LocalProjectFolderBinding | null,
+  workId?: string,
 ): Promise<LocalProjectFolderBinding> => {
   await requireWritePermission(directory);
-  const document = await captureCurrentProjectDocument();
+  const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
   const snapshot = await buildCardForgeProjectSnapshot({ document, name: directory.name });
   const bytes = await encodeCardForgeProjectPackage(snapshot);
   const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME, { create: true });
@@ -110,14 +133,24 @@ const writeSnapshotToDirectory = async (
     try { await writable.abort(); } catch { /* best effort */ }
     throw error;
   }
+  const written = await fileHandle.getFile();
+  const verified = await decodeProjectFile(written);
+  if (verified.format !== 'cardforge-package' || verified.sourceRevision !== snapshot.manifest.projectRevision) {
+    throw new ProjectPackageError('The local folder write could not be verified. The browser copy was left unchanged.');
+  }
   const binding: LocalProjectFolderBinding = {
     ...(existingBinding ?? {}),
     handle: directory,
     folderName: directory.name,
     sourceRevision: snapshot.manifest.projectRevision,
     lastSavedAt: snapshot.manifest.savedAt,
+    workId: workId ?? null,
   };
-  await persistBinding(binding);
+  if (workId) {
+    await writeStructuredBrowserValue(getWorkBindingStorageKey(workId), binding);
+    await indexWorkBinding(workId);
+  }
+  else await persistBinding(binding);
   return binding;
 };
 
@@ -153,6 +186,38 @@ export const saveCurrentProjectToNewFolder = async (): Promise<LocalProjectFolde
     throw new ProjectPackageError(`“${directory.name}” already contains a CardForge project. Open that project instead, or choose an empty folder to avoid overwriting it.`);
   }
   return await writeSnapshotToDirectory(directory);
+};
+
+export const saveCardSetToNewFolder = async ({ setId }: { setId: string }): Promise<LocalProjectFolderBinding> => {
+  const directory = await chooseDirectory();
+  await requireWritePermission(directory);
+  if (await fileExists(directory, LOCAL_PROJECT_FILE_NAME)) {
+    throw new ProjectPackageError(`“${directory.name}” already contains a CardForge project. Choose an empty folder so existing authored work is not overwritten.`);
+  }
+  return await writeSnapshotToDirectory(directory, null, setId);
+};
+
+export const getLocalProjectWorkBinding = async (workId: string): Promise<LocalProjectFolderBinding | null> => (
+  readStructuredBrowserValue<LocalProjectFolderBinding>(getWorkBindingStorageKey(workId)).catch(() => null)
+);
+
+export const listLocalProjectWorkBindings = async (): Promise<LocalProjectWorkBindingStatus[]> => {
+  if (!isLocalProjectFolderSupported()) return [];
+  const current = await readStructuredBrowserValue<unknown>(getWorkBindingIndexStorageKey()).catch(() => null);
+  const ids = Array.isArray(current) ? current.filter((value): value is string => typeof value === 'string') : [];
+  const bindings = await Promise.all(ids.map(async (workId) => {
+    const binding = await getLocalProjectWorkBinding(workId);
+    if (!binding?.handle) return null;
+    const permission = await getPermission(binding.handle, false).catch(() => 'denied' as const);
+    return { ...binding, workId, permission } satisfies LocalProjectWorkBindingStatus;
+  }));
+  return bindings.flatMap((binding) => binding ? [binding] : []);
+};
+
+export const saveCardSetToAttachedFolder = async (setId: string): Promise<LocalProjectFolderBinding> => {
+  const binding = await getLocalProjectWorkBinding(setId);
+  if (!binding?.handle) return await saveCardSetToNewFolder({ setId });
+  return await writeSnapshotToDirectory(binding.handle, binding, setId);
 };
 
 export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding> => {

@@ -36,11 +36,11 @@ const openAutomation = (item: AccountLibraryItem): ActionAutomation => {
 };
 
 const openOwner = (item: AccountLibraryItem): FeatureOwnerId => (
-  item.kind === 'set' ? 'card-generator' : 'project'
+  item.kind === 'working-draft' ? 'studio-documents' : item.kind === 'template' ? 'template-editor' : 'card-generator'
 );
 
 const openPermission = (item: AccountLibraryItem): ActionPermission => (
-  item.references.localSetId ? 'guest' : 'creator'
+  item.references.localSetId || item.references.localTemplateId ? 'guest' : 'creator'
 );
 
 export const getAccountLibraryActionSources = (item: AccountLibraryItem): ActionSourceContext[] => (
@@ -84,7 +84,7 @@ export const getAccountLibraryEnvironmentActions = (
   if (availableActions.includes('open')) {
     actions.push({
       id: 'library.open',
-      label: item.references.localSetId ? 'Open in Studio' : 'Open project',
+      label: item.references.localSetId || item.references.localTemplateId ? 'Open in Studio' : 'Open project',
       ownerFeature: openOwner(item),
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
@@ -99,6 +99,32 @@ export const getAccountLibraryEnvironmentActions = (
       commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation(item),
       result: 'navigation',
+    });
+  }
+
+  if (availableActions.includes('save-move')) {
+    actions.push({
+      id: 'library.save-move',
+      label: 'Save / move',
+      ownerFeature: 'storage-management',
+      supportedObjectKinds: [item.kind],
+      supportedSources: sources,
+      revisionPolicy: 'none',
+      requiredPermission: item.references.localSetId ? 'guest' : 'creator',
+      scope: 'object',
+      hierarchy: 'supporting',
+      availability,
+      commitment: 'permission',
+      automation: human(),
+      result: 'mutation',
+    });
+  }
+
+  if (availableActions.includes('duplicate')) {
+    actions.push({
+      id: 'library.duplicate', label: 'Duplicate', ownerFeature: 'card-generator',
+      supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: 'guest',
+      scope: 'object', hierarchy: 'overflow', availability, commitment: 'none', automation: human(), result: 'mutation',
     });
   }
 
@@ -135,6 +161,19 @@ export const getAccountLibraryEnvironmentActions = (
       commitment: 'none',
       automation: human(),
       result: 'navigation',
+    });
+  }
+
+  if (availableActions.includes('delete-copy')) {
+    actions.push({
+      id: 'library.delete-copy',
+      label: item.references.localSetId || item.references.localTemplateId ? 'Delete device copy' : 'Delete Drive copy',
+      ownerFeature: item.references.localTemplateId ? 'template-editor' : item.references.localSetId ? 'card-generator' : 'project',
+      supportedObjectKinds: [item.kind],
+      supportedSources: sources,
+      revisionPolicy: item.references.driveFileId && !item.references.localSetId ? 'conflict-safe' : 'none',
+      requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'creator',
+      scope: 'object', hierarchy: 'overflow', availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'mutation',
     });
   }
 

@@ -17,7 +17,7 @@ describe('account library model', () => {
       localSets: [{ id: 'set-1', name: 'Arcane Deck', cardCount: 52, sizeBytes: 1200 }],
       driveProjects: [],
       driveBindingFileId: null,
-      localFolder: null,
+      localWorkFolders: [],
       personalAssets: [],
       workingDrafts: [],
     });
@@ -29,6 +29,27 @@ describe('account library model', () => {
       locations: [{ source: 'device', status: 'available' }],
       references: { localSetId: 'set-1' },
     });
+  });
+
+  it('shows personal Templates as rendered reusable Library objects', () => {
+    const [template] = buildAccountLibraryItems({
+      localSets: [],
+      localTemplates: [{ id: 'template-1', name: 'Arcane Frame' }],
+      driveProjects: [],
+      driveBindingFileId: null,
+      localWorkFolders: [],
+      personalAssets: [],
+      workingDrafts: [],
+    });
+
+    expect(template).toMatchObject({
+      kind: 'template',
+      name: 'Arcane Frame',
+      locations: [{ source: 'device', status: 'available' }],
+      references: { localTemplateId: 'template-1' },
+    });
+    expect(getAccountLibraryAvailableActions(template!)).toEqual(['open', 'duplicate']);
+    expect(getAccountLibraryEnvironmentActions(template!).map((action) => action.ownerFeature)).toEqual(['template-editor', 'card-generator']);
   });
 
   it('keeps provider-owned projects, assets, folders, and temporary drafts explicit', () => {
@@ -44,12 +65,13 @@ describe('account library model', () => {
         webViewLink: 'https://drive.google.com/file/d/drive-project-1/view',
       }],
       driveBindingFileId: 'drive-project-1',
-      localFolder: {
+      localWorkFolders: [{
+        workId: 'missing-local-work',
         folderName: 'Local Campaign',
         sourceRevision: 'local-revision',
         lastSavedAt: '2026-08-24T10:00:00.000Z',
         permission: 'prompt',
-      },
+      }],
       personalAssets: [{
         id: 'asset-1',
         displayName: 'Frame.png',
@@ -69,11 +91,10 @@ describe('account library model', () => {
       }],
     });
 
-    expect(items.map((item) => item.kind)).toEqual(['project', 'project', 'asset', 'working-draft']);
+    expect(items.map((item) => item.kind)).toEqual(['set', 'asset', 'working-draft']);
     expect(items[0]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'attached' });
-    expect(items[1]?.locations[0]).toMatchObject({ source: 'local-folder', status: 'needs-permission' });
-    expect(items[2]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'available' });
-    expect(items[3]?.locations[0]).toMatchObject({ source: 'assistant-draft', status: 'temporary' });
+    expect(items[1]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'available' });
+    expect(items[2]?.locations[0]).toMatchObject({ source: 'assistant-draft', status: 'temporary' });
   });
 
   it('keeps browser actions complete while matching the MCP lifecycle for reachable sources', () => {
@@ -89,7 +110,7 @@ describe('account library model', () => {
         webViewLink: 'https://drive.google.com/file/d/drive-project/view',
       }],
       driveBindingFileId: null,
-      localFolder: null,
+      localWorkFolders: [],
       personalAssets: [],
       workingDrafts: [{
         id: 'draft',
@@ -104,10 +125,10 @@ describe('account library model', () => {
     const connectedProject = items.find((item) => item.references.driveFileId === 'drive-project');
     const draft = items.find((item) => item.references.workingDraftId === 'draft');
 
-    expect(getAccountLibraryAvailableActions(localSet!)).toEqual(['open']);
+    expect(getAccountLibraryAvailableActions(localSet!)).toEqual(['open', 'save-move', 'duplicate', 'delete-copy']);
     expect(getAccountLibraryMcpWorkflow(localSet!)).toEqual({ availability: 'browser-only', tools: [] });
 
-    expect(getAccountLibraryAvailableActions(connectedProject!)).toEqual(['open', 'view-source', 'manage-storage']);
+    expect(getAccountLibraryAvailableActions(connectedProject!)).toEqual(['open', 'save-move', 'delete-copy', 'view-source', 'manage-storage']);
     expect(getAccountLibraryMcpWorkflow(connectedProject!)).toMatchObject({
       availability: 'revision-safe',
       tools: ['list_connected_projects', 'checkout_project', 'commit_project'],
@@ -133,7 +154,7 @@ describe('account library model', () => {
         webViewLink: null,
       }],
       driveBindingFileId: null,
-      localFolder: null,
+      localWorkFolders: [],
       personalAssets: [],
       workingDrafts: [],
     });
@@ -156,7 +177,7 @@ describe('account library model', () => {
         webViewLink: 'https://drive.google.com/file/d/drive-project/view',
       }],
       driveBindingFileId: null,
-      localFolder: null,
+      localWorkFolders: [],
       personalAssets: [],
       workingDrafts: [{
         id: 'draft',
@@ -185,6 +206,10 @@ describe('account library model', () => {
         automation: { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] },
       },
       {
+        id: 'library.save-move', hierarchy: 'supporting', revisionPolicy: 'none',
+        automation: { kind: 'human-only', owner: 'cardforge' },
+      },
+      {
         id: 'library.view-source', hierarchy: 'supporting', revisionPolicy: 'none',
         automation: { kind: 'human-only', owner: 'provider' },
       },
@@ -192,21 +217,51 @@ describe('account library model', () => {
         id: 'library.manage-location', hierarchy: 'overflow', revisionPolicy: 'none',
         automation: { kind: 'human-only', owner: 'cardforge' },
       },
+      {
+        id: 'library.delete-copy', hierarchy: 'overflow', revisionPolicy: 'conflict-safe',
+        automation: { kind: 'human-only', owner: 'provider' },
+      },
     ]);
     expect(getAccountLibraryEnvironmentActions(draft!).map((action) => action.id)).toEqual(['library.continue']);
   });
 
   it('keeps local work open to guests while requiring an account for provider work', () => {
-    const [localSet, driveProject] = buildAccountLibraryItems({
+    const items = buildAccountLibraryItems({
       localSets: [{ id: 'local-set', name: 'Local Set', cardCount: 12, sizeBytes: 1200 }],
       driveProjects: [{ fileId: 'drive-project', name: 'Connected.cardforge', providerRevision: '7', projectRevision: 'project-revision', modifiedAt: '2026-08-24T11:00:00.000Z', size: 2400, webViewLink: null }],
       driveBindingFileId: null,
-      localFolder: null,
+      localWorkFolders: [],
       personalAssets: [],
       workingDrafts: [],
     });
 
+    const localSet = items.find((item) => item.references.localSetId === 'local-set');
+    const driveProject = items.find((item) => item.references.driveFileId === 'drive-project');
     expect(getAccountLibraryEnvironmentActions(localSet!)[0]).toMatchObject({ requiredPermission: 'guest' });
     expect(getAccountLibraryEnvironmentActions(driveProject!)[0]).toMatchObject({ requiredPermission: 'creator' });
+  });
+
+  it('pools copies of one Set into one Library object with multiple locations', () => {
+    const items = buildAccountLibraryItems({
+      localSets: [{ id: 'set-1', name: 'Arcane Deck', cardCount: 52, sizeBytes: 1200 }],
+      driveProjects: [{
+        fileId: 'drive-project', name: 'Arcane Deck.cardforge', providerRevision: '7',
+        projectRevision: 'project-revision', modifiedAt: '2026-08-24T11:00:00.000Z', size: 2400,
+        webViewLink: null, workId: 'set-1',
+      }],
+      driveBindingFileId: null,
+      localWorkFolders: [{
+        workId: 'set-1', folderName: 'Arcane Deck', sourceRevision: 'local-revision',
+        lastSavedAt: '2026-08-24T10:00:00.000Z', permission: 'granted',
+      }],
+      personalAssets: [], workingDrafts: [],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      kind: 'set',
+      references: { localSetId: 'set-1', driveFileId: 'drive-project', localFolder: true },
+    });
+    expect(items[0]?.locations.map((location) => location.source)).toEqual(['device', 'google-drive', 'local-folder']);
   });
 });

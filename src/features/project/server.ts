@@ -55,6 +55,7 @@ export {
   GOOGLE_DRIVE_ROOT_FOLDER_NAME,
   isGoogleDriveFileId,
   isGoogleDriveProviderRevision,
+  isGoogleDriveWorkId,
 } from './model/googleDriveProject';
 export type {
   GoogleDriveFolderSelection,

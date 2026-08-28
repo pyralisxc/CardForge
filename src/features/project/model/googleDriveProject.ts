@@ -25,6 +25,7 @@ export interface GoogleDriveProjectSummary {
   modifiedAt: string;
   size: number;
   webViewLink: string | null;
+  workId: string | null;
 }
 
 export interface GoogleDriveProjectListResult {
@@ -50,6 +51,7 @@ export interface GoogleDriveUploadPrepareResult {
   fileId: string | null;
   name: string;
   projectRevision: string;
+  workId: string | null;
 }
 
 export interface GoogleDriveUploadCompletion {
@@ -70,3 +72,8 @@ export interface GoogleDriveProjectDownload {
 export const isGoogleDriveFileId = (value: string): boolean => /^[A-Za-z0-9_-]{8,255}$/u.test(value);
 
 export const isGoogleDriveProviderRevision = (value: string): boolean => /^\d{1,80}$/u.test(value);
+
+export const isGoogleDriveWorkId = (value: string): boolean => {
+  const normalized = value.trim();
+  return normalized.length > 0 && normalized.length <= 128 && !/[\u0000-\u001f]/u.test(normalized);
+};

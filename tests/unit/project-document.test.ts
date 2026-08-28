@@ -7,6 +7,7 @@ import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
+  isolateProjectDocumentToSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
 } from '@/features/project/client';
@@ -343,5 +344,31 @@ describe('project document serialization', () => {
       'cardforge-maker-custom-icons': [],
       'cardforge-maker-custom-images': [],
     });
+  });
+
+  it('isolates one Set and assigns legacy unowned cards when creating a new durable location', () => {
+    const secondSet: CardSet = {
+      id: 'set-2',
+      name: 'Second Set',
+      frontTemplateId: null,
+      backingTemplateId: null,
+    };
+    const document = createProjectDocumentFromState({
+      userTemplates: [template],
+      cardSets: [cardSet, secondSet],
+      activeCardSetId: cardSet.id,
+      storedCards: [storedCard, { ...storedCard, uniqueId: 'legacy-card', setId: undefined }],
+      appearanceStyles: [style],
+    });
+
+    const isolated = isolateProjectDocumentToSet(document, cardSet.id);
+
+    expect(isolated.cardSets).toEqual([cardSet]);
+    expect(isolated.activeCardSetId).toBe(cardSet.id);
+    expect(isolated.storedCards.map((card) => [card.uniqueId, card.setId])).toEqual([
+      ['card-1', cardSet.id],
+      ['legacy-card', cardSet.id],
+    ]);
+    expect(isolated.userTemplates).toEqual([template]);
   });
 });

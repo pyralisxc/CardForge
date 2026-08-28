@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Boxes, Cloud, FileArchive, FolderOpen, Grid2X2, HardDrive, ImageIcon,
-  LayoutList, Loader2, MapPin, PanelRightOpen, Search, Sparkles, ThumbsDown,
-  ThumbsUp, X, type LucideIcon,
+  Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
+  Copy, ExternalLink, LayoutList, Loader2, MapPin, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
+  ThumbsUp, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,8 +24,8 @@ import {
   type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
   type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
-import { CardPreview } from '@/features/card-rendering/client';
-import { selectAllGeneratedDisplayCards, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
+import { AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
@@ -37,6 +44,7 @@ import {
   type LibraryDensity, type LibraryScope,
 } from '../model/libraryScopes';
 import { accountLibraryKindLabels, formatAccountLibraryBytes, formatAccountLibraryDate } from './AccountLibraryItemRow';
+import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDialog';
 import styles from './UnifiedAccountLibrary.module.css';
 
 interface UnifiedAccountLibraryProps {
@@ -54,7 +62,7 @@ type LibraryViewItem =
   | { id: string; scope: 'pipeline'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: string | null; fontFamily: null; pipeline: PipelineLibraryObject };
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
-const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, project: FileArchive, asset: ImageIcon, 'working-draft': Sparkles };
+const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, template: Boxes, asset: ImageIcon, 'working-draft': Sparkles };
 const sharedKindIcons: Record<string, LucideIcon> = { Template: Boxes, Image: ImageIcon, Texture: ImageIcon, Divider: ImageIcon, Icon: Sparkles, Style: Sparkles, Font: ImageIcon };
 
 const personalStatus = (item: AccountLibraryItem): { label: string; tone: EnvironmentStatusTone } => (
@@ -92,6 +100,9 @@ function SourceIcon({ item }: { item: LibraryViewItem }) {
 function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
   const [previewFailed, setPreviewFailed] = useState(false);
 
+  if (item.scope === 'published' && item.published.template) {
+    return <AuthoredObjectPreview template={item.published.template} label={item.name} size="standard" />;
+  }
   if (previewUrl && !previewFailed) {
     return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
   }
@@ -99,9 +110,9 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
 
-function LibraryVisual({ item, cards, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; large?: boolean }) {
-  if (item.scope === 'personal' && cards.length) {
-    return <div className={styles.cardStack} data-large={large}>{cards.slice(0, 3).map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={large ? 150 : 96} />)}</div>;
+function LibraryVisual({ item, cards, template, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean }) {
+  if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
+    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} />;
   }
   const previewUrl = safePreviewUrl(item.previewUrl);
   return <SharedLibraryVisual key={previewUrl ?? item.id} item={item} previewUrl={previewUrl} />;
@@ -155,15 +166,24 @@ const zoneAction = (id: 'library.refresh' | 'library.close-locations', label: st
   commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'mutation' : 'navigation',
 });
 
-const sharedActions = (scope: 'published' | 'pipeline'): ActionDescriptor[] => [scope === 'published' ? {
-  id: 'library.open-studio', label: 'Open Studio', ownerFeature: 'developer-assets', supportedObjectKinds: ['published-asset'],
-  supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
-  availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'select a published catalog asset for Studio' }, result: 'navigation',
-} : {
-  id: 'library.open-pipeline', label: 'Open in Forge Review', ownerFeature: 'developer-assets', supportedObjectKinds: ['pipeline-asset'],
-  supportedSources: ['provider-native'], revisionPolicy: 'current-required', requiredPermission: 'developer', scope: 'object', hierarchy: 'primary',
-  availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
-}];
+const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
+  if (item.scope === 'pipeline') return [{
+    id: 'library.open-pipeline', label: 'Open in Forge Review', ownerFeature: 'developer-assets', supportedObjectKinds: ['pipeline-asset'],
+    supportedSources: ['provider-native'], revisionPolicy: 'current-required', requiredPermission: 'developer', scope: 'object', hierarchy: 'primary',
+    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+  }];
+  const actions: ActionDescriptor[] = [{
+    id: 'library.use-published', label: item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'developer-assets', supportedObjectKinds: ['published-asset'],
+    supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
+    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'select a published catalog asset for Studio' }, result: 'navigation',
+  }];
+  if (item.published.template) actions.push({
+    id: 'library.copy-published-template', label: 'Make editable copy', ownerFeature: 'template-editor', supportedObjectKinds: ['published-asset'],
+    supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'supporting',
+    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'copy a published Template into personal work' }, result: 'mutation',
+  });
+  return actions;
+};
 
 export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDeveloper = false, isOwner = false, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
@@ -176,9 +196,13 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
   const [activeTool, setActiveTool] = useState<'locations' | null>(() => initialTool);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [storageCallback, setStorageCallback] = useState<{ title: string; message: string } | null>(null);
+  const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const displayCards = useProjectStore(selectAllGeneratedDisplayCards);
+  const templates = useProjectStore(selectAllTemplates);
+  const cardSets = useProjectStore((state) => state.cardSets);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, developer: isDeveloper || isOwner, owner: isOwner };
   const scopeDefinitions = getLibraryScopeDefinitions(viewer);
   const visibleZones = getVisibleEnvironmentZones(viewer);
@@ -235,15 +259,24 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
   const cardsBySetId = useMemo(() => {
     const bySet = new Map<string, DisplayCard[]>();
     displayCards.forEach((card) => {
-      if (!card.setId) return;
-      const setCards = bySet.get(card.setId) ?? [];
+      const setId = card.setId ?? cardSets[0]?.id;
+      if (!setId) return;
+      const setCards = bySet.get(setId) ?? [];
       if (setCards.length < 3) setCards.push(card);
-      bySet.set(card.setId, setCards);
+      bySet.set(setId, setCards);
     });
     return bySet;
-  }, [displayCards]);
+  }, [cardSets, displayCards]);
+  const templateById = useMemo(() => new Map(templates.flatMap((template) => template.id ? [[template.id, template] as const] : [])), [templates]);
   const cardsFor = (item: LibraryViewItem): DisplayCard[] => item.scope === 'personal' && item.personal.references.localSetId
     ? cardsBySetId.get(item.personal.references.localSetId) ?? [] : [];
+  const templateFor = (item: LibraryViewItem) => {
+    if (item.scope !== 'personal') return null;
+    if (item.personal.references.localTemplateId) return templateById.get(item.personal.references.localTemplateId) ?? null;
+    if (!item.personal.references.localSetId) return null;
+    const set = cardSets.find((candidate) => candidate.id === item.personal.references.localSetId);
+    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
+  };
   const activeFailure = scope === 'personal' ? projection.failures[0] ?? null : scope === 'published' ? shared.catalogFailure : shared.pipelineFailure;
   const activeLoading = scope === 'personal' ? projection.isLoading : scope === 'published' ? shared.catalogLoading : shared.pipelineLoading;
   const activeStatus = getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
@@ -282,26 +315,91 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     ? [zoneAction('library.close-locations', 'Close locations')]
     : currentItem?.scope === 'personal'
       ? getAccountLibraryEnvironmentActions(currentItem.personal, projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined)
-      : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem.scope)
+      : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
+
+  const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
+    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item);
+    else if (actionId === 'library.save-move') setLocationItem(item);
+    else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
+      const duplicateId = item.references.localSetId
+        ? useProjectStore.getState().duplicateCardSet(item.references.localSetId)
+        : useProjectStore.getState().cloneTemplate(item.references.localTemplateId!);
+      if (duplicateId) {
+        toast({ title: `${item.kind === 'template' ? 'Template' : 'Set'} duplicated`, description: `${item.name} now has an independent device copy.` });
+        projection.refresh();
+      }
+    } else if (actionId === 'library.delete-copy') setPendingDeleteItem(item);
+    else if (actionId === 'library.view-source' && item.webViewLink) window.open(item.webViewLink, '_blank', 'noopener,noreferrer');
+    else if (actionId === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=storage'); }
+  };
+
+  const runPublishedAction = (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
+    const template = item.published.template;
+    if (!template) {
+      projection.router.push('/studio');
+      return;
+    }
+    const store = useProjectStore.getState();
+    const publishedTemplateId = store.addOrUpdateTemplate(template, 'default');
+    const selectedTemplateId = actionId === 'library.copy-published-template'
+      ? store.cloneTemplate(publishedTemplateId)
+      : publishedTemplateId;
+    if (!selectedTemplateId) {
+      toast({ title: 'Template was not opened', description: 'CardForge could not prepare this Template for Studio.', variant: 'destructive' });
+      return;
+    }
+    store.setTemplateEditorSelectedTemplateId(selectedTemplateId);
+    store.setActiveTab('templates');
+    if (actionId === 'library.copy-published-template') {
+      toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
+    }
+    projection.router.push('/studio');
+  };
 
   const runAction = (action: ActionDescriptor) => {
     if (action.id === 'library.close-locations') {
       setActiveTool(null); projection.router.replace(`/account?section=library&scope=${scope}`);
       requestAnimationFrame(() => document.getElementById('library-locations-trigger')?.focus());
-    } else if ((action.id === 'library.open' || action.id === 'library.continue') && currentItem?.scope === 'personal') void projection.openItem(currentItem.personal);
-    else if (action.id === 'library.view-source' && currentItem?.scope === 'personal' && currentItem.personal.webViewLink) window.open(currentItem.personal.webViewLink, '_blank', 'noopener,noreferrer');
-    else if (action.id === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=storage'); }
-    else if (action.id === 'library.open-studio') projection.router.push('/studio');
+    } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
+    else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') runPublishedAction(action.id, currentItem);
     else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(currentItem.pipeline.submission.id)}`);
     else if (action.id === 'library.refresh') refresh();
   };
 
+  const confirmDeleteCopy = async () => {
+    const item = pendingDeleteItem;
+    if (!item) return;
+    try {
+      if (item.references.localSetId) {
+        const store = useProjectStore.getState();
+        if (store.cardSets.length <= 1) store.createCardSet();
+        if (!useProjectStore.getState().deleteCardSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
+      } else if (item.references.driveFileId && item.references.driveProviderRevision && item.references.driveProjectRevision) {
+        await deleteGoogleDriveProjectCopy({
+          fileId: item.references.driveFileId,
+          providerRevision: item.references.driveProviderRevision,
+          projectRevision: item.references.driveProjectRevision,
+        });
+      } else {
+        throw new Error('Reload this location before deleting it so CardForge has its exact revision.');
+      }
+      toast({ title: 'Copy removed', description: `Only the named ${item.locations[0]?.label ?? 'location'} copy of ${item.name} was removed.` });
+      closeDetail();
+      projection.refresh();
+    } catch (error) {
+      toast({ title: 'Copy was not removed', description: error instanceof Error ? error.message : 'The source location rejected this deletion.', variant: 'destructive' });
+    } finally {
+      setPendingDeleteItem(null);
+    }
+  };
+
   const scopeDefinition = scopeDefinitions.find((definition) => definition.id === scope)!;
-  return <EnvironmentShell
+  return <>
+  <EnvironmentShell
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
     zones={zones} activeZone="library" viewportPolicy="desk" detail={activeTool ? null : currentRecord}
-    detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} large /> : undefined}
+    detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
     actions={actions} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
     statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={scope === 'personal' ? `${projection.items.length} personal objects` : scope === 'published' ? `${publishedItems.length} published objects` : `${pipelineItems.length} pipeline objects`} tone="neutral" /></>}
     footerContent={activeTool ? <span>Nothing moves between locations automatically</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
@@ -333,13 +431,60 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
           {viewItems.map((item) => {
             const pipelineItem = item.scope === 'pipeline' ? item : null;
             return <article key={item.id} className={styles.objectTile} data-selected={selection.objectId === item.id}>
-              <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => openDetail(item)}><span className={styles.visualSlot}><LibraryVisual item={item} cards={cardsFor(item)} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
+              <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => openDetail(item)}><span className={styles.visualSlot}><LibraryVisual item={item} cards={cardsFor(item)} template={templateFor(item)} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
+              {item.scope === 'personal' ? <DropdownMenu>
+                <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {getAccountLibraryEnvironmentActions(item.personal).map((action) => <Fragment key={action.id}>
+                    {action.commitment === 'destructive' ? <DropdownMenuSeparator /> : null}
+                    <DropdownMenuItem
+                      disabled={action.availability.kind === 'disabled'}
+                      className={action.commitment === 'destructive' ? 'text-destructive focus:text-destructive' : undefined}
+                      onSelect={() => runPersonalAction(action.id, item.personal)}
+                    >
+                      {action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}
+                      {action.label}
+                    </DropdownMenuItem>
+                  </Fragment>)}
+                </DropdownMenuContent>
+              </DropdownMenu> : item.scope === 'published' ? <DropdownMenu>
+                <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {sharedActions(item).map((action) => <DropdownMenuItem key={action.id} onSelect={() => runPublishedAction(action.id, item)}>
+                    {action.id === 'library.copy-published-template' ? <Copy aria-hidden="true" /> : null}
+                    {action.label}
+                  </DropdownMenuItem>)}
+                </DropdownMenuContent>
+              </DropdownMenu> : null}
               {pipelineItem?.pipeline.relationship === 'review' ? <div className={styles.voteActions} aria-label={`Vote on ${item.name}`}><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem, 'positive')} aria-label={`Vote up for ${item.name}`}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem, 'negative')} aria-label={`Vote down for ${item.name}`}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button></div> : null}
             </article>;
           })}
         </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : scope === 'personal' ? 'Create a Set or connect a location to begin.' : scope === 'published' ? 'Published assets will appear here when the catalog is available.' : 'Your submissions and reviewable work will appear here.'}</p></div>}
       </section>
-      {activeTool === 'locations' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-locations-title"><button type="button" className={styles.toolScrim} aria-label="Close locations and connections" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-locations-title">Locations &amp; connections</h2><span>Inspect one owner at a time. Changes affect only the named location.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close locations and connections"><X aria-hidden="true" /></button></header><div className={styles.toolContent}>{storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}</div></section></div> : null}
+      {activeTool === 'locations' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-locations-title"><button type="button" className={styles.toolScrim} aria-label="Close locations and connections" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-locations-title">Locations &amp; connections</h2><span>Inspect one owner at a time. Changes affect only the named location.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close locations and connections"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><DefaultWorkLocationControl isSignedIn={isSignedIn} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />{storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}</div></section></div> : null}
     </div>
-  </EnvironmentShell>;
+  </EnvironmentShell>
+  <WorkLocationDialog
+    item={locationItem}
+    open={Boolean(locationItem)}
+    onOpenChange={(open) => { if (!open) setLocationItem(null); }}
+    isSignedIn={isSignedIn}
+    driveConnected={projection.driveConnection?.connected ?? false}
+    localFolderSupported={projection.localFolderSupported}
+    onChanged={projection.refresh}
+  />
+  <AlertDialog open={Boolean(pendingDeleteItem)} onOpenChange={(open) => { if (!open) setPendingDeleteItem(null); }}>
+    <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete this copy?</AlertDialogTitle>
+        <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
+          {pendingDeleteItem?.references.localSetId
+            ? `Only the device copy of ${pendingDeleteItem.name} will be removed. Other verified locations remain unchanged.`
+            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be permanently removed at its exact current revision. Device and local-folder copies remain unchanged.`}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void confirmDeleteCopy()}>Delete named copy</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+  </>;
 }

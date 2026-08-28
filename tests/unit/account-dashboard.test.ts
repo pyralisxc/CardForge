@@ -75,8 +75,10 @@ describe('unified account environment', () => {
     expect(accountLibrary).toContain("scope: 'pipeline'");
     expect(accountLibrary).toContain('<LibraryVisual');
     expect(accountLibrary).toContain('getAccountLibraryEnvironmentActions');
-    expect(accountLibrary).toContain("action.id === 'library.view-source'");
-    expect(accountLibrary).toContain("action.id === 'library.manage-location'");
+    expect(accountLibrary).toContain("id: 'library.copy-published-template'");
+    expect(accountLibrary).toContain('setTemplateEditorSelectedTemplateId(selectedTemplateId)');
+    expect(accountLibrary).toContain("actionId === 'library.view-source'");
+    expect(accountLibrary).toContain("actionId === 'library.manage-location'");
     expect(accountLibrary).toContain('getAccountLibraryMcpWorkflow');
     expect(accountLibrary).toContain("activeTool === 'locations'");
     expect(accountLibrary).not.toContain('<AccountLibraryItemRow');

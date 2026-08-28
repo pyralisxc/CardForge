@@ -11,6 +11,7 @@ describe('Home spatial desk', () => {
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
   const homeModel = readSource('src/features/home/model/homeDesk.ts');
   const library = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const libraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
 
   it('owns Home separately from the storage-management Library surface', () => {
     expect(accountPage).toContain("from '@/features/home/client'");
@@ -29,10 +30,11 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('data-home-set-board');
     expect(homeDesk).toContain('aria-label="Work surrounding the focused Set"');
     expect(homeDesk).toContain('<CardPreview');
+    expect(homeDesk).toContain('<AuthoredObjectPreview');
     expect(homeDesk).toContain('Inside this Set');
     expect(homeDesk).toContain('Pull back');
-    expect(homeDesk).toContain('isUntouchedBootstrapWork');
-    expect(homeModel).toContain("item.references.localSetId === 'active-card-set'");
+    expect(libraryProjection).toContain('isUntouchedBootstrapCardSet');
+    expect(homeModel).not.toContain('isUntouchedBootstrapWork');
   });
 
   it('keeps organization and destructive actions attached to their native owners', () => {
@@ -40,6 +42,9 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('moveGeneratedCardToSet');
     expect(homeDesk).toContain('duplicateCardSet');
     expect(homeDesk).toContain('deleteCardSet');
+    expect(homeDesk).toContain('Save &amp; move');
+    expect(homeDesk).toContain('Export / print');
+    expect(homeDesk).toContain('Duplicate');
     expect(homeDesk).toContain('<AlertDialog');
   });
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { CardAssetOption } from '@/domain/templates';
+import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
 import {
   getAssetKindLabel,
   getDeveloperAssetStatusLabel,
@@ -24,6 +24,7 @@ export interface PublishedLibraryObject {
   previewUrl: string | null;
   sizeBytes: number | null;
   fontFamily: string | null;
+  template: TCGCardTemplate | null;
 }
 
 export interface PipelineLibraryObject {
@@ -40,6 +41,11 @@ interface LibrarySharedFailure {
 }
 
 const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObject[] => {
+  const templateByIdentity = new Map<string, TCGCardTemplate>();
+  catalog.templates.defaults.forEach((template) => {
+    if (template.id) templateByIdentity.set(template.id, template);
+    templateByIdentity.set(template.name, template);
+  });
   const assets = [
     ...catalog.assets.templates,
     ...catalog.assets.imageAssets,
@@ -57,6 +63,9 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     previewUrl: asset.url || null,
     sizeBytes: asset.fileSizeBytes ?? null,
     fontFamily: null,
+    template: asset.kind === 'template'
+      ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null
+      : null,
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -68,6 +77,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     previewUrl: null,
     sizeBytes: null,
     fontFamily: font.cssFamily,
+    template: null,
   }));
   return [...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };

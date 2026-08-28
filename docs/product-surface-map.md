@@ -58,9 +58,9 @@ The existing Developer/Cockpit route remains shipped legacy composition until it
 
 - Home uses the shared Environment shell through the dedicated `home` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; the untouched bootstrap Set stays out of the meaningful-work view.
-- Search, source filters, sort, persistent pinning, real card-preview stacks, source fallbacks, and compact account utilities are present.
-- Focusing local work reveals its contained cards in place with search, selection, move, edit, and confirmed removal; Back restores the Home Desk.
-- Rename, duplicate, confirmed local deletion, source-aware detail, and provider-owned open/manage actions resolve to their native owners.
+- Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
+- Focusing local work reveals its contained cards in place with search, selection, move, edit, duplicate, export handoff, and confirmed removal; Back restores the Home Desk.
+- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, and exact-copy deletion resolve to their native owners.
 
 ### Direction
 
@@ -84,8 +84,9 @@ Home is **more spatial than Library** and less detailed than Studio.
 
 ### Shipped
 
-- unified read model over device Sets, connected Google Drive projects/assets, local-folder bindings, personal assets/fonts, and temporary Studio drafts;
+- one Set identity pooled across device, Google Drive, and attached-folder copies, plus personal assets/fonts and temporary Studio drafts;
 - search, source/location information, object detail, locations & connections tool;
+- the same canonical authored-object preview used by Home, including real published Template rendering;
 - shared reviewed registry feeds Studio;
 - Developer Asset Hub / Forge Review currently exposes voteable Pipeline submissions, filters, previews, status/tier/quality/votes/revisions.
 
@@ -118,6 +119,7 @@ Library remains the owner of location management presentation:
 - portable project/Set packages;
 - local-folder attach/save/open/reconnect/disconnect;
 - Google Drive connect/folder/list/open/save-new/revision-safe update/delete/disconnect;
+- default save-location preference plus verified Copy/Move between supported locations; Move never removes the source before the destination is readable;
 - connected personal asset references;
 - temporary AI workspace lifecycle.
 

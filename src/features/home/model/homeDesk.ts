@@ -10,7 +10,7 @@ export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
 export type HomeSort = 'desk' | 'name' | 'size';
 
 export const HOME_PINS_KEY = 'home-desk-pins';
-export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'project', 'working-draft']);
+export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
 export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }> = [
   { id: 'all', label: 'All work' },
   { id: 'device', label: 'Device' },
@@ -20,13 +20,6 @@ export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }>
 
 export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
   item.locations[0]?.source ?? 'device'
-);
-
-export const isUntouchedBootstrapWork = (item: AccountLibraryItem): boolean => (
-  item.kind === 'set'
-  && item.references.localSetId === 'active-card-set'
-  && item.name === 'Untitled Set'
-  && item.details[0] === '0 cards'
 );
 
 export const workSourceLabel = (item: AccountLibraryItem): string => (
@@ -104,6 +97,24 @@ export const getWorkActions = (
       id: 'home.pin-work', label: pinned ? 'Unpin from desk' : 'Pin to desk', ownerFeature: 'project',
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: 'guest',
       scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'none',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
+    },
+    {
+      id: 'home.generate-work', label: 'Generate cards', ownerFeature: 'card-generator',
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'creator',
+      scope: 'object', hierarchy: 'supporting', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before generating cards.' }, commitment: 'none',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+    },
+    {
+      id: 'home.export-work', label: 'Export / print', ownerFeature: 'card-generator',
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'creator',
+      scope: 'object', hierarchy: 'overflow', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before exporting it.' }, commitment: 'none',
+      automation: { kind: 'planned-mcp', capability: 'export a selected Set with explicit output settings' }, result: 'navigation',
+    },
+    {
+      id: 'home.save-move-work', label: 'Save / move', ownerFeature: 'storage-management',
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'creator',
+      scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'permission',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     ...(localSet ? [{

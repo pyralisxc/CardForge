@@ -9,6 +9,7 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   applyProjectDocumentToState,
   createProjectDocumentFromState,
+  isolateProjectDocumentToSet,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
 import {
@@ -59,6 +60,10 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     customFonts,
   });
 };
+
+export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => (
+  isolateProjectDocumentToSet(await captureCurrentProjectDocument(), setId)
+);
 
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,

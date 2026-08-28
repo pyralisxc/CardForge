@@ -1,4 +1,5 @@
 import {
+  isGoogleDriveWorkId,
   prepareGoogleDriveProjectUpload,
   ProjectStorageProviderError,
 } from '@/features/project/server';
@@ -19,6 +20,10 @@ export async function POST(request: Request) {
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const size = typeof body.size === 'number' ? body.size : Number.NaN;
     const projectRevision = typeof body.projectRevision === 'string' ? body.projectRevision.trim() : '';
+    const workId = optionalString(body.workId);
+    if (workId && !isGoogleDriveWorkId(workId)) {
+      throw new ProjectStorageProviderError('The CardForge work id is invalid.', 400, { kind: 'invalid' });
+    }
     if (!name) throw new ProjectStorageProviderError('A project name is required.', 400, { kind: 'invalid' });
     const result = await prepareGoogleDriveProjectUpload({
       ownerUserId,
@@ -28,6 +33,7 @@ export async function POST(request: Request) {
       fileId: optionalString(body.fileId),
       expectedProviderRevision: optionalString(body.expectedProviderRevision),
       expectedProjectRevision: optionalString(body.expectedProjectRevision),
+      workId,
     });
     return Response.json(result);
   } catch (error) {

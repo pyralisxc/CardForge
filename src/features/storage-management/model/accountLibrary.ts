@@ -1,4 +1,4 @@
-export const ACCOUNT_LIBRARY_KINDS = ['set', 'project', 'asset', 'working-draft'] as const;
+export const ACCOUNT_LIBRARY_KINDS = ['set', 'template', 'asset', 'working-draft'] as const;
 export type AccountLibraryKind = typeof ACCOUNT_LIBRARY_KINDS[number];
 
 export const ACCOUNT_LIBRARY_SOURCES = [
@@ -19,7 +19,10 @@ export interface AccountLibraryLocation {
 
 export interface AccountLibraryReferences {
   localSetId?: string;
+  localTemplateId?: string;
   driveFileId?: string;
+  driveProviderRevision?: string;
+  driveProjectRevision?: string;
   localFolder?: boolean;
   personalAssetId?: string;
   workingDraftId?: string;
@@ -39,7 +42,7 @@ export interface AccountLibraryItem {
   references: AccountLibraryReferences;
 }
 
-export type AccountLibraryAction = 'open' | 'continue' | 'view-source' | 'manage-storage';
+export type AccountLibraryAction = 'open' | 'continue' | 'save-move' | 'duplicate' | 'delete-copy' | 'view-source' | 'manage-storage';
 
 export interface AccountLibraryMcpWorkflow {
   availability: 'browser-only' | 'read-only' | 'revision-safe' | 'working-document';
@@ -81,6 +84,11 @@ interface LocalSetInput {
   sizeBytes: number | null;
 }
 
+interface LocalTemplateInput {
+  id: string;
+  name: string;
+}
+
 interface DriveProjectInput {
   fileId: string;
   name: string;
@@ -89,9 +97,11 @@ interface DriveProjectInput {
   modifiedAt: string;
   size: number;
   webViewLink: string | null;
+  workId?: string | null;
 }
 
-interface LocalFolderInput {
+interface LocalWorkFolderInput {
+  workId: string;
   folderName: string;
   sourceRevision: string | null;
   lastSavedAt: string | null;
@@ -119,9 +129,10 @@ interface WorkingDraftInput {
 
 export interface BuildAccountLibraryItemsInput {
   localSets: LocalSetInput[];
+  localTemplates?: LocalTemplateInput[];
   driveProjects: DriveProjectInput[];
   driveBindingFileId: string | null;
-  localFolder: LocalFolderInput | null;
+  localWorkFolders: LocalWorkFolderInput[];
   personalAssets: PersonalAssetInput[];
   workingDrafts: WorkingDraftInput[];
 }
@@ -139,16 +150,18 @@ const compareLibraryItems = (left: AccountLibraryItem, right: AccountLibraryItem
 
 export const buildAccountLibraryItems = ({
   localSets,
+  localTemplates = [],
   driveProjects,
   driveBindingFileId,
-  localFolder,
+  localWorkFolders,
   personalAssets,
   workingDrafts,
 }: BuildAccountLibraryItemsInput): AccountLibraryItem[] => {
   const items: AccountLibraryItem[] = [];
+  const workById = new Map<string, AccountLibraryItem>();
 
   for (const localSet of localSets) {
-    items.push({
+    const item: AccountLibraryItem = {
       id: `set:${localSet.id}`,
       kind: 'set',
       name: localSet.name,
@@ -163,49 +176,79 @@ export const buildAccountLibraryItems = ({
       expiresAt: null,
       webViewLink: null,
       references: { localSetId: localSet.id },
+    };
+    items.push(item);
+    workById.set(localSet.id, item);
+  }
+
+  for (const template of localTemplates) {
+    items.push({
+      id: `template:${template.id}`,
+      kind: 'template',
+      name: template.name,
+      locations: [{ source: 'device', status: 'available', label: 'This device' }],
+      details: ['Personal Template', 'Reusable in Studio'],
+      sizeBytes: null,
+      revision: null,
+      updatedAt: null,
+      expiresAt: null,
+      webViewLink: null,
+      references: { localTemplateId: template.id },
     });
   }
 
   for (const project of driveProjects) {
     const attached = project.fileId === driveBindingFileId;
-    items.push({
+    const matchingWork = project.workId ? workById.get(project.workId) : null;
+    const location: AccountLibraryLocation = {
+      source: 'google-drive',
+      status: attached || Boolean(matchingWork) ? 'attached' : 'available',
+      label: attached || matchingWork ? 'Google Drive · linked copy' : 'Google Drive',
+    };
+    if (matchingWork) {
+      matchingWork.locations.push(location);
+      matchingWork.references.driveFileId = project.fileId;
+      matchingWork.references.driveProviderRevision = project.providerRevision;
+      if (project.projectRevision) matchingWork.references.driveProjectRevision = project.projectRevision;
+      matchingWork.revision = project.projectRevision;
+      matchingWork.updatedAt = project.modifiedAt;
+      matchingWork.webViewLink = project.webViewLink;
+      matchingWork.sizeBytes = Math.max(matchingWork.sizeBytes ?? 0, project.size);
+      continue;
+    }
+    const item: AccountLibraryItem = {
       id: `drive-project:${project.fileId}`,
-      kind: 'project',
+      kind: 'set',
       name: project.name,
-      locations: [{
-        source: 'google-drive',
-        status: attached ? 'attached' : 'available',
-        label: attached ? 'Google Drive · attached here' : 'Google Drive',
-      }],
+      locations: [location],
       details: [`Provider revision ${project.providerRevision}`, project.projectRevision ? 'Verified CardForge revision' : 'Revision needs refresh'],
       sizeBytes: project.size,
       revision: project.projectRevision,
       updatedAt: project.modifiedAt,
       expiresAt: null,
       webViewLink: project.webViewLink,
-      references: { driveFileId: project.fileId },
-    });
+      references: {
+        driveFileId: project.fileId,
+        driveProviderRevision: project.providerRevision,
+        ...(project.projectRevision ? { driveProjectRevision: project.projectRevision } : {}),
+      },
+    };
+    items.push(item);
+    if (project.workId) workById.set(project.workId, item);
   }
 
-  if (localFolder) {
+  for (const localFolder of localWorkFolders) {
+    const matchingWork = workById.get(localFolder.workId);
+    if (!matchingWork) continue;
     const needsPermission = localFolder.permission !== 'granted';
-    items.push({
-      id: 'local-folder:attached-project',
-      kind: 'project',
-      name: localFolder.folderName,
-      locations: [{
+    matchingWork.locations.push({
         source: 'local-folder',
         status: needsPermission ? 'needs-permission' : 'attached',
-        label: needsPermission ? 'Local folder · reconnect needed' : 'Local folder · attached here',
-      }],
-      details: [localFolder.sourceRevision ? 'Portable project revision available' : 'Project revision unknown'],
-      sizeBytes: null,
-      revision: localFolder.sourceRevision,
-      updatedAt: localFolder.lastSavedAt,
-      expiresAt: null,
-      webViewLink: null,
-      references: { localFolder: true },
+        label: needsPermission ? `${localFolder.folderName} · reconnect` : localFolder.folderName,
     });
+    matchingWork.references.localFolder = true;
+    matchingWork.revision ??= localFolder.sourceRevision;
+    matchingWork.updatedAt ??= localFolder.lastSavedAt;
   }
 
   for (const asset of personalAssets) {
@@ -256,7 +299,11 @@ export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): Acc
   const actions: AccountLibraryAction[] = [];
 
   if (item.references.workingDraftId) actions.push('continue');
-  else if (item.references.localSetId || item.references.driveFileId) actions.push('open');
+  else if (item.references.localSetId || item.references.localTemplateId || item.references.driveFileId) actions.push('open');
+
+  if (item.kind === 'set') actions.push('save-move');
+  if (item.references.localSetId || item.references.localTemplateId) actions.push('duplicate');
+  if (item.references.localSetId || item.references.driveFileId) actions.push('delete-copy');
 
   if (item.webViewLink) actions.push('view-source');
   if (item.references.driveFileId || item.references.localFolder) actions.push('manage-storage');

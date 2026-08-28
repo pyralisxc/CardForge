@@ -346,6 +346,8 @@ Temporary AI Studio documents remain CardForge-owned bounded collaboration stora
 
 Library composes location/source truth; it does not own provider bytes or become a sync engine.
 
+The first shared durable-work capability slice now covers device, Google Drive, and local-folder destinations. Home and Library use it to set a default destination and to distinguish Copy from Move. Move is always copy, verify, then remove the exact source revision; paths that cannot be composed safely require an explicit device handoff. This is the seed of the broader source-capability projection below, not a universal sync service.
+
 A shared source-capability projection should eventually describe, per source:
 
 - authoritative owner;

@@ -14,12 +14,16 @@ import {
   Info,
   Link2,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Pin,
+  Printer,
+  Save,
   Search,
   ShieldCheck,
   Sparkles,
   Trash2,
+  WandSparkles,
 } from 'lucide-react';
 
 import {
@@ -33,6 +37,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
@@ -48,10 +59,11 @@ import {
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
-import { CardPreview } from '@/features/card-rendering/client';
+import { AuthoredObjectPreview, CardPreview } from '@/features/card-rendering/client';
 import {
   readProjectPreference,
   selectAllGeneratedDisplayCards,
+  selectAllTemplates,
   useProjectStore,
   writeProjectPreference,
   type ProjectPersistenceScope,
@@ -59,6 +71,7 @@ import {
 } from '@/features/project/client';
 import {
   useAccountLibraryProjection,
+  WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
@@ -67,7 +80,6 @@ import {
   getCardTitle,
   getWorkActions,
   HOME_PINS_KEY,
-  isUntouchedBootstrapWork,
   matchesSourceFilter,
   sourceFilterOptions,
   visibleWorkKinds,
@@ -143,6 +155,7 @@ export function HomeDesk({
   const [moveTargetId, setMoveTargetId] = useState('');
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCard, setPendingDeleteCard] = useState<DisplayCard | null>(null);
+  const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeCardSetId = useProjectStore((state) => state.activeCardSet.id);
@@ -155,6 +168,7 @@ export function HomeDesk({
   const duplicateCardSet = useProjectStore((state) => state.duplicateCardSet);
   const deleteCardSet = useProjectStore((state) => state.deleteCardSet);
   const moveGeneratedCardToSet = useProjectStore((state) => state.moveGeneratedCardToSet);
+  const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
   const removeGeneratedCard = useProjectStore((state) => state.removeGeneratedCard);
   const openEditDialog = useProjectStore((state) => state.openEditDialog);
   const setActiveTab = useProjectStore((state) => state.setActiveTab);
@@ -165,6 +179,8 @@ export function HomeDesk({
     defaultTemplates,
     userTemplates,
   } as ProjectState), [activeCardSetId, cardSets, defaultTemplates, storedCards, userTemplates]);
+  const templates = useMemo(() => selectAllTemplates({ defaultTemplates, userTemplates } as ProjectState), [defaultTemplates, userTemplates]);
+  const templateById = useMemo(() => new Map(templates.flatMap((template) => template.id ? [[template.id, template] as const] : [])), [templates]);
   const pinKey = `${HOME_PINS_KEY}:${persistenceScope}`;
 
   useEffect(() => {
@@ -176,7 +192,7 @@ export function HomeDesk({
   }, [pinKey]);
 
   const workItems = useMemo(() => projection.items.filter((item) => (
-    visibleWorkKinds.has(item.kind) && !isUntouchedBootstrapWork(item)
+    visibleWorkKinds.has(item.kind)
   )), [projection.items]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
@@ -301,6 +317,15 @@ export function HomeDesk({
     if (action.id === 'home.create-work') createWork();
     else if (action.id === 'home.open-work' && item) void projection.openItem(item);
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
+    else if (action.id === 'home.generate-work' && item?.references.localSetId) {
+      setActiveCardSetId(item.references.localSetId);
+      setActiveTab('generator');
+      projection.router.push('/studio');
+    } else if (action.id === 'home.export-work' && item?.references.localSetId) {
+      setActiveCardSetId(item.references.localSetId);
+      setActiveTab('sets');
+      projection.router.push('/studio');
+    } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
       focusWork(inspectorItem);
       setRenaming(true);
@@ -308,6 +333,17 @@ export function HomeDesk({
     } else if (action.id === 'home.duplicate-work' && inspectorItem) duplicateWork(inspectorItem);
     else if (action.id === 'home.delete-work' && inspectorItem) setPendingDeleteWork(inspectorItem);
     else if (action.id === 'home.manage-location') projection.router.push('/account?section=storage');
+  };
+
+  const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => {
+    if (!item.references.localSetId) {
+      if (lane === 'open') void projection.openItem(item);
+      else setLocationItem(item);
+      return;
+    }
+    setActiveCardSetId(item.references.localSetId);
+    setActiveTab(lane === 'generate' ? 'generator' : 'sets');
+    projection.router.push('/studio');
   };
 
   const moveSelectedCard = () => {
@@ -326,9 +362,28 @@ export function HomeDesk({
     projection.router.push('/studio');
   };
 
+  const duplicateSelectedCard = () => {
+    if (!selectedCard || !focusedLocalSetId) return;
+    setActiveCardSetId(focusedLocalSetId);
+    addGeneratedCards([{ ...selectedCard, uniqueId: `card-${globalThis.crypto.randomUUID()}`, setId: focusedLocalSetId }]);
+    toast({ title: 'Card duplicated', description: `${getCardTitle(selectedCard, 0)} now has an independent copy in this Set.` });
+  };
+
+  const exportSelectedCard = () => {
+    if (!focusedLocalSetId) return;
+    setActiveCardSetId(focusedLocalSetId);
+    setActiveTab('sets');
+    projection.router.push('/studio');
+  };
+
   const workCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
-    ? displayCards.filter((card) => card.setId === item.references.localSetId).slice(0, 3)
+    ? displayCards.filter((card) => card.setId === item.references.localSetId || (!card.setId && cardSets[0]?.id === item.references.localSetId)).slice(0, 3)
     : [];
+  const workTemplate = (item: AccountLibraryItem) => {
+    if (!item.references.localSetId) return null;
+    const set = cardSets.find((candidate) => candidate.id === item.references.localSetId);
+    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
+  };
 
   return (
     <>
@@ -369,7 +424,7 @@ export function HomeDesk({
                 {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
                   const cards = workCards(item);
                   return <button key={item.id} type="button" className={styles.nearbyObject} data-slot={index} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                    <span className={styles.nearbyVisual} data-home-set-stack>{cards[0] ? <CardPreview card={cards[0]} targetWidthPx={64} /> : <WorkSourceIcon item={item} />}</span>
+                    <span className={styles.nearbyVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size="compact" /> : <WorkSourceIcon item={item} />}</span>
                     <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
                   </button>;
                 })}
@@ -386,10 +441,20 @@ export function HomeDesk({
                     <p>{focusedCards.length} card{focusedCards.length === 1 ? '' : 's'} · {workSourceLabel(focusedItem)}</p>
                   </div>
                   <div className={styles.focusActions}>
-                    {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => setRenaming((current) => !current)}><Pencil size={15} aria-hidden="true" />Rename</button> : null}
-                    {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => duplicateWork(focusedItem)}><Copy size={15} aria-hidden="true" />Duplicate</button> : null}
-                    <button type="button" className={styles.quietAction} onClick={() => togglePin(focusedItem.id)}><Pin size={15} aria-hidden="true" />{pinnedIds.includes(focusedItem.id) ? 'Unpin' : 'Pin'}</button>
-                    <button id={`home-work-info-${focusedItem.id}`} type="button" className={styles.quietAction} onClick={() => inspectItem(focusedItem)}><Info size={15} aria-hidden="true" />Details</button>
+                    <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Open in Studio</button>
+                    {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'generate')}><WandSparkles size={15} aria-hidden="true" />Generate</button> : null}
+                    <button type="button" className={styles.quietAction} onClick={() => setLocationItem(focusedItem)}><Save size={15} aria-hidden="true" />Save &amp; move</button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><button type="button" className={styles.quietAction} aria-label={`More actions for ${focusedItem.name}`}><MoreHorizontal size={15} aria-hidden="true" />More</button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {focusedLocalSetId ? <DropdownMenuItem onSelect={() => setRenaming((current) => !current)}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
+                        {focusedLocalSetId ? <DropdownMenuItem onSelect={() => duplicateWork(focusedItem)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+                        {focusedLocalSetId ? <DropdownMenuItem onSelect={() => openWorkLane(focusedItem, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
+                        <DropdownMenuItem onSelect={() => togglePin(focusedItem.id)}><Pin aria-hidden="true" />{pinnedIds.includes(focusedItem.id) ? 'Unpin from desk' : 'Pin to desk'}</DropdownMenuItem>
+                        <DropdownMenuItem id={`home-work-info-${focusedItem.id}`} onSelect={() => inspectItem(focusedItem)}><Info aria-hidden="true" />Details</DropdownMenuItem>
+                        {focusedLocalSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={cardSets.length <= 1} onSelect={() => setPendingDeleteWork(focusedItem)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </header>
 
@@ -405,6 +470,8 @@ export function HomeDesk({
                       {otherSets.length ? <Select value={effectiveMoveTargetId} onValueChange={setMoveTargetId}><SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {otherSets.find((set) => set.id === effectiveMoveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
                       {otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={moveSelectedCard}>Move</Button> : null}
                       <Button type="button" size="sm" variant="outline" onClick={editSelectedCard}>Edit in Studio</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={duplicateSelectedCard}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={exportSelectedCard}><Printer className="mr-1.5 h-4 w-4" />Export / print</Button>
                       <Button type="button" size="sm" variant="ghost" onClick={() => setPendingDeleteCard(selectedCard)}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
                     </div> : null}
                   </div>
@@ -439,12 +506,23 @@ export function HomeDesk({
                     const featured = index === 0;
                     return <article key={item.id} className={styles.workTile} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
                       <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                        <div className={styles.workVisual} data-home-set-stack>{cards.length ? <div className={styles.previewStack}>{cards.map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={featured ? 150 : 112} />)}</div> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Empty Set</span></div>}</div>
+                        <div className={styles.workVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
                         <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
                       </button>
                       <div className={styles.tileActions}>
                         <button type="button" className={styles.iconButton} data-active={pinnedIds.includes(item.id)} onClick={() => togglePin(item.id)} aria-label={`${pinnedIds.includes(item.id) ? 'Unpin' : 'Pin'} ${item.name}`} title={pinnedIds.includes(item.id) ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-                        <button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} onClick={() => inspectItem(item)} aria-label={`Details for ${item.name}`} title="Details"><Info size={15} aria-hidden="true" /></button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild><button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>
+                            {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
+                            <DropdownMenuItem onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move</DropdownMenuItem>
+                            {item.references.localSetId ? <DropdownMenuItem onSelect={() => duplicateWork(item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+                            {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
+                            <DropdownMenuItem onSelect={() => inspectItem(item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
+                            {item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={cardSets.length <= 1} onSelect={() => setPendingDeleteWork(item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </article>;
                   })}
@@ -455,6 +533,16 @@ export function HomeDesk({
           )}
         </div>
       </EnvironmentShell>
+
+      <WorkLocationDialog
+        item={locationItem}
+        open={Boolean(locationItem)}
+        onOpenChange={(open) => { if (!open) setLocationItem(null); }}
+        isSignedIn={isSignedIn}
+        driveConnected={projection.driveConnection?.connected ?? false}
+        localFolderSupported={projection.localFolderSupported}
+        onChanged={projection.refresh}
+      />
 
       <AlertDialog open={Boolean(pendingDeleteWork)} onOpenChange={(open) => { if (!open) setPendingDeleteWork(null); }}>
         <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">

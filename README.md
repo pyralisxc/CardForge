@@ -67,9 +67,9 @@ npm run brand:export
 - `src/features/home/`: the two-scale Home Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: card creation, bulk generation, gallery, and export.
-- `src/features/card-rendering/`: shared card rendering and rich-text/vector presentation.
-- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, and project files.
-- `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location tools; it does not own those underlying stores.
+- `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
+- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, and provider/local-folder adapters.
+- `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location/default/transfer tools; it does not own those underlying stores.
 - `src/features/account/` and `src/features/billing/`: Clerk-backed account access and Stripe-backed product/support billing.
 - `src/features/developer-access/` and `src/features/developer-assets/`: developer identity, Forge Review, voting, publication, attribution, and shared library.
 - `src/features/studio-documents/`: private account Studio documents and MCP authoring bridge.

@@ -13,8 +13,10 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getGoogleDriveProjectBinding,
   getLocalProjectFolderStatus,
+  listLocalProjectWorkBindings,
   getProjectAssetStorage,
   hydrateProjectWorkspaceForScope,
+  isUntouchedBootstrapCardSet,
   loadGoogleDriveProjectLibrary,
   openGoogleDriveProject,
   readTypedProjectAssetListFromStorage,
@@ -22,6 +24,7 @@ import {
   useProjectStore,
   type GoogleDriveProjectListResult,
   type LocalProjectFolderStatus,
+  type LocalProjectWorkBindingStatus,
   type ProjectDocumentCustomAssets,
   type ProjectPersistenceScope,
 } from '@/features/project/client';
@@ -129,6 +132,7 @@ export function useAccountLibraryProjection({
   const [driveLibrary, setDriveLibrary] = useState<GoogleDriveProjectListResult | null>(null);
   const [driveBindingFileId, setDriveBindingFileId] = useState<string | null>(null);
   const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
+  const [localWorkFolders, setLocalWorkFolders] = useState<LocalProjectWorkBindingStatus[]>([]);
   const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
   const [workingDrafts, setWorkingDrafts] = useState<StudioDocumentSummary[]>([]);
   const [sourceFailures, setSourceFailures] = useState<AccountLibrarySourceFailure[]>([]);
@@ -175,6 +179,10 @@ export function useAccountLibraryProjection({
       failures.push(sourceFailure('local-folder', error, 'Local-folder status is unavailable.'));
       return null;
     });
+    const localWorkFoldersPromise = listLocalProjectWorkBindings().catch((error) => {
+      failures.push(sourceFailure('local-folder', error, 'Saved local-folder locations are unavailable.'));
+      return [] as LocalProjectWorkBindingStatus[];
+    });
     const signedInSourcesPromise = isSignedIn
       ? Promise.all([
           loadGoogleDriveProjectLibrary().catch((error) => {
@@ -201,9 +209,10 @@ export function useAccountLibraryProjection({
         ] as const)
       : Promise.resolve([null, null, null, null] as const);
 
-    const [[textures, dividers, icons, images], folderResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
+    const [[textures, dividers, icons, images], folderResult, workFolderResults, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
       deviceAssetsPromise,
       localFolderPromise,
+      localWorkFoldersPromise,
       signedInSourcesPromise,
     ]);
     setCustomAssets({
@@ -213,6 +222,7 @@ export function useAccountLibraryProjection({
       [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
     });
     setLocalFolder(folderResult);
+    setLocalWorkFolders(workFolderResults);
     setDriveLibrary(driveResult);
     setDriveBindingFileId(bindingResult?.fileId ?? null);
     setPersonalLibrary(assetsResult);
@@ -246,20 +256,24 @@ export function useAccountLibraryProjection({
   }, [storedCards]);
 
   const items = useMemo(() => buildAccountLibraryItems({
-    localSets: cardSets.map((set) => ({
+    localSets: cardSets
+      .filter((set) => !isUntouchedBootstrapCardSet(set, cardCounts.get(set.id) ?? 0))
+      .map((set) => ({
       id: set.id,
       name: set.name,
       cardCount: cardCounts.get(set.id) ?? 0,
       sizeBytes: portableSetBytes[set.id] ?? null,
-    })),
+      })),
+    localTemplates: userTemplates.flatMap((template) => template.id ? [{ id: template.id, name: template.name }] : []),
     driveProjects: driveLibrary?.projects ?? [],
     driveBindingFileId,
-    localFolder: localFolder?.binding ? {
-      folderName: localFolder.binding.folderName,
-      sourceRevision: localFolder.binding.sourceRevision,
-      lastSavedAt: localFolder.binding.lastSavedAt,
-      permission: localFolder.permission,
-    } : null,
+    localWorkFolders: localWorkFolders.map((binding) => ({
+      workId: binding.workId,
+      folderName: binding.folderName,
+      sourceRevision: binding.sourceRevision,
+      lastSavedAt: binding.lastSavedAt,
+      permission: binding.permission,
+    })),
     personalAssets: (personalLibrary?.items ?? []).map((item) => ({
       id: item.id,
       displayName: item.displayName,
@@ -270,7 +284,7 @@ export function useAccountLibraryProjection({
       providerWebViewLink: item.providerWebViewLink,
     })),
     workingDrafts,
-  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localFolder, personalLibrary?.items, portableSetBytes, workingDrafts]);
+  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localWorkFolders, personalLibrary?.items, portableSetBytes, userTemplates, workingDrafts]);
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
@@ -307,6 +321,14 @@ export function useAccountLibraryProjection({
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
+        useProjectStore.getState().setActiveTab('sets');
+        router.push('/studio');
+        return;
+      }
+      if (item.references.localTemplateId) {
+        const store = useProjectStore.getState();
+        store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
+        store.setActiveTab('templates');
         router.push('/studio');
         return;
       }
@@ -345,6 +367,8 @@ export function useAccountLibraryProjection({
     setSort,
     openItem,
     refresh: () => { void refreshLibrarySources(); },
+    driveConnection: driveLibrary?.connection ?? null,
+    localFolderSupported: localFolder?.supported ?? false,
     router,
   };
 }
