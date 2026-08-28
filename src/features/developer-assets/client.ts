@@ -1,5 +1,7 @@
 export * from './lib/cardAssets';
 export * from './lib/pipelineAssetTaxonomy';
+export * from './lib/developerPipelineLibrary';
+export { isRepositoryStyle, isRepositoryTemplate } from './lib/registryContentValidation';
 export type {
   DeveloperAssetProgramView,
   DeveloperAssetSubmission,

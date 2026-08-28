@@ -18,6 +18,7 @@ interface EnvironmentShellProps {
   viewer: EnvironmentViewer;
   detail: EnvironmentDetailRecord | null;
   detailVisual?: ReactNode;
+  detailContent?: ReactNode;
   actions: readonly ActionDescriptor[];
   focusReturnId?: string;
   primaryDisabledReason?: string;
@@ -32,7 +33,7 @@ interface EnvironmentShellProps {
   onCloseDetail: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, actions, focusReturnId, primaryDisabledReason, search, statusContent, footerContent, surfaceRef, children, onChooseZone, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, search, statusContent, footerContent, surfaceRef, children, onChooseZone, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
@@ -55,13 +56,13 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onChooseZone={onChooseZone} />
         <EnvironmentCommandBand zone={activeDefinition} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} onCommand={onCommand} onAction={onAction} />
         <main ref={surfaceRef} className={styles.primarySurface}>{children}</main>
-        {detail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
+        {detail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={styles.statusBar} aria-label="Environment status">
           <div className={styles.statusItems}>{statusContent}</div>
           <div className={styles.selectionDock}>{footerContent}</div>
         </footer>
       </div>
-      {detail && mobileDetail ? <EnvironmentMobileSheet open focusReturnId={focusReturnId} record={detail} visual={detailVisual} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
+      {detail && mobileDetail ? <EnvironmentMobileSheet open focusReturnId={focusReturnId} record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
     </section>
   );
 }

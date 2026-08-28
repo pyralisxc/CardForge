@@ -55,6 +55,12 @@ export async function POST(
     const { submissionId } = await params;
     const contributorIds = getContributorIds(user.id);
     const votePolicy = await getDeveloperAssetVotePolicy(submissionId);
+    if (!votePolicy.submissionStatus) {
+      return createApiErrorResponse(404, 'developer_asset_request_invalid', 'Developer asset submission was not found.');
+    }
+    if (!['submitted', 'voting', 'publish_candidate'].includes(votePolicy.submissionStatus)) {
+      return createApiErrorResponse(409, 'developer_asset_request_invalid', 'Voting is closed for this Pipeline revision.');
+    }
     if (
       votePolicy.submissionDeveloperId
       && contributorIds.includes(votePolicy.submissionDeveloperId)

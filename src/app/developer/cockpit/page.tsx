@@ -25,12 +25,15 @@ export const metadata: Metadata = createPageMetadata({
 export default async function DeveloperCockpitRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; submission?: string }>;
+  searchParams: Promise<{ tab?: string; submission?: string; submitSet?: string }>;
 }) {
   const requestedParams = await searchParams;
   const initialTab = requestedParams.tab === 'library' ? 'library' : undefined;
   const initialSubmissionId = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(requestedParams.submission ?? '')
     ? requestedParams.submission
+    : undefined;
+  const initialSubmitSetId = /^(?:active-card-set|set-[a-z0-9_-]+)$/i.test(requestedParams.submitSet ?? '')
+    ? requestedParams.submitSet
     : undefined;
   const authConfigured = isClerkServerConfigPresent();
 
@@ -75,7 +78,7 @@ export default async function DeveloperCockpitRoute({
           siteConfiguration={siteConfiguration}
         />
       </div>
-      <DeveloperCockpitPage initialTab={initialTab} initialSubmissionId={initialSubmissionId} />
+      <DeveloperCockpitPage initialTab={initialTab} initialSubmissionId={initialSubmissionId} initialSubmitSetId={initialSubmitSetId} />
     </CardForgeAppProviders>
   );
 }

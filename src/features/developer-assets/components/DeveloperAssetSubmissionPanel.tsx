@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { FileUp, Library, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
@@ -57,9 +57,11 @@ const formatBytes = (value: number): string => {
 export function DeveloperAssetSubmissionPanel({
   program,
   onSubmitted,
+  initialSetId = null,
 }: {
   program: DeveloperAssetProgramView;
   onSubmitted: () => Promise<void>;
+  initialSetId?: string | null;
 }) {
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<DeveloperUploadAssetType>('icons');
@@ -73,9 +75,11 @@ export function DeveloperAssetSubmissionPanel({
   const [fileInputKey, setFileInputKey] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const initialSelectionRef = useRef(false);
   const {
     filter: personalLibraryFilter,
     setFilter: setPersonalLibraryFilter,
+    items: personalLibraryItems,
     visibleItems: visiblePersonalLibraryItems,
   } = useDeveloperPersonalLibrary();
   const submissionGuidance = developerAssetSubmissionGuidance[assetType];
@@ -105,7 +109,7 @@ export function DeveloperAssetSubmissionPanel({
     selectCandidateFile(event.dataTransfer.files?.[0] ?? null);
   };
 
-  const choosePersonalLibraryItem = async (item: PersonalLibraryItem) => {
+  const choosePersonalLibraryItem = useCallback(async (item: PersonalLibraryItem) => {
     try {
       const file = await item.createFile();
       setAssetType(item.assetType);
@@ -126,7 +130,15 @@ export function DeveloperAssetSubmissionPanel({
         variant: 'destructive',
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (!initialSetId || initialSelectionRef.current) return;
+    const item = personalLibraryItems.find((candidate) => candidate.id === `set-${initialSetId}`);
+    if (!item) return;
+    initialSelectionRef.current = true;
+    void choosePersonalLibraryItem(item);
+  }, [choosePersonalLibraryItem, initialSetId, personalLibraryItems]);
 
   const submitAsset = async () => {
     const submissionAssetType = assetType;

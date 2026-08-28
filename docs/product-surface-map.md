@@ -61,7 +61,7 @@ The existing Developer/Cockpit route remains shipped legacy composition until it
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
 - Focusing local work reveals its contained cards in place with search, selection, move, edit, duplicate, export handoff, and confirmed removal; Back restores the Home Desk.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
-- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, and exact-copy deletion resolve to their native owners.
+- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Home hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
 
 ### Direction
 
@@ -89,7 +89,10 @@ Home is **more spatial than Library** and less detailed than Studio.
 - search, source/location information, object detail, locations & connections tool;
 - the same canonical authored-object preview used by Home, including real published Template rendering;
 - shared reviewed registry feeds Studio and exposes immutable Published Set package revisions without creating another starter registry;
-- Developer Asset Hub / Forge Review currently exposes voteable Pipeline submissions, filters, previews, status/tier/quality/votes/revisions.
+- Contributor Pipeline loads every authorized shared entry plus the contributor's private work, projects one top-level object per stable lineage, keeps the current published revision primary when present, and expands revision history from the inspector;
+- Pipeline lifecycle, ownership, and vote availability are separate states, so published/archive history remains browsable without invalid vote controls;
+- Published and Pipeline collections use structured Template/style rendering, registry preview derivatives, real image previews where valid, semantic font samples, and truthful fallbacks instead of treating packages, fonts, or structured endpoints as images;
+- Pipeline detail exposes contributor, current/published revision, lifecycle, review availability, tier, quality, votes, classification/rights, decision reasoning, and revision history. Structured Template revisions can open as an exact local Studio test copy.
 
 ### Direction
 

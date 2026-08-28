@@ -53,6 +53,8 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('Save &amp; move');
     expect(homeDesk).toContain('Export / print');
     expect(homeDesk).toContain('Duplicate');
+    expect(homeDesk).toContain('Send to Pipeline');
+    expect(homeDesk).toContain('submitSet=');
     expect(homeDesk).toContain('<AlertDialog');
   });
 

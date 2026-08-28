@@ -46,7 +46,8 @@ describe('Library scopes', () => {
 
   it('renders real catalog media and structured appearance styles before generic fallbacks', () => {
     expect(sharedProjection).toContain('style: asset.style ?? null');
-    expect(library).toContain('appearanceToStyle(item.published.style.appearance)');
+    expect(library).toContain('appearanceToStyle(style.appearance)');
     expect(library).toContain('className={styles.stylePreview}');
+    expect(library).toContain('item.pipeline.style');
   });
 });

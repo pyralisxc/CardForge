@@ -58,7 +58,7 @@ const standards = [
 type LazyState = { loading: boolean; error: string | null };
 const idleState: LazyState = { loading: false, error: null };
 
-export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissionId = null }: { initialTab?: string; initialSubmissionId?: string | null }) {
+export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissionId = null, initialSubmitSetId = null }: { initialTab?: string; initialSubmissionId?: string | null; initialSubmitSetId?: string | null }) {
   const [cockpit, setCockpit] = useState<DeveloperCockpitBootstrap | null>(null);
   const [campaigns, setCampaigns] = useState<DeveloperCampaignWorkspaceView | null>(null);
   const [site, setSite] = useState<DeveloperSiteWorkspaceView | null>(null);
@@ -186,7 +186,7 @@ export function DeveloperCockpitPage({ initialTab = 'overview', initialSubmissio
             </section>
           </TabsContent>
 
-          <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact initialSubmissionId={initialSubmissionId} /></TabsContent>
+          <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact initialSubmissionId={initialSubmissionId} initialSubmitSetId={initialSubmitSetId} /></TabsContent>
           <TabsContent value="campaigns" className="mt-3">
             {campaigns ? <DeveloperCampaignPanel cockpit={campaigns} onRefresh={loadCampaigns} /> : (
               <CardForgeWorkspaceState

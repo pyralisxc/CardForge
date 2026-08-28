@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
+import { isDeveloperPipelineReviewable } from '@/features/developer-assets/lib/developerPipelineLibrary';
 import { normalizeContentTaxonomyTags } from '@/features/developer-assets/lib/contentTaxonomy';
 import type { StudioAssetDestination } from '@/domain/templates';
 import {
@@ -40,9 +41,11 @@ interface DeveloperAssetsResponse { program: DeveloperAssetProgramView }
 export function DeveloperAssetHubPanel({
   compact = false,
   initialSubmissionId = null,
+  initialSubmitSetId = null,
 }: {
   compact?: boolean;
   initialSubmissionId?: string | null;
+  initialSubmitSetId?: string | null;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
@@ -297,7 +300,7 @@ export function DeveloperAssetHubPanel({
         <div className="mt-4 grid gap-3 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:grid-cols-3">
           <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
           <ProgramRule label="Open live slots" value={openDefaultSlotCount} body="Available Starter and Creator Pass slots before passing assets have to wait in candidate review." />
-          <ProgramRule label="Voting lane" value={program.totalVoteableCount} body="Voteable uploads, publish candidates, live assets, and recoverable archived assets in one shared lane." />
+          <ProgramRule label="Shared Pipeline" value={program.totalVoteableCount} body="Review candidates, live assets, and recoverable archived history in one contributor-visible lane." />
         </div>
 
         <div className="mt-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
@@ -326,10 +329,10 @@ export function DeveloperAssetHubPanel({
             />
             <GuidanceCard
               eyebrow="2. Review"
-              title={`${program.totalVoteableCount} voteable assets`}
+              title={`${program.totalVoteableCount} shared assets`}
               body={program.settings.allowContributorSelfVoting
-                ? 'Self-voting is enabled, so you can review your own uploads and peer work.'
-                : 'Self-voting is off, so your own uploads are hidden from your review queue.'}
+                ? 'Active candidates accept votes; published and archived revisions remain visible as lineage history.'
+                : 'Self-voting is off. Your own work remains visible, but only eligible peer candidates accept your vote.'}
             />
             <GuidanceCard
               eyebrow="3. Track"
@@ -339,7 +342,7 @@ export function DeveloperAssetHubPanel({
             <GuidanceCard
               eyebrow="4. Improve"
               title={`${archiveCount} archived`}
-              body="Archived assets still accept voting signal, so strong recovered work can become worth another owner look."
+              body="Archived assets preserve prior votes and decisions for comparison without reopening the closed revision."
             />
           </div>
         </div>
@@ -374,7 +377,7 @@ export function DeveloperAssetHubPanel({
             <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Program</TabsTrigger>
           </TabsList>
 
-          <DeveloperAssetSubmissionPanel program={program} onSubmitted={loadProgram} />
+          <DeveloperAssetSubmissionPanel program={program} onSubmitted={loadProgram} initialSetId={initialSubmitSetId} />
 
           <TabsContent value="voting" className="mt-4">
             <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
@@ -457,7 +460,7 @@ export function DeveloperAssetHubPanel({
                       expanded={expandedSubmissionId === submission.id}
                       onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
                     >
-                    <VoteButtons submission={submission} onVote={vote} />
+                    {isDeveloperPipelineReviewable(submission) ? <VoteButtons submission={submission} onVote={vote} /> : null}
                   </AssetRow>
                 ))}
               </div>

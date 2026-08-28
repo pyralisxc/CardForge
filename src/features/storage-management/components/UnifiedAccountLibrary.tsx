@@ -25,6 +25,7 @@ import {
   type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { getDeveloperAssetStatusLabel } from '@/features/developer-assets/client';
 import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -100,16 +101,26 @@ function SourceIcon({ item }: { item: LibraryViewItem }) {
 function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
   const [previewFailed, setPreviewFailed] = useState(false);
 
-  if (item.scope === 'published' && item.published.template) {
-    return <AuthoredObjectPreview template={item.published.template} label={item.name} size="standard" />;
+  const template = item.scope === 'published'
+    ? item.published.template
+    : item.scope === 'pipeline'
+      ? item.pipeline.template
+      : null;
+  const style = item.scope === 'published'
+    ? item.published.style
+    : item.scope === 'pipeline'
+      ? item.pipeline.style
+      : null;
+  if (template) {
+    return <AuthoredObjectPreview template={template} label={item.name} size="standard" />;
   }
-  if (item.scope === 'published' && item.published.style) {
-    return <span className={styles.stylePreview} style={appearanceToStyle(item.published.style.appearance)} aria-label={`${item.name} style preview`} />;
+  if (style) {
+    return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
   }
   if (previewUrl && !previewFailed) {
     return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
   }
-  if (item.fontFamily) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily }}>Aa</span>;
+  if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
 
@@ -155,13 +166,35 @@ const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
     tone: item.pipeline.submission.status === 'rejected' ? 'danger' : item.pipeline.submission.status === 'published' ? 'success' : 'warning',
     actionSources: [{ id: `${item.id}:pipeline`, label: 'Forge Review', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
-      ['Relationship', item.pipeline.relationship === 'owned' ? 'Your submission' : 'Available to review'],
-      ['Revision', String(item.pipeline.submission.revisionNumber ?? 1)],
+      ['Contributor', item.pipeline.submission.developerDisplayName ?? item.pipeline.submission.developerEmail ?? 'CardForge contributor'],
+      ['Ownership', item.pipeline.ownership === 'mine' ? 'Your contribution' : 'Shared Pipeline'],
+      ['Lifecycle', item.statusLabel],
+      ['Review', item.pipeline.reviewState === 'available' ? 'Vote available' : item.pipeline.reviewState === 'already-voted' ? 'Your vote is recorded' : item.pipeline.reviewState === 'self' ? 'Self-voting disabled' : 'Review closed'],
+      ['Current revision', String(item.pipeline.submission.revisionNumber ?? 1)],
+      ...(item.pipeline.currentPublishedSubmission ? [['Published revision', String(item.pipeline.currentPublishedSubmission.revisionNumber ?? 1)] as const] : []),
       ['Votes', `${item.pipeline.submission.positiveVotes} up · ${item.pipeline.submission.negativeVotes} down`],
+      ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Developer review'],
+      ['Quality', `${item.pipeline.submission.qualityScore}/100`],
+      ['Revisions', String(item.pipeline.revisions.length)],
       ['Updated', formatDate(item.updatedAt)],
     ],
   };
 };
+
+function PipelineDetailContent({
+  item,
+  onOpenRevision,
+}: {
+  item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
+  onOpenRevision: (submissionId: string) => void;
+}) {
+  const submission = item.pipeline.submission;
+  return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
+    <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
+    {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Decision reasoning</h3><p>{submission.tierDecisionReason || submission.decisionReason}</p></div> : null}
+    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => <li key={revision.id}><button type="button" onClick={() => onOpenRevision(revision.id)}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getDeveloperAssetStatusLabel(revision.status)} · Compare</span></button></li>)}</ol></div>
+  </section>;
+}
 
 const zoneAction = (id: 'library.refresh' | 'library.close-locations', label: string, loading = false): ActionDescriptor => ({
   id, label, ownerFeature: 'storage-management', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
@@ -171,11 +204,18 @@ const zoneAction = (id: 'library.refresh' | 'library.close-locations', label: st
 });
 
 const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
-  if (item.scope === 'pipeline') return [{
-    id: 'library.open-pipeline', label: 'Open in Forge Review', ownerFeature: 'developer-assets', supportedObjectKinds: ['pipeline-asset'],
-    supportedSources: ['provider-native'], revisionPolicy: 'current-required', requiredPermission: 'developer', scope: 'object', hierarchy: 'primary',
-    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
-  }];
+  if (item.scope === 'pipeline') return [
+    {
+      id: 'library.open-pipeline', label: 'Inspect exact revision', ownerFeature: 'developer-assets', supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'], revisionPolicy: 'current-required', requiredPermission: 'developer', scope: 'object', hierarchy: item.pipeline.template ? 'supporting' : 'primary',
+      availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+    },
+    ...(item.pipeline.template ? [{
+      id: 'library.test-pipeline' as const, label: 'Test exact revision in Studio', ownerFeature: 'developer-assets' as const, supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'developer' as const, scope: 'object' as const, hierarchy: 'primary' as const,
+      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
+  ];
   const actions: ActionDescriptor[] = [{
     id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'developer-assets', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
@@ -239,10 +279,10 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
   })), [shared.publishedItems]);
   const pipelineItems = useMemo<LibraryViewItem[]>(() => shared.pipelineItems.map((item) => ({
-    id: `pipeline:${item.submission.id}`, scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
-    sourceLabel: item.relationship === 'owned' ? 'Your submission' : 'Review queue', statusLabel: item.statusLabel,
+    id: `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`, scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
+    sourceLabel: item.ownership === 'mine' ? 'Your contribution' : item.submission.developerDisplayName ?? 'Shared Pipeline', statusLabel: item.statusLabel,
     summary: item.submission.description || `${item.kindLabel} in Forge Review.`, updatedAt: item.submission.updatedAt ?? item.submission.submittedAt,
-    sizeBytes: item.submission.sourceFileSizeBytes, previewUrl: item.submission.previewUrl || item.submission.sourceUrl,
+    sizeBytes: item.submission.sourceFileSizeBytes, previewUrl: item.previewUrl,
     fontFamily: null, pipeline: item,
   })), [shared.pipelineItems]);
 
@@ -306,7 +346,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
   const vote = async (item: Extract<LibraryViewItem, { scope: 'pipeline' }>, value: 'positive' | 'negative') => {
     setVotingId(item.pipeline.submission.id);
     try {
-      const response = await fetch(`/api/developer-assets/${item.pipeline.submission.id}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vote: value }) });
+      const response = await fetch(`/api/developer-assets/${item.pipeline.submission.id}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
       toast({ title: 'Vote recorded', description: `${item.name} has been updated in Forge Review.` });
       await shared.refresh();
@@ -379,6 +419,14 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
     else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
     else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(currentItem.pipeline.submission.id)}`);
+    else if (action.id === 'library.test-pipeline' && currentItem?.scope === 'pipeline' && currentItem.pipeline.template) {
+      const store = useProjectStore.getState();
+      const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
+      store.setTemplateEditorSelectedTemplateId(templateId);
+      store.setActiveTab('templates');
+      toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
+      projection.router.push('/studio');
+    }
     else if (action.id === 'library.refresh') refresh();
   };
 
@@ -415,6 +463,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
     zones={zones} activeZone="library" viewportPolicy="desk" detail={activeTool ? null : currentRecord}
     detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
+    detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent item={currentItem} onOpenRevision={(submissionId) => projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(submissionId)}`)} /> : undefined}
     actions={actions} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
     statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={scope === 'personal' ? `${projection.items.length} personal objects` : scope === 'published' ? `${publishedItems.length} published objects` : `${pipelineItems.length} pipeline objects`} tone="neutral" /></>}
     footerContent={activeTool ? <span>Nothing moves between locations automatically</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
@@ -471,7 +520,7 @@ export function UnifiedAccountLibrary({ persistenceScope, isSignedIn, isDevelope
                   </DropdownMenuItem>)}
                 </DropdownMenuContent>
               </DropdownMenu> : null}
-              {pipelineItem?.pipeline.relationship === 'review' ? <div className={styles.voteActions} aria-label={`Vote on ${item.name}`}><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem, 'positive')} aria-label={`Vote up for ${item.name}`}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem, 'negative')} aria-label={`Vote down for ${item.name}`}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button></div> : null}
+              {pipelineItem && (pipelineItem.pipeline.reviewState === 'available' || pipelineItem.pipeline.reviewState === 'already-voted') ? <div className={styles.voteActions} aria-label={`Vote on ${item.name}`}><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem, 'positive')} aria-label={`Vote up for ${item.name}`}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem, 'negative')} aria-label={`Vote down for ${item.name}`}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button></div> : null}
             </article>;
           })}
         </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : scope === 'personal' ? 'Create a Set or connect a location to begin.' : scope === 'published' ? 'Published assets will appear here when the catalog is available.' : 'Your submissions and reviewable work will appear here.'}</p></div>}

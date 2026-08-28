@@ -21,6 +21,7 @@ export type AssetRegistryRow = {
   name: string;
   asset_type: string;
   url: string;
+  preview_url?: string | null;
   status: string;
   access_tier: string;
   library_source: string;
@@ -94,6 +95,7 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
 
   return {
     ...asset,
+    previewUrl: row.preview_url ?? undefined,
     kind: row.asset_type === 'icon'
       ? 'icon'
       : row.asset_type === 'image'
@@ -165,7 +167,7 @@ const getDatabaseAssetRegistry = async (viewerAccess: RegistryViewerAccess): Pro
   const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
   const { data, error } = await supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+    .select('asset_id,name,asset_type,url,preview_url,status,access_tier,library_source,file_size_bytes,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
     .eq('status', 'published')
     .in('access_tier', visibleTiers)
     .order('asset_type', { ascending: true })

@@ -7,8 +7,13 @@ import {
   getAssetKindLabel,
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTypeLabel,
+  getDeveloperAssetImagePreviewUrl,
+  isRepositoryStyle,
+  isRepositoryTemplate,
+  projectDeveloperPipelineLibrary,
   type CardForgeCatalogManifest,
   type DeveloperAssetProgramView,
+  type DeveloperPipelineLibraryItem,
   type DeveloperAssetSubmission,
 } from '@/features/developer-assets/client';
 import { readApiError } from '@/infrastructure/http/clientResponses';
@@ -32,9 +37,15 @@ export interface PublishedLibraryObject {
 
 export interface PipelineLibraryObject {
   submission: DeveloperAssetSubmission;
+  revisions: DeveloperAssetSubmission[];
+  currentPublishedSubmission: DeveloperAssetSubmission | null;
   kindLabel: string;
   statusLabel: string;
-  relationship: 'owned' | 'review';
+  ownership: DeveloperPipelineLibraryItem['ownership'];
+  reviewState: DeveloperPipelineLibraryItem['reviewState'];
+  previewUrl: string | null;
+  template: TCGCardTemplate | null;
+  style: AppearanceStylePreset | null;
 }
 
 interface LibrarySharedFailure {
@@ -63,7 +74,8 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     kindLabel: getAssetKindLabel(asset.kind),
     sourceLabel: asset.librarySource === 'developer' ? 'Community' : 'CardForge',
     accessLabel: asset.accessTier === 'paid' ? 'Creator Pass' : 'Starter Library',
-    previewUrl: asset.url || null,
+    previewUrl: asset.previewUrl
+      || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null),
     sizeBytes: asset.fileSizeBytes ?? null,
     fontFamily: null,
     template: asset.kind === 'template'
@@ -106,19 +118,23 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
 
-const pipelineObjects = (program: DeveloperAssetProgramView): PipelineLibraryObject[] => {
-  const reviewIds = new Set(program.votingQueue.map((submission) => submission.id));
-  const byId = new Map<string, DeveloperAssetSubmission>();
-  [...program.submissions, ...program.votingQueue].forEach((submission) => byId.set(submission.id, submission));
-  return [...byId.values()]
-    .map((submission): PipelineLibraryObject => ({
-      submission,
-      kindLabel: getDeveloperAssetTypeLabel(submission.assetType, { plural: false }),
-      statusLabel: getDeveloperAssetStatusLabel(submission.status),
-      relationship: program.currentContributorIds.includes(submission.developerId) ? 'owned' : reviewIds.has(submission.id) ? 'review' : 'owned',
-    }))
-    .toSorted((left, right) => Date.parse(right.submission.updatedAt ?? right.submission.submittedAt) - Date.parse(left.submission.updatedAt ?? left.submission.submittedAt));
-};
+const pipelineObjects = (program: DeveloperAssetProgramView): PipelineLibraryObject[] => (
+  projectDeveloperPipelineLibrary(program).map((item): PipelineLibraryObject => {
+    const sourcePayload = item.submission.sourcePayload;
+    return {
+      submission: item.submission,
+      revisions: item.revisions,
+      currentPublishedSubmission: item.currentPublishedSubmission,
+      kindLabel: getDeveloperAssetTypeLabel(item.submission.assetType, { plural: false }),
+      statusLabel: getDeveloperAssetStatusLabel(item.submission.status),
+      ownership: item.ownership,
+      reviewState: item.reviewState,
+      previewUrl: getDeveloperAssetImagePreviewUrl(item.submission),
+      template: isRepositoryTemplate(sourcePayload) ? sourcePayload : null,
+      style: isRepositoryStyle(sourcePayload) ? sourcePayload : null,
+    };
+  })
+);
 
 export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { pipelineEnabled: boolean; activeScope: LibraryScope }) {
   const [catalog, setCatalog] = useState<CardForgeCatalogManifest | null>(null);
@@ -149,7 +165,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
       }))
       .finally(() => setCatalogLoading(false)) : Promise.resolve();
     const pipelineRequest = activeScope === 'pipeline' && pipelineEnabled
-      ? fetch('/api/developer-assets?pageSize=24&reviewPageSize=24', { cache: 'no-store' })
+      ? fetch('/api/developer-assets/library', { cache: 'no-store' })
           .then(async (response) => {
             if (!response.ok) throw await readApiError(response, 'Forge Review is unavailable.');
             return response.json() as Promise<{ program: DeveloperAssetProgramView }>;

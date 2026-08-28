@@ -100,6 +100,7 @@ describe('asset registry', () => {
         name: 'Developer Image',
         asset_type: 'image',
         url: 'https://storage.example.test/image.png',
+        preview_url: 'https://storage.example.test/image-preview.webp',
         status: 'published',
         access_tier: 'paid',
         library_source: 'developer',
@@ -138,6 +139,7 @@ describe('asset registry', () => {
       kind: 'template',
       accessTier: 'paid',
     });
+    expect(payload?.imageAssets[0]?.previewUrl).toBe('https://storage.example.test/image-preview.webp');
     expect(payload?.elementPresets[0]).toMatchObject({
       id: 'developer-elementPresets-1',
       kind: 'elementPreset',

@@ -110,6 +110,7 @@ export const getWorkActions = (
   item: AccountLibraryItem,
   pinned: boolean,
   canDelete: boolean,
+  canContribute = false,
 ): ActionDescriptor[] => {
   const sources = getAccountLibraryActionSources(item).map((source) => source.source);
   const localSet = Boolean(item.references.localSetId);
@@ -147,6 +148,12 @@ export const getWorkActions = (
       scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'permission',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
+    ...(localSet && canContribute ? [{
+      id: 'home.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'developer-assets' as const,
+      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'developer' as const,
+      scope: 'object' as const, hierarchy: 'supporting' as const, availability: { kind: 'available' as const }, commitment: 'publication' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
     ...(localSet ? [{
       id: 'home.rename-work' as const, label: 'Rename', ownerFeature: 'project' as const,
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,

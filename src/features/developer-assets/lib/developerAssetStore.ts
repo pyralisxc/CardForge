@@ -82,6 +82,24 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
   };
 };
 
+export const getDeveloperAssetProgramContext = async (
+  currentUserId: string,
+): Promise<{
+  configured: boolean;
+  settings: DeveloperProgramSettings;
+  profiles: Awaited<ReturnType<typeof fetchDeveloperProfileRows>>;
+  activeDeveloperCount: number;
+  aggregate: Awaited<ReturnType<typeof fetchDeveloperAssetProgramAggregate>>;
+}> => {
+  const { configured, settings } = await fetchDeveloperSettings();
+  const [profiles, activeDeveloperCount, aggregate] = await Promise.all([
+    fetchDeveloperProfileRows(),
+    countActiveDevelopers(),
+    fetchDeveloperAssetProgramAggregate(currentUserId, settings.allowContributorSelfVoting),
+  ]);
+  return { configured, settings, profiles, activeDeveloperCount, aggregate };
+};
+
 export const getDeveloperAssetProgramView = async (
   currentUserId: string,
   currentContributorIds: string[] = [currentUserId],
@@ -95,12 +113,7 @@ export const getDeveloperAssetProgramView = async (
     votingQuery?: DeveloperAssetListQuery;
   } = {},
 ): Promise<DeveloperAssetProgramView> => {
-  const { configured, settings } = await fetchDeveloperSettings();
-  const [profiles, activeDeveloperCount, aggregate] = await Promise.all([
-    fetchDeveloperProfileRows(),
-    countActiveDevelopers(),
-    fetchDeveloperAssetProgramAggregate(currentUserId, settings.allowContributorSelfVoting),
-  ]);
+  const { configured, settings, profiles, activeDeveloperCount, aggregate } = await getDeveloperAssetProgramContext(currentUserId);
   const [submissionPage, votingPage] = await Promise.all([
     fetchDeveloperAssetSubmissionPage({
       currentUserId,
@@ -138,7 +151,7 @@ export const getDeveloperAssetProgramView = async (
 
 export const getDeveloperAssetVotePolicy = async (
   submissionId: string,
-): Promise<{ allowContributorSelfVoting: boolean; submissionDeveloperId: string | null }> => {
+): Promise<{ allowContributorSelfVoting: boolean; submissionDeveloperId: string | null; submissionStatus: string | null }> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
@@ -146,7 +159,7 @@ export const getDeveloperAssetVotePolicy = async (
     fetchDeveloperSettings(),
     supabase
       .from('cardforge_developer_asset_submissions')
-      .select('developer_id')
+      .select('developer_id,status')
       .eq('id', submissionId)
       .limit(1),
   ]);
@@ -156,10 +169,11 @@ export const getDeveloperAssetVotePolicy = async (
     throw new DeveloperAssetStoreError('Unable to load vote rules for this submission.', 500);
   }
 
-  const row = data?.[0] as { developer_id?: string | null } | undefined;
+  const row = data?.[0] as { developer_id?: string | null; status?: string | null } | undefined;
   return {
     allowContributorSelfVoting: settings.allowContributorSelfVoting,
     submissionDeveloperId: row?.developer_id ?? null,
+    submissionStatus: row?.status ?? null,
   };
 };
 

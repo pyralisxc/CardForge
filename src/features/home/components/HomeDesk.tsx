@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  UploadCloud,
   WandSparkles,
 } from 'lucide-react';
 
@@ -386,7 +387,7 @@ export function HomeDesk({
   };
 
   const actions: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1)
+    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, isDeveloper || isOwner)
     : focusedItem
       ? [zoneAction('home.open-work', 'Open in Studio')]
       : [zoneAction('home.create-work', 'New Set', 'mutation')];
@@ -406,6 +407,7 @@ export function HomeDesk({
       setActiveTab('sets');
       projection.router.push('/studio');
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
+    else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId)}`);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
       focusWork(inspectorItem);
       setRenaming(true);
@@ -600,6 +602,7 @@ export function HomeDesk({
                             <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
                             <DropdownMenuItem onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move</DropdownMenuItem>
+                            {(isDeveloper || isOwner) && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => duplicateWork(item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={index === 0} onSelect={() => moveDeskWork(item.id, 'earlier')}><ArrowUp aria-hidden="true" />Move earlier on desk</DropdownMenuItem>
                             <DropdownMenuItem disabled={index === visibleWork.length - 1} onSelect={() => moveDeskWork(item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>

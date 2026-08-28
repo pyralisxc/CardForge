@@ -5,6 +5,7 @@ import {
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import { getDeveloperAssetImagePreviewUrl } from '@/features/developer-assets/lib/developerPipelineLibrary';
 import {
   getDeveloperAssetStatusDescription,
   getDeveloperAssetStatusLabel,
@@ -50,7 +51,7 @@ export interface DeveloperAssetSubmissionGuidance {
   checklist: [string, string, string];
 }
 
-export const reviewQueueHelp = 'All voteable assets live in one lane. Use status, tier, family, and vote filters to narrow new uploads, publish candidates, live library assets, and recoverable archived assets.';
+export const reviewQueueHelp = 'All shared Pipeline assets live in one lane. Use status, tier, family, and vote filters to narrow active review, live library assets, and recoverable archived history.';
 
 export const developerAssetSubmissionGuidance: Record<DeveloperUploadAssetType, DeveloperAssetSubmissionGuidance> = {
   textures: {
@@ -227,11 +228,9 @@ export const getContributorLabel = (submission: DeveloperAssetSubmission) => {
 };
 
 export const canRenderImagePreview = (submission: DeveloperAssetSubmission) => (
-  Boolean(submission.previewUrl)
-  && submission.assetType !== 'fonts'
+  submission.assetType !== 'fonts'
   && submission.assetType !== 'sets'
-  && !submission.previewUrl.startsWith('/api/templates')
-  && !submission.previewUrl.startsWith('/api/styles')
+  && Boolean(getDeveloperAssetImagePreviewUrl(submission))
 );
 
 export const getTemplatePreviewId = (submission: DeveloperAssetSubmission): string | null => {
