@@ -89,14 +89,22 @@ function SourceIcon({ item }: { item: LibraryViewItem }) {
   return <Icon aria-hidden="true" />;
 }
 
+function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  if (previewUrl && !previewFailed) {
+    return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
+  }
+  if (item.fontFamily) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily }}>Aa</span>;
+  return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
+}
+
 function LibraryVisual({ item, cards, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; large?: boolean }) {
   if (item.scope === 'personal' && cards.length) {
     return <div className={styles.cardStack} data-large={large}>{cards.slice(0, 3).map((card) => <CardPreview key={card.uniqueId} card={card} targetWidthPx={large ? 150 : 96} />)}</div>;
   }
   const previewUrl = safePreviewUrl(item.previewUrl);
-  if (previewUrl) return <img src={previewUrl} alt="" className={styles.objectImage} />;
-  if (item.fontFamily) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily }}>Aa</span>;
-  return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
+  return <SharedLibraryVisual key={previewUrl ?? item.id} item={item} previewUrl={previewUrl} />;
 }
 
 const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
