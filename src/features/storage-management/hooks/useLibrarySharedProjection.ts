@@ -133,6 +133,18 @@ const EMPTY_CATALOG_VISUAL: CatalogLibraryVisual = {
   style: null,
 };
 
+const catalogNameKey = (name: string): string => `name:${name.trim().toLocaleLowerCase()}`;
+
+const registerCatalogVisual = (
+  visuals: Map<string, CatalogLibraryVisual>,
+  identity: string,
+  name: string,
+  visual: CatalogLibraryVisual,
+) => {
+  visuals.set(identity, visual);
+  visuals.set(catalogNameKey(name), visual);
+};
+
 const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<string, CatalogLibraryVisual> => {
   const visuals = new Map<string, CatalogLibraryVisual>();
   if (!catalog) return visuals;
@@ -158,20 +170,20 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
   ].forEach((asset) => {
     const previewUrl = asset.previewUrl
       || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null);
-    visuals.set(asset.id, {
+    registerCatalogVisual(visuals, asset.id, asset.name, {
       previewUrl,
       fontFamily: null,
       template: asset.kind === 'template' ? templateByIdentity.get(asset.id) ?? templateByIdentity.get(asset.name) ?? null : null,
       style: asset.style ?? styleByIdentity.get(asset.id) ?? styleByIdentity.get(asset.name) ?? null,
     });
   });
-  catalog.fonts.fonts.forEach((font) => visuals.set(font.value, {
+  catalog.fonts.fonts.forEach((font) => registerCatalogVisual(visuals, font.value, font.name, {
     previewUrl: null,
     fontFamily: font.cssFamily,
     template: null,
     style: null,
   }));
-  catalog.sets.items.forEach((set) => visuals.set(set.id, {
+  catalog.sets.items.forEach((set) => registerCatalogVisual(visuals, set.id, set.name, {
     previewUrl: set.previewUrl,
     fontFamily: null,
     template: null,
@@ -188,7 +200,7 @@ export const projectPipelineLibraryObjects = (
   return (
   projectDeveloperPipelineLibrary(program).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
-    const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId]
+    const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
       .flatMap((identity) => identity ? [visuals.get(identity)] : [])
       .find((visual): visual is CatalogLibraryVisual => Boolean(visual))
       ?? EMPTY_CATALOG_VISUAL;

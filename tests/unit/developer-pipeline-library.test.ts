@@ -175,4 +175,30 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].previewUrl).toBeNull();
     expect(projected[0].fontFamily).toBe('Arcane, serif');
   });
+
+  it('falls back to the canonical catalog name when legacy lineage ids do not match', () => {
+    const publishedImage = submission('published-image-legacy', {
+      assetType: 'imageAssets',
+      status: 'published',
+      name: 'Ember Art',
+      targetRegistryAssetId: 'legacy-ember-lineage',
+      registryAssetId: null,
+      previewUrl: '',
+      sourceMimeType: 'application/octet-stream',
+    });
+    const catalog = {
+      version: 'test', access: 'dev', templates: { defaults: [], userTemplates: [] }, styles: { version: 1, styles: [] },
+      assets: {
+        textures: [], dividers: [], icons: [], templates: [], elementPresets: [],
+        imageAssets: [{
+          id: 'current-ember-art', name: 'Ember Art', kind: 'image', url: '/card-assets/ember-art.png',
+          tileMode: 'contain', seamless: false, allowedTargets: ['image'],
+        }],
+        registry: { configured: true, source: 'database', total: 1 },
+      },
+      fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } }, sets: { items: [] },
+    } as CardForgeCatalogManifest;
+
+    expect(projectPipelineLibraryObjects(program([publishedImage]), catalog)[0].previewUrl).toBe('/card-assets/ember-art.png');
+  });
 });
