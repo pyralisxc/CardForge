@@ -6,6 +6,7 @@ import {
   getLibraryScopeDefinitions,
   getLibraryScopeStatus,
   resolveLibraryScopeForViewer,
+  shouldLoadLibraryPipelineProgram,
   type LibraryScope,
 } from '@/features/storage-management/model/libraryScopes';
 
@@ -35,6 +36,13 @@ describe('Library scopes', () => {
       { id: 'pipeline', label: 'Pipeline', owner: 'CardForge Pipeline' },
       { id: 'published', label: 'Published', owner: 'Your published work' },
     ]);
+  });
+
+  it('loads contributor lineage data for both Pipeline and Published', () => {
+    expect(shouldLoadLibraryPipelineProgram('personal', true)).toBe(false);
+    expect(shouldLoadLibraryPipelineProgram('pipeline', true)).toBe(true);
+    expect(shouldLoadLibraryPipelineProgram('published', true)).toBe(true);
+    expect(shouldLoadLibraryPipelineProgram('published', false)).toBe(false);
   });
 
   it('reports loading, unavailable, empty, and ready without flattening boundaries', () => {

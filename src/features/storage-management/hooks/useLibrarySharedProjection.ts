@@ -17,7 +17,7 @@ import {
   type DeveloperAssetSubmission,
 } from '@/features/developer-assets/client';
 import { readApiError } from '@/infrastructure/http/clientResponses';
-import type { LibraryScope } from '../model/libraryScopes';
+import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/libraryScopes';
 
 export interface PublishedLibraryObject {
   id: string;
@@ -244,11 +244,12 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
   }, [pipelineEnabled]);
 
   const refresh = useCallback(async () => {
+    const needsPipelineProgram = shouldLoadLibraryPipelineProgram(activeScope, pipelineEnabled);
     if (activeScope === 'published' || activeScope === 'pipeline') {
       setCatalogLoading(true);
       setCatalogFailure(null);
     }
-    if (activeScope === 'pipeline' && pipelineEnabled) {
+    if (needsPipelineProgram) {
       setPipelineLoading(true);
       setPipelineFailure(null);
     }
@@ -264,7 +265,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
         ...(typeof error === 'object' && error !== null && 'nextAction' in error && typeof error.nextAction === 'string' ? { nextAction: error.nextAction } : {}),
       }))
       .finally(() => setCatalogLoading(false)) : Promise.resolve();
-    const pipelineRequest = activeScope === 'pipeline' && pipelineEnabled
+    const pipelineRequest = needsPipelineProgram
       ? fetch('/api/developer-assets/library', { cache: 'no-store' })
           .then(async (response) => {
             if (!response.ok) throw await readApiError(response, 'Forge Review is unavailable.');

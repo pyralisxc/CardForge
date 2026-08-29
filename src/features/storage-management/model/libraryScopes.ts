@@ -52,6 +52,11 @@ export const resolveLibraryScopeForViewer = (
   scope === 'published' && !viewer.contributor && !viewer.owner ? 'pipeline' : scope
 );
 
+export const shouldLoadLibraryPipelineProgram = (
+  scope: LibraryScope,
+  pipelineEnabled: boolean,
+): boolean => pipelineEnabled && (scope === 'pipeline' || scope === 'published');
+
 export const getLibraryScopeStatus = ({
   loading,
   itemCount,
