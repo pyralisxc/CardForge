@@ -57,8 +57,9 @@ describe('account storage library', () => {
     expect(storageWorkspace).toContain('<CompactSettingRow');
     expect(storageWorkspace).toContain('showSummary={false}');
     expect(storageWorkspace).toContain('!mobileDetail ? <aside');
+    expect(storageWorkspace).toContain('mobileDetail && selected ? <StorageToolDetail');
     expect(storageWorkspace).toContain('id="environment-detail-panel"');
-    expect(storageWorkspace).toContain('<Sheet');
+    expect(storageWorkspace).not.toContain('<Sheet');
     expect(storageWorkspace).toContain("id: 'browser-workspace'");
     expect(storageWorkspace).not.toContain("id: 'cloud-mirrors'");
     expect(storageWorkspace).toContain("id: 'working-drafts'");
@@ -67,8 +68,6 @@ describe('account storage library', () => {
     expect(storageWorkspace).toContain("id: 'connected-assets'");
     expect(storageWorkspace).not.toContain("id: 'cloud-usage'");
     expect(storageWorkspace).toContain("focusedStorageContent(workspaceStorage, 'device')");
-    expect(storageWorkspace).toContain('overlayClassName="z-[95]"');
-    expect(storageWorkspace).toContain('className="z-[100]');
     expect(unifiedLibrary).toContain('Nothing moves between locations automatically');
     expect(unifiedLibrary).toContain("status === 'google-drive-connected'");
     expect(unifiedLibrary).toContain("status === 'google-drive-error'");
