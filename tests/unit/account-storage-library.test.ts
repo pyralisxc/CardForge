@@ -55,6 +55,9 @@ describe('account storage library', () => {
   it('projects every storage lifecycle into one compact Library-owned focused tool', () => {
     expect(storageWorkspace).toContain('LibraryStorageConnectionsTool');
     expect(storageWorkspace).toContain('<CompactSettingRow');
+    expect(storageWorkspace).toContain('showSummary={false}');
+    expect(storageWorkspace).toContain('!mobileDetail ? <aside');
+    expect(storageWorkspace).toContain('id="environment-detail-panel"');
     expect(storageWorkspace).toContain('<Sheet');
     expect(storageWorkspace).toContain("id: 'browser-workspace'");
     expect(storageWorkspace).not.toContain("id: 'cloud-mirrors'");

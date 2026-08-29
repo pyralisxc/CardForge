@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EnvironmentCommandBand } from '@/features/app-shell/environment/components/EnvironmentCommandBand';
@@ -38,6 +40,12 @@ const record: EnvironmentDetailRecord = {
 };
 
 describe('Environment action presentation', () => {
+  it('renders one detail surface at a time across desktop and mobile', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/features/app-shell/environment/components/EnvironmentShell.tsx'), 'utf8');
+    expect(source).toContain('detail && !mobileDetail ? <EnvironmentDesktopInspector');
+    expect(source).toContain('detail && mobileDetail ? <EnvironmentMobileSheet');
+  });
+
   it('renders a disabled primary action with its required reason', () => {
     const action: ActionDescriptor = { ...baseAction, availability: { kind: 'disabled', reason: 'Reconnect first.' } };
     const markup = renderToStaticMarkup(createElement(EnvironmentCommandBand, { zone: { id: 'library', label: 'Library' }, primaryAction: action, onCommand: vi.fn(), onAction: vi.fn() }));

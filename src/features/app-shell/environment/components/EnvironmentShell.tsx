@@ -56,7 +56,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onChooseZone={onChooseZone} />
         <EnvironmentCommandBand zone={activeDefinition} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} onCommand={onCommand} onAction={onAction} />
         <main ref={surfaceRef} className={styles.primarySurface}>{children}</main>
-        {detail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
+        {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={styles.statusBar} aria-label="Environment status">
           <div className={styles.statusItems}>{statusContent}</div>
           <div className={styles.selectionDock}>{footerContent}</div>

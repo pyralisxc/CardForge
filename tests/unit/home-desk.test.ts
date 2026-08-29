@@ -92,6 +92,12 @@ describe('Home spatial desk', () => {
     expect(homeDesk).not.toContain("projection.sourceCounts.get('google-drive') ? 'Drive connected'");
   });
 
+  it('does not present unloaded provider contents as an empty Set', () => {
+    expect(homeDesk).toContain("'Contents load when opened'");
+    expect(homeDesk).toContain('{focusedContentsLabel} · {workSourceLabel(focusedItem)}');
+    expect(homeDesk).not.toContain("<p>{focusedCards.length} card{focusedCards.length === 1 ? '' : 's'} · {workSourceLabel(focusedItem)}</p>");
+  });
+
   it('keeps a newly created Set in rename mode after it becomes the focused work', () => {
     const focusEffect = homeDesk.slice(homeDesk.indexOf('if (!focusedItemId) return;'), homeDesk.indexOf('const statuses'));
     expect(homeDesk).toContain('setFocusedWorkId(`set:${id}`);');

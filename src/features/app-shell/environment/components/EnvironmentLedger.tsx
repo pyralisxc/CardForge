@@ -16,11 +16,11 @@ export function EnvironmentBoundaryNotice({ title, message, actionLabel, onActio
   return <div className={styles.boundary} role="status"><AlertTriangle size={18} aria-hidden="true" /><p><strong>{title}.</strong> {message}</p>{actionLabel && onAction ? <button type="button" className={styles.quietButton} onClick={onAction}>{actionLabel}<RefreshCw size={14} aria-hidden="true" /></button> : null}</div>;
 }
 
-export function CompactSettingRow({ item, selected, onOpen }: { item: EnvironmentSettingRecord; selected: boolean; onOpen: (record: EnvironmentDetailRecord) => void }) {
+export function CompactSettingRow({ item, selected, showSummary = true, onOpen }: { item: EnvironmentSettingRecord; selected: boolean; showSummary?: boolean; onOpen: (record: EnvironmentDetailRecord) => void }) {
   const Icon = item.icon;
   return (
     <button id={`environment-object-${item.id}`} type="button" className={styles.settingRow} aria-expanded={selected} aria-controls={selected ? 'environment-detail-panel' : undefined} onClick={() => onOpen(item)}>
-      <span className={styles.settingLabel}><Icon size={18} aria-hidden="true" /><span className={styles.rowValue}><strong>{item.title}</strong><span>{item.summary}</span></span></span>
+      <span className={styles.settingLabel}><Icon size={18} aria-hidden="true" /><span className={styles.rowValue}><strong>{item.title}</strong>{showSummary ? <span>{item.summary}</span> : null}</span></span>
       <span className={styles.settingValue}>{item.value}</span><ChevronRight size={17} aria-hidden="true" />
     </button>
   );

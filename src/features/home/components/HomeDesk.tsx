@@ -263,6 +263,9 @@ export function HomeDesk({
   const focusedCards = focusedLocalSetId
     ? displayCards.filter((card) => card.setId === focusedLocalSetId || (!card.setId && cardSets[0]?.id === focusedLocalSetId))
     : [];
+  const focusedContentsLabel = focusedLocalSetId
+    ? `${focusedCards.length} card${focusedCards.length === 1 ? '' : 's'}`
+    : 'Contents load when opened';
   const normalizedCardQuery = cardQuery.trim().toLocaleLowerCase();
   const availableFields = [...new Set(focusedCards.flatMap((card) => Object.keys(card.data)
     .filter((key) => card.data[key] !== undefined && String(card.data[key]).trim())))].toSorted();
@@ -581,7 +584,7 @@ export function HomeDesk({
                         <Button type="submit" size="sm">Save</Button>
                       </form>
                     ) : <h1>{focusedItem.name}</h1>}
-                    <p>{focusedCards.length} card{focusedCards.length === 1 ? '' : 's'} · {workSourceLabel(focusedItem)}</p>
+                    <p>{focusedContentsLabel} · {workSourceLabel(focusedItem)}</p>
                   </div>
                   <div className={styles.focusActions}>
                     <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Open in Studio</button>
