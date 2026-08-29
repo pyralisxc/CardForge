@@ -96,6 +96,8 @@ export default async function AccountPage({
       canSubmit: hasContributionScope(contributionScopes, 'library.submit'),
       canReview: hasContributionScope(contributionScopes, 'assets.review'),
       canPublish: hasContributionScope(contributionScopes, 'library.publish'),
+      canDraftCampaigns: hasContributionScope(contributionScopes, 'campaigns.draft'),
+      canProposeSite: hasContributionScope(contributionScopes, 'site.propose'),
     },
   });
   const isDeveloper = experience.contributor.active;
@@ -152,7 +154,9 @@ export default async function AccountPage({
     </SiteContentProvider>
   );
 
-  if (activeSection === 'developer' && (experience.contributor.active || experience.owner)) redirect('/developer/cockpit');
+  if (activeSection === 'developer' && (experience.contributor.active || experience.owner)) {
+    redirect('/account?section=library&scope=pipeline&tool=contribute');
+  }
 
   if (activeSection === 'library' || activeSection === 'storage') {
     return (
@@ -175,7 +179,7 @@ export default async function AccountPage({
           initialAuthConfigured={authConfigured}
           initialDeveloperAccess={developerAccess}
           initialPlanIntent={initialPlanIntent}
-          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : null}
+          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : null}
           plans={plans}
         />
       ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>

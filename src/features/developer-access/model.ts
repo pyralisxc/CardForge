@@ -48,7 +48,7 @@ export interface DeveloperAccessProfile {
 
 export interface DeveloperAccessProjection {
   hasCockpitAccess: boolean;
-  cockpitHref: '/developer/cockpit';
+  cockpitHref: '/account?section=library&scope=pipeline';
   scopes: readonly DeveloperContributionScope[];
 }
 
@@ -59,13 +59,13 @@ export interface DeveloperAccessSessionState {
 
 export const EMPTY_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   hasCockpitAccess: false,
-  cockpitHref: '/developer/cockpit',
+  cockpitHref: '/account?section=library&scope=pipeline',
   scopes: [],
 };
 
 export const OWNER_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   hasCockpitAccess: true,
-  cockpitHref: '/developer/cockpit',
+  cockpitHref: '/account?section=library&scope=pipeline',
   scopes: DEVELOPER_CONTRIBUTION_SCOPES,
 };
 

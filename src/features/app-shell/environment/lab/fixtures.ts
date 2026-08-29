@@ -138,7 +138,7 @@ const action = (value: LabActionInput): ActionDescriptor => ({
   ...value,
 });
 
-export const getActionsForRecord = (recipe: RecipeId, record: DetailRecord | null, activeZone: ZoneId): readonly ActionDescriptor[] => {
+export const getActionsForRecord = (recipe: RecipeId, record: DetailRecord | null, _activeZone: ZoneId): readonly ActionDescriptor[] => {
   if (recipe === 'home') {
     if (!record || record.kind === 'set') return [action({ id: 'home.resume-set', label: 'Resume in Studio', ownerFeature: 'card-generator', supportedObjectKinds: ['set'], supportedSources: ['browser-local', 'google-drive', 'local-folder'], requiredPermission: 'member', scope: record ? 'object' : 'zone', hierarchy: 'primary', availability: available, commitment: 'none', automation: human(), result: 'navigation' })];
     if (record.kind === 'account-plan') return [action({ id: 'account.compare-plans', label: 'Compare plans', ownerFeature: 'billing', supportedObjectKinds: ['account-plan'], requiredPermission: 'member', scope: 'object', hierarchy: 'primary', availability: available, commitment: 'financial', automation: human('provider'), result: 'provider-handoff' })];
@@ -164,7 +164,6 @@ export const getActionsForRecord = (recipe: RecipeId, record: DetailRecord | nul
 
   if (recipe === 'queue') {
     if (!record) return [];
-    if (activeZone === 'developer' && 'permission' in record && record.permission === 'owner') return [];
     if (record.kind === 'forge-review') return [
       action({ id: 'owner.publish-contribution', label: 'Approve & publish', ownerFeature: 'developer-assets', supportedObjectKinds: ['forge-review'], requiredPermission: 'owner', scope: 'object', hierarchy: 'primary', availability: available, commitment: 'publication', automation: { kind: 'planned-mcp', capability: 'publish a reviewed contribution' }, result: 'mutation' }),
       action({ id: 'owner.request-changes', label: 'Request changes', ownerFeature: 'developer-assets', supportedObjectKinds: ['forge-review'], requiredPermission: 'owner', scope: 'object', hierarchy: 'supporting', availability: available, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'request contribution changes' }, result: 'mutation' }),

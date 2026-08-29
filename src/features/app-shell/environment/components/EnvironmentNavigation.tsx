@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Code2, Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
+import { Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ export const ZONE_ICONS: Record<ZoneId, LucideIcon> = {
   library: LibraryBig,
   studio: WandSparkles,
   profile: UserCircle2,
-  developer: Code2,
   owner: ShieldCheck,
 };
 

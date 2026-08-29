@@ -162,6 +162,10 @@ export interface MarketingContentWorkspaceView {
   marketingCampaigns: MarketingCampaign[];
 }
 
+export interface CampaignDeskProjection {
+  campaigns: MarketingContentPackage[];
+}
+
 export const CAMPAIGN_FIELD_LIMITS = {
   title: 120, objective: 600, destinationUrl: 2_048, productionNote: 1_000,
   callToAction: 500, utmContent: 120,

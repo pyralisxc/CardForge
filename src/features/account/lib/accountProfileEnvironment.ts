@@ -170,17 +170,17 @@ export function buildAccountProfileUtilityGroups({
       id: 'profile-developer-access',
       kind: 'profile-developer-access',
       eyebrow: 'Contributor access',
-      title: 'Developer workspace',
-      summary: 'Prepare reviewable contributions under your granted scopes',
+      title: 'Contributor profile',
+      summary: 'Granted scopes, personal progress, and site proposals',
       value: isOwner ? 'Owner-grade access' : 'Contributor access',
       status: 'Access granted',
       tone: 'success',
       target: 'developer',
       meta: [
         ['Authority', isOwner ? 'Owner and contributor' : 'Contributor'],
-        ['Workspace', 'Developer'],
+        ['Shared work', 'Desk and Library'],
         ['Publication', 'Owner-governed'],
-        ['Management', 'Open Developer workspace'],
+        ['Management', 'Open contributor profile'],
       ],
     });
   }

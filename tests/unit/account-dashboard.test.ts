@@ -108,7 +108,7 @@ describe('unified account environment', () => {
   it('keeps Stripe-owned billing inside the focused Profile utility', () => {
     expect(accountPage).toContain('getMcpAllowances()');
     expect(accountPage).toContain('plans={plans}');
-    expect(accountPage).toContain("initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : null}");
+    expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : null");
     expect(profileEnvironment).toContain('Manage access, billing, and usage');
     expect(profileEnvironment).toContain('<AccountPlanBillingUtility');
     expect(planBillingUtility).toContain('<AccountPlanManagementPanel');
@@ -130,9 +130,9 @@ describe('unified account environment', () => {
   });
 
   it('routes protected account entries to their real zones', () => {
-    expect(profileEnvironment).toContain("router.push('/developer/cockpit')");
+    expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=contributor')");
     expect(profileEnvironment).toContain("router.push('/owner')");
-    expect(accountPage).toContain("redirect('/developer/cockpit')");
+    expect(accountPage).toContain("redirect('/account?section=library&scope=pipeline&tool=contribute')");
   });
 
   it('uses native Next navigation when opening Library work', () => {

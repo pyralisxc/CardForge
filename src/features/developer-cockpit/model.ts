@@ -4,8 +4,6 @@ import {
   type SiteContentBlockSlug,
 } from '@/features/public-site/client';
 import type { DeveloperAccessProfile, DeveloperContributionScope } from '@/features/developer-access/client';
-import type { MarketingStrategy } from '@/domain/marketing';
-import type { MarketingContentWorkspaceView } from '@/features/marketing-content/client';
 
 export interface SiteContentProposal {
   id: string;
@@ -26,32 +24,10 @@ export interface SiteContentProposal {
   updatedAt: string;
 }
 
-export interface DeveloperCockpitBootstrap {
-  configured: boolean;
-  extendedContributionsEnabled: boolean;
-  currentUserId: string;
-  isDeveloper: boolean;
-  isOwner: boolean;
-  scopes: DeveloperContributionScope[];
-  marketingStrategy: MarketingStrategy;
-}
-
-export type DeveloperCampaignWorkspaceView = MarketingContentWorkspaceView;
-
 export interface DeveloperSiteWorkspaceView {
   currentUserId: string;
   isOwner: boolean;
   scopes: DeveloperContributionScope[];
-  siteProposals: SiteContentProposal[];
-  siteContentBlocks: SiteContentBlock[];
-  profiles: DeveloperAccessProfile[];
-}
-
-/** Legacy combined view retained for compatibility at feature boundaries that still need every slice. */
-export interface DeveloperCockpitView extends MarketingContentWorkspaceView {
-  configured: boolean;
-  extendedContributionsEnabled: boolean;
-  isDeveloper: boolean;
   siteProposals: SiteContentProposal[];
   siteContentBlocks: SiteContentBlock[];
   profiles: DeveloperAccessProfile[];

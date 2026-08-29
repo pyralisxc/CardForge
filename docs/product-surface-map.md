@@ -37,7 +37,7 @@ This document is the canonical placement map connecting current shipped capabili
 
 **Contributor is a capability layer, not a permanent destination.**
 
-The existing Developer/Cockpit route remains shipped legacy composition until its capabilities are rehomed with parity. Do not replace it with another permanent Contributor zone.
+The separate Developer/Cockpit destination is retired. Its shipped capabilities are composed through Desk, Library, Profile, and Owner; do not replace it with another permanent Contributor zone.
 
 ## Shared UI grammar
 
@@ -233,7 +233,8 @@ Do not put work inventory or Pipeline queue here.
 | Submit revision | Quick entry on linked owned object | Selected lineage action | **Native selected-object action** | No |
 | Compare revisions | Inspector | **Inspector/detail** | **Inspector/detail** | No |
 | Contributor scopes/limits | Attention only when meaningful | No | Permission resolves actions | **Personal configuration/status** |
-| Campaign/site contribution | Active owned work where useful | Reusable resources where appropriate | Owning composition tool / legacy bridge until parity | Scope status only |
+| Campaign packages | Active visual shelf for authorized work | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Later contextual editing where useful | Scope/status only |
+| Site proposals | No | No | No | **Personal drafts and review status**; Owner owns review/publication |
 
 ## Pipeline and revision policy
 
@@ -345,7 +346,7 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 | `card-rendering` | canonical preview/render/watermark | Cross-surface service |
 | `developer-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/Studio; Owner people controls |
 | `developer-assets` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
-| `developer-cockpit` | current protected composition/legacy contribution surfaces | **Legacy migration source; retire destination after parity** |
+| `developer-cockpit` | site-proposal policy/store retained under its current technical owner | Profile contributor proposals + Owner review; no standalone route or zone |
 | `developer-program` | public program explanation/application | Public Contributor program |
 | `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Owner Marketing |
 | `personal-library` | connected provider assets/fonts | Library + Studio source picker + MCP read |
@@ -369,7 +370,7 @@ All other existing feature owners keep their native records/providers; placement
 - Studio becomes one Set Desk with Generate/Export/Save/Review as tools.
 - Profile remains personal configuration.
 - Retire Templates / Make Cards / Sets as peer Studio destinations only after parity.
-- Retire Developer Cockpit / nested Asset Hub navigation only after every shipped action has a new home.
+- Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, and Owner.
 - CardForge Cloud Set Mirror remains retired.
 - Provider save and Pipeline submission remain semantically separate.
 - Review follows the object and is also available in Pipeline Library for deliberate batch review.

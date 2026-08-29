@@ -1,4 +1,4 @@
-export type LibraryScope = 'personal' | 'published' | 'pipeline';
+export type LibraryScope = 'personal' | 'published' | 'pipeline' | 'campaigns';
 export type LibraryDensity = 'gallery' | 'list' | 'expanded';
 
 export interface LibraryScopeDefinition {
@@ -10,6 +10,7 @@ export interface LibraryScopeDefinition {
 
 export interface LibraryScopeViewer {
   contributor: boolean;
+  campaigns: boolean;
   owner: boolean;
 }
 
@@ -37,19 +38,30 @@ const LIBRARY_SCOPE_DEFINITIONS: readonly LibraryScopeDefinition[] = [
     description: 'Your contributions currently published through the CardForge Pipeline.',
     owner: 'Your published work',
   },
+  {
+    id: 'campaigns',
+    label: 'Campaigns',
+    description: 'Campaign packages, coordinated variants, and reusable campaign media available to your granted role.',
+    owner: 'Marketing workspace',
+  },
 ];
 
 export const getLibraryScopeDefinitions = (
   viewer: LibraryScopeViewer,
 ): LibraryScopeDefinition[] => LIBRARY_SCOPE_DEFINITIONS.filter((scope) => (
-  scope.id !== 'published' || viewer.contributor || viewer.owner
+  (scope.id !== 'published' || viewer.contributor || viewer.owner)
+  && (scope.id !== 'campaigns' || viewer.campaigns || viewer.owner)
 ));
 
 export const resolveLibraryScopeForViewer = (
   scope: LibraryScope,
   viewer: LibraryScopeViewer,
 ): LibraryScope => (
-  scope === 'published' && !viewer.contributor && !viewer.owner ? 'pipeline' : scope
+  scope === 'published' && !viewer.contributor && !viewer.owner
+    ? 'pipeline'
+    : scope === 'campaigns' && !viewer.campaigns && !viewer.owner
+      ? 'personal'
+      : scope
 );
 
 export const shouldLoadLibraryPipelineProgram = (

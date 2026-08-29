@@ -1,13 +1,15 @@
 import { revalidatePath } from 'next/cache';
 
 import {
+  getCurrentDeveloperCockpitAccess,
+  requireContributionScope,
+} from '@/features/developer-access/server';
+import {
   createDeveloperCockpitErrorResponse,
   createSiteContentProposal,
   DeveloperCockpitStoreError,
-  getCurrentDeveloperCockpitAccess,
   getDeveloperSiteWorkspace,
   publishSiteContentProposal,
-  requireContributionScope,
   saveSiteContentProposal,
   transitionSiteContentProposal,
 } from '@/features/developer-cockpit/server';
@@ -18,13 +20,19 @@ import { consumeRateLimit, RateLimitExceededError } from '@/infrastructure/secur
 export const dynamic = 'force-dynamic';
 
 const consumeMutationLimit = async (userId: string) => {
-  const rateLimit = await consumeRateLimit({ action: 'developer-site-proposal', identity: userId, limit: 60, windowSeconds: 3600 });
-  if (!rateLimit.allowed) throw new RateLimitExceededError(
-    'Too many site-copy changes.',
-    rateLimit.retryAfterSeconds,
-    { resource: 'site_copy_changes', maximum: 60, unit: 'attempts_per_hour' },
-  );
+  const rateLimit = await consumeRateLimit({ action: 'site-proposal', identity: userId, limit: 60, windowSeconds: 3600 });
+  if (!rateLimit.allowed) throw new RateLimitExceededError('Too many site-copy changes.', rateLimit.retryAfterSeconds, { resource: 'site_copy_changes', maximum: 60, unit: 'attempts_per_hour' });
 };
+
+export async function GET() {
+  try {
+    const access = await getCurrentDeveloperCockpitAccess();
+    if (!access.isOwner) requireContributionScope(access, 'site.propose');
+    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) });
+  } catch (error) {
+    return createDeveloperCockpitErrorResponse(error, 'Unable to load site proposals.');
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -43,13 +51,7 @@ export async function PATCH(request: Request) {
   try {
     const access = await getCurrentDeveloperCockpitAccess();
     await consumeMutationLimit(access.user.id);
-    const body = await request.json() as {
-      action?: unknown;
-      proposalId?: unknown;
-      expectedVersion?: unknown;
-      proposal?: Parameters<typeof createSiteContentProposal>[1];
-      reviewNote?: unknown;
-    };
+    const body = await request.json() as { action?: unknown; proposalId?: unknown; expectedVersion?: unknown; proposal?: Parameters<typeof createSiteContentProposal>[1]; reviewNote?: unknown };
     const proposalId = typeof body.proposalId === 'string' ? body.proposalId : '';
     if (body.action === 'save') {
       requireContributionScope(access, 'site.propose');

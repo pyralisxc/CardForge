@@ -28,7 +28,7 @@ export async function PATCH(
   } catch (error) {
     return createDeveloperCockpitErrorResponse(
       error,
-      'Unable to attach development associations.',
+      'Unable to update campaign associations.',
     );
   }
 }

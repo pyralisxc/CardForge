@@ -22,6 +22,7 @@ const OwnerPeoplePanel = dynamic(() => import('./OwnerPeoplePanel').then((module
 const OwnerInboxPanel = dynamic(() => import('./OwnerInboxPanel').then((module) => module.OwnerInboxPanel), { loading: panelFallback });
 const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurationPanel').then((module) => module.OwnerSiteConfigurationPanel), { loading: panelFallback });
 const OwnerMarketingPanel = dynamic(() => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel), { loading: panelFallback });
+const OwnerSiteProposalReviewPanel = dynamic(() => import('./OwnerSiteProposalReviewPanel').then((module) => module.OwnerSiteProposalReviewPanel), { loading: panelFallback });
 const OwnerPublicContentPanel = dynamic(() => import('./OwnerPublicContentPanel').then((module) => module.OwnerPublicContentPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
 const OwnerSiteMediaPanel = dynamic(() => import('./OwnerSiteMediaPanel').then((module) => module.OwnerSiteMediaPanel), { loading: panelFallback });
@@ -220,6 +221,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                     <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                     <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
                     <TabsTrigger value="copy" className={subtabClassName}>Copy</TabsTrigger>
+                    <TabsTrigger value="proposals" className={subtabClassName}>Proposals</TabsTrigger>
                     <TabsTrigger value="media" className={subtabClassName}>Media</TabsTrigger>
                     <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
                     <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap</TabsTrigger>
@@ -228,6 +230,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                   <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteWorkspaceContent.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteWorkspaceContent, siteConfiguration })} /></TabsContent>
                   <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteWorkspaceContent.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteWorkspaceContent, experienceSettings })} /></TabsContent>
                   <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
+                  <TabsContent value="proposals" className="mt-0"><OwnerSiteProposalReviewPanel /></TabsContent>
                   <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                   <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
                 </Tabs>

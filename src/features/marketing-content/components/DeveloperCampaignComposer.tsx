@@ -375,7 +375,7 @@ export function DeveloperCampaignComposer({
           <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">
             Creation source
             <select className={fieldClassName} value={draft.creationSource} onChange={(event) => onDraftChange({ ...draft, creationSource: event.target.value as CampaignDraft['creationSource'] })}>
-              <option value="developer">Developer-authored</option>
+              <option value="developer">Contributor-authored</option>
               <option value="human">Owner/human-authored</option>
               <option value="ai-assisted">AI-assisted</option>
             </select>

@@ -31,11 +31,13 @@ import {
 import { hasContributionScope, useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
 import type { McpAllowance } from '@/features/mcp-usage/client/plans';
 
+import { ContributorProfilePanel } from './ContributorProfilePanel';
+
 interface AccountProfileEnvironmentProps {
   checkoutStatus?: 'cancelled' | 'success' | null;
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
-  initialUtility?: 'billing' | 'identity' | null;
+  initialUtility?: 'billing' | 'identity' | 'contributor' | null;
   initialDeveloperAccess: DeveloperAccessSessionState;
   plans?: McpAllowance[];
 }
@@ -109,12 +111,10 @@ export function AccountProfileEnvironment({
 }: AccountProfileEnvironmentProps) {
   const router = useRouter();
   const surfaceRef = useRef<HTMLElement | null>(null);
-  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | null>(() => (
+  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | null>(() => (
     initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null
       ? 'billing'
-      : initialUtility === 'identity'
-        ? 'identity'
-        : null
+        : initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null
   ));
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const developerAccess = useDeveloperAccess({
@@ -130,6 +130,8 @@ export function AccountProfileEnvironment({
       canSubmit: hasContributionScope(developerAccess.scopes, 'library.submit'),
       canReview: hasContributionScope(developerAccess.scopes, 'assets.review'),
       canPublish: hasContributionScope(developerAccess.scopes, 'library.publish'),
+      canDraftCampaigns: hasContributionScope(developerAccess.scopes, 'campaigns.draft'),
+      canProposeSite: hasContributionScope(developerAccess.scopes, 'site.propose'),
     },
   });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
@@ -167,7 +169,7 @@ export function AccountProfileEnvironment({
       setActiveUtility('billing');
       return;
     }
-    setActiveUtility(initialUtility === 'identity' ? 'identity' : null);
+    setActiveUtility(initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null);
   }, [checkoutStatus, initialPlanIntent, initialUtility]);
 
   const openIdentity = () => {
@@ -188,7 +190,9 @@ export function AccountProfileEnvironment({
   const closeUtility = () => {
     const focusId = activeUtility === 'billing'
       ? 'environment-object-profile-plan-billing'
-      : 'environment-object-profile-identity';
+      : activeUtility === 'contributor'
+        ? 'environment-object-profile-developer-access'
+        : 'environment-object-profile-identity';
     setActiveUtility(null);
     router.push('/account?section=profile');
     requestAnimationFrame(() => document.getElementById(focusId)?.focus());
@@ -198,7 +202,10 @@ export function AccountProfileEnvironment({
     if (target === 'clerk') openIdentity();
     if (target === 'billing') openBilling();
     if (target === 'storage') router.push('/account?section=storage');
-    if (target === 'developer') router.push('/developer/cockpit');
+    if (target === 'developer') {
+      setActiveUtility('contributor');
+      router.push('/account?section=profile&utility=contributor');
+    }
     if (target === 'owner') router.push('/owner');
   };
 
@@ -275,6 +282,11 @@ export function AccountProfileEnvironment({
           <div className="mt-5">
             <ProfileManagementPage authConfigured={entitlement.authConfigured} />
           </div>
+        </section>
+      ) : activeUtility === 'contributor' ? (
+        <section id="profile-utility-surface" tabIndex={-1} className="scroll-mt-20 outline-none" aria-label="Contributor profile">
+          <EnvironmentSurfaceHeader eyebrow="Contributor" title="Your contribution access and work" body="Personal access, progress, and site-proposal drafts live with your profile. Shared assets and campaigns remain in Library." />
+          <div className="mt-5"><ContributorProfilePanel access={developerAccess} /></div>
         </section>
       ) : (
         <>

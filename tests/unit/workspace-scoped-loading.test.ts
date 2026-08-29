@@ -39,40 +39,40 @@ describe('workspace-scoped data loading', () => {
     expect(restore).toContain('getOwnerSiteConsolePayload');
   });
 
-  it('loads Developer Campaign and Site workspaces only when their tabs are opened', () => {
-    const store = readSource('src/features/developer-cockpit/server/cockpitStore.ts');
-    const route = readSource('src/app/api/developer-cockpit/route.ts');
-    const page = readSource('src/features/developer-cockpit/components/DeveloperCockpitPage.tsx');
+  it('loads Campaign and Site contribution work only inside their owning surfaces', () => {
+    const campaignRoute = readSource('src/app/api/marketing-content/route.ts');
+    const siteRoute = readSource('src/app/api/site-proposals/route.ts');
+    const campaignWorkspace = readSource('src/features/marketing-content/server/workspace.ts');
+    const siteWorkspace = readSource('src/features/developer-cockpit/server/cockpitStore.ts');
+    const campaignLibrary = readSource('src/features/marketing-content/components/CampaignLibraryWorkspace.tsx');
+    const contributorProfile = readSource('src/app/account/_components/ContributorProfilePanel.tsx');
 
-    const bootstrapBody = store.slice(store.indexOf('getDeveloperCockpitBootstrap'), store.indexOf('getDeveloperCampaignWorkspace'));
-    expect(bootstrapBody).toContain('getMarketingContributorContext()');
-    expect(bootstrapBody).not.toContain('fetchCampaigns(access)');
-    expect(bootstrapBody).not.toContain('fetchSiteProposals(access)');
-    expect(bootstrapBody).not.toContain('getAuthorizedCampaignMediaPage');
-    expect(bootstrapBody).not.toContain('getSiteContentBlocks()');
-    expect(route).toContain("scope === 'campaigns'");
-    expect(route).toContain("scope === 'site'");
-    expect(page).toContain("activeTab === 'campaigns' || activeTab === 'campaign-media'");
-    expect(page).toContain("activeTab === 'site'");
-    expect(page).toContain('loadDeveloperCampaignWorkspace');
-    expect(page).toContain('loadDeveloperSiteWorkspace');
+    expect(campaignRoute).toContain('getMarketingContentWorkspace(access, {');
+    expect(campaignWorkspace).toContain('getAuthorizedCampaignMediaPage');
+    expect(campaignWorkspace).not.toContain('fetchSiteProposals(access)');
+    expect(campaignWorkspace).not.toContain('getSiteContentBlocks()');
+    expect(siteRoute).toContain('getDeveloperSiteWorkspace(access)');
+    expect(siteWorkspace).toContain('fetchSiteProposals(access)');
+    expect(siteWorkspace).not.toContain('getAuthorizedCampaignMediaPage');
+    expect(campaignLibrary).toContain('loadMarketingContentWorkspace');
+    expect(contributorProfile).toContain('canProposeSite ? loadDeveloperSiteWorkspace()');
   });
 
-  it('returns only the owning workspace after Developer mutations', () => {
-    const proposalRoute = readSource('src/app/api/developer-cockpit/site-proposals/route.ts');
-    const mediaRoute = readSource('src/app/api/developer-cockpit/media/[mediaId]/route.ts');
+  it('returns only the owning workspace after contribution mutations', () => {
+    const proposalRoute = readSource('src/app/api/site-proposals/route.ts');
+    const mediaRoute = readSource('src/app/api/marketing-content/media/[mediaId]/route.ts');
     const client = readSource('src/features/developer-cockpit/client/api.ts');
 
     expect(proposalRoute).toContain('getDeveloperSiteWorkspace(access)');
-    expect(proposalRoute).not.toContain('getDeveloperCockpitView(access)');
     expect(client).toContain('Promise<DeveloperSiteWorkspaceView>');
-    expect(mediaRoute).not.toContain('getDeveloperCockpitView');
-    expect(mediaRoute).toContain('createNoStoreJsonResponse({ cockpit: true })');
+    expect(mediaRoute).toContain('createNoStoreJsonResponse({ updated: true })');
+    expect(mediaRoute).toContain('createNoStoreJsonResponse({ deleted: true })');
   });
 
-  it('keeps Marketing consumers on the Campaign workspace instead of the Cockpit bootstrap', () => {
+  it('keeps Marketing consumers on the Campaign workspace instead of the combined bootstrap', () => {
     const marketingClient = readSource('src/features/marketing-content/client/api.ts');
-    expect(marketingClient).toContain("fetch('/api/developer-cockpit?scope=campaigns'");
+    expect(marketingClient).toContain("fetch('/api/marketing-content'");
+    expect(marketingClient).not.toContain('/api/developer-cockpit');
     expect(marketingClient).toContain('body.campaigns');
   });
 });

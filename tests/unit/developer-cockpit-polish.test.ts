@@ -22,7 +22,7 @@ const collectSourceFiles = (directory: string): string[] => readdirSync(director
   })
   .filter((path) => path.endsWith('.ts') || path.endsWith('.tsx'));
 
-describe('developer cockpit polish contract', () => {
+describe('contributor surface polish contract', () => {
   it('rejects oversized campaign copy instead of silently truncating it', () => {
     const result = normalizeCampaignInput({
       title: 'x'.repeat(121),
@@ -236,22 +236,17 @@ describe('developer cockpit polish contract', () => {
     expect(proposalPanel).toContain('Withdraw proposal');
   });
 
-  it('uses the shared compact workspace navigator on mobile', () => {
-    const cockpitPage = readFileSync(
-      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCockpitPage.tsx'),
-      'utf8',
-    );
-    const presentation = readFileSync(
-      sourcePath('components', 'ui', 'cardforge-presentation.tsx'),
-      'utf8',
-    );
+  it('places contributor work in Library, Desk, Profile, and Owner instead of a separate zone', () => {
+    const library = readFileSync(sourcePath('features', 'storage-management', 'components', 'UnifiedAccountLibrary.tsx'), 'utf8');
+    const desk = readFileSync(sourcePath('features', 'home', 'components', 'HomeDesk.tsx'), 'utf8');
+    const profile = readFileSync(sourcePath('app', 'account', '_components', 'ContributorProfilePanel.tsx'), 'utf8');
+    const zones = readFileSync(sourcePath('features', 'app-shell', 'environment', 'model.ts'), 'utf8');
 
-    expect(cockpitPage).toContain('CardForgeWorkspaceNavigation');
-    expect(cockpitPage).toContain('label="Cockpit section"');
-    expect(presentation).toContain('aria-label={label}');
-    expect(presentation).toContain('sm:hidden');
-    expect(presentation).toContain('sm:flex');
-    expect(cockpitPage).toContain("label: 'Asset Contributions'");
+    expect(library).toContain('<DeveloperAssetHubPanel compact');
+    expect(library).toContain('<CampaignLibraryWorkspace');
+    expect(desk).toContain('<CampaignDeskShelf');
+    expect(profile).toContain('Site proposals');
+    expect(zones).not.toContain("id: 'developer'");
   });
 
   it('gives owners reversible campaign-media retirement and guarded permanent deletion', () => {
@@ -260,7 +255,7 @@ describe('developer cockpit polish contract', () => {
       'utf8',
     );
     const mediaRoute = readFileSync(
-      sourcePath('app', 'api', 'developer-cockpit', 'media', '[mediaId]', 'route.ts'),
+      sourcePath('app', 'api', 'marketing-content', 'media', '[mediaId]', 'route.ts'),
       'utf8',
     );
 

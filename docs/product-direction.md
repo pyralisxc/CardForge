@@ -422,11 +422,12 @@ Existing campaign package and site-proposal capabilities remain valid and must n
 
 First integration rule:
 
-- Desk surfaces owned active campaign/proposal work when relevant;
-- Library surfaces reusable media/resources where appropriate;
-- the owning composition/editing tool opens around the work or may temporarily use the current focused legacy surface until parity exists;
-- Profile exposes only granted scopes/preferences;
-- Owner retains publication/approval/provider credentials.
+- Campaign packages are Set-like specialized work in the interaction model, while `marketing-content` remains their record and lifecycle owner.
+- Desk surfaces a compact visual shelf for active campaign packages owned by or available to the current Contributor.
+- Library adds a Campaigns scope only for Owners and Contributors granted `campaigns.draft`; normal accounts do not receive campaign packages or reusable campaign media through Pipeline entitlement.
+- Contributors draft, revise, attach approved media, and submit campaign packages in Library. Owner retains strategy, approval, destination credentials, scheduling, publication, and delivery history.
+- Profile owns personal Contributor access, limits, scopes, and the current user's site-proposal drafts/status. Owner reviews and publishes site proposals from Owner.
+- Campaign and site tools reveal within their owning surface and return to the originating context; they do not create a replacement Contributor destination.
 
 Do not create permanent geography merely because a permission exists. A future campaign/production environment earns a separate zone only if it develops a durable recurring object/queue users intentionally revisit outside normal editing.
 
@@ -650,7 +651,7 @@ The old Developer-zone concept is superseded by Contributor enhancements across 
 4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
 5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the four-surface grammar while keeping explicit authority and parity with their current owners.
 6. **Source/MCP parity** — shared source capability projection, provider reachability clarity, connected personal assets, broader agent contribution where appropriate.
-7. **Campaign/site integration** — migrate legacy Contributor-focused flows into the four-surface grammar only after parity.
+7. **Campaign/site integration** — campaign work is integrated into Desk/Library and site proposals into Profile/Owner; continue refining the shared object/tool grammar without restoring a separate Contributor destination.
 8. **Studio consolidation and Pipeline in context** — make the Set Desk the final core-surface overhaul after the surrounding surfaces have stabilized; remove Templates/Make Cards/Sets as competing destinations only after parity, then add exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
 9. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
 

@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     const account = await getCurrentStudioDocumentAccount();
     if (account.ownerUserId !== developerAccess.user.id) {
-      return createApiErrorResponse(403, 'developer_access_required', 'Developer account ownership could not be verified.');
+      return createApiErrorResponse(403, 'developer_access_required', 'Contributor account ownership could not be verified.');
     }
     const document = await createDeveloperTemplateDraft(developerAccess, validation.data);
 

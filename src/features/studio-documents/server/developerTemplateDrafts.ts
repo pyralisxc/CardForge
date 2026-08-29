@@ -326,6 +326,6 @@ export const continueDeveloperTemplateDraftInPipeline = async ({
 
   return {
     draft,
-    openInPipelineUrl: `/developer/cockpit?tab=library&submission=${encodeURIComponent(draft.id)}`,
+    openInPipelineUrl: `/account?section=library&scope=pipeline&tool=contribute&submission=${encodeURIComponent(draft.id)}`,
   };
 };

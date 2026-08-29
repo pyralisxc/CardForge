@@ -30,7 +30,7 @@ export async function GET(
   } catch (error) {
     return createDeveloperCockpitErrorResponse(
       error,
-      'Unable to read the campaign package.',
+      'Unable to load the campaign package.',
     );
   }
 }

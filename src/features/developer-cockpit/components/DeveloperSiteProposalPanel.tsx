@@ -5,7 +5,7 @@ import { FileDiff, Loader2, PencilLine, Plus, Send, ShieldCheck, XCircle } from 
 
 import { Button } from '@/components/ui/button';
 import {
-  mutateDeveloperCockpit,
+  mutateSiteProposal,
   type DeveloperSiteWorkspaceView,
 } from '@/features/developer-cockpit/client/api';
 import { ConfirmationDialog as CockpitConfirmationDialog } from '@/components/ui/confirmation-dialog';
@@ -51,11 +51,11 @@ export function DeveloperSiteProposalPanel({ cockpit, onChange }: { cockpit: Dev
   const selectBlock = (slug: SiteContentBlockSlug) => { const block = cockpit.siteContentBlocks.find((candidate) => candidate.slug === slug); setDraft((current) => ({ ...current, slug, proposedBody: block?.body ?? '' })); };
   const save = async () => {
     const saved = editing
-      ? await run(`save:${editing.id}`, 'Site proposal changes saved.', () => mutateDeveloperCockpit('site-proposals', 'PATCH', { action: 'save', proposalId: editing.id, expectedVersion: editing.version, proposal: draft }))
-      : await run('create', 'Site proposal draft created.', () => mutateDeveloperCockpit('site-proposals', 'POST', draft));
+      ? await run(`save:${editing.id}`, 'Site proposal changes saved.', () => mutateSiteProposal('PATCH', { action: 'save', proposalId: editing.id, expectedVersion: editing.version, proposal: draft }))
+      : await run('create', 'Site proposal draft created.', () => mutateSiteProposal('POST', draft));
     if (saved) closeComposer();
   };
-  const workflow = (proposal: SiteContentProposal, action: 'submit' | 'request_changes' | 'publish' | 'reject' | 'cancel', success: string) => run(`${action}:${proposal.id}`, success, () => mutateDeveloperCockpit('site-proposals', 'PATCH', { action, proposalId: proposal.id, expectedVersion: proposal.version, reviewNote: reviewNotes[proposal.id] ?? '' }));
+  const workflow = (proposal: SiteContentProposal, action: 'submit' | 'request_changes' | 'publish' | 'reject' | 'cancel', success: string) => run(`${action}:${proposal.id}`, success, () => mutateSiteProposal('PATCH', { action, proposalId: proposal.id, expectedVersion: proposal.version, reviewNote: reviewNotes[proposal.id] ?? '' }));
 
   return (
     <section className="space-y-4">

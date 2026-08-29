@@ -370,7 +370,7 @@ export function CardForgeStudioShell({
         modeLabel={exportEntitlementLabel}
         saveStatus={workspaceSaveStatus}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
-        developerCockpitHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}
+        contributorLibraryHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}
       />
 
       {accountEntitlement.entitlementError ? (

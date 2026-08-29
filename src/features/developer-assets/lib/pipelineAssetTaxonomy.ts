@@ -115,7 +115,7 @@ export const getDeveloperAssetTierDescription = (tier: DeveloperAssetAccessTier)
 
 export const getLibrarySourceLabel = (source?: CardAssetOption['librarySource']): string => {
   if (source === 'local') return 'Local only';
-  if (source === 'developer') return 'Developer upload';
+  if (source === 'developer') return 'Contributor upload';
   return 'Forge Library';
 };
 

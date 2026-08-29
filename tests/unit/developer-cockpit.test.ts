@@ -119,7 +119,7 @@ describe('developer contribution cockpit', () => {
       sessionKey: 'contributor-session',
       projection: {
         hasCockpitAccess: true,
-        cockpitHref: '/developer/cockpit' as const,
+        cockpitHref: '/account?section=library&scope=pipeline' as const,
         scopes: ['assets.review', 'library.submit'] as const,
       },
     };

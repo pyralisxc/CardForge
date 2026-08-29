@@ -4,6 +4,7 @@ export * from './server/campaignStore';
 export * from './server/media';
 export * from './server/mediaApproval';
 export * from './server/mediaIngest';
+export * from './server/workspace';
 export {
   DeveloperCockpitStoreError as MarketingContentStoreError,
   fetchPublishJobs,

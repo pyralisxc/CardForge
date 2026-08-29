@@ -1,6 +1,6 @@
 import type { BoundaryFailureKind, BoundaryLimit } from '@/shared/boundaryFailure';
 
-export const ENVIRONMENT_ZONE_IDS = ['home', 'library', 'studio', 'profile', 'developer', 'owner'] as const;
+export const ENVIRONMENT_ZONE_IDS = ['home', 'library', 'studio', 'profile', 'owner'] as const;
 
 export type ZoneId = typeof ENVIRONMENT_ZONE_IDS[number];
 export type ZoneAccess = 'guest' | 'member' | 'contributor' | 'owner';
@@ -21,7 +21,6 @@ export const ENVIRONMENT_ZONES = [
   { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'studio', href: '/studio', label: 'Studio', shortLabel: 'Studio', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'desk' },
   { id: 'profile', href: '/account?section=profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
-  { id: 'developer', href: '/developer/cockpit', label: 'Developer', shortLabel: 'Dev', minimumAccess: 'contributor', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'owner', href: '/owner', label: 'Owner', shortLabel: 'Owner', minimumAccess: 'owner', showInPrivateRail: true, viewportPolicy: 'flow' },
 ] as const satisfies readonly ZoneDefinition[];
 

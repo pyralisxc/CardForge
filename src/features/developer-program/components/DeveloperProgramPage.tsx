@@ -85,8 +85,8 @@ export function DeveloperProgramPage({
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {isContributor ? (
                 <Button asChild className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
-                  <Link href="/developer/cockpit">
-                    Open developer cockpit <ArrowRight className="ml-2 h-4 w-4" />
+                  <Link href="/account?section=library&scope=pipeline">
+                    Open contributor Library <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               ) : !entitlement.authConfigured ? (

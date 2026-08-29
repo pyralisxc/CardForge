@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     return createNoStoreJsonResponse({
       ok: true,
       draft,
-      openInPipelineUrl: `/developer/cockpit?tab=library&submission=${encodeURIComponent(draft.id)}`,
+      openInPipelineUrl: `/account?section=library&scope=pipeline&tool=contribute&submission=${encodeURIComponent(draft.id)}`,
     }, { status: 201 });
   } catch (error) {
     if (error instanceof DeveloperCockpitAccessError) {

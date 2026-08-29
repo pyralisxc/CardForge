@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
+  createAssetFile,
+  deduplicatePersonalLibraryItems,
+  getExtensionForAssetUrl,
+  slugifyFileName,
+  type PersonalLibraryFilter,
+  type PersonalLibraryItem,
+} from '@/features/developer-assets/components/DeveloperAssetHubModel';
+import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
@@ -15,14 +23,6 @@ import {
   readTypedProjectAssetListFromStorage,
   useProjectStore,
 } from '@/features/project/client';
-import {
-  createAssetFile,
-  deduplicatePersonalLibraryItems,
-  getExtensionForAssetUrl,
-  slugifyFileName,
-  type PersonalLibraryFilter,
-  type PersonalLibraryItem,
-} from '@/features/developer-assets/components/DeveloperAssetHubModel';
 
 const emptyPersonalAssets = {
   textures: [] as CardAssetOption[],
@@ -31,7 +31,8 @@ const emptyPersonalAssets = {
   imageAssets: [] as CardAssetOption[],
 };
 
-export function useDeveloperPersonalLibrary() {
+/** One projection of personal objects that can cross the Forge Review boundary. */
+export function usePipelineSubmissionCandidates() {
   const [filter, setFilter] = useState<PersonalLibraryFilter>('all');
   const [assets, setAssets] = useState(emptyPersonalAssets);
   const cardSets = useProjectStore((state) => state.cardSets);
@@ -47,7 +48,6 @@ export function useDeveloperPersonalLibrary() {
       ]);
       setAssets({ textures, dividers, icons, imageAssets });
     };
-
     const handleFocus = () => void refresh();
     handleFocus();
     window.addEventListener('focus', handleFocus);
@@ -56,10 +56,10 @@ export function useDeveloperPersonalLibrary() {
 
   const items = useMemo<PersonalLibraryItem[]>(() => {
     const assetItems = ([
-      ['textures', 'Local texture', assets.textures],
-      ['dividers', 'Local divider', assets.dividers],
-      ['icons', 'Local icon', assets.icons],
-      ['imageAssets', 'Local image', assets.imageAssets],
+      ['textures', 'This device · texture', assets.textures],
+      ['dividers', 'This device · divider', assets.dividers],
+      ['icons', 'This device · icon', assets.icons],
+      ['imageAssets', 'This device · image', assets.imageAssets],
     ] as const).flatMap(([assetType, sourceLabel, storedAssets]) => storedAssets.map((asset) => {
       const fileNameStem = slugifyFileName(asset.name || asset.id, assetType);
       return {
@@ -68,7 +68,7 @@ export function useDeveloperPersonalLibrary() {
         sourceLabel,
         assetType,
         fileName: `${fileNameStem}.${getExtensionForAssetUrl(asset.url)}`,
-        helperText: asset.packName ? `Local asset from ${asset.packName}.` : 'Saved local art from Studio.',
+        helperText: asset.packName ? `Library asset from ${asset.packName}.` : 'Saved device art from CardForge.',
         previewUrl: asset.url,
         createFile: async () => createAssetFile(asset, fileNameStem),
       };
@@ -79,10 +79,10 @@ export function useDeveloperPersonalLibrary() {
       return {
         id: `set-${set.id}`,
         name: set.name,
-        sourceLabel: 'Browser Set',
+        sourceLabel: 'Personal Library · This device',
         assetType: 'sets',
         fileName: `${fileNameStem}.cardforge`,
-        helperText: 'A complete portable Set package with its cards, Templates, settings, and embedded assets.',
+        helperText: 'A complete portable Set package with cards, Templates, settings, and embedded assets.',
         createFile: async () => {
           const document = await captureCardSetProjectDocument(set.id);
           const snapshot = await buildCardForgeProjectSnapshot({ document, name: set.name });
@@ -93,14 +93,9 @@ export function useDeveloperPersonalLibrary() {
         },
       };
     });
-
     return deduplicatePersonalLibraryItems([...setItems, ...assetItems]);
   }, [assets, cardSets]);
 
-  const visibleItems = useMemo(
-    () => filter === 'all' ? items : items.filter((item) => item.assetType === filter),
-    [filter, items]
-  );
-
+  const visibleItems = useMemo(() => filter === 'all' ? items : items.filter((item) => item.assetType === filter), [filter, items]);
   return { filter, setFilter, items, visibleItems };
 }

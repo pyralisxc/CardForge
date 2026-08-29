@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 const consumeMutationLimit = async (userId: string) => {
   const rateLimit = await consumeRateLimit({
-    action: 'developer-campaign',
+    action: 'marketing-content-campaign',
     identity: userId,
     limit: 60,
     windowSeconds: 3600,

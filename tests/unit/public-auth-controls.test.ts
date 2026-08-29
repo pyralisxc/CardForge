@@ -114,18 +114,17 @@ describe('public header authentication controls', () => {
     expect(signUpPageSource).toContain("signInUrl={createAuthRouteHref('/sign-in', fallbackRedirectUrl)}");
   });
 
-  it('server-gates owner and developer workspaces before their client shells load', () => {
+  it('server-gates Owner while contributor work stays behind account and API capability checks', () => {
     const ownerPageSource = readFileSync(resolve(process.cwd(), 'src/app/owner/page.tsx'), 'utf8');
-    const developerPageSource = readFileSync(resolve(process.cwd(), 'src/app/developer/cockpit/page.tsx'), 'utf8');
+    const accountPageSource = readFileSync(resolve(process.cwd(), 'src/app/account/page.tsx'), 'utf8');
 
-    for (const source of [ownerPageSource, developerPageSource]) {
-      expect(source).toContain("import { auth } from '@clerk/nextjs/server'");
-      expect(source).toContain("redirect(createAuthRouteHref('/sign-in'");
-    }
+    expect(ownerPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
+    expect(ownerPageSource).toContain("redirect(createAuthRouteHref('/sign-in'");
     expect(ownerPageSource).toContain('getCurrentOwnerAccess()');
     expect(ownerPageSource).toContain('if (!ownerAccess.isOwner)');
-    expect(developerPageSource).toContain('getCurrentDeveloperAccessSessionState()');
-    expect(developerPageSource).toContain('if (!developerAccess.projection.hasCockpitAccess)');
+    expect(accountPageSource).toContain('getCurrentDeveloperAccessSessionState()');
+    expect(accountPageSource).toContain('hasContributionScope(contributionScopes');
+    expect(accountPageSource).toContain('<UnifiedAccountLibrary');
   });
 
   it('lets optional developer projection fail soft without blocking Studio boot', () => {

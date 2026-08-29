@@ -55,7 +55,7 @@ export function DeveloperCampaignMediaLibrary({
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageInfo.pageSize) });
       if (query.trim()) params.set('query', query.trim());
       if (filter !== 'all') params.set('state', filter);
-      const response = await fetch(`/api/developer-cockpit/media?${params}`, { cache: 'no-store', signal });
+      const response = await fetch(`/api/marketing-content/media?${params}`, { cache: 'no-store', signal });
       const payload = await response.json() as {
         media?: CampaignMedia[];
         page?: { total: number; page: number; pageSize: number };
@@ -91,7 +91,7 @@ export function DeveloperCampaignMediaLibrary({
     setWorking(true);
     setMessage('');
     try {
-      const response = await fetch(`/api/developer-cockpit/media/${item.id}`, {
+      const response = await fetch(`/api/marketing-content/media/${item.id}`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

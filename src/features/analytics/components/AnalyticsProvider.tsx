@@ -30,7 +30,6 @@ import {
 
 const NON_TRACKABLE_PATH_PREFIXES = [
   '/owner',
-  '/developer/cockpit',
   '/account',
   '/profile',
   '/sign-in',

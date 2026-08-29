@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const access = await getCurrentDeveloperCockpitAccess();
     requireContributionScope(access, 'campaigns.draft');
     const rateLimit = await consumeRateLimit({
-      action: 'developer-campaign-media',
+      action: 'marketing-content-media',
       identity: access.user.id,
       limit: 30,
       windowSeconds: 3600,

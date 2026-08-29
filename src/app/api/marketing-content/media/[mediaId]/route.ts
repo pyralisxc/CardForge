@@ -62,7 +62,7 @@ export async function PATCH(
     const body = await request.json() as { archived?: unknown };
     if (typeof body.archived !== 'boolean') return createApiErrorResponse(400, 'developer_cockpit_request_invalid', 'Choose whether to retire or restore this media item.');
     await setCampaignMediaArchived({ mediaId, archived: body.archived, ownerId: access.user.id });
-    return createNoStoreJsonResponse({ cockpit: true });
+    return createNoStoreJsonResponse({ updated: true });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(error, 'Unable to update campaign media retention.');
   }
@@ -79,7 +79,7 @@ export async function DELETE(
     const body = await request.json() as { confirmationFilename?: unknown };
     if (typeof body.confirmationFilename !== 'string' || !body.confirmationFilename.trim()) return createApiErrorResponse(400, 'developer_cockpit_request_invalid', 'Type the exact filename to confirm permanent deletion.');
     await purgeCampaignMedia({ mediaId, confirmationFilename: body.confirmationFilename.trim() });
-    return createNoStoreJsonResponse({ cockpit: true });
+    return createNoStoreJsonResponse({ deleted: true });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(error, 'Unable to permanently delete campaign media.');
   }

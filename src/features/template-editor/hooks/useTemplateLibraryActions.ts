@@ -235,7 +235,7 @@ export function useTemplateLibraryActions({
     const openInPipelineUrl = typeof result.openInPipelineUrl === 'string'
       ? result.openInPipelineUrl
       : null;
-    if (!openInPipelineUrl?.startsWith('/developer/cockpit?')) {
+    if (!openInPipelineUrl?.startsWith('/account?section=library&scope=pipeline')) {
       throw new Error('The Pipeline draft was created, but its secure handoff link was unavailable.');
     }
     return openInPipelineUrl;

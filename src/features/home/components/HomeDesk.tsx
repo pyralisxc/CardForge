@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import {
   ArrowDown,
@@ -105,6 +106,10 @@ import {
   type HomeSourceFilter,
 } from '../model/homeDesk';
 import styles from './HomeDesk.module.css';
+
+const CampaignDeskShelf = dynamic(() => import(
+  '@/features/marketing-content/client'
+).then((module) => module.CampaignDeskShelf));
 
 export interface HomeAccountStatus {
   label: string;
@@ -472,7 +477,7 @@ export function HomeDesk({
       setActiveTab('sets');
       projection.router.push('/studio');
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
-    else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId)}`);
+    else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
       focusWork(inspectorItem);
       setRenaming(true);
@@ -689,7 +694,7 @@ export function HomeDesk({
                             <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={!experience.capabilities.canUseProjectFiles} onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move{experience.capabilities.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
-                            {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/developer/cockpit?tab=library&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+                            {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => duplicateWork(item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={index === 0} onSelect={() => moveDeskWork(item.id, 'earlier')}><ArrowUp aria-hidden="true" />Move earlier on desk</DropdownMenuItem>
                             <DropdownMenuItem disabled={index === visibleWork.length - 1} onSelect={() => moveDeskWork(item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>
@@ -703,6 +708,7 @@ export function HomeDesk({
                   })}
                 </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{workItems.length ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{workItems.length ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{workItems.length ? <Button type="button" variant="outline" onClick={() => { setQuery(''); setSourceFilter('all'); }}>Show all work</Button> : <Button type="button" onClick={openCreateMenu}>Create your first Set</Button>}</div></div>}
               </section>
+              {experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
               <div className={styles.utilityStrip} aria-label="Account essentials">{statuses.map((status) => { const Icon = statusIcons[status.label] ?? ShieldCheck; return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => projection.router.push(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>; })}</div>
             </div>
           )}

@@ -78,7 +78,7 @@ export function OwnerDeveloperProgramPanel({
       const message = error instanceof Error ? error.message : 'Unable to load developer program.';
       setLoadError(message);
       toast({
-        title: 'Developer program unavailable',
+        title: 'Contributor program unavailable',
         description: message,
         variant: 'destructive',
       });
@@ -106,10 +106,10 @@ export function OwnerDeveloperProgramPanel({
       setSettings(body.program.settings);
       await loadProgram();
       setLastSavedAt(new Date().toISOString());
-      toast({ title: 'Developer program saved', description: 'Roster, voting, and publish rules are updated.' });
+      toast({ title: 'Contributor program saved', description: 'Roster, voting, and publish rules are updated.' });
     } catch (error) {
       toast({
-        title: 'Developer program not saved',
+        title: 'Contributor program not saved',
         description: error instanceof Error ? error.message : 'Unable to save developer program.',
         variant: 'destructive',
       });

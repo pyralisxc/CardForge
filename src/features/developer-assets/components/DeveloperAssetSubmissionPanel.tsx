@@ -24,7 +24,7 @@ import {
 } from '@/features/developer-assets/components/DeveloperAssetHubModel';
 import { ControlledTaxonomySelect } from '@/features/developer-assets/components/ControlledTaxonomySelect';
 import { FieldHelp, GuidanceCard } from '@/features/developer-assets/components/DeveloperAssetHubUi';
-import { useDeveloperPersonalLibrary } from '@/features/developer-assets/components/useDeveloperPersonalLibrary';
+import { usePipelineSubmissionCandidates } from '@/features/developer-assets/components/usePipelineSubmissionCandidates';
 import {
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
@@ -81,7 +81,7 @@ export function DeveloperAssetSubmissionPanel({
     setFilter: setPersonalLibraryFilter,
     items: personalLibraryItems,
     visibleItems: visiblePersonalLibraryItems,
-  } = useDeveloperPersonalLibrary();
+  } = usePipelineSubmissionCandidates();
   const submissionGuidance = developerAssetSubmissionGuidance[assetType];
   const studioDestinationOptions = getDeveloperAssetStudioDestinationOptions(assetType);
   const expectedSourceSize = DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES[assetType];

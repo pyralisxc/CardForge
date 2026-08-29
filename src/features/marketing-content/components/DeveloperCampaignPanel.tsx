@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Megaphone, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,24 +22,27 @@ import type {
 
 export function DeveloperCampaignPanel({
   cockpit,
+  initialCampaignId,
   onRefresh,
 }: {
   cockpit: MarketingContentWorkspaceView;
+  initialCampaignId?: string | null;
   onRefresh: () => Promise<void> | void;
 }) {
   const canDraft = cockpit.scopes.includes('campaigns.draft');
   const [showComposer, setShowComposer] = useState(false);
-  const createDraft = () => createEmptyCampaignDraft(
+  const createDraft = useCallback(() => createEmptyCampaignDraft(
     cockpit.marketingCampaigns.find((campaign) => campaign.status === 'active')
       ?? cockpit.marketingCampaigns[0],
     cockpit.marketingStrategy,
-  );
+  ), [cockpit.marketingCampaigns, cockpit.marketingStrategy]);
   const [draft, setDraft] = useState<CampaignDraft>(createDraft);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const composerRef = useRef<HTMLDivElement>(null);
+  const openedInitialCampaignId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!showComposer) return;
@@ -60,6 +63,29 @@ export function DeveloperCampaignPanel({
     setError('');
     setMessage('');
   };
+
+  useEffect(() => {
+    if (!initialCampaignId || openedInitialCampaignId.current === initialCampaignId) return;
+    openedInitialCampaignId.current = initialCampaignId;
+    if (initialCampaignId === 'new') {
+      setEditing(null);
+      setDraft(createDraft());
+      setShowComposer(true);
+      return;
+    }
+    const campaign = cockpit.campaigns.find((candidate) => candidate.id === initialCampaignId);
+    if (
+      campaign
+      && campaign.contributorId === cockpit.currentUserId
+      && (campaign.status === 'draft' || campaign.status === 'changes_requested')
+    ) {
+      setEditing(campaign);
+      setDraft(toCampaignDraft(campaign));
+      setShowComposer(true);
+      setError('');
+      setMessage('');
+    }
+  }, [cockpit.campaigns, cockpit.currentUserId, createDraft, initialCampaignId]);
 
   const saveCampaign = async () => {
     setBusy(true);

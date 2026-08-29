@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  CampaignDeskProjection,
   CampaignMedia,
   MarketingContentWorkspaceView,
   MarketingContentPackage as SocialCampaign,
@@ -8,10 +9,17 @@ import type {
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export const loadMarketingContentWorkspace = async (): Promise<MarketingContentWorkspaceView> => {
-  const response = await fetch('/api/developer-cockpit?scope=campaigns', { cache: 'no-store' });
+  const response = await fetch('/api/marketing-content', { cache: 'no-store' });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load marketing content.'));
   const body = await response.json() as { campaigns: MarketingContentWorkspaceView };
   return body.campaigns;
+};
+
+export const loadCampaignDeskProjection = async (): Promise<CampaignDeskProjection> => {
+  const response = await fetch('/api/marketing-content/desk', { cache: 'no-store' });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load campaign work for Desk.'));
+  const body = await response.json() as { desk: CampaignDeskProjection };
+  return body.desk;
 };
 
 export const uploadCampaignMedia = async (
@@ -37,7 +45,7 @@ export const uploadCampaignMedia = async (
   if (metadata.reusableCaption) formData.set('reusableCaption', metadata.reusableCaption);
   if (metadata.reusableDescription) formData.set('reusableDescription', metadata.reusableDescription);
   if (metadata.focalPoint) formData.set('focalPoint', JSON.stringify(metadata.focalPoint));
-  const response = await fetch('/api/developer-cockpit/media', { method: 'POST', body: formData });
+  const response = await fetch('/api/marketing-content/media', { method: 'POST', body: formData });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to upload campaign media.'));
   const body = await response.json() as { media: CampaignMedia };
   return body.media;
@@ -47,7 +55,7 @@ export const mutateMarketingContent = async (
   method: 'POST' | 'PATCH',
   payload: unknown,
 ): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
-  const response = await fetch('/api/developer-cockpit/campaigns', {
+  const response = await fetch('/api/marketing-content/campaigns', {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -57,7 +65,7 @@ export const mutateMarketingContent = async (
 };
 
 export const validateMarketingContent = async (payload: unknown) => {
-  const response = await fetch('/api/developer-cockpit/campaigns/validate', {
+  const response = await fetch('/api/marketing-content/campaigns/validate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

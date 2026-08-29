@@ -264,7 +264,7 @@ export function DeveloperAssetHubPanel({
         <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-6 md:p-8">
           <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
             <UploadCloud className="h-6 w-6" />
-            <span className="text-sm font-semibold uppercase tracking-[0.2em]">Developer Asset Hub</span>
+            <span className="text-sm font-semibold uppercase tracking-[0.2em]">Forge Review</span>
           </div>
           <h2 className="mt-4 font-serif text-2xl text-[var(--cf-text-strong)]">Asset hub needs a refresh</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">
@@ -288,7 +288,7 @@ export function DeveloperAssetHubPanel({
       <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6 md:p-8">
         <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <UploadCloud className="h-6 w-6" />
-          <span className="text-sm font-semibold uppercase tracking-[0.2em]">Developer Asset Hub</span>
+          <span className="text-sm font-semibold uppercase tracking-[0.2em]">Forge Review</span>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           <Stat label="Submitted this month" value={program.developerStats.submitted} help="Assets you uploaded into the site pipeline this calendar month." />
@@ -552,7 +552,7 @@ export function DeveloperAssetHubPanel({
               <ProgramRule label="Votes to decide" value={program.settings.minimumVotesForGrading} body="Votes required before automatic status and tier selection begins." />
             </div>
             <div className="mt-3 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">
-              Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between the live library, candidate review, and archive. Contribution history remains attributed to its developer; CardForge does not currently operate a payout program.
+              Shared library assets are part of the same review surface as every upload. Contributor votes and owner cap settings can move them between the live library, candidate review, and archive. Contribution history remains attributed to its contributor; CardForge does not currently operate a payout program.
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
               <GlossaryPanel title="Statuses" items={statusGlossary} />

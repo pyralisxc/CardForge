@@ -28,7 +28,6 @@ const initialSelections = (): Record<ZoneId, SelectionSession> => ({
   library: createSelectionSession(),
   studio: createSelectionSession({ objectId: null, listOffset: 0, focusReturnId: null, zoom: 0.64 }),
   profile: createSelectionSession(),
-  developer: createSelectionSession(),
   owner: createSelectionSession(),
 });
 

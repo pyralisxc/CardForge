@@ -416,7 +416,7 @@ export function CardTemplateMaker({
             </div>
             {isSharedTemplateRevision ? (
               <Link
-                href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/developer/cockpit'}
+                href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/account?section=library&scope=pipeline'}
                 className="cardforge-template-status-action shrink-0 font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]"
               >
                 {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}

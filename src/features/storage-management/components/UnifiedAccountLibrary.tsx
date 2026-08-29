@@ -1,10 +1,11 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
   Copy, ExternalLink, Heart, LayoutList, Loader2, MapPin, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
-  ThumbsUp, Trash2, X, type LucideIcon,
+  ThumbsUp, Trash2, UploadCloud, X, type LucideIcon,
 } from 'lucide-react';
 
 import {
@@ -48,6 +49,13 @@ import {
 import { accountLibraryKindLabels, formatAccountLibraryBytes, formatAccountLibraryDate } from './AccountLibraryItemRow';
 import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDialog';
 import styles from './UnifiedAccountLibrary.module.css';
+
+const CampaignLibraryWorkspace = dynamic(() => import(
+  '@/features/marketing-content/client'
+).then((module) => module.CampaignLibraryWorkspace));
+const DeveloperAssetHubPanel = dynamic(() => import(
+  '@/features/developer-assets/client'
+).then((module) => module.DeveloperAssetHubPanel));
 
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
@@ -178,7 +186,7 @@ const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
       ['Current revision', String(item.pipeline.submission.revisionNumber ?? 1)],
       ...(item.pipeline.currentPublishedSubmission ? [['Published revision', String(item.pipeline.currentPublishedSubmission.revisionNumber ?? 1)] as const] : []),
       ['Votes', `${item.pipeline.submission.positiveVotes} up · ${item.pipeline.submission.negativeVotes} down`],
-      ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Developer review'],
+      ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
       ['Quality', `${item.pipeline.submission.qualityScore}/100`],
       ['Revisions', String(item.pipeline.revisions.length)],
       ['Updated', formatDate(item.updatedAt)],
@@ -218,7 +226,7 @@ function PipelineDetailContent({
   </section>;
 }
 
-const zoneAction = (id: 'library.refresh' | 'library.close-locations', label: string, loading = false): ActionDescriptor => ({
+const zoneAction = (id: 'library.refresh' | 'library.close-locations' | 'library.close-tool', label: string, loading = false): ActionDescriptor => ({
   id, label, ownerFeature: 'storage-management', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
   requiredPermission: 'guest', scope: 'zone', hierarchy: 'primary',
   availability: loading ? { kind: 'disabled', reason: 'Library sources are already refreshing.' } : { kind: 'available' },
@@ -257,12 +265,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const { toast } = useToast();
   const [scope, setScope] = useState<LibraryScope>('personal');
-  const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, owner: experience.owner });
+  const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
+  const activeScope = resolveLibraryScopeForViewer(scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const shared = useLibrarySharedProjection({ pipelineEnabled: pipelineAccess, activeScope });
   const [density, setDensity] = useState<LibraryDensity>('gallery');
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
-  const [activeTool, setActiveTool] = useState<'locations' | null>(() => initialTool);
+  const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | null>(() => initialTool);
+  const [contributionTarget, setContributionTarget] = useState<{ submissionId: string | null; setId: string | null }>({ submissionId: null, setId: null });
+  const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const [heartMetrics, setHeartMetrics] = useState<Record<string, { count: number; hearted: boolean }>>({});
@@ -275,7 +286,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   const templates = useProjectStore(selectAllTemplates);
   const cardSets = useProjectStore((state) => state.cardSets);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
-  const scopeDefinitions = getLibraryScopeDefinitions({ contributor: pipelineAccess, owner: experience.owner });
+  const scopeDefinitions = getLibraryScopeDefinitions({ contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const visibleZones = getVisibleEnvironmentZones(viewer);
   const libraryDefinition = ENVIRONMENT_ZONES.find((zone) => zone.id === 'library')!;
   const zones = visibleZones.some((zone) => zone.id === 'library') ? visibleZones : [{ ...libraryDefinition, minimumAccess: 'guest' as const }, ...visibleZones];
@@ -283,7 +294,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedScope = params.get('scope');
-    if (requestedScope === 'published' || requestedScope === 'pipeline') setScope(requestedScope);
+    if (requestedScope === 'published' || requestedScope === 'pipeline' || requestedScope === 'campaigns') setScope(requestedScope);
+    const tool = params.get('tool');
+    if (tool === 'contribute' && pipelineAccess) {
+      setActiveTool('contribute');
+      setContributionTarget({ submissionId: params.get('submission'), setId: params.get('submitSet') });
+    }
+    setCampaignTargetId(params.get('campaign'));
     const status = params.get('storage');
     if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Google Drive is now available as a durable project and asset location.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
@@ -296,7 +313,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     setSelection(closeEnvironmentDetail);
     projection.router.replace(`/account?section=library&scope=${activeScope}`);
   }, [activeScope, projection.router, scope]);
-  useEffect(() => { setActiveTool(initialTool); }, [initialTool]);
+  useEffect(() => { if (initialTool) setActiveTool(initialTool); }, [initialTool]);
 
   const personalItems = useMemo<LibraryViewItem[]>(() => projection.visibleItems.map((item) => {
     const status = personalStatus(item);
@@ -334,13 +351,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       ...publishedItems.filter((item) => item.scope === 'published' && (!item.published.lineageId || !programLineages.has(item.published.lineageId))),
     ];
   }, [pipelineItems, publishedItems]);
-  const scopeItems = activeScope === 'personal'
+  const scopeItems = useMemo(() => activeScope === 'personal'
     ? personalItems
     : activeScope === 'published'
       ? contributorPublishedItems
-      : pipelineAccess
+      : activeScope === 'campaigns'
+        ? []
+        : pipelineAccess
         ? contributorPipelineItems
-        : publishedItems;
+        : publishedItems, [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems]);
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
@@ -375,21 +394,36 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     const set = cardSets.find((candidate) => candidate.id === item.personal.references.localSetId);
     return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
   };
-  const activeFailure = activeScope === 'personal'
+  const activeFailure = activeScope === 'campaigns'
+    ? null
+    : activeScope === 'personal'
     ? projection.failures[0] ?? null
     : activeScope === 'pipeline' && pipelineAccess
       ? shared.pipelineFailure ?? shared.catalogFailure
       : shared.catalogFailure;
-  const activeLoading = activeScope === 'personal'
+  const activeLoading = activeScope === 'campaigns'
+    ? false
+    : activeScope === 'personal'
     ? projection.isLoading
     : activeScope === 'pipeline' && pipelineAccess
       ? shared.pipelineLoading || shared.catalogLoading
       : shared.catalogLoading;
-  const activeStatus = getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
+  const activeStatus = activeScope === 'campaigns'
+    ? { kind: 'ready' as const, label: 'Workspace' }
+    : getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
 
   const chooseScope = (nextScope: LibraryScope) => {
-    setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail);
+    setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setActiveTool(null);
     projection.router.replace(`/account?section=library&scope=${nextScope}`);
+  };
+  const openContributionTool = ({ submissionId = null, setId = null }: { submissionId?: string | null; setId?: string | null } = {}) => {
+    setContributionTarget({ submissionId, setId });
+    setActiveTool('contribute');
+    closeDetail();
+    const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'contribute' });
+    if (submissionId) params.set('submission', submissionId);
+    if (setId) params.set('submitSet', setId);
+    projection.router.replace(`/account?${params.toString()}`);
   };
   const openDetail = (item: LibraryViewItem) => {
     const listOffset = surfaceRef.current?.scrollTop ?? 0;
@@ -457,8 +491,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     } finally { setVotingId(null); }
   };
 
-  const actions: ActionDescriptor[] = activeTool === 'locations'
-    ? [zoneAction('library.close-locations', 'Close locations')]
+  const actions: ActionDescriptor[] = activeTool
+    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
       ? getAccountLibraryEnvironmentActions(currentItem.personal, {
           disabledReason: projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined,
@@ -518,12 +552,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   };
 
   const runAction = (action: ActionDescriptor) => {
-    if (action.id === 'library.close-locations') {
+    if (action.id === 'library.close-locations' || action.id === 'library.close-tool') {
       setActiveTool(null); projection.router.replace(`/account?section=library&scope=${activeScope}`);
-      requestAnimationFrame(() => document.getElementById('library-locations-trigger')?.focus());
+      requestAnimationFrame(() => document.getElementById(action.id === 'library.close-locations' ? 'library-locations-trigger' : 'library-contribute-trigger')?.focus());
     } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
     else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
-    else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(currentItem.pipeline.submission.id)}`);
+    else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') openContributionTool({ submissionId: currentItem.pipeline.submission.id });
     else if (action.id === 'library.test-pipeline' && currentItem?.scope === 'pipeline' && currentItem.pipeline.template) {
       const store = useProjectStore.getState();
       const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
@@ -570,7 +604,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
-      onOpenRevision={(submissionId) => projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(submissionId)}`)}
+      onOpenRevision={(submissionId) => openContributionTool({ submissionId })}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
       votingId={votingId}
@@ -581,8 +615,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       )}
     /> : undefined}
     actions={actions} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
-    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={`${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
-    footerContent={activeTool ? <span>Nothing moves between locations automatically</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
+    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
+    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
     onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)} onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
@@ -596,7 +630,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       </nav>
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       <section className={styles.collection} aria-labelledby="library-collection-heading">
-        <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div><span>{viewItems.length} shown</span></div>
+        <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} shown</span>}</div>
+        {activeScope === 'campaigns' ? <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
         <div className={styles.toolbar} aria-label="Library toolbar">
           <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
           {activeScope === 'personal' ? <>
@@ -605,6 +640,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
           </> : <Select value={sharedType} onValueChange={setSharedType}><SelectTrigger aria-label={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect}><span>{sharedType === 'all' ? activeScope === 'pipeline' ? 'All work' : 'All types' : sharedType}</span></SelectTrigger><SelectContent><SelectItem value="all">{activeScope === 'pipeline' ? 'All work' : 'All types'}</SelectItem>{sharedTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>}
           <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
           <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
+          {pipelineAccess && (activeScope === 'pipeline' || activeScope === 'published') ? <button id="library-contribute-trigger" type="button" className={styles.locationsButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
         </div>
         {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? refresh : undefined} /> : null}
         {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
@@ -649,8 +685,10 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
             </article>;
           })}
         </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
+        </>}
       </section>
       {activeTool === 'locations' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-locations-title"><button type="button" className={styles.toolScrim} aria-label="Close locations and connections" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-locations-title">Locations &amp; connections</h2><span>Inspect one owner at a time. Changes affect only the named location.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close locations and connections"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />{storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}</div></section></div> : null}
+      {activeTool === 'contribute' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-contribute-title"><button type="button" className={styles.toolScrim} aria-label="Close contribution tool" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-contribute-title">Submit &amp; revise Pipeline work</h2><span>Use the same Library objects, exact revisions, voting rules, and publication lifecycle.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close contribution tool"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><DeveloperAssetHubPanel compact initialSubmissionId={contributionTarget.submissionId} initialSubmitSetId={contributionTarget.setId} /></div></section></div> : null}
     </div>
   </EnvironmentShell>
   <WorkLocationDialog

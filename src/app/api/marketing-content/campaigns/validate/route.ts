@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return createDeveloperCockpitErrorResponse(
       error,
-      'Unable to validate the campaign package.',
+      'Unable to validate this campaign package.',
     );
   }
 }

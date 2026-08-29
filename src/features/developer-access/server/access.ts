@@ -149,7 +149,7 @@ export const getCurrentDeveloperAccessSessionState = async (): Promise<Developer
       sessionKey: access.user.id,
       projection: {
         hasCockpitAccess: true,
-        cockpitHref: '/developer/cockpit',
+        cockpitHref: '/account?section=library&scope=pipeline',
         scopes: access.scopes,
       },
     };
