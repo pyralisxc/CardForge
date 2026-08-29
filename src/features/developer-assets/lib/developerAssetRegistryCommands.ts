@@ -141,6 +141,12 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
       409,
     );
   }
+  if (errorMessage?.includes('developer_asset_lineage_purge_pending')) {
+    throw new DeveloperAssetRegistryCommandError(
+      'This Pipeline object is being permanently deleted and can no longer be changed.',
+      409,
+    );
+  }
   if (errorMessage?.includes('template_revision_conflict')) {
     throw new DeveloperAssetRegistryCommandError(
       'This base card design changed after you opened it. Reload the shared library, review the latest version, and submit again.',
@@ -356,6 +362,21 @@ export const castDeveloperAssetVote = async ({
     p_owner_developer_id: ownerDeveloperId ?? null,
   });
   if (error) {
+    if (
+      error.message?.includes('developer_asset_vote_not_permitted')
+      || error.message?.includes('developer_asset_self_vote_not_permitted')
+    ) {
+      throw new DeveloperAssetRegistryCommandError(
+        error.message.includes('self_vote')
+          ? 'Your contributor account cannot vote on its own Pipeline revision while owner self-voting is disabled.'
+          : 'This Pipeline revision is no longer available to your contributor account.',
+        403,
+        'developer_asset_not_permitted',
+      );
+    }
+    if (error.message?.includes('developer_program_settings_unavailable')) {
+      throw new DeveloperAssetRegistryCommandError('Pipeline voting rules are temporarily unavailable.', 503);
+    }
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
@@ -404,6 +425,12 @@ export const setDeveloperAssetOwnerOverride = async ({
     p_owner_developer_id: ownerDeveloperId,
   });
   if (error) {
+    if (error.message?.includes('developer_asset_lineage_purge_pending')) {
+      throw new DeveloperAssetRegistryCommandError(
+        'This Pipeline object is being permanently deleted and can no longer be changed.',
+        409,
+      );
+    }
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }

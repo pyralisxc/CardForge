@@ -26,30 +26,30 @@ const LIBRARY_SCOPE_DEFINITIONS: readonly LibraryScopeDefinition[] = [
     owner: 'You and your providers',
   },
   {
-    id: 'published',
-    label: 'Published',
-    description: 'Current Templates, artwork, styles, and fonts ready for Studio.',
-    owner: 'CardForge catalog',
-  },
-  {
     id: 'pipeline',
     label: 'Pipeline',
-    description: 'Your submissions and the work currently available for Forge Review.',
-    owner: 'Forge Review',
+    description: 'Templates, Sets, artwork, and other shared work available to your account.',
+    owner: 'CardForge Pipeline',
+  },
+  {
+    id: 'published',
+    label: 'Published',
+    description: 'Your contributions currently published through the CardForge Pipeline.',
+    owner: 'Your published work',
   },
 ];
 
 export const getLibraryScopeDefinitions = (
   viewer: LibraryScopeViewer,
 ): LibraryScopeDefinition[] => LIBRARY_SCOPE_DEFINITIONS.filter((scope) => (
-  scope.id !== 'pipeline' || viewer.contributor || viewer.owner
+  scope.id !== 'published' || viewer.contributor || viewer.owner
 ));
 
 export const resolveLibraryScopeForViewer = (
   scope: LibraryScope,
   viewer: LibraryScopeViewer,
 ): LibraryScope => (
-  scope === 'pipeline' && !viewer.contributor && !viewer.owner ? 'personal' : scope
+  scope === 'published' && !viewer.contributor && !viewer.owner ? 'pipeline' : scope
 );
 
 export const getLibraryScopeStatus = ({

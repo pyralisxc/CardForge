@@ -122,22 +122,34 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       const duplicateId = `set-${nanoid()}`;
       const duplicateName = `${source.name} copy`;
       set((state) => {
+        const sourceCards = state.storedCards.filter((card) => card.setId === id);
+        const cardIds = new Map(sourceCards.map((card) => [card.uniqueId, `card-${nanoid()}`]));
+        const tagIds = new Map((source.organization?.tags ?? []).map((tag) => [tag.id, `tag-${nanoid()}`]));
+        const organization = source.organization ? {
+          ...source.organization,
+          tags: source.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(tag.id)! })),
+          groupTagId: source.organization.groupTagId ? tagIds.get(source.organization.groupTagId) : undefined,
+          positions: Object.fromEntries(Object.entries(source.organization.positions).flatMap(([cardId, position]) => {
+            const nextId = cardIds.get(cardId);
+            return nextId ? [[nextId, position] as const] : [];
+          })),
+        } : undefined;
         const duplicate = normalizeSetForState(state, {
           ...source,
           id: duplicateId,
           name: duplicateName,
+          ...(organization ? { organization } : {}),
         });
         return {
           ...activateCardSet(state, duplicate),
           storedCards: [
             ...state.storedCards,
-            ...state.storedCards
-              .filter((card) => card.setId === id)
-              .map((card) => ({
+            ...sourceCards.map((card) => ({
                 ...card,
-                uniqueId: `card-${nanoid()}`,
+                uniqueId: cardIds.get(card.uniqueId)!,
                 setId: duplicateId,
                 setName: duplicateName,
+                tagIds: card.tagIds?.flatMap((tagId) => tagIds.get(tagId) ? [tagIds.get(tagId)!] : []),
               })),
           ],
         };

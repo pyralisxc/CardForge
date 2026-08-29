@@ -14,6 +14,8 @@ import {
   FolderPlus,
   HardDrive,
   Info,
+  Layers3,
+  LayoutGrid,
   Link2,
   Loader2,
   MoreHorizontal,
@@ -24,6 +26,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Tag,
   Trash2,
   UploadCloud,
   WandSparkles,
@@ -51,6 +54,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import {
   ENVIRONMENT_ZONES,
@@ -124,6 +128,10 @@ const statusIcons: Record<string, ComponentType<{ className?: string }>> = {
   Security: ShieldCheck,
 };
 
+const DEFAULT_FOCUSED_ORGANIZATION: CardSetOrganization = {
+  arrangement: 'grid', groupBy: 'none', sort: 'manual', tags: [], positions: {},
+};
+
 const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; className?: string }) => {
   const source = workSource(item);
   const Icon = source === 'device'
@@ -147,6 +155,7 @@ export function HomeDesk({
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
   const searchRef = useRef<HTMLInputElement | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
+  const cardStageRef = useRef<HTMLDivElement | null>(null);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const zones = getVisibleEnvironmentZones(viewer);
   const [query, setQuery] = useState('');
@@ -161,6 +170,8 @@ export function HomeDesk({
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [cardQuery, setCardQuery] = useState('');
   const [moveTargetId, setMoveTargetId] = useState('');
+  const [tagDraft, setTagDraft] = useState('');
+  const [tagFilter, setTagFilter] = useState('all');
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCards, setPendingDeleteCards] = useState<DisplayCard[]>([]);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
@@ -186,6 +197,10 @@ export function HomeDesk({
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
   const openEditDialog = useProjectStore((state) => state.openEditDialog);
   const setActiveTab = useProjectStore((state) => state.setActiveTab);
+  const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
+  const addCardSetTag = useProjectStore((state) => state.addCardSetTag);
+  const setCardsTag = useProjectStore((state) => state.setCardsTag);
+  const setCardPositions = useProjectStore((state) => state.setCardPositions);
   const displayCards = useMemo(() => selectAllGeneratedDisplayCards({
     cardSets,
     activeCardSet: cardSets.find((set) => set.id === activeCardSetId) ?? cardSets[0],
@@ -243,14 +258,37 @@ export function HomeDesk({
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
+  const focusedSet = focusedLocalSetId ? cardSets.find((set) => set.id === focusedLocalSetId) ?? null : null;
+  const organization = focusedSet?.organization ?? DEFAULT_FOCUSED_ORGANIZATION;
   const focusedCards = focusedLocalSetId
     ? displayCards.filter((card) => card.setId === focusedLocalSetId || (!card.setId && cardSets[0]?.id === focusedLocalSetId))
     : [];
   const normalizedCardQuery = cardQuery.trim().toLocaleLowerCase();
-  const visibleCards = focusedCards.filter((card, index) => !normalizedCardQuery || [getCardTitle(card, index), card.template.name]
+  const availableFields = [...new Set(focusedCards.flatMap((card) => Object.keys(card.data)
+    .filter((key) => card.data[key] !== undefined && String(card.data[key]).trim())))].toSorted();
+  const visibleCards = focusedCards.filter((card, index) => (!normalizedCardQuery || [getCardTitle(card, index), card.template.name, ...Object.values(card.data), ...organization.tags.filter((tag) => card.tagIds?.includes(tag.id)).map((tag) => tag.label)]
       .join(' ')
       .toLocaleLowerCase()
-      .includes(normalizedCardQuery));
+      .includes(normalizedCardQuery)) && (tagFilter === 'all' || card.tagIds?.includes(tagFilter)));
+  const sortedCards = [...visibleCards].sort((left, right) => {
+    if (organization.sort === 'name') return getCardTitle(left, focusedCards.indexOf(left)).localeCompare(getCardTitle(right, focusedCards.indexOf(right)));
+    if (organization.sort === 'field-value' && organization.sortField) return String(left.data[organization.sortField] ?? '').localeCompare(String(right.data[organization.sortField] ?? ''), undefined, { numeric: true });
+    if (organization.sort === 'recently-changed') return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
+    return focusedCards.indexOf(left) - focusedCards.indexOf(right);
+  });
+  const organizedGroups = (() => {
+    const groups = new Map<string, DisplayCard[]>();
+    const labelFor = (card: DisplayCard): string => {
+      if (organization.groupBy === 'tag') return organization.tags.find((tag) => card.tagIds?.includes(tag.id))?.label ?? 'Untagged';
+      if (organization.groupBy === 'field' && organization.groupField) return String(card.data[organization.groupField] ?? 'No value');
+      if (organization.groupBy === 'template') return card.template.name;
+      if (organization.groupBy === 'content-type') return String(card.data.contentType ?? card.data.type ?? card.data.kind ?? card.template.name);
+      if (organization.groupBy === 'batch') return String(card.data.batch ?? card.data.batchName ?? 'No batch');
+      return 'All cards';
+    };
+    sortedCards.forEach((card) => { const label = labelFor(card); groups.set(label, [...(groups.get(label) ?? []), card]); });
+    return [...groups.entries()];
+  })();
   const selectedCards = focusedCards.filter((card) => selectedCardIds.includes(card.uniqueId));
   const selectedCard = selectedCards.length === 1 ? selectedCards[0] : null;
   const selectedCardIndex = selectedCard
@@ -270,7 +308,33 @@ export function HomeDesk({
     setRenameDraft(focusedItemName);
     setSelectedCardIds([]);
     setCardQuery('');
+    setTagFilter('all');
   }, [focusedItemId, focusedItemName]);
+
+  const applyNewTag = () => {
+    if (!focusedLocalSetId || !selectedCards.length) return;
+    const tagId = addCardSetTag(focusedLocalSetId, tagDraft);
+    if (!tagId) return;
+    setCardsTag(selectedCards.map((card) => card.uniqueId), tagId, true);
+    setTagDraft('');
+  };
+
+  const updateOrganization = (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => {
+    if (focusedLocalSetId) updateCardSetOrganization(focusedLocalSetId, patch);
+  };
+
+  const placeCard = (card: DisplayCard, clientX: number, clientY: number) => {
+    if (!focusedLocalSetId || organization.arrangement !== 'manual') return;
+    const stage = cardStageRef.current;
+    if (!stage) return;
+    const bounds = stage.getBoundingClientRect();
+    setCardPositions(focusedLocalSetId, {
+      [card.uniqueId]: {
+        x: Math.max(0, Math.min(bounds.width - 150, clientX - bounds.left - 66)),
+        y: Math.max(0, Math.min(Math.max(bounds.height, 460) - 210, clientY - bounds.top - 90)),
+      },
+    });
+  };
 
   const statuses: HomeAccountStatus[] = [
     ...(homeAccessStatus ? [homeAccessStatus] : []),
@@ -467,7 +531,7 @@ export function HomeDesk({
   return (
     <>
       <EnvironmentShell
-        ariaLabel="CardForge Home desk"
+        ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
         viewer={viewer}
         zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'studio')}
@@ -544,6 +608,14 @@ export function HomeDesk({
                   </div>
                   <div className={styles.contentToolbar}>
                     <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder="Search cards" /></label>
+                    <div className={styles.organizationToolbar} aria-label="Set organization">
+                      <Select value={organization.arrangement} onValueChange={(value) => updateOrganization({ arrangement: value as CardSetOrganization['arrangement'] })}><SelectTrigger aria-label="Arrange cards" className={styles.compactSelect}><LayoutGrid aria-hidden="true" /><span>{organization.arrangement === 'manual' ? 'Freeform' : organization.arrangement === 'stack' ? 'Stacks' : 'Grid'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Freeform</SelectItem><SelectItem value="grid">Grid</SelectItem><SelectItem value="stack">Stacks</SelectItem></SelectContent></Select>
+                      <Select value={organization.groupBy} onValueChange={(value) => updateOrganization({ groupBy: value as CardSetOrganization['groupBy'], groupField: value === 'field' ? organization.groupField ?? availableFields[0] : undefined })}><SelectTrigger aria-label="Group cards" className={styles.compactSelect}><Layers3 aria-hidden="true" /><span>{organization.groupBy === 'none' ? 'No groups' : `By ${organization.groupBy}`}</span></SelectTrigger><SelectContent><SelectItem value="none">No groups</SelectItem><SelectItem value="tag">By tag</SelectItem>{availableFields.length ? <SelectItem value="field">By field</SelectItem> : null}<SelectItem value="template">By Template</SelectItem><SelectItem value="content-type">By content type</SelectItem><SelectItem value="batch">By batch</SelectItem></SelectContent></Select>
+                      {organization.groupBy === 'field' && availableFields.length ? <Select value={organization.groupField ?? availableFields[0]} onValueChange={(groupField) => updateOrganization({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{organization.groupField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
+                      <Select value={organization.sort} onValueChange={(value) => updateOrganization({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? organization.sortField ?? availableFields[0] : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{organization.sort === 'manual' ? 'Manual order' : organization.sort === 'field-value' ? 'Field value' : organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{availableFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recently changed</SelectItem></SelectContent></Select>
+                      {organization.sort === 'field-value' && availableFields.length ? <Select value={organization.sortField ?? availableFields[0]} onValueChange={(sortField) => updateOrganization({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{organization.sortField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
+                      {organization.tags.length ? <Select value={tagFilter} onValueChange={setTagFilter}><SelectTrigger aria-label="Filter cards by tag" className={styles.compactSelect}><Tag aria-hidden="true" /><span>{tagFilter === 'all' ? 'All tags' : organization.tags.find((tag) => tag.id === tagFilter)?.label}</span></SelectTrigger><SelectContent><SelectItem value="all">All tags</SelectItem>{organization.tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.label}</SelectItem>)}</SelectContent></Select> : null}
+                    </div>
                     {visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedCardIds((current) => allVisibleCardsSelected
                       ? current.filter((id) => !visibleCards.some((card) => card.uniqueId === id))
                       : [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]
@@ -556,23 +628,37 @@ export function HomeDesk({
                       {selectedCard ? <Button type="button" size="sm" variant="outline" onClick={editSelectedCard}>Edit in Studio</Button> : null}
                       <Button type="button" size="sm" variant="outline" onClick={duplicateSelectedCards}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
                       <Button type="button" size="sm" variant="ghost" onClick={() => setPendingDeleteCards(selectedCards)}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
+                      <div className={styles.tagTools}>
+                        {organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Tags</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{organization.tags.map((tag) => {
+                          const applied = selectedCards.every((card) => card.tagIds?.includes(tag.id));
+                          return <DropdownMenuItem key={tag.id} onSelect={() => setCardsTag(selectedCards.map((card) => card.uniqueId), tag.id, !applied)}>{applied ? 'Remove' : 'Add'} {tag.label}</DropdownMenuItem>;
+                        })}</DropdownMenuContent></DropdownMenu> : null}
+                        <Input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="New tag" aria-label="New tag name" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyNewTag(); } }} />
+                        <Button type="button" size="sm" variant="outline" disabled={!tagDraft.trim()} onClick={applyNewTag}>Add tag</Button>
+                      </div>
                     </div> : null}
                   </div>
-                  <div className={styles.contentStage} aria-label={`${focusedItem.name} contents`}>
-                    {visibleCards.length ? <div className={styles.cardGrid}>{visibleCards.slice(0, 24).map((card, index) => (
-                      <button key={card.uniqueId} type="button" className={styles.cardButton} aria-pressed={selectedCardIds.includes(card.uniqueId)} onClick={() => setSelectedCardIds((current) => current.includes(card.uniqueId) ? current.filter((id) => id !== card.uniqueId) : [...current, card.uniqueId])}>
-                        <CardPreview card={card} targetWidthPx={132} /><strong>{getCardTitle(card, index)}</strong><span>{card.template.name}</span>
-                      </button>
-                    ))}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>This Set is ready for its first card</strong><p className={styles.emptyCopy}>Open Studio and the new card will return to this exact work surface.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Add cards in Studio</Button></div></div>}
+                  <div ref={cardStageRef} className={styles.contentStage} data-home-card-stage data-arrangement={organization.arrangement} aria-label={`${focusedItem.name} contents`}>
+                    {sortedCards.length ? <div className={styles.groupPlane} data-arrangement={organization.arrangement} data-grouped={organization.groupBy !== 'none'}>{organizedGroups.map(([groupLabel, cards]) => <section key={groupLabel} className={styles.cardGroup} aria-label={groupLabel}>
+                      {organization.groupBy !== 'none' ? <header><strong>{groupLabel}</strong><span>{cards.length}</span></header> : null}
+                      <div className={styles.cardGrid} data-arrangement={organization.arrangement}>{cards.slice(0, 24).map((card) => {
+                        const index = focusedCards.indexOf(card);
+                        const position = organization.positions[card.uniqueId] ?? { x: (index % 5) * 148, y: Math.floor(index / 5) * 205 };
+                        return <button key={card.uniqueId} type="button" draggable={organization.arrangement === 'manual'} className={styles.cardButton} style={organization.arrangement === 'manual' && position ? { left: position.x, top: position.y } : undefined} aria-pressed={selectedCardIds.includes(card.uniqueId)} onDragEnd={(event) => placeCard(card, event.clientX, event.clientY)} onClick={() => setSelectedCardIds((current) => current.includes(card.uniqueId) ? current.filter((id) => id !== card.uniqueId) : [...current, card.uniqueId])}>
+                          <CardPreview card={card} targetWidthPx={132} /><strong>{getCardTitle(card, index)}</strong><span>{card.template.name}</span>
+                          {card.tagIds?.length ? <small>{card.tagIds.map((id) => organization.tags.find((tag) => tag.id === id)?.label).filter(Boolean).join(' · ')}</small> : null}
+                        </button>;
+                      })}</div>
+                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Open Studio and the new card will return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem)}>Add cards in Studio</Button> : null}</div></div>}
                   </div>
-                  {visibleCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 matching cards. Narrow the search or open Studio for the complete production view.</p> : null}
+                  {sortedCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 cards in each group. Narrow the view or open Studio for the complete production view.</p> : null}
                 </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Open in Studio</Button></div></div>}
               </section>
             </div>
           ) : (
             <div className={styles.desk} data-home-desk="overview">
               <header className={styles.deskIntro}>
-                <div><p>Home</p><h1>Your creative desk</h1><span>Your open Sets stay arranged here. Choose one to move closer.</span></div>
+                <div><p>Desk</p><h1>Your creative workspace</h1><span>Your open Sets stay arranged here. Choose one to move closer.</span></div>
                 <strong>{visibleWork.length} open</strong>
               </header>
               {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Available work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}

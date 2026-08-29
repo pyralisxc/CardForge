@@ -100,7 +100,7 @@ export const developerAssetSubmissionGuidance: Record<DeveloperUploadAssetType, 
     checklist: ['License rights clear', 'Readable sample role', 'Weights/styles noted'],
   },
   sets: {
-    destination: 'Published Set starters in Home and Library',
+    destination: 'Published Set starters in Desk and Library',
     sourceLabel: 'Portable Set package',
     sourceHelp: 'Submit one complete Set as the exact portable .cardforge package creators will instantiate as independent work.',
     acceptedFileTypes: 'CardForge project package',
@@ -193,7 +193,7 @@ export const isCurrentContributorSubmission = (
 ) => program.currentContributorIds.includes(submission.developerId);
 
 export const getCandidateSourceEmptyMessage = (assetType: DeveloperUploadAssetType): string => {
-  if (assetType === 'sets') return 'Create a Set on Home or in Studio first, then select its portable package here.';
+  if (assetType === 'sets') return 'Create a Set on Desk or in Studio first, then select its portable package here.';
   if (assetType === 'fonts') {
     return 'Fonts are submitted from a local font file. Use the font file drop zone or browse for WOFF2, WOFF, TTF, or OTF.';
   }

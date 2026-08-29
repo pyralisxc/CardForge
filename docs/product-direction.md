@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: August 27, 2026
+Last updated: August 28, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for the current application, while [product-surface-map.md](product-surface-map.md) records shipped-versus-direction placement and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -24,12 +24,12 @@ CardForge has four permanent user surfaces:
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Home** | What am I working on? | The user's spatial Desk for authored work, active work, recent work, organization, and quick object actions. |
-| **Library** | What resources can I access? | The user's structured collection of reusable objects across personal, published, provider, and Contributor-only Pipeline scopes. |
+| **Desk** | What am I working on? | The user's spatial home for authored work, active work, recent work, organization, and quick object actions. |
+| **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
 | **Studio** | What am I making right now? | The one workbench for authoring, generation, review-in-context, validation, saving, and output. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 
-**Contributor is not a fifth surface.** Contributor is a protected capability layer that enhances Home, Library, Studio, and Profile.
+**Contributor is not a fifth surface.** Contributor is a protected capability layer that enhances Desk, Library, Studio, and Profile.
 
 **Owner remains a separate protected operating environment** because the Owner's recurring job is operating CardForge itself: publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues.
 
@@ -41,10 +41,10 @@ Use these terms consistently:
 
 - **Studio:** the one shared authoring, generation, review, validation, save, and output workbench.
 - **Desk:** a persistent spatial working view over real CardForge objects. A Desk preserves selection, grouping, position, and return context without becoming a new persistence owner.
-- **Home Desk:** the work-container-scale spatial surface on Home. It answers what the user is working on and provides quick actions without forcing a trip through another page.
+- **Desk:** the work-container-scale spatial surface and personal account home. It answers what the user is working on and provides quick actions without forcing a trip through another page.
 - **Set Desk:** the spatial Studio overview for one active authored-work container. It keeps artifacts, Templates/masters, groups, selection, and working position visible while focused tools open around them.
 - **Library:** one collection/read model over reusable objects and their native owners. Library does not become a second file registry or sync engine.
-- **Pipeline:** the reviewed shared-content lifecycle behind contribution, voting, publication, archive/recovery, and attribution. Pipeline is visible as a Contributor-only Library scope and as contextual state in Studio/Home where relevant.
+- **Pipeline:** the shared-content lifecycle behind discovery, hearts, contribution, revision voting, publication, archive/recovery, and attribution. Every account sees the published Pipeline content its entitlement allows; Contributors additionally see authorized unpublished/review history and exact-revision votes.
 - **Contributor:** an approved user with additional contribution/review capabilities. Contributor access changes valid actions and visible Pipeline content; it does not create a parallel CardForge product.
 - **Specialty:** a guided lens over Studio for a market/body of work such as Games, Events, Retail, or Learning. It changes recommendations, vocabulary, validation, and Kits, not the underlying editor.
 - **Kit:** a versioned starting workflow inside a Specialty that defines a useful outcome, suggested artifacts, fields, components, validation, and output profiles.
@@ -61,9 +61,9 @@ The recommended internal/owner-facing phrase remains **Studio Specialty**. Speci
 
 CardForge should reveal capability progressively without turning each feature, Specialty, artifact, permission, or provider into a page.
 
-The user's current object is Home: tools open around it, and closing a tool returns to the same selection, grouping, zoom, position, and broader context. This rule applies at both spatial scales:
+The user's current object remains in its surface: tools open around it, and closing a tool returns to the same selection, grouping, zoom, position, and broader context. This rule applies at both spatial scales:
 
-- **Home Desk:** work-container-scale work.
+- **Desk:** work-container-scale work.
 - **Studio Set Desk:** artifact/Template/record/element-scale work.
 
 Core rules:
@@ -86,13 +86,13 @@ A useful shorthand is:
 
 CardForge should feel like one crafted working environment, not a file browser with editor pages attached.
 
-### Home Desk: the higher-level spatial surface
+### Desk: the higher-level spatial surface
 
-Home is no longer only a router or recent-work dashboard. It is the user's Desk.
+Desk is no longer only a router or recent-work dashboard. It is the user's personal account home and work surface.
 
 Work containers should read as authored work sitting on a working surface rather than folders in a filesystem. A work container may appear as a rendered stack, project board, product group, or compact visual cluster. The layout should provide breathing room and spatial identity without becoming an unconstrained infinite-canvas toy.
 
-Home supports:
+Desk supports:
 
 - organize, group, stack, sort, and saved views;
 - select one or several owned work objects;
@@ -109,9 +109,9 @@ Home supports:
 
 Opening a work container changes focus rather than changing the mental model:
 
-> Home Desk → focused work → contained objects
+> Desk → focused work → contained objects
 
-Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Home arrangement and selection.
+Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, and freeform card positions travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
 
 ### Studio Set Desk: the detailed spatial surface
 
@@ -137,20 +137,20 @@ The Set Desk supports:
 
 The two spatial surfaces use the same interaction grammar at different depths:
 
-- **Home:** the things I am making.
+- **Desk:** the things I am making.
 - **Studio:** the things inside the thing I am making.
 
-## Home: My Work
+## Desk: My Work
 
-Home's primary content is user-owned Sets/Projects and resumable work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and resumable work. It is not an account metrics dashboard.
 
-Home may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Home's organizing principle.
+Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
 
 New work has one creation boundary: start with a fresh Set or instantiate an independent browser-owned copy of a Published Set. Published starters are immutable reviewed `.cardforge` package revisions, not a second starter document format or a special Set subtype. The same portable package contract owns import, export, provider transfer, Pipeline publication, and starter installation; installation re-keys local object identity so editing a starter never mutates its published lineage.
 
-A Contributor sees contribution/Pipeline state on their own objects when relevant. Other contributors' Pipeline objects do not appear on Home simply because they are reviewable.
+A Contributor sees contribution/Pipeline state on their own objects when relevant. Other contributors' Pipeline objects do not appear on Desk simply because they are reviewable.
 
-Home quick actions use the same scope contract as Studio:
+Desk quick actions use the same scope contract as Studio:
 
 | Selection | Typical actions |
 | --- | --- |
@@ -161,7 +161,7 @@ Home quick actions use the same scope contract as Studio:
 
 The untouched bootstrap `Untitled Set` must not masquerade as meaningful current work merely because internal state created it.
 
-## Library: Personal, Published, Pipeline
+## Library: Personal, Pipeline, Published
 
 Library is one structured collection of reusable resources and object identities.
 
@@ -171,17 +171,17 @@ Recommended scopes:
 
 User-owned reusable resources and provider-backed objects, including Templates, assets, fonts, styles, working drafts, and project resources where appropriate.
 
-### Published
+### Pipeline
 
-Stable reviewed CardForge shared resources available for normal creator use according to entitlement/compatibility.
+Every user sees stable published CardForge shared resources available to their entitlement/compatibility. Signed-in users can heart any visible Pipeline lineage; the heart follows later revisions and never changes review thresholds or publication state.
 
 Published Sets are reusable starting work, beginning with complete outcomes such as a standard playing-card deck. Their catalog entry points to one immutable portable package revision. Creators receive an independent Set copy; publication remains owned by Pipeline and durable creator storage remains browser, package, folder, or connected-provider owned.
 
-### Pipeline — Contributor-only
+### Published — Contributor and Owner
 
-Reviewable shared contribution content, including candidates, revisions, published lineage, and archived/recovery material when policy allows.
+The contributor's own published Pipeline work, with its attribution, stable lineage, publication revision, audience hearts, and exact-revision review history. Owners may see the governed publication view required to operate the catalog.
 
-Normal creators do not see unpublished Pipeline content.
+Contributors see every Pipeline entry authorized by their scopes, including reviewable candidates, revisions, published lineage, and archived/recovery material when policy allows. Normal creators see only the published Pipeline content allowed by their account level.
 
 The same lineage should not become disconnected copies merely because it appears in multiple scopes. For example, a contributor's personal `Dragon Frame` may show `Pipeline: r2 in review` in Personal, appear as revision r2 in Pipeline, and appear as Published r2 after approval. These are related projections over one lineage.
 
@@ -225,7 +225,7 @@ Pipeline submission is never labeled Save. Provider persistence is never labeled
 
 ## Contributor Capability Layer
 
-Contributor access enhances Home, Library, Studio, and Profile. It does not create a parallel Contributor Studio or permanent Contributor zone.
+Contributor access enhances Desk, Library, Studio, and Profile. It does not create a parallel Contributor Studio or permanent Contributor zone.
 
 A standard active Contributor may receive capabilities equivalent to:
 
@@ -237,7 +237,7 @@ A standard active Contributor may receive capabilities equivalent to:
 
 Normal Contributor access does not imply live publication authority.
 
-### Home enhancements
+### Desk enhancements
 
 - contribution status on owned work;
 - Send to Pipeline / Submit Revision;
@@ -292,11 +292,15 @@ Supported lifecycle concepts include draft, submitted, voting, publish candidate
 
 Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence.
 
-Contributor voting should become easier by following the object:
+Contributor voting follows the exact displayed revision anywhere a visible Pipeline object appears. Votes may be recorded after publication/archive/rejection as durable feedback, but only active review states may rebalance automatic publication policy:
 
-- vote directly in Pipeline Library;
+- vote directly in Pipeline or Published Library;
 - vote from the Studio inspector while actually using/testing the revision;
-- optionally vote from Home when an owned selected object is itself the exact voteable revision.
+- optionally vote from Desk when an owned selected object maps to an exact Pipeline revision.
+
+### Hearts
+
+Hearts are a separate audience metric attached once per signed-in account to a stable Pipeline lineage. Free, paid, Contributor, and Owner accounts can heart any Pipeline object visible to them. Hearts follow later revisions, never count as review votes, and never grant publication authority.
 
 ### Revision presentation
 
@@ -350,7 +354,7 @@ Temporary AI Studio documents remain CardForge-owned bounded collaboration stora
 
 Library composes location/source truth; it does not own provider bytes or become a sync engine.
 
-The first shared durable-work capability slice now covers device, Google Drive, and local-folder destinations. Home and Library use it to set a default destination and to distinguish Copy from Move. Move is always copy, verify, then remove the exact source revision; paths that cannot be composed safely require an explicit device handoff. This is the seed of the broader source-capability projection below, not a universal sync service.
+The first shared durable-work capability slice now covers device, Google Drive, and local-folder destinations. Desk and Library use it to set a default destination and to distinguish Copy from Move. Move is always copy, verify, then remove the exact source revision; paths that cannot be composed safely require an explicit device handoff. This is the seed of the broader source-capability projection below, not a universal sync service.
 
 A shared source-capability projection should eventually describe, per source:
 
@@ -367,7 +371,7 @@ A shared source-capability projection should eventually describe, per source:
 - temporary versus durable;
 - permission/connection state.
 
-Home, Library, Studio, Profile, and MCP should consume the same capability truth where applicable.
+Desk, Library, Studio, Profile, and MCP should consume the same capability truth where applicable.
 
 ## Agent / MCP Direction
 
@@ -418,7 +422,7 @@ Existing campaign package and site-proposal capabilities remain valid and must n
 
 First integration rule:
 
-- Home surfaces owned active campaign/proposal work when relevant;
+- Desk surfaces owned active campaign/proposal work when relevant;
 - Library surfaces reusable media/resources where appropriate;
 - the owning composition/editing tool opens around the work or may temporarily use the current focused legacy surface until parity exists;
 - Profile exposes only granted scopes/preferences;
@@ -562,7 +566,7 @@ CardForge already has much of the lower-level engine:
 The missing product layer is orchestration around those owners:
 
 - the four-surface model applied consistently;
-- Home as spatial Desk;
+- Desk as the spatial authored-work surface;
 - Studio as Set Desk rather than competing workspaces;
 - scope-aware action resolution;
 - Library Personal/Published/Pipeline projections;
@@ -619,18 +623,18 @@ Use:
 
 Avoid:
 
-- a folder/file-manager metaphor on Home;
+- a folder/file-manager metaphor on Desk;
 - walls of equal dashboard cards;
 - long nested tab bars;
 - architecture-oriented copy in user UI;
 - borders as the primary hierarchy signal;
 - exposing every revision by default.
 
-Home should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio is the deepest spatial production surface. Profile is the quietest structured utility surface.
+Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio is the deepest spatial production surface. Profile is the quietest structured utility surface.
 
 The prior six alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
 
-- Home: spatial work Desk over the current Set/project object;
+- Desk: spatial authored-work organization over the current Set/project object;
 - Library: Personal / Published / Pipeline collection with object inspectors;
 - Studio: spatial Set Desk with contextual Generate/Export/Save/Pipeline tools;
 - Profile: person-centered configuration;
@@ -640,8 +644,8 @@ The old Developer-zone concept is superseded by Contributor enhancements across 
 
 ## Delivery Sequence
 
-1. **Four-surface contract and visual grammar** — update product docs, naming, shared action/source contracts, and spatial Home/Studio design rules.
-2. **Home Desk** — meaningful owned-work projection, object thumbnails/spatial grouping, focused-work contents, scope actions, real Set duplicate/delete, return-state preservation.
+1. **Four-surface contract and visual grammar** — update product docs, naming, shared action/source contracts, and spatial Desk/Studio design rules.
+2. **Desk** — meaningful owned-work projection, object thumbnails/spatial grouping, focused-work contents, scope actions, real Set duplicate/delete, return-state preservation.
 3. **Library scopes** — Personal/Published/Pipeline, lineage grouping, gallery/list/expanded review, current filters/votes, revision inspector, Studio test handoff.
 4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
 5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the four-surface grammar while keeping explicit authority and parity with their current owners.
@@ -662,7 +666,7 @@ Do not:
 - conflate Save with Pipeline submission or Publish;
 - silently update pinned revisions;
 - rebuild provider-native storage/auth/billing lifecycles;
-- turn Home or Studio into unconstrained infinite-canvas toys;
+- turn Desk or Studio into unconstrained infinite-canvas toys;
 - retire a shipped capability before its new home proves parity;
 - use radial/gesture-only interaction as a prerequisite for basic workflows.
 
@@ -670,13 +674,13 @@ Do not:
 
 The next product decisions should focus on implementation details rather than reopening the four-surface model:
 
-1. Exact constrained Home Desk grouping and how much arrangement persists per device/work container.
+1. Exact constrained Desk grouping and how much arrangement persists per device/work container.
 2. Exact Studio Set Desk geometry and virtualization rules across desktop/tablet/mobile.
 3. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
-4. Which object types receive direct Generate/Export from Home versus opening the focused Studio tool.
+4. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
 5. Exact stable lineage/schema for revisionable fonts/media/component recipes.
 6. Retention policy for heavyweight old revision payloads while preserving lightweight audit history.
 7. Which personal Studio defaults belong in Profile versus the active work container.
 8. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
 
-The four-surface model, Contributor capability layer, spatial Home/Studio hierarchy, and provider-owned durable storage direction are considered approved product direction.
+The four-surface model, Contributor capability layer, spatial Desk/Studio hierarchy, and provider-owned durable storage direction are considered approved product direction.

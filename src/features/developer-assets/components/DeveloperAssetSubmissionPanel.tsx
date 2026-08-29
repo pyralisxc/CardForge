@@ -246,7 +246,7 @@ export function DeveloperAssetSubmissionPanel({
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <GuidanceCard
             eyebrow="Destination"
-            title={studioDestination ? getDeveloperAssetStudioDestinationLabel(studioDestination) : 'Home & Library'}
+            title={studioDestination ? getDeveloperAssetStudioDestinationLabel(studioDestination) : 'Desk & Library'}
             body={`${getDeveloperAssetTypeLabel(assetType)} publish to this creator surface after voting, owner review, and cap checks.`}
           />
           <GuidanceCard
@@ -312,7 +312,7 @@ export function DeveloperAssetSubmissionPanel({
               ))}
             </select>
             <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">{submissionGuidance.destination}</span>
-          </label> : <div className="grid gap-1 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm"><strong className="text-[var(--cf-accent-text)]">Published Set destination</strong><span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Sets become immutable starters in Home and Published Library. Creators receive a new independent browser copy.</span></div>}
+          </label> : <div className="grid gap-1 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm"><strong className="text-[var(--cf-accent-text)]">Published Set destination</strong><span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Sets become immutable starters in Desk and Pipeline Library. Creators receive a new independent browser copy.</span></div>}
           <div className="grid gap-3 md:grid-cols-2">
             <ControlledTaxonomySelect
               label="Specialties"

@@ -4,9 +4,9 @@
 .libraryHeader p, .toolPanel header p { color: var(--cf-accent-strong); font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .libraryHeader h1, .toolPanel header h2 { margin-top: .1rem; color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: clamp(1.35rem, 2vw, 1.85rem); font-weight: 600; }
 .libraryHeader span, .toolPanel header span { display: block; margin-top: .12rem; color: var(--cf-text-muted); font-size: .72rem; }
-.locationsButton, .scopeTabs button, .densityControls button, .voteActions button, .toolPanel header button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; cursor: pointer; }
+.locationsButton, .scopeTabs button, .densityControls button, .reactionActions button, .toolPanel header button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; cursor: pointer; }
 .locationsButton { flex: 0 0 auto; gap: .45rem; padding: .45rem .75rem; font-size: .75rem; }
-.locationsButton:hover, .scopeTabs button:hover, .scopeTabs button[aria-current="page"], .densityControls button:hover, .densityControls button[aria-pressed="true"], .voteActions button:hover, .voteActions button[data-active="true"], .toolPanel header button:hover { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
+.locationsButton:hover, .scopeTabs button:hover, .scopeTabs button[aria-current="page"], .densityControls button:hover, .densityControls button[aria-pressed="true"], .reactionActions button:hover, .reactionActions button[data-active="true"], .toolPanel header button:hover { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
 .scopeTabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); border-block: 1px solid var(--cf-border-subtle); }
 .scopeTabs button { min-width: 0; flex-direction: column; align-items: flex-start; border-width: 0 1px 0 0; padding: .55rem .8rem; text-align: left; }
 .scopeTabs button:last-child { border-right: 0; }
@@ -23,8 +23,8 @@
 .searchField input, .filterSelect, .sortSelect { height: 2.35rem; min-height: 2.35rem; }
 .searchField input { padding-left: 1.9rem; }
 .densityControls { display: flex; }
-.densityControls button, .voteActions button { width: 2.75rem; padding: 0; }
-.densityControls svg, .voteActions svg, .toolPanel header button svg { width: 1rem; height: 1rem; }
+.densityControls button, .reactionActions button { width: 2.75rem; padding: 0; }
+.densityControls svg, .reactionActions svg, .toolPanel header button svg { width: 1rem; height: 1rem; }
 .objectGrid { display: grid; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .55rem; padding: .75rem; }
 .objectTile { position: relative; min-width: 0; border: 1px solid transparent; background: var(--cf-canvas); }
 .objectTile:hover, .objectTile[data-selected="true"] { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); }
@@ -47,18 +47,24 @@
 .objectCopy strong { color: var(--cf-text-strong); font-size: .79rem; }
 .objectCopy > span:not(.objectTopline), .objectCopy p { color: var(--cf-text-subtle); font-size: .64rem; }
 .objectCopy p { display: none; }
-.voteActions { display: flex; gap: .25rem; padding: 0 .6rem .6rem; }
-.voteActions button { width: auto; min-height: 2.4rem; gap: .3rem; padding-inline: .65rem; font-size: .67rem; }
+.reactionActions { display: flex; flex-wrap: wrap; gap: .25rem; padding: 0 .6rem .6rem; }
+.reactionActions button { width: auto; min-height: 2.4rem; gap: .3rem; padding-inline: .65rem; font-size: .67rem; }
+.reactionActions button:disabled { cursor: not-allowed; opacity: .45; }
 .pipelineDetail { display: grid; gap: .7rem; border-top: 1px solid var(--cf-border-subtle); padding-top: .75rem; }
 .pipelineDetail > div { display: grid; gap: .25rem; }
 .pipelineDetail h3, .pipelineDetail p { margin: 0; }
 .pipelineDetail h3 { color: var(--cf-text-strong); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
 .pipelineDetail p { color: var(--cf-text-muted); font-size: .7rem; line-height: 1.45; }
 .pipelineDetail ol { display: grid; max-height: 10rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
-.pipelineDetail li { border-bottom: 1px solid var(--cf-border-subtle); }
-.pipelineDetail li button { display: flex; width: 100%; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; border: 0; background: transparent; padding: .35rem 0; color: var(--cf-text-muted); font: inherit; font-size: .68rem; text-align: left; cursor: pointer; }
-.pipelineDetail li button:hover { color: var(--cf-accent-text); }
+.pipelineDetail li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .35rem; border-bottom: 1px solid var(--cf-border-subtle); }
+.pipelineDetail .revisionOpen { display: flex; min-width: 0; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; border: 0; background: transparent; padding: .35rem 0; color: var(--cf-text-muted); font: inherit; font-size: .68rem; text-align: left; cursor: pointer; }
+.pipelineDetail .revisionOpen:hover { color: var(--cf-accent-text); }
 .pipelineDetail li span:first-child { color: var(--cf-text-strong); }
+.revisionVotes { display: flex; gap: .2rem; }
+.revisionVotes button { display: inline-flex; min-width: 2.4rem; min-height: 2.4rem; align-items: center; justify-content: center; gap: .2rem; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; font-size: .63rem; cursor: pointer; }
+.revisionVotes button:hover, .revisionVotes button[data-active="true"] { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
+.revisionVotes button:disabled { cursor: not-allowed; opacity: .45; }
+.revisionVotes svg { width: .85rem; height: .85rem; }
 .library[data-density="list"] .objectGrid { grid-template-columns: 1fr; gap: 0; padding: 0; }
 .library[data-density="list"] .objectTile { border-width: 0 0 1px; border-color: var(--cf-border-subtle); }
 .library[data-density="list"] .objectButton { grid-template-columns: 4.3rem minmax(0, 1fr); align-items: center; }

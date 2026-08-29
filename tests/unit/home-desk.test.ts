@@ -7,6 +7,7 @@ import {
   normalizeDeskOrder,
   reorderDeskItem,
 } from '@/features/home/model/homeDesk';
+import { normalizeCardSet } from '@/domain/cards';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -48,6 +49,10 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('reorderGeneratedCard');
     expect(homeDesk).toContain('removeGeneratedCards');
     expect(homeDesk).toContain('selectedCardIds');
+    expect(homeDesk).toContain('updateCardSetOrganization');
+    expect(homeDesk).toContain('setCardPositions');
+    expect(homeDesk).toContain('setCardsTag');
+    expect(homeDesk).toContain('By content type');
     expect(homeDesk).toContain('duplicateCardSet');
     expect(homeDesk).toContain('deleteCardSet');
     expect(homeDesk).toContain('Save &amp; move');
@@ -56,6 +61,19 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('Send to Pipeline');
     expect(homeDesk).toContain('submitSet=');
     expect(homeDesk).toContain('<AlertDialog');
+  });
+
+  it('keeps focused Set organization durable and normalizes unsafe persisted geometry', () => {
+    expect(normalizeCardSet({
+      id: 'set:organized', name: 'Organized', frontTemplateId: null, backingTemplateId: null,
+      organization: {
+        arrangement: 'manual', groupBy: 'field', groupField: 'faction', sort: 'field-value', sortField: 'rank',
+        tags: [{ id: 'tag:red', label: 'Red' }], positions: { 'card:one': { x: 12, y: 24 }, bad: { x: 'no', y: 2 } },
+      },
+    })?.organization).toEqual({
+      arrangement: 'manual', groupBy: 'field', groupField: 'faction', sort: 'field-value', sortField: 'rank',
+      tags: [{ id: 'tag:red', label: 'Red' }], positions: { 'card:one': { x: 12, y: 24 } },
+    });
   });
 
   it('keeps a durable desk order while admitting new and removing stale work', () => {

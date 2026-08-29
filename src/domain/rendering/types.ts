@@ -10,6 +10,8 @@ export interface DisplayCard {
   setName?: string;
   data: CardData;
   uniqueId: string;
+  tagIds?: string[];
+  updatedAt?: string;
 }
 
 export type PdfDuplexLayout = 'separate-pages' | 'same-page';

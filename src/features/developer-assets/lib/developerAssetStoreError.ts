@@ -8,6 +8,7 @@ export class DeveloperAssetStoreError extends Error {
       kind?: BoundaryFailureKind;
       nextAction?: string;
       limit?: BoundaryLimit;
+      code?: string;
     } = {},
   ) {
     super(message);

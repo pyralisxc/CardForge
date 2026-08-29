@@ -12,6 +12,7 @@ import {
 } from '../persistence/projectPersistenceScope';
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
+import { createOrganizationSlice } from './organizationSlice';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import { createSettingsSlice } from './settingsSlice';
 import { createTemplateSlice } from './templateSlice';
@@ -132,6 +133,7 @@ export const useProjectStore = create<ProjectState>()(
         ...createTemplateSlice(...args),
         ...createAppearanceSlice(...args),
         ...createOutputSlice(...args),
+        ...createOrganizationSlice(...args),
         ...createSettingsSlice(...args),
         ...createLifecycleSlice(...args),
       }),

@@ -33,6 +33,21 @@ export interface CardForgeCatalogManifest {
   sets: {
     items: PublishedSetCatalogItem[];
   };
+  pipeline?: {
+    items: PublishedPipelineCatalogItem[];
+  };
+}
+
+export interface PublishedPipelineCatalogItem {
+  id: string;
+  lineageId: string | null;
+  name: string;
+  assetType: string;
+  previewUrl: string | null;
+  access: 'free' | 'paid' | 'developer';
+  source: 'official' | 'developer';
+  fileSizeBytes: number | null;
+  updatedAt: string | null;
 }
 
 export interface PublishedSetCatalogItem {
@@ -169,5 +184,18 @@ export const getCardForgeCatalogManifest = async (
     ...bootstrap,
     assets: mapAssetRegistryRowsToPayload(rows, getSupabaseServerConfigStatus().configured),
     sets: { items: sets },
+    pipeline: {
+      items: rows.map((row) => ({
+        id: row.asset_id,
+        lineageId: row.lineage_id ?? null,
+        name: row.name,
+        assetType: row.asset_type,
+        previewUrl: row.preview_url ?? null,
+        access: row.access_tier,
+        source: row.library_source,
+        fileSizeBytes: row.file_size_bytes,
+        updatedAt: row.updated_at,
+      })),
+    },
   };
 };

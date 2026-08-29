@@ -25,7 +25,7 @@ describe('unified account environment', () => {
   it('makes Home, Library, and Profile direct zones instead of nested account pages', () => {
     expect(accountPage).toContain('<AccountHomeBoundary');
     expect(accountPage).toContain('<HomeDesk');
-    expect(homeDesk).toContain('Your creative desk');
+    expect(homeDesk).toContain('Your creative workspace');
     expect(homeDesk).toContain('<EnvironmentShell');
     expect(accountLibrary).toContain('<EnvironmentShell');
     expect(accountPage).toContain("activeSection === 'library' || activeSection === 'storage'");

@@ -57,9 +57,10 @@ const compareStrongestCandidate = (
 export const getDeveloperPipelineLineageId = (
   submission: DeveloperAssetSubmission,
 ): string => (
-  submission.targetRegistryAssetId
-  ?? submission.registryAssetId
-  ?? `submission:${submission.id}`
+  submission.lineageId
+  || submission.targetRegistryAssetId
+  || submission.registryAssetId
+  || `submission:${submission.id}`
 );
 
 export const isDeveloperPipelineReviewable = (

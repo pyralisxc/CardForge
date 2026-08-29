@@ -6,6 +6,7 @@ export * from './lib/developerAssetStore';
 export * from './lib/developerAssetLibraryStore';
 export * from './lib/developerAssetRegistryCommands';
 export * from './lib/pipelineTemplateAssets';
+export * from './lib/pipelineHearts';
 export * from './lib/developerAssetUploadPolicy';
 export * from './lib/developerAssetUploadSubmission';
 export * from './lib/registryContentAssets';

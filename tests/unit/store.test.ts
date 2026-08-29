@@ -737,9 +737,40 @@ describe('app store helpers', () => {
 
   it('duplicates a set and its cards as independently owned work', () => {
     useProjectStore.setState({
-      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
-      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
-      storedCards: [{ uniqueId: 'card-a', templateId: 'template', setId: 'set-a', setName: 'Alpha', data: { title: 'One' } }],
+      cardSets: [{
+        id: 'set-a',
+        name: 'Alpha',
+        frontTemplateId: null,
+        backingTemplateId: null,
+        organization: {
+          arrangement: 'manual',
+          groupBy: 'tag',
+          sort: 'manual',
+          tags: [{ id: 'tag-a', label: 'Heroes' }],
+          positions: { 'card-a': { x: 24, y: 36 } },
+        },
+      }],
+      activeCardSet: {
+        id: 'set-a',
+        name: 'Alpha',
+        frontTemplateId: null,
+        backingTemplateId: null,
+        organization: {
+          arrangement: 'manual',
+          groupBy: 'tag',
+          sort: 'manual',
+          tags: [{ id: 'tag-a', label: 'Heroes' }],
+          positions: { 'card-a': { x: 24, y: 36 } },
+        },
+      },
+      storedCards: [{
+        uniqueId: 'card-a',
+        templateId: 'template',
+        setId: 'set-a',
+        setName: 'Alpha',
+        data: { title: 'One' },
+        tagIds: ['tag-a'],
+      }],
     });
 
     const duplicateId = useProjectStore.getState().duplicateCardSet('set-a');
@@ -753,6 +784,13 @@ describe('app store helpers', () => {
       data: { title: 'One' },
     });
     expect(next.storedCards[1]?.uniqueId).not.toBe('card-a');
+    const copiedSet = next.cardSets.find((set) => set.id === duplicateId);
+    const copiedCard = next.storedCards.find((card) => card.setId === duplicateId);
+    expect(copiedSet?.organization?.tags[0]?.id).not.toBe('tag-a');
+    expect(copiedCard?.tagIds).toEqual([copiedSet?.organization?.tags[0]?.id]);
+    expect(copiedSet?.organization?.positions).toEqual({
+      [copiedCard!.uniqueId]: { x: 24, y: 36 },
+    });
   });
 
   it('deletes a non-final set with its cards and moves selection to surviving work', () => {

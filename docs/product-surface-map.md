@@ -1,6 +1,6 @@
 # CardForge Product Surface Map
 
-Last updated: August 27, 2026
+Last updated: August 28, 2026
 
 This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
 
@@ -28,8 +28,8 @@ This document is the canonical placement map connecting current shipped capabili
 
 | Surface | Kind | Primary object/question | Role |
 | --- | --- | --- | --- |
-| **Home** | User surface | User-owned work containers and active work | The spatial Desk: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. The current domain name is Set; provider/package labels may say Project without creating a second object. |
-| **Library** | User surface | Reusable objects across Personal / Published / Contributor-only Pipeline scopes | Find, inspect, compare, vote, source, reuse, and manage resource locations without becoming a persistence owner. |
+| **Desk** | User surface | User-owned work containers and active work | The spatial account home: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. The current domain name is Set; provider/package labels may say Project without creating a second object. |
+| **Library** | User surface | Reusable objects across Personal / entitlement-filtered Pipeline / Contributor Published scopes | Find, inspect, heart, compare, vote, source, reuse, and manage resource locations without becoming a persistence owner. |
 | **Studio** | User surface | Active work container and selected artifact/Template/record/element | The one enhanced workbench for authoring, generation, validation, review-in-context, save, and output. |
 | **Profile** | User surface | The person and personal relationship to CardForge | Identity, security, access, preferences, billing handoff, connection summary, temporary AI capacity, personal Contributor configuration. |
 | **Owner** | Protected operational environment | CardForge operational queue/control record | Run CardForge, publish reviewed truth, manage people/services, operate public experience, governance, marketing, and accountable history. |
@@ -43,29 +43,29 @@ The existing Developer/Cockpit route remains shipped legacy composition until it
 
 | Shared part | Contract |
 | --- | --- |
-| Primary navigation | Home, Library, Studio, Profile. Owner appears only when authorized. Contributor permissions enhance surfaces rather than adding a destination. |
+| Primary navigation | Desk, Library, Studio, Profile. Owner appears only when authorized. Contributor permissions enhance surfaces rather than adding a destination. |
 | Command band | Surface identity, current object/workspace switching, search/commands, strongest valid action. |
-| Primary surface | One current object/collection dominates. Home and Studio use spatial object composition; Library uses collection views; Profile uses quiet aligned utilities. |
+| Primary surface | One current object/collection dominates. Desk and Studio use spatial object composition; Library uses collection views; Profile uses quiet aligned utilities. |
 | Object treatment | Real authored objects use thumbnails/stacks/previews and selected depth. Comparable settings/status use rows and fine grouping. |
 | Inspector/detail | Selected object raises/focuses and opens metadata, source, dependency, revision, permissions, and secondary actions. Closing restores exact prior context. |
 | Action order | Primary action, one/two supporting actions, then predictable overflow. Commitment boundaries confirm explicitly. |
 | Responsive behavior | Same hierarchy on desktop/mobile. Inspectors become sheets/focused views; dense data becomes compact rows, not long oversized cards. |
 | Visual semantics | Imagery for authored nouns, recognizable marks for providers/sources, icons for actions/status, text for explanation. |
 
-## Home — Desk
+## Desk
 
 ### Shipped foundation
 
-- Home uses the shared Environment shell through the dedicated `home` feature owner.
+- Desk uses the shared Environment shell through the dedicated internal `home` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; the untouched bootstrap Set stays out of the meaningful-work view.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
-- Focusing local work reveals its contained cards in place with search, selection, move, edit, duplicate, export handoff, and confirmed removal; Back restores the Home Desk.
+- Focusing local work reveals its contained cards in place with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal; Pull back restores the Desk.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
-- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Home hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
+- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
 
 ### Direction
 
-Home becomes the user's real higher-level spatial Desk, not merely a router/dashboard.
+Desk is the user's real higher-level spatial account home, not merely a router/dashboard.
 
 Required behavior:
 
@@ -79,18 +79,20 @@ Required behavior:
 - expose Send to Pipeline / Submit Revision / review actions only when valid;
 - keep account attention conditional and quiet.
 
-Home is **more spatial than Library** and less detailed than Studio.
+Desk is **more spatial than Library** and less detailed than Studio.
 
-## Library — Personal / Published / Pipeline
+## Library — Personal / Pipeline / Published
 
 ### Shipped
 
 - one Set identity pooled across device, Google Drive, and attached-folder copies, plus personal assets/fonts and temporary Studio drafts;
 - search, source/location information, object detail, locations & connections tool;
-- the same canonical authored-object preview used by Home, including real published Template rendering;
+- the same canonical authored-object preview used by Desk, including real published Template rendering;
 - shared reviewed registry feeds Studio and exposes immutable Published Set package revisions without creating another starter registry;
 - Contributor Pipeline loads every authorized shared entry plus the contributor's private work, projects one top-level object per stable lineage, keeps the current published revision primary when present, and expands revision history from the inspector;
-- Pipeline lifecycle, ownership, and vote availability are separate states, so published/archive history remains browsable without invalid vote controls;
+- every account sees published Pipeline objects allowed by its entitlement; active Contributors see every Pipeline entry authorized by their scopes and gain a Published scope for their own published work;
+- signed-in accounts can heart every visible Pipeline lineage; Contributors can vote up/down on every visible exact revision, with the Owner self-vote toggle enforced;
+- Pipeline lifecycle, ownership, and voting are separate states: votes recorded outside active review remain feedback and cannot rebalance stable publication;
 - Published and Pipeline collections use structured Template/style rendering, registry preview derivatives, real image previews where valid, semantic font samples, and truthful fallbacks instead of treating packages, fonts, or structured endpoints as images;
 - Pipeline detail exposes contributor, current/published revision, lifecycle, review availability, tier, quality, votes, classification/rights, decision reasoning, and revision history. Structured Template revisions can open as an exact local Studio test copy.
 
@@ -99,8 +101,8 @@ Home is **more spatial than Library** and less detailed than Studio.
 Library becomes one collection with scopes:
 
 - **Personal:** user-owned reusable objects/resources and provider-backed content;
-- **Published:** stable reviewed CardForge shared resources;
-- **Pipeline:** Contributor-only reviewed contribution content.
+- **Pipeline:** published shared resources filtered to account level, enhanced with authorized review content for Contributors;
+- **Published:** Contributor/Owner view over the contributor's published Pipeline work.
 
 Rules:
 
@@ -111,7 +113,7 @@ Rules:
 - revisions expand from inspector;
 - support Gallery, Compact List, and Expanded/Detail review densities;
 - preserve current Forge Review filters and add saved views such as Needs my vote, My votes, New revisions, Near threshold, Changed since my vote, Published, Archived/recovery, family, Specialty, contributor, tier, status;
-- quick voting available directly in Pipeline scope;
+- hearts available wherever Pipeline objects display and quick exact-revision voting available to Contributors;
 - Test in Studio opens the exact selected revision and returning restores Library scope/filter/position;
 - source/rights/classification/decision detail stays available.
 
@@ -222,7 +224,7 @@ Do not put work inventory or Pipeline queue here.
 
 ## Contributor capability placement
 
-| Capability | Home | Library | Studio | Profile |
+| Capability | Desk | Library | Studio | Profile |
 | --- | --- | --- | --- | --- |
 | Own contribution status | Compact owned-object state | Personal lineage detail | Selected-object state | Personal access only |
 | Browse all Pipeline content | No | **Pipeline scope** | Through source picker/context | No |
@@ -322,9 +324,9 @@ Use Contributor in user-facing role language. Technical `/developer` compatibili
 
 ## Specialty / Kits placement
 
-Specialties configure Home/Library/Studio vocabulary and recommendations; they do not create separate Studios.
+Specialties configure Desk/Library/Studio vocabulary and recommendations; they do not create separate Studios.
 
-- Home may group/recommend current Specialty work.
+- Desk may group/recommend current Specialty work.
 - Library ranks compatible resources.
 - Studio changes suggested artifacts/components/validation/output profiles.
 - Profile may retain personal default Specialty/Kit preference if truly personal.
@@ -336,34 +338,34 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 
 | Feature owner | Current responsibility | Target home |
 | --- | --- | --- |
-| `account` | identity/access projection and Profile composition | Profile + compact Home status |
-| `home` | two-scale Home Desk composition over native work/Library owners | Home |
+| `account` | identity/access projection and Profile composition | Profile + compact Desk status |
+| `home` | internal owner for two-scale Desk composition over native work/Library owners | Desk |
 | `app-shell` | Studio bootstrap/navigation/handoffs | Studio + shared environment grammar |
-| `card-generator` | generation, gallery, Set management, output | Home quick actions + Studio tools |
+| `card-generator` | generation, gallery, Set management, output | Desk quick actions + Studio tools |
 | `card-rendering` | canonical preview/render/watermark | Cross-surface service |
-| `developer-access` | Contributor profile/scopes/access | Profile + permission resolution across Home/Library/Studio; Owner people controls |
+| `developer-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/Studio; Owner people controls |
 | `developer-assets` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
 | `developer-cockpit` | current protected composition/legacy contribution surfaces | **Legacy migration source; retire destination after parity** |
 | `developer-program` | public program explanation/application | Public Contributor program |
-| `marketing-content` | contributor campaign packages/media | Home/Library/owning composition tool; Owner Marketing |
+| `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Owner Marketing |
 | `personal-library` | connected provider assets/fonts | Library + Studio source picker + MCP read |
-| `project` | browser workspace, packages, folders, Drive, recovery | Home + Library location truth + Studio save/open |
+| `project` | browser workspace, packages, folders, Drive, recovery | Desk + Library location truth + Studio save/open |
 | `storage-management` | account unified inventory/location tools | Library; compact Profile summary |
-| `studio-documents` | temporary AI documents/assets/revisions/MCP | Home resume, Library temporary shelf, Studio, MCP |
+| `studio-documents` | temporary AI documents/assets/revisions/MCP | Desk resume, Library temporary shelf, Studio, MCP |
 | `template-editor` | Template canvas/layers/inspector/lifecycle | Studio selected Template tool |
 | `mcp-usage` | assistant usage/capacity | Profile + Owner operations |
-| `billing` | Stripe access/checkout/portal/webhooks | Profile/Home status + Owner reconciliation |
+| `billing` | Stripe access/checkout/portal/webhooks | Profile/Desk status + Owner reconciliation |
 | `owner` | operational authorization/composition | Owner |
 
 All other existing feature owners keep their native records/providers; placement changes do not transfer ownership.
 
 ## Consolidation decisions
 
-- Four permanent user surfaces: **Home, Library, Studio, Profile**.
+- Four permanent user surfaces: **Desk, Library, Studio, Profile**.
 - **Contributor is a capability layer**, not a zone.
 - **Owner remains separate** operations.
-- Home becomes spatial Desk, not only orientation/router.
-- Library becomes Personal / Published / Contributor-only Pipeline collection.
+- Desk is spatial authored-work organization, not only orientation/router.
+- Library becomes a Personal / entitlement-filtered Pipeline collection, with Published added for Contributors and Owners.
 - Studio becomes one Set Desk with Generate/Export/Save/Review as tools.
 - Profile remains personal configuration.
 - Retire Templates / Make Cards / Sets as peer Studio destinations only after parity.
@@ -375,10 +377,10 @@ All other existing feature owners keep their native records/providers; placement
 
 ## Current open placement questions
 
-1. Exact spatial geometry/persistence for Home Desk.
+1. Exact spatial geometry/persistence for Desk.
 2. Exact Set Desk geometry/virtualization across screen sizes.
 3. Final public name for the one work container currently called Set in CardForge and Project by some provider/package paths.
-4. Which Home objects get direct Generate/Export versus opening focused Studio tool.
+4. Which Desk objects get direct Generate/Export versus opening focused Studio tool.
 5. Generalized revision-lineage schema for media/fonts/component recipes.
 6. Heavy revision payload retention policy.
 7. Which defaults belong in Profile versus Project.

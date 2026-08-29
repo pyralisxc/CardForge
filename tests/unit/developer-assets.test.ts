@@ -83,7 +83,7 @@ describe('developer asset program rules', () => {
 
   it('routes Sets through the portable package lane instead of Studio asset placement', () => {
     expect(getCandidateBrowseLabel('sets')).toContain('.cardforge');
-    expect(getCandidateSourceEmptyMessage('sets')).toContain('Home or in Studio');
+    expect(getCandidateSourceEmptyMessage('sets')).toContain('Desk or in Studio');
     expect(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.sets).toEqual({ free: 4, paid: 2 });
   });
 

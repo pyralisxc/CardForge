@@ -39,12 +39,16 @@ export async function POST(
 
     const { submissionId } = await params;
     const contributorIds = getContributorIds(access.user.id);
-    const votePolicy = await getDeveloperAssetVotePolicy(submissionId);
+    const votePolicy = await getDeveloperAssetVotePolicy(submissionId, {
+      viewerId: access.user.id,
+      contributor: access.isDeveloper || access.isOwner,
+      owner: access.isOwner,
+    });
     if (!votePolicy.submissionStatus) {
       return createApiErrorResponse(404, 'developer_asset_request_invalid', 'Developer asset submission was not found.');
     }
-    if (!['submitted', 'voting', 'publish_candidate'].includes(votePolicy.submissionStatus)) {
-      return createApiErrorResponse(409, 'developer_asset_request_invalid', 'Voting is closed for this Pipeline revision.');
+    if (!votePolicy.visibleToViewer) {
+      return createApiErrorResponse(403, 'developer_asset_not_permitted', 'This Pipeline revision is not available to your contributor account.');
     }
     if (
       votePolicy.submissionDeveloperId
@@ -82,11 +86,13 @@ export async function POST(
         error.status,
         error.status === 401
           ? 'sign_in_required'
-          : error.status === 403
-            ? 'developer_access_required'
-            : error.status === 503
-              ? 'developer_asset_unavailable'
-              : 'developer_asset_request_invalid',
+          : error.boundary.code === 'developer_asset_not_permitted'
+            ? 'developer_asset_not_permitted'
+            : error.status === 403
+              ? 'developer_access_required'
+              : error.status === 503
+                ? 'developer_asset_unavailable'
+                : 'developer_asset_request_invalid',
         error.message
       );
     }

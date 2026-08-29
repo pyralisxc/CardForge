@@ -33,6 +33,7 @@ export interface PublishedLibraryObject {
   style: AppearanceStylePreset | null;
   packageUrl: string | null;
   revision: number | null;
+  lineageId: string | null;
 }
 
 export interface PipelineLibraryObject {
@@ -56,6 +57,7 @@ interface LibrarySharedFailure {
 }
 
 const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObject[] => {
+  const pipelineByAssetId = new Map((catalog.pipeline?.items ?? []).map((item) => [item.id, item]));
   const templateByIdentity = new Map<string, TCGCardTemplate>();
   catalog.templates.defaults.forEach((template) => {
     if (template.id) templateByIdentity.set(template.id, template);
@@ -85,6 +87,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     style: asset.style ?? null,
     packageUrl: null,
     revision: null,
+    lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -100,6 +103,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     style: null,
     packageUrl: null,
     revision: null,
+    lineageId: pipelineByAssetId.get(font.value)?.lineageId ?? null,
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
     id: `published:set:${set.id}`,
@@ -115,6 +119,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     style: null,
     packageUrl: set.packageUrl,
     revision: set.revision,
+    lineageId: pipelineByAssetId.get(set.id)?.lineageId ?? null,
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
@@ -239,14 +244,15 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
   }, [pipelineEnabled]);
 
   const refresh = useCallback(async () => {
-    if (activeScope === 'published') {
+    if (activeScope === 'published' || activeScope === 'pipeline') {
       setCatalogLoading(true);
       setCatalogFailure(null);
-    } else if (activeScope === 'pipeline' && pipelineEnabled) {
+    }
+    if (activeScope === 'pipeline' && pipelineEnabled) {
       setPipelineLoading(true);
       setPipelineFailure(null);
     }
-    const catalogRequest = activeScope === 'published' || (activeScope === 'pipeline' && pipelineEnabled) ? fetch('/api/catalog', { cache: 'no-store' })
+    const catalogRequest = activeScope === 'published' || activeScope === 'pipeline' ? fetch('/api/catalog', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw await readApiError(response, 'The published Library is unavailable.');
         return response.json() as Promise<CardForgeCatalogManifest>;

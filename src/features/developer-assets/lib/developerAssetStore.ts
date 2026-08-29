@@ -3,6 +3,7 @@ import {
   isDeveloperAssetAccessTierOverride,
   isDeveloperAssetStatus,
   normalizeDeveloperProgramSettingsInput,
+  type DeveloperAssetStatus,
   type DeveloperProgramSettings,
 } from '@/features/developer-assets/lib/developerAssets';
 import {
@@ -33,6 +34,7 @@ import {
   type DeveloperProfileOverrideInput,
 } from './developerAssetProgram';
 import { DeveloperAssetStoreError } from './developerAssetStoreError';
+import { isPipelineRevisionVisibleToContributor } from './pipelineVisibility';
 import {
   fetchDeveloperAssetProgramAggregate,
   fetchDeveloperAssetSubmissionPage,
@@ -46,7 +48,10 @@ const runRegistryCommand = async (command: () => Promise<void>): Promise<void> =
     await command();
   } catch (error) {
     if (error instanceof DeveloperAssetRegistryCommandError) {
-      throw new DeveloperAssetStoreError(error.message, error.status);
+      throw new DeveloperAssetStoreError(error.message, error.status, {
+        kind: error.status === 403 ? 'authorization' : undefined,
+        code: error.code,
+      });
     }
     throw error;
   }
@@ -151,7 +156,8 @@ export const getDeveloperAssetProgramView = async (
 
 export const getDeveloperAssetVotePolicy = async (
   submissionId: string,
-): Promise<{ allowContributorSelfVoting: boolean; submissionDeveloperId: string | null; submissionStatus: string | null }> => {
+  viewer: { viewerId: string; contributor: boolean; owner: boolean },
+): Promise<{ allowContributorSelfVoting: boolean; submissionDeveloperId: string | null; submissionStatus: string | null; visibleToViewer: boolean }> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
@@ -159,7 +165,7 @@ export const getDeveloperAssetVotePolicy = async (
     fetchDeveloperSettings(),
     supabase
       .from('cardforge_developer_asset_submissions')
-      .select('developer_id,status')
+      .select('developer_id,status,purge_state')
       .eq('id', submissionId)
       .limit(1),
   ]);
@@ -169,11 +175,19 @@ export const getDeveloperAssetVotePolicy = async (
     throw new DeveloperAssetStoreError('Unable to load vote rules for this submission.', 500);
   }
 
-  const row = data?.[0] as { developer_id?: string | null; status?: string | null } | undefined;
+  const row = data?.[0] as { developer_id?: string | null; status?: DeveloperAssetStatus | null; purge_state?: 'pending' | null } | undefined;
   return {
     allowContributorSelfVoting: settings.allowContributorSelfVoting,
     submissionDeveloperId: row?.developer_id ?? null,
     submissionStatus: row?.status ?? null,
+    visibleToViewer: Boolean(row?.developer_id && row.status && isPipelineRevisionVisibleToContributor({
+      developerId: row.developer_id,
+      status: row.status,
+      purgeState: row.purge_state ?? null,
+      viewerId: viewer.viewerId,
+      contributor: viewer.contributor,
+      owner: viewer.owner,
+    })),
   };
 };
 
@@ -413,6 +427,11 @@ export const updateDeveloperAssetSubmissionDetails = async ({
 
   if (error) {
     console.error('Failed to edit developer asset submission:', error);
+    if (error.message?.includes('developer_asset_lineage_purge_pending')) {
+      throw new DeveloperAssetStoreError('This Pipeline object is being permanently deleted and can no longer be edited.', 409, {
+        kind: 'conflict',
+      });
+    }
     throw new DeveloperAssetStoreError('Unable to edit developer asset submission.', 500);
   }
 

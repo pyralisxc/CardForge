@@ -18,6 +18,7 @@ export const getVisibleRegistryAccessTiers = (
 export interface RegistryContentAssetRow {
   asset_id: string;
   developer_submission_id?: string | null;
+  lineage_id?: string | null;
   name: string;
   url: string;
   preview_url?: string | null;
@@ -110,20 +111,36 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   const submissionIds = [...new Set(rows.flatMap((row) => (
     row.developer_submission_id ? [row.developer_submission_id] : []
   )))];
-  if (submissionIds.length === 0) return rows;
-  const { data, error } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('id,source_payload')
-    .in('id', submissionIds);
-  if (error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
-  const payloadsById = new Map((data ?? []).flatMap((entry) => {
-    const row = entry as { id?: unknown; source_payload?: unknown };
-    return typeof row.id === 'string' ? [[row.id, row.source_payload] as const] : [];
+  const registryAssetIds = [...new Set(rows.map((row) => row.asset_id).filter(Boolean))];
+  const [submissionResult, lineageResult] = await Promise.all([
+    submissionIds.length
+      ? supabase.from('cardforge_developer_asset_submissions').select('id,lineage_id,source_payload').in('id', submissionIds)
+      : Promise.resolve({ data: [], error: null }),
+    registryAssetIds.length
+      ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (submissionResult.error || lineageResult.error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
+  const payloadsById = new Map((submissionResult.data ?? []).flatMap((entry) => {
+    const row = entry as { id?: unknown; lineage_id?: unknown; source_payload?: unknown };
+    return typeof row.id === 'string' ? [[row.id, {
+      lineageId: typeof row.lineage_id === 'string' ? row.lineage_id : null,
+      payload: row.source_payload,
+    }] as const] : [];
+  }));
+  const lineageByAssetId = new Map((lineageResult.data ?? []).flatMap((entry) => {
+    const row = entry as { id?: unknown; registry_asset_id?: unknown };
+    return typeof row.id === 'string' && typeof row.registry_asset_id === 'string'
+      ? [[row.registry_asset_id, row.id] as const]
+      : [];
   }));
   return rows.map((row) => ({
     ...row,
+    lineage_id: row.developer_submission_id
+      ? payloadsById.get(row.developer_submission_id)?.lineageId ?? lineageByAssetId.get(row.asset_id) ?? null
+      : lineageByAssetId.get(row.asset_id) ?? null,
     content_payload: row.developer_submission_id
-      ? payloadsById.get(row.developer_submission_id)
+      ? payloadsById.get(row.developer_submission_id)?.payload
       : undefined,
   }));
 };

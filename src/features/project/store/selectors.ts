@@ -57,6 +57,8 @@ export const selectAllGeneratedDisplayCards = (state: ProjectState): DisplayCard
         setId: storedCard.setId,
         setName: storedCard.setName,
         data: storedCard.data,
+        tagIds: storedCard.tagIds,
+        updatedAt: storedCard.updatedAt,
       });
     }
     return acc;

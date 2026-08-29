@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
-  Copy, ExternalLink, LayoutList, Loader2, MapPin, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
+  Copy, ExternalLink, Heart, LayoutList, Loader2, MapPin, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
   ThumbsUp, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 
@@ -60,6 +60,12 @@ type LibraryViewItem =
   | { id: string; scope: 'personal'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: null; fontFamily: null; personal: AccountLibraryItem }
   | { id: string; scope: 'published'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; published: PublishedLibraryObject }
   | { id: string; scope: 'pipeline'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; pipeline: PipelineLibraryObject };
+
+const pipelineLineageFor = (item: LibraryViewItem): string | null => item.scope === 'pipeline'
+  ? item.pipeline.submission.lineageId ?? null
+  : item.scope === 'published'
+    ? item.published.lineageId
+    : null;
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, template: Boxes, asset: ImageIcon, 'working-draft': Sparkles };
@@ -183,15 +189,32 @@ const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
 function PipelineDetailContent({
   item,
   onOpenRevision,
+  onVoteRevision,
+  canReview,
+  votingId,
+  isSelfVoteBlocked,
 }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
   onOpenRevision: (submissionId: string) => void;
+  onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
+  canReview: boolean;
+  votingId: string | null;
+  isSelfVoteBlocked: (developerId: string) => boolean;
 }) {
   const submission = item.pipeline.submission;
   return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
     <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Decision reasoning</h3><p>{submission.tierDecisionReason || submission.decisionReason}</p></div> : null}
-    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => <li key={revision.id}><button type="button" onClick={() => onOpenRevision(revision.id)}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getDeveloperAssetStatusLabel(revision.status)} · Compare</span></button></li>)}</ol></div>
+    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
+      const selfVoteBlocked = isSelfVoteBlocked(revision.developerId);
+      return <li key={revision.id}>
+        <button type="button" className={styles.revisionOpen} onClick={() => onOpenRevision(revision.id)}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getDeveloperAssetStatusLabel(revision.status)} · Compare</span></button>
+        {canReview ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
+          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+        </div> : null}
+      </li>;
+    })}</ol></div>
   </section>;
 }
 
@@ -241,6 +264,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
   const [activeTool, setActiveTool] = useState<'locations' | null>(() => initialTool);
   const [votingId, setVotingId] = useState<string | null>(null);
+  const [heartingId, setHeartingId] = useState<string | null>(null);
+  const [heartMetrics, setHeartMetrics] = useState<Record<string, { count: number; hearted: boolean }>>({});
   const [storageCallback, setStorageCallback] = useState<{ title: string; message: string } | null>(null);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
@@ -258,7 +283,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedScope = params.get('scope');
-    if (requestedScope === 'published' || (requestedScope === 'pipeline' && pipelineAccess)) setScope(requestedScope);
+    if (requestedScope === 'published' || requestedScope === 'pipeline') setScope(requestedScope);
     const status = params.get('storage');
     if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Google Drive is now available as a durable project and asset location.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
@@ -295,7 +320,27 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     fontFamily: item.fontFamily, pipeline: item,
   })), [shared.pipelineItems]);
 
-  const scopeItems = activeScope === 'personal' ? personalItems : activeScope === 'published' ? publishedItems : pipelineItems;
+  const contributorPublishedItems = useMemo(() => pipelineItems.filter((item) => (
+    item.scope === 'pipeline'
+    && item.pipeline.ownership === 'mine'
+    && item.pipeline.submission.status === 'published'
+  )), [pipelineItems]);
+  const contributorPipelineItems = useMemo(() => {
+    const programLineages = new Set(pipelineItems.flatMap((item) => item.scope === 'pipeline' && item.pipeline.submission.lineageId
+      ? [item.pipeline.submission.lineageId]
+      : []));
+    return [
+      ...pipelineItems,
+      ...publishedItems.filter((item) => item.scope === 'published' && (!item.published.lineageId || !programLineages.has(item.published.lineageId))),
+    ];
+  }, [pipelineItems, publishedItems]);
+  const scopeItems = activeScope === 'personal'
+    ? personalItems
+    : activeScope === 'published'
+      ? contributorPublishedItems
+      : pipelineAccess
+        ? contributorPipelineItems
+        : publishedItems;
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
@@ -330,8 +375,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     const set = cardSets.find((candidate) => candidate.id === item.personal.references.localSetId);
     return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
   };
-  const activeFailure = activeScope === 'personal' ? projection.failures[0] ?? null : activeScope === 'published' ? shared.catalogFailure : shared.pipelineFailure;
-  const activeLoading = activeScope === 'personal' ? projection.isLoading : activeScope === 'published' ? shared.catalogLoading : shared.pipelineLoading;
+  const activeFailure = activeScope === 'personal'
+    ? projection.failures[0] ?? null
+    : activeScope === 'pipeline' && pipelineAccess
+      ? shared.pipelineFailure ?? shared.catalogFailure
+      : shared.catalogFailure;
+  const activeLoading = activeScope === 'personal'
+    ? projection.isLoading
+    : activeScope === 'pipeline' && pipelineAccess
+      ? shared.pipelineLoading || shared.catalogLoading
+      : shared.catalogLoading;
   const activeStatus = getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
 
   const chooseScope = (nextScope: LibraryScope) => {
@@ -352,12 +405,52 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     });
   };
   const refresh = () => { projection.refresh(); void shared.refresh(); };
-  const vote = async (item: Extract<LibraryViewItem, { scope: 'pipeline' }>, value: 'positive' | 'negative') => {
-    setVotingId(item.pipeline.submission.id);
+
+  useEffect(() => {
+    const lineageIds = [...new Set(scopeItems.flatMap((item) => pipelineLineageFor(item) ? [pipelineLineageFor(item)!] : []))];
+    if (!lineageIds.length) { setHeartMetrics({}); return; }
+    const query = new URLSearchParams();
+    lineageIds.forEach((lineageId) => query.append('lineageId', lineageId));
+    let cancelled = false;
+    void fetch(`/api/pipeline/hearts?${query.toString()}`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Pipeline reactions are unavailable.'));
+        return response.json() as Promise<{ metrics: Array<{ lineageId: string; count: number; hearted: boolean }> }>;
+      })
+      .then(({ metrics }) => {
+        if (!cancelled) setHeartMetrics(Object.fromEntries(metrics.map((metric) => [metric.lineageId, { count: metric.count, hearted: metric.hearted }])));
+      })
+      .catch(() => { if (!cancelled) setHeartMetrics({}); });
+    return () => { cancelled = true; };
+  }, [scopeItems]);
+
+  const toggleHeart = async (item: LibraryViewItem) => {
+    const lineageId = pipelineLineageFor(item);
+    if (!lineageId) return;
+    if (!isSignedIn) {
+      toast({ title: 'Sign in to heart Pipeline work', description: 'Your heart follows this work across future revisions.' });
+      return;
+    }
+    const current = heartMetrics[lineageId] ?? { count: 0, hearted: false };
+    setHeartingId(lineageId);
     try {
-      const response = await fetch(`/api/developer-assets/${item.pipeline.submission.id}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
+      const response = await fetch('/api/pipeline/hearts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineageId, hearted: !current.hearted }),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Pipeline reaction could not be saved.'));
+      const { metric } = await response.json() as { metric: { lineageId: string; count: number; hearted: boolean } };
+      setHeartMetrics((metrics) => ({ ...metrics, [lineageId]: { count: metric.count, hearted: metric.hearted } }));
+    } catch (error) {
+      toast({ title: 'Heart was not saved', description: error instanceof Error ? error.message : 'Pipeline reactions are unavailable.', variant: 'destructive' });
+    } finally { setHeartingId(null); }
+  };
+  const vote = async (submissionId: string, name: string, value: 'positive' | 'negative') => {
+    setVotingId(submissionId);
+    try {
+      const response = await fetch(`/api/developer-assets/${submissionId}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
-      toast({ title: 'Vote recorded', description: `${item.name} has been updated in Forge Review.` });
+      toast({ title: 'Vote recorded', description: `${name} has been updated in Forge Review.` });
       await shared.refresh();
     } catch (error) {
       toast({ title: 'Vote was not recorded', description: error instanceof Error ? error.message : 'Forge Review is unavailable.', variant: 'destructive' });
@@ -475,9 +568,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
     zones={zones} activeZone="library" viewportPolicy="desk" detail={activeTool ? null : currentRecord}
     detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
-    detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent item={currentItem} onOpenRevision={(submissionId) => projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(submissionId)}`)} /> : undefined}
+    detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
+      item={currentItem}
+      onOpenRevision={(submissionId) => projection.router.push(`/developer/cockpit?tab=library&submission=${encodeURIComponent(submissionId)}`)}
+      onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
+      canReview={experience.contributor.canReview}
+      votingId={votingId}
+      isSelfVoteBlocked={(developerId) => Boolean(
+        shared.program
+        && !shared.program.settings.allowContributorSelfVoting
+        && shared.program.currentContributorIds.includes(developerId)
+      )}
+    /> : undefined}
     actions={actions} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
-    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'personal' ? `${projection.items.length} personal objects` : activeScope === 'published' ? `${publishedItems.length} published objects` : `${pipelineItems.length} pipeline objects`} tone="neutral" /></>}
+    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={`${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
     footerContent={activeTool ? <span>Nothing moves between locations automatically</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
     onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)} onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
@@ -503,9 +607,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
           <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
         </div>
         {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? refresh : undefined} /> : null}
-        {activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
+        {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
           {viewItems.map((item) => {
             const pipelineItem = item.scope === 'pipeline' ? item : null;
+            const lineageId = pipelineLineageFor(item);
+            const heart = lineageId ? heartMetrics[lineageId] ?? { count: 0, hearted: false } : null;
             return <article key={item.id} className={styles.objectTile} data-selected={selection.objectId === item.id}>
               <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => openDetail(item)}><span className={styles.visualSlot}><LibraryVisual item={item} cards={cardsFor(item)} template={templateFor(item)} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
               {item.scope === 'personal' ? <DropdownMenu>
@@ -533,10 +639,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
                   </DropdownMenuItem>)}
                 </DropdownMenuContent>
               </DropdownMenu> : null}
-              {pipelineItem && experience.contributor.canReview && (pipelineItem.pipeline.reviewState === 'available' || pipelineItem.pipeline.reviewState === 'already-voted') ? <div className={styles.voteActions} aria-label={`Vote on ${item.name}`}><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem, 'positive')} aria-label={`Vote up for ${item.name}`}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem, 'negative')} aria-label={`Vote down for ${item.name}`}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button></div> : null}
+              {heart ? <div className={styles.reactionActions}>
+                <button type="button" disabled={heartingId === lineageId} data-active={heart.hearted} onClick={() => void toggleHeart(item)} aria-label={`${heart.hearted ? 'Remove heart from' : 'Heart'} ${item.name}`} title={isSignedIn ? 'Heart this Pipeline object' : 'Sign in to heart this Pipeline object'}><Heart aria-hidden="true" />{heart.count}</button>
+                {pipelineItem && experience.contributor.canReview ? <>
+                  <button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem.pipeline.submission.id, item.name, 'positive')} aria-label={`Vote up for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button>
+                  <button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem.pipeline.submission.id, item.name, 'negative')} aria-label={`Vote down for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button>
+                </> : null}
+              </div> : null}
             </article>;
           })}
-        </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Published assets will appear here when the catalog is available.' : 'Your submissions and reviewable work will appear here.'}</p></div>}
+        </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
       </section>
       {activeTool === 'locations' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-locations-title"><button type="button" className={styles.toolScrim} aria-label="Close locations and connections" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-locations-title">Locations &amp; connections</h2><span>Inspect one owner at a time. Changes affect only the named location.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close locations and connections"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />{storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}</div></section></div> : null}
     </div>

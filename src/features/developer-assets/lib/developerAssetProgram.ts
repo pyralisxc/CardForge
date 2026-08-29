@@ -37,6 +37,7 @@ export type DeveloperAssetSubmissionEditInputResult =
 
 export interface DeveloperAssetSubmission {
   id: string;
+  lineageId?: string;
   developerId: string;
   developerEmail: string | null;
   developerFirstName?: string | null;
@@ -144,6 +145,7 @@ export interface DeveloperProgramSettingsRow {
 
 export interface DeveloperAssetSubmissionRow {
   id: string;
+  lineage_id?: string;
   developer_id: string;
   developer_email: string | null;
   asset_type: unknown;
@@ -372,6 +374,7 @@ export const mapDeveloperAssetSubmissionRow = (
   registrySourcePayload?: unknown,
 ): DeveloperAssetSubmission => ({
   id: row.id,
+  lineageId: row.lineage_id,
   developerId: row.developer_id,
   developerEmail: profile?.email ?? row.developer_email,
   developerFirstName: profile?.first_name ?? null,

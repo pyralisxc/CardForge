@@ -1,4 +1,4 @@
-import type { CardSet, StoredDisplayCard } from './types';
+import type { CardSet, CardSetOrganization, StoredDisplayCard } from './types';
 
 const cleanId = (value: unknown): string | null => (
   typeof value === 'string' && value.trim() ? value.trim() : null
@@ -8,18 +8,60 @@ const cleanName = (value: unknown): string => (
   typeof value === 'string' && value.trim() ? value.trim() : 'Untitled Set'
 );
 
+const cleanStringArray = (value: unknown): string[] => Array.isArray(value)
+  ? [...new Set(value.flatMap((entry) => typeof entry === 'string' && entry.trim() ? [entry.trim()] : []))]
+  : [];
+
+const normalizeOrganization = (value: unknown): CardSetOrganization | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const arrangements = new Set(['manual', 'grid', 'stack']);
+  const groupings = new Set(['none', 'tag', 'field', 'template', 'content-type', 'batch']);
+  const sorts = new Set(['manual', 'name', 'field-value', 'recently-changed']);
+  const positions = record.positions && typeof record.positions === 'object' && !Array.isArray(record.positions)
+    ? Object.fromEntries(Object.entries(record.positions as Record<string, unknown>).flatMap(([id, position]) => {
+        if (!position || typeof position !== 'object' || Array.isArray(position)) return [];
+        const candidate = position as Record<string, unknown>;
+        return Number.isFinite(candidate.x) && Number.isFinite(candidate.y)
+          ? [[id, { x: Number(candidate.x), y: Number(candidate.y) }] as const]
+          : [];
+      }))
+    : {};
+  const tags = Array.isArray(record.tags) ? record.tags.flatMap((tag) => {
+    if (!tag || typeof tag !== 'object' || Array.isArray(tag)) return [];
+    const candidate = tag as Record<string, unknown>;
+    const id = cleanId(candidate.id);
+    const label = typeof candidate.label === 'string' ? candidate.label.trim() : '';
+    return id && label ? [{ id, label }] : [];
+  }) : [];
+  return {
+    arrangement: arrangements.has(record.arrangement as string) ? record.arrangement as CardSetOrganization['arrangement'] : 'grid',
+    groupBy: groupings.has(record.groupBy as string) ? record.groupBy as CardSetOrganization['groupBy'] : 'none',
+    ...(cleanId(record.groupField) ? { groupField: cleanId(record.groupField)! } : {}),
+    ...(cleanId(record.groupTagId) ? { groupTagId: cleanId(record.groupTagId)! } : {}),
+    sort: sorts.has(record.sort as string) ? record.sort as CardSetOrganization['sort'] : 'manual',
+    ...(cleanId(record.sortField) ? { sortField: cleanId(record.sortField)! } : {}),
+    tags: tags.filter((tag, index) => tags.findIndex((candidate) => candidate.id === tag.id) === index),
+    positions,
+  };
+};
+
 export const normalizeCardSet = (value: unknown): CardSet | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   const id = cleanId(record.id);
   if (!id) return null;
+  const organization = normalizeOrganization(record.organization);
   return {
     id,
     name: cleanName(record.name),
     frontTemplateId: cleanId(record.frontTemplateId),
     backingTemplateId: cleanId(record.backingTemplateId),
+    ...(organization ? { organization } : {}),
   };
 };
+
+export const normalizeCardTagIds = cleanStringArray;
 
 export const reconcileCardSets = ({
   cardSets = [],

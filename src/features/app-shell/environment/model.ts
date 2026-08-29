@@ -17,7 +17,7 @@ export interface ZoneDefinition {
 }
 
 export const ENVIRONMENT_ZONES = [
-  { id: 'home', href: '/account', label: 'Home', shortLabel: 'Home', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
+  { id: 'home', href: '/account', label: 'Desk', shortLabel: 'Desk', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'studio', href: '/studio', label: 'Studio', shortLabel: 'Studio', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'desk' },
   { id: 'profile', href: '/account?section=profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },

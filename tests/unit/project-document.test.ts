@@ -192,9 +192,19 @@ describe('project document serialization', () => {
     const copied = instantiateProjectDocumentCopy({
       version: 1,
       userTemplates: [template],
-      cardSets: [{ ...cardSet, backingTemplateId: null }],
+      cardSets: [{
+        ...cardSet,
+        backingTemplateId: null,
+        organization: {
+          arrangement: 'manual',
+          groupBy: 'tag',
+          sort: 'manual',
+          tags: [{ id: 'tag-heroes', label: 'Heroes' }],
+          positions: { [storedCard.uniqueId]: { x: 32, y: 48 } },
+        },
+      }],
       activeCardSetId: cardSet.id,
-      storedCards: [{ ...storedCard, backingTemplateId: null }],
+      storedCards: [{ ...storedCard, backingTemplateId: null, tagIds: ['tag-heroes'] }],
       appearanceStyles: [style],
       exportSettings: {},
       customAssets: {
@@ -214,6 +224,11 @@ describe('project document serialization', () => {
     expect(copied.storedCards[0]?.uniqueId).not.toBe(storedCard.uniqueId);
     expect(copied.storedCards[0]?.setId).toBe(copied.cardSets[0]?.id);
     expect(copied.storedCards[0]?.templateId).toBe(copied.userTemplates[0]?.id);
+    expect(copied.cardSets[0]?.organization?.tags[0]?.id).not.toBe('tag-heroes');
+    expect(copied.storedCards[0]?.tagIds).toEqual([copied.cardSets[0]?.organization?.tags[0]?.id]);
+    expect(copied.cardSets[0]?.organization?.positions).toEqual({
+      [copied.storedCards[0]!.uniqueId]: { x: 32, y: 48 },
+    });
     expect(copied.userTemplates[0]).toMatchObject({ templateSource: 'user', templateLibrarySource: 'personal', templateRegistryStatus: 'localOnly' });
     expect(copied.appearanceStyles[0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });
     expect(copied.customAssets['cardforge-maker-custom-textures'][0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });

@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import type { StoredDisplayCard } from '@/domain/cards';
+import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
 import { selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
@@ -18,10 +18,12 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       uniqueId: card.uniqueId,
       templateId: card.template.id!,
       backingTemplateId: card.backingTemplateId ?? card.backingTemplate?.id ?? activeCardSet.backingTemplateId,
-      backingData: card.backingData,
+      ...(card.backingData ? { backingData: card.backingData } : {}),
       setId: card.setId ?? activeCardSet.id,
       setName: card.setName ?? activeCardSet.name,
       data: card.data,
+      ...(card.tagIds?.length ? { tagIds: card.tagIds } : {}),
+      ...(card.updatedAt ? { updatedAt: card.updatedAt } : {}),
     }));
     set((state) => ({ storedCards: [...state.storedCards, ...storedCards] }));
   },
@@ -99,6 +101,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
           setId: updatedCard.setId ?? card.setId,
           setName: updatedCard.setName ?? card.setName,
           data: updatedCard.data,
+          tagIds: updatedCard.tagIds ?? card.tagIds,
+          updatedAt: new Date().toISOString(),
         }
       : card),
   })),
@@ -146,6 +150,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         setId: targetSet?.id ?? activeCardSet.id,
         setName: targetSet?.name ?? card.setName ?? activeCardSet.name,
         data: card.data || {},
+        ...(normalizeCardTagIds(card.tagIds).length ? { tagIds: normalizeCardTagIds(card.tagIds) } : {}),
+        ...(card.updatedAt && !Number.isNaN(Date.parse(card.updatedAt)) ? { updatedAt: card.updatedAt } : {}),
       });
       successCount += 1;
     });
@@ -178,6 +184,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         setId: targetSet?.id ?? activeCardSet.id,
         setName: targetSet?.name ?? card.setName ?? activeCardSet.name,
         data: card.data || {},
+        ...(normalizeCardTagIds(card.tagIds).length ? { tagIds: normalizeCardTagIds(card.tagIds) } : {}),
+        ...(card.updatedAt && !Number.isNaN(Date.parse(card.updatedAt)) ? { updatedAt: card.updatedAt } : {}),
       });
       successCount += 1;
     });

@@ -387,6 +387,11 @@ export const instantiateProjectDocumentCopy = (
     template.id ? [[template.id, createId('template')] as const] : []
   )));
   const setIds = new Map(document.cardSets.map((set) => [set.id, createId('set')] as const));
+  const cardIds = new Map(document.storedCards.map((card) => [card.uniqueId, createId('card')] as const));
+  const tagIds = new Map(document.cardSets.flatMap((set) => (set.organization?.tags ?? []).map((tag) => [
+    `${set.id}:${tag.id}`,
+    createId('asset'),
+  ] as const)));
   const styleIds = new Map(document.appearanceStyles.map((style) => [style.id, createId('style')] as const));
   const remapTemplateId = (id: string | null | undefined): string | null => (
     id ? templateIds.get(id) ?? id : null
@@ -423,6 +428,15 @@ export const instantiateProjectDocumentCopy = (
       id: setIds.get(set.id)!,
       frontTemplateId: remapTemplateId(set.frontTemplateId),
       backingTemplateId: remapTemplateId(set.backingTemplateId),
+      ...(set.organization ? { organization: {
+        ...set.organization,
+        tags: set.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(`${set.id}:${tag.id}`)! })),
+        groupTagId: set.organization.groupTagId ? tagIds.get(`${set.id}:${set.organization.groupTagId}`) : undefined,
+        positions: Object.fromEntries(Object.entries(set.organization.positions).flatMap(([cardId, position]) => {
+          const nextId = cardIds.get(cardId);
+          return nextId ? [[nextId, position] as const] : [];
+        })),
+      } } : {}),
     })),
     activeCardSetId: document.activeCardSetId
       ? setIds.get(document.activeCardSetId) ?? setIds.get(document.cardSets[0]?.id ?? '')
@@ -433,11 +447,14 @@ export const instantiateProjectDocumentCopy = (
       const nextSet = originalSetId ? document.cardSets.find((set) => set.id === originalSetId) : undefined;
       return {
         ...card,
-        uniqueId: createId('card'),
+        uniqueId: cardIds.get(card.uniqueId)!,
         templateId: remapTemplateId(card.templateId) ?? card.templateId,
         backingTemplateId: remapTemplateId(card.backingTemplateId),
         setId: nextSetId,
         setName: nextSet?.name ?? card.setName,
+        tagIds: card.tagIds?.flatMap((tagId) => originalSetId && tagIds.get(`${originalSetId}:${tagId}`)
+          ? [tagIds.get(`${originalSetId}:${tagId}`)!]
+          : []),
       };
     }),
     appearanceStyles: document.appearanceStyles.map((style) => ({
