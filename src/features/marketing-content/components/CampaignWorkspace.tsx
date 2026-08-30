@@ -122,7 +122,7 @@ export function CampaignWorkspace({
         <div className="flex items-center gap-3">
           <Megaphone className="h-5 w-5 text-[var(--cf-accent-strong)]" />
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Campaign collection</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Campaign workflow</p>
             <p className="text-sm text-[var(--cf-text-muted)]">{workspace.isOwner ? 'Review candidates here; destination and delivery controls stay in Owner.' : 'Draft, revise, and submit campaign packages as normal Library work.'}</p>
           </div>
         </div>

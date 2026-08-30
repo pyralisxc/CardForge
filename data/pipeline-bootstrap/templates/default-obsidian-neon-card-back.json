@@ -1,6 +1,7 @@
 {
   "id": "default-obsidian-neon-card-back",
   "name": "Obsidian Neon Card Back",
+  "templateAccessTier": "paid",
   "aspectRatio": "63:88",
   "formatId": "poker",
   "trimWidthMm": 63,

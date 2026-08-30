@@ -1,6 +1,7 @@
 {
   "id": "arcane-forge-frame-playing-premium",
   "name": "Arcane Playing Full Frame",
+  "pipelineAccessTier": "paid",
   "tileMode": "contain",
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],

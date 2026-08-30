@@ -1,6 +1,7 @@
 {
   "id": "material-obsidian-neon-premium",
   "name": "Obsidian Neon Premium",
+  "accessTier": "paid",
   "kind": "material",
   "targets": ["text", "shape", "element", "template"],
   "appearance": {

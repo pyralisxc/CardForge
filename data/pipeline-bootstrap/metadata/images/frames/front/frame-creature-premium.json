@@ -1,6 +1,7 @@
 {
   "id": "arcane-forge-frame-creature-premium",
   "name": "Arcane Creature Full Frame",
+  "pipelineAccessTier": "paid",
   "tileMode": "contain",
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],

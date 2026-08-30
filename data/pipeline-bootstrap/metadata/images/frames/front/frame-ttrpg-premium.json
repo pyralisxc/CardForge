@@ -1,6 +1,7 @@
 {
   "id": "arcane-forge-frame-ttrpg-premium",
   "name": "Arcane TTRPG Full Sheet",
+  "pipelineAccessTier": "paid",
   "tileMode": "contain",
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],

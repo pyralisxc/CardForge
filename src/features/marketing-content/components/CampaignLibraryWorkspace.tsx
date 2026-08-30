@@ -39,13 +39,6 @@ export function CampaignLibraryWorkspace({ initialCampaignId = null }: { initial
   if (!workspace) return <div role="alert" className="flex min-h-32 flex-wrap items-center justify-between gap-3 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-4"><div><strong className="text-[var(--cf-text-strong)]">Campaigns are unavailable</strong><p className="mt-1 text-sm text-[var(--cf-text-muted)]">{error ?? 'CardForge could not load campaign work.'}</p></div><Button type="button" size="sm" variant="outline" onClick={() => void load()}>Retry</Button></div>;
 
   return <div className="space-y-4" data-library-campaign-workspace>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <Megaphone className="h-5 w-5 shrink-0 text-[var(--cf-accent-strong)]" aria-hidden="true" />
-        <div className="min-w-0"><strong className="block text-[var(--cf-text-strong)]">{workspace.campaigns.length} campaign package{workspace.campaigns.length === 1 ? '' : 's'}</strong><span className="text-xs text-[var(--cf-text-muted)]">Draft and revise here. Approval, destinations, scheduling, and delivery remain in Owner.</span></div>
-      </div>
-      <Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
-    </div>
     {selectedCampaign ? <p role="status" className="border border-[var(--cf-accent)] bg-[var(--cf-surface-inset)] px-3 py-2 text-sm text-[var(--cf-accent-text)]">Opened from Desk: {selectedCampaign.title}</p> : null}
     <CampaignWorkspace workspace={workspace} initialCampaignId={initialCampaignId} onRefresh={load} />
   </div>;

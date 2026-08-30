@@ -50,6 +50,10 @@
 .reactionActions { display: flex; flex-wrap: wrap; gap: .25rem; padding: 0 .6rem .6rem; }
 .reactionActions button { width: auto; min-height: 2.4rem; gap: .3rem; padding-inline: .65rem; font-size: .67rem; }
 .reactionActions button:disabled { cursor: not-allowed; opacity: .45; }
+@media (max-width: 40rem) {
+  .reactionActions { flex-wrap: nowrap; padding-inline: .35rem; }
+  .reactionActions button { min-width: 0; flex: 1 1 0; padding-inline: .35rem; }
+}
 .pipelineDetail { display: grid; gap: .7rem; border-top: 1px solid var(--cf-border-subtle); padding-top: .75rem; }
 .pipelineDetail > div { display: grid; gap: .25rem; }
 .pipelineDetail h3, .pipelineDetail p { margin: 0; }

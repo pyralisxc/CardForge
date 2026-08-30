@@ -105,7 +105,7 @@ export function CampaignQueue({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">{workspace.isOwner ? 'Review queue' : 'Your work'}</p>
-            <h2 id="campaign-queue-heading" className="font-serif text-xl text-[var(--cf-text-strong)]">Campaigns</h2>
+            <h2 id="campaign-queue-heading" className="font-serif text-xl text-[var(--cf-text-strong)]">Packages</h2>
           </div>
           <p className="text-sm text-[var(--cf-text-muted)]">{campaigns.length} shown / {workspace.campaigns.length} total</p>
         </div>
