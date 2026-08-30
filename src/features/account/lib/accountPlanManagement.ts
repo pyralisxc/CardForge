@@ -18,7 +18,7 @@ export function buildAccountPlanManagementProjection({
   canExportClean,
   entitlementState,
   hasStripeCustomer,
-  isDeveloper,
+  isContributor,
   isOwner,
   isSignedIn,
   paidPlan,
@@ -30,7 +30,7 @@ export function buildAccountPlanManagementProjection({
   canExportClean: boolean;
   entitlementState: AccountEntitlementState;
   hasStripeCustomer: boolean;
-  isDeveloper: boolean;
+  isContributor: boolean;
   isOwner: boolean;
   isSignedIn: boolean;
   paidPlan: PaidPlan | null;
@@ -43,7 +43,7 @@ export function buildAccountPlanManagementProjection({
 
   return {
     canManageBilling: entitlementReady && isSignedIn && hasStripeCustomer,
-    currentPlanKey: isOwner || isDeveloper
+    currentPlanKey: isOwner || isContributor
       ? undefined
       : paidPlan === 'designer'
         ? 'designer'

@@ -7,12 +7,12 @@ import { OwnerMarketingMetric } from "./OwnerMarketingFields";
 
 export function OwnerMarketingResultsWorkspace({
   marketing,
-  cockpit,
+  workspace,
 }: {
   marketing: MarketingCommandCenterView;
-  cockpit: MarketingContentWorkspaceView;
+  workspace: MarketingContentWorkspaceView;
 }) {
-  const published = cockpit.publishJobs.filter(
+  const published = workspace.publishJobs.filter(
     (job) => job.status === "published",
   );
 
@@ -48,7 +48,7 @@ export function OwnerMarketingResultsWorkspace({
         <OwnerMarketingMetric
           icon={BarChart3}
           label="Tracked links"
-          value={cockpit.campaigns.filter((item) => item.utmContent).length}
+          value={workspace.campaigns.filter((item) => item.utmContent).length}
         />
       </div>
     </article>

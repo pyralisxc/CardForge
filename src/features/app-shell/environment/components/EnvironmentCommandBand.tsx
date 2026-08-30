@@ -10,11 +10,12 @@ interface EnvironmentCommandBandProps {
   primaryAction: ActionDescriptor | null;
   primaryDisabledReason?: string;
   search?: ReactNode;
+  accountControl?: ReactNode;
   onCommand: () => void;
   onAction: (action: ActionDescriptor) => void;
 }
 
-export function EnvironmentCommandBand({ zone, primaryAction, primaryDisabledReason, search, onCommand, onAction }: EnvironmentCommandBandProps) {
+export function EnvironmentCommandBand({ zone, primaryAction, primaryDisabledReason, search, accountControl, onCommand, onAction }: EnvironmentCommandBandProps) {
   const Icon = ZONE_ICONS[zone.id];
   const disabledReason = primaryAction?.availability.kind === 'disabled'
     ? primaryAction.availability.reason
@@ -32,6 +33,7 @@ export function EnvironmentCommandBand({ zone, primaryAction, primaryDisabledRea
             <ChevronRight size={17} aria-hidden="true" /><span>{primaryAction.label}</span>
           </button>
         ) : null}
+        {accountControl}
       </div>
     </header>
   );

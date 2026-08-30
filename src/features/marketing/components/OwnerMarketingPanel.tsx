@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DeveloperCampaignMediaLibrary,
-  DeveloperCampaignPanel,
+  CampaignMediaLibrary,
+  CampaignWorkspace,
   loadMarketingContentWorkspace,
   type MarketingContentWorkspaceView,
 } from "@/features/marketing-content/client";
@@ -39,7 +39,7 @@ export function OwnerMarketingPanel({
   const [marketing, setMarketing] = useState<MarketingCommandCenterView | null>(
     null,
   );
-  const [cockpit, setCockpit] = useState<MarketingContentWorkspaceView | null>(null);
+  const [workspace, setWorkspace] = useState<MarketingContentWorkspaceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice] = useState(initialNotice);
   const [error, setError] = useState("");
@@ -49,12 +49,12 @@ export function OwnerMarketingPanel({
     setLoading(true);
     setError("");
     try {
-      const [nextMarketing, nextCockpit] = await Promise.all([
+      const [nextMarketing, nextWorkspace] = await Promise.all([
         loadMarketingCommandCenter(),
         loadMarketingContentWorkspace(),
       ]);
       setMarketing(nextMarketing);
-      setCockpit(nextCockpit);
+      setWorkspace(nextWorkspace);
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -70,7 +70,7 @@ export function OwnerMarketingPanel({
     void load();
   }, [load]);
 
-  if (!marketing || !cockpit) {
+  if (!marketing || !workspace) {
     return (
       <section
         className={`border p-5 ${error ? "border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]" : "border-[var(--cf-border)] bg-[var(--cf-surface)] text-[var(--cf-text-muted)]"}`}
@@ -96,13 +96,13 @@ export function OwnerMarketingPanel({
     );
   }
 
-  const reviewCount = cockpit.campaigns.filter(
+  const reviewCount = workspace.campaigns.filter(
     (item) => item.status === "submitted",
   ).length;
-  const approvedCount = cockpit.campaigns.filter((item) =>
+  const approvedCount = workspace.campaigns.filter((item) =>
     ["approved", "provider_draft", "scheduled"].includes(item.status),
   ).length;
-  const deliveryCount = cockpit.publishJobs.filter((item) =>
+  const deliveryCount = workspace.publishJobs.filter((item) =>
     ["ready", "scheduled", "provider_draft", "publishing"].includes(
       item.status,
     ),
@@ -120,7 +120,7 @@ export function OwnerMarketingPanel({
               Strategy to publication, owned by CardForge
             </h2>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
-              Developers submit content into a real campaign. You approve the
+              Contributors submit content into a real campaign. You approve the
               claim, destination, timing, and final publication. Owned accounts
               can become automatic; communities always remain guided manual
               outreach.
@@ -229,12 +229,12 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="content" className="mt-0">
-          <DeveloperCampaignPanel cockpit={cockpit} onRefresh={load} />
+          <CampaignWorkspace workspace={workspace} onRefresh={load} />
         </TabsContent>
         <TabsContent value="distribution" className="mt-0">
           <OwnerMarketingDistributionWorkspace
             marketing={marketing}
-            cockpit={cockpit}
+            workspace={workspace}
             onSaved={() => {
               setMessage("Distribution workspace updated.");
               void load();
@@ -243,15 +243,15 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="media" className="mt-0">
-          <DeveloperCampaignMediaLibrary
-            media={cockpit.campaignMedia}
-            pageInfo={cockpit.campaignMediaPage}
-            summary={cockpit.campaignMediaSummary}
+          <CampaignMediaLibrary
+            media={workspace.campaignMedia}
+            pageInfo={workspace.campaignMediaPage}
+            summary={workspace.campaignMediaSummary}
             onRefresh={load}
           />
         </TabsContent>
         <TabsContent value="results" className="mt-0">
-          <OwnerMarketingResultsWorkspace marketing={marketing} cockpit={cockpit} />
+          <OwnerMarketingResultsWorkspace marketing={marketing} workspace={workspace} />
         </TabsContent>
       </Tabs>
     </section>

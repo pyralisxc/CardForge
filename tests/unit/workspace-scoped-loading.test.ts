@@ -43,7 +43,7 @@ describe('workspace-scoped data loading', () => {
     const campaignRoute = readSource('src/app/api/marketing-content/route.ts');
     const siteRoute = readSource('src/app/api/site-proposals/route.ts');
     const campaignWorkspace = readSource('src/features/marketing-content/server/workspace.ts');
-    const siteWorkspace = readSource('src/features/developer-cockpit/server/cockpitStore.ts');
+    const siteWorkspace = readSource('src/features/site-proposals/server/siteProposalWorkspaceStore.ts');
     const campaignLibrary = readSource('src/features/marketing-content/components/CampaignLibraryWorkspace.tsx');
     const contributorProfile = readSource('src/app/account/_components/ContributorProfilePanel.tsx');
 
@@ -51,20 +51,20 @@ describe('workspace-scoped data loading', () => {
     expect(campaignWorkspace).toContain('getAuthorizedCampaignMediaPage');
     expect(campaignWorkspace).not.toContain('fetchSiteProposals(access)');
     expect(campaignWorkspace).not.toContain('getSiteContentBlocks()');
-    expect(siteRoute).toContain('getDeveloperSiteWorkspace(access)');
+    expect(siteRoute).toContain('getSiteProposalWorkspace(access)');
     expect(siteWorkspace).toContain('fetchSiteProposals(access)');
     expect(siteWorkspace).not.toContain('getAuthorizedCampaignMediaPage');
     expect(campaignLibrary).toContain('loadMarketingContentWorkspace');
-    expect(contributorProfile).toContain('canProposeSite ? loadDeveloperSiteWorkspace()');
+    expect(contributorProfile).toContain('canProposeSite ? loadSiteProposalWorkspace()');
   });
 
   it('returns only the owning workspace after contribution mutations', () => {
     const proposalRoute = readSource('src/app/api/site-proposals/route.ts');
     const mediaRoute = readSource('src/app/api/marketing-content/media/[mediaId]/route.ts');
-    const client = readSource('src/features/developer-cockpit/client/api.ts');
+    const client = readSource('src/features/site-proposals/client/api.ts');
 
-    expect(proposalRoute).toContain('getDeveloperSiteWorkspace(access)');
-    expect(client).toContain('Promise<DeveloperSiteWorkspaceView>');
+    expect(proposalRoute).toContain('getSiteProposalWorkspace(access)');
+    expect(client).toContain('Promise<SiteProposalWorkspace>');
     expect(mediaRoute).toContain('createNoStoreJsonResponse({ updated: true })');
     expect(mediaRoute).toContain('createNoStoreJsonResponse({ deleted: true })');
   });

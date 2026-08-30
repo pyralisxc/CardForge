@@ -6,20 +6,20 @@ import {
   canTransitionCampaign,
   type MarketingContentPackage as SocialCampaign,
 } from '@/features/marketing-content/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { ContributorAccess } from '@/features/contributor-access/server';
 import { getAllowedCampaignActions } from '@/features/marketing-content/server/campaignActions';
 import { SOCIAL_PUBLIC_MEDIA_BUCKET } from '@/features/marketing-content/server/media';
 
 import {
   cleanReviewNote,
-  DeveloperCockpitStoreError,
+  MarketingContentStoreError,
   DERIVATIVE_COLUMNS,
   getCampaignMediaRows,
   getCampaignRecord,
   normalizeExpectedVersion,
   readFirstDatabaseRow,
-  requireCockpitDatabase,
-  throwCockpitDatabaseError,
+  requireMarketingContentDatabase,
+  throwMarketingContentDatabaseError,
   type CampaignMediaRow,
   type DerivativeRow,
 } from './storeShared';
@@ -30,7 +30,7 @@ const PROVIDER_IMAGE_HEIGHT = 1350;
 const createPublicDerivative = async (
   media: CampaignMediaRow,
 ): Promise<DerivativeRow> => {
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const promotionKey = `${media.id}:provider-jpeg`;
   const derivativeId = randomUUID();
   const storagePath = `${media.id}/${randomUUID()}.jpg`;
@@ -55,12 +55,12 @@ const createPublicDerivative = async (
   const inserted = readFirstDatabaseRow<DerivativeRow>(data);
   if (!error && inserted) return inserted;
   if (!error) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Preparing approved media did not return its derivative.',
     );
   }
   if (!/duplicate key|unique/i.test(error.message)) {
-    throwCockpitDatabaseError('Unable to prepare the approved media derivative.', error);
+    throwMarketingContentDatabaseError('Unable to prepare the approved media derivative.', error);
   }
 
   const refreshed = await getCampaignMediaRows([media.id]);
@@ -68,7 +68,7 @@ const createPublicDerivative = async (
     candidate.promotion_key === promotionKey
   ));
   if (!concurrent) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Unable to prepare the approved media derivative.',
     );
   }
@@ -76,10 +76,10 @@ const createPublicDerivative = async (
 };
 
 const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const { rows, derivatives } = await getCampaignMediaRows([mediaId]);
   const media = rows[0];
-  if (!media) throw new DeveloperCockpitStoreError('Campaign media not found.', 404);
+  if (!media) throw new MarketingContentStoreError('Campaign media not found.', 404);
 
   const promotionKey = `${media.id}:provider-jpeg`;
   let derivative = derivatives.find((candidate) => (
@@ -92,13 +92,13 @@ const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
     .from(media.normalized_storage_bucket)
     .download(media.normalized_storage_path);
   if (sourceError) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to read protected campaign media for approval.',
       sourceError,
     );
   }
   if (!source) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Protected campaign media is unavailable.',
       404,
     );
@@ -123,7 +123,7 @@ const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
       upsert: true,
     });
   if (uploadError) {
-    throwCockpitDatabaseError('Unable to promote approved campaign media.', uploadError);
+    throwMarketingContentDatabaseError('Unable to promote approved campaign media.', uploadError);
   }
 
   const { error: metadataError } = await supabase
@@ -131,20 +131,20 @@ const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
     .update({ byte_count: providerImage.byteLength })
     .eq('id', derivative.id);
   if (metadataError) {
-    throwCockpitDatabaseError('Unable to finalize approved campaign media.', metadataError);
+    throwMarketingContentDatabaseError('Unable to finalize approved campaign media.', metadataError);
   }
 
   return derivative.id;
 };
 
 export const approveSocialCampaign = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   campaignId: string,
   expectedVersion: unknown,
   reviewNote: unknown,
 ): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
   if (!access.isOwner) {
-    throw new DeveloperCockpitStoreError('Owner approval is required.', 403);
+    throw new MarketingContentStoreError('Owner approval is required.', 403);
   }
 
   const campaign = await getCampaignRecord(campaignId, access);
@@ -155,7 +155,7 @@ export const approveSocialCampaign = async (
     };
   }
   if (!canTransitionCampaign(campaign.status, 'approved', 'owner')) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       `A ${campaign.status} campaign cannot be approved.`,
       409,
     );
@@ -163,7 +163,7 @@ export const approveSocialCampaign = async (
 
   const version = normalizeExpectedVersion(expectedVersion);
   if (version !== campaign.version) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'This campaign changed elsewhere. Reload before approving.',
       409,
     );
@@ -184,7 +184,7 @@ export const approveSocialCampaign = async (
     });
   }
 
-  const { data, error } = await requireCockpitDatabase().rpc(
+  const { data, error } = await requireMarketingContentDatabase().rpc(
     'cardforge_finalize_social_campaign_approval',
     {
       p_campaign_id: campaign.id,
@@ -195,9 +195,9 @@ export const approveSocialCampaign = async (
       p_selections: selections,
     },
   );
-  if (error) throwCockpitDatabaseError('Unable to approve the campaign package.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to approve the campaign package.', error);
   if (data !== true) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'This campaign changed elsewhere. Reload before approving.',
       409,
     );

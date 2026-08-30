@@ -108,14 +108,14 @@ export function ProfileRecipe({ selectedId, onOpen }: RecipeProps) {
   );
 }
 
-export function QueueRecipe({ activePermission, selectedId, onOpen }: RecipeProps & { activePermission: 'developer' | 'owner' }) {
-  const visibleItems = queueItems.filter((item) => activePermission === 'owner' || item.permission === 'developer');
+export function QueueRecipe({ activePermission, selectedId, onOpen }: RecipeProps & { activePermission: 'contributor' | 'owner' }) {
+  const visibleItems = queueItems.filter((item) => activePermission === 'owner' || item.permission === 'contributor');
   return (
     <>
       <Header recipe="queue" />
-      {activePermission === 'developer' ? <BoundaryStateSampler /> : null}
+      {activePermission === 'contributor' ? <BoundaryStateSampler /> : null}
       <section className={styles.sectionGroup} aria-labelledby="queue-review-heading">
-        <EnvironmentSectionHeading id="queue-review-heading" title={`${activePermission === 'owner' ? 'Owner' : 'Developer'} review and follow-up`} meta={`${visibleItems.length} actions`} />
+        <EnvironmentSectionHeading id="queue-review-heading" title={`${activePermission === 'owner' ? 'Owner' : 'Contributor'} review and follow-up`} meta={`${visibleItems.length} actions`} />
         <div className={styles.ledgerHeader} aria-hidden="true"><span>Action</span><span>Status</span><span>Owner</span><span>Next action</span><span>Detail</span></div>
         {visibleItems.map((item) => <EnvironmentLedgerRow key={item.id} record={item} selected={selectedId === item.id} className={styles.queueRow} onOpen={onOpen}><EnvironmentStatus label={item.status} tone={item.tone} /><span className={styles.ledgerCell}>{item.owner} · {item.updated}</span><span className={styles.ledgerCell}>{item.nextAction}</span></EnvironmentLedgerRow>)}
       </section>

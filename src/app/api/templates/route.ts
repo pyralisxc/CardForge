@@ -10,18 +10,18 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   archivePipelineRegistryAsset,
-  DeveloperAssetRegistryCommandError,
+  PipelineRegistryCommandError,
   isRepositoryTemplate,
   publishOwnerTemplateRevision,
   submitTemplateRevision,
   toRepositoryAssetFileName,
-} from '@/features/developer-assets/server';
-import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
+} from '@/features/pipeline/server';
+import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/pipeline/server/catalogCache';
 import {
-  DeveloperCockpitAccessError,
-  getCurrentDeveloperCockpitAccess,
+  ContributorAccessError,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-access/server';
+} from '@/features/contributor-access/server';
 
 export async function GET() {
   try {
@@ -39,7 +39,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, access.isOwner ? 'library.publish' : 'library.submit');
 
     const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);
@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     }
     const revisionInput = {
       template: { ...template, id: template.id!, templateSource: 'default' as const },
-      developerId: access.user.id,
-      developerEmail: access.email,
+      contributorId: access.user.id,
+      contributorEmail: access.email,
       expectedRevision: Number.isInteger(template.templateRevision) && Number(template.templateRevision) >= 0
         ? Number(template.templateRevision)
         : 0,
@@ -96,14 +96,14 @@ export async function POST(request: Request) {
       },
     }, { status: access.isOwner ? 200 : 202 });
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof ContributorAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'contributor_access_required',
         error.message,
       );
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
+    if (error instanceof PipelineRegistryCommandError) {
       return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
     }
     console.error('Failed to save template:', error);
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
@@ -150,14 +150,14 @@ export async function DELETE(request: Request) {
 
     return createNoStoreJsonResponse({ ok: true, fileName });
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof ContributorAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'contributor_access_required',
         error.message,
       );
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
+    if (error instanceof PipelineRegistryCommandError) {
       return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
     }
     console.error('Failed to delete template:', error);

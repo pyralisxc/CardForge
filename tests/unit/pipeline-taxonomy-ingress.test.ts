@@ -5,7 +5,7 @@ const read = (path: string) => fs.readFileSync(path, 'utf8');
 
 describe('Forge Review taxonomy ingress architecture', () => {
   it('collects controlled taxonomy before the initial upload', () => {
-    const submissionPanel = read('src/features/developer-assets/components/DeveloperAssetSubmissionPanel.tsx');
+    const submissionPanel = read('src/features/pipeline/components/PipelineSubmissionPanel.tsx');
     expect(submissionPanel).toContain('ControlledTaxonomySelect');
     expect(submissionPanel).toContain('CARDFORGE_SPECIALTY_OPTIONS');
     expect(submissionPanel).toContain('CARDFORGE_USE_CASE_OPTIONS');
@@ -17,9 +17,9 @@ describe('Forge Review taxonomy ingress architecture', () => {
   });
 
   it('carries initial classification through the direct-upload workflow', () => {
-    const route = read('src/app/api/developer-assets/route.ts');
-    const uploader = read('src/features/developer-assets/lib/developerAssetUploadSubmission.ts');
-    const store = read('src/features/developer-assets/lib/developerAssetStore.ts');
+    const route = read('src/app/api/pipeline/route.ts');
+    const uploader = read('src/features/pipeline/lib/pipelineUploadSubmission.ts');
+    const store = read('src/features/pipeline/lib/pipelineStore.ts');
 
     expect(route).toContain('specialtyTags: body.specialtyTags');
     expect(route).toContain('useCaseTags: body.useCaseTags');
@@ -31,7 +31,7 @@ describe('Forge Review taxonomy ingress architecture', () => {
   });
 
   it('keeps specialty and use-case vocabularies semantically distinct on the server', () => {
-    const program = read('src/features/developer-assets/lib/developerAssetProgram.ts');
+    const program = read('src/features/pipeline/lib/pipelineProgram.ts');
     expect(program).toContain('normalizeSpecialtyTags(value.specialtyTags)');
     expect(program).toContain('normalizeUseCaseTags(value.useCaseTags)');
     expect(program).toContain('normalizeSpecialtyTags(row.specialty_tags)');
@@ -41,9 +41,9 @@ describe('Forge Review taxonomy ingress architecture', () => {
   });
 
   it('does not add a parallel persistence or migration layer', () => {
-    const uploader = read('src/features/developer-assets/lib/developerAssetUploadSubmission.ts');
-    expect(uploader).toContain('createDeveloperAssetSubmission');
-    expect(uploader).toContain('DEVELOPER_ASSET_STORAGE_BUCKET');
+    const uploader = read('src/features/pipeline/lib/pipelineUploadSubmission.ts');
+    expect(uploader).toContain('createPipelineSubmission');
+    expect(uploader).toContain('PIPELINE_STORAGE_BUCKET');
     expect(uploader).toContain('decodeCardForgeProjectPackage');
     expect(uploader).toContain('Published Set packages must contain at least one card.');
     const publishedSet = read('supabase/migrations/20260827120000_published_set_registry.sql');

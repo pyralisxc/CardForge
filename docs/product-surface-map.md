@@ -344,10 +344,11 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 | `app-shell` | Studio bootstrap/navigation/handoffs | Studio + shared environment grammar |
 | `card-generator` | generation, gallery, Set management, output | Desk quick actions + Studio tools |
 | `card-rendering` | canonical preview/render/watermark | Cross-surface service |
-| `developer-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/Studio; Owner people controls |
-| `developer-assets` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
-| `developer-cockpit` | site-proposal policy/store retained under its current technical owner | Profile contributor proposals + Owner review; no standalone route or zone |
-| `developer-program` | public program explanation/application | Public Contributor program |
+| `account` | ordinary signed-in account-tool capabilities, identity projection, plan, profile | Desk/Library/Profile/Studio/MCP account access |
+| `contributor-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/Studio; Owner people controls |
+| `pipeline` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
+| `site-proposals` | proposal policy, drafts, review, and publication boundaries | Profile contributor proposals + Owner review; no standalone route or zone |
+| `contributor-program` | public program explanation/application | Public Contributor program |
 | `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Owner Marketing |
 | `personal-library` | connected provider assets/fonts | Library + Studio source picker + MCP read |
 | `project` | browser workspace, packages, folders, Drive, recovery | Desk + Library location truth + Studio save/open |

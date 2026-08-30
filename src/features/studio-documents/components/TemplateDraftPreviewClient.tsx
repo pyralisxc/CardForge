@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { CardData } from '@/domain/cards';
-import { createDeveloperFontFaceCss, type DisplayCard } from '@/domain/rendering';
+import { createPipelineFontFaceCss, type DisplayCard } from '@/domain/rendering';
 import {
   reconstructMinimalTemplateObject,
   type TCGCardTemplate,
@@ -99,7 +99,7 @@ export function TemplateDraftPreviewClient() {
           template,
           customFonts,
           assets: [],
-          fontFaceCss: createDeveloperFontFaceCss(mapProjectFontsToCardFontOptions(customFonts)),
+          fontFaceCss: createPipelineFontFaceCss(mapProjectFontsToCardFontOptions(customFonts)),
         });
       } catch (error) {
         if (!controller.signal.aborted) {

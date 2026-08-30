@@ -1,28 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronDown, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/client';
+import type { PipelineProgramView } from '@/features/pipeline/client';
 import {
-  DEVELOPER_CONTRIBUTION_SCOPE_LABELS,
+  CONTRIBUTOR_SCOPE_LABELS,
   hasContributionScope,
-  type DeveloperAccessProjection,
-} from '@/features/developer-access/client';
+  type ContributorAccessProjection,
+} from '@/features/contributor-access/client';
 import {
-  DeveloperSiteProposalPanel,
-  loadDeveloperSiteWorkspace,
-  type DeveloperSiteWorkspaceView,
-} from '@/features/developer-cockpit/client';
+  SiteProposalPanel,
+  loadSiteProposalWorkspace,
+  type SiteProposalWorkspace,
+} from '@/features/site-proposals/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function ContributorProfilePanel({ access }: { access: DeveloperAccessProjection }) {
+export function ContributorProfilePanel({ access }: { access: ContributorAccessProjection }) {
   const router = useRouter();
-  const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
-  const [site, setSite] = useState<DeveloperSiteWorkspaceView | null>(null);
+  const [program, setProgram] = useState<PipelineProgramView | null>(null);
+  const [site, setSite] = useState<SiteProposalWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const canProposeSite = hasContributionScope(access.scopes, 'site.propose');
@@ -32,11 +32,11 @@ export function ContributorProfilePanel({ access }: { access: DeveloperAccessPro
     setError(null);
     try {
       const [programResponse, siteWorkspace] = await Promise.all([
-        fetch('/api/developer-assets/library', { cache: 'no-store' }).then(async (response) => {
+        fetch('/api/pipeline/library', { cache: 'no-store' }).then(async (response) => {
           if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
-          return response.json() as Promise<{ program: DeveloperAssetProgramView }>;
+          return response.json() as Promise<{ program: PipelineProgramView }>;
         }),
-        canProposeSite ? loadDeveloperSiteWorkspace() : Promise.resolve(null),
+        canProposeSite ? loadSiteProposalWorkspace() : Promise.resolve(null),
       ]);
       setProgram(programResponse.program);
       setSite(siteWorkspace);
@@ -56,15 +56,21 @@ export function ContributorProfilePanel({ access }: { access: DeveloperAccessPro
     <section aria-labelledby="contributor-access-heading">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--cf-border)] pb-3"><div><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Contributor profile</p><h2 id="contributor-access-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Access and personal progress</h2></div><Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button></div>
       {program ? <dl className="mt-3 grid grid-cols-2 border border-[var(--cf-border)] sm:grid-cols-4">
-        <CompactStat label="Submitted this month" value={program.developerStats.submitted} />
-        <CompactStat label="Published this month" value={program.developerStats.published} />
+        <CompactStat label="Submitted this month" value={program.contributionStats.submitted} />
+        <CompactStat label="Published this month" value={program.contributionStats.published} />
         <CompactStat label="Monthly target" value={program.effectiveMonthlyPublishedRequirement} />
         <CompactStat label="Submissions left" value={program.remainingSubmissions} />
       </dl> : null}
-      <div className="mt-3 divide-y divide-[var(--cf-border-subtle)] border-y border-[var(--cf-border-subtle)]">{access.scopes.map((scope) => <div key={scope} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm"><span className="text-[var(--cf-text-muted)]">{DEVELOPER_CONTRIBUTION_SCOPE_LABELS[scope]}</span><span className="text-xs text-[var(--cf-success)]">Granted</span></div>)}</div>
+      <details className="group mt-3 border-y border-[var(--cf-border-subtle)]">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm text-[var(--cf-text-muted)]">
+          <span><strong className="font-medium text-[var(--cf-text-strong)]">{access.scopes.length} permissions granted</strong> · Pipeline and contribution tools are account-scoped</span>
+          <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid border-t border-[var(--cf-border-subtle)] sm:grid-cols-2">{access.scopes.map((scope) => <div key={scope} className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--cf-border-subtle)] py-2 text-sm sm:odd:border-r"><span className="text-[var(--cf-text-muted)]">{CONTRIBUTOR_SCOPE_LABELS[scope]}</span><span className="pr-2 text-xs text-[var(--cf-success)]">Granted</span></div>)}</div>
+      </details>
       <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=pipeline')}>Open Pipeline <ExternalLink className="ml-2 h-3.5 w-3.5" /></Button><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=published')}>Your published work</Button>{hasContributionScope(access.scopes, 'campaigns.draft') ? <Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=campaigns')}>Campaigns</Button> : null}</div>
     </section>
-    {canProposeSite && site ? <section aria-labelledby="profile-site-proposals-heading"><div className="border-b border-[var(--cf-border)] pb-3"><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Granted contribution lane</p><h2 id="profile-site-proposals-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Site proposals</h2><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Your drafts and review status follow your contributor identity. Final publication remains owner-controlled.</p></div><div className="mt-3"><DeveloperSiteProposalPanel cockpit={site} onChange={setSite} /></div></section> : null}
+    {canProposeSite && site ? <section aria-labelledby="profile-site-proposals-heading"><div className="border-b border-[var(--cf-border)] pb-3"><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Granted contribution lane</p><h2 id="profile-site-proposals-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Site proposals</h2><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Your drafts and review status follow your contributor identity. Final publication remains owner-controlled.</p></div><div className="mt-3"><SiteProposalPanel workspace={site} onChange={setSite} /></div></section> : null}
   </div>;
 }
 

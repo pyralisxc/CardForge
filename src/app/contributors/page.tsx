@@ -1,0 +1,32 @@
+import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import { ContributorProgramPage } from '@/features/contributor-program/client';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { createPageMetadata } from '@/shared/siteMetadata';
+import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
+
+export async function generateMetadata() {
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('developer'));
+  return createPageMetadata({
+    title: content['developer.meta.title'],
+    description: content['developer.meta.description'],
+    path: '/contributors',
+  });
+}
+
+export default async function ContributorsPage() {
+  const authConfigured = isClerkServerConfigPresent();
+  const businessIdentity = await getCachedBusinessIdentity();
+  return (
+    <CardForgeAppProviders>
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/contributors">
+        <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
+          { name: 'Home', path: '/' },
+          { name: 'Contributors', path: '/contributors' },
+        ])} />
+        <ContributorProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
+      </ConfiguredPublicSiteShell>
+    </CardForgeAppProviders>
+  );
+}

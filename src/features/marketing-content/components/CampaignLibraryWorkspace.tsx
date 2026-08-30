@@ -12,7 +12,7 @@ import type {
   CampaignDeskProjection,
   MarketingContentWorkspaceView,
 } from '@/features/marketing-content/model';
-import { DeveloperCampaignPanel } from './DeveloperCampaignPanel';
+import { CampaignWorkspace } from './CampaignWorkspace';
 
 export function CampaignLibraryWorkspace({ initialCampaignId = null }: { initialCampaignId?: string | null }) {
   const [workspace, setWorkspace] = useState<MarketingContentWorkspaceView | null>(null);
@@ -47,7 +47,7 @@ export function CampaignLibraryWorkspace({ initialCampaignId = null }: { initial
       <Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
     </div>
     {selectedCampaign ? <p role="status" className="border border-[var(--cf-accent)] bg-[var(--cf-surface-inset)] px-3 py-2 text-sm text-[var(--cf-accent-text)]">Opened from Desk: {selectedCampaign.title}</p> : null}
-    <DeveloperCampaignPanel cockpit={workspace} initialCampaignId={initialCampaignId} onRefresh={load} />
+    <CampaignWorkspace workspace={workspace} initialCampaignId={initialCampaignId} onRefresh={load} />
   </div>;
 }
 

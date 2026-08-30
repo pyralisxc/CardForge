@@ -1,5 +1,5 @@
 import { getCurrentCardforgeEntitlement } from '@/features/account/server';
-import { getCachedCardForgeStudioBootstrap } from '@/features/developer-assets/server/catalogCache';
+import { getCachedCardForgeStudioBootstrap } from '@/features/pipeline/server/catalogCache';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CARD_FONT_OPTIONS,
   cardFontOptionsToSelectOptions,
-  createDeveloperFontFaceCss,
+  createPipelineFontFaceCss,
   mergeCardFontOptions,
   type CardFontOption,
 } from '@/domain/rendering';
@@ -13,7 +13,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { reconstructMinimalTemplate } from '@/domain/templates';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
-import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client/catalog';
 import {
   mapProjectFontsToCardFontOptions,
   PROJECT_FONT_LIBRARY_CHANGE_EVENT,
@@ -104,7 +104,7 @@ export function useTemplateEditorSession({
     availableFonts: cardFontOptionsToSelectOptions(fontOptions),
     beginDraft,
     controller,
-    developerFontFaceCss: createDeveloperFontFaceCss(fontOptions),
+    developerFontFaceCss: createPipelineFontFaceCss(fontOptions),
     isDirty: savedTemplateJson !== null && savedTemplateJson !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
     isHydrated: true,
   };

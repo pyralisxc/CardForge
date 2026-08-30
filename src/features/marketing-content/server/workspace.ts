@@ -1,4 +1,4 @@
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
+import type { ContributorAccess } from '@/features/contributor-access/server';
 import type {
   CampaignDeskProjection,
   MarketingContentPackage,
@@ -14,7 +14,7 @@ import {
 import { listSocialCampaigns } from '@/features/marketing-content/server/campaignStore';
 
 const fetchCampaigns = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ): Promise<MarketingContentPackage[]> => (
   await listSocialCampaigns({
     access,
@@ -24,11 +24,11 @@ const fetchCampaigns = async (
 ).campaigns;
 
 export const getCampaignDeskProjection = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ): Promise<CampaignDeskProjection> => ({ campaigns: await fetchCampaigns(access) });
 
 export const getMarketingContentWorkspace = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   marketing: Pick<MarketingContentWorkspaceView, 'marketingStrategy' | 'marketingCampaigns'>,
 ): Promise<MarketingContentWorkspaceView> => {
   const [campaigns, campaignMediaPage, campaignMediaSummary] = await Promise.all([

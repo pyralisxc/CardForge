@@ -52,7 +52,7 @@ describe('consolidated public routes and account navigation', () => {
     expect(owner).toContain("from '@/features/public-site/client/shell'");
     expect(owner).toContain('getCachedBusinessIdentity');
     expect(owner).toContain('<PublicSiteHeader');
-    expect(owner).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
+    expect(owner).toContain('accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined}');
     expect(owner).toContain('className="cardforge-public-tokens"');
     expect(owner).not.toContain('className="cardforge-public"');
 
@@ -69,30 +69,31 @@ describe('consolidated public routes and account navigation', () => {
     for (const path of ['src/app/page.tsx', 'src/app/about/page.tsx', 'src/app/cameron/page.tsx']) {
       const source = readSource(path);
       expect(source).toContain('<CardForgeAppProviders>');
-      expect(source).toContain('<DeveloperPublicAuthSlot />');
+      expect(source).toContain('<ContributorPublicAuthSlot />');
       expect(source).toContain('isClerkServerConfigPresent');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
+      expect(source).toContain('accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined}');
     }
   });
 
-  it('keeps public account controls lightweight and lets developer access stay optional to Studio', () => {
-    const slot = readSource('src/features/developer-access/server/DeveloperPublicAuthSlot.tsx');
-    const controls = readSource('src/features/developer-access/components/DeveloperPublicAuthControls.tsx');
+  it('keeps public account controls lightweight and lets contributor access stay optional to Studio', () => {
+    const slot = readSource('src/features/contributor-access/server/ContributorPublicAuthSlot.tsx');
+    const controls = readSource('src/features/contributor-access/components/ContributorPublicAuthControls.tsx');
     const studioPage = readSource('src/app/studio/page.tsx');
 
-    expect(slot).toContain('<DeveloperPublicAuthControls />');
-    expect(slot).not.toContain('getCurrentDeveloperAccessSessionState');
+    expect(slot).toContain('<ContributorPublicAuthControls />');
+    expect(slot).not.toContain('getCurrentContributorAccessSessionState');
     expect(controls).toContain('<PublicAuthControls />');
     expect(controls).not.toContain('useAccountEntitlement');
     expect(controls).not.toContain('accountSessionConfirmed');
     expect(controls).not.toContain('setTimeout');
-    const developerAccess = readSource('src/features/developer-access/server/access.ts');
-    expect(developerAccess).toContain('ownerAccess,');
-    expect(developerAccess).not.toContain('resolveOwnerAccessForServerUser');
-    expect(developerAccess).not.toContain('session_profile');
-    expect(studioPage).toContain('getCurrentDeveloperAccessSessionState().catch');
-    expect(studioPage).toContain('EMPTY_DEVELOPER_ACCESS_SESSION_STATE');
-    expect(studioPage).toContain('initialDeveloperAccess={initialDeveloperAccess}');
+    const contributorAccess = readSource('src/features/contributor-access/server/access.ts');
+    expect(contributorAccess).toContain('account.isOwner');
+    expect(contributorAccess).toContain('getContributorCapabilities(account)');
+    expect(contributorAccess).not.toContain('resolveOwnerAccessForServerUser');
+    expect(contributorAccess).not.toContain('session_profile');
+    expect(studioPage).toContain('getCurrentContributorAccessSessionState().catch');
+    expect(studioPage).toContain('EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE');
+    expect(studioPage).toContain('initialContributorAccess={initialContributorAccess}');
   });
 
   it('keeps Clerk controls out of the mobile modal and names identity management separately', () => {

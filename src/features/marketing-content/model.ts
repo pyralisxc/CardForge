@@ -10,7 +10,7 @@ import {
   MarketingFunnelStage,
   MarketingStrategy,
 } from '@/domain/marketing';
-import type { DeveloperContributionScope } from '@/features/developer-access/client';
+import type { ContributorScope } from '@/features/contributor-access/client';
 
 export {
   MARKETING_CHANNELS,
@@ -152,7 +152,7 @@ export interface CampaignMediaPageSummary {
 export interface MarketingContentWorkspaceView {
   currentUserId: string;
   isOwner: boolean;
-  scopes: DeveloperContributionScope[];
+  scopes: ContributorScope[];
   campaigns: MarketingContentPackage[];
   campaignMedia: CampaignMedia[];
   campaignMediaSummary: CampaignMediaLibrarySummary;

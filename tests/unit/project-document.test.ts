@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { PaperSize } from '@/domain/rendering';
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   createProjectDocumentFromState,

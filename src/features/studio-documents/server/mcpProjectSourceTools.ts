@@ -1,7 +1,7 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { createMcpHandler } from 'mcp-handler';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
   GOOGLE_DRIVE_PROJECT_PROVIDER,
@@ -189,7 +189,7 @@ export const registerProjectSourceTools = ({
 }: {
   server: McpRegistrationServer;
   publicOrigin: string;
-  getAccess: () => Promise<DeveloperCockpitAccess>;
+  getAccess: () => Promise<StudioAgentAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
   const projectError = (error: unknown): ToolErrorResult => {
@@ -205,7 +205,7 @@ export const registerProjectSourceTools = ({
   }: {
     toolName: string;
     input: unknown;
-    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+    execute: (access: StudioAgentAccess) => Promise<Result>;
   }): Promise<Result | ToolErrorResult> => {
     try {
       const access = await getAccess();

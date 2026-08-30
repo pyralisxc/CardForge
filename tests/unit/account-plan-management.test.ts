@@ -13,7 +13,7 @@ const readyFreeInput = {
   canExportClean: false,
   entitlementState: 'ready' as const,
   hasStripeCustomer: false,
-  isDeveloper: false,
+  isContributor: false,
   isOwner: false,
   isSignedIn: true,
   paidPlan: null,

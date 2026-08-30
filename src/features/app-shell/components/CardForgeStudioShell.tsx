@@ -8,7 +8,7 @@ import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app
 import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
-import { hasContributionScope, useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
+import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
 import { CardTemplateMaker, EditCardDialog, GenerationWorkspace, SetLibraryWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
@@ -36,21 +36,21 @@ export type StudioBusinessIdentity = {
 
 export function CardForgeStudioShell({
   businessIdentity,
-  initialDeveloperAccess,
+  initialContributorAccess,
 }: {
   businessIdentity: StudioBusinessIdentity;
-  initialDeveloperAccess: DeveloperAccessSessionState;
+  initialContributorAccess: ContributorAccessSessionState;
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
-  const developerAccess = useDeveloperAccess({
+  const contributorAccess = useContributorAccess({
     eligible: accountEntitlement.accessMode === 'dev' || accountEntitlement.ownerAccess.isOwner,
-    initialState: initialDeveloperAccess,
+    initialState: initialContributorAccess,
     isOwner: accountEntitlement.ownerAccess.isOwner,
     sessionKey: accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
   });
-  const canSubmitTemplateRevisions = hasContributionScope(developerAccess.scopes, 'library.submit');
-  const canPublishSharedLibrary = hasContributionScope(developerAccess.scopes, 'library.publish');
+  const canSubmitTemplateRevisions = hasContributionScope(contributorAccess.scopes, 'library.submit');
+  const canPublishSharedLibrary = hasContributionScope(contributorAccess.scopes, 'library.publish');
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
@@ -370,7 +370,7 @@ export function CardForgeStudioShell({
         modeLabel={exportEntitlementLabel}
         saveStatus={workspaceSaveStatus}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
-        contributorLibraryHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}
+        contributorLibraryHref={contributorAccess.active ? '/account?section=library&scope=pipeline' : null}
       />
 
       {accountEntitlement.entitlementError ? (

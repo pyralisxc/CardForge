@@ -1,4 +1,4 @@
-export type AccountProfileUtilityTarget = 'clerk' | 'billing' | 'storage' | 'developer' | 'owner';
+export type AccountProfileUtilityTarget = 'clerk' | 'billing' | 'storage' | 'contributor' | 'owner';
 export type AccountProfileUtilityTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 export interface AccountProfileUtility {
@@ -25,7 +25,7 @@ interface BuildAccountProfileUtilitiesInput {
   authConfigured: boolean;
   entitlementLoading: boolean;
   entitlementUnavailable: boolean;
-  isDeveloper: boolean;
+  isContributor: boolean;
   isOwner: boolean;
   isSignedIn: boolean;
   planLabel: string;
@@ -36,7 +36,7 @@ export function buildAccountProfileUtilityGroups({
   authConfigured,
   entitlementLoading,
   entitlementUnavailable,
-  isDeveloper,
+  isContributor,
   isOwner,
   isSignedIn,
   planLabel,
@@ -165,17 +165,17 @@ export function buildAccountProfileUtilityGroups({
   }];
 
   const protectedItems: AccountProfileUtility[] = [];
-  if (isDeveloper || isOwner) {
+  if (isContributor || isOwner) {
     protectedItems.push({
-      id: 'profile-developer-access',
-      kind: 'profile-developer-access',
+      id: 'profile-contributor-access',
+      kind: 'profile-contributor-access',
       eyebrow: 'Contributor access',
       title: 'Contributor profile',
       summary: 'Granted scopes, personal progress, and site proposals',
       value: isOwner ? 'Owner-grade access' : 'Contributor access',
       status: 'Access granted',
       tone: 'success',
-      target: 'developer',
+      target: 'contributor',
       meta: [
         ['Authority', isOwner ? 'Owner and contributor' : 'Contributor'],
         ['Shared work', 'Desk and Library'],

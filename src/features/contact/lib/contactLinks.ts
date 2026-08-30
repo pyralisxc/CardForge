@@ -16,7 +16,7 @@ export const createSupportMailto = ({
   return `mailto:${normalizeRecipient(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };
 
-export const createDeveloperRequestMailto = ({
+export const createContributorRequestMailto = ({
   accountEmail,
   supportEmail,
 }: {
@@ -24,9 +24,9 @@ export const createDeveloperRequestMailto = ({
   supportEmail?: string | null;
 }) => createSupportMailto({
   recipient: supportEmail,
-  subject: 'CardForge developer program request',
+  subject: 'CardForge Contributor program request',
   lines: [
-    'CardForge developer program request',
+    'CardForge Contributor program request',
     '',
     `Account email: ${accountEmail ?? ''}`,
     'Portfolio or asset examples:',

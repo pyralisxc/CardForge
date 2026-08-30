@@ -2,14 +2,14 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createNewSharedTemplateId,
   createTemplatePipelineDraft,
-  DeveloperAssetRegistryCommandError,
+  PipelineRegistryCommandError,
   isRepositoryTemplate,
-} from '@/features/developer-assets/server';
+} from '@/features/pipeline/server';
 import {
-  DeveloperCockpitAccessError,
-  getCurrentDeveloperCockpitAccess,
+  ContributorAccessError,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-access/server';
+} from '@/features/contributor-access/server';
 import {
   formatZodIssues,
   parseJsonBodyWithLimit,
@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'library.submit');
 
     const rateLimit = await consumeRateLimit({
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     }
 
     const sharedTemplateId = createNewSharedTemplateId({
-      developerId: access.user.id,
+      contributorId: access.user.id,
       localTemplateId: localTemplate.id!,
       name: localTemplate.name,
     });
@@ -88,8 +88,8 @@ export async function POST(request: Request) {
         templateRevision: 0,
         templateRevisionId: undefined,
       },
-      developerId: access.user.id,
-      developerEmail: access.email,
+      contributorId: access.user.id,
+      contributorEmail: access.email,
       submissionKey,
     });
 
@@ -99,20 +99,20 @@ export async function POST(request: Request) {
       openInPipelineUrl: `/account?section=library&scope=pipeline&tool=contribute&submission=${encodeURIComponent(draft.id)}`,
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof ContributorAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'contributor_access_required',
         error.message,
       );
     }
     if (error instanceof RateLimitUnavailableError) {
-      return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
+      return createApiErrorResponse(503, 'pipeline_unavailable', error.message);
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
-      return createApiErrorResponse(error.status, 'developer_asset_unavailable', error.message);
+    if (error instanceof PipelineRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
     }
     console.error('Failed to create a Template Pipeline draft:', error);
-    return createApiErrorResponse(500, 'developer_asset_unavailable', 'Unable to continue this Template in the Pipeline.');
+    return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to continue this Template in the Pipeline.');
   }
 }

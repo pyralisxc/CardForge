@@ -5,7 +5,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'rea
 
 import { useToast } from '@/components/ui/use-toast';
 import type { CardAssetOption } from '@/domain/templates';
-import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client';
+import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import {
   createCardSetTransfer,
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,

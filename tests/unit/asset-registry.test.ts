@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getAssetRegistryPayload, mapAssetRegistryRowsToPayload } from '@/features/developer-assets/lib/assetRegistry';
-import { getVisibleRegistryAccessTiers } from '@/features/developer-assets/lib/registryContentAssets';
+import { getAssetRegistryPayload, mapAssetRegistryRowsToPayload } from '@/features/pipeline/lib/assetRegistry';
+import { getVisibleRegistryAccessTiers } from '@/features/pipeline/lib/registryContentAssets';
 
 describe('asset registry', () => {
   const originalSupabaseUrl = process.env.SUPABASE_URL;
@@ -52,7 +52,7 @@ describe('asset registry', () => {
         library_source: 'developer',
         file_size_bytes: 2048,
         metadata: {
-          developerId: 'dev-1',
+          contributorId: 'dev-1',
           sourceMimeType: 'image/svg+xml',
           tileMode: 'repeat',
           seamless: true,
@@ -71,7 +71,7 @@ describe('asset registry', () => {
         access_tier: 'paid',
         library_source: 'developer',
         file_size_bytes: 4096,
-        metadata: { developerId: 'dev-1' },
+        metadata: { contributorId: 'dev-1' },
       },
       {
         asset_id: 'developer-dividers-1',
@@ -82,7 +82,7 @@ describe('asset registry', () => {
         access_tier: 'free',
         library_source: 'developer',
         file_size_bytes: 1024,
-        metadata: { developerId: 'dev-1', tileMode: 'stretch', allowedTargets: ['divider'] },
+        metadata: { contributorId: 'dev-1', tileMode: 'stretch', allowedTargets: ['divider'] },
       },
       {
         asset_id: 'developer-icons-1',
@@ -93,7 +93,7 @@ describe('asset registry', () => {
         access_tier: 'free',
         library_source: 'developer',
         file_size_bytes: 1024,
-        metadata: { developerId: 'dev-1', defaultWidth: 64, defaultHeight: 64 },
+        metadata: { contributorId: 'dev-1', defaultWidth: 64, defaultHeight: 64 },
       },
       {
         asset_id: 'developer-images-1',
@@ -105,7 +105,7 @@ describe('asset registry', () => {
         access_tier: 'paid',
         library_source: 'developer',
         file_size_bytes: 8192,
-        metadata: { developerId: 'dev-1', defaultWidth: 300, defaultHeight: 180 },
+        metadata: { contributorId: 'dev-1', defaultWidth: 300, defaultHeight: 180 },
       },
       {
         asset_id: 'developer-elementPresets-1',
@@ -116,7 +116,7 @@ describe('asset registry', () => {
         access_tier: 'free',
         library_source: 'developer',
         file_size_bytes: 1024,
-        metadata: { developerId: 'dev-1' },
+        metadata: { contributorId: 'dev-1' },
       },
     ]);
 

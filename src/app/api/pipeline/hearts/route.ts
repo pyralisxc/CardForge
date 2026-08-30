@@ -1,6 +1,6 @@
 import { getCurrentCardforgeUserAccess, resolveAccountEntitlement } from '@/features/account/server';
-import { getDeveloperProfileCapabilities } from '@/features/developer-access/server';
-import { getPipelineHeartMetrics, getViewerVisiblePipelineLineageIds, isPipelineLineageId, parsePipelineLineageIds, PipelineHeartMutationError, setPipelineHeart } from '@/features/developer-assets/server';
+import { getContributorProfileCapabilities } from '@/features/contributor-access/server';
+import { getPipelineHeartMetrics, getViewerVisiblePipelineLineageIds, isPipelineLineageId, parsePipelineLineageIds, PipelineHeartMutationError, setPipelineHeart } from '@/features/pipeline/server';
 import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
@@ -16,7 +16,7 @@ const getViewer = async () => {
     ownerAccess: access.ownerAccess,
   });
   const contributor = access.ownerAccess.isOwner || (access.user && entitlement.accessMode === 'dev'
-    ? (await getDeveloperProfileCapabilities(access.user.id)).status === 'active'
+    ? (await getContributorProfileCapabilities(access.user.id)).status === 'active'
     : false);
   return { access, entitlement, contributor, owner: access.ownerAccess.isOwner };
 };

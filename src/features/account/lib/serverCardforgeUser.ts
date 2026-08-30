@@ -95,7 +95,7 @@ const createCardforgeUserAccess = (
   ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
 });
 
-const resolveCurrentEntitlementForAccess = async (
+export const resolveCardforgeEntitlementForAccess = async (
   access: CardforgeServerUserAccess,
 ): Promise<AccountEntitlement> => {
   const experienceSettings = await getCachedExperienceSettings();
@@ -139,7 +139,7 @@ export const getCardforgeUserAccessForUserId = async (
 export const getCardforgeEntitlementForUserId = async (
   userId: string,
 ): Promise<AccountEntitlement> => (
-  resolveCurrentEntitlementForAccess(await getCardforgeUserAccessForUserId(userId))
+  resolveCardforgeEntitlementForAccess(await getCardforgeUserAccessForUserId(userId))
 );
 
 export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUserAccess> => {
@@ -164,5 +164,5 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
 };
 
 export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => (
-  resolveCurrentEntitlementForAccess(await getCurrentCardforgeUserAccess())
+  resolveCardforgeEntitlementForAccess(await getCurrentCardforgeUserAccess())
 );

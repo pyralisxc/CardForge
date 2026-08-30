@@ -55,7 +55,7 @@ const buildConnectedServices = ({
       statusLabel: authConfigured ? 'Authentication ready' : 'Needs configuration',
       purpose: 'Owns user identity, sessions, linked Google accounts, and trusted private access metadata.',
       ownership: 'Clerk owns identity records; CardForge interprets private role and entitlement metadata.',
-      removalImpact: 'Sign-in and protected account, developer, and owner access stop working.',
+      removalImpact: 'Sign-in and protected account, contributor, and owner access stop working.',
       dashboardUrl: 'https://dashboard.clerk.com/apps/app_3E5x4ZR97Ova0xeYdbEuAwZN3NN/instances/ins_3GVR7AEctqBma6sg1j5K05r66lN',
     },
     {

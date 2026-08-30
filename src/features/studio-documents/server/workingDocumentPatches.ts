@@ -8,7 +8,7 @@ import {
   type TCGCardTemplate,
   type TemplateFieldContract,
 } from '@/domain/templates';
-import { requireContributionScope, type DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { requireAccountToolCapability, type AccountToolAccess } from '@/features/account/server';
 import type { ProjectDocumentV1 } from '@/features/project/server';
 
 import { bindEmbeddedTemplateAsset } from './embeddedTemplateAssets';
@@ -408,10 +408,10 @@ export const patchWorkingDocument = async ({
   access,
   input,
 }: {
-  access: DeveloperCockpitAccess;
+  access: AccountToolAccess;
   input: PatchWorkingDocumentInput;
 }): Promise<WorkingDocumentPatchResult> => {
-  requireContributionScope(access, 'studio.ai.create');
+  requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, input.documentId, retentionHours);
   const currentDocument = current.document as ProjectDocumentWithReceipts;
@@ -541,11 +541,11 @@ export const getWorkingDocumentOperationStatus = async ({
   documentId,
   operationId,
 }: {
-  access: DeveloperCockpitAccess;
+  access: AccountToolAccess;
   documentId: string;
   operationId: string;
 }) => {
-  requireContributionScope(access, 'studio.ai.create');
+  requireAccountToolCapability(access, 'studio.ai.create');
   const current = await getStudioDocument(
     access.user.id,
     documentId,

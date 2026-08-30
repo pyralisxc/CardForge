@@ -4,8 +4,8 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import {
   externalizePipelineTemplateAssets,
   hydratePipelineTemplateAssetReferences,
-} from '@/features/developer-assets/lib/pipelineTemplateAssets';
-import { mapRegistryRowsToTemplateLibrary } from '@/features/developer-assets/lib/repositoryCatalog';
+} from '@/features/pipeline/lib/pipelineTemplateAssets';
+import { mapRegistryRowsToTemplateLibrary } from '@/features/pipeline/lib/repositoryCatalog';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerClient: vi.fn(),

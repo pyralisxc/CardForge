@@ -1,9 +1,8 @@
 import {
-  createDeveloperCockpitErrorResponse,
-  getCurrentDeveloperCockpitAccess,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-cockpit/server';
-import { updateCampaignAssociations } from '@/features/marketing-content/server';
+} from '@/features/contributor-access/server';
+import { createMarketingContentErrorResponse, updateCampaignAssociations } from '@/features/marketing-content/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +12,7 @@ export async function PATCH(
   { params }: { params: Promise<{ campaignId: string }> },
 ) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     const body = await request.json() as {
       expectedVersion?: unknown;
@@ -26,7 +25,7 @@ export async function PATCH(
       associations: body.associations,
     }));
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to update campaign associations.',
     );

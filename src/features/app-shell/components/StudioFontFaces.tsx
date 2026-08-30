@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { createDeveloperFontFaceCss, mergeCardFontOptions } from '@/domain/rendering';
-import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import { createPipelineFontFaceCss, mergeCardFontOptions } from '@/domain/rendering';
+import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client/catalog';
 import {
   mapProjectFontsToCardFontOptions,
   PROJECT_FONT_LIBRARY_CHANGE_EVENT,
@@ -25,7 +25,7 @@ export function StudioFontFaces() {
         bootstrap?.fonts.fonts ?? [],
         mapProjectFontsToCardFontOptions(personalFonts),
       );
-      setCss(createDeveloperFontFaceCss(dynamicFonts));
+      setCss(createPipelineFontFaceCss(dynamicFonts));
     };
     void refresh();
     const onFontsChanged = () => { void refresh(); };

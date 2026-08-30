@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import type { TCGCardTemplate } from '@/domain/templates';
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeCatalog } from '@/features/pipeline/client/catalog';
 import { CARDFORGE_EXAMPLES } from '../model/examples';
 import { ExampleHeroProof } from './ExampleHeroProof';
 

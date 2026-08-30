@@ -17,17 +17,17 @@ import {
   observeMcpToolExecution,
 } from '@/features/mcp-usage/server';
 import {
-  continueDeveloperTemplateDraftInPipeline,
-  createDeveloperTemplateDraft,
+  submitTemplateWorkingDocumentToPipeline,
+  createTemplateWorkingDocument,
   editableTemplateSummaryForMcp,
-  getDeveloperTemplateDraft,
+  getTemplateWorkingDocument,
   gptTemplateDraftInputSchema,
-  listDeveloperTemplateDrafts,
+  listTemplateWorkingDocuments,
   omitEmbeddedMediaForMcp,
   registerCardForgePluginSkills,
   searchStudioCreationLibrary,
   StudioDocumentStoreError,
-  updateDeveloperTemplateDraft,
+  updateTemplateWorkingDocument,
 } from '@/features/studio-documents/server';
 import { registerAgentTemplateTools } from '@/features/studio-documents/server/mcpAgentTemplateTools';
 import {
@@ -260,7 +260,7 @@ const handler = createMcpHandler(
             { resource: 'studio_ai_drafts', maximum: 60, unit: 'attempts_per_hour' },
           );
           const validatedInput = validateDraftInput(input);
-          const document = await createDeveloperTemplateDraft(access, validatedInput);
+          const document = await createTemplateWorkingDocument(access, validatedInput);
           const assetSummary = summarizeProjectProductionAssets(validatedInput.productionPlan);
           return {
             content: [{
@@ -302,7 +302,7 @@ const handler = createMcpHandler(
             { resource: 'studio_ai_draft_revisions', maximum: 60, unit: 'attempts_per_hour' },
           );
           const validatedInput = validateDraftInput(draftInput);
-          const document = await updateDeveloperTemplateDraft({
+          const document = await updateTemplateWorkingDocument({
             access,
             documentId,
             expectedRevision,
@@ -332,7 +332,7 @@ const handler = createMcpHandler(
         toolName: 'list_editable_templates',
         input: {},
         execute: async (access) => {
-          const page = await listDeveloperTemplateDrafts(access);
+          const page = await listTemplateWorkingDocuments(access);
           return {
             content: [{
               type: 'text',
@@ -363,7 +363,7 @@ const handler = createMcpHandler(
         toolName: 'get_editable_template',
         input: { documentId },
         execute: async (access) => {
-          const document = await getDeveloperTemplateDraft(access, documentId);
+          const document = await getTemplateWorkingDocument(access, documentId);
           const productionPlan = document.document.productionPlan;
           const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
             ?.filter((field) => field.type === 'image')
@@ -387,7 +387,7 @@ const handler = createMcpHandler(
       'continue_template_in_pipeline',
       {
         title: 'Continue a Template in Forge Review',
-        description: 'Create a developer Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
+        description: 'Create a Contributor Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
         inputSchema: pipelineInputSchema,
         outputSchema: pipelineHandoffOutputSchema,
         annotations: {
@@ -412,7 +412,7 @@ const handler = createMcpHandler(
             rateLimit.retryAfterSeconds,
             { resource: 'template_pipeline_handoffs', maximum: 60, unit: 'attempts_per_hour' },
           );
-          const result = await continueDeveloperTemplateDraftInPipeline({ access, documentId, templateId });
+          const result = await submitTemplateWorkingDocumentToPipeline({ access, documentId, templateId });
           const structuredContent = {
             draftId: result.draft.id,
             openInPipelineUrl: absoluteUrl(result.openInPipelineUrl),

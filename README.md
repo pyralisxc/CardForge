@@ -71,7 +71,7 @@ npm run brand:export
 - `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, published-package installation, and provider/local-folder adapters.
 - `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location/default/transfer tools; it does not own those underlying stores.
 - `src/features/account/` and `src/features/billing/`: Clerk-backed account access and Stripe-backed product/support billing.
-- `src/features/developer-access/` and `src/features/developer-assets/`: developer identity, Forge Review, voting, publication, attribution, and shared library.
+- `src/features/contributor-access/` and `src/features/pipeline/`: Contributor identity/scopes plus Forge Review, voting, publication, attribution, and the shared Library.
 - `src/features/studio-documents/`: private account Studio documents and MCP authoring bridge.
 - `src/features/marketing/`, `marketing-content/`, `marketing-distribution/`, `social-publishing/`: strategy, content, distribution state, and stateless provider publishing.
 - `src/features/public-site/`, `business-identity/`, `legal/`, `contact/`, `roadmap/`, `analytics/`, `experience-settings/`: public/control-plane product owners.

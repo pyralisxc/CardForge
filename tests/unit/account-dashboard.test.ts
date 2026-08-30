@@ -132,7 +132,8 @@ describe('unified account environment', () => {
   it('routes protected account entries to their real zones', () => {
     expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=contributor')");
     expect(profileEnvironment).toContain("router.push('/owner')");
-    expect(accountPage).toContain("redirect('/account?section=library&scope=pipeline&tool=contribute')");
+    expect(accountPage).toContain('initialContributorAccess={contributorAccess}');
+    expect(accountPage).not.toContain("section === 'developer'");
   });
 
   it('uses native Next navigation when opening Library work', () => {

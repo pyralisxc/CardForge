@@ -1,7 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
-import { requireContributionScope } from '@/features/developer-access/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
+import { requireAccountToolCapability } from '@/features/account/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 
 import { getWorkingDocumentOperationStatusInputSchema } from './mcpOperationStatusSchema';
@@ -46,7 +46,7 @@ export const registerWorkingDocumentTools = ({
 }: {
   server: McpRegistrationServer;
   publicOrigin: string;
-  getAccess: () => Promise<DeveloperCockpitAccess>;
+  getAccess: () => Promise<StudioAgentAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
   const studioUrl = (documentId: string, revision: number) => (
@@ -60,7 +60,7 @@ export const registerWorkingDocumentTools = ({
   }: {
     toolName: string;
     input: unknown;
-    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+    execute: (access: StudioAgentAccess) => Promise<Result>;
   }): Promise<Result | ToolErrorResult> => {
     try {
       const access = await getAccess();
@@ -164,7 +164,7 @@ export const registerWorkingDocumentTools = ({
       toolName: 'validate_working_document',
       input: { documentId },
       execute: async (access) => {
-        requireContributionScope(access, 'studio.ai.create');
+        requireAccountToolCapability(access, 'studio.ai.create');
         const result = await getWorkingDocumentStructuralValidation({ access, documentId });
         return {
           content: [{
@@ -232,7 +232,7 @@ export const registerWorkingDocumentTools = ({
       toolName: 'preview_cards',
       input: { documentId, setId, cardIds },
       execute: async (access) => {
-        requireContributionScope(access, 'studio.ai.create');
+        requireAccountToolCapability(access, 'studio.ai.create');
         const document = await getStudioDocument(
           access.user.id,
           documentId,

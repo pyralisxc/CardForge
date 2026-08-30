@@ -3,7 +3,7 @@ import type {
   MarketingContentPackage as SocialCampaign,
   MarketingDelivery as SocialPublishJob,
 } from '@/features/marketing-content/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { ContributorAccess } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 import {
@@ -28,17 +28,17 @@ import {
 
 export * from './storeRows';
 
-export class DeveloperCockpitStoreError extends Error {
+export class MarketingContentStoreError extends Error {
   constructor(message: string, public readonly status = 500) {
     super(message);
   }
 }
 
-export const requireCockpitDatabase = () => {
+export const requireMarketingContentDatabase = () => {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    throw new DeveloperCockpitStoreError(
-      'The contribution cockpit database is not configured yet.',
+    throw new MarketingContentStoreError(
+      'The campaign workspace database is not configured yet.',
       503,
     );
   }
@@ -54,7 +54,7 @@ export const cleanReviewNote = (value: unknown): string => (
 export const normalizeExpectedVersion = (value: unknown): number => {
   const version = typeof value === 'number' ? value : Number(value);
   if (!Number.isInteger(version) || version < 1) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'A valid contribution version is required.',
       400,
     );
@@ -62,12 +62,12 @@ export const normalizeExpectedVersion = (value: unknown): number => {
   return version;
 };
 
-export const throwCockpitDatabaseError = (
+export const throwMarketingContentDatabaseError = (
   message: string,
   error: unknown,
 ): never => {
   console.error(message, error);
-  throw new DeveloperCockpitStoreError(message);
+  throw new MarketingContentStoreError(message);
 };
 
 export const getCampaignMediaRows = async (
@@ -78,7 +78,7 @@ export const getCampaignMediaRows = async (
   derivatives: DerivativeRow[];
 }> => {
   if (!mediaIds.length) return { media: [], rows: [], derivatives: [] };
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const [mediaResult, derivativeResult] = await Promise.all([
     supabase.from('cardforge_campaign_media').select(MEDIA_COLUMNS).in('id', mediaIds),
     supabase
@@ -87,7 +87,7 @@ export const getCampaignMediaRows = async (
       .in('parent_media_id', mediaIds),
   ]);
   if (mediaResult.error || derivativeResult.error) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to load campaign media.',
       mediaResult.error ?? derivativeResult.error,
     );
@@ -108,17 +108,17 @@ export const getCampaignMediaRows = async (
 export const getVisibleCampaignDerivatives = (
   media: CampaignMediaRow,
   derivatives: DerivativeRow[],
-  access?: DeveloperCockpitAccess,
+  access?: ContributorAccess,
 ) => !access || access.isOwner || media.ingesting_contributor_id === access.user.id
   ? derivatives
   : derivatives.filter((derivative) => derivative.exposure === 'public');
 
 export const hydrateCampaignRows = async (
   campaignRows: CampaignRow[],
-  access?: DeveloperCockpitAccess,
+  access?: ContributorAccess,
 ): Promise<SocialCampaign[]> => {
   if (!campaignRows.length) return [];
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const campaignIds = campaignRows.map((campaign) => campaign.id);
   const [attachmentResult, associationResult] = await Promise.all([
     supabase
@@ -131,7 +131,7 @@ export const hydrateCampaignRows = async (
       .in('campaign_id', campaignIds),
   ]);
   if (attachmentResult.error || associationResult.error) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to load campaign relationships.',
       attachmentResult.error ?? associationResult.error,
     );
@@ -161,17 +161,17 @@ export const hydrateCampaignRows = async (
 
 export const getCampaignRecord = async (
   campaignId: string,
-  access?: DeveloperCockpitAccess,
+  access?: ContributorAccess,
 ): Promise<SocialCampaign> => {
-  const { data, error } = await requireCockpitDatabase()
+  const { data, error } = await requireMarketingContentDatabase()
     .from('cardforge_social_campaigns')
     .select(CAMPAIGN_COLUMNS)
     .eq('id', campaignId)
     .limit(1);
-  if (error) throwCockpitDatabaseError('Unable to load the campaign package.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to load the campaign package.', error);
   const row = readFirstDatabaseRow<CampaignRow>(data);
   if (!row) {
-    throw new DeveloperCockpitStoreError('Campaign package not found.', 404);
+    throw new MarketingContentStoreError('Campaign package not found.', 404);
   }
   return (await hydrateCampaignRows([row], access))[0]!;
 };

@@ -53,13 +53,13 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 - `src/features/card-generator`: single/bulk card creation, generated output gallery, Studio Set Library composition, image controls, portable Set transfer, and exports.
 - `src/features/card-rendering`: shared preview/rendering, rich text, vector shapes, thumbnails, appearance, and watermarks.
 - `src/features/project`: browser workspace/persistence/recovery/assets, portable project/Set files, local-folder persistence, and connected-project adapters.
-- `src/features/account`: current Clerk-backed user projection, entitlement surfaces, profile, and account administration.
+- `src/features/account`: current Clerk-backed user projection, entitlement surfaces, ordinary signed-in account-tool capabilities, profile, and account administration.
 - `src/features/billing`: Stripe checkout/portal/webhooks, product/support classification, durable billing event/subscription records, and reconciliation.
-- `src/features/developer-access`: developer identity/profile status/contribution-scope owner and the only runtime access owner for developer profiles.
-- `src/features/developer-assets`: Forge Review submissions, voting, revisions, publication, attribution, Studio routing, archive/recovery, and registry operations.
+- `src/features/contributor-access`: Contributor identity/profile status/contribution-scope owner and the only runtime access owner for Contributor profiles. It does not gate ordinary signed-in Studio/agent work.
+- `src/features/pipeline`: Forge Review submissions, voting, revisions, publication, attribution, Studio routing, archive/recovery, and registry operations.
 - `src/features/studio-documents`: private account Studio documents and agent authoring tools.
-- `src/features/developer-program`: public contributor recruitment/explanation.
-- `src/features/developer-cockpit`: protected contributor composition and site-copy proposal workflow; it does not absorb the features it composes.
+- `src/features/contributor-program`: public contributor recruitment/explanation.
+- `src/features/site-proposals`: site-copy proposal drafts, review, and owner publication; it does not own Contributor identity or campaign state.
 - `src/features/marketing`: strategy, audiences, campaign containers, offer/claim policy.
 - `src/features/marketing-content`: content packages, variants, canonical campaign media/derivatives/attachments, contributor workflow, review, and approval.
 - `src/features/marketing-distribution`: destinations, encrypted provider connections, schedules, jobs, retries, manual-publication records, and provider-post mappings.

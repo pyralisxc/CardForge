@@ -7,7 +7,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
@@ -47,7 +47,7 @@ export default async function AboutPage() {
 
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
+      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },
@@ -134,7 +134,7 @@ export default async function AboutPage() {
             </p>
           </div>
           <div className="grid gap-3 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
-            <Link href="/developer" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-bold text-[var(--public-brass)]">
+            <Link href="/contributors" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-bold text-[var(--public-brass)]">
               {siteContent['about.contributors.developer-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-semibold text-[var(--public-ivory)]">

@@ -10,9 +10,9 @@ import {
   type FreeformCardElement,
   type StudioAssetDestination,
 } from '@/domain/templates';
-import type { CardAssetOption } from '@/features/developer-assets/client/assets';
-import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
-import { loadCardForgeStudioAssets } from '@/features/developer-assets/client/catalog';
+import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/pipeline/client/assets';
+import { loadCardForgeStudioAssets } from '@/features/pipeline/client/catalog';
 import {
   importPersonalLibraryItemToLocalAsset,
   loadPersonalLibrary,

@@ -1,7 +1,7 @@
 import { summarizeProjectProductionAssets } from '@/features/project/server';
-import type { createDeveloperTemplateDraft } from './developerTemplateDrafts';
+import type { createTemplateWorkingDocument } from './templateWorkingDocuments';
 
-type DeveloperTemplateDraft = Awaited<ReturnType<typeof createDeveloperTemplateDraft>>;
+type TemplateWorkingDocument = Awaited<ReturnType<typeof createTemplateWorkingDocument>>;
 
 export const omitEmbeddedMediaForMcp = (value: unknown): unknown => {
   if (typeof value === 'string') {
@@ -29,7 +29,7 @@ export const omitEmbeddedMediaForMcp = (value: unknown): unknown => {
 };
 
 export const editableTemplateSummaryForMcp = (
-  document: DeveloperTemplateDraft,
+  document: TemplateWorkingDocument,
   openInStudioUrl: string,
 ) => {
   const productionPlan = document.document.productionPlan;

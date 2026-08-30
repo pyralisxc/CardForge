@@ -2,11 +2,11 @@ import { revalidatePath } from 'next/cache';
 
 import { isStudioAssetDestination } from '@/domain/templates';
 import {
-  DeveloperAssetRegistryCommandError,
+  PipelineRegistryCommandError,
   getOwnerStudioRoutingPage,
   revalidateCardForgeCatalog,
   updateOwnerStudioRouting,
-} from '@/features/developer-assets/server';
+} from '@/features/pipeline/server';
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
@@ -35,11 +35,11 @@ export async function GET(request: Request) {
     });
     return createNoStoreJsonResponse({ page });
   } catch (error) {
-    if (error instanceof DeveloperAssetRegistryCommandError) {
-      return createApiErrorResponse(error.status, 'developer_asset_unavailable', error.message);
+    if (error instanceof PipelineRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'pipeline_unavailable', error.message);
     }
     console.error('Unable to load owner Studio routing:', error);
-    return createApiErrorResponse(500, 'developer_asset_unavailable', 'Unable to load the Studio Map.');
+    return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to load the Studio Map.');
   }
 }
 
@@ -73,10 +73,10 @@ export async function PUT(request: Request) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
-      return createApiErrorResponse(error.status, error.status === 400 ? 'owner_request_invalid' : 'developer_asset_unavailable', error.message);
+    if (error instanceof PipelineRegistryCommandError) {
+      return createApiErrorResponse(error.status, error.status === 400 ? 'owner_request_invalid' : 'pipeline_unavailable', error.message);
     }
     console.error('Unable to update owner Studio routing:', error);
-    return createApiErrorResponse(500, 'developer_asset_unavailable', 'Unable to update the Studio Map.');
+    return createApiErrorResponse(500, 'pipeline_unavailable', 'Unable to update the Studio Map.');
   }
 }

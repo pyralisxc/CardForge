@@ -1,18 +1,18 @@
 import { revalidatePath } from 'next/cache';
 
 import {
-  getCurrentDeveloperCockpitAccess,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-access/server';
+} from '@/features/contributor-access/server';
 import {
-  createDeveloperCockpitErrorResponse,
+  createSiteProposalErrorResponse,
   createSiteContentProposal,
-  DeveloperCockpitStoreError,
-  getDeveloperSiteWorkspace,
+  SiteProposalStoreError,
+  getSiteProposalWorkspace,
   publishSiteContentProposal,
   saveSiteContentProposal,
   transitionSiteContentProposal,
-} from '@/features/developer-cockpit/server';
+} from '@/features/site-proposals/server';
 import { revalidateSiteContentCache } from '@/features/public-site/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitExceededError } from '@/infrastructure/security/abuseProtection';
@@ -26,30 +26,30 @@ const consumeMutationLimit = async (userId: string) => {
 
 export async function GET() {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     if (!access.isOwner) requireContributionScope(access, 'site.propose');
-    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) });
+    return createNoStoreJsonResponse({ site: await getSiteProposalWorkspace(access) });
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(error, 'Unable to load site proposals.');
+    return createSiteProposalErrorResponse(error, 'Unable to load site proposals.');
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'site.propose');
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as Parameters<typeof createSiteContentProposal>[1];
     await createSiteContentProposal(access, body);
-    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) }, { status: 201 });
+    return createNoStoreJsonResponse({ site: await getSiteProposalWorkspace(access) }, { status: 201 });
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(error, 'Unable to create the site-copy proposal.');
+    return createSiteProposalErrorResponse(error, 'Unable to create the site-copy proposal.');
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as { action?: unknown; proposalId?: unknown; expectedVersion?: unknown; proposal?: Parameters<typeof createSiteContentProposal>[1]; reviewNote?: unknown };
     const proposalId = typeof body.proposalId === 'string' ? body.proposalId : '';
@@ -69,10 +69,10 @@ export async function PATCH(request: Request) {
       revalidatePath('/');
       revalidatePath('/about');
     } else {
-      throw new DeveloperCockpitStoreError('Choose a supported site-proposal action.', 400);
+      throw new SiteProposalStoreError('Choose a supported site-proposal action.', 400);
     }
-    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) });
+    return createNoStoreJsonResponse({ site: await getSiteProposalWorkspace(access) });
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(error, 'Unable to update the site-copy proposal.');
+    return createSiteProposalErrorResponse(error, 'Unable to update the site-copy proposal.');
   }
 }

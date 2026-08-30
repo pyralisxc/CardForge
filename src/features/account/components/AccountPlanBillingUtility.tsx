@@ -34,7 +34,7 @@ export function AccountPlanBillingUtility({
   entitlement,
   entitlementState,
   initialPlanIntent = null,
-  isDeveloper,
+  isContributor,
   isOwner,
   onRetryEntitlement,
   planLabel,
@@ -45,7 +45,7 @@ export function AccountPlanBillingUtility({
   entitlement: BillingEntitlement;
   entitlementState: AccountEntitlementState;
   initialPlanIntent?: 'creator' | 'designer' | null;
-  isDeveloper: boolean;
+  isContributor: boolean;
   isOwner: boolean;
   onRetryEntitlement?: () => void;
   planLabel: string;
@@ -83,7 +83,7 @@ export function AccountPlanBillingUtility({
     canExportClean: entitlement.canExportClean,
     entitlementState,
     hasStripeCustomer: entitlement.hasStripeCustomer,
-    isDeveloper,
+    isContributor,
     isOwner,
     isSignedIn: signedIn,
     paidPlan: entitlement.paidPlan,

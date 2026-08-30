@@ -9,15 +9,15 @@ import {
 } from '@/features/project/client';
 import { CardForgeStudioShell, type StudioBusinessIdentity } from './CardForgeStudioShell';
 import { StudioFontFaces } from './StudioFontFaces';
-import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
+import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 
 export function ScopedCardForgeStudioShell({
   businessIdentity,
-  initialDeveloperAccess,
+  initialContributorAccess,
   persistenceScope,
 }: {
   businessIdentity: StudioBusinessIdentity;
-  initialDeveloperAccess: DeveloperAccessSessionState;
+  initialContributorAccess: ContributorAccessSessionState;
   persistenceScope: ProjectPersistenceScope;
 }) {
   const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
@@ -56,7 +56,7 @@ export function ScopedCardForgeStudioShell({
       <StudioFontFaces />
       <CardForgeStudioShell
         businessIdentity={businessIdentity}
-        initialDeveloperAccess={initialDeveloperAccess}
+        initialContributorAccess={initialContributorAccess}
       />
     </div>
   );

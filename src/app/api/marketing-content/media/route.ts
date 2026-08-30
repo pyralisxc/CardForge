@@ -1,9 +1,9 @@
 import {
-  createDeveloperCockpitErrorResponse,
-  getCurrentDeveloperCockpitAccess,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-cockpit/server';
+} from '@/features/contributor-access/server';
 import {
+  createMarketingContentErrorResponse,
   getAuthorizedCampaignMediaPage,
   ingestCampaignMedia,
   MarketingContentStoreError,
@@ -30,7 +30,7 @@ const parseFocalPoint = (value: FormDataEntryValue | null) => {
 
 export async function GET(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     const url = new URL(request.url);
     const page = await getAuthorizedCampaignMediaPage(access, {
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     });
     return createNoStoreJsonResponse({ media: page.items, page });
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to load campaign media.',
     );
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     const rateLimit = await consumeRateLimit({
       action: 'marketing-content-media',
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) {
       return createApiErrorResponse(
         400,
-        'developer_cockpit_request_invalid',
+        'marketing_content_invalid',
         'Choose a campaign image.',
       );
     }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       const oversized = file.size > MAX_SOCIAL_MEDIA_BYTES;
       return createApiErrorResponse(
         oversized ? 413 : 400,
-        oversized ? 'payload_too_large' : 'developer_cockpit_request_invalid',
+        oversized ? 'payload_too_large' : 'marketing_content_invalid',
         validation.message,
       );
     }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to ingest campaign media.',
     );

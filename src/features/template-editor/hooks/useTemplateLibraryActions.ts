@@ -217,7 +217,7 @@ export function useTemplateLibraryActions({
 
   const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') {
-      throw new Error('Only a developer or owner can continue a new personal Template in the Pipeline.');
+      throw new Error('Only a contributor or owner can continue a new personal Template in the Pipeline.');
     }
 
     const fingerprint = JSON.stringify(template);

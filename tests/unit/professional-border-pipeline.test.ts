@@ -9,8 +9,8 @@ import {
   normalizeContentTaxonomyTags,
   normalizeSpecialtyTags,
   normalizeUseCaseTags,
-} from '@/features/developer-assets/lib/contentTaxonomy';
-import { getDeveloperAssetStudioDestinationOptions } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+} from '@/features/pipeline/lib/contentTaxonomy';
+import { getPipelineStudioDestinationOptions } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -24,7 +24,7 @@ describe('professional border pipeline and canonical taxonomy', () => {
   });
 
   it('routes raster/vector border artwork through dedicated image destinations rather than structural styles', () => {
-    expect(getDeveloperAssetStudioDestinationOptions('imageAssets')).toEqual([
+    expect(getPipelineStudioDestinationOptions('imageAssets')).toEqual([
       'image.picture',
       'image.frame.front',
       'image.frame.back',
@@ -34,7 +34,7 @@ describe('professional border pipeline and canonical taxonomy', () => {
   });
 
   it('uses controlled selectors instead of comma-separated free-form taxonomy inputs', () => {
-    const rows = readSource('src/features/developer-assets/components/DeveloperAssetRows.tsx');
+    const rows = readSource('src/features/pipeline/components/PipelineSubmissionRows.tsx');
     expect(rows).toContain('ControlledTaxonomySelect');
     expect(rows).toContain('CARDFORGE_SPECIALTY_OPTIONS');
     expect(rows).toContain('CARDFORGE_USE_CASE_OPTIONS');

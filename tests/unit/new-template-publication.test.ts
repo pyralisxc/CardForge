@@ -3,23 +3,23 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createNewSharedTemplateId } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
-import { normalizeContentTaxonomyTags } from '@/features/developer-assets/lib/contentTaxonomy';
+import { createNewSharedTemplateId } from '@/features/pipeline/lib/pipelineRegistryCommands';
+import { normalizeContentTaxonomyTags } from '@/features/pipeline/lib/contentTaxonomy';
 
 describe('new Template publication', () => {
   it('creates a stable, developer-owned shared id without trusting a local id as the public id', () => {
     const first = createNewSharedTemplateId({
-      developerId: 'developer-1',
+      contributorId: 'developer-1',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
     const retry = createNewSharedTemplateId({
-      developerId: 'developer-1',
+      contributorId: 'developer-1',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
     const otherDeveloper = createNewSharedTemplateId({
-      developerId: 'developer-2',
+      contributorId: 'developer-2',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
@@ -39,7 +39,7 @@ describe('new Template publication', () => {
       'utf8',
     );
     const ownerReview = readFileSync(
-      resolve(process.cwd(), 'src/features/developer-assets/components/OwnerAssetLibraryPanel.tsx'),
+      resolve(process.cwd(), 'src/features/pipeline/components/OwnerAssetLibraryPanel.tsx'),
       'utf8',
     );
 

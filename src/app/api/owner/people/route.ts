@@ -7,13 +7,13 @@ import {
   normalizeOwnerAccountRoleInput,
 } from '@/features/account/server';
 import {
-  DEVELOPER_PROFILE_STATUSES,
-  DeveloperAccessStoreError,
-  fetchDeveloperProfileRows,
-  updateDeveloperProfileControl,
-  upsertDeveloperProfile,
-  type DeveloperProfileStatus,
-} from '@/features/developer-access/server';
+  CONTRIBUTOR_PROFILE_STATUSES,
+  ContributorAccessStoreError,
+  fetchContributorProfileRows,
+  updateContributorProfileControl,
+  upsertContributorProfile,
+  type ContributorProfileStatus,
+} from '@/features/contributor-access/server';
 import {
   getCurrentOwnerAccess,
   getOwnerPeople,
@@ -37,12 +37,12 @@ const readPage = (value: string | null, fallback: number): number => {
 const normalizeNullableOverride = (value: unknown, minimum: number, maximum: number): number | null => {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) throw new Error(`Developer override must be between ${minimum} and ${maximum}, or left blank.`);
+  if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) throw new Error(`Contributor override must be between ${minimum} and ${maximum}, or left blank.`);
   return Math.trunc(parsed);
 };
 
-const findProfile = async (developerId: string) => (
-  (await fetchDeveloperProfileRows()).find((profile) => profile.clerk_user_id === developerId) ?? null
+const findProfile = async (contributorId: string) => (
+  (await fetchContributorProfileRows()).find((profile) => profile.clerk_user_id === contributorId) ?? null
 );
 
 export async function GET(request: Request) {
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const requestedFilter = url.searchParams.get('filter');
-    const filter = requestedFilter === 'developers' || requestedFilter === 'active' || requestedFilter === 'needs_attention'
+    const filter = requestedFilter === 'contributors' || requestedFilter === 'active' || requestedFilter === 'needs_attention'
       ? requestedFilter
       : 'all';
     const people = await getOwnerPeople({
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     return createNoStoreJsonResponse({ people });
   } catch (error) {
     console.error('Failed to load owner people directory:', error);
-    return createApiErrorResponse(500, 'owner_people_unavailable', 'Unable to load people and developer access.');
+    return createApiErrorResponse(500, 'owner_people_unavailable', 'Unable to load people and contributor access.');
   }
 }
 
@@ -75,7 +75,7 @@ export async function PATCH(request: Request) {
       action?: unknown;
       userId?: unknown;
       account?: Record<string, unknown>;
-      developer?: Record<string, unknown>;
+      contributor?: Record<string, unknown>;
     };
     const action = body.action === 'revoke' || body.action === 'deactivate_history' ? body.action : 'update';
     const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
@@ -89,9 +89,9 @@ export async function PATCH(request: Request) {
     let account = null;
 
     if (action === 'deactivate_history') {
-      if (!profile) return createApiErrorResponse(404, 'owner_person_unavailable', 'Retained developer profile not found.');
-      await updateDeveloperProfileControl({
-        developerId: userId,
+      if (!profile) return createApiErrorResponse(404, 'owner_person_unavailable', 'Retained contributor profile not found.');
+      await updateContributorProfileControl({
+        contributorId: userId,
         status: 'inactive',
         canDraftCampaigns: false,
         canProposeSiteContent: false,
@@ -122,31 +122,31 @@ export async function PATCH(request: Request) {
 
       if (profile || accountValue.access === 'dev' || accountValue.owner) {
         if (!profile) {
-          await upsertDeveloperProfile({
-            developerId: userId,
+          await upsertContributorProfile({
+            contributorId: userId,
             email: account.email,
             firstName: user.firstName,
             lastName: user.lastName,
           });
         }
-        const requestedStatus = body.developer?.status;
-        const status: DeveloperProfileStatus = action === 'revoke' || (accountValue.access !== 'dev' && !accountValue.owner)
+        const requestedStatus = body.contributor?.status;
+        const status: ContributorProfileStatus = action === 'revoke' || (accountValue.access !== 'dev' && !accountValue.owner)
           ? 'inactive'
-          : typeof requestedStatus === 'string' && DEVELOPER_PROFILE_STATUSES.includes(requestedStatus as DeveloperProfileStatus)
-            ? requestedStatus as DeveloperProfileStatus
+          : typeof requestedStatus === 'string' && CONTRIBUTOR_PROFILE_STATUSES.includes(requestedStatus as ContributorProfileStatus)
+            ? requestedStatus as ContributorProfileStatus
             : profile?.status ?? 'active';
         try {
-          await updateDeveloperProfileControl({
-            developerId: userId,
+          await updateContributorProfileControl({
+            contributorId: userId,
             status,
-            canDraftCampaigns: action !== 'revoke' && body.developer?.canDraftCampaigns === true,
-            canProposeSiteContent: action !== 'revoke' && body.developer?.canProposeSiteContent === true,
-            monthlySubmissionLimitOverride: normalizeNullableOverride(body.developer?.monthlySubmissionLimitOverride ?? profile?.monthly_submission_limit_override, 1, 250),
-            monthlyPublishedRequirementOverride: normalizeNullableOverride(body.developer?.monthlyPublishedRequirementOverride ?? profile?.monthly_published_requirement_override, 0, 100),
-            ownerNote: typeof body.developer?.ownerNote === 'string' ? body.developer.ownerNote : profile?.owner_note ?? '',
+            canDraftCampaigns: action !== 'revoke' && body.contributor?.canDraftCampaigns === true,
+            canProposeSiteContent: action !== 'revoke' && body.contributor?.canProposeSiteContent === true,
+            monthlySubmissionLimitOverride: normalizeNullableOverride(body.contributor?.monthlySubmissionLimitOverride ?? profile?.monthly_submission_limit_override, 1, 250),
+            monthlyPublishedRequirementOverride: normalizeNullableOverride(body.contributor?.monthlyPublishedRequirementOverride ?? profile?.monthly_published_requirement_override, 0, 100),
+            ownerNote: typeof body.contributor?.ownerNote === 'string' ? body.contributor.ownerNote : profile?.owner_note ?? '',
           });
         } catch (error) {
-          warnings.push('Clerk access changed, but the retained developer profile did not update. Retry this action to reconcile it.');
+          warnings.push('Clerk access changed, but the retained contributor profile did not update. Retry this action to reconcile it.');
           console.error('Owner people update partially completed:', error);
         }
       }
@@ -159,10 +159,10 @@ export async function PATCH(request: Request) {
       targetType: 'person',
       targetId: userId,
       summary: action === 'revoke'
-        ? 'Revoked CardForge developer and owner authority while preserving contribution history.'
+        ? 'Revoked CardForge contributor and owner authority while preserving contribution history.'
         : action === 'deactivate_history'
-          ? 'Deactivated a developer profile whose Clerk account is no longer present.'
-          : 'Updated account entitlement and developer contribution controls.',
+          ? 'Deactivated a contributor profile whose Clerk account is no longer present.'
+          : 'Updated account entitlement and contributor controls.',
       outcome: warnings.length ? 'partial' : 'succeeded',
       metadata: { warnings },
     });
@@ -170,10 +170,10 @@ export async function PATCH(request: Request) {
     return createNoStoreJsonResponse({ account, warnings });
   } catch (error) {
     if (error instanceof SyntaxError) return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
-    if (error instanceof DeveloperAccessStoreError) return createApiErrorResponse(error.status, 'owner_person_invalid', error.message);
-    if (error instanceof Error && error.message.startsWith('Developer override must be')) return createApiErrorResponse(400, 'owner_person_invalid', error.message);
+    if (error instanceof ContributorAccessStoreError) return createApiErrorResponse(error.status, 'owner_person_invalid', error.message);
+    if (error instanceof Error && error.message.startsWith('Contributor override must be')) return createApiErrorResponse(400, 'owner_person_invalid', error.message);
     console.error('Failed to update owner person:', error);
-    return createApiErrorResponse(500, 'owner_people_unavailable', 'Unable to update account and developer access.');
+    return createApiErrorResponse(500, 'owner_people_unavailable', 'Unable to update account and contributor access.');
   }
 }
 
@@ -198,8 +198,8 @@ export async function DELETE(request: Request) {
     const warnings: string[] = [];
     if (profile) {
       try {
-        await updateDeveloperProfileControl({
-          developerId: userId,
+        await updateContributorProfileControl({
+          contributorId: userId,
           status: 'inactive',
           canDraftCampaigns: false,
           canProposeSiteContent: false,

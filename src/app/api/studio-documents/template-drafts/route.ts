@@ -1,9 +1,9 @@
 import {
-  DeveloperCockpitAccessError,
-  getCurrentDeveloperCockpitAccess,
-} from '@/features/developer-access/server';
+  AccountToolAccessError,
+  getCurrentAccountToolAccess,
+} from '@/features/account/server';
 import {
-  createDeveloperTemplateDraft,
+  createTemplateWorkingDocument,
   getCurrentStudioDocumentAccount,
   gptTemplateDraftInputSchema,
   StudioDocumentAccessError,
@@ -21,11 +21,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const developerAccess = await getCurrentDeveloperCockpitAccess();
+    const accountAccess = await getCurrentAccountToolAccess();
 
     const rateLimit = await consumeRateLimit({
       action: 'studio-ai-draft',
-      identity: developerAccess.user.id,
+      identity: accountAccess.user.id,
       limit: 60,
       windowSeconds: 3600,
     });
@@ -57,10 +57,10 @@ export async function POST(request: Request) {
     }
 
     const account = await getCurrentStudioDocumentAccount();
-    if (account.ownerUserId !== developerAccess.user.id) {
-      return createApiErrorResponse(403, 'developer_access_required', 'Contributor account ownership could not be verified.');
+    if (account.ownerUserId !== accountAccess.user.id) {
+      return createApiErrorResponse(403, 'account_tool_not_permitted', 'The current account does not own this Studio workspace.');
     }
-    const document = await createDeveloperTemplateDraft(developerAccess, validation.data);
+    const document = await createTemplateWorkingDocument(accountAccess, validation.data);
 
     return createNoStoreJsonResponse({
       document,
@@ -68,10 +68,10 @@ export async function POST(request: Request) {
       openInStudioUrl: `/studio?document=${encodeURIComponent(document.id)}`,
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof AccountToolAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'account_tool_not_permitted',
         error.message,
       );
     }

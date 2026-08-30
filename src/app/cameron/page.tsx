@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Caravan, Compass, HeartHandshake, Home, ServerCog, Sparkles, Utensils } from 'lucide-react';
 
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { SupportCheckoutActions } from '@/features/billing/client';
 import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } from '@/features/billing/server';
@@ -70,7 +70,7 @@ export default async function CameronPage() {
 
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/cameron" siteConfiguration={siteConfiguration}>
+      <PublicSiteShell accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/cameron" siteConfiguration={siteConfiguration}>
       <StructuredData value={createFounderProfileStructuredData(businessIdentity)} />
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },

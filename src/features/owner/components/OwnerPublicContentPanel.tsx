@@ -19,7 +19,7 @@ const groupLabels: Record<SiteContentBlock['group'], string> = {
   account: 'Account page',
   about: 'About page',
   founder: 'Founder page',
-  developer: 'Developer program',
+  developer: 'Contributor program',
   roadmap: 'Roadmap',
   sharing: 'Sharing',
 };

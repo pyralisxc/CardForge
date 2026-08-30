@@ -1,7 +1,7 @@
 "use client";
 
-import type { CardAssetOption } from '@/features/developer-assets/client/assets';
-import { normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
+import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import { normalizeLocalLibraryAsset } from '@/features/pipeline/client/assets';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,

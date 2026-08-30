@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
 import { createBulkDisplayCards } from '@/features/card-generator/client';
 import { CardPreview } from '@/features/card-rendering/client';
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeCatalog } from '@/features/pipeline/client/catalog';
 import type { HomepageShowcaseExample } from '../model/examples';
 import { useSiteContent } from './PublicSitePresentationContext';
 

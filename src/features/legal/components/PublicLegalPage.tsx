@@ -18,7 +18,7 @@ const trustLinks = [
   { href: '/creator-pass-terms', label: 'Creator Pass' },
   { href: '/supporter-terms', label: 'Supporters' },
   { href: '/refund', label: 'Refunds' },
-  { href: '/developer-terms', label: 'Developers' },
+  { href: '/developer-terms', label: 'Contributors' },
   { href: '/accessibility', label: 'Accessibility' },
   { href: '/contact', label: 'Contact' },
 ] as const;

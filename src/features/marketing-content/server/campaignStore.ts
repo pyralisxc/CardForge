@@ -7,20 +7,20 @@ import {
   canTransitionCampaign,
   normalizeCampaignInput,
 } from '@/features/marketing-content/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { ContributorAccess } from '@/features/contributor-access/server';
 import { getAllowedCampaignActions } from '@/features/marketing-content/server/campaignActions';
 
 import {
   cleanReviewNote,
   CAMPAIGN_COLUMNS,
-  DeveloperCockpitStoreError,
+  MarketingContentStoreError,
   getCampaignMediaRows,
   getCampaignRecord,
   hydrateCampaignRows,
   normalizeExpectedVersion,
   readDatabaseRows,
-  requireCockpitDatabase,
-  throwCockpitDatabaseError,
+  requireMarketingContentDatabase,
+  throwMarketingContentDatabaseError,
   type CampaignRow,
 } from './storeShared';
 
@@ -45,10 +45,10 @@ const CAMPAIGN_STATUSES = new Set<SocialCampaignStatus>([
 
 const requireCampaignOwnership = (
   campaign: SocialCampaign,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
   if (!access.isOwner && campaign.contributorId !== access.user.id) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'You can only change your own campaign packages.',
       403,
     );
@@ -63,13 +63,13 @@ const normalizeIdempotencyKey = (value: unknown) => (
 
 const assertMediaAttachmentAccess = async (
   input: NormalizedCampaign,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
   const attachments = input.variants.flatMap((variant) => variant.attachments);
   const mediaIds = [...new Set(attachments.map((attachment) => attachment.mediaId))];
   const { rows, derivatives } = await getCampaignMediaRows(mediaIds);
   if (rows.length !== mediaIds.length) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'One or more campaign media items no longer exist.',
       404,
     );
@@ -83,7 +83,7 @@ const assertMediaAttachmentAccess = async (
       || media.ingesting_contributor_id === access.user.id
       || ['approved', 'public'].includes(media.review_state);
     if (!mayReuse) {
-      throw new DeveloperCockpitStoreError(
+      throw new MarketingContentStoreError(
         'You cannot attach another contributor’s private media.',
         403,
       );
@@ -96,7 +96,7 @@ const assertMediaAttachmentAccess = async (
       || derivative.parent_media_id !== attachment.mediaId
       || derivative.exposure !== 'public'
     ) {
-      throw new DeveloperCockpitStoreError(
+      throw new MarketingContentStoreError(
         'Choose a public derivative that belongs to the selected media item.',
         400,
       );
@@ -132,25 +132,25 @@ const campaignCopies = (input: NormalizedCampaign) => (
 
 const assertMarketingCampaignAccess = async (
   input: NormalizedCampaign,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
-  let query = requireCockpitDatabase()
+  let query = requireMarketingContentDatabase()
     .from('cardforge_marketing_campaigns')
     .select('id,status,audience_key')
     .eq('id', input.marketingCampaignId)
     .limit(1);
   if (!access.isOwner) query = query.in('status', ['planning', 'active']);
   const { data, error } = await query;
-  if (error) throwCockpitDatabaseError('Unable to validate the marketing campaign.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to validate the marketing campaign.', error);
   const campaign = data?.[0] as { id?: string; audience_key?: string } | undefined;
   if (!campaign?.id) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Choose an active marketing campaign before saving this content.',
       400,
     );
   }
   if (campaign.audience_key !== input.audienceKey) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'The content audience must match its marketing campaign.',
       400,
     );
@@ -163,16 +163,16 @@ export const listSocialCampaigns = async ({
   cursor,
   limit,
 }: {
-  access: DeveloperCockpitAccess;
+  access: ContributorAccess;
   status?: string;
   cursor: number;
   limit: number;
 }): Promise<{ campaigns: SocialCampaign[]; nextCursor: number | null }> => {
   if (status && !CAMPAIGN_STATUSES.has(status as SocialCampaignStatus)) {
-    throw new DeveloperCockpitStoreError('Choose a supported campaign status.', 400);
+    throw new MarketingContentStoreError('Choose a supported campaign status.', 400);
   }
 
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   let query = supabase
     .from('cardforge_social_campaigns')
     .select(CAMPAIGN_COLUMNS)
@@ -181,7 +181,7 @@ export const listSocialCampaigns = async ({
   if (status) query = query.eq('status', status);
 
   const { data, error } = await query.range(cursor, cursor + limit);
-  if (error) throwCockpitDatabaseError('Unable to list campaign packages.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to list campaign packages.', error);
   const rows = readDatabaseRows<CampaignRow>(data);
   const hasMore = rows.length > limit;
   return {
@@ -191,23 +191,23 @@ export const listSocialCampaigns = async ({
 };
 
 export const createSocialCampaign = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   input: CampaignInput & { idempotencyKey?: unknown },
 ): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
   const key = normalizeIdempotencyKey(input.idempotencyKey);
   if (!key) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'A client-generated campaign idempotency key is required.',
       400,
     );
   }
 
   const normalized = normalizeCampaignInput(input);
-  if (!normalized.ok) throw new DeveloperCockpitStoreError(normalized.message, 400);
+  if (!normalized.ok) throw new MarketingContentStoreError(normalized.message, 400);
   await assertMarketingCampaignAccess(normalized.value, access);
   await assertMediaAttachmentAccess(normalized.value, access);
   const relationships = serializeRelationships(normalized.value);
-  const { data, error } = await requireCockpitDatabase().rpc(
+  const { data, error } = await requireMarketingContentDatabase().rpc(
     'cardforge_create_marketing_content',
     {
       p_contributor_id: access.user.id,
@@ -232,9 +232,9 @@ export const createSocialCampaign = async (
       p_utm_content: normalized.value.utmContent,
     },
   );
-  if (error) throwCockpitDatabaseError('Unable to create the campaign package.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to create the campaign package.', error);
   if (typeof data !== 'string') {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Campaign creation did not return an identifier.',
     );
   }
@@ -251,7 +251,7 @@ export const saveSocialCampaign = async ({
   expectedVersion,
   input,
 }: {
-  access: DeveloperCockpitAccess;
+  access: ContributorAccess;
   campaignId: string;
   expectedVersion: unknown;
   input: CampaignInput;
@@ -259,19 +259,19 @@ export const saveSocialCampaign = async ({
   const campaign = await getCampaignRecord(campaignId, access);
   requireCampaignOwnership(campaign, access);
   if (!['draft', 'changes_requested'].includes(campaign.status)) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Only draft or changes-requested campaigns can be edited.',
       409,
     );
   }
 
   const normalized = normalizeCampaignInput(input);
-  if (!normalized.ok) throw new DeveloperCockpitStoreError(normalized.message, 400);
+  if (!normalized.ok) throw new MarketingContentStoreError(normalized.message, 400);
   await assertMarketingCampaignAccess(normalized.value, access);
   await assertMediaAttachmentAccess(normalized.value, access);
   const version = normalizeExpectedVersion(expectedVersion);
   const relationships = serializeRelationships(normalized.value);
-  const { data, error } = await requireCockpitDatabase().rpc(
+  const { data, error } = await requireMarketingContentDatabase().rpc(
     'cardforge_update_marketing_content',
     {
       p_content_id: campaign.id,
@@ -295,9 +295,9 @@ export const saveSocialCampaign = async ({
       p_utm_content: normalized.value.utmContent,
     },
   );
-  if (error) throwCockpitDatabaseError('Unable to save the campaign package.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to save the campaign package.', error);
   if (data !== true) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'This campaign changed elsewhere. Reload before saving.',
       409,
     );
@@ -316,7 +316,7 @@ const transitionCampaign = async ({
   to,
   reviewNote = '',
 }: {
-  access: DeveloperCockpitAccess;
+  access: ContributorAccess;
   campaignId: string;
   expectedVersion: unknown;
   to: SocialCampaignStatus;
@@ -326,14 +326,14 @@ const transitionCampaign = async ({
   requireCampaignOwnership(campaign, access);
   const actor = access.isOwner ? 'owner' : 'contributor';
   if (!canTransitionCampaign(campaign.status, to, actor)) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       `A ${campaign.status} campaign cannot move to ${to}.`,
       409,
     );
   }
 
   const version = normalizeExpectedVersion(expectedVersion);
-  const { data, error } = await requireCockpitDatabase()
+  const { data, error } = await requireMarketingContentDatabase()
     .from('cardforge_social_campaigns')
     .update({
       status: to,
@@ -352,9 +352,9 @@ const transitionCampaign = async ({
     .eq('version', version)
     .select('id')
     .limit(1);
-  if (error) throwCockpitDatabaseError('Unable to update the campaign workflow.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to update the campaign workflow.', error);
   if (!data?.[0]) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'This campaign changed elsewhere. Reload before reviewing.',
       409,
     );
@@ -368,13 +368,13 @@ const transitionCampaign = async ({
 };
 
 export const submitSocialCampaign = (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   campaignId: string,
   expectedVersion: unknown,
 ) => transitionCampaign({ access, campaignId, expectedVersion, to: 'submitted' });
 
 export const requestSocialCampaignChanges = (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   campaignId: string,
   expectedVersion: unknown,
   reviewNote: unknown,
@@ -387,7 +387,7 @@ export const requestSocialCampaignChanges = (
 });
 
 export const cancelSocialCampaign = (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   campaignId: string,
   expectedVersion: unknown,
   reviewNote: unknown,
@@ -434,7 +434,7 @@ export const updateCampaignAssociations = async ({
   expectedVersion,
   associations,
 }: {
-  access: DeveloperCockpitAccess;
+  access: ContributorAccess;
   campaignId: string;
   expectedVersion: unknown;
   associations: unknown;

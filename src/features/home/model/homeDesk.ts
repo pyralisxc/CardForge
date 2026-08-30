@@ -152,7 +152,7 @@ export const getWorkActions = (
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     ...(localSet && canContribute ? [{
-      id: 'home.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'developer-assets' as const,
+      id: 'home.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'pipeline' as const,
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'contributor' as const,
       scope: 'object' as const, hierarchy: 'supporting' as const, availability: { kind: 'available' as const }, commitment: 'publication' as const,
       automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,

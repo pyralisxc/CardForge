@@ -55,7 +55,7 @@ describe('legal document rules', () => {
     );
     expect(documents.contact.body).toContain('Cameron Locke handles support');
     expect(documents['developer-terms'].body).toContain(
-      'Your developer contribution agreement is with Cameron Locke as the legal operator of CardForge Studio.',
+      'Your Contributor agreement is with Cameron Locke as the legal operator of CardForge Studio.',
     );
     expect(documents.privacy.body).toContain('local-first card creation tool');
     expect(documents.terms.body).toContain('The product is in active beta.');
@@ -83,7 +83,7 @@ describe('legal document rules', () => {
       'cookies and similar authentication technologies',
       'contact requests',
       'roadmap suggestions and votes',
-      'developer submissions',
+      'Contributor submissions',
       'retained for periods that vary',
       'access or deletion inquiry',
       'no method of transmission or storage is completely secure',

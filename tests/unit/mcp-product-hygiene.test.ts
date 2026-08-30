@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createStableAgentCardId } from '@/features/studio-documents/server/developerCardSetDrafts';
+import { createStableAgentCardId } from '@/features/studio-documents/server/cardSetWorkingDocuments';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -29,11 +29,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const workingDocumentTools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
   const pluginSkills = readSource('src/features/studio-documents/server/mcpPluginSkills.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
-  const cardDrafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
+  const cardDrafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
   const studioStore = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
   const assetStore = readSource('src/features/studio-documents/server/studioDocumentAssetStore.ts');
   const artworkSources = readSource('src/features/studio-documents/server/mcpArtworkSources.ts');
-  const developerAccess = readSource('src/features/developer-access/server/access.ts');
+  const contributorAccess = readSource('src/features/contributor-access/server/access.ts');
+  const accountToolAccess = readSource('src/features/account/server/accountToolAccess.ts');
   const designSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
   const setSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
   const plugin = JSON.parse(readSource('plugins/cardforge-studio/.codex-plugin/plugin.json')) as {
@@ -147,11 +148,11 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('list/CSV/JSON conversion');
   });
 
-  it('keeps account AI work separate from developer publication permissions', () => {
-    expect(developerAccess).toContain("scopes: ['studio.ai.create']");
-    expect(developerAccess).toContain('{ allowStudioAiOnly: true }');
-    expect(developerAccess).toContain("requireContributionScope");
-    expect(route).toContain('continueDeveloperTemplateDraftInPipeline');
+  it('keeps account AI work separate from Contributor publication permissions', () => {
+    expect(accountToolAccess).toContain("ACCOUNT_TOOL_CAPABILITIES = ['studio.ai.create']");
+    expect(contributorAccess).not.toContain('allowStudioAiOnly');
+    expect(contributorAccess).toContain("requireContributionScope");
+    expect(route).toContain('submitTemplateWorkingDocumentToPipeline');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {

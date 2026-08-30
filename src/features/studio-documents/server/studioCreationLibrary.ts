@@ -9,7 +9,7 @@ import type {
 import {
   getCachedCardForgeStudioAssets,
   getCachedCardForgeStudioBootstrap,
-} from '@/features/developer-assets/server/catalogCache';
+} from '@/features/pipeline/server/catalogCache';
 
 export const STUDIO_CREATION_LIBRARY_KINDS = [
   'template',

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { isPipelineRevisionVisibleToContributor } from '@/features/developer-assets/lib/pipelineVisibility';
-import { parsePipelineLineageIds } from '@/features/developer-assets/lib/pipelineHearts';
+import { isPipelineRevisionVisibleToContributor } from '@/features/pipeline/lib/pipelineVisibility';
+import { parsePipelineLineageIds } from '@/features/pipeline/lib/pipelineHearts';
 
 describe('Pipeline revision visibility', () => {
   const visible = (overrides: Partial<Parameters<typeof isPipelineRevisionVisibleToContributor>[0]> = {}) => (
     isPipelineRevisionVisibleToContributor({
-      developerId: 'author',
+      contributorId: 'author',
       status: 'voting',
       purgeState: null,
       viewerId: 'reviewer',

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import { AccountHomeBoundary } from '@/features/account/client/profile';
 import {
@@ -12,10 +11,10 @@ import {
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import {
-  EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
-  getCurrentDeveloperAccessSessionState,
+  EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
+  getCurrentContributorAccessSessionState,
   hasContributionScope,
-} from '@/features/developer-access/server';
+} from '@/features/contributor-access/server';
 import { HomeDesk } from '@/features/home/client';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
@@ -81,18 +80,18 @@ export default async function AccountPage({
   });
   const accountContent = createSiteContentMap(accountContentBlocks);
   const isOwner = entitlement.isSignedIn && entitlement.ownerAccess.isOwner;
-  const hasDeveloperEntitlement = entitlement.isSignedIn && entitlement.accessMode === 'dev';
-  const developerAccess = hasDeveloperEntitlement || isOwner
-    ? await getCurrentDeveloperAccessSessionState().catch((error) => {
+  const hasContributorEntitlement = entitlement.isSignedIn && entitlement.accessMode === 'dev';
+  const contributorAccess = hasContributorEntitlement || isOwner
+    ? await getCurrentContributorAccessSessionState().catch((error) => {
         console.error('Unable to verify contributor access during page render:', error);
-        return EMPTY_DEVELOPER_ACCESS_SESSION_STATE;
+        return EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
       })
-    : EMPTY_DEVELOPER_ACCESS_SESSION_STATE;
-  const contributionScopes = developerAccess.projection.scopes;
+    : EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
+  const contributionScopes = contributorAccess.projection.scopes;
   const experience = projectAccountExperience({
     entitlement,
     contribution: {
-      active: developerAccess.projection.hasCockpitAccess,
+      active: contributorAccess.projection.active,
       canSubmit: hasContributionScope(contributionScopes, 'library.submit'),
       canReview: hasContributionScope(contributionScopes, 'assets.review'),
       canPublish: hasContributionScope(contributionScopes, 'library.publish'),
@@ -100,10 +99,10 @@ export default async function AccountPage({
       canProposeSite: hasContributionScope(contributionScopes, 'site.propose'),
     },
   });
-  const isDeveloper = experience.contributor.active;
+  const isContributor = experience.contributor.active;
   const accessLabel = getAccountAccessLabel({
     isOwner,
-    isDeveloper,
+    isContributor,
     accessExpiresAt: entitlement.accessExpiresAt,
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
@@ -154,10 +153,6 @@ export default async function AccountPage({
     </SiteContentProvider>
   );
 
-  if (activeSection === 'developer' && (experience.contributor.active || experience.owner)) {
-    redirect('/account?section=library&scope=pipeline&tool=contribute');
-  }
-
   if (activeSection === 'library' || activeSection === 'storage') {
     return (
       <CardForgeAppProviders scope="shell">
@@ -177,7 +172,7 @@ export default async function AccountPage({
         <AccountProfileEnvironment
           checkoutStatus={checkoutStatus}
           initialAuthConfigured={authConfigured}
-          initialDeveloperAccess={developerAccess}
+          initialContributorAccess={contributorAccess}
           initialPlanIntent={initialPlanIntent}
           initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : null}
           plans={plans}

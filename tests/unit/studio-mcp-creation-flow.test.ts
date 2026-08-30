@@ -22,8 +22,8 @@ describe('Studio MCP creative production flow', () => {
   const templateToolResults = readSource('src/features/studio-documents/server/mcpTemplateToolResults.ts');
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
   const revisions = [
-    readSource('src/features/studio-documents/server/developerTemplateDrafts.ts'),
-    readSource('src/features/studio-documents/server/developerCardSetDrafts.ts'),
+    readSource('src/features/studio-documents/server/templateWorkingDocuments.ts'),
+    readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts'),
   ].join('\n');
   const projectDocument = readSource('src/features/project/model/projectDocument.ts');
   const generatorFieldInput = readSource('src/features/card-generator/components/GeneratorFieldInput.tsx');
@@ -133,7 +133,7 @@ describe('Studio MCP creative production flow', () => {
     expect(validation).toContain('requires a usable assetUrl');
     expect(validation).toContain('Pixel output size must match the native freeform canvas dimensions');
     expect(route).toContain('Keep custom-generated requirements status needed at creation');
-    expect(agentTools).toContain('attachDeveloperTemplateDraftAsset');
+    expect(agentTools).toContain('attachTemplateWorkingDocumentAsset');
   });
 
   it('persists the production plan and sets in the canonical project while revising through optimistic document authority', () => {
@@ -141,7 +141,7 @@ describe('Studio MCP creative production flow', () => {
     expect(projectDocument).toContain('const productionPlan = normalizeProjectProductionPlan(value.productionPlan)');
     expect(projectDocument).toContain('const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan)');
     expect(projectDocument).toContain('cardSets: CardSet[]');
-    expect(revisions).toContain('updateDeveloperTemplateDraft');
+    expect(revisions).toContain('updateTemplateWorkingDocument');
     expect(revisions).toContain('preserveEmbeddedTemplateAssets');
     expect(revisions).toContain('expectedRevision');
     expect(revisions).toContain('productionPlan: preserved.productionPlan');

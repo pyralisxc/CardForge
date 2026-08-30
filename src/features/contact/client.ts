@@ -1,6 +1,6 @@
 export { ContactRequestForm } from './components/ContactRequestForm';
 export {
-  createDeveloperRequestMailto,
+  createContributorRequestMailto,
   createRoadmapFeedbackMailto,
   createSupportMailto,
 } from './lib/contactLinks';

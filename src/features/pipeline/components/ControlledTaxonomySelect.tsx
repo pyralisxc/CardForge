@@ -1,0 +1,68 @@
+"use client";
+
+import { X } from 'lucide-react';
+
+import type { ContentTaxonomyOption } from '@/features/pipeline/lib/contentTaxonomy';
+
+const toControlId = (label: string): string => `taxonomy-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+
+export function ControlledTaxonomySelect({
+  label,
+  selectedIds,
+  options,
+  onChange,
+  emptyLabel = 'No classification selected.',
+}: {
+  label: string;
+  selectedIds: string[];
+  options: readonly ContentTaxonomyOption[];
+  onChange: (value: string[]) => void;
+  emptyLabel?: string;
+}) {
+  const selected = [...new Set(selectedIds.filter((id) => options.some((option) => option.id === id)))];
+  const available = options.filter((option) => !selected.includes(option.id));
+  const controlId = toControlId(label);
+
+  return (
+    <div className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+      <label htmlFor={controlId}>{label}</label>
+      <select
+        id={controlId}
+        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+        value=""
+        onChange={(event) => {
+          if (!event.target.value) return;
+          onChange([...selected, event.target.value]);
+        }}
+      >
+        <option value="">Add from CardForge taxonomy…</option>
+        {available.map((option) => (
+          <option key={option.id} value={option.id}>{option.label}</option>
+        ))}
+      </select>
+      {selected.length ? (
+        <div className="flex flex-wrap gap-1.5 pt-1 normal-case tracking-normal">
+          {selected.map((id) => {
+            const option = options.find((candidate) => candidate.id === id);
+            if (!option) return null;
+            return (
+              <button
+                key={id}
+                type="button"
+                className="inline-flex items-center gap-1 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-2 py-1 text-[11px] text-[var(--cf-accent-text)]"
+                title={option.description}
+                aria-label={`Remove ${option.label}`}
+                onClick={() => onChange(selected.filter((candidate) => candidate !== id))}
+              >
+                {option.label}
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <span className="pt-1 text-[10px] normal-case tracking-normal text-[#7f715c]">{emptyLabel}</span>
+      )}
+    </div>
+  );
+}

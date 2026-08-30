@@ -4,9 +4,9 @@ import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
-  EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
-  getCurrentDeveloperAccessSessionState,
-} from '@/features/developer-access/server';
+  EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
+  getCurrentContributorAccessSessionState,
+} from '@/features/contributor-access/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -41,11 +41,11 @@ export default async function StudioPage({
     authConfigured,
     accountUserId,
   });
-  const [businessIdentity, initialDeveloperAccess] = await Promise.all([
+  const [businessIdentity, initialContributorAccess] = await Promise.all([
     getCachedBusinessIdentity(),
-    getCurrentDeveloperAccessSessionState().catch((error) => {
-      console.error('Unable to load optional Studio developer access:', error);
-      return EMPTY_DEVELOPER_ACCESS_SESSION_STATE;
+    getCurrentContributorAccessSessionState().catch((error) => {
+      console.error('Unable to load optional Studio contributor access:', error);
+      return EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
     }),
   ]);
 
@@ -54,7 +54,7 @@ export default async function StudioPage({
       <StudioRuntimeLoader businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
-      }} initialDeveloperAccess={initialDeveloperAccess} persistenceScope={persistenceScope} />
+      }} initialContributorAccess={initialContributorAccess} persistenceScope={persistenceScope} />
     </CardForgeAppProviders>
   );
 }

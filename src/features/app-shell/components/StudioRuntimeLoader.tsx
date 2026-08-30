@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
-import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
+import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client';
 
 export type StudioRuntimeBusinessIdentity = {
@@ -23,11 +23,11 @@ const DeferredStudioShell = dynamic(
 
 export function StudioRuntimeLoader({
   businessIdentity,
-  initialDeveloperAccess,
+  initialContributorAccess,
   persistenceScope,
 }: {
   businessIdentity: StudioRuntimeBusinessIdentity;
-  initialDeveloperAccess: DeveloperAccessSessionState;
+  initialContributorAccess: ContributorAccessSessionState;
   persistenceScope: ProjectPersistenceScope;
 }) {
   const [shouldLoadRuntime, setShouldLoadRuntime] = useState(false);
@@ -61,7 +61,7 @@ export function StudioRuntimeLoader({
     return (
       <DeferredStudioShell
         businessIdentity={businessIdentity}
-        initialDeveloperAccess={initialDeveloperAccess}
+        initialContributorAccess={initialContributorAccess}
         persistenceScope={persistenceScope}
       />
     );

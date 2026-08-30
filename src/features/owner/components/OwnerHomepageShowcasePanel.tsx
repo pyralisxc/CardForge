@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide
 
 import { Button } from '@/components/ui/button';
 import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeCatalog } from '@/features/pipeline/client/catalog';
 import type { HomepageShowcaseExample } from '@/features/public-site/client';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';

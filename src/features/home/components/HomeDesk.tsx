@@ -68,6 +68,7 @@ import {
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
+import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { AuthoredObjectPreview, CardPreview } from '@/features/card-rendering/client';
 import {
@@ -80,7 +81,7 @@ import {
   type ProjectPersistenceScope,
   type ProjectState,
 } from '@/features/project/client';
-import type { CardForgeCatalogManifest } from '@/features/developer-assets/client';
+import type { CardForgeCatalogManifest } from '@/features/pipeline/client';
 import {
   useAccountLibraryProjection,
   WorkLocationDialog,
@@ -547,6 +548,7 @@ export function HomeDesk({
         viewportPolicy="desk"
         detail={detail}
         actions={actions}
+        accountControl={<PublicAuthControls />}
         focusReturnId={inspectorItem ? `home-work-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>

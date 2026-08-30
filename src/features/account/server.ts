@@ -13,7 +13,10 @@ export {
   getCurrentCardforgeEntitlement,
   getCurrentCardforgeUserAccess,
   AccountIdentityUnavailableError,
+  resolveCardforgeEntitlementForAccess,
   resolveOwnerAccessForServerUser,
   type CardforgeServerUser,
+  type CardforgeServerUserAccess,
 } from './lib/serverCardforgeUser';
+export * from './server/accountToolAccess';
 export * from './server/accountAdministration';

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
 import {
   buildCardForgeProjectSnapshot,
   encodeCardForgeProjectPackage,
@@ -20,7 +20,7 @@ import {
   type StudioDocumentProjectSourceLineage,
 } from './studioDocumentStore';
 
-const requireAccountId = (access: DeveloperCockpitAccess): string => {
+const requireAccountId = (access: StudioAgentAccess): string => {
   if (!access.entitlement.isSignedIn || !access.entitlement.accountUserId) {
     throw new StudioDocumentStoreError('A linked CardForge account is required to use connected project storage.', 401);
   }
@@ -59,7 +59,7 @@ export const checkoutConnectedProjectForAgent = async ({
   expectedProviderRevision,
   expectedProjectRevision,
 }: {
-  access: DeveloperCockpitAccess;
+  access: StudioAgentAccess;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   projectId: string;
   expectedProviderRevision?: string | null;
@@ -137,7 +137,7 @@ export const commitAgentWorkingProjectToSource = async ({
   expectedProviderRevision,
   expectedProjectRevision,
 }: {
-  access: DeveloperCockpitAccess;
+  access: StudioAgentAccess;
   documentId: string;
   expectedDocumentRevision: number;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;

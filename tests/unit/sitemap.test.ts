@@ -14,7 +14,7 @@ describe('sitemap', () => {
       'https://cardforges.com/',
       'https://cardforges.com/about',
       'https://cardforges.com/plans',
-      'https://cardforges.com/developer',
+      'https://cardforges.com/contributors',
       'https://cardforges.com/roadmap',
       'https://cardforges.com/cameron',
       'https://cardforges.com/contact',

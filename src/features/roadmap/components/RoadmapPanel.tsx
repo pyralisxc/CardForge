@@ -14,11 +14,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createRoadmapFeedbackMailto } from '@/features/contact/client/links';
-import { RoadmapDeveloperControls } from '@/features/roadmap/components/RoadmapDeveloperControls';
+import { RoadmapContributorControls } from '@/features/roadmap/components/RoadmapContributorControls';
 import {
-  createRoadmapDeveloperFormState,
-  type RoadmapDeveloperFormState,
-} from '@/features/roadmap/components/RoadmapDeveloperControlsModel';
+  createRoadmapContributorFormState,
+  type RoadmapContributorFormState,
+} from '@/features/roadmap/components/RoadmapContributorControlsModel';
 import {
   FeatureCard,
   FinancialMetric,
@@ -40,22 +40,22 @@ import {
 } from '@/features/roadmap/model/roadmap';
 
 interface RoadmapPanelProps {
-  isDeveloper: boolean;
+  isContributor: boolean;
   isOwner: boolean;
   isSignedIn: boolean;
   accountEmail: string | null;
   supportEmail?: string | null;
 }
 
-export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
+export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
   const { toast } = useToast();
   const [payload, setPayload] = useState<RoadmapPayload | null>(null);
   const [suggestion, setSuggestion] = useState('');
   const [sortMode, setSortMode] = useState<RoadmapSortMode>('most_votes');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [devForm, setDevForm] = useState<RoadmapDeveloperFormState>(() => (
-    createRoadmapDeveloperFormState(isOwner)
+  const [devForm, setDevForm] = useState<RoadmapContributorFormState>(() => (
+    createRoadmapContributorFormState(isOwner)
   ));
   const roadmapFeedbackMailto = useMemo(
     () => createRoadmapFeedbackMailto({ accountEmail, supportEmail }),
@@ -468,7 +468,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
             <HorizontalTimeline
               items={timelineCheckpoints}
               isLoading={isLoading}
-              isDeveloper={isDeveloper}
+              isContributor={isContributor}
               isSignedIn={isSignedIn}
               isSaving={isSaving}
               onDelete={deleteItem}
@@ -477,9 +477,9 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
           </div>
         </div>
 
-        <RoadmapDeveloperControls
+        <RoadmapContributorControls
           form={devForm}
-          isDeveloper={isDeveloper}
+          isContributor={isContributor}
           isOwner={isOwner}
           isSaving={isSaving}
           onChange={setDevForm}

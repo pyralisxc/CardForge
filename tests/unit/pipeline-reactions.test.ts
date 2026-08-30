@@ -8,7 +8,7 @@ describe('Pipeline reactions', () => {
   const library = source('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const route = source('src/app/api/pipeline/hearts/route.ts');
   const migration = source('supabase/migrations/20260829052228_pipeline_lineages_hearts_and_durable_votes.sql');
-  const voteRoute = source('src/app/api/developer-assets/[submissionId]/vote/route.ts');
+  const voteRoute = source('src/app/api/pipeline/[submissionId]/vote/route.ts');
 
   it('exposes hearts on every visible shared object and contributor votes on every exact revision', () => {
     expect(library).toContain('pipelineLineageFor(item)');
@@ -36,7 +36,7 @@ describe('Pipeline reactions', () => {
 
   it('authorizes reactions and permanent deletion through the stable lineage owner', () => {
     expect(voteRoute).toContain('visibleToViewer');
-    expect(voteRoute).toContain("'developer_asset_not_permitted'");
+    expect(voteRoute).toContain("'pipeline_not_permitted'");
     expect(migration).toContain("purge_state text check (purge_state in ('pending'))");
     expect(migration).toContain("raise exception 'developer_asset_lineage_purge_pending'");
     expect(migration).toContain('where lineage_submission.lineage_id = lineage_uuid');

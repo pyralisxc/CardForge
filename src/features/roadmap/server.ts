@@ -1,7 +1,7 @@
 export {
-  createDeveloperRoadmapItem,
+  createContributorRoadmapItem,
   createRoadmapSuggestion,
-  deleteDeveloperRoadmapItem,
+  deleteContributorRoadmapItem,
   getRoadmapForUser,
   voteRoadmapItem,
 } from './server/roadmapStore';

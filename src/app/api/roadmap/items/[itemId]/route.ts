@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
+import { deleteContributorRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +37,7 @@ export async function DELETE(
     }
 
     const { itemId } = await context.params;
-    const payload = await deleteDeveloperRoadmapItem({
+    const payload = await deleteContributorRoadmapItem({
       userId: user.id,
       itemId,
     });

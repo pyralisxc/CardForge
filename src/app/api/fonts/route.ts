@@ -1,6 +1,6 @@
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentCardforgeEntitlement } from '@/features/account/server';
-import { getCachedCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
+import { getCachedCardForgeCatalog } from '@/features/pipeline/server/catalogCache';
 
 export const dynamic = 'force-dynamic';
 

@@ -118,7 +118,7 @@ describe('Environment action presentation', () => {
     expect(getActionsForRecord('home', homeCurrentWork, 'home')[0]?.ownerFeature).toBe('card-generator');
     expect(getActionsForRecord('profile', profileGroups[0]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
     expect(getActionsForRecord('profile', profileGroups[1]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
-    expect(getActionsForRecord('queue', queueItems[0] ?? null, 'owner').map((action) => action.ownerFeature)).toEqual(['developer-assets', 'developer-assets']);
+    expect(getActionsForRecord('queue', queueItems[0] ?? null, 'owner').map((action) => action.ownerFeature)).toEqual(['pipeline', 'pipeline']);
     expect(getActionsForRecord('collection', { ...record, kind: 'template' }, 'library')[0]?.ownerFeature).toBe('template-editor');
     expect(getActionsForRecord('queue', queueItems[2] ?? null, 'owner')[0]?.ownerFeature).toBe('billing');
   });

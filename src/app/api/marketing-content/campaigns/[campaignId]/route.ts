@@ -1,9 +1,9 @@
 import {
-  createDeveloperCockpitErrorResponse,
-  getCurrentDeveloperCockpitAccess,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-cockpit/server';
+} from '@/features/contributor-access/server';
 import {
+  createMarketingContentErrorResponse,
   getAllowedCampaignActions,
   getMarketingContentPackage,
   MarketingContentStoreError,
@@ -17,7 +17,7 @@ export async function GET(
   { params }: { params: Promise<{ campaignId: string }> },
 ) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     const campaign = await getMarketingContentPackage((await params).campaignId, access);
     if (!access.isOwner && campaign.contributorId !== access.user.id) {
@@ -28,7 +28,7 @@ export async function GET(
       allowedNextActions: getAllowedCampaignActions(campaign, access),
     });
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to load the campaign package.',
     );

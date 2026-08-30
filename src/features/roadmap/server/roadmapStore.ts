@@ -332,7 +332,7 @@ export const createRoadmapSuggestion = async ({
   return getRoadmapForUser(userId);
 };
 
-export const createDeveloperRoadmapItem = async ({
+export const createContributorRoadmapItem = async ({
   userId,
   userEmail,
   title,
@@ -419,7 +419,7 @@ export const createDeveloperRoadmapItem = async ({
   return getRoadmapForUser(userId);
 };
 
-export const deleteDeveloperRoadmapItem = async ({
+export const deleteContributorRoadmapItem = async ({
   userId,
   itemId,
 }: {

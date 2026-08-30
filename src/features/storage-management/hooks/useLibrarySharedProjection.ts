@@ -5,17 +5,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
 import {
   getAssetKindLabel,
-  getDeveloperAssetStatusLabel,
-  getDeveloperAssetTypeLabel,
-  getDeveloperAssetImagePreviewUrl,
+  getPipelineStatusLabel,
+  getPipelineTypeLabel,
+  getPipelineImagePreviewUrl,
   isRepositoryStyle,
   isRepositoryTemplate,
-  projectDeveloperPipelineLibrary,
+  projectPipelineLibrary,
   type CardForgeCatalogManifest,
-  type DeveloperAssetProgramView,
-  type DeveloperPipelineLibraryItem,
-  type DeveloperAssetSubmission,
-} from '@/features/developer-assets/client';
+  type PipelineProgramView,
+  type PipelineLibraryItem,
+  type PipelineSubmission,
+} from '@/features/pipeline/client';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/libraryScopes';
 
@@ -37,13 +37,13 @@ export interface PublishedLibraryObject {
 }
 
 export interface PipelineLibraryObject {
-  submission: DeveloperAssetSubmission;
-  revisions: DeveloperAssetSubmission[];
-  currentPublishedSubmission: DeveloperAssetSubmission | null;
+  submission: PipelineSubmission;
+  revisions: PipelineSubmission[];
+  currentPublishedSubmission: PipelineSubmission | null;
   kindLabel: string;
   statusLabel: string;
-  ownership: DeveloperPipelineLibraryItem['ownership'];
-  reviewState: DeveloperPipelineLibraryItem['reviewState'];
+  ownership: PipelineLibraryItem['ownership'];
+  reviewState: PipelineLibraryItem['reviewState'];
   previewUrl: string | null;
   fontFamily: string | null;
   template: TCGCardTemplate | null;
@@ -198,12 +198,12 @@ const catalogLibraryVisuals = (catalog: CardForgeCatalogManifest | null): Map<st
 };
 
 export const projectPipelineLibraryObjects = (
-  program: Pick<DeveloperAssetProgramView, 'submissions' | 'votingQueue' | 'currentContributorIds' | 'settings'>,
+  program: Pick<PipelineProgramView, 'submissions' | 'votingQueue' | 'currentContributorIds' | 'settings'>,
   catalog: CardForgeCatalogManifest | null,
 ): PipelineLibraryObject[] => {
   const visuals = catalogLibraryVisuals(catalog);
   return (
-  projectDeveloperPipelineLibrary(program).map((item): PipelineLibraryObject => {
+  projectPipelineLibrary(program).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
     const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
       .flatMap((identity) => identity ? [visuals.get(identity)] : [])
@@ -213,11 +213,11 @@ export const projectPipelineLibraryObjects = (
       submission: item.submission,
       revisions: item.revisions,
       currentPublishedSubmission: item.currentPublishedSubmission,
-      kindLabel: getDeveloperAssetTypeLabel(item.submission.assetType, { plural: false }),
-      statusLabel: getDeveloperAssetStatusLabel(item.submission.status),
+      kindLabel: getPipelineTypeLabel(item.submission.assetType, { plural: false }),
+      statusLabel: getPipelineStatusLabel(item.submission.status),
       ownership: item.ownership,
       reviewState: item.reviewState,
-      previewUrl: getDeveloperAssetImagePreviewUrl(item.submission) ?? lineageVisual.previewUrl,
+      previewUrl: getPipelineImagePreviewUrl(item.submission) ?? lineageVisual.previewUrl,
       fontFamily: lineageVisual.fontFamily,
       template: isRepositoryTemplate(sourcePayload) ? sourcePayload : lineageVisual.template,
       style: isRepositoryStyle(sourcePayload) ? sourcePayload : lineageVisual.style,
@@ -228,7 +228,7 @@ export const projectPipelineLibraryObjects = (
 
 export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { pipelineEnabled: boolean; activeScope: LibraryScope }) {
   const [catalog, setCatalog] = useState<CardForgeCatalogManifest | null>(null);
-  const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
+  const [program, setProgram] = useState<PipelineProgramView | null>(null);
   const [catalogFailure, setCatalogFailure] = useState<LibrarySharedFailure | null>(null);
   const [pipelineFailure, setPipelineFailure] = useState<LibrarySharedFailure | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -266,10 +266,10 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
       }))
       .finally(() => setCatalogLoading(false)) : Promise.resolve();
     const pipelineRequest = needsPipelineProgram
-      ? fetch('/api/developer-assets/library', { cache: 'no-store' })
+      ? fetch('/api/pipeline/library', { cache: 'no-store' })
           .then(async (response) => {
             if (!response.ok) throw await readApiError(response, 'Forge Review is unavailable.');
-            return response.json() as Promise<{ program: DeveloperAssetProgramView }>;
+            return response.json() as Promise<{ program: PipelineProgramView }>;
           })
           .then((payload) => {
             if (pipelineEnabledRef.current) setProgram(payload.program);

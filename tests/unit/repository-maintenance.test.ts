@@ -89,7 +89,7 @@ describe('repository maintenance policy', () => {
 
   it('uses the Forge Pipeline as the only runtime template and style catalog', async () => {
     const catalog = await readFile(
-      rootPath('src', 'features', 'developer-assets', 'lib', 'repositoryCatalog.ts'),
+      rootPath('src', 'features', 'pipeline', 'lib', 'repositoryCatalog.ts'),
       'utf8',
     );
 
@@ -111,8 +111,8 @@ describe('repository maintenance policy', () => {
       readFile(rootPath('supabase', 'migrations', '20260828151709_bootstrap_template_payload_ownership.sql'), 'utf8'),
       readFile(rootPath('scripts', 'sync-pipeline-defaults.mjs'), 'utf8'),
       readFile(rootPath('src', 'features', 'project', 'persistence', 'contentAddressedBrowserAssets.ts'), 'utf8'),
-      readFile(rootPath('src', 'features', 'developer-assets', 'lib', 'pipelineTemplateAssets.ts'), 'utf8'),
-      readFile(rootPath('src', 'features', 'studio-documents', 'server', 'developerTemplateDrafts.ts'), 'utf8'),
+      readFile(rootPath('src', 'features', 'pipeline', 'lib', 'pipelineTemplateAssets.ts'), 'utf8'),
+      readFile(rootPath('src', 'features', 'studio-documents', 'server', 'templateWorkingDocuments.ts'), 'utf8'),
       readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-ttrpg-stat-sheet.json'), 'utf8'),
       readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-name-card-theme.json'), 'utf8'),
       readFile(rootPath('data', 'pipeline-bootstrap', 'templates', 'default-event-badge-theme.json'), 'utf8'),
@@ -136,13 +136,13 @@ describe('repository maintenance policy', () => {
     }
   });
 
-  it('keeps developer upload and submission in one route', async () => {
-    await expect(pathExists('src', 'app', 'api', 'developer-assets', 'upload', 'route.ts')).resolves.toBe(false);
-    const developerAssetRoute = await readFile(
-      rootPath('src', 'app', 'api', 'developer-assets', 'route.ts'),
+  it('keeps Pipeline upload and submission in one route', async () => {
+    await expect(pathExists('src', 'app', 'api', 'pipeline', 'upload', 'route.ts')).resolves.toBe(false);
+    const pipelineRoute = await readFile(
+      rootPath('src', 'app', 'api', 'pipeline', 'route.ts'),
       'utf8',
     );
-    expect(developerAssetRoute).toContain('createUploadedDeveloperAssetSubmission');
+    expect(pipelineRoute).toContain('createUploadedPipelineSubmission');
   });
 
   it('makes unused TypeScript declarations a build failure', async () => {

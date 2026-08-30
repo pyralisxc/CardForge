@@ -29,7 +29,7 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
       ['src', 'features', 'analytics', 'components', 'OwnerAnalyticsPanel.tsx'],
       ['src', 'features', 'experience-settings', 'components', 'OwnerExperienceControlsPanel.tsx'],
-      ['src', 'features', 'developer-assets', 'components', 'OwnerAssetLibraryPanel.tsx'],
+      ['src', 'features', 'pipeline', 'components', 'OwnerAssetLibraryPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
@@ -83,8 +83,8 @@ describe('Owner Console composition', () => {
   });
 
   it('keeps the owner pipeline complete, filterable, and paged in a focused component', async () => {
-    const parent = await readFile(rootPath('src/features/developer-assets/components/OwnerDeveloperProgramPanel.tsx'), 'utf8');
-    const library = await readFile(rootPath('src/features/developer-assets/components/OwnerAssetLibraryPanel.tsx'), 'utf8');
+    const parent = await readFile(rootPath('src/features/pipeline/components/OwnerContributorProgramPanel.tsx'), 'utf8');
+    const library = await readFile(rootPath('src/features/pipeline/components/OwnerAssetLibraryPanel.tsx'), 'utf8');
 
     expect(parent).toContain('<OwnerAssetLibraryPanel');
     expect(parent).not.toContain('.slice(0, 12)');
@@ -130,7 +130,7 @@ describe('Owner Console composition', () => {
   it('keeps the one shared public-site header in App composition', async () => {
     for (const featurePath of [
       'src/features/owner/components/OwnerConsolePage.tsx',
-      'src/features/developer-program/components/DeveloperProgramPage.tsx',
+      'src/features/contributor-program/components/ContributorProgramPage.tsx',
       'src/features/roadmap/components/RoadmapPage.tsx',
     ]) {
       const source = await readFile(rootPath(featurePath), 'utf8');
@@ -142,12 +142,14 @@ describe('Owner Console composition', () => {
     expect(ownerPage).not.toContain('StudioHeader');
 
     for (const appPath of [
-      'src/app/developer/page.tsx',
+      'src/app/contributors/page.tsx',
       'src/app/roadmap/page.tsx',
     ]) {
       const source = await readFile(rootPath(appPath), 'utf8');
       expect(source, appPath).toContain('@/features/public-site/server');
       expect(source, appPath).toContain('<ConfiguredPublicSiteShell');
     }
+    const retiredDeveloperRoute = await readFile(rootPath('src/app/developer/page.tsx'), 'utf8');
+    expect(retiredDeveloperRoute).toContain("permanentRedirect('/contributors')");
   });
 });

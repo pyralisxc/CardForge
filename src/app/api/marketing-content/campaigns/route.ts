@@ -1,9 +1,9 @@
 import {
-  createDeveloperCockpitErrorResponse,
-  getCurrentDeveloperCockpitAccess,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-cockpit/server';
+} from '@/features/contributor-access/server';
 import {
+  createMarketingContentErrorResponse,
   approveSocialCampaign,
   cancelSocialCampaign,
   createSocialCampaign,
@@ -36,7 +36,7 @@ const consumeMutationLimit = async (userId: string) => {
 
 export async function GET(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     const url = new URL(request.url);
     const cursor = Math.max(0, Number(url.searchParams.get('cursor') ?? 0) || 0);
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
       limit,
     }));
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to list campaign packages.',
     );
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'campaigns.draft');
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as Parameters<typeof createSocialCampaign>[1];
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to create the campaign package.',
     );
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as {
       action?: unknown;
@@ -142,7 +142,7 @@ export async function PATCH(request: Request) {
       400,
     );
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(
+    return createMarketingContentErrorResponse(
       error,
       'Unable to update the campaign package.',
     );

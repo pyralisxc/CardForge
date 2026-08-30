@@ -391,12 +391,13 @@ describe('account Studio documents', () => {
     }).success).toBe(false);
   });
 
-  it('keeps plugin access developer-only and delegates watermark eligibility to the existing entitlement owner', () => {
+  it('keeps account Studio access separate from Contributor publication and delegates watermark eligibility to the entitlement owner', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/api/studio-documents/template-drafts/route.ts'), 'utf8');
-    const service = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/developerTemplateDrafts.ts'), 'utf8');
+    const service = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/templateWorkingDocuments.ts'), 'utf8');
     const access = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/studioDocumentAccess.ts'), 'utf8');
 
-    expect(service).toContain("requireContributionScope(access, 'studio.ai.create')");
+    expect(service).toContain("requireAccountToolCapability(access, 'studio.ai.create')");
+    expect(service).toContain("requireContributionScope(access, 'library.submit')");
     expect(access).toContain('isWatermarkRequired(entitlement.capabilities.canExportClean)');
     expect(route).not.toContain('watermarkPreviewOpacity');
   });

@@ -154,7 +154,7 @@ export function EnvironmentLab() {
         {recipe === 'home' ? <HomeRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
         {recipe === 'collection' ? <CollectionRecipe query={query} selectedId={selection.objectId} onOpen={openDetail} onQueryChange={setQuery} onRetry={() => setAnnouncement('Google Drive retry demonstrated. Available local work remains visible during recovery.')} /> : null}
         {recipe === 'profile' ? <ProfileRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
-        {recipe === 'queue' ? <QueueRecipe activePermission={activeZone === 'owner' ? 'owner' : 'developer'} selectedId={selection.objectId} onOpen={openDetail} /> : null}
+        {recipe === 'queue' ? <QueueRecipe activePermission={activeZone === 'owner' ? 'owner' : 'contributor'} selectedId={selection.objectId} onOpen={openDetail} /> : null}
         {recipe === 'studio' ? <StudioRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
       </EnvironmentShell>
     </>

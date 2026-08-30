@@ -152,7 +152,7 @@ function TimelineNodeCard({
   requiredRoadmapIncomeCents,
   isSignedIn,
   isSaving,
-  isDeveloper,
+  isContributor,
   onVote,
   onDelete,
 }: {
@@ -162,7 +162,7 @@ function TimelineNodeCard({
   requiredRoadmapIncomeCents: number;
   isSignedIn: boolean;
   isSaving: boolean;
-  isDeveloper: boolean;
+  isContributor: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
   onDelete: (itemId: string) => void;
 }) {
@@ -247,7 +247,7 @@ function TimelineNodeCard({
             size="sm"
             onClick={() => onVote(item.id, 'down')}
           />
-            {isDeveloper ? (
+            {isContributor ? (
               <button
                 type="button"
                 className="grid h-9 w-9 place-items-center border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[#f3a28f] transition hover:border-[#e27f69] hover:text-[var(--cf-danger)]"
@@ -268,7 +268,7 @@ function TimelineNodeCard({
 export function HorizontalTimeline({
   items,
   isLoading,
-  isDeveloper,
+  isContributor,
   isSignedIn,
   isSaving,
   onDelete,
@@ -276,7 +276,7 @@ export function HorizontalTimeline({
 }: {
   items: Array<RoadmapTimelineCheckpoint<RoadmapItem>>;
   isLoading: boolean;
-  isDeveloper: boolean;
+  isContributor: boolean;
   isSignedIn: boolean;
   isSaving: boolean;
   onDelete: (itemId: string) => void;
@@ -322,7 +322,7 @@ export function HorizontalTimeline({
                 index={index}
                 cumulativeMonthlyCostCents={checkpoint.cumulativeMonthlyCostCents}
                 requiredRoadmapIncomeCents={checkpoint.requiredRoadmapIncomeCents}
-                isDeveloper={isDeveloper}
+                isContributor={isContributor}
                 isSignedIn={isSignedIn}
                 isSaving={isSaving}
                 onDelete={onDelete}
