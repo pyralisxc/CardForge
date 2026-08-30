@@ -73,6 +73,8 @@ describe('Studio focused workbench architecture', () => {
     expect(contribution).not.toContain('My Pipeline');
     expect(contribution).not.toContain('Pipeline metrics');
     expect(submission).toContain('Submit to the Pipeline');
+    expect(submission).toContain('grid grid-cols-2 gap-px');
+    expect(submission).not.toContain('grid gap-2 sm:grid-cols-2 lg:grid-cols-4');
     expect(submission).not.toContain('TabsContent');
   });
 

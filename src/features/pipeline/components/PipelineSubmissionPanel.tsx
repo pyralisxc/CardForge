@@ -236,14 +236,14 @@ export function PipelineSubmissionPanel({
               Asset family
               <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
             </label>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Submission quick picks">
+            <div className="grid grid-cols-2 gap-px overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-border)] sm:grid-cols-3 lg:grid-cols-6" role="group" aria-label="Submission quick picks">
               {CONTRIBUTOR_UPLOAD_ASSET_TYPES.map((type) => {
                 const isActive = assetType === type;
                 return (
                   <button
                     key={type}
                     type="button"
-                    className={`border p-3 text-left transition-colors ${isActive ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)] text-[var(--cf-accent-text)]' : 'border-[var(--cf-border)] bg-[var(--cf-canvas)] text-[var(--cf-text-muted)] hover:border-[#8a642f] hover:text-[var(--cf-accent-text)]'}`}
+                    className={`min-h-14 px-3 py-2 text-left transition-colors ${isActive ? 'relative z-10 bg-[var(--cf-surface-hover)] text-[var(--cf-accent-text)] ring-1 ring-inset ring-[var(--cf-accent)]' : 'bg-[var(--cf-canvas)] text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface)] hover:text-[var(--cf-accent-text)]'}`}
                     aria-pressed={isActive}
                     onClick={() => changeAssetType(type)}
                   >
