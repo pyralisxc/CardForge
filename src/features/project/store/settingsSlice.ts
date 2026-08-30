@@ -7,7 +7,7 @@ import { PAPER_SIZES } from '@/domain/rendering';
 
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
-import { createDefaultActiveCardSet, normalizeActiveTab, WORKSPACE_TABS } from './workspaceDefaults';
+import { createDefaultActiveCardSet, normalizeStudioView } from './workspaceDefaults';
 
 const getCompatibleBackingId = (
   state: ProjectState,
@@ -66,7 +66,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   const initialSet = createDefaultActiveCardSet();
   return {
     selectedPaperSize: PAPER_SIZES[0],
-    activeTab: WORKSPACE_TABS[0],
+    studioView: 'desk',
     richTextHighlightColor: '#ffd700',
     cardSets: [initialSet],
     activeCardSet: initialSet,
@@ -80,7 +80,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     exportDpi: 300,
 
     setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
-    setActiveTab: (tab) => set({ activeTab: normalizeActiveTab(tab) }),
+    setStudioView: (view) => set({ studioView: normalizeStudioView(view) }),
     setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
     createCardSet: (name) => {
       const id = `set-${nanoid()}`;

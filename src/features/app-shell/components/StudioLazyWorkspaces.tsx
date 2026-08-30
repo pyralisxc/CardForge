@@ -48,11 +48,30 @@ export const GenerationWorkspace = dynamic(
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
-export const SetLibraryWorkspace = dynamic(
+export const StudioSetDesk = dynamic(
   () => import('@/features/card-generator/client')
-    .then((module) => module.loadSetLibraryWorkspace())
-    .then((module) => module.SetLibraryWorkspace),
+    .then((module) => module.loadStudioSetDesk())
+    .then((module) => module.StudioSetDesk),
   { ssr: false, loading: WorkspaceLoadingState },
+);
+
+export const StudioOutputPanel = dynamic(
+  () => import('@/features/card-generator/client')
+    .then((module) => module.loadExportControlsPanel())
+    .then((module) => module.ExportControlsPanel),
+  { ssr: false, loading: WorkspaceLoadingState },
+);
+
+export const StudioPipelineSubmission = dynamic(
+  () => import('@/features/pipeline/client')
+    .then((module) => module.PipelineContributionPanel),
+  { ssr: false, loading: WorkspaceLoadingState },
+);
+
+export const StudioSaveMoveDialog = dynamic(
+  () => import('@/features/project/client')
+    .then((module) => module.StudioSaveMoveDialog),
+  { ssr: false },
 );
 
 export const EditCardDialog = dynamic(

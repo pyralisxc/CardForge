@@ -58,10 +58,12 @@ export function PipelineSubmissionPanel({
   program,
   onSubmitted,
   initialSetId = null,
+  embedded = false,
 }: {
   program: PipelineProgramView;
   onSubmitted: () => Promise<void>;
   initialSetId?: string | null;
+  embedded?: boolean;
 }) {
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<ContributorUploadAssetType>('icons');
@@ -227,9 +229,8 @@ export function PipelineSubmissionPanel({
     }
   };
 
-  return (
-    <TabsContent value="submit" className="mt-4">
-      <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+  const content = (
+    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit a Library Candidate</h3>
         <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
           Media, fonts, and portable Sets enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used inside Template Studio.
@@ -452,7 +453,8 @@ export function PipelineSubmissionPanel({
             {isSaving ? 'Uploading...' : program.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly limit reached — review'}
           </Button>
         </div>
-      </div>
-    </TabsContent>
+    </div>
   );
+
+  return embedded ? content : <TabsContent value="submit" className="mt-4">{content}</TabsContent>;
 }

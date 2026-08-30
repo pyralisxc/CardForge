@@ -24,7 +24,7 @@ export function GeneratorBackWorkflowBanner({
         <p className="mt-1 text-sm text-[var(--cf-text-muted)]">{WORKFLOW_GUIDANCE[mode]}</p>
       </div>
       <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={onReturn}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Make Cards
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Generate
       </Button>
     </CardForgeSurface>
   );

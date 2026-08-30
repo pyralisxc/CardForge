@@ -3,96 +3,72 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { normalizeActiveTab } from '@/features/project/store/workspaceDefaults';
+import { normalizeStudioView } from '@/features/project/store/workspaceDefaults';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('Studio set workspace navigation', () => {
-  it('keeps Sets as a first-class persisted Studio destination in an app-level navigation rail', () => {
-    const tabs = readSource('src/features/app-shell/lib/studioTabs.tsx');
+describe('Studio Set Desk architecture', () => {
+  it('migrates legacy destinations into one persisted Set Desk with contextual tools', () => {
+    const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+    const commands = readSource('src/features/app-shell/components/StudioCommandBar.tsx');
+    const contextTools = readSource('src/features/app-shell/components/StudioContextTools.tsx');
+
+    expect(normalizeStudioView('sets')).toBe('desk');
+    expect(normalizeStudioView('template-maker')).toBe('template');
+    expect(normalizeStudioView('generator')).toBe('generate');
+    expect(normalizeStudioView('unknown')).toBe('desk');
+    expect(shell).toContain('data-studio-set-desk');
+    expect(commands).toContain('Edit Template');
+    expect(commands).toContain('Save / move');
+    expect(contextTools).toContain('Send {activeSetName} to Pipeline');
+    expect(shell).not.toContain('TabsTrigger');
+    expect(shell).not.toContain('STUDIO_TABS');
+  });
+
+  it('keeps tool workspaces mounted while visibility follows the active Studio view', () => {
     const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
 
-    expect(normalizeActiveTab('sets')).toBe('sets');
-    expect(tabs).toContain("value: 'sets'");
-    expect(tabs).toContain("label: 'Sets'");
-    expect(shell).toContain('cardforge-studio-workspace-nav');
-    expect(shell.indexOf('cardforge-studio-workspace-nav')).toBeLessThan(shell.indexOf('<main className="cardforge-studio-main'));
-    expect(shell).toContain('grid-cols-3');
-    expect(shell).toContain('value="sets"');
-    expect(shell).toContain('data-testid="sets-panel"');
-    expect(shell).toContain('<SetLibraryWorkspace');
-    expect(shell).toContain('min-h-0 flex-1 overflow-hidden');
-    expect(shell).not.toContain('cardforge-studio-context');
-    expect(shell).not.toContain('p-4 text-center text-sm text-[#a8946d]');
+    expect(shell).toContain("hidden={studioView !== 'desk'}");
+    expect(shell).toContain("hidden={studioView !== 'template'}");
+    expect(shell).toContain("hidden={studioView !== 'generate'}");
+    expect(shell).toContain("data-state={studioView === 'template' ? 'active' : 'inactive'}");
   });
 
-  it('keeps inactive force-mounted workspaces out of layout while preserving their editor state', () => {
-    const tabs = readSource('src/components/ui/tabs.tsx');
-    const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+  it('uses real authored previews and the native Set organization owner', () => {
+    const desk = readSource('src/features/card-generator/components/StudioSetDesk.tsx');
 
-    expect(shell).toContain('value="template-maker" forceMount');
-    expect(tabs).toContain('data-[state=inactive]:!hidden');
+    expect(desk).toContain('<AuthoredObjectPreview');
+    expect(desk).toContain('<CardPreview');
+    expect(desk).toContain('updateCardSetOrganization');
+    expect(desk).toContain('addCardSetTag');
+    expect(desk).toContain('setCardsTag');
+    expect(desk).toContain('setCardPositions');
+    expect(desk).toContain('moveGeneratedCardsToSet');
+    expect(desk).toContain('reorderGeneratedCard');
+    expect(desk).toContain('Freeform');
+    expect(desk).toContain('By field');
   });
 
-  it('keeps Make Cards generation-only and makes Sets the finished production workspace', () => {
-    const makeCards = readSource('src/features/card-generator/components/GenerationWorkspace.tsx');
-    const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
+  it('keeps output and Pipeline behind their existing feature owners', () => {
+    const contextTools = readSource('src/features/app-shell/components/StudioContextTools.tsx');
+    const contribution = readSource('src/features/pipeline/components/PipelineContributionPanel.tsx');
+    const submission = readSource('src/features/pipeline/components/PipelineSubmissionPanel.tsx');
 
-    expect(makeCards).toContain('Bulk generation');
-    expect(makeCards).toContain('<BulkGenerator');
-    expect(makeCards).toContain('Sets to inspect, edit, share, and export');
-    expect(makeCards).not.toContain('<GeneratedCardGallery');
-    expect(makeCards).not.toContain('<ExportControlsPanel');
-
-    expect(sets).toContain('data-cardforge-set-library="true"');
-    expect(sets).toContain('Cards in this set');
-    expect(sets).toContain('Editable set');
-    expect(sets).toContain('Rendered output');
-    expect(sets).toContain('<CardVisualPreviewDialog');
-    expect(sets).toContain('<ShareCardButton');
-    expect(sets).toContain('<ExportCardImageButton');
-    expect(sets).toContain('<ExportControlsPanel');
+    expect(contextTools).toContain('<StudioOutputPanel');
+    expect(contextTools).toContain('<StudioPipelineSubmission compact submitOnly');
+    expect(contribution).toContain('submitOnly = false');
+    expect(submission).toContain('embedded = false');
+    expect(submission).toContain('return embedded ? content');
   });
 
-  it('uses Sets as the production workspace while Account separates inventory from storage control', () => {
-    const sets = readSource('src/features/card-generator/components/SetLibraryWorkspace.tsx');
-    const accountStorage = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
-    const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
-    const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
-
-    expect(sets).toContain('useProjectStore');
-    expect(sets).not.toContain('useCloudSetActions');
-    expect(sets).toContain('useCardTransferActions');
-    expect(sets).toContain('Add cards');
-    expect(sets).not.toContain('Cloud only');
-    expect(sets).not.toContain('AssistantDraftLibrary');
-    expect(sets).not.toContain('Browser storage');
-
-    expect(accountLibrary).toContain('useAccountLibraryProjection');
-    expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
-    expect(accountLibrary).toContain('Locations &amp; connections');
-    expect(accountLibrary).toContain('Changes affect only the named location.');
-    expect(accountStorage).toContain('CardForge workspace storage');
-    expect(accountStorage).toContain('This device');
-    expect(accountStorage).not.toContain('CardForge cloud');
-    expect(accountStorage).toContain('AssistantDraftLibrary');
-  });
-
-  it('clears temporary Template handoff state when either production workspace is selected', () => {
-    const handoffs = readSource('src/features/app-shell/hooks/useTemplateStudioHandoffs.ts');
-
-    expect(handoffs).toContain("if (tab !== 'template-maker')");
-    expect(handoffs).toContain('setGeneratorBackWorkflow(null)');
-    expect(handoffs).toContain('setPendingGeneratorBackSave(null)');
-    expect(handoffs).not.toContain("if (tab === 'generator')");
-  });
-
-  it('lazy-loads the set library instead of adding it to the initial Studio bundle', () => {
+  it('lazy-loads heavyweight Studio tools and the Set Desk', () => {
     const client = readSource('src/features/card-generator/client.ts');
     const lazy = readSource('src/features/app-shell/components/StudioLazyWorkspaces.tsx');
 
-    expect(client).toContain("loadSetLibraryWorkspace = () => import('./components/SetLibraryWorkspace')");
-    expect(lazy).toContain('export const SetLibraryWorkspace = dynamic(');
-    expect(lazy).toContain('module.loadSetLibraryWorkspace()');
+    expect(client).toContain("loadStudioSetDesk = () => import('./components/StudioSetDesk')");
+    expect(lazy).toContain('export const StudioSetDesk = dynamic(');
+    expect(lazy).toContain('module.loadStudioSetDesk()');
+    expect(lazy).toContain('export const StudioOutputPanel = dynamic(');
+    expect(lazy).toContain('export const StudioPipelineSubmission = dynamic(');
   });
 });

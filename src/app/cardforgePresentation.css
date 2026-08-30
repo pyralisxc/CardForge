@@ -256,6 +256,21 @@
   display: none;
 }
 
+.cardforge-studio-workspace {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--cf-canvas);
+}
+
+.cardforge-studio-workspace > div {
+  display: flex;
+  height: 100%;
+  min-height: 0 !important;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 @media (max-width: 1023px) {
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) {
     height: 100dvh;
@@ -323,37 +338,8 @@
     padding: 0 !important;
   }
 
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-main > [data-orientation="horizontal"] {
-    display: flex;
-    min-height: 0;
-    flex: 1 1 auto;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-context {
     display: none !important;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-tabs {
-    flex: 0 0 auto;
-    height: 2.25rem !important;
-    min-height: 2.25rem;
-    margin: 0 !important;
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-    padding: 0.125rem !important;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-tabs [role="tab"] {
-    min-height: 2rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-tabs svg {
-    margin-right: 0.25rem !important;
   }
 
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) [data-testid="layout-studio-panel"][data-state="active"] {
@@ -514,16 +500,7 @@
     padding-bottom: 1rem;
   }
 
-  .cardforge-application-viewport .cardforge-studio-main > [data-orientation="horizontal"] {
-    display: flex;
-    min-height: 0;
-    flex: 1 1 auto;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .cardforge-application-viewport .cardforge-studio-context,
-  .cardforge-application-viewport .cardforge-studio-tabs {
+  .cardforge-application-viewport .cardforge-studio-context {
     flex: 0 0 auto;
   }
 
@@ -535,7 +512,7 @@
     overflow: hidden;
   }
 
-  .cardforge-application-viewport [data-testid="generator-panel"][data-state="active"] {
+  .cardforge-application-viewport [data-testid="generator-panel"]:not([hidden]) {
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;

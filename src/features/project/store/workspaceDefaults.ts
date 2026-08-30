@@ -1,7 +1,8 @@
 import type { CardSet } from '@/domain/cards';
 import type { AppearanceStylePreset } from '@/domain/templates';
 
-export const WORKSPACE_TABS = ['template-maker', 'generator', 'sets'] as const;
+export const STUDIO_VIEWS = ['desk', 'template', 'generate'] as const;
+export type StudioView = typeof STUDIO_VIEWS[number];
 
 export const dedupeAppearanceStyles = (styles: AppearanceStylePreset[]): AppearanceStylePreset[] => {
   const byId = new Map<string, AppearanceStylePreset>();
@@ -11,9 +12,12 @@ export const dedupeAppearanceStyles = (styles: AppearanceStylePreset[]): Appeara
   return Array.from(byId.values());
 };
 
-export const normalizeActiveTab = (tab: string): string => (
-  WORKSPACE_TABS.includes(tab as typeof WORKSPACE_TABS[number]) ? tab : WORKSPACE_TABS[0]
-);
+export const normalizeStudioView = (view: unknown): StudioView => {
+  if (STUDIO_VIEWS.includes(view as StudioView)) return view as StudioView;
+  if (view === 'template-maker' || view === 'templates') return 'template';
+  if (view === 'generator') return 'generate';
+  return 'desk';
+};
 
 export const isDraftTemplateSelection = (templateId: string | null): boolean => (
   typeof templateId === 'string' && templateId.startsWith('draft-')

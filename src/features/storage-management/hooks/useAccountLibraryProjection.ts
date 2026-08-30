@@ -335,14 +335,14 @@ export function useAccountLibraryProjection({
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
-        useProjectStore.getState().setActiveTab('sets');
+        useProjectStore.getState().setStudioView('desk');
         router.push('/studio');
         return;
       }
       if (item.references.localTemplateId) {
         const store = useProjectStore.getState();
         store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
-        store.setActiveTab('templates');
+        store.setStudioView('template');
         router.push('/studio');
         return;
       }

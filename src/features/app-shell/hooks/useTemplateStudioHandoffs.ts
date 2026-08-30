@@ -6,6 +6,7 @@ import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { ToastFn } from '@/components/ui/use-toast';
+import type { StudioView } from '@/features/project/client';
 
 export type GeneratorBackWorkflowMode = 'edit' | 'create' | 'manage';
 
@@ -24,7 +25,7 @@ type TemplateStudioHandoffOptions = {
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   saveTemplateToLibrary: (template: TCGCardTemplate) => Promise<string>;
   setActiveCardSetBackingTemplateId: (templateId: string | null) => void;
-  setActiveTab: (tab: string) => void;
+  setStudioView: (view: StudioView) => void;
   setTemplateEditorSelectedTemplateId: (templateId: string | null) => void;
   storedCards: StoredDisplayCard[];
   toast: ToastFn;
@@ -37,7 +38,7 @@ export function useTemplateStudioHandoffs({
   retargetGeneratedCardsTemplate,
   saveTemplateToLibrary,
   setActiveCardSetBackingTemplateId,
-  setActiveTab,
+  setStudioView,
   setTemplateEditorSelectedTemplateId,
   storedCards,
   toast,
@@ -127,35 +128,35 @@ export function useTemplateStudioHandoffs({
     setPendingGeneratorBackSave(null);
     setGeneratorBackWorkflow('edit');
     setTemplateEditorSelectedTemplateId(templateId);
-    setActiveTab('template-maker');
+    setStudioView('template');
     focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, setActiveTab, setTemplateEditorSelectedTemplateId]);
+  }, [focusStudioRegion, setStudioView, setTemplateEditorSelectedTemplateId]);
   const handleManageCardBacks = useCallback(() => {
     setPendingGeneratorBackSave(null);
     setGeneratorBackWorkflow('manage');
-    setActiveTab('template-maker');
+    setStudioView('template');
     focusStudioRegion('[data-card-back-library]');
-  }, [focusStudioRegion, setActiveTab]);
+  }, [focusStudioRegion, setStudioView]);
   const handleCreateMatchingBack = useCallback((formatSource: TemplateCardFormatSource) => {
     setGeneratorBackWorkflow('create');
     setPendingGeneratorBackSave({ previousBackingTemplateId: activeBackingTemplateId });
     matchingBackSequenceRef.current += 1;
     setMatchingBackRequest({ key: matchingBackSequenceRef.current, formatSource });
-    setActiveTab('template-maker');
-  }, [activeBackingTemplateId, setActiveTab]);
+    setStudioView('template');
+  }, [activeBackingTemplateId, setStudioView]);
   const handleReturnToGenerator = useCallback(() => {
     setGeneratorBackWorkflow(null);
     setPendingGeneratorBackSave(null);
-    setActiveTab('generator');
+    setStudioView('generate');
     focusStudioRegion('[data-workflow-step="setup"]');
-  }, [focusStudioRegion, setActiveTab]);
-  const handleStudioTabChange = useCallback((tab: string) => {
-    if (tab !== 'template-maker') {
+  }, [focusStudioRegion, setStudioView]);
+  const handleStudioViewChange = useCallback((view: StudioView) => {
+    if (view !== 'template') {
       setGeneratorBackWorkflow(null);
       setPendingGeneratorBackSave(null);
     }
-    setActiveTab(tab);
-  }, [setActiveTab]);
+    setStudioView(view);
+  }, [setStudioView]);
 
   return {
     applyPendingTemplateRetarget,
@@ -167,7 +168,7 @@ export function useTemplateStudioHandoffs({
     handleManageCardBacks,
     handleReturnToGenerator,
     handleSaveTemplate,
-    handleStudioTabChange,
+    handleStudioViewChange,
     matchingBackRequest,
     pendingTemplateRetarget,
   };

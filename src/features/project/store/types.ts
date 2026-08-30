@@ -1,6 +1,7 @@
 import type { CardSet, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
+import type { StudioView } from './workspaceDefaults';
 
 export interface TemplateSlice {
   defaultTemplates: TCGCardTemplate[];
@@ -43,7 +44,7 @@ export interface OutputSlice {
 
 export interface SettingsSlice {
   selectedPaperSize: PaperSize;
-  activeTab: string;
+  studioView: StudioView;
   richTextHighlightColor: string;
   cardSets: CardSet[];
   activeCardSet: CardSet;
@@ -56,7 +57,7 @@ export interface SettingsSlice {
   exportMode: ExportMode;
   exportDpi: number;
   setSelectedPaperSize: (size: PaperSize) => void;
-  setActiveTab: (tab: string) => void;
+  setStudioView: (view: StudioView) => void;
   setRichTextHighlightColor: (color: string) => void;
   createCardSet: (name?: string) => string;
   setActiveCardSetId: (id: string) => void;

@@ -202,7 +202,7 @@ export function HomeDesk({
   const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
   const openEditDialog = useProjectStore((state) => state.openEditDialog);
-  const setActiveTab = useProjectStore((state) => state.setActiveTab);
+  const setStudioView = useProjectStore((state) => state.setStudioView);
   const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
   const addCardSetTag = useProjectStore((state) => state.addCardSetTag);
   const setCardsTag = useProjectStore((state) => state.setCardsTag);
@@ -471,11 +471,11 @@ export function HomeDesk({
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
     else if (action.id === 'home.generate-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
-      setActiveTab('generator');
+      setStudioView('generate');
       projection.router.push('/studio');
     } else if (action.id === 'home.export-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
-      setActiveTab('sets');
+      setStudioView('desk');
       projection.router.push('/studio');
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
     else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
@@ -495,7 +495,7 @@ export function HomeDesk({
       return;
     }
     setActiveCardSetId(item.references.localSetId);
-    setActiveTab(lane === 'generate' ? 'generator' : 'sets');
+    setStudioView(lane === 'generate' ? 'generate' : 'desk');
     projection.router.push('/studio');
   };
 
@@ -511,7 +511,7 @@ export function HomeDesk({
   const editSelectedCard = () => {
     if (!selectedCard || !focusedLocalSetId) return;
     setActiveCardSetId(focusedLocalSetId);
-    setActiveTab('sets');
+    setStudioView('desk');
     openEditDialog(selectedCard.uniqueId);
     projection.router.push('/studio');
   };

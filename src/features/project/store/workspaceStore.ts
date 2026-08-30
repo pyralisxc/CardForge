@@ -20,7 +20,7 @@ import type { ProjectState, WorkspaceLifecycleSlice } from './types';
 import {
   createDefaultActiveCardSet,
   dedupeAppearanceStyles,
-  normalizeActiveTab,
+  normalizeStudioView,
 } from './workspaceDefaults';
 
 const WORKSPACE_STORAGE_OPTIONS = {
@@ -35,7 +35,7 @@ type WorkspacePersistedState = Pick<
   | 'appearanceStyles'
   | 'storedCards'
   | 'selectedPaperSize'
-  | 'activeTab'
+  | 'studioView'
   | 'richTextHighlightColor'
   | 'cardSets'
   | 'activeCardSet'
@@ -118,10 +118,10 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       });
     }
 
-    const activeTab = normalizeActiveTab(state.activeTab);
+    const studioView = normalizeStudioView(state.studioView);
     const appearanceStyles = dedupeAppearanceStyles(state.appearanceStyles);
-    if (activeTab !== state.activeTab || appearanceStyles.length !== state.appearanceStyles.length) {
-      set({ activeTab, appearanceStyles });
+    if (studioView !== state.studioView || appearanceStyles.length !== state.appearanceStyles.length) {
+      set({ studioView, appearanceStyles });
     }
   },
 });
@@ -145,7 +145,7 @@ export const useProjectStore = create<ProjectState>()(
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),
           storedCards: state.storedCards,
           selectedPaperSize: state.selectedPaperSize,
-          activeTab: normalizeActiveTab(state.activeTab),
+          studioView: normalizeStudioView(state.studioView),
           richTextHighlightColor: state.richTextHighlightColor,
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
@@ -163,7 +163,21 @@ export const useProjectStore = create<ProjectState>()(
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
         skipHydration: true,
-        version: 1,
+        version: 2,
+        migrate: (persistedState, version) => {
+          const legacy = persistedState as WorkspacePersistedState & { activeTab?: unknown };
+          if (version < 2) {
+            const { activeTab, ...current } = legacy;
+            return {
+              ...current,
+              studioView: normalizeStudioView(activeTab),
+            } as WorkspacePersistedState;
+          }
+          return {
+            ...legacy,
+            studioView: normalizeStudioView(legacy.studioView),
+          } as WorkspacePersistedState;
+        },
       },
     ),
   ),

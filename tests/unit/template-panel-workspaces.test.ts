@@ -103,7 +103,6 @@ describe('Template panel workspaces', () => {
     expect(presentation).toContain('.cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"])');
     expect(presentation).toContain('height: 100dvh');
     expect(presentation).toContain('.cardforge-studio-header > div');
-    expect(presentation).toContain('.cardforge-studio-tabs [role="tab"]');
     expect(presentation).toContain('padding: 0 !important;');
     expect(presentation).toContain('> div > footer');
     expect(presentation).toContain('display: none !important;');

@@ -292,7 +292,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
             <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Generate cards from a list</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Make Cards is the production-input workspace. Add or paste a batch here, then use Sets to inspect, edit, share, and export the finished cards.
+              Generate adds cards to the active Set. Close this tool to arrange and edit the finished cards on the Set Desk, or open Output when they are ready.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border bg-card/70 px-3 py-2 text-xs text-muted-foreground">

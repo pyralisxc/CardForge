@@ -545,7 +545,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       return;
     }
     store.setTemplateEditorSelectedTemplateId(selectedTemplateId);
-    store.setActiveTab('templates');
+    store.setStudioView('template');
     if (actionId === 'library.copy-published-template') {
       toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
     }
@@ -563,7 +563,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       const store = useProjectStore.getState();
       const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
       store.setTemplateEditorSelectedTemplateId(templateId);
-      store.setActiveTab('templates');
+      store.setStudioView('template');
       toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
       projection.router.push('/studio');
     }

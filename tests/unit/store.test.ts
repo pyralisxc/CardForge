@@ -702,10 +702,10 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
   });
 
-  it('normalizes the old template maker tab id for persisted browser state', () => {
-    useProjectStore.getState().setActiveTab('template-maker-2');
+  it('keeps the Studio view constrained to the Set Desk and its contextual tools', () => {
+    useProjectStore.getState().setStudioView('generate');
 
-    expect(useProjectStore.getState().activeTab).toBe('template-maker');
+    expect(useProjectStore.getState().studioView).toBe('generate');
   });
 
   it('persists the selected physical PDF front/back layout option', () => {

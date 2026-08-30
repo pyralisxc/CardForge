@@ -21,7 +21,7 @@ export function useCardForgeWorkspaceState() {
   const generatedDisplayCards = useProjectStore(selectGeneratedDisplayCards);
 
   const selectedPaperSize = useProjectStore((state) => state.selectedPaperSize);
-  const activeTab = useProjectStore((state) => state.activeTab);
+  const studioView = useProjectStore((state) => state.studioView);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const singleCardGeneratorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
   const templateEditorSelectedTemplateId = useProjectStore((state) => state.templateEditorSelectedTemplateId);
@@ -53,7 +53,7 @@ export function useCardForgeWorkspaceState() {
   const setStoredCardsFromFileAction = useProjectStore((state) => state.setStoredCardsFromFile);
   const mergeStoredCardsFromFileAction = useProjectStore((state) => state.mergeStoredCardsFromFile);
   const setSelectedPaperSizeAction = useProjectStore((state) => state.setSelectedPaperSize);
-  const setActiveTabAction = useProjectStore((state) => state.setActiveTab);
+  const setStudioViewAction = useProjectStore((state) => state.setStudioView);
   const setActiveCardSetNameAction = useProjectStore((state) => state.setActiveCardSetName);
   const setActiveCardSetFrontTemplateIdAction = useProjectStore((state) => state.setActiveCardSetFrontTemplateId);
   const setActiveCardSetBackingTemplateIdAction = useProjectStore((state) => state.setActiveCardSetBackingTemplateId);
@@ -93,7 +93,7 @@ export function useCardForgeWorkspaceState() {
       removeGeneratedCardAction,
       retargetGeneratedCardsBackingTemplateAction,
       retargetGeneratedCardsTemplateAction,
-      setActiveTabAction,
+      setStudioViewAction,
       setActiveCardSetBackingTemplateIdAction,
       setActiveCardSetFrontTemplateIdAction,
       setActiveCardSetNameAction,
@@ -113,7 +113,7 @@ export function useCardForgeWorkspaceState() {
       updateGeneratedCardAction,
     },
     state: {
-      activeTab,
+      studioView,
       activeCardSet,
       appearanceStyles,
       backFacePresetTemplates,

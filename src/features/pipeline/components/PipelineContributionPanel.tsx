@@ -42,10 +42,12 @@ export function PipelineContributionPanel({
   compact = false,
   initialSubmissionId = null,
   initialSubmitSetId = null,
+  submitOnly = false,
 }: {
   compact?: boolean;
   initialSubmissionId?: string | null;
   initialSubmitSetId?: string | null;
+  submitOnly?: boolean;
 }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<PipelineProgramView | null>(null);
@@ -279,6 +281,21 @@ export function PipelineContributionPanel({
           </Button>
         </div>
       </section>
+    );
+  }
+
+  if (submitOnly) {
+    return (
+      <TooltipProvider>
+        <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
+          <PipelineSubmissionPanel
+            program={program}
+            onSubmitted={loadProgram}
+            initialSetId={initialSubmitSetId}
+            embedded
+          />
+        </section>
+      </TooltipProvider>
     );
   }
 

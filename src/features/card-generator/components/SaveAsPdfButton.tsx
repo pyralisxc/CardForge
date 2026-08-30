@@ -108,7 +108,7 @@ export function SaveAsPdfButton({
     if (criticalIssues.size > 0) {
       toast({
         title: "Export Blocked by Quality Checks",
-        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these card issues in Make Cards or the Template, then download again.'),
+        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these card issues in Generate or the Template tool, then download again.'),
         variant: "destructive",
       });
       setIsLoadingPdf(false);

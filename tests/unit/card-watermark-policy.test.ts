@@ -76,8 +76,8 @@ describe('card watermark policy', () => {
       resolve(process.cwd(), 'src/features/card-generator/components/GenerationWorkspace.tsx'),
       'utf8',
     );
-    const setLibrarySource = readFileSync(
-      resolve(process.cwd(), 'src/features/card-generator/components/SetLibraryWorkspace.tsx'),
+    const setDeskSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/components/StudioSetDesk.tsx'),
       'utf8',
     );
     const visualPreviewSource = readFileSync(
@@ -101,9 +101,7 @@ describe('card watermark policy', () => {
     expect(shellSource).toContain('showCardWatermark={showVisibleCardWatermark}');
     expect(workspaceSource).toContain('shouldShowVisibleCardWatermark(canExportClean)');
     expect(workspaceSource).toContain('showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null');
-    expect(setLibrarySource).toContain('shouldShowVisibleCardWatermark(canExportClean)');
-    expect(setLibrarySource).toContain('showWatermark ? <CardWatermarkOverlay testId={`set-library-watermark-${card.uniqueId}`} /> : null');
-    expect(setLibrarySource).toContain('showWatermark={showWatermark}');
+    expect(setDeskSource).toContain('showCardWatermark ? <CardWatermarkOverlay testId={`studio-set-desk-watermark-${card.uniqueId}`} /> : null');
     expect(visualPreviewSource).toContain('showWatermark ? <CardWatermarkOverlay testId={`visual-preview-watermark-${card.uniqueId}`} /> : null');
     expect(makerSource).toContain('showCardWatermark={showCardWatermark}');
     expect(stageSource).toContain('showCardWatermark ? <CardWatermarkOverlay testId="template-editor-watermark" /> : null');

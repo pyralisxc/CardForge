@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
 import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app-shell/lib/studioPresentation';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -11,12 +9,23 @@ import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
-import { CardTemplateMaker, EditCardDialog, GenerationWorkspace, SetLibraryWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
+import {
+  CardTemplateMaker,
+  EditCardDialog,
+  GenerationWorkspace,
+  StudioSetDesk,
+} from '@/features/app-shell/components/StudioLazyWorkspaces';
+import { StudioCommandBar } from '@/features/app-shell/components/StudioCommandBar';
+import { StudioContextTools, type StudioContextTool } from '@/features/app-shell/components/StudioContextTools';
 import { GeneratorBackWorkflowBanner } from '@/features/app-shell/components/GeneratorBackWorkflowBanner';
 import { StudioConfirmationDialogs } from '@/features/app-shell/components/StudioConfirmationDialogs';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
 import { useTemplateStudioHandoffs } from '@/features/app-shell/hooks/useTemplateStudioHandoffs';
-import { BrowserStorageAlerts, useBrowserWorkspaceSaveStatus, useProjectFileActions } from '@/features/project/client';
+import {
+  BrowserStorageAlerts,
+  useBrowserWorkspaceSaveStatus,
+  useProjectFileActions,
+} from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
 import { useCheckoutActions } from '@/features/billing/client';
 import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/card-generator/client';
@@ -88,7 +97,7 @@ export function CardForgeStudioShell({
       removeGeneratedCardAction,
       retargetGeneratedCardsBackingTemplateAction,
       retargetGeneratedCardsTemplateAction,
-      setActiveTabAction,
+      setStudioViewAction,
       setAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
       setExportDpiAction,
@@ -105,7 +114,7 @@ export function CardForgeStudioShell({
       updateGeneratedCardAction,
     },
     state: {
-      activeTab,
+      studioView,
       activeCardSet,
       appearanceStyles,
       backFacePresetTemplates,
@@ -136,6 +145,8 @@ export function CardForgeStudioShell({
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
+  const [openStudioSheet, setOpenStudioSheet] = useState<StudioContextTool>(null);
+  const [saveMoveOpen, setSaveMoveOpen] = useState(false);
   const {
     isLoadingTemplates,
     retryLibraries,
@@ -277,7 +288,7 @@ export function CardForgeStudioShell({
     handleManageCardBacks,
     handleReturnToGenerator,
     handleSaveTemplate,
-    handleStudioTabChange,
+    handleStudioViewChange,
     matchingBackRequest,
     pendingTemplateRetarget,
   } = useTemplateStudioHandoffs({
@@ -287,25 +298,23 @@ export function CardForgeStudioShell({
     retargetGeneratedCardsTemplate: retargetGeneratedCardsTemplateAction,
     saveTemplateToLibrary,
     setActiveCardSetBackingTemplateId: setActiveCardSetBackingTemplateIdAction,
-    setActiveTab: setActiveTabAction,
+    setStudioView: setStudioViewAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
     toast,
   });
 
   const handleStartMakingCards = useCallback(() => {
-    setActiveTabAction('generator');
+    setStudioViewAction('generate');
     handleDismissFirstRunGuide();
     focusStudioRegion('[data-workflow-step="setup"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
 
   const handleEditDesignFirst = useCallback(() => {
-    setActiveTabAction('template-maker');
+    setStudioViewAction('template');
     handleDismissFirstRunGuide();
     focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
-
-  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
   useEffect(() => {
     if (isLoadingTemplates || requestedTemplateHandledRef.current) return;
     const url = new URL(window.location.href);
@@ -325,11 +334,11 @@ export function CardForgeStudioShell({
       return;
     }
     setTemplateEditorSelectedTemplateIdAction(template.id);
-    setActiveTabAction('template-maker');
+    setStudioViewAction('template');
     url.searchParams.delete('editTemplate');
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, isLoadingTemplates, setActiveTabAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore, toast]);
+  }, [focusStudioRegion, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore, toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,7 +360,7 @@ export function CardForgeStudioShell({
     mergeAppearanceStyles: setAppearanceStylesFromFilesAction,
     mergeStoredCards: mergeStoredCardsFromFileAction,
     mergeUserTemplates: mergeUserTemplatesFromFilesAction,
-    setActiveTab: setActiveTabAction,
+    setStudioView: setStudioViewAction,
     setExportDpi: setExportDpiAction,
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
@@ -360,6 +369,24 @@ export function CardForgeStudioShell({
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
   });
+
+  const showDesk = useCallback(() => {
+    handleStudioViewChange('desk');
+    setOpenStudioSheet(null);
+    focusStudioRegion('[data-studio-set-desk]');
+  }, [focusStudioRegion, handleStudioViewChange]);
+
+  const showTemplateTool = useCallback(() => {
+    handleStudioViewChange('template');
+    setOpenStudioSheet(null);
+    focusStudioRegion('[data-testid="layout-studio-panel"]');
+  }, [focusStudioRegion, handleStudioViewChange]);
+
+  const showGenerateTool = useCallback(() => {
+    handleStudioViewChange('generate');
+    setOpenStudioSheet(null);
+    focusStudioRegion('[data-workflow-step="setup"]');
+  }, [focusStudioRegion, handleStudioViewChange]);
 
   return (
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
@@ -379,29 +406,21 @@ export function CardForgeStudioShell({
         </div>
       ) : null}
 
-      <Tabs
-        value={effectiveActiveTab}
-        onValueChange={handleStudioTabChange}
-        className="cardforge-studio-tabs-root flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
-      >
-        <div className="cardforge-studio-workspace-nav shrink-0 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] no-print">
-          <div className="container mx-auto flex max-w-full items-center px-4 md:px-6 lg:px-8">
-            <TabsList className="cardforge-studio-tabs grid h-10 w-full grid-cols-3 rounded-none border-0 bg-transparent p-0 sm:w-auto sm:min-w-[26rem]">
-              {STUDIO_TABS.map(tab => (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  data-testid={`studio-tab-${tab.value}`}
-                  className="flex min-h-10 items-center justify-center gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-4 py-1 text-xs text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent-strong)] data-[state=active]:bg-[var(--cf-surface-raised)] data-[state=active]:text-[var(--cf-text-strong)] sm:text-sm"
-                >
-                  <tab.icon className="h-4 w-4" /> {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-        </div>
+      <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+        <StudioCommandBar
+          activeSetName={activeCardSet.name}
+          studioView={studioView}
+          cardCount={generatedDisplayCards.length}
+          canSubmitToPipeline={canSubmitTemplateRevisions}
+          onShowDesk={showDesk}
+          onShowTemplate={showTemplateTool}
+          onShowGenerate={showGenerateTool}
+          onOpenSave={() => setSaveMoveOpen(true)}
+          onOpenOutput={() => setOpenStudioSheet('output')}
+          onOpenPipeline={() => setOpenStudioSheet('pipeline')}
+        />
 
-        <main className="cardforge-studio-main container mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-4 md:p-6 lg:p-8">
+        <main className="cardforge-studio-main container mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-3 md:p-5 lg:p-6">
           {isStudioReady ? (
             <div data-testid="studio-ready" className="sr-only">Studio ready</div>
           ) : (
@@ -425,7 +444,7 @@ export function CardForgeStudioShell({
               </Button>
             </div>
           ) : null}
-          {showFirstRunGuide ? (
+          {showFirstRunGuide && studioView === 'desk' ? (
             <StudioFirstRunGuide
               onDismiss={handleDismissFirstRunGuide}
               onStartMakingCards={handleStartMakingCards}
@@ -433,14 +452,26 @@ export function CardForgeStudioShell({
             />
           ) : null}
 
-          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="!mt-0 min-h-0 flex-1 space-y-3 data-[state=inactive]:hidden">
+          <div hidden={studioView !== 'desk'} data-testid="studio-set-desk-panel" className="min-h-0 flex-1 overflow-hidden">
+            <StudioSetDesk
+              onEditCardRequest={handleEditCardRequest}
+              onEditTemplate={showTemplateTool}
+              onGenerate={showGenerateTool}
+              onOpenOutput={() => setOpenStudioSheet('output')}
+              onOpenSave={() => setSaveMoveOpen(true)}
+              onOpenPipeline={canSubmitTemplateRevisions ? () => setOpenStudioSheet('pipeline') : undefined}
+              showCardWatermark={showVisibleCardWatermark}
+            />
+          </div>
+
+          <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
             {generatorBackWorkflow ? (
               <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={handleReturnToGenerator} />
             ) : null}
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canUseProjectFiles}
               showCardWatermark={showVisibleCardWatermark}
-              isActive={effectiveActiveTab === 'template-maker'}
+              isActive={studioView === 'template'}
               onSaveTemplate={handleSaveTemplate}
               onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
               templates={templatesFromStore}
@@ -463,13 +494,13 @@ export function CardForgeStudioShell({
               canSubmitSharedTemplateRevision={canSubmitTemplateRevisions}
               canPublishSharedLibrary={canPublishSharedLibrary}
               canUploadCustomAssets={canUploadCustomAssets}
-              onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
+              onReturnToTemplateMaker={showTemplateTool}
               requestedBackFormat={matchingBackRequest}
               onRequestedBackFormatConsumed={clearMatchingBackRequest}
             />
-          </TabsContent>
+          </div>
 
-          <TabsContent value="generator" data-testid="generator-panel" className="!mt-0 min-h-0 flex-1">
+          <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto">
             <GenerationWorkspace
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
@@ -495,7 +526,7 @@ export function CardForgeStudioShell({
               exportGateMessage={exportGateMessage}
               exportEntitlementLabel={exportEntitlementLabel}
               exportEntitlementMessage={exportEntitlementMessage}
-              onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
+              onOpenTemplateMaker={showTemplateTool}
               onCreateMatchingBack={handleCreateMatchingBack}
               onEditSelectedBack={handleEditCardBack}
               onManageCardBacks={handleManageCardBacks}
@@ -517,39 +548,52 @@ export function CardForgeStudioShell({
               onEditCardRequest={handleEditCardRequest}
               onRemoveCard={handleRemoveCard}
             />
-          </TabsContent>
-
-          <TabsContent value="sets" data-testid="sets-panel" className="!mt-0 min-h-0 flex-1 overflow-hidden">
-            <SetLibraryWorkspace
-              onOpenMakeCards={() => setActiveTabAction('generator')}
-              onEditCardRequest={handleEditCardRequest}
-              selectedPaperSize={selectedPaperSize}
-              pdfMarginMm={pdfMarginMm}
-              pdfCardSpacingMm={pdfCardSpacingMm}
-              pdfIncludeCutLines={pdfIncludeCutLines}
-              pdfDuplexLayout={pdfDuplexLayout}
-              exportMode={exportMode}
-              exportDpi={exportDpi}
-              zipProgress={zipProgress}
-              isZipExporting={isZipExporting}
-              zipExportKind={zipExportKind}
-              isCheckoutStarting={isCheckoutStarting}
-              canExportClean={projectCapabilities.canExportClean}
-              exportGateMessage={exportGateMessage}
-              exportEntitlementLabel={exportEntitlementLabel}
-              exportEntitlementMessage={exportEntitlementMessage}
-              onSelectPaperSize={setSelectedPaperSizeAction}
-              onSetPdfOptions={setPdfOptionsAction}
-              onSetExportMode={setExportModeAction}
-              onSetExportDpi={setExportDpiAction}
-              onStartCheckout={handleStartCheckout}
-              onExportAllAsZip={handleExportAllAsZip}
-              onExportTabletopSimulatorSpritesheets={handleExportTabletopSimulatorSpritesheets}
-              onClearCardsRequest={() => setIsClearCardsDialogOpen(true)}
-            />
-          </TabsContent>
+          </div>
         </main>
-      </Tabs>
+      </div>
+
+      <StudioContextTools
+        activeSetName={activeCardSet.name}
+        activeSetId={activeCardSet.id}
+        openTool={openStudioSheet}
+        onOpenToolChange={setOpenStudioSheet}
+        canSubmitToPipeline={canSubmitTemplateRevisions}
+        saveMoveOpen={saveMoveOpen}
+        onSaveMoveOpenChange={setSaveMoveOpen}
+        outputPanelProps={{
+          canExportClean: projectCapabilities.canExportClean,
+          exportDpi,
+          exportEntitlementLabel,
+          exportEntitlementMessage,
+          exportGateMessage,
+          exportMode,
+          generatedDisplayCards,
+          isCheckoutStarting,
+          isZipExporting,
+          pdfCardSpacingMm,
+          pdfDuplexLayout,
+          pdfIncludeCutLines,
+          pdfMarginMm,
+          richTextHighlightColor,
+          selectedPaperSize,
+          zipExportKind,
+          zipProgress,
+          onClearCardsRequest: () => setIsClearCardsDialogOpen(true),
+          onExportAllAsZip: handleExportAllAsZip,
+          onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets,
+          onSelectPaperSize: setSelectedPaperSizeAction,
+          onSetExportDpi: setExportDpiAction,
+          onSetExportMode: setExportModeAction,
+          onSetPdfOptions: setPdfOptionsAction,
+          onStartCheckout: handleStartCheckout,
+        }}
+        saveMoveDialogProps={{
+          isSignedIn: accountEntitlement.isSignedIn,
+          canUseProjectFiles: projectCapabilities.canUseProjectFiles,
+          setId: activeCardSet.id,
+          setName: activeCardSet.name,
+        }}
+      />
 
       <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canUseProjectFiles} />
       {isEditDialogOpen && editingCardFromStore && (

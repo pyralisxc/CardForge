@@ -151,9 +151,18 @@ CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 - temporary AI Studio-document handoff;
 - command palette/mobile editor controls.
 
+### Shipped Set Desk consolidation
+
+- Studio opens on the active Set Desk instead of peer Templates / Make Cards / Sets destinations;
+- the canonical authored-object renderer gives every local Set and card its real CardForge visual identity;
+- the Set Desk consumes the project-owned tag, group, sort, order, move, and freeform-position state also used by Desk;
+- Template editing and Generate are focused tools that preserve the active Set when closed;
+- Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
+- legacy tab navigation, tab IDs, Set Library component, and duplicate inline output surface are removed.
+
 ### Direction
 
-Retire Templates / Make Cards / Sets as competing top-level Studio destinations only after parity.
+Templates / Make Cards / Sets have been retired as competing top-level Studio destinations after preserving their native capability owners.
 
 Studio opens to one active Set Desk:
 
@@ -368,9 +377,9 @@ All other existing feature owners keep their native records/providers; placement
 - **Owner remains separate** operations.
 - Desk is spatial authored-work organization, not only orientation/router.
 - Library becomes a Personal / entitlement-filtered Pipeline collection, with Published added for Contributors and Owners.
-- Studio becomes one Set Desk with Generate/Export/Save/Review as tools.
+- Studio is one Set Desk with Generate/Export/Save/Pipeline as contextual tools.
 - Profile remains personal configuration.
-- Retire Templates / Make Cards / Sets as peer Studio destinations only after parity.
+- Templates / Make Cards / Sets peer Studio destinations are retired; their feature owners remain native tools.
 - Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, and Owner.
 - CardForge Cloud Set Mirror remains retired.
 - Provider save and Pipeline submission remain semantically separate.

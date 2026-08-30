@@ -13,6 +13,8 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
   mergeProjectAssetListToStorage,
+  normalizeStudioView,
+  type StudioView,
   useProjectStore,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
@@ -36,7 +38,7 @@ interface StudioDocumentHandoffOptions {
   isSignedIn: boolean;
   isStudioReady: boolean;
   mergeAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
-  setActiveTab: (tab: string) => void;
+  setStudioView: (view: StudioView) => void;
   setExportDpi: (dpi: number) => void;
   setExportMode: (mode: ExportMode) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
@@ -61,7 +63,7 @@ export function useStudioDocumentHandoff({
   isSignedIn,
   isStudioReady,
   mergeAppearanceStyles,
-  setActiveTab,
+  setStudioView,
   setExportDpi,
   setExportMode,
   setPdfOptions,
@@ -177,7 +179,7 @@ export function useStudioDocumentHandoff({
             ?? null;
           setSelectedTemplateId(installedTemplateId);
           setTemplateEditorSelectedTemplateId(installedTemplateId);
-          setActiveTab(destination);
+          setStudioView(normalizeStudioView(destination));
 
           const installSummary: StudioDocumentInstallSummary = {
             templateCount: personalTemplates.length,
@@ -260,7 +262,7 @@ export function useStudioDocumentHandoff({
           ?? null;
         setSelectedTemplateId(firstTemplateId);
         setTemplateEditorSelectedTemplateId(firstTemplateId);
-        setActiveTab('template-maker');
+        setStudioView('template');
 
         handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
         url.searchParams.delete('document');
@@ -297,7 +299,7 @@ export function useStudioDocumentHandoff({
     mergeAppearanceStyles,
     mergeStoredCards,
     mergeUserTemplates,
-    setActiveTab,
+    setStudioView,
     setExportDpi,
     setExportMode,
     setPdfOptions,
