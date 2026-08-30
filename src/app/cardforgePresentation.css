@@ -287,48 +287,6 @@
     overflow: hidden;
   }
 
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-header {
-    flex: 0 0 auto;
-    padding: 0.375rem 0.5rem !important;
-    box-shadow: none;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-header > div {
-    max-width: none;
-    flex-wrap: nowrap;
-    gap: 0.4rem;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-header a:first-child {
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-brand-mark {
-    width: 1.75rem !important;
-    height: 1.75rem !important;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-title {
-    font-size: 0.875rem !important;
-    line-height: 1.1 !important;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-header p[role="status"] {
-    order: 0 !important;
-    width: auto !important;
-    max-width: 5.25rem;
-    flex: 0 1 auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.625rem;
-  }
-
-  .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-header button {
-    min-height: 2rem;
-  }
-
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) .cardforge-studio-main {
     display: flex;
     min-height: 0;
@@ -485,7 +443,7 @@
     overflow: hidden;
   }
 
-  .cardforge-application-viewport .cardforge-studio-header,
+  .cardforge-application-viewport .cardforge-studio-workspace-nav,
   .cardforge-application-viewport > div > footer {
     flex: 0 0 auto;
   }

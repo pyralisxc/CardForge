@@ -66,7 +66,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   const initialSet = createDefaultActiveCardSet();
   return {
     selectedPaperSize: PAPER_SIZES[0],
-    studioView: 'desk',
+    studioView: 'generate',
     richTextHighlightColor: '#ffd700',
     cardSets: [initialSet],
     activeCardSet: initialSet,

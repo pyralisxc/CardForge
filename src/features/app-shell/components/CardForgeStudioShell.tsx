@@ -7,13 +7,11 @@ import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
-import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
 import {
   CardTemplateMaker,
   EditCardDialog,
   GenerationWorkspace,
-  StudioSetDesk,
 } from '@/features/app-shell/components/StudioLazyWorkspaces';
 import { StudioCommandBar } from '@/features/app-shell/components/StudioCommandBar';
 import { StudioContextTools, type StudioContextTool } from '@/features/app-shell/components/StudioContextTools';
@@ -106,7 +104,6 @@ export function CardForgeStudioShell({
       setSelectedPaperSizeAction,
       setActiveCardSetBackingTemplateIdAction,
       setActiveCardSetFrontTemplateIdAction,
-      setActiveCardSetNameAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
@@ -142,9 +139,8 @@ export function CardForgeStudioShell({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
   const requestedTemplateHandledRef = useRef(false);
+  const requestedToolHandledRef = useRef(false);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
-  const [gallerySearch, setGallerySearch] = useState('');
-  const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
   const [openStudioSheet, setOpenStudioSheet] = useState<StudioContextTool>(null);
   const [saveMoveOpen, setSaveMoveOpen] = useState(false);
   const {
@@ -189,10 +185,7 @@ export function CardForgeStudioShell({
     handleClearGeneratedCards,
     handleCloseEditDialog,
     handleDuplicateCard,
-    handleEditCardRequest,
-    handleRemoveCard,
     handleSaveEditedCard,
-    handleSingleCardAdded,
     isClearCardsDialogOpen,
     setIsClearCardsDialogOpen,
   } = useGeneratedOutputActions({
@@ -273,8 +266,13 @@ export function CardForgeStudioShell({
   const focusStudioRegion = useCallback((selector: string) => {
     window.requestAnimationFrame(() => {
       const target = document.querySelector<HTMLElement>(selector);
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      target?.focus({ preventScroll: true });
+      if (!target) return;
+      const panel = target.closest<HTMLElement>('[data-testid="generator-panel"]');
+      if (panel && panel !== target) {
+        panel.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+      }
+      target.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
   }, []);
 
@@ -341,6 +339,22 @@ export function CardForgeStudioShell({
   }, [focusStudioRegion, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore, toast]);
 
   useEffect(() => {
+    if (requestedToolHandledRef.current) return;
+    const url = new URL(window.location.href);
+    const requestedTool = url.searchParams.get('tool');
+    if (!requestedTool) {
+      requestedToolHandledRef.current = true;
+      return;
+    }
+    if (requestedTool === 'output') setOpenStudioSheet('output');
+    else if (requestedTool === 'pipeline' && canSubmitTemplateRevisions) setOpenStudioSheet('pipeline');
+    else if (requestedTool === 'save') setSaveMoveOpen(true);
+    requestedToolHandledRef.current = true;
+    url.searchParams.delete('tool');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [canSubmitTemplateRevisions]);
+
+  useEffect(() => {
     let cancelled = false;
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
       if (!cancelled && !firstRunGuideDismissedRef.current) {
@@ -370,12 +384,6 @@ export function CardForgeStudioShell({
     toast,
   });
 
-  const showDesk = useCallback(() => {
-    handleStudioViewChange('desk');
-    setOpenStudioSheet(null);
-    focusStudioRegion('[data-studio-set-desk]');
-  }, [focusStudioRegion, handleStudioViewChange]);
-
   const showTemplateTool = useCallback(() => {
     handleStudioViewChange('template');
     setOpenStudioSheet(null);
@@ -390,16 +398,6 @@ export function CardForgeStudioShell({
 
   return (
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-      <StudioHeader
-        authConfigured={accountEntitlement.authConfigured}
-        isLoadingAccount={accountEntitlement.isLoadingEntitlement}
-        isSignedIn={accountEntitlement.isSignedIn}
-        modeLabel={exportEntitlementLabel}
-        saveStatus={workspaceSaveStatus}
-        onRefreshEntitlement={accountEntitlement.refreshEntitlement}
-        contributorLibraryHref={contributorAccess.active ? '/account?section=library&scope=pipeline' : null}
-      />
-
       {accountEntitlement.entitlementError ? (
         <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
           Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
@@ -412,7 +410,12 @@ export function CardForgeStudioShell({
           studioView={studioView}
           cardCount={generatedDisplayCards.length}
           canSubmitToPipeline={canSubmitTemplateRevisions}
-          onShowDesk={showDesk}
+          authConfigured={accountEntitlement.authConfigured}
+          isLoadingAccount={accountEntitlement.isLoadingEntitlement}
+          isSignedIn={accountEntitlement.isSignedIn}
+          modeLabel={exportEntitlementLabel}
+          saveStatus={workspaceSaveStatus}
+          onRefreshEntitlement={accountEntitlement.refreshEntitlement}
           onShowTemplate={showTemplateTool}
           onShowGenerate={showGenerateTool}
           onOpenSave={() => setSaveMoveOpen(true)}
@@ -444,25 +447,13 @@ export function CardForgeStudioShell({
               </Button>
             </div>
           ) : null}
-          {showFirstRunGuide && studioView === 'desk' ? (
+          {showFirstRunGuide && studioView === 'generate' && generatedDisplayCards.length === 0 ? (
             <StudioFirstRunGuide
               onDismiss={handleDismissFirstRunGuide}
               onStartMakingCards={handleStartMakingCards}
               onEditDesignFirst={handleEditDesignFirst}
             />
           ) : null}
-
-          <div hidden={studioView !== 'desk'} data-testid="studio-set-desk-panel" className="min-h-0 flex-1 overflow-hidden">
-            <StudioSetDesk
-              onEditCardRequest={handleEditCardRequest}
-              onEditTemplate={showTemplateTool}
-              onGenerate={showGenerateTool}
-              onOpenOutput={() => setOpenStudioSheet('output')}
-              onOpenSave={() => setSaveMoveOpen(true)}
-              onOpenPipeline={canSubmitTemplateRevisions ? () => setOpenStudioSheet('pipeline') : undefined}
-              showCardWatermark={showVisibleCardWatermark}
-            />
-          </div>
 
           <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
             {generatorBackWorkflow ? (
@@ -507,46 +498,16 @@ export function CardForgeStudioShell({
               backFaceTemplates={backFacePresetTemplates}
               activeCardSet={activeCardSet}
               generatorSelectedTemplateId={generatorSelectedTemplateId}
-              selectedPaperSize={selectedPaperSize}
-              pdfMarginMm={pdfMarginMm}
-              pdfCardSpacingMm={pdfCardSpacingMm}
-              pdfIncludeCutLines={pdfIncludeCutLines}
-              pdfDuplexLayout={pdfDuplexLayout}
               richTextHighlightColor={richTextHighlightColor}
-              exportMode={exportMode}
-              exportDpi={exportDpi}
               generatedDisplayCards={generatedDisplayCards}
-              zipProgress={zipProgress}
-              gallerySearch={gallerySearch}
-              gallerySort={gallerySort}
-              isZipExporting={isZipExporting}
-              zipExportKind={zipExportKind}
-              isCheckoutStarting={isCheckoutStarting}
               canExportClean={projectCapabilities.canExportClean}
-              exportGateMessage={exportGateMessage}
-              exportEntitlementLabel={exportEntitlementLabel}
-              exportEntitlementMessage={exportEntitlementMessage}
               onOpenTemplateMaker={showTemplateTool}
               onCreateMatchingBack={handleCreateMatchingBack}
               onEditSelectedBack={handleEditCardBack}
               onManageCardBacks={handleManageCardBacks}
-              onSingleCardAdded={handleSingleCardAdded}
               onBulkCardsGenerated={handleBulkCardsGenerated}
               onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}
-              onSetActiveCardSetName={setActiveCardSetNameAction}
               onSetActiveCardSetBackingTemplateId={setActiveCardSetBackingTemplateIdAction}
-              onSelectPaperSize={setSelectedPaperSizeAction}
-              onSetPdfOptions={setPdfOptionsAction}
-              onSetExportMode={setExportModeAction}
-              onSetExportDpi={setExportDpiAction}
-              onStartCheckout={handleStartCheckout}
-              onExportAllAsZip={handleExportAllAsZip}
-              onExportTabletopSimulatorSpritesheets={handleExportTabletopSimulatorSpritesheets}
-              onClearCardsRequest={() => setIsClearCardsDialogOpen(true)}
-              onGallerySearchChange={setGallerySearch}
-              onGallerySortChange={setGallerySort}
-              onEditCardRequest={handleEditCardRequest}
-              onRemoveCard={handleRemoveCard}
             />
           </div>
         </main>

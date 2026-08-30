@@ -68,17 +68,15 @@ export function StudioRuntimeLoader({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-      <header className="border-b border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-        <div className="mx-auto flex max-w-7xl items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center border border-[var(--cf-accent)]/70 bg-[var(--cf-surface-raised)] text-sm font-bold text-[var(--cf-accent-strong)]">CF</div>
-          <div>
-            <p className="font-serif text-xl font-semibold text-[var(--cf-text-strong)]">{businessIdentity.brandName}</p>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#bda878]">Studio</p>
-          </div>
+    <div className="flex min-h-screen flex-col bg-[var(--cf-canvas)] text-[var(--cf-text)]">
+      <header className="cardforge-studio-workspace-nav flex min-h-14 items-center gap-3 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-1.5 lg:px-5">
+        <div className="grid h-8 w-8 place-items-center border border-[var(--cf-accent)]/70 bg-[var(--cf-surface-raised)] text-xs font-bold text-[var(--cf-accent-strong)]">CF</div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Studio</p>
+          <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{businessIdentity.brandName}</p>
         </div>
       </header>
-      <main className="mx-auto grid min-h-[70vh] max-w-7xl place-items-center px-5 py-12">
+      <main className="grid flex-1 place-items-center px-5 py-12">
         <div className="grid max-w-md justify-items-center gap-4 text-center" role="status" aria-live="polite">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--cf-accent-strong)] border-t-transparent" aria-hidden="true" />
           <div>

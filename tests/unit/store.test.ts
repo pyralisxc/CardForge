@@ -702,7 +702,7 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
   });
 
-  it('keeps the Studio view constrained to the Set Desk and its contextual tools', () => {
+  it('keeps the Studio view constrained to focused authoring tools', () => {
     useProjectStore.getState().setStudioView('generate');
 
     expect(useProjectStore.getState().studioView).toBe('generate');

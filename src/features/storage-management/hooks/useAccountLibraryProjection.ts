@@ -335,7 +335,7 @@ export function useAccountLibraryProjection({
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
-        useProjectStore.getState().setStudioView('desk');
+        useProjectStore.getState().setStudioView('generate');
         router.push('/studio');
         return;
       }

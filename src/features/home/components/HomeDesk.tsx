@@ -460,7 +460,7 @@ export function HomeDesk({
   const actions: ActionDescriptor[] = inspectorItem
     ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem
-      ? [zoneAction('home.open-work', 'Open in Studio')]
+      ? [zoneAction('home.open-work', 'Edit in Studio')]
       : [zoneAction('home.create-work', 'New Set', 'mutation')];
   const detail = inspectorItem ? workDetailRecord(inspectorItem) : null;
 
@@ -475,8 +475,8 @@ export function HomeDesk({
       projection.router.push('/studio');
     } else if (action.id === 'home.export-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
-      setStudioView('desk');
-      projection.router.push('/studio');
+      setStudioView('generate');
+      projection.router.push('/studio?tool=output');
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
     else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
@@ -495,8 +495,8 @@ export function HomeDesk({
       return;
     }
     setActiveCardSetId(item.references.localSetId);
-    setStudioView(lane === 'generate' ? 'generate' : 'desk');
-    projection.router.push('/studio');
+    setStudioView('generate');
+    projection.router.push(lane === 'export' ? '/studio?tool=output' : '/studio');
   };
 
   const moveSelectedCards = () => {
@@ -511,7 +511,7 @@ export function HomeDesk({
   const editSelectedCard = () => {
     if (!selectedCard || !focusedLocalSetId) return;
     setActiveCardSetId(focusedLocalSetId);
-    setStudioView('desk');
+    setStudioView('generate');
     openEditDialog(selectedCard.uniqueId);
     projection.router.push('/studio');
   };
@@ -543,7 +543,7 @@ export function HomeDesk({
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
         viewer={viewer}
-        zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'studio')}
+        zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'library' || zone.id === 'profile')}
         activeZone="home"
         viewportPolicy="desk"
         detail={detail}
@@ -594,7 +594,7 @@ export function HomeDesk({
                     <p>{focusedContentsLabel} · {workSourceLabel(focusedItem)}</p>
                   </div>
                   <div className={styles.focusActions}>
-                    <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Open in Studio</button>
+                    <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Edit in Studio</button>
                     {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'generate')}><WandSparkles size={15} aria-hidden="true" />Generate</button> : null}
                     <button type="button" className={styles.quietAction} onClick={() => setLocationItem(focusedItem)}><Save size={15} aria-hidden="true" />Save &amp; move</button>
                     <DropdownMenu>
@@ -693,7 +693,7 @@ export function HomeDesk({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Edit in Studio</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={!experience.capabilities.canUseProjectFiles} onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move{experience.capabilities.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
                             {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}

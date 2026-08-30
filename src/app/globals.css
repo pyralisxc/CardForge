@@ -496,21 +496,6 @@ body {
       display: none;
     }
 
-    .cardforge-studio-header {
-      padding-top: 0.5rem !important;
-      padding-bottom: 0.5rem !important;
-    }
-
-    .cardforge-studio-brand-mark {
-      height: 2rem !important;
-      width: 2rem !important;
-    }
-
-    .cardforge-studio-title {
-      font-size: 1.125rem !important;
-      line-height: 1.35 !important;
-    }
-
     .cardforge-studio-main {
       padding-top: 1rem;
       padding-bottom: 1rem;

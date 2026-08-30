@@ -18,18 +18,18 @@ Working positioning:
 
 The engine stays broad. Specialties, Kits, permissions, and connected providers change what is suggested or available; they do not fork the core product.
 
-## The Four User Surfaces
+## The Three Private Surfaces and Focused Workbench
 
-CardForge has four permanent user surfaces:
+CardForge has three permanent user-navigation surfaces and one focused workbench mode:
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
 | **Desk** | What am I working on? | The user's spatial home for authored work, active work, recent work, organization, and quick object actions. |
 | **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
-| **Studio** | What am I making right now? | The one workbench for authoring, generation, review-in-context, validation, saving, and output. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
+| **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
 
-**Contributor is not a fifth surface.** Contributor is a protected capability layer that enhances Desk, Library, Studio, and Profile.
+**Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
 **Owner remains a separate protected operating environment** because the Owner's recurring job is operating CardForge itself: publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues.
 
@@ -39,10 +39,10 @@ The public site remains CardForge's entrance and explanation surface, not anothe
 
 Use these terms consistently:
 
-- **Studio:** the one shared authoring, generation, review, validation, save, and output workbench.
+- **Studio:** the focused authoring, generation, review, validation, save, and output workbench opened for a selected Set, artifact, Template, record, or revision.
 - **Desk:** a persistent spatial working view over real CardForge objects. A Desk preserves selection, grouping, position, and return context without becoming a new persistence owner.
 - **Desk:** the work-container-scale spatial surface and personal account home. It answers what the user is working on and provides quick actions without forcing a trip through another page.
-- **Set Desk:** the spatial Studio overview for one active authored-work container. It keeps artifacts, Templates/masters, groups, selection, and working position visible while focused tools open around them.
+- **Focused workbench:** the precision editing mode that keeps active Set/object identity and return context while Design, Generate, validation, Save, Output, or Pipeline tools operate on it.
 - **Library:** one collection/read model over reusable objects and their native owners. Library does not become a second file registry or sync engine.
 - **Pipeline:** the shared-content lifecycle behind discovery, hearts, contribution, revision voting, publication, archive/recovery, and attribution. Every account sees the published Pipeline content its entitlement allows; Contributors additionally see authorized unpublished/review history and exact-revision votes.
 - **Contributor:** an approved user with additional contribution/review capabilities. Contributor access changes valid actions and visible Pipeline content; it does not create a parallel CardForge product.
@@ -61,10 +61,7 @@ The recommended internal/owner-facing phrase remains **Studio Specialty**. Speci
 
 CardForge should reveal capability progressively without turning each feature, Specialty, artifact, permission, or provider into a page.
 
-The user's current object remains in its surface: tools open around it, and closing a tool returns to the same selection, grouping, zoom, position, and broader context. This rule applies at both spatial scales:
-
-- **Desk:** work-container-scale work.
-- **Studio Set Desk:** artifact/Template/record/element-scale work.
+The user's current object remains grounded in its originating surface: tools open around it or enter the focused Studio workbench, and closing the tool returns to the same selection, grouping, zoom, position, and broader context. Desk owns spatial organization; Studio owns precision change and production.
 
 Core rules:
 
@@ -80,7 +77,7 @@ Core rules:
 
 A useful shorthand is:
 
-> **Surfaces navigate. Tools reveal. Objects focus. Permissions enhance.**
+> **Surfaces navigate. Studio focuses. Tools reveal. Objects persist. Permissions enhance.**
 
 ## Spatial Model
 
@@ -113,32 +110,33 @@ Opening a work container changes focus rather than changing the mental model:
 
 Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, and freeform card positions travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
 
-### Studio Set Desk: the detailed spatial surface
+### Studio: the focused authoring and production workbench
 
-Studio opens to one active Set Desk rather than three competing Templates / Make Cards / Sets applications.
+Studio does not open another Set browser. It receives the active Set plus the selected artifact, Template, record, revision, or requested tool from Desk, Library, a public creation entry, or agent handoff.
 
 The focus path is:
 
-> Set overview → group/stack → artifact → Template/record → element-level editing
+> selected work → artifact/Template/record → element-level editing or production tool
 
-Selecting an object raises/focuses it in place and opens the smallest useful tool. Pulling back restores exact prior context.
+Selecting Edit, Generate, Test, Validate, or advanced Output opens the smallest useful Studio tool. Returning restores exact prior Desk or Library context.
 
-The Set Desk supports:
+The focused Studio workbench supports:
 
 - multiple Templates/masters and artifact types;
-- automatic/manual groups by Template, artifact type, generation batch, tag, validation state, output profile, Specialty role, or user-defined grouping;
-- stable object identity across grouping changes;
-- efficient canonical previews for distant/collapsed objects;
-- fast Set switching with per-Set viewport/selection memory;
-- multi-select and group-scoped actions;
+- precise Template/master and element editing;
+- structured record/card editing;
+- single/bulk generation and CSV mapping into the active Set;
+- exact candidate testing and review-in-context;
+- validation and production readiness;
+- advanced output profiles and export configuration;
 - direct generation back into the Desk;
 - contextual validation and export;
 - contributor review/voting state where applicable.
 
-The two spatial surfaces use the same interaction grammar at different depths:
+Desk and Studio use the same object/action grammar with distinct jobs:
 
-- **Desk:** the things I am making.
-- **Studio:** the things inside the thing I am making.
+- **Desk:** organize the things I am making and the contained objects that belong together.
+- **Studio:** change or produce the selected thing with precision.
 
 ## Desk: My Work
 
@@ -225,7 +223,7 @@ Pipeline submission is never labeled Save. Provider persistence is never labeled
 
 ## Contributor Capability Layer
 
-Contributor access enhances Desk, Library, Studio, and Profile. It does not create a parallel Contributor Studio or permanent Contributor zone.
+Contributor access enhances Desk, Library, focused Studio tools, and Profile. It does not create a parallel Contributor Studio or permanent Contributor zone.
 
 A standard active Contributor may receive capabilities equivalent to:
 
@@ -371,7 +369,7 @@ A shared source-capability projection should eventually describe, per source:
 - temporary versus durable;
 - permission/connection state.
 
-Desk, Library, Studio, Profile, and MCP should consume the same capability truth where applicable.
+Desk, Library, Profile, focused Studio tools, and MCP should consume the same capability truth where applicable.
 
 ## Agent / MCP Direction
 
@@ -566,9 +564,9 @@ CardForge already has much of the lower-level engine:
 
 The missing product layer is orchestration around those owners:
 
-- the four-surface model applied consistently;
+- the three-surface navigation model plus focused Studio workbench applied consistently;
 - Desk as the spatial authored-work surface;
-- Studio as Set Desk rather than competing workspaces;
+- Studio as object-focused authoring/production rather than another Set browser or competing workspace set;
 - scope-aware action resolution;
 - Library Personal/Published/Pipeline projections;
 - generalized revision lineage beyond Templates;
@@ -631,28 +629,28 @@ Avoid:
 - borders as the primary hierarchy signal;
 - exposing every revision by default.
 
-Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio is the deepest spatial production surface. Profile is the quietest structured utility surface.
+Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio should be the most precise and tool-dense surface because it is entered for a specific change. Profile is the quietest structured utility surface.
 
 The prior six alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
 
 - Desk: spatial authored-work organization over the current Set/project object;
 - Library: Personal / Published / Pipeline collection with object inspectors;
-- Studio: spatial Set Desk with contextual Generate/Export/Save/Pipeline tools;
+- Studio: focused Design/Generate/Validate/Output workbench over the selected object;
 - Profile: person-centered configuration;
 - Owner: separate operational environment.
 
-The old Developer-zone concept is superseded by Contributor enhancements across the four user surfaces.
+The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
 ## Delivery Sequence
 
-1. **Four-surface contract and visual grammar** — update product docs, naming, shared action/source contracts, and spatial Desk/Studio design rules.
+1. **Surface/workbench contract and visual grammar** — keep Desk, Library, and Profile as permanent navigation; define Studio as the focused workbench entered from selected work.
 2. **Desk** — meaningful owned-work projection, object thumbnails/spatial grouping, focused-work contents, scope actions, real Set duplicate/delete, return-state preservation.
 3. **Library scopes** — Personal/Published/Pipeline, lineage grouping, gallery/list/expanded review, current filters/votes, revision inspector, Studio test handoff.
 4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
-5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the four-surface grammar while keeping explicit authority and parity with their current owners.
+5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the shared surface/workbench grammar while keeping explicit authority and parity with their current owners.
 6. **Source/MCP parity** — shared source capability projection, provider reachability clarity, connected personal assets, broader agent contribution where appropriate.
 7. **Campaign/site integration** — campaign work is integrated into Desk/Library and site proposals into Profile/Owner; continue refining the shared object/tool grammar without restoring a separate Contributor destination.
-8. **Studio consolidation and Pipeline in context** — make the Set Desk the final core-surface overhaul after the surrounding surfaces have stabilized; remove Templates/Make Cards/Sets as competing destinations only after parity, then add exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
+8. **Studio focus and Pipeline in context** — remove the duplicate Set Desk and Templates/Make Cards/Sets destination model while preserving their native capability owners; then refine object-specific Design/Generate/Validate/Output, exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
 9. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
 
 ## Product Constraints
@@ -667,16 +665,16 @@ Do not:
 - conflate Save with Pipeline submission or Publish;
 - silently update pinned revisions;
 - rebuild provider-native storage/auth/billing lifecycles;
-- turn Desk or Studio into unconstrained infinite-canvas toys;
+- turn Desk into an unconstrained infinite-canvas toy or Studio into another collection browser;
 - retire a shipped capability before its new home proves parity;
 - use radial/gesture-only interaction as a prerequisite for basic workflows.
 
 ## Remaining Product Questions
 
-The next product decisions should focus on implementation details rather than reopening the four-surface model:
+The next product decisions should focus on implementation details rather than reopening the three-surface navigation plus focused-workbench model:
 
 1. Exact constrained Desk grouping and how much arrangement persists per device/work container.
-2. Exact Studio Set Desk geometry and virtualization rules across desktop/tablet/mobile.
+2. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
 3. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
 4. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
 5. Exact stable lineage/schema for revisionable fonts/media/component recipes.
@@ -684,4 +682,4 @@ The next product decisions should focus on implementation details rather than re
 7. Which personal Studio defaults belong in Profile versus the active work container.
 8. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
 
-The four-surface model, Contributor capability layer, spatial Desk/Studio hierarchy, and provider-owned durable storage direction are considered approved product direction.
+The three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage direction are considered approved product direction.

@@ -28,7 +28,7 @@ export const recipeLabels: Record<RecipeId, { eyebrow: string; title: string; bo
   collection: { eyebrow: 'Collection recipe', title: 'Library', body: 'One inventory across available locations, with source and durability kept visible.' },
   profile: { eyebrow: 'Profile recipe', title: 'Cameron', body: 'Identity, personal continuity, and provider-native controls expressed as compact grouped rows.' },
   queue: { eyebrow: 'Queue recipe', title: 'Action Center', body: 'Role-aware work that needs review, intervention, or accountable follow-up.' },
-  studio: { eyebrow: 'Spatial recipe', title: 'Arcane Playing Deck', body: 'One active Set Desk with stable objects, groups, selection scope, and context-preserving tools.' },
+  studio: { eyebrow: 'Focused workbench', title: 'Arcane Playing Deck', body: 'Precision authoring tools follow the selected Template, record, or element without creating another Set browser.' },
 };
 
 const sourceContext = (source: ActionSource, label: string, currentRevisionAvailable = true): ActionSourceContext => ({

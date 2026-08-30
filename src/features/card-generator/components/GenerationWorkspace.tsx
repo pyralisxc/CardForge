@@ -5,13 +5,9 @@ import { FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-
 
 import { Button } from '@/components/ui/button';
 import { CardPreview, CardWatermarkOverlay, shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
-import { CardSetManager } from '@/features/card-generator/components/CardSetManager';
-import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
-import type { GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
 import type { CardSet } from '@/domain/cards';
 import {
   getCompatibleCardBacks,
@@ -20,9 +16,7 @@ import {
   type TemplateCardFormatSource,
 } from '@/domain/card-formats';
 import type { TCGCardTemplate } from '@/domain/templates';
-import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import type { TabletopSimulatorExportQuality } from '@/features/card-generator/lib/zipExport';
+import type { DisplayCard } from '@/domain/rendering';
 import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface GenerationWorkspaceProps {
@@ -31,46 +25,16 @@ interface GenerationWorkspaceProps {
   backFaceTemplates: TCGCardTemplate[];
   activeCardSet: CardSet;
   generatorSelectedTemplateId: string | null;
-  selectedPaperSize: PaperSize;
-  pdfMarginMm: number;
-  pdfCardSpacingMm: number;
-  pdfIncludeCutLines: boolean;
-  pdfDuplexLayout: PdfDuplexLayout;
   richTextHighlightColor: string;
-  exportMode: ExportMode;
-  exportDpi: number;
   generatedDisplayCards: DisplayCard[];
-  zipProgress: { done: number; total: number } | null;
-  gallerySearch: string;
-  gallerySort: GeneratedGallerySort;
-  isZipExporting: boolean;
-  zipExportKind: ZipExportKind | null;
-  isCheckoutStarting: boolean;
   canExportClean: boolean;
-  exportGateMessage?: string | null;
-  exportEntitlementLabel: string;
-  exportEntitlementMessage: string;
   onOpenTemplateMaker: () => void;
   onCreateMatchingBack: (formatSource: TemplateCardFormatSource) => void;
   onEditSelectedBack: (templateId: string) => void;
   onManageCardBacks: () => void;
-  onSingleCardAdded: (card: DisplayCard) => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
-  onSetActiveCardSetName: (name: string) => void;
   onSetActiveCardSetBackingTemplateId: (templateId: string | null) => void;
-  onSelectPaperSize: (size: PaperSize) => void;
-  onSetPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
-  onSetExportMode: (mode: ExportMode) => void;
-  onSetExportDpi: (dpi: number) => void;
-  onStartCheckout: () => void;
-  onExportAllAsZip: () => void;
-  onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
-  onClearCardsRequest: () => void;
-  onGallerySearchChange: (value: string) => void;
-  onGallerySortChange: (value: GeneratedGallerySort) => void;
-  onEditCardRequest: (card: DisplayCard) => void;
-  onRemoveCard: (card: DisplayCard) => void;
 }
 
 export function GenerationWorkspace(props: GenerationWorkspaceProps) {
@@ -89,7 +53,6 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     onManageCardBacks,
     onBulkCardsGenerated,
     onTemplateSelectionChange,
-    onSetActiveCardSetName,
     onSetActiveCardSetBackingTemplateId,
   } = props;
 
@@ -165,26 +128,16 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
 
   return (
     <div className="space-y-6 pb-6">
-      <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="rounded-lg border bg-card p-4 shadow-sm">
+      <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="border-b border-[var(--cf-border-subtle)] pb-5">
         <div className="mb-4 flex items-center gap-2">
           <Layers3 className="h-5 w-5 text-primary" />
           <div>
-            <h2 id="generator-setup-heading" className="text-base font-semibold">Generation target</h2>
-            <p className="text-xs text-muted-foreground">Choose which set and Template this batch should use.</p>
+            <h2 id="generator-setup-heading" className="text-base font-semibold">Generate into {activeCardSet.name}</h2>
+            <p className="text-xs text-muted-foreground">This Set came from Desk. Choose the front and back designs for the next cards.</p>
           </div>
         </div>
 
-        <CardSetManager />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
-          <div>
-            <Label htmlFor="active-card-set-name">Set name</Label>
-            <Input
-              id="active-card-set-name"
-              value={activeCardSet.name}
-              onChange={(event) => onSetActiveCardSetName(event.target.value)}
-            />
-          </div>
-
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
           <div>
             <Label htmlFor="deck-front-template">Template</Label>
             <Select
@@ -260,7 +213,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           </div>
 
           {deckPreviewCard ? (
-            <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
+            <div className="grid grid-cols-2 gap-3 border-l border-[var(--cf-border-subtle)] bg-background/40 py-2 pl-4 pr-2">
               <div className="space-y-1">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
                 <div className="relative w-fit">
@@ -292,7 +245,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
             <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Generate cards from a list</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Generate adds cards to the active Set. Close this tool to arrange and edit the finished cards on the Set Desk, or open Output when they are ready.
+              Generate adds cards to the active Set. Return to Desk to arrange the finished cards, or open Output when they are ready.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
@@ -312,7 +265,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
 
       {generatedDisplayCards.length > 0 ? (
         <div className="rounded-md border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-text-muted)]" role="status">
-          This set already has {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'}. Review, preview, share, and export them from <span className="font-semibold text-[var(--cf-text-strong)]">Sets</span>.
+          This Set already has {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'}. Return to <span className="font-semibold text-[var(--cf-text-strong)]">Desk</span> to arrange them, or use Output here for production settings.
         </div>
       ) : null}
     </div>

@@ -127,7 +127,7 @@ export function StudioRecipe({ selectedId, onOpen }: RecipeProps) {
   return (
     <>
       <Header recipe="studio" />
-      <div className={recipeStyles.studioDesk} aria-label="Arcane Playing Deck Set Desk">
+      <div className={recipeStyles.studioDesk} aria-label="Arcane Playing Deck focused workbench">
         {studioGroups.map((group) => <section key={group.area} className={recipeStyles.studioGroup} data-area={group.area} aria-labelledby={`studio-group-${group.area}`}><div className={recipeStyles.studioGroupHeader}><h3 id={`studio-group-${group.area}`} className={recipeStyles.groupTitle}>{group.title}</h3><EnvironmentStatus label={`${group.items.length} item${group.items.length === 1 ? '' : 's'}`} /></div><div className={recipeStyles.artifactGrid}>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} id={`environment-object-${item.id}`} type="button" className={recipeStyles.artifactButton} aria-pressed={selectedId === item.id} onClick={() => onOpen(item)}>{item.imageSrc ? <Image className={recipeStyles.artifactImage} src={item.imageSrc} alt="" width={56} height={78} sizes="56px" /> : <Icon size={28} aria-hidden="true" />}<span>{item.title}</span><EnvironmentStatus label={item.status} tone={item.tone} /></button>; })}</div></section>)}
       </div>
     </>

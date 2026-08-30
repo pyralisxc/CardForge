@@ -48,13 +48,6 @@ export const GenerationWorkspace = dynamic(
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
-export const StudioSetDesk = dynamic(
-  () => import('@/features/card-generator/client')
-    .then((module) => module.loadStudioSetDesk())
-    .then((module) => module.StudioSetDesk),
-  { ssr: false, loading: WorkspaceLoadingState },
-);
-
 export const StudioOutputPanel = dynamic(
   () => import('@/features/card-generator/client')
     .then((module) => module.loadExportControlsPanel())

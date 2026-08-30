@@ -1,6 +1,6 @@
 # CardForge Product Surface Map
 
-Last updated: August 28, 2026
+Last updated: August 30, 2026
 
 This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
 
@@ -30,7 +30,7 @@ This document is the canonical placement map connecting current shipped capabili
 | --- | --- | --- | --- |
 | **Desk** | User surface | User-owned work containers and active work | The spatial account home: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. The current domain name is Set; provider/package labels may say Project without creating a second object. |
 | **Library** | User surface | Reusable objects across Personal / entitlement-filtered Pipeline / Contributor Published scopes | Find, inspect, heart, compare, vote, source, reuse, and manage resource locations without becoming a persistence owner. |
-| **Studio** | User surface | Active work container and selected artifact/Template/record/element | The one enhanced workbench for authoring, generation, validation, review-in-context, save, and output. |
+| **Studio** | Focused workbench mode | Selected Set/artifact/Template/record/revision plus requested tool | Precision authoring, generation, validation, review-in-context, save, and output entered from selected work; not another collection or permanent navigation destination. |
 | **Profile** | User surface | The person and personal relationship to CardForge | Identity, security, access, preferences, billing handoff, connection summary, temporary AI capacity, personal Contributor configuration. |
 | **Owner** | Protected operational environment | CardForge operational queue/control record | Run CardForge, publish reviewed truth, manage people/services, operate public experience, governance, marketing, and accountable history. |
 | **Production / Orders** | Future candidate | Frozen production bundle/order | Earns a zone only after CardForge owns durable quote/order/proof/tracking/reorder lifecycle. Until then production/output stays a Studio tool. |
@@ -43,9 +43,9 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 
 | Shared part | Contract |
 | --- | --- |
-| Primary navigation | Desk, Library, Studio, Profile. Owner appears only when authorized. Contributor permissions enhance surfaces rather than adding a destination. |
+| Primary navigation | Desk, Library, Profile. Owner appears only when authorized. Studio opens from selected work. Contributor permissions enhance surfaces and tools rather than adding a destination. |
 | Command band | Surface identity, current object/workspace switching, search/commands, strongest valid action. |
-| Primary surface | One current object/collection dominates. Desk and Studio use spatial object composition; Library uses collection views; Profile uses quiet aligned utilities. |
+| Primary surface | One current object/collection dominates. Desk uses spatial object composition; Library uses collection views; Studio uses a precise canvas/tool workspace; Profile uses quiet aligned utilities. |
 | Object treatment | Real authored objects use thumbnails/stacks/previews and selected depth. Comparable settings/status use rows and fine grouping. |
 | Inspector/detail | Selected object raises/focuses and opens metadata, source, dependency, revision, permissions, and secondary actions. Closing restores exact prior context. |
 | Action order | Primary action, one/two supporting actions, then predictable overflow. Commitment boundaries confirm explicitly. |
@@ -79,7 +79,7 @@ Required behavior:
 - expose Send to Pipeline / Submit Revision / review actions only when valid;
 - keep account attention conditional and quiet.
 
-Desk is **more spatial than Library** and less detailed than Studio.
+Desk is **more spatial than Library**. Studio is more precise and tool-dense than either because it is entered for a specific change.
 
 ## Library — Personal / Pipeline / Published
 
@@ -131,7 +131,7 @@ Library remains the owner of location management presentation:
 
 CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 
-## Studio — Set Desk and contextual tools
+## Studio — focused authoring and production workbench
 
 ### Shipped creation foundation
 
@@ -151,30 +151,30 @@ CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 - temporary AI Studio-document handoff;
 - command palette/mobile editor controls.
 
-### Shipped Set Desk consolidation
+### Shipped focused-workbench consolidation
 
-- Studio opens on the active Set Desk instead of peer Templates / Make Cards / Sets destinations;
-- the canonical authored-object renderer gives every local Set and card its real CardForge visual identity;
-- the Set Desk consumes the project-owned tag, group, sort, order, move, and freeform-position state also used by Desk;
-- Template editing and Generate are focused tools that preserve the active Set when closed;
+- Studio receives the active Set/object context from Desk, Library, public creation entry points, or agent handoff instead of presenting another Set browser;
+- Design and Generate remain the two focused authoring modes and preserve the active Set when switching;
 - Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
-- legacy tab navigation, tab IDs, Set Library component, and duplicate inline output surface are removed.
+- one compact workbench bar provides return to Desk, active identity, Design/Generate mode, Save, Output, Pipeline, Library, and account access;
+- legacy tab navigation, tab IDs, Set Library component, duplicate Studio Set Desk, and duplicate inline output surface are removed;
+- persisted legacy `desk`/`sets` destinations normalize to Generate so authored browser work survives without preserving a retired runtime surface.
 
 ### Direction
 
 Templates / Make Cards / Sets have been retired as competing top-level Studio destinations after preserving their native capability owners.
 
-Studio opens to one active Set Desk:
+Studio opens for one active object/tool context:
 
-- selected object determines tools;
+- the selected Set/object/revision and requested action determine the initial tool;
 - Template editing focuses the selected Template/master;
 - Generate is a contextual tool and returns outputs to the Desk;
-- Export is contextual and already knows object/group/Set scope;
+- advanced Output is contextual and already knows object/group/Set scope;
 - Save names the current durable destination;
 - Library/source selection opens around the work;
-- Set switching preserves per-Set selection/viewport;
-- stacks/groups preserve stable IDs;
-- full editing power follows focused object rather than turning every overview object into a live editor.
+- returning to Desk or Library restores the originating selection and arrangement;
+- Set switching and spatial organization stay on Desk;
+- full editing power follows the focused object rather than turning every Desk object into a live editor.
 
 ### Save / contribution commitment language
 
@@ -349,12 +349,12 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 | Feature owner | Current responsibility | Target home |
 | --- | --- | --- |
 | `account` | identity/access projection and Profile composition | Profile + compact Desk status |
-| `home` | internal owner for two-scale Desk composition over native work/Library owners | Desk |
-| `app-shell` | Studio bootstrap/navigation/handoffs | Studio + shared environment grammar |
-| `card-generator` | generation, gallery, Set management, output | Desk quick actions + Studio tools |
+| `home` | internal owner for Desk composition over native work/Library owners, including contained-card organization | Desk |
+| `app-shell` | Studio bootstrap, focused mode switching, return handoffs, and contextual-tool composition | Focused Studio workbench + shared environment grammar |
+| `card-generator` | generation, rendered-card editing, validation, output | Desk quick actions + focused Studio tools |
 | `card-rendering` | canonical preview/render/watermark | Cross-surface service |
-| `account` | ordinary signed-in account-tool capabilities, identity projection, plan, profile | Desk/Library/Profile/Studio/MCP account access |
-| `contributor-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/Studio; Owner people controls |
+| `account` | ordinary signed-in account-tool capabilities, identity projection, plan, profile | Desk/Library/Profile/focused Studio/MCP account access |
+| `contributor-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/focused Studio; Owner people controls |
 | `pipeline` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
 | `site-proposals` | proposal policy, drafts, review, and publication boundaries | Profile contributor proposals + Owner review; no standalone route or zone |
 | `contributor-program` | public program explanation/application | Public Contributor program |
@@ -372,12 +372,13 @@ All other existing feature owners keep their native records/providers; placement
 
 ## Consolidation decisions
 
-- Four permanent user surfaces: **Desk, Library, Studio, Profile**.
+- Three permanent user-navigation surfaces: **Desk, Library, Profile**.
+- Studio is a focused authoring/production mode entered from selected work, not a fourth collection destination.
 - **Contributor is a capability layer**, not a zone.
 - **Owner remains separate** operations.
 - Desk is spatial authored-work organization, not only orientation/router.
 - Library becomes a Personal / entitlement-filtered Pipeline collection, with Published added for Contributors and Owners.
-- Studio is one Set Desk with Generate/Export/Save/Pipeline as contextual tools.
+- Studio provides Design/Generate/Validate/Output over the selected object, with Save/Pipeline as contextual commitments.
 - Profile remains personal configuration.
 - Templates / Make Cards / Sets peer Studio destinations are retired; their feature owners remain native tools.
 - Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, and Owner.
@@ -389,7 +390,7 @@ All other existing feature owners keep their native records/providers; placement
 ## Current open placement questions
 
 1. Exact spatial geometry/persistence for Desk.
-2. Exact Set Desk geometry/virtualization across screen sizes.
+2. Exact focused Studio geometry across Template, record, generation, validation, and output tools on every screen size.
 3. Final public name for the one work container currently called Set in CardForge and Project by some provider/package paths.
 4. Which Desk objects get direct Generate/Export versus opening focused Studio tool.
 5. Generalized revision-lineage schema for media/fonts/component recipes.
@@ -397,4 +398,4 @@ All other existing feature owners keep their native records/providers; placement
 7. Which defaults belong in Profile versus Project.
 8. When durable Production/Orders earns a separate zone.
 
-These questions refine implementation; they do not reopen the four-surface model or Contributor-as-capability decision.
+These questions refine implementation; they do not reopen the three-surface navigation, focused-Studio, or Contributor-as-capability decisions.

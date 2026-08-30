@@ -63,10 +63,10 @@ npm run brand:export
 
 - `src/app/`: Next.js routes and HTTP composition.
 - `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
-- `src/features/app-shell/`: the Studio Set Desk shell, contextual-tool composition, and workspace bootstrap.
+- `src/features/app-shell/`: the focused Studio workbench shell, contextual-tool composition, and workspace bootstrap.
 - `src/features/home/`: the internal owner for the two-scale user-facing Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
-- `src/features/card-generator/`: Set Desk composition, card creation, bulk generation, organization, and output.
+- `src/features/card-generator/`: single/bulk card creation, generated-card editing, validation, and output tools consumed by Studio and Desk.
 - `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
 - `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, published-package installation, and provider/local-folder adapters.
 - `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location/default/transfer tools; it does not own those underlying stores.
