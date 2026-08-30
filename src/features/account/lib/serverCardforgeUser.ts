@@ -6,6 +6,7 @@ import {
   type AccountEntitlement,
 } from '@/features/account/lib/accountEntitlement';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
+import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import { resolveWithTimeoutOrThrow } from '@/shared/asyncTimeout';
 
 const CLERK_USER_READ_TIMEOUT_MS = 3000;
@@ -94,16 +95,20 @@ const createCardforgeUserAccess = (
   ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
 });
 
-const resolveEntitlementForAccess = (access: CardforgeServerUserAccess): AccountEntitlement => (
-  resolveAccountEntitlement({
+export const resolveCardforgeEntitlementForAccess = async (
+  access: CardforgeServerUserAccess,
+): Promise<AccountEntitlement> => {
+  const experienceSettings = await getCachedExperienceSettings();
+  return resolveAccountEntitlement({
     accountUserId: access.user?.id ?? null,
     authConfigured: access.authConfigured,
     isSignedIn: Boolean(access.user),
     emailAddresses: access.user?.emailAddresses ?? [],
     privateMetadata: access.user?.privateMetadata ?? {},
     ownerAccess: access.ownerAccess,
-  })
-);
+    projectFileAccess: experienceSettings.projectFileAccess,
+  });
+};
 
 export const getCardforgeUserAccessForUserId = async (
   userId: string,
@@ -134,7 +139,7 @@ export const getCardforgeUserAccessForUserId = async (
 export const getCardforgeEntitlementForUserId = async (
   userId: string,
 ): Promise<AccountEntitlement> => (
-  resolveEntitlementForAccess(await getCardforgeUserAccessForUserId(userId))
+  resolveCardforgeEntitlementForAccess(await getCardforgeUserAccessForUserId(userId))
 );
 
 export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUserAccess> => {
@@ -159,5 +164,5 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
 };
 
 export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => (
-  resolveEntitlementForAccess(await getCurrentCardforgeUserAccess())
+  resolveCardforgeEntitlementForAccess(await getCurrentCardforgeUserAccess())
 );

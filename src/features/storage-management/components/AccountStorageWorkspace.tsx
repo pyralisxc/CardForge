@@ -11,7 +11,6 @@ import {
 } from 'react';
 import { FolderOpen, HardDrive, Images, Laptop, Sparkles, X, type LucideIcon } from 'lucide-react';
 
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import {
   CompactSettingRow,
   EnvironmentSectionHeading,
@@ -126,30 +125,15 @@ export function LibraryStorageConnectionsTool({
 
   return (
     <section aria-label="Storage and connections">
-      <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
+      {mobileDetail && selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
         <div className="min-w-0">
           <EnvironmentSectionHeading id="storage-location-list-heading" title="Owners & locations" meta={`${locations.length} locations`} />
-          {locations.map((location) => <CompactSettingRow key={location.id} item={location} selected={selectedId === location.id} onOpen={() => setSelectedId(location.id)} />)}
+          {locations.map((location) => <CompactSettingRow key={location.id} item={location} selected={selectedId === location.id} showSummary={false} onOpen={() => setSelectedId(location.id)} />)}
         </div>
-        <aside className="hidden min-w-0 border-l border-[var(--cf-border-subtle)] pl-5 md:block" aria-live="polite">
+        {!mobileDetail ? <aside className="hidden min-w-0 border-l border-[var(--cf-border-subtle)] pl-5 md:block" aria-live="polite">
           {selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="py-8"><p className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a location</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Actions stay with the location they affect, so removing a local copy, provider file, index reference, or temporary draft cannot be mistaken for deleting authored work everywhere.</p></div>}
-        </aside>
-      </div>
-
-      {selected && mobileDetail ? (
-        <Sheet open onOpenChange={(open) => { if (!open) closeDetail(); }}>
-          <SheetContent
-            side="bottom"
-            overlayClassName="z-[95]"
-            className="z-[100] max-h-[88dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-[var(--cf-text)]"
-            onCloseAutoFocus={(event) => { event.preventDefault(); document.getElementById(`environment-object-${selected.id}`)?.focus(); }}
-          >
-            <SheetTitle className="font-serif text-xl text-[var(--cf-text-strong)]">{selected.title}</SheetTitle>
-            <SheetDescription className="mt-1 text-sm leading-5 text-[var(--cf-text-muted)]">{selected.summary}</SheetDescription>
-            <div className={`mt-4 border-t border-[var(--cf-border)] pt-3 ${selectedContentClass}`}>{selected.content}</div>
-          </SheetContent>
-        </Sheet>
-      ) : null}
+        </aside> : null}
+      </div>}
     </section>
   );
 }

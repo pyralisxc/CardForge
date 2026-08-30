@@ -59,7 +59,7 @@ Preview test identities are durable environment fixtures, not production users:
 | Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
 | Contributor | `qa+clerk_test_developer@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
 | Owner | `qa+clerk_test_owner@cardforges.com` | Owner Console and owner review scopes through the branch-only owner allowlist |
-| Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; cockpit access denied |
+| Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; contribution tools denied |
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
 
@@ -97,7 +97,7 @@ Use clearly named `QA Preview` fixtures and prove only the boundaries affected b
 
 Reset through the owning product/provider path:
 
-- Cancel, reject, or archive contributor fixtures through the cockpit/Owner Console so audit history remains truthful; never delete campaign, proposal, vote, billing, or owner-activity rows with ad hoc SQL.
+- Cancel, reject, or archive contributor fixtures through their owning Library/Profile workflow or Owner Console so audit history remains truthful; never delete campaign, proposal, vote, billing, or owner-activity rows with ad hoc SQL.
 - Remove temporary assistant drafts through Account Library. Browser-local Sets and provider-owned projects remain independent.
 - Cancel or change test subscriptions only in Stripe sandbox/Portal; retain CardForge billing ledgers as idempotency evidence.
 - Remove temporary assistant drafts through their revision-safe MCP tools or allow the staging retention lifecycle to expire them.

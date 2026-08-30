@@ -22,11 +22,12 @@ const OwnerPeoplePanel = dynamic(() => import('./OwnerPeoplePanel').then((module
 const OwnerInboxPanel = dynamic(() => import('./OwnerInboxPanel').then((module) => module.OwnerInboxPanel), { loading: panelFallback });
 const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurationPanel').then((module) => module.OwnerSiteConfigurationPanel), { loading: panelFallback });
 const OwnerMarketingPanel = dynamic(() => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel), { loading: panelFallback });
+const OwnerSiteProposalReviewPanel = dynamic(() => import('./OwnerSiteProposalReviewPanel').then((module) => module.OwnerSiteProposalReviewPanel), { loading: panelFallback });
 const OwnerPublicContentPanel = dynamic(() => import('./OwnerPublicContentPanel').then((module) => module.OwnerPublicContentPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
 const OwnerSiteMediaPanel = dynamic(() => import('./OwnerSiteMediaPanel').then((module) => module.OwnerSiteMediaPanel), { loading: panelFallback });
 const OwnerLegalPanel = dynamic(() => import('./OwnerLegalPanel').then((module) => module.OwnerLegalPanel), { loading: panelFallback });
-const OwnerDeveloperProgramPanel = dynamic(() => import('@/features/developer-assets/client/owner').then((module) => module.OwnerDeveloperProgramPanel), { loading: panelFallback });
+const OwnerContributorProgramPanel = dynamic(() => import('@/features/pipeline/client/owner').then((module) => module.OwnerContributorProgramPanel), { loading: panelFallback });
 const OwnerAnalyticsPanel = dynamic(() => import('@/features/analytics/client/owner').then((module) => module.OwnerAnalyticsPanel), { loading: panelFallback });
 const OwnerExperienceControlsPanel = dynamic(() => import('@/features/experience-settings/client/owner').then((module) => module.OwnerExperienceControlsPanel), { loading: panelFallback });
 const OwnerBillingPanel = dynamic(() => import('@/features/billing/client/owner').then((module) => module.OwnerBillingPanel), { loading: panelFallback });
@@ -58,7 +59,7 @@ const subtabListClassName = 'flex h-auto flex-wrap justify-start rounded-none bo
 const siteControlOwnership = [
   ['Launch experience', 'Owner controlled', 'Portable project access, analytics consent presentation, presentation profile, announcements, and offer visibility change without a deployment.'],
   ['Pages and navigation', 'Owner controlled', 'Approved navigation labels, visibility, order, homepage sections, primary action, and homepage search/share metadata publish here.'],
-  ['Public messaging', 'Owner controlled', 'Shared shell, homepage, About, founder, developer-program, roadmap, search, and sharing copy publish from the grouped content catalog.'],
+  ['Public messaging', 'Owner controlled', 'Shared shell, homepage, About, founder, Contributor Program, roadmap, search, and sharing copy publish from the grouped content catalog.'],
   ['Brand and site media', 'Owner controlled', 'Brand mark, favicon, watermark, default social image, homepage imagery, Studio screenshots, live-example artwork, and founder portrait share one media catalog with restore history.'],
   ['Founder and roadmap', 'Owner controlled', 'Founder presence, social destinations, roadmap economics, voting rules, and current checkpoint status live here.'],
   ['Legal publications', 'Owner controlled', 'Versioned policies can be drafted, published, and rolled back here while immutable publication history remains intact.'],
@@ -189,12 +190,12 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
             </TabsContent>
 
             <TabsContent value="marketing" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Strategy through publication" title="Run CardForge marketing without exporting the workflow" body="Set the market and claims, organize work into campaigns, review developer submissions, route approved content to owned accounts or communities, and preserve publication history in one workspace." />
+              <CardForgeSectionIntro eyebrow="Strategy through publication" title="Run CardForge marketing without exporting the workflow" body="Set the market and claims, organize work into campaigns, review contributor submissions, route approved content to owned accounts or communities, and preserve publication history in one workspace." />
               <OwnerMarketingPanel initialNotice={initialMarketingNotice} />
             </TabsContent>
 
             <TabsContent value="audience" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Growth, access, and support" title="Understand visitors and manage real people in one directory" body="Analytics remains consented and aggregated. People joins Clerk identity with CardForge developer authority; Billing, plan targets, usage, and Inbox retain their own operational histories." />
+              <CardForgeSectionIntro eyebrow="Growth, access, and support" title="Understand visitors and manage real people in one directory" body="Analytics remains consented and aggregated. People joins Clerk identity with CardForge contributor authority; Billing, plan targets, usage, and Inbox retain their own operational histories." />
               <Tabs defaultValue="analytics" className="space-y-4">
                 <TabsList className={subtabListClassName}>
                   <TabsTrigger value="analytics" className={subtabClassName}>Analytics</TabsTrigger>
@@ -220,6 +221,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                     <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                     <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
                     <TabsTrigger value="copy" className={subtabClassName}>Copy</TabsTrigger>
+                    <TabsTrigger value="proposals" className={subtabClassName}>Proposals</TabsTrigger>
                     <TabsTrigger value="media" className={subtabClassName}>Media</TabsTrigger>
                     <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
                     <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap</TabsTrigger>
@@ -228,6 +230,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                   <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteWorkspaceContent.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteWorkspaceContent, siteConfiguration })} /></TabsContent>
                   <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteWorkspaceContent.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteWorkspaceContent, experienceSettings })} /></TabsContent>
                   <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
+                  <TabsContent value="proposals" className="mt-0"><OwnerSiteProposalReviewPanel /></TabsContent>
                   <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                   <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
                 </Tabs>
@@ -236,7 +239,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
 
             <TabsContent value="library" className="mt-0 space-y-4">
               <CardForgeSectionIntro eyebrow="Reusable Studio resources" title="Operate the asset pipeline" body="The asset pipeline owns reusable Studio library content, review, voting, revisions, and publication. Marketing submissions and their media now live in the dedicated Marketing workspace." />
-              <OwnerDeveloperProgramPanel initialStatusFilter={initialPipelineStatus} />
+              <OwnerContributorProgramPanel initialStatusFilter={initialPipelineStatus} />
             </TabsContent>
 
             <TabsContent value="governance" className="mt-0 space-y-4">

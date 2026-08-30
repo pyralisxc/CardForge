@@ -5,6 +5,7 @@ export { ConnectedPersonalLibraryPanel } from './components/ConnectedPersonalLib
 export { GoogleDriveProjectStoragePanel } from './components/GoogleDriveProjectStoragePanel';
 export { LocalProjectFolderPanel } from './components/LocalProjectFolderPanel';
 export { UnifiedAccountLibrary } from './components/UnifiedAccountLibrary';
+export { DefaultWorkLocationControl, WorkLocationDialog } from './components/WorkLocationDialog';
 export { useAccountLibraryProjection } from './hooks/useAccountLibraryProjection';
 export {
   getAccountLibrarySourceLabel,
@@ -12,6 +13,16 @@ export {
 export {
   getAccountLibraryActionSources,
 } from './model/accountLibraryEnvironment';
+export {
+  accountSourceToWorkLocation,
+  canMoveWork,
+  canTransferWork,
+  DEFAULT_WORK_LOCATION_PREFERENCE,
+  getWorkLocationCapabilities,
+  normalizeDefaultWorkLocation,
+  WORK_LOCATION_IDS,
+} from './model/workLocations';
+export type { WorkLocationCapability, WorkLocationContext, WorkLocationId } from './model/workLocations';
 export type {
   AccountLibraryItem,
   AccountLibraryKind,

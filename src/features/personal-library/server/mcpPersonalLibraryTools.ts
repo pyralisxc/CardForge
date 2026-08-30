@@ -1,7 +1,7 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { createMcpHandler } from 'mcp-handler';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { AccountToolAccess } from '@/features/account/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
   PERSONAL_LIBRARY_ROLES,
@@ -85,7 +85,7 @@ export const registerPersonalLibraryTools = ({
   toolError,
 }: {
   server: McpRegistrationServer;
-  getAccess: () => Promise<DeveloperCockpitAccess>;
+  getAccess: () => Promise<AccountToolAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
   server.registerTool(

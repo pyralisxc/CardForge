@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from '@clerk/nextjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreditCard, Crown, HardDrive, UserCircle2, Wrench, type LucideIcon } from 'lucide-react';
@@ -18,6 +19,8 @@ import {
   type EnvironmentViewer,
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
+import { projectAccountExperience } from '@/features/account/client/experience';
+import { PublicAuthControls } from '@/features/account/client/auth';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/client/identity';
 import {
@@ -27,13 +30,17 @@ import {
   type AccountProfileUtility,
   type AccountProfileUtilityTarget,
 } from '@/features/account/client/profile';
+import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { McpAllowance } from '@/features/mcp-usage/client/plans';
+
+import { ContributorProfilePanel } from './ContributorProfilePanel';
 
 interface AccountProfileEnvironmentProps {
   checkoutStatus?: 'cancelled' | 'success' | null;
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
-  initialUtility?: 'billing' | 'identity' | null;
+  initialUtility?: 'billing' | 'identity' | 'contributor' | null;
+  initialContributorAccess: ContributorAccessSessionState;
   plans?: McpAllowance[];
 }
 
@@ -41,7 +48,7 @@ const utilityIcons: Record<AccountProfileUtilityTarget, LucideIcon> = {
   clerk: UserCircle2,
   billing: CreditCard,
   storage: HardDrive,
-  developer: Wrench,
+  contributor: Wrench,
   owner: Crown,
 };
 
@@ -101,32 +108,52 @@ export function AccountProfileEnvironment({
   initialAuthConfigured,
   initialPlanIntent = null,
   initialUtility = null,
+  initialContributorAccess,
   plans = [],
 }: AccountProfileEnvironmentProps) {
   const router = useRouter();
+  const { user: clerkUser } = useUser();
   const surfaceRef = useRef<HTMLElement | null>(null);
-  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | null>(() => (
+  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | null>(() => (
     initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null
       ? 'billing'
-      : initialUtility === 'identity'
-        ? 'identity'
-        : null
+        : initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null
   ));
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
+  const contributorAccess = useContributorAccess({
+    eligible: entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner,
+    initialState: initialContributorAccess,
+    isOwner: entitlement.ownerAccess.isOwner,
+    sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null,
+  });
+  const experience = projectAccountExperience({
+    entitlement,
+    contribution: {
+      active: contributorAccess.active,
+      canSubmit: hasContributionScope(contributorAccess.scopes, 'library.submit'),
+      canReview: hasContributionScope(contributorAccess.scopes, 'assets.review'),
+      canPublish: hasContributionScope(contributorAccess.scopes, 'library.publish'),
+      canDraftCampaigns: hasContributionScope(contributorAccess.scopes, 'campaigns.draft'),
+      canProposeSite: hasContributionScope(contributorAccess.scopes, 'site.propose'),
+    },
+  });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
-  const accountName = getAccountDisplayName({ email: entitlement.accountEmail }) ?? 'Creator';
-  const isSignedIn = entitlement.isSignedIn;
-  const isOwner = isSignedIn && entitlement.ownerAccess.isOwner;
-  const isDeveloper = isSignedIn && entitlement.accessMode === 'dev';
+  const accountName = clerkUser?.fullName
+    ?? clerkUser?.username
+    ?? getAccountDisplayName({ email: entitlement.accountEmail })
+    ?? 'Creator';
+  const isSignedIn = experience.signedIn;
+  const isOwner = experience.owner;
+  const isContributor = experience.contributor.active;
   const entitlementUnavailable = Boolean(entitlement.entitlementError);
   const planLabel = getAccountAccessLabel({
     isOwner,
-    isDeveloper,
+    isContributor,
     accessExpiresAt: entitlement.accessExpiresAt,
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
   });
-  const viewer: EnvironmentViewer = { signedIn: isSignedIn, developer: isDeveloper || isOwner, owner: isOwner };
+  const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: isContributor, owner: isOwner };
   const availableZones = getVisibleEnvironmentZones(viewer);
   const zones = availableZones.some((zone) => zone.id === 'profile')
     ? availableZones
@@ -136,11 +163,11 @@ export function AccountProfileEnvironment({
     authConfigured: entitlement.authConfigured,
     entitlementLoading: entitlement.isLoadingEntitlement,
     entitlementUnavailable,
-    isDeveloper,
+    isContributor,
     isOwner,
     isSignedIn,
     planLabel,
-  }), [accountEmail, entitlement.authConfigured, entitlement.isLoadingEntitlement, entitlementUnavailable, isDeveloper, isOwner, isSignedIn, planLabel]);
+  }), [accountEmail, entitlement.authConfigured, entitlement.isLoadingEntitlement, entitlementUnavailable, isContributor, isOwner, isSignedIn, planLabel]);
   const actions = activeUtility ? [closeUtilityAction] : [defaultAction];
 
   useEffect(() => {
@@ -148,7 +175,7 @@ export function AccountProfileEnvironment({
       setActiveUtility('billing');
       return;
     }
-    setActiveUtility(initialUtility === 'identity' ? 'identity' : null);
+    setActiveUtility(initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null);
   }, [checkoutStatus, initialPlanIntent, initialUtility]);
 
   const openIdentity = () => {
@@ -169,7 +196,9 @@ export function AccountProfileEnvironment({
   const closeUtility = () => {
     const focusId = activeUtility === 'billing'
       ? 'environment-object-profile-plan-billing'
-      : 'environment-object-profile-identity';
+      : activeUtility === 'contributor'
+        ? 'environment-object-profile-contributor-access'
+        : 'environment-object-profile-identity';
     setActiveUtility(null);
     router.push('/account?section=profile');
     requestAnimationFrame(() => document.getElementById(focusId)?.focus());
@@ -179,7 +208,10 @@ export function AccountProfileEnvironment({
     if (target === 'clerk') openIdentity();
     if (target === 'billing') openBilling();
     if (target === 'storage') router.push('/account?section=storage');
-    if (target === 'developer') router.push('/developer/cockpit');
+    if (target === 'contributor') {
+      setActiveUtility('contributor');
+      router.push('/account?section=profile&utility=contributor');
+    }
     if (target === 'owner') router.push('/owner');
   };
 
@@ -204,6 +236,7 @@ export function AccountProfileEnvironment({
       viewportPolicy="flow"
       detail={null}
       actions={actions}
+      accountControl={<PublicAuthControls />}
       surfaceRef={surfaceRef}
       statusContent={(
         <>
@@ -237,7 +270,7 @@ export function AccountProfileEnvironment({
               entitlement={entitlement}
               entitlementState={entitlement.entitlementStatus}
               initialPlanIntent={initialPlanIntent}
-              isDeveloper={isDeveloper}
+              isContributor={isContributor}
               isOwner={isOwner}
               onRetryEntitlement={() => { void entitlement.refreshEntitlement({ force: true }); }}
               planLabel={planLabel}
@@ -256,6 +289,11 @@ export function AccountProfileEnvironment({
           <div className="mt-5">
             <ProfileManagementPage authConfigured={entitlement.authConfigured} />
           </div>
+        </section>
+      ) : activeUtility === 'contributor' ? (
+        <section id="profile-utility-surface" tabIndex={-1} className="scroll-mt-20 outline-none" aria-label="Contributor profile">
+          <EnvironmentSurfaceHeader eyebrow="Contributor" title="Your contribution access and work" body="Personal access, progress, and site-proposal drafts live with your profile. Shared assets and campaigns remain in Library." />
+          <div className="mt-5"><ContributorProfilePanel access={contributorAccess} /></div>
         </section>
       ) : (
         <>

@@ -1,4 +1,4 @@
-export const ACCOUNT_SECTIONS = ['home', 'library', 'storage', 'billing', 'profile', 'developer'] as const;
+export const ACCOUNT_SECTIONS = ['home', 'library', 'storage', 'billing', 'profile'] as const;
 
 export type AccountSection = typeof ACCOUNT_SECTIONS[number];
 

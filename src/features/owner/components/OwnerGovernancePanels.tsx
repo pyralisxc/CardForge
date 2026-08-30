@@ -19,17 +19,17 @@ import { formatOwnerDateTime } from "./OwnerPanelPrimitives";
 const authorityRows = [
   [
     "Owner",
-    "All safe live values, approvals, developer/account authority, asset deletion, legal publication, and provider status visibility.",
+    "All safe live values, approvals, contributor/account authority, asset deletion, legal publication, and provider status visibility.",
     "CardForge owner access",
   ],
   [
-    "Developer",
+    "Contributor",
     "Submit/review assets plus explicitly granted campaign drafting and site proposals.",
-    "Clerk developer entitlement + active CardForge profile",
+    "Clerk contributor entitlement + active CardForge profile",
   ],
   [
     "Creator Pass",
-    "Paid product capabilities only; no production, developer, or owner authority.",
+    "Paid product capabilities only; no production, contributor, or owner authority.",
     "Stripe entitlement projected into Clerk",
   ],
   [
@@ -134,7 +134,7 @@ export function OwnerRetentionPanel() {
         <p className="mt-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
           Use People to distinguish a live account from a history-only identity.
           A missing Clerk account should never be presented as an active
-          developer.
+          contributor.
         </p>
       </article>
     </section>
@@ -211,7 +211,7 @@ export function OwnerActivityPanel() {
         </Button>
       </div>
       <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
-        Records safe site-control changes, people/developer authority, inbox
+        Records safe site-control changes, people/contributor authority, inbox
         state, and other migrated owner actions. Retired development proxies
         resolve to their canonical owner without rewriting the original event.
         It never stores provider credentials or raw secrets.

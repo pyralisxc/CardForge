@@ -5,7 +5,7 @@ import {
   type TCGCardTemplate,
 } from '@/domain/templates';
 import type { ProjectDocumentV1 } from '@/features/project/server';
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { AccountToolAccess } from '@/features/account/server';
 
 import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocument } from './studioDocumentStore';
@@ -226,7 +226,7 @@ export const getWorkingDocumentStructuralValidation = async ({
   access,
   documentId,
 }: {
-  access: DeveloperCockpitAccess;
+  access: AccountToolAccess;
   documentId: string;
 }) => {
   const document = await getStudioDocument(

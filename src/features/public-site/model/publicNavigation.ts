@@ -14,7 +14,7 @@ const NAVIGATION_LINKS = {
   studio: { href: '/studio', label: 'Studio' },
   plans: { href: '/plans', label: 'Plans' },
   roadmap: { href: '/roadmap', label: 'Roadmap' },
-  developer: { href: '/developer', label: 'Developers' },
+  contributor: { href: '/contributors', label: 'Contributors' },
   account: { href: '/account', label: 'Account' },
   founder: { href: '/cameron', label: 'Meet Cameron' },
 } as const satisfies Record<string, PublicNavigationLink>;
@@ -24,7 +24,7 @@ export const STUDIO_NAVIGATION = [
   NAVIGATION_LINKS.about,
   NAVIGATION_LINKS.studio,
   NAVIGATION_LINKS.roadmap,
-  NAVIGATION_LINKS.developer,
+  NAVIGATION_LINKS.contributor,
   NAVIGATION_LINKS.account,
 ] as const satisfies ReadonlyArray<PublicNavigationLink>;
 
@@ -52,7 +52,7 @@ export const PUBLIC_NAVIGATION = {
       links: [
         { href: '/about', label: 'About CardForge' },
         { href: '/cameron', label: 'Cameron Locke' },
-        { href: '/developer', label: 'Developer Program' },
+        { href: '/contributors', label: 'Contributor Program' },
       ],
     },
     {
@@ -70,7 +70,7 @@ export const PUBLIC_NAVIGATION = {
         { href: '/creator-pass-terms', label: 'Creator Pass Terms' },
         { href: '/supporter-terms', label: 'Supporter Terms' },
         { href: '/refund', label: 'Refunds' },
-        { href: '/developer-terms', label: 'Developer Terms' },
+        { href: '/developer-terms', label: 'Contributor Terms' },
       ],
     },
   ],

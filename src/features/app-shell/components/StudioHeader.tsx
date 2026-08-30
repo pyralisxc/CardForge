@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Code2, Menu } from 'lucide-react';
+import { LibraryBig, Menu } from 'lucide-react';
 import { AccountControls } from '@/features/account/client/auth';
 import type { BrowserStorageSaveStatus } from '@/features/project/client';
 import {
@@ -25,7 +25,7 @@ interface StudioHeaderProps {
   modeLabel: string;
   saveStatus: BrowserStorageSaveStatus;
   onRefreshEntitlement: () => void;
-  developerCockpitHref?: '/developer/cockpit' | null;
+  contributorLibraryHref?: '/account?section=library&scope=pipeline' | null;
 }
 
 export function StudioHeader({
@@ -36,7 +36,7 @@ export function StudioHeader({
   modeLabel,
   saveStatus,
   onRefreshEntitlement,
-  developerCockpitHref,
+  contributorLibraryHref,
 }: StudioHeaderProps) {
   const brand = useBrandPresentation();
   return (
@@ -67,13 +67,13 @@ export function StudioHeader({
             );
           })}
         </nav>
-        {developerCockpitHref ? (
+        {contributorLibraryHref ? (
           <Link
-            href={developerCockpitHref}
+            href={contributorLibraryHref}
             prefetch={false}
             className="hidden min-h-10 items-center gap-2 border border-[var(--cf-accent)] bg-[var(--cf-surface-raised)] px-3 text-sm font-semibold text-[var(--cf-accent-text)] transition hover:border-[var(--cf-accent-strong)] hover:text-[var(--cf-text-strong)] 2xl:inline-flex"
           >
-            <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
+            <LibraryBig className="h-4 w-4" aria-hidden="true" /> Contributor Library
           </Link>
         ) : null}
         <div className="cardforge-studio-account ml-auto">
@@ -101,14 +101,14 @@ export function StudioHeader({
               <SheetDescription className="text-[var(--cf-text-muted)]">Move between the Studio, account, and public {brand.brandName} pages.</SheetDescription>
             </SheetHeader>
             <nav className="mt-6 grid gap-2" aria-label="Compact global navigation">
-              {developerCockpitHref ? (
+              {contributorLibraryHref ? (
                 <SheetClose asChild>
                   <Link
-                    href={developerCockpitHref}
+                    href={contributorLibraryHref}
                     prefetch={false}
                     className="mb-2 inline-flex min-h-11 items-center gap-2 border border-[var(--cf-accent)] bg-[var(--cf-surface-raised)] px-3 text-base font-semibold text-[var(--cf-accent-text)] hover:border-[var(--cf-accent-strong)] hover:text-[var(--cf-text-strong)]"
                   >
-                    <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
+                    <LibraryBig className="h-4 w-4" aria-hidden="true" /> Contributor Library
                   </Link>
                 </SheetClose>
               ) : null}

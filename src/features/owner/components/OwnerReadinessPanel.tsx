@@ -105,7 +105,7 @@ export function OwnerReadinessPanel({
             <OwnerMetricTile label="CardForge tables" value={formatOwnerBytes(metrics.cardforgeTableSizeBytes)} />
             <OwnerMetricTile label="Storage objects" value={formatOwnerBytes(metrics.storageSizeBytes)} />
             <OwnerMetricTile label="Registry assets" value={String(metrics.assetRegistryCount)} />
-            <OwnerMetricTile label="Dev submissions" value={String(metrics.developerSubmissionCount)} />
+            <OwnerMetricTile label="Pipeline submissions" value={String(metrics.developerSubmissionCount)} />
           </div>
         ) : <p className="mt-5 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">Database footprint metrics are not available yet.</p>}
       </section> : null}

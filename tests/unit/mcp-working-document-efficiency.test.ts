@@ -23,7 +23,7 @@ const artworkMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('@/features/developer-access/server', () => ({
+vi.mock('@/features/contributor-access/server', () => ({
   requireContributionScope: vi.fn(),
 }));
 vi.mock('@/features/studio-documents/server/studioDocumentAccess', () => ({
@@ -35,7 +35,7 @@ vi.mock('@/features/studio-documents/server/mcpArtworkSources', () => ({
   normalizeMcpArtworkSource: artworkMocks.normalizeMcpArtworkSource,
 }));
 
-import { upsertDeveloperCards } from '@/features/studio-documents/server/developerCardSetDrafts';
+import { upsertWorkingCards } from '@/features/studio-documents/server/cardSetWorkingDocuments';
 import {
   getWorkingDocumentOperationStatus,
   patchWorkingDocument,
@@ -120,7 +120,10 @@ const makeCurrent = (revision = 60) => ({
   },
 });
 
-const access = { user: { id: 'user-1' } } as unknown as Parameters<typeof patchWorkingDocument>[0]['access'];
+const access = {
+  user: { id: 'user-1' },
+  capabilities: ['studio.ai.create'],
+} as unknown as Parameters<typeof patchWorkingDocument>[0]['access'];
 
 beforeEach(() => {
   storeMocks.getStudioDocument.mockReset();
@@ -268,7 +271,7 @@ describe('atomic MCP working-document workflow', () => {
 
 describe('legacy compatibility and editing regressions', () => {
   it('allows legacy stored fields to survive ordinary upsert_cards revise operations', async () => {
-    const result = await upsertDeveloperCards({
+    const result = await upsertWorkingCards({
       access,
       documentId: makeCurrent().id,
       expectedRevision: 60,
@@ -284,7 +287,7 @@ describe('legacy compatibility and editing regressions', () => {
   });
 
   it('still rejects newly supplied unknown card fields', async () => {
-    await expect(upsertDeveloperCards({
+    await expect(upsertWorkingCards({
       access,
       documentId: makeCurrent().id,
       expectedRevision: 60,
@@ -364,7 +367,7 @@ describe('legacy compatibility and editing regressions', () => {
   });
 
   it('keeps existing revise/stable-id protections and adds efficient skill guidance', () => {
-    const drafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
+    const drafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
     const skill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
     const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
     expect(drafts).toContain("writeMode === 'revise' && !input.cardId?.trim()");

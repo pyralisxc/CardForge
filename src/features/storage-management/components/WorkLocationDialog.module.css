@@ -1,0 +1,59 @@
+.dialog {
+  max-inline-size: 46rem;
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+  color: var(--cf-text);
+}
+
+.title { font-family: var(--font-serif); font-size: 1.5rem; color: var(--cf-text-strong); }
+.description { max-inline-size: 58ch; color: var(--cf-text-muted); }
+
+.defaultRow,
+.locationPreference,
+.locationRow {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  border-block-end: 1px solid var(--cf-border-subtle);
+}
+
+.locationPreference {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, .5fr);
+  margin-block-end: 1rem;
+  padding: .85rem 0 1rem;
+  border-block: 1px solid var(--cf-border-subtle);
+}
+
+.defaultRow {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.62fr);
+  padding-block: 1rem;
+}
+
+.defaultRow div,
+.locationPreference div,
+.locationCopy { display: grid; gap: 0.2rem; min-inline-size: 0; }
+.defaultRow strong,
+.locationPreference strong,
+.locationCopy strong { color: var(--cf-text-strong); }
+.defaultRow span,
+.locationPreference span,
+.locationCopy span { color: var(--cf-text-muted); font-size: 0.78rem; line-height: 1.45; }
+.defaultSelect { inline-size: 100%; }
+
+.locationList { display: grid; }
+.locationRow { grid-template-columns: 2.5rem minmax(0, 1fr) auto; min-block-size: 5.3rem; padding-block: 0.8rem; }
+.locationRow[data-default='true'] { box-shadow: inset 0.18rem 0 var(--cf-accent-strong); }
+.locationIcon { display: grid; block-size: 2.5rem; inline-size: 2.5rem; place-items: center; color: var(--cf-accent-strong); }
+.locationIcon svg { block-size: 1.2rem; inline-size: 1.2rem; }
+.locationActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
+.locationActions button { gap: 0.35rem; }
+.locationActions svg { block-size: 0.9rem; inline-size: 0.9rem; }
+.unavailable { color: var(--cf-text-subtle); font-size: 0.72rem; }
+
+@media (max-width: 640px) {
+  .dialog { max-block-size: 92dvh; overflow-y: auto; }
+  .defaultRow { grid-template-columns: 1fr; gap: 0.65rem; }
+  .locationPreference { grid-template-columns: 1fr; gap: .65rem; }
+  .locationRow { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .locationActions { grid-column: 1 / -1; justify-content: flex-start; padding-inline-start: 3.5rem; }
+}

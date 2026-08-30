@@ -1,4 +1,4 @@
-import type { CardSet, StoredDisplayCard } from '@/domain/cards';
+import type { CardSet, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
 
@@ -28,7 +28,10 @@ export interface OutputSlice {
   addGeneratedCards: (newCards: DisplayCard[]) => void;
   clearGeneratedCards: () => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
+  removeGeneratedCards: (cardUniqueIds: string[]) => number;
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
+  moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
+  reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
@@ -72,6 +75,15 @@ export interface SettingsSlice {
   setExportDpi: (dpi: number) => void;
 }
 
+export interface OrganizationSlice {
+  updateCardSetOrganization: (setId: string, patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => boolean;
+  addCardSetTag: (setId: string, label: string) => string | null;
+  renameCardSetTag: (setId: string, tagId: string, label: string) => boolean;
+  removeCardSetTag: (setId: string, tagId: string) => boolean;
+  setCardsTag: (cardIds: string[], tagId: string, applied: boolean) => number;
+  setCardPositions: (setId: string, positions: CardSetOrganization['positions']) => boolean;
+}
+
 export interface WorkspaceLifecycleSlice {
   _rehydrateCallback: () => void;
 }
@@ -80,4 +92,5 @@ export type ProjectState = TemplateSlice
   & AppearanceSlice
   & OutputSlice
   & SettingsSlice
+  & OrganizationSlice
   & WorkspaceLifecycleSlice;

@@ -56,7 +56,6 @@ describe('critical-path provider ownership', () => {
     for (const path of [
       'src/app/account/page.tsx',
       'src/app/owner/page.tsx',
-      'src/app/developer/cockpit/page.tsx',
     ]) {
       expect(readSource(path)).toContain('<CardForgeAppProviders scope="shell">');
     }
@@ -68,7 +67,6 @@ describe('critical-path provider ownership', () => {
 
     for (const prefix of [
       "'/owner'",
-      "'/developer/cockpit'",
       "'/account'",
       "'/profile'",
       "'/sign-in'",

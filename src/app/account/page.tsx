@@ -1,15 +1,20 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import { AccountHomeBoundary } from '@/features/account/client/profile';
 import {
   getCurrentCardforgeEntitlement,
   getAccountAccessLabel,
   isClerkAuthConfigured,
+  projectAccountExperience,
   resolveAccountEntitlement,
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
+import {
+  EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
+  getCurrentContributorAccessSessionState,
+  hasContributionScope,
+} from '@/features/contributor-access/server';
 import { HomeDesk } from '@/features/home/client';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
@@ -75,10 +80,29 @@ export default async function AccountPage({
   });
   const accountContent = createSiteContentMap(accountContentBlocks);
   const isOwner = entitlement.isSignedIn && entitlement.ownerAccess.isOwner;
-  const isDeveloper = entitlement.isSignedIn && entitlement.accessMode === 'dev';
+  const hasContributorEntitlement = entitlement.isSignedIn && entitlement.accessMode === 'dev';
+  const contributorAccess = hasContributorEntitlement || isOwner
+    ? await getCurrentContributorAccessSessionState().catch((error) => {
+        console.error('Unable to verify contributor access during page render:', error);
+        return EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
+      })
+    : EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
+  const contributionScopes = contributorAccess.projection.scopes;
+  const experience = projectAccountExperience({
+    entitlement,
+    contribution: {
+      active: contributorAccess.projection.active,
+      canSubmit: hasContributionScope(contributionScopes, 'library.submit'),
+      canReview: hasContributionScope(contributionScopes, 'assets.review'),
+      canPublish: hasContributionScope(contributionScopes, 'library.publish'),
+      canDraftCampaigns: hasContributionScope(contributionScopes, 'campaigns.draft'),
+      canProposeSite: hasContributionScope(contributionScopes, 'site.propose'),
+    },
+  });
+  const isContributor = experience.contributor.active;
   const accessLabel = getAccountAccessLabel({
     isOwner,
-    isDeveloper,
+    isContributor,
     accessExpiresAt: entitlement.accessExpiresAt,
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
@@ -129,16 +153,12 @@ export default async function AccountPage({
     </SiteContentProvider>
   );
 
-  if (activeSection === 'developer' && (isDeveloper || isOwner)) redirect('/developer/cockpit');
-
   if (activeSection === 'library' || activeSection === 'storage') {
     return (
       <CardForgeAppProviders scope="shell">
         <UnifiedAccountLibrary
           persistenceScope={persistenceScope}
-          isSignedIn={entitlement.isSignedIn}
-          isDeveloper={isDeveloper}
-          isOwner={isOwner}
+          experience={experience}
           initialTool={activeSection === 'storage' ? 'locations' : null}
           storageConnections={storageConnections}
         />
@@ -152,17 +172,16 @@ export default async function AccountPage({
         <AccountProfileEnvironment
           checkoutStatus={checkoutStatus}
           initialAuthConfigured={authConfigured}
+          initialContributorAccess={contributorAccess}
           initialPlanIntent={initialPlanIntent}
-          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : null}
+          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : null}
           plans={plans}
         />
       ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
           <HomeDesk
             key="home-desk"
             persistenceScope={persistenceScope}
-            isSignedIn={entitlement.isSignedIn}
-            isDeveloper={isDeveloper}
-            isOwner={isOwner}
+            experience={experience}
             homeAccessStatus={homeAccessStatus}
             homeSecurityStatus={homeSecurityStatus}
           />

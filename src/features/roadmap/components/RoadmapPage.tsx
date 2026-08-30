@@ -26,7 +26,7 @@ export function RoadmapPage({
     ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
   const accountEmail = clerkIdentity.email ?? entitlement.accountEmail ?? null;
-  const isDeveloper = entitlement.authConfigured
+  const isContributor = entitlement.authConfigured
     && effectiveSignedIn
     && entitlement.ownerAccess.isOwner;
 
@@ -51,7 +51,7 @@ export function RoadmapPage({
       </section>
 
       <RoadmapPanel
-        isDeveloper={isDeveloper}
+        isContributor={isContributor}
         isOwner={entitlement.ownerAccess.isOwner}
         isSignedIn={effectiveSignedIn}
         accountEmail={accountEmail}

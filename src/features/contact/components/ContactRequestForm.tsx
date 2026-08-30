@@ -77,7 +77,7 @@ export function ContactRequestForm({
       <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
         <Send className="h-5 w-5" />
         <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">
-          {kind === 'developer' ? 'Request developer access' : kind === 'business' ? 'Discuss a business solution' : 'Send a support request'}
+          {kind === 'developer' ? 'Request contributor access' : kind === 'business' ? 'Discuss a business solution' : 'Send a support request'}
         </h2>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">

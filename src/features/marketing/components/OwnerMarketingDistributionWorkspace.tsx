@@ -42,12 +42,12 @@ const emptyDestination = (): DestinationDraft => ({
 
 export function OwnerMarketingDistributionWorkspace({
   marketing,
-  cockpit,
+  workspace,
   onSaved,
   onError,
 }: {
   marketing: MarketingCommandCenterView;
-  cockpit: MarketingContentWorkspaceView;
+  workspace: MarketingContentWorkspaceView;
   onSaved: () => void;
   onError: (message: string) => void;
 }) {
@@ -57,7 +57,7 @@ export function OwnerMarketingDistributionWorkspace({
   const [destinationId, setDestinationId] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [busy, setBusy] = useState(false);
-  const approved = cockpit.campaigns.filter((item) =>
+  const approved = workspace.campaigns.filter((item) =>
     ["approved", "provider_draft", "scheduled", "failed"].includes(
       item.status,
     ),
@@ -287,7 +287,7 @@ export function OwnerMarketingDistributionWorkspace({
       </section>
 
       <section className="space-y-3">
-        {cockpit.publishJobs
+        {workspace.publishJobs
           .filter(
             (job) =>
               job.deliveryMode === "manual" && job.status !== "published",
@@ -296,7 +296,7 @@ export function OwnerMarketingDistributionWorkspace({
             <OwnerMarketingManualDeliveryRow
               key={job.id}
               job={job}
-              content={cockpit.campaigns.find(
+              content={workspace.campaigns.find(
                 (item) => item.id === job.campaignId,
               )}
               destination={marketing.destinations.find(
@@ -305,7 +305,7 @@ export function OwnerMarketingDistributionWorkspace({
               campaign={marketing.campaigns.find(
                 (item) =>
                   item.id ===
-                  cockpit.campaigns.find(
+                  workspace.campaigns.find(
                     (content) => content.id === job.campaignId,
                   )?.marketingCampaignId,
               )}
@@ -315,12 +315,12 @@ export function OwnerMarketingDistributionWorkspace({
           ))}
       </section>
 
-      {cockpit.publishJobs.length ? (
+      {workspace.publishJobs.length ? (
         <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
           <h3 className="font-serif text-2xl text-[var(--cf-text-strong)]">Delivery history</h3>
           <div className="mt-4 grid gap-2">
-            {cockpit.publishJobs.map((job) => {
-              const content = cockpit.campaigns.find(
+            {workspace.publishJobs.map((job) => {
+              const content = workspace.campaigns.find(
                 (item) => item.id === job.campaignId,
               );
               const destination = marketing.destinations.find(

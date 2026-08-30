@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/roadmap/server';
+import { createContributorRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/roadmap/server';
 import { createApiErrorResponse, createNoStoreJsonResponse, createRateLimitErrorResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const payload = await createDeveloperRoadmapItem({
+      const payload = await createContributorRoadmapItem({
         userId: user.id,
         userEmail,
         title: body.title,

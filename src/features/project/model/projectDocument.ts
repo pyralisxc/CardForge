@@ -26,6 +26,13 @@ const PROJECT_FALLBACK_SET: CardSet = {
   backingTemplateId: null,
 };
 
+export const isUntouchedBootstrapCardSet = (
+  set: Pick<CardSet, 'id' | 'name'>,
+  cardCount: number,
+): boolean => set.id === PROJECT_FALLBACK_SET.id
+  && set.name === PROJECT_FALLBACK_SET.name
+  && cardCount === 0;
+
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
 export const CUSTOM_ICON_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-icons';
@@ -336,6 +343,132 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
   customAssets: normalizeCustomAssets(document.customAssets),
   customFonts: normalizeProjectFontAssets(document.customFonts),
 });
+
+/**
+ * Produces the durable package for one authored Set without changing the
+ * workspace. Older multi-Set packages remain readable, but every new
+ * location-level copy created by Home or Library owns one clear work object.
+ */
+export const isolateProjectDocumentToSet = (
+  document: ProjectDocumentV1,
+  setId: string,
+): ProjectDocumentV1 => {
+  const set = document.cardSets.find((candidate) => candidate.id === setId);
+  if (!set) throw new Error('The selected Set is no longer available in this browser workspace.');
+  const firstSetId = document.cardSets[0]?.id;
+  const storedCards = document.storedCards.filter((card) => (
+    card.setId === setId || (!card.setId && firstSetId === setId)
+  )).map((card) => ({ ...card, setId, setName: set.name }));
+  const templateIds = new Set<string>([
+    set.frontTemplateId,
+    set.backingTemplateId,
+    ...storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((value): value is string => Boolean(value)));
+
+  return {
+    ...document,
+    userTemplates: document.userTemplates.filter((template) => Boolean(template.id && templateIds.has(template.id))),
+    cardSets: [set],
+    activeCardSetId: set.id,
+    storedCards,
+  };
+};
+
+/**
+ * Instantiates a portable project as new, independently owned browser work.
+ * Published starters, imported examples, and future catalog Kits all use this
+ * one identity boundary before entering a creator workspace.
+ */
+export const instantiateProjectDocumentCopy = (
+  document: ProjectDocumentV1,
+  createId: (kind: 'set' | 'card' | 'template' | 'style' | 'asset') => string,
+): ProjectDocumentV1 => {
+  const templateIds = new Map(document.userTemplates.flatMap((template) => (
+    template.id ? [[template.id, createId('template')] as const] : []
+  )));
+  const setIds = new Map(document.cardSets.map((set) => [set.id, createId('set')] as const));
+  const cardIds = new Map(document.storedCards.map((card) => [card.uniqueId, createId('card')] as const));
+  const tagIds = new Map(document.cardSets.flatMap((set) => (set.organization?.tags ?? []).map((tag) => [
+    `${set.id}:${tag.id}`,
+    createId('asset'),
+  ] as const)));
+  const styleIds = new Map(document.appearanceStyles.map((style) => [style.id, createId('style')] as const));
+  const remapTemplateId = (id: string | null | undefined): string | null => (
+    id ? templateIds.get(id) ?? id : null
+  );
+  const copyAssets = (assets: CardAssetOption[]) => assets.map((asset) => ({
+      ...asset,
+      id: createId('asset'),
+      librarySource: 'local' as const,
+      registryStatus: 'localOnly' as const,
+      accessTier: undefined,
+    }));
+  const customAssets: ProjectDocumentCustomAssets = {
+    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+    [CUSTOM_ICON_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+    [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: copyAssets(document.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+  };
+
+  return {
+    ...document,
+    userTemplates: document.userTemplates.map((template) => ({
+      ...template,
+      id: template.id ? templateIds.get(template.id)! : createId('template'),
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateAccessTier: undefined,
+      templateRegistryStatus: 'localOnly',
+      templateContributorName: undefined,
+      templateRevision: undefined,
+      templateRevisionId: undefined,
+    })),
+    cardSets: document.cardSets.map((set) => ({
+      ...set,
+      id: setIds.get(set.id)!,
+      frontTemplateId: remapTemplateId(set.frontTemplateId),
+      backingTemplateId: remapTemplateId(set.backingTemplateId),
+      ...(set.organization ? { organization: {
+        ...set.organization,
+        tags: set.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(`${set.id}:${tag.id}`)! })),
+        groupTagId: set.organization.groupTagId ? tagIds.get(`${set.id}:${set.organization.groupTagId}`) : undefined,
+        positions: Object.fromEntries(Object.entries(set.organization.positions).flatMap(([cardId, position]) => {
+          const nextId = cardIds.get(cardId);
+          return nextId ? [[nextId, position] as const] : [];
+        })),
+      } } : {}),
+    })),
+    activeCardSetId: document.activeCardSetId
+      ? setIds.get(document.activeCardSetId) ?? setIds.get(document.cardSets[0]?.id ?? '')
+      : setIds.get(document.cardSets[0]?.id ?? ''),
+    storedCards: document.storedCards.map((card) => {
+      const originalSetId = card.setId ?? document.cardSets[0]?.id;
+      const nextSetId = originalSetId ? setIds.get(originalSetId) : undefined;
+      const nextSet = originalSetId ? document.cardSets.find((set) => set.id === originalSetId) : undefined;
+      return {
+        ...card,
+        uniqueId: cardIds.get(card.uniqueId)!,
+        templateId: remapTemplateId(card.templateId) ?? card.templateId,
+        backingTemplateId: remapTemplateId(card.backingTemplateId),
+        setId: nextSetId,
+        setName: nextSet?.name ?? card.setName,
+        tagIds: card.tagIds?.flatMap((tagId) => originalSetId && tagIds.get(`${originalSetId}:${tagId}`)
+          ? [tagIds.get(`${originalSetId}:${tagId}`)!]
+          : []),
+      };
+    }),
+    appearanceStyles: document.appearanceStyles.map((style) => ({
+      ...style,
+      id: styleIds.get(style.id)!,
+      librarySource: 'local',
+      accessTier: undefined,
+      registryStatus: 'localOnly',
+      contributorName: undefined,
+    })),
+    customAssets,
+    mcpOperationReceipts: undefined,
+  };
+};
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
   if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {

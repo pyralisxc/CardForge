@@ -38,7 +38,8 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain("'create_editable_template'");
     expect(route).toContain("'continue_template_in_pipeline'");
     expect(route).not.toContain("'publish_template'");
-    expect(access).toContain("getDeveloperCockpitAccessForUserId");
+    expect(access).toContain('getAccountToolAccessForUserId');
+    expect(access).toContain('getContributorCapabilities');
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
@@ -110,7 +111,7 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('globally wherever ChatGPT plugins');
     expect(submission).toContain('Initial-submission release notes for 0.9.0');
-    expect(submission).toContain('ordinary Free account scope with no developer, owner, billing, or provider-console privileges');
+    expect(submission).toContain('ordinary Free account scope with no contributor, owner, billing, or provider-console privileges');
     expect(submission).toContain('temporary working Set named OpenAI Review Fixture');
     expect(submission).toContain('temporary assistant drafts are created by the review cases');
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);

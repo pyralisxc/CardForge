@@ -1,6 +1,6 @@
 import { createMcpHandler } from 'mcp-handler';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
   summarizeProjectProductionAssets,
@@ -8,9 +8,9 @@ import {
   type ProjectAssetRequirement,
 } from '@/features/project/server';
 import {
-  attachDeveloperTemplateDraftAsset,
-  getDeveloperTemplateDraft,
-} from './developerTemplateDrafts';
+  attachTemplateWorkingDocumentAsset,
+  getTemplateWorkingDocument,
+} from './templateWorkingDocuments';
 import { ensureTemplatePreviewArtifact } from './studioRenderArtifacts';
 import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import {
@@ -31,10 +31,10 @@ type ToolErrorResult = {
   _meta?: Record<string, unknown>;
 };
 
-type DeveloperTemplateDraft = Awaited<ReturnType<typeof getDeveloperTemplateDraft>>;
-type TemplateElement = NonNullable<DeveloperTemplateDraft['document']['userTemplates'][number]['freeformCanvas']>['elements'][number];
+type TemplateWorkingDocument = Awaited<ReturnType<typeof getTemplateWorkingDocument>>;
+type TemplateElement = NonNullable<TemplateWorkingDocument['document']['userTemplates'][number]['freeformCanvas']>['elements'][number];
 
-const productionStatus = (document: DeveloperTemplateDraft) => {
+const productionStatus = (document: TemplateWorkingDocument) => {
   const plan = document.document.productionPlan;
   if (!plan) {
     return {
@@ -80,7 +80,7 @@ const inferEmbeddedAssetBinding = (
   return null;
 };
 
-const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
+const compositionDiagnostics = (document: TemplateWorkingDocument) => {
   const template = document.document.userTemplates[0];
   const elements = template?.freeformCanvas?.elements ?? [];
   const plan = document.document.productionPlan;
@@ -153,7 +153,7 @@ export const registerAgentTemplateTools = ({
 }: {
   server: McpRegistrationServer;
   publicOrigin: string;
-  getAccess: () => Promise<DeveloperCockpitAccess>;
+  getAccess: () => Promise<StudioAgentAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
   const runObserved = async <Result>({
@@ -163,7 +163,7 @@ export const registerAgentTemplateTools = ({
   }: {
     toolName: string;
     input: unknown;
-    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+    execute: (access: StudioAgentAccess) => Promise<Result>;
   }): Promise<Result | ToolErrorResult> => {
     try {
       const access = await getAccess();
@@ -197,7 +197,7 @@ export const registerAgentTemplateTools = ({
         toolName: 'attach_template_artwork',
         input: { documentId, expectedRevision, assetRequirementId, binding, mimeType, data },
         execute: async (access) => {
-        const document = await attachDeveloperTemplateDraftAsset({
+        const document = await attachTemplateWorkingDocumentAsset({
           access,
           documentId,
           expectedRevision,
@@ -256,7 +256,7 @@ export const registerAgentTemplateTools = ({
         toolName: 'preview_template_draft',
         input: { documentId },
         execute: async (access) => {
-        const document = await getDeveloperTemplateDraft(access, documentId);
+        const document = await getTemplateWorkingDocument(access, documentId);
         const status = productionStatus(document);
         const composition = compositionDiagnostics(document);
         const artifact = await ensureTemplatePreviewArtifact({

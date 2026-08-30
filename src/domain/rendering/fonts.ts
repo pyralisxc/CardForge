@@ -209,7 +209,7 @@ export const cardFontOptionsToSelectOptions = (
   fonts: CardFontOption[],
 ): Array<{ name: string; value: string }> => fonts.map(({ name, value }) => ({ name, value }));
 
-export const createDeveloperFontFaceCss = (fonts: CardFontOption[]): string => fonts
+export const createPipelineFontFaceCss = (fonts: CardFontOption[]): string => fonts
   .filter((font) => font.sourceUrl && getFontFormat(font))
   .map((font) => [
     '@font-face {',

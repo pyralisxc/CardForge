@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import {
   Boxes,
   ExternalLink,
-  FileArchive,
   FolderOpen,
   HardDrive,
   ImageIcon,
@@ -30,7 +29,7 @@ import {
 
 export const accountLibraryKindLabels: Record<AccountLibraryKind, string> = {
   set: 'Sets',
-  project: 'Projects',
+  template: 'Templates',
   asset: 'Assets',
   'working-draft': 'Working drafts',
 };
@@ -64,7 +63,6 @@ export const formatAccountLibraryDate = (value: string | null) => {
 
 const KindIcon = ({ kind, className = 'h-4 w-4' }: { kind: AccountLibraryKind; className?: string }) => {
   if (kind === 'set') return <Boxes className={className} />;
-  if (kind === 'project') return <FileArchive className={className} />;
   if (kind === 'asset') return <ImageIcon className={className} />;
   return <Sparkles className={className} />;
 };

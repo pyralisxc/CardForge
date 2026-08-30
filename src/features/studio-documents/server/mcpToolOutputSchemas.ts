@@ -121,7 +121,7 @@ export const accountCapabilitiesOutputSchema = objectOutput(
   {
     account: objectValue,
     studio: objectValue,
-    developer: objectValue,
+    contribution: objectValue,
     guidance: objectValue,
   },
 );

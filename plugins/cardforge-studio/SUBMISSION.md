@@ -33,11 +33,11 @@ Before submission, create one dedicated OpenAI reviewer account in Clerk that:
 
 - uses an isolated email/password identity controlled by the publisher; a consumer mailbox or plus-address alias is acceptable, but it must not match an owner identity;
 - is fully verified before submission and does not require the reviewer to complete MFA, email confirmation, SMS, private networking, or owner impersonation;
-- remains on the ordinary Free account scope with no developer, owner, billing, or provider-console privileges;
+- remains on the ordinary Free account scope with no contributor, owner, billing, or provider-console privileges;
 - requires no pre-seeded authored work; temporary assistant drafts are created by the review cases because Free drafts expire after inactivity;
 - contains no customer, owner, billing, or production marketing data.
 
-Enter its credentials only in the OpenAI submission portal. Never commit the reviewer email or password. Keep the account available for the full review and resubmission window, then rotate its password or retire it according to the provider's current review policy. The developer-only `continue_template_in_pipeline` tool is not part of the Free-account positive cases; test it separately only if OpenAI requests developer-workflow coverage.
+Enter its credentials only in the OpenAI submission portal. Never commit the reviewer email or password. Keep the account available for the full review and resubmission window, then rotate its password or retire it according to the provider's current review policy. The Contributor-only `continue_template_in_pipeline` tool is not part of the Free-account positive cases; test it separately only if OpenAI requests Contributor-workflow coverage.
 
 ## Tool safety and UI declarations
 
@@ -68,7 +68,7 @@ Template and Set preview tools do not register iframe/widget output templates. T
 - Fixture: first create a private editable Template in the same review session, then use the returned document id for this case.
 - Prompt: “List my editable Templates, reopen the one we just made, change its title to OpenAI Review Fixture, and show me the revised preview.”
 - Expected tools: `list_editable_templates`, `get_editable_template`, `update_editable_template`, `preview_template_draft`.
-- Expected result: the existing accepted plan remains locked, the same private document advances by one revision, and the preview and Studio URL target that exact revision; no developer Pipeline draft is created.
+- Expected result: the existing accepted plan remains locked, the same private document advances by one revision, and the preview and Studio URL target that exact revision; no Contributor Pipeline draft is created.
 
 ### Positive 4 — build and inspect a bulk set with artwork
 

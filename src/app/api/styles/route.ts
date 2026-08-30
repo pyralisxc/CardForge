@@ -9,17 +9,17 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   archivePipelineRegistryAsset,
-  DeveloperAssetRegistryCommandError,
+  PipelineRegistryCommandError,
   getRepositoryStyleLibrary,
   isRepositoryStyle,
   publishRepositoryStyle,
-} from '@/features/developer-assets/server';
-import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
+} from '@/features/pipeline/server';
+import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/pipeline/server/catalogCache';
 import {
-  DeveloperCockpitAccessError,
-  getCurrentDeveloperCockpitAccess,
+  ContributorAccessError,
+  getCurrentContributorAccess,
   requireContributionScope,
-} from '@/features/developer-access/server';
+} from '@/features/contributor-access/server';
 
 export async function GET() {
   try {
@@ -37,7 +37,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
@@ -92,14 +92,14 @@ export async function POST(request: Request) {
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof ContributorAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'contributor_access_required',
         error.message,
       );
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
+    if (error instanceof PipelineRegistryCommandError) {
       return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
     }
     console.error('Failed to save style library:', error);
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const access = await getCurrentDeveloperCockpitAccess();
+    const access = await getCurrentContributorAccess();
     requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
@@ -134,14 +134,14 @@ export async function DELETE(request: Request) {
     const next = await getRepositoryStyleLibrary('dev');
     return createNoStoreJsonResponse(next);
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) {
+    if (error instanceof ContributorAccessError) {
       return createApiErrorResponse(
         error.status,
-        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.status === 401 ? 'sign_in_required' : 'contributor_access_required',
         error.message,
       );
     }
-    if (error instanceof DeveloperAssetRegistryCommandError) {
+    if (error instanceof PipelineRegistryCommandError) {
       return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
     }
     console.error('Failed to delete style:', error);

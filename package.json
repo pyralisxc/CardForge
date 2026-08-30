@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev -p 9002 -H 0.0.0.0",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
@@ -17,7 +17,7 @@
     "brand:export": "node scripts/export-brand-assets.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke:ui": "playwright test tests/smoke/developer-cockpit-ux.spec.ts --workers=1",
+    "smoke:ui": "playwright test tests/smoke/account-contribution-ux.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },

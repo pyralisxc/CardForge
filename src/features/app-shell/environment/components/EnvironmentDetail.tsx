@@ -1,4 +1,5 @@
 import { Ellipsis, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import {
   DropdownMenu,
@@ -16,13 +17,15 @@ import styles from './EnvironmentFoundation.module.css';
 interface DetailBodyProps {
   record: EnvironmentDetailRecord;
   actions: readonly ActionDescriptor[];
+  visual?: ReactNode;
+  content?: ReactNode;
   showClose: boolean;
   sheetContext?: boolean;
   onClose: () => void;
   onAction: (action: ActionDescriptor) => void;
 }
 
-function DetailBody({ record, actions, showClose, sheetContext = false, onClose, onAction }: DetailBodyProps) {
+function DetailBody({ record, actions, visual, content, showClose, sheetContext = false, onClose, onAction }: DetailBodyProps) {
   const visibleActions = actions.filter((action) => action.availability.kind !== 'hidden');
   const primary = visibleActions.find((action) => action.hierarchy === 'primary');
   const supporting = visibleActions.filter((action) => action.hierarchy === 'supporting');
@@ -39,9 +42,11 @@ function DetailBody({ record, actions, showClose, sheetContext = false, onClose,
         </div>
         {showClose ? <button type="button" className={styles.iconButton} aria-label={`Close details for ${record.title}`} onClick={onClose}><X size={18} aria-hidden="true" /></button> : null}
       </div>
+      {visual ? <div className={styles.detailVisual}>{visual}</div> : null}
       <dl className={styles.detailMeta}>
         {record.meta.map(([label, value]) => <div key={label} className={styles.detailMetaRow}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
+      {content}
       <div className={styles.detailActions} aria-label={`Actions for ${record.title}`}>
         {primary ? <button type="button" className={styles.primaryButton} disabled={!isActionAvailable(primary)} title={primary.availability.kind === 'disabled' ? primary.availability.reason : undefined} onClick={() => run(primary)}>{primary.label}</button> : null}
         {supporting.map((action) => <button key={action.id} type="button" className={styles.secondaryButton} disabled={!isActionAvailable(action)} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} onClick={() => run(action)}>{action.label}</button>)}

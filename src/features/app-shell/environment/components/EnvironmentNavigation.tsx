@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Code2, Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
+import { Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ export const ZONE_ICONS: Record<ZoneId, LucideIcon> = {
   library: LibraryBig,
   studio: WandSparkles,
   profile: UserCircle2,
-  developer: Code2,
   owner: ShieldCheck,
 };
 
@@ -28,8 +27,8 @@ interface EnvironmentNavigationProps {
 }
 
 export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }: EnvironmentNavigationProps) {
-  const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'creator');
-  const protectedZones = zones.filter((zone) => zone.minimumAccess === 'developer' || zone.minimumAccess === 'owner');
+  const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'member');
+  const protectedZones = zones.filter((zone) => zone.minimumAccess === 'contributor' || zone.minimumAccess === 'owner');
 
   return (
     <>
@@ -39,7 +38,7 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
           {zones.map((zone, index) => {
             const Icon = ZONE_ICONS[zone.id];
             const previous = zones[index - 1];
-            const showDivider = Boolean(previous && previous.minimumAccess !== zone.minimumAccess && zone.minimumAccess === 'developer');
+            const showDivider = Boolean(previous && previous.minimumAccess !== zone.minimumAccess && zone.minimumAccess === 'contributor');
             return (
               <div key={zone.id}>
                 {showDivider ? <div className={styles.railDivider} aria-hidden="true" /> : null}

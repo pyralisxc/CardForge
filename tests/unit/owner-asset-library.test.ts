@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DeveloperAssetSubmission } from '@/features/developer-assets/lib/developerAssetProgram';
-import { buildOwnerAssetLibraryPage } from '@/features/developer-assets/lib/ownerAssetLibrary';
+import type { PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { buildOwnerAssetLibraryPage } from '@/features/pipeline/lib/ownerAssetLibrary';
 
 const submission = (
   id: string,
-  assetType: DeveloperAssetSubmission['assetType'],
-  status: DeveloperAssetSubmission['status'],
+  assetType: PipelineSubmission['assetType'],
+  status: PipelineSubmission['status'],
   name = id,
-): DeveloperAssetSubmission => ({
+): PipelineSubmission => ({
   id,
-  developerId: `developer-${id}`,
-  developerEmail: `${id}@example.com`,
-  developerDisplayName: `Maker ${id}`,
+  contributorId: `developer-${id}`,
+  contributorEmail: `${id}@example.com`,
+  contributorDisplayName: `Maker ${id}`,
   assetType,
   requestedStudioDestination: null,
   specialtyTags: [],

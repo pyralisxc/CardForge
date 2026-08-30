@@ -1,15 +1,15 @@
 import { createMcpHandler } from 'mcp-handler';
 
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
-  deleteDeveloperCards,
-  deleteDeveloperCardSet,
-  getDeveloperCardGenerationContract,
-  moveDeveloperCards,
-  upsertDeveloperCards,
-  upsertDeveloperCardSet,
-} from './developerCardSetDrafts';
+  deleteWorkingCards,
+  deleteWorkingCardSet,
+  getCardGenerationContract,
+  moveWorkingCards,
+  upsertWorkingCards,
+  upsertWorkingCardSet,
+} from './cardSetWorkingDocuments';
 import { ensureSetContactSheetArtifact } from './studioRenderArtifacts';
 import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
@@ -144,7 +144,7 @@ export const registerAgentCardTools = ({
 }: {
   server: McpRegistrationServer;
   publicOrigin: string;
-  getAccess: () => Promise<DeveloperCockpitAccess>;
+  getAccess: () => Promise<StudioAgentAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
   const studioUrl = (documentId: string, revision: number) => (
@@ -158,7 +158,7 @@ export const registerAgentCardTools = ({
   }: {
     toolName: string;
     input: unknown;
-    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+    execute: (access: StudioAgentAccess) => Promise<Result>;
   }): Promise<Result | ToolErrorResult> => {
     try {
       const access = await getAccess();
@@ -187,7 +187,7 @@ export const registerAgentCardTools = ({
       toolName: 'get_card_generation_contract',
       input: { documentId, setId },
       execute: async (access) => {
-        const result = await getDeveloperCardGenerationContract({ access, documentId, setId });
+        const result = await getCardGenerationContract({ access, documentId, setId });
         const resolvedSetId = result.set?.id ?? null;
         return {
           content: [{
@@ -233,7 +233,7 @@ export const registerAgentCardTools = ({
       toolName: 'upsert_card_set',
       input: { documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId },
       execute: async (access) => {
-        const document = await upsertDeveloperCardSet({
+        const document = await upsertWorkingCardSet({
           access,
           documentId,
           expectedRevision,
@@ -281,7 +281,7 @@ export const registerAgentCardTools = ({
     toolName: bulk ? 'upsert_cards' : 'upsert_card',
     input: { documentId, expectedRevision, setId, writeMode, cards },
     execute: async (access) => {
-      const result = await upsertDeveloperCards({ access, documentId, expectedRevision, setId, cards, writeMode });
+      const result = await upsertWorkingCards({ access, documentId, expectedRevision, setId, cards, writeMode });
       const action = result.addedIds.length > 0 && result.revisedIds.length > 0
         ? `${result.addedIds.length} added and ${result.revisedIds.length} revised`
         : result.revisedIds.length > 0
@@ -365,7 +365,7 @@ export const registerAgentCardTools = ({
       toolName: 'delete_cards',
       input: { documentId, expectedRevision, setId, cardIds },
       execute: async (access) => {
-        const result = await deleteDeveloperCards({ access, documentId, expectedRevision, setId, cardIds });
+        const result = await deleteWorkingCards({ access, documentId, expectedRevision, setId, cardIds });
         return {
           content: [{ type: 'text', text: `Deleted ${result.deletedIds.length} card${result.deletedIds.length === 1 ? '' : 's'} from "${result.set.name}" in agent revision ${result.document.revision}.` }],
           structuredContent: {
@@ -393,7 +393,7 @@ export const registerAgentCardTools = ({
       toolName: 'move_cards',
       input: { documentId, expectedRevision, sourceSetId, targetSetId, cardIds },
       execute: async (access) => {
-        const result = await moveDeveloperCards({ access, documentId, expectedRevision, sourceSetId, targetSetId, cardIds });
+        const result = await moveWorkingCards({ access, documentId, expectedRevision, sourceSetId, targetSetId, cardIds });
         return {
           content: [{ type: 'text', text: `Moved ${result.movedIds.length} card${result.movedIds.length === 1 ? '' : 's'} from "${result.sourceSet.name}" to "${result.targetSet.name}" at revision ${result.document.revision}.` }],
           structuredContent: {
@@ -422,7 +422,7 @@ export const registerAgentCardTools = ({
       toolName: 'delete_card_set',
       input: { documentId, expectedRevision, setId, deleteCards },
       execute: async (access) => {
-        const result = await deleteDeveloperCardSet({ access, documentId, expectedRevision, setId, deleteCards });
+        const result = await deleteWorkingCardSet({ access, documentId, expectedRevision, setId, deleteCards });
         return {
           content: [{
             type: 'text',
@@ -454,7 +454,7 @@ export const registerAgentCardTools = ({
       toolName: 'preview_card_set',
       input: { documentId, setId },
       execute: async (access) => {
-        const contract = await getDeveloperCardGenerationContract({ access, documentId, setId });
+        const contract = await getCardGenerationContract({ access, documentId, setId });
         const document = contract.document;
         const set = document.document.cardSets.find((candidate) => candidate.id === setId);
         if (!set) {

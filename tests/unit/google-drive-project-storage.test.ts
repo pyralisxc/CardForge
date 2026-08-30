@@ -43,6 +43,14 @@ describe('Google Drive project storage', () => {
     expect(clientTransfer).toContain('Your browser project was left unchanged');
   });
 
+  it('preserves the canonical Set identity when an existing Drive package is updated', () => {
+    const serverStore = read('src/features/project/server/googleDriveProjectStore.ts');
+    expect(serverStore).toContain("const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId'");
+    expect(serverStore).toContain('effectiveWorkId = effectiveWorkId ?? currentSummary.workId');
+    expect(serverStore).toContain('[GOOGLE_DRIVE_WORK_ID_PROPERTY]: effectiveWorkId');
+    expect(serverStore).toContain('workId: effectiveWorkId');
+  });
+
   it('stores encrypted provider connections and exact project-source lineage server-side', () => {
     const migration = read('supabase/migrations/20260823154500_google_drive_project_storage.sql');
     expect(migration).toContain('create table if not exists public.cardforge_project_storage_connections');

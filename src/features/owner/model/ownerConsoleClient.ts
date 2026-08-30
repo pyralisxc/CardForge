@@ -67,7 +67,7 @@ export interface OwnerPerson {
   canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
-  developerNote: string;
+  contributorNote: string;
   submissions: {
     total: number;
     published: number;
@@ -82,7 +82,7 @@ export interface OwnerPeoplePage {
   pageSize: number;
   summary: {
     accounts: number;
-    activeDevelopers: number;
+    activeContributors: number;
     historyOnly: number;
     needsAttention: number;
   };

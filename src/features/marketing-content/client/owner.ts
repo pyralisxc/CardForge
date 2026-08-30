@@ -1,2 +1,2 @@
-export { DeveloperCampaignMediaLibrary } from '../components/DeveloperCampaignMediaLibrary';
-export { DeveloperCampaignPanel } from '../components/DeveloperCampaignPanel';
+export { CampaignMediaLibrary } from '../components/CampaignMediaLibrary';
+export { CampaignWorkspace } from '../components/CampaignWorkspace';

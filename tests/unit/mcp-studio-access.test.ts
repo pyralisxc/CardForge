@@ -2,18 +2,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@clerk/nextjs/server', () => ({ auth: vi.fn() }));
-vi.mock('@/features/developer-access/server', () => ({
-  DeveloperCockpitAccessError: class DeveloperCockpitAccessError extends Error {
+vi.mock('@/features/account/server', () => ({
+  AccountToolAccessError: class AccountToolAccessError extends Error {
     constructor(message: string, public readonly status: number) {
       super(message);
     }
   },
-  getDeveloperCockpitAccessForUserId: vi.fn(),
+  getAccountToolAccessForUserId: vi.fn(),
+}));
+vi.mock('@/features/contributor-access/server', () => ({
+  getContributorCapabilities: vi.fn(),
 }));
 
 import { auth } from '@clerk/nextjs/server';
 
-import { getDeveloperCockpitAccessForUserId } from '@/features/developer-access/server';
+import { getAccountToolAccessForUserId } from '@/features/account/server';
+import { getContributorCapabilities } from '@/features/contributor-access/server';
 import { getMcpStudioAccess } from '@/app/mcp/mcpStudioAccess';
 
 const user = {
@@ -29,45 +33,56 @@ describe('MCP Studio access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(auth).mockResolvedValue({ userId: 'clerk_123' } as never);
-    vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue({
+    vi.mocked(getAccountToolAccessForUserId).mockResolvedValue({
       user,
       entitlement: { accessMode: 'free' },
-      isDeveloper: false,
       isOwner: false,
-      scopes: ['studio.ai.create'],
     } as never);
+    vi.mocked(getContributorCapabilities).mockResolvedValue({ active: false, scopes: [] });
   });
 
   it('fails closed before account lookup when the OAuth token has no user', async () => {
     vi.mocked(auth).mockResolvedValue({ userId: null } as never);
 
     await expect(getMcpStudioAccess()).rejects.toMatchObject({ status: 401 });
-    expect(getDeveloperCockpitAccessForUserId).not.toHaveBeenCalled();
+    expect(getAccountToolAccessForUserId).not.toHaveBeenCalled();
   });
 
   it('gives a signed-in Free or Creator account only the shared Studio assistant scope', async () => {
     await expect(getMcpStudioAccess()).resolves.toMatchObject({
-      isDeveloper: false,
+      isContributor: false,
       isOwner: false,
-      scopes: ['studio.ai.create'],
+      scopes: [],
       user,
     });
-    expect(getDeveloperCockpitAccessForUserId).toHaveBeenCalledOnce();
+    expect(getAccountToolAccessForUserId).toHaveBeenCalledOnce();
+    expect(getContributorCapabilities).toHaveBeenCalledOnce();
   });
 
-  it('keeps developer scope validation behind the developer-access authority', async () => {
-    const developerAccess = { user, isDeveloper: true, isOwner: false, scopes: ['studio.ai.create', 'assets.read'] };
-    vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue(developerAccess as never);
+  it('adds contribution scopes without replacing normal account access', async () => {
+    vi.mocked(getContributorCapabilities).mockResolvedValue({ active: true, scopes: ['assets.review'] });
 
-    await expect(getMcpStudioAccess()).resolves.toBe(developerAccess);
-    expect(getDeveloperCockpitAccessForUserId).toHaveBeenCalledWith('clerk_123');
+    await expect(getMcpStudioAccess()).resolves.toMatchObject({
+      user,
+      isContributor: true,
+      scopes: ['assets.review'],
+    });
+    expect(getAccountToolAccessForUserId).toHaveBeenCalledWith('clerk_123');
   });
 
-  it('routes owner access through the same developer-access authority', async () => {
-    const ownerAccess = { user, isDeveloper: true, isOwner: true, scopes: ['studio.ai.create', 'assets.read'] };
-    vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue(ownerAccess as never);
+  it('projects owner contribution capabilities through the same contributor authority', async () => {
+    vi.mocked(getAccountToolAccessForUserId).mockResolvedValue({
+      user,
+      entitlement: { accessMode: 'owner' },
+      isOwner: true,
+    } as never);
+    vi.mocked(getContributorCapabilities).mockResolvedValue({ active: true, scopes: ['library.publish'] });
 
-    await expect(getMcpStudioAccess()).resolves.toBe(ownerAccess);
-    expect(getDeveloperCockpitAccessForUserId).toHaveBeenCalledWith('clerk_123');
+    await expect(getMcpStudioAccess()).resolves.toMatchObject({
+      isContributor: true,
+      isOwner: true,
+      scopes: ['library.publish'],
+    });
+    expect(getAccountToolAccessForUserId).toHaveBeenCalledWith('clerk_123');
   });
 });

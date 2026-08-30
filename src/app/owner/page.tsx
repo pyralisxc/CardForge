@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { OwnerConsolePage } from '@/features/owner/client';
@@ -63,7 +63,7 @@ export default async function OwnerPage({
     <CardForgeAppProviders scope="shell">
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
+          accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/owner"
           siteConfiguration={siteConfiguration}

@@ -1,0 +1,38 @@
+import { mapRegistryRowsToCardFontOptions, type CardFontOption } from '@/domain/rendering';
+import { getPublishedRegistryContentRows } from '@/features/pipeline/lib/registryContentAssets';
+import type { RegistryViewerAccess } from '@/features/pipeline/lib/registryContentAssets';
+import type { RegistryContentAssetRow } from '@/features/pipeline/lib/registryContentAssets';
+import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
+
+export interface RegistryFontsPayload {
+  fonts: CardFontOption[];
+  registry: {
+    configured: boolean;
+    source: 'database';
+    total: number;
+  };
+}
+
+export const mapRegistryRowsToFontsPayload = (
+  rows: RegistryContentAssetRow[],
+  configured: boolean,
+): RegistryFontsPayload => {
+  const fonts = mapRegistryRowsToCardFontOptions(rows.map((row) => ({
+    asset_id: row.asset_id,
+    name: row.name,
+    url: row.url,
+    metadata: row.metadata,
+  })));
+  return {
+    fonts,
+    registry: { configured, source: 'database', total: fonts.length },
+  };
+};
+
+export const getRegistryFontsPayload = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<RegistryFontsPayload> => {
+  const configured = getSupabaseServerConfigStatus().configured;
+  const rows = await getPublishedRegistryContentRows('font', viewerAccess);
+  return mapRegistryRowsToFontsPayload(rows, configured);
+};

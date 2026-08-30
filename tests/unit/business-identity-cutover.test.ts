@@ -99,7 +99,7 @@ describe('business identity runtime cutover', () => {
 
   it('loads direct support identity instead of using a legal document as a proxy', async () => {
     for (const pagePath of [
-      'src/app/developer/page.tsx',
+      'src/app/contributors/page.tsx',
       'src/app/roadmap/page.tsx',
     ]) {
       const source = await readFile(rootPath(pagePath), 'utf8');

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { PaperSize } from '@/domain/rendering';
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
+  instantiateProjectDocumentCopy,
+  isolateProjectDocumentToSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
 } from '@/features/project/client';
@@ -185,6 +187,54 @@ describe('project document serialization', () => {
     expect(state.customAssets?.['cardforge-maker-custom-textures']).toEqual([textureAsset]);
   });
 
+  it('instantiates a portable Set as independently owned work without a second package format', () => {
+    let sequence = 0;
+    const copied = instantiateProjectDocumentCopy({
+      version: 1,
+      userTemplates: [template],
+      cardSets: [{
+        ...cardSet,
+        backingTemplateId: null,
+        organization: {
+          arrangement: 'manual',
+          groupBy: 'tag',
+          sort: 'manual',
+          tags: [{ id: 'tag-heroes', label: 'Heroes' }],
+          positions: { [storedCard.uniqueId]: { x: 32, y: 48 } },
+        },
+      }],
+      activeCardSetId: cardSet.id,
+      storedCards: [{ ...storedCard, backingTemplateId: null, tagIds: ['tag-heroes'] }],
+      appearanceStyles: [style],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [textureAsset],
+        'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [],
+        'cardforge-maker-custom-images': [],
+      },
+      mcpOperationReceipts: [{
+        operationId: 'published-operation', requestHash: 'hash', revision: 1,
+        changedTemplateIds: [], changedElementIds: [], changedCardIds: [], changedAssetRequirementIds: [],
+        warnings: [], canonicalRenderingRecommended: false,
+      }],
+    }, (kind) => `${kind}-copy-${sequence += 1}`);
+
+    expect(copied.cardSets[0]?.id).not.toBe(cardSet.id);
+    expect(copied.storedCards[0]?.uniqueId).not.toBe(storedCard.uniqueId);
+    expect(copied.storedCards[0]?.setId).toBe(copied.cardSets[0]?.id);
+    expect(copied.storedCards[0]?.templateId).toBe(copied.userTemplates[0]?.id);
+    expect(copied.cardSets[0]?.organization?.tags[0]?.id).not.toBe('tag-heroes');
+    expect(copied.storedCards[0]?.tagIds).toEqual([copied.cardSets[0]?.organization?.tags[0]?.id]);
+    expect(copied.cardSets[0]?.organization?.positions).toEqual({
+      [copied.storedCards[0]!.uniqueId]: { x: 32, y: 48 },
+    });
+    expect(copied.userTemplates[0]).toMatchObject({ templateSource: 'user', templateLibrarySource: 'personal', templateRegistryStatus: 'localOnly' });
+    expect(copied.appearanceStyles[0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });
+    expect(copied.customAssets['cardforge-maker-custom-textures'][0]).toMatchObject({ librarySource: 'local', registryStatus: 'localOnly' });
+    expect(copied.mcpOperationReceipts).toBeUndefined();
+  });
+
   it('parses modern project document JSON', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       version: 1,
@@ -343,5 +393,31 @@ describe('project document serialization', () => {
       'cardforge-maker-custom-icons': [],
       'cardforge-maker-custom-images': [],
     });
+  });
+
+  it('isolates one Set and assigns legacy unowned cards when creating a new durable location', () => {
+    const secondSet: CardSet = {
+      id: 'set-2',
+      name: 'Second Set',
+      frontTemplateId: null,
+      backingTemplateId: null,
+    };
+    const document = createProjectDocumentFromState({
+      userTemplates: [template],
+      cardSets: [cardSet, secondSet],
+      activeCardSetId: cardSet.id,
+      storedCards: [storedCard, { ...storedCard, uniqueId: 'legacy-card', setId: undefined }],
+      appearanceStyles: [style],
+    });
+
+    const isolated = isolateProjectDocumentToSet(document, cardSet.id);
+
+    expect(isolated.cardSets).toEqual([cardSet]);
+    expect(isolated.activeCardSetId).toBe(cardSet.id);
+    expect(isolated.storedCards.map((card) => [card.uniqueId, card.setId])).toEqual([
+      ['card-1', cardSet.id],
+      ['legacy-card', cardSet.id],
+    ]);
+    expect(isolated.userTemplates).toEqual([template]);
   });
 });

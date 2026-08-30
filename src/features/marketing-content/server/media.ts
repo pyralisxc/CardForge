@@ -1,16 +1,16 @@
-import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { ContributorAccess } from '@/features/contributor-access/server';
 import type { CampaignMedia, CampaignMediaLibrarySummary } from '@/features/marketing-content/model';
 
 import {
   DERIVATIVE_COLUMNS,
-  DeveloperCockpitStoreError,
+  MarketingContentStoreError,
   getCampaignMediaRows,
   MEDIA_COLUMNS,
   mapMediaRow,
   readDatabaseRows,
   readFirstDatabaseRow,
-  requireCockpitDatabase,
-  throwCockpitDatabaseError,
+  requireMarketingContentDatabase,
+  throwMarketingContentDatabaseError,
   type CampaignMediaRow,
   type DerivativeRow,
 } from './storeShared';
@@ -48,24 +48,24 @@ export const validateSocialMediaFile = ({
 
 const isMediaVisible = (
   row: CampaignMediaRow,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => access.isOwner
   || row.ingesting_contributor_id === access.user.id
   || ['approved', 'public'].includes(row.review_state);
 
 export const assertMediaAccess = (
   row: CampaignMediaRow,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
   if (!isMediaVisible(row, access)) {
-    throw new DeveloperCockpitStoreError('Campaign media access denied.', 403);
+    throw new MarketingContentStoreError('Campaign media access denied.', 403);
   }
 };
 
 export const assertDerivativeAccess = (
   row: CampaignMediaRow,
   derivative: DerivativeRow,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
   assertMediaAccess(row, access);
   if (
@@ -73,7 +73,7 @@ export const assertDerivativeAccess = (
     && row.ingesting_contributor_id !== access.user.id
     && derivative.exposure !== 'public'
   ) {
-    throw new DeveloperCockpitStoreError('Campaign media access denied.', 403);
+    throw new MarketingContentStoreError('Campaign media access denied.', 403);
   }
 };
 
@@ -88,14 +88,14 @@ export const getCampaignMediaRecord = async (
   const row = rows[0];
   const value = media[0];
   if (!row || !value) {
-    throw new DeveloperCockpitStoreError('Campaign media not found.', 404);
+    throw new MarketingContentStoreError('Campaign media not found.', 404);
   }
   return { row, derivatives, media: value };
 };
 
 export const getCampaignMediaForAccess = async (
   row: CampaignMediaRow,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
   assertMediaAccess(row, access);
   const record = await getCampaignMediaRecord(row.id);
@@ -107,32 +107,32 @@ export const getCampaignMediaForAccess = async (
 
 const assertCampaignFilterAccess = async (
   campaignId: string,
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ) => {
-  const { data, error } = await requireCockpitDatabase()
+  const { data, error } = await requireMarketingContentDatabase()
     .from('cardforge_social_campaigns')
     .select('contributor_id')
     .eq('id', campaignId)
     .limit(1);
-  if (error) throwCockpitDatabaseError('Unable to authorize campaign media.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to authorize campaign media.', error);
   const contributorId = readFirstDatabaseRow<{ contributor_id: string }>(data)
     ?.contributor_id;
   if (!contributorId) {
-    throw new DeveloperCockpitStoreError('Campaign package not found.', 404);
+    throw new MarketingContentStoreError('Campaign package not found.', 404);
   }
   if (!access.isOwner && contributorId !== access.user.id) {
-    throw new DeveloperCockpitStoreError('Campaign media access denied.', 403);
+    throw new MarketingContentStoreError('Campaign media access denied.', 403);
   }
 };
 
 const loadMediaDerivatives = async (mediaIds: string[]) => {
   if (!mediaIds.length) return [];
-  const { data, error } = await requireCockpitDatabase()
+  const { data, error } = await requireMarketingContentDatabase()
     .from('cardforge_campaign_media_derivatives')
     .select(DERIVATIVE_COLUMNS)
     .in('parent_media_id', mediaIds);
   if (error) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to load campaign-media derivatives.',
       error,
     );
@@ -148,14 +148,14 @@ export interface CampaignMediaPage {
 }
 
 export const getAuthorizedCampaignMediaPage = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   filters: { query?: string; state?: string; campaignId?: string; page?: number; pageSize?: number } = {},
 ): Promise<CampaignMediaPage> => {
   if (filters.campaignId) {
     await assertCampaignFilterAccess(filters.campaignId, access);
   }
 
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const rawPageSize = Number(filters.pageSize ?? 24);
   const rawPage = Number(filters.page ?? 1);
   const pageSize = Number.isFinite(rawPageSize)
@@ -169,7 +169,7 @@ export const getAuthorizedCampaignMediaPage = async (
       .select('media_id')
       .eq('campaign_id', filters.campaignId);
     if (linkedResult.error) {
-      throwCockpitDatabaseError('Unable to filter campaign media.', linkedResult.error);
+      throwMarketingContentDatabaseError('Unable to filter campaign media.', linkedResult.error);
     }
     campaignMediaIds = [...new Set(
       readDatabaseRows<{ media_id: string }>(linkedResult.data).map((row) => row.media_id),
@@ -209,7 +209,7 @@ export const getAuthorizedCampaignMediaPage = async (
   const to = from + pageSize - 1;
 
   const { data, error, count } = await query.range(from, to);
-  if (error) throwCockpitDatabaseError('Unable to load campaign media library.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to load campaign media library.', error);
   const total = count ?? 0;
   const rows = readDatabaseRows<CampaignMediaRow>(data);
 
@@ -235,7 +235,7 @@ export const getAuthorizedCampaignMediaPage = async (
       .in('media_id', mediaIds)
     : { data: [], error: null };
   if (attachmentResult.error) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to load campaign-media relationships.',
       attachmentResult.error,
     );
@@ -252,7 +252,7 @@ export const getAuthorizedCampaignMediaPage = async (
       .in('campaign_id', relatedCampaignIds)
     : { data: [], error: null };
   if (jobsResult.error) {
-    throwCockpitDatabaseError(
+    throwMarketingContentDatabaseError(
       'Unable to load media publication history.',
       jobsResult.error,
     );
@@ -275,20 +275,20 @@ export const getAuthorizedCampaignMediaPage = async (
 };
 
 export const getAuthorizedCampaignMedia = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
   filters: { query?: string; state?: string; campaignId?: string } = {},
 ): Promise<CampaignMedia[]> => (
   await getAuthorizedCampaignMediaPage(access, { ...filters, page: 1, pageSize: 24 })
 ).items;
 
 export const getCampaignMediaLibrarySummary = async (
-  access: DeveloperCockpitAccess,
+  access: ContributorAccess,
 ): Promise<CampaignMediaLibrarySummary> => {
-  const { data, error } = await requireCockpitDatabase().rpc(
+  const { data, error } = await requireMarketingContentDatabase().rpc(
     'cardforge_get_campaign_media_summary',
     { p_contributor_id: access.user.id, p_is_owner: access.isOwner },
   );
-  if (error) throwCockpitDatabaseError('Unable to summarize campaign media library.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to summarize campaign media library.', error);
   const row = readFirstDatabaseRow<{
     media_count: number | string;
     protected_bytes: number | string;
@@ -312,12 +312,12 @@ export const setCampaignMediaArchived = async ({
   archived: boolean;
   ownerId: string;
 }): Promise<void> => {
-  const { error } = await requireCockpitDatabase().rpc('cardforge_set_campaign_media_archived', {
+  const { error } = await requireMarketingContentDatabase().rpc('cardforge_set_campaign_media_archived', {
     p_media_id: mediaId,
     p_archived: archived,
     p_owner_id: ownerId,
   });
-  if (error) throwCockpitDatabaseError('Unable to update campaign media retention.', error);
+  if (error) throwMarketingContentDatabaseError('Unable to update campaign media retention.', error);
 };
 
 export const purgeCampaignMedia = async ({
@@ -327,7 +327,7 @@ export const purgeCampaignMedia = async ({
   mediaId: string;
   confirmationFilename: string;
 }): Promise<void> => {
-  const supabase = requireCockpitDatabase();
+  const supabase = requireMarketingContentDatabase();
   const { data, error: prepareError } = await supabase.rpc('cardforge_prepare_campaign_media_purge', {
     p_media_id: mediaId,
     p_expected_filename: confirmationFilename,
@@ -343,7 +343,7 @@ export const purgeCampaignMedia = async ({
       : status === 404
         ? 'Campaign media not found.'
         : 'Unable to prepare campaign media for permanent deletion.';
-    throw new DeveloperCockpitStoreError(message, status);
+    throw new MarketingContentStoreError(message, status);
   }
 
   const rawObjects = (data as { storageObjects?: unknown } | null)?.storageObjects;
@@ -364,7 +364,7 @@ export const purgeCampaignMedia = async ({
   for (const [bucket, paths] of pathsByBucket) {
     const { error: storageError } = await supabase.storage.from(bucket).remove([...paths]);
     if (storageError) {
-      throw new DeveloperCockpitStoreError(
+      throw new MarketingContentStoreError(
         'Some campaign media storage still needs deletion. Retry this action; the database record remains in a recoverable pending state.',
         503,
       );
@@ -375,7 +375,7 @@ export const purgeCampaignMedia = async ({
     p_media_id: mediaId,
   });
   if (finalizeError) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Campaign media files were removed, but database cleanup still needs to finish. Retry permanent deletion.',
       503,
     );
@@ -400,12 +400,12 @@ export const getPublicCampaignMediaUrl = async (
     || derivative.exposure !== 'public'
     || derivative.storage_bucket !== SOCIAL_PUBLIC_MEDIA_BUCKET
   ) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Approved public media is required before provider delivery.',
       409,
     );
   }
-  return requireCockpitDatabase().storage
+  return requireMarketingContentDatabase().storage
     .from(derivative.storage_bucket)
     .getPublicUrl(derivative.storage_path).data.publicUrl;
 };

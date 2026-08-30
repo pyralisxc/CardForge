@@ -6,7 +6,7 @@ const publicRoutes = [
   '/',
   '/about',
   '/plans',
-  '/developer',
+  '/contributors',
   '/roadmap',
   '/cameron',
   '/contact',

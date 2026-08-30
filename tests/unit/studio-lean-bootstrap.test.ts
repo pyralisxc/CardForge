@@ -21,7 +21,7 @@ describe('lean Studio bootstrap', () => {
   });
 
   it('uses purpose-built endpoints for core libraries and editor art', () => {
-    const catalogClient = source('src/features/developer-assets/client/catalog.ts');
+    const catalogClient = source('src/features/pipeline/client/catalog.ts');
     const bootstrapRoute = source('src/app/api/catalog/studio-bootstrap/route.ts');
     const assetRoute = source('src/app/api/catalog/studio-assets/route.ts');
 
@@ -32,7 +32,7 @@ describe('lean Studio bootstrap', () => {
   });
 
   it('does not serialize templates or element presets into the editor-art view', () => {
-    const manifest = source('src/features/developer-assets/lib/catalogManifest.ts');
+    const manifest = source('src/features/pipeline/lib/catalogManifest.ts');
 
     expect(manifest).toContain("Pick<AssetRegistryPayload, 'textures' | 'dividers' | 'icons' | 'imageAssets'>");
     expect(manifest).toContain('textures: payload.textures');

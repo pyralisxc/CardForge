@@ -3,9 +3,9 @@ import { clerkClient } from '@clerk/nextjs/server';
 import { mapOwnerAccountSummary, resolveAccountEntitlement } from '@/features/account/server';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 import {
-  fetchDeveloperProfileRowsForOwner,
-  type DeveloperProfileRow,
-} from '@/features/developer-access/server';
+  fetchContributorProfileRowsForOwner,
+  type ContributorProfileRow,
+} from '@/features/contributor-access/server';
 import type {
   OwnerPeoplePage,
   OwnerPerson,
@@ -18,21 +18,21 @@ type SubmissionCounts = OwnerPerson['submissions'];
 
 const CLERK_PAGE_LIMIT = 100;
 
-const profileName = (profile: DeveloperProfileRow): string => (
+const profileName = (profile: ContributorProfileRow): string => (
   [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim()
   || profile.email
   || profile.clerk_user_id
 );
 
-const normalizeProfileStatus = (value: DeveloperProfileRow['status']): NonNullable<OwnerPerson['profileStatus']> => (
+const normalizeProfileStatus = (value: ContributorProfileRow['status']): NonNullable<OwnerPerson['profileStatus']> => (
   value === 'active' || value === 'invited' || value === 'suspended' ? value : 'inactive'
 );
 
 const emptySubmissionCounts = (): SubmissionCounts => ({ total: 0, published: 0, inReview: 0 });
 
-const readSubmissionCounts = async (developerIds: string[]): Promise<Map<string, SubmissionCounts>> => {
+const readSubmissionCounts = async (contributorIds: string[]): Promise<Map<string, SubmissionCounts>> => {
   const counts = new Map<string, SubmissionCounts>();
-  const uniqueIds = [...new Set(developerIds.filter(Boolean))];
+  const uniqueIds = [...new Set(contributorIds.filter(Boolean))];
   if (uniqueIds.length === 0) return counts;
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error('CardForge people storage is not configured.');
@@ -82,7 +82,7 @@ const needsAttention = (person: OwnerPerson): boolean => (
 
 const mapPerson = (
   user: ClerkUser,
-  profile: DeveloperProfileRow | undefined,
+  profile: ContributorProfileRow | undefined,
   submissionCounts: Map<string, SubmissionCounts>,
 ): OwnerPerson => {
   const account = mapOwnerAccountSummary(user);
@@ -119,13 +119,13 @@ const mapPerson = (
     canProposeSiteContent: Boolean(profile?.can_propose_site_content),
     monthlySubmissionLimitOverride: profile?.monthly_submission_limit_override ?? null,
     monthlyPublishedRequirementOverride: profile?.monthly_published_requirement_override ?? null,
-    developerNote: profile?.owner_note ?? '',
+    contributorNote: profile?.owner_note ?? '',
     submissions: submissionCounts.get(user.id) ?? emptySubmissionCounts(),
   };
 };
 
 const mapHistoryPerson = (
-  profile: DeveloperProfileRow,
+  profile: ContributorProfileRow,
   submissionCounts: Map<string, SubmissionCounts>,
 ): OwnerPerson => ({
   id: profile.clerk_user_id,
@@ -145,7 +145,7 @@ const mapHistoryPerson = (
   canProposeSiteContent: Boolean(profile.can_propose_site_content),
   monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
   monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
-  developerNote: profile.owner_note ?? '',
+  contributorNote: profile.owner_note ?? '',
   submissions: submissionCounts.get(profile.clerk_user_id) ?? emptySubmissionCounts(),
 });
 
@@ -160,7 +160,7 @@ export const getOwnerPeople = async ({
   pageSize = 12,
 }: {
   query?: string;
-  filter?: 'all' | 'developers' | 'active' | 'needs_attention';
+  filter?: 'all' | 'contributors' | 'active' | 'needs_attention';
   page?: number;
   pageSize?: number;
 } = {}): Promise<OwnerPeoplePage> => {
@@ -168,7 +168,7 @@ export const getOwnerPeople = async ({
   const safePageSize = Math.min(50, Math.max(5, Math.trunc(pageSize)));
   const requestedPage = Math.max(1, Math.trunc(page));
   const client = await clerkClient();
-  const profiles = await fetchDeveloperProfileRowsForOwner();
+  const profiles = await fetchContributorProfileRowsForOwner();
   const profileUsers = await loadClerkUsersByIds(profiles.map((profile) => profile.clerk_user_id));
   const profileUsersById = new Map(profileUsers.map((user) => [user.id, user]));
   const profilesById = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
@@ -180,7 +180,7 @@ export const getOwnerPeople = async ({
   const accountSummaryPage = await client.users.getUserList({ limit: 1 });
   const summary = {
     accounts: accountSummaryPage.totalCount,
-    activeDevelopers: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.access === 'dev' || person.isOwner)).length,
+    activeContributors: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.access === 'dev' || person.isOwner)).length,
     historyOnly: historyPeople.length,
     needsAttention: summaryPeople.filter(needsAttention).length,
   };
@@ -214,7 +214,7 @@ export const getOwnerPeople = async ({
     return { items, total, page: safePage, pageSize: safePageSize, summary };
   }
 
-  const developerPeople = summaryPeople
+  const contributorPeople = summaryPeople
     .filter((person) => {
       if (!matchesQuery(person, normalizedQuery)) return false;
       if (filter === 'active' && person.profileStatus !== 'active') return false;
@@ -222,12 +222,12 @@ export const getOwnerPeople = async ({
       return true;
     })
     .sort((left, right) => Number(needsAttention(right)) - Number(needsAttention(left)) || left.name.localeCompare(right.name));
-  const total = developerPeople.length;
+  const total = contributorPeople.length;
   const totalPages = Math.max(1, Math.ceil(total / safePageSize));
   const safePage = Math.min(totalPages, requestedPage);
   const start = (safePage - 1) * safePageSize;
   return {
-    items: developerPeople.slice(start, start + safePageSize),
+    items: contributorPeople.slice(start, start + safePageSize),
     total,
     page: safePage,
     pageSize: safePageSize,

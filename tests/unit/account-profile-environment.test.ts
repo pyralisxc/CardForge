@@ -14,7 +14,7 @@ describe('account profile environment', () => {
       authConfigured: true,
       entitlementLoading: false,
       entitlementUnavailable: false,
-      isDeveloper: true,
+      isContributor: true,
       isOwner: true,
       isSignedIn: true,
       planLabel: 'Owner access',
@@ -22,7 +22,7 @@ describe('account profile environment', () => {
 
     expect(groups.map((group) => group.id)).toEqual(['identity-security', 'account-utilities', 'protected-access']);
     expect(groups.flatMap((group) => group.items).map((item) => item.target)).toEqual([
-      'clerk', 'clerk', 'billing', 'storage', 'developer', 'owner',
+      'clerk', 'clerk', 'billing', 'storage', 'contributor', 'owner',
     ]);
   });
 
@@ -32,7 +32,7 @@ describe('account profile environment', () => {
       authConfigured: true,
       entitlementLoading: false,
       entitlementUnavailable: true,
-      isDeveloper: false,
+      isContributor: false,
       isOwner: false,
       isSignedIn: true,
       planLabel: 'Free',
@@ -46,11 +46,11 @@ describe('account profile environment', () => {
   it('keeps loading and unconfigured identity distinct from signed-out and Free', () => {
     const loading = buildAccountProfileUtilityGroups({
       accountEmail: 'No signed-in account', authConfigured: true,
-      entitlementLoading: true, entitlementUnavailable: false, isDeveloper: false, isOwner: false, isSignedIn: false, planLabel: 'Free',
+      entitlementLoading: true, entitlementUnavailable: false, isContributor: false, isOwner: false, isSignedIn: false, planLabel: 'Free',
     }).flatMap((group) => group.items);
     const unconfigured = buildAccountProfileUtilityGroups({
       accountEmail: 'No signed-in account', authConfigured: false,
-      entitlementLoading: false, entitlementUnavailable: false, isDeveloper: false, isOwner: false, isSignedIn: false, planLabel: 'Creator Pass',
+      entitlementLoading: false, entitlementUnavailable: false, isContributor: false, isOwner: false, isSignedIn: false, planLabel: 'Creator Pass',
     }).flatMap((group) => group.items);
 
     expect(loading.find((item) => item.target === 'clerk')?.value).toBe('Checking account');

@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EnvironmentCommandBand } from '@/features/app-shell/environment/components/EnvironmentCommandBand';
@@ -16,7 +18,7 @@ const baseAction: ActionDescriptor = {
   supportedObjectKinds: ['set'],
   supportedSources: ['browser-local'],
   revisionPolicy: 'none',
-  requiredPermission: 'creator',
+  requiredPermission: 'member',
   scope: 'object',
   hierarchy: 'primary',
   availability: { kind: 'available' },
@@ -38,6 +40,12 @@ const record: EnvironmentDetailRecord = {
 };
 
 describe('Environment action presentation', () => {
+  it('renders one detail surface at a time across desktop and mobile', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/features/app-shell/environment/components/EnvironmentShell.tsx'), 'utf8');
+    expect(source).toContain('detail && !mobileDetail ? <EnvironmentDesktopInspector');
+    expect(source).toContain('detail && mobileDetail ? <EnvironmentMobileSheet');
+  });
+
   it('renders a disabled primary action with its required reason', () => {
     const action: ActionDescriptor = { ...baseAction, availability: { kind: 'disabled', reason: 'Reconnect first.' } };
     const markup = renderToStaticMarkup(createElement(EnvironmentCommandBand, { zone: { id: 'library', label: 'Library' }, primaryAction: action, onCommand: vi.fn(), onAction: vi.fn() }));
@@ -64,8 +72,8 @@ describe('Environment action presentation', () => {
     const markup = renderToStaticMarkup(createElement(EnvironmentShell, {
       ariaLabel: 'Environment test shell',
       brand: { src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' },
-      viewer: { signedIn: true, developer: false, owner: false },
-      zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'creator', showInPrivateRail: true, viewportPolicy: 'flow' }],
+      viewer: { signedIn: true, contributor: false, owner: false },
+      zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'member', showInPrivateRail: true, viewportPolicy: 'flow' }],
       activeZone: 'library',
       viewportPolicy: 'flow',
       detail: unavailableRecord,
@@ -90,8 +98,8 @@ describe('Environment action presentation', () => {
     const multiLocationMarkup = renderToStaticMarkup(createElement(EnvironmentShell, {
       ariaLabel: 'Multi-location environment test shell',
       brand: { src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' },
-      viewer: { signedIn: true, developer: false, owner: false },
-      zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'creator', showInPrivateRail: true, viewportPolicy: 'flow' }],
+      viewer: { signedIn: true, contributor: false, owner: false },
+      zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'member', showInPrivateRail: true, viewportPolicy: 'flow' }],
       activeZone: 'library',
       viewportPolicy: 'flow',
       detail: multiLocationRecord,
@@ -110,8 +118,8 @@ describe('Environment action presentation', () => {
     expect(getActionsForRecord('home', homeCurrentWork, 'home')[0]?.ownerFeature).toBe('card-generator');
     expect(getActionsForRecord('profile', profileGroups[0]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
     expect(getActionsForRecord('profile', profileGroups[1]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
-    expect(getActionsForRecord('queue', queueItems[0] ?? null, 'owner').map((action) => action.ownerFeature)).toEqual(['developer-assets', 'developer-assets']);
+    expect(getActionsForRecord('queue', queueItems[0] ?? null, 'owner').map((action) => action.ownerFeature)).toEqual(['pipeline', 'pipeline']);
     expect(getActionsForRecord('collection', { ...record, kind: 'template' }, 'library')[0]?.ownerFeature).toBe('template-editor');
-    expect(getActionsForRecord('queue', queueItems[2] ?? null, 'developer')[0]?.ownerFeature).toBe('billing');
+    expect(getActionsForRecord('queue', queueItems[2] ?? null, 'owner')[0]?.ownerFeature).toBe('billing');
   });
 });

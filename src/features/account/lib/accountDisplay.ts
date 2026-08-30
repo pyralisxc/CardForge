@@ -5,7 +5,7 @@ export interface AccountDisplayInput {
 
 export interface AccountAccessDisplayInput {
   isOwner: boolean;
-  isDeveloper: boolean;
+  isContributor: boolean;
   accessExpiresAt: string | null;
   paidPlan: 'creator' | 'designer' | null;
   canExportClean: boolean;
@@ -24,7 +24,7 @@ export function formatAccountAccessExpiration(value: string | null, locale?: str
 
 export function getAccountAccessLabel(input: AccountAccessDisplayInput, locale?: string): string {
   if (input.isOwner) return 'Owner access';
-  if (input.isDeveloper) return 'Contributor access';
+  if (input.isContributor) return 'Contributor access';
 
   const expiration = formatAccountAccessExpiration(input.accessExpiresAt, locale);
   if (expiration) return `Creator Pass through ${expiration}`;

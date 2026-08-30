@@ -200,7 +200,7 @@ export const readFirstDatabaseRow = <Row>(value: unknown): Row | undefined => (
 );
 
 const previewUrl = (mediaId: string, derivativeId?: string) => (
-  `/api/developer-cockpit/media/${mediaId}${
+  `/api/marketing-content/media/${mediaId}${
     derivativeId ? `?derivativeId=${encodeURIComponent(derivativeId)}` : ''
   }`
 );

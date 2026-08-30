@@ -9,6 +9,8 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   applyProjectDocumentToState,
   createProjectDocumentFromState,
+  isolateProjectDocumentToSet,
+  instantiateProjectDocumentCopy,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
 import {
@@ -18,9 +20,10 @@ import {
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
 import { readProjectFonts, writeProjectFonts } from '../persistence/projectFonts';
+import { selectAllTemplates } from '../store/selectors';
 import { useProjectStore } from '../store/workspaceStore';
 
-export type ProjectWorkspaceApplyMode = 'replace' | 'merge';
+export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy';
 
 export interface ProjectWorkspaceApplySummary {
   importedTemplateCount: number;
@@ -30,6 +33,13 @@ export interface ProjectWorkspaceApplySummary {
 
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
   const state = useProjectStore.getState();
+  const referencedTemplateIds = new Set([
+    ...state.cardSets.flatMap((set) => [set.frontTemplateId, set.backingTemplateId]),
+    ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((value): value is string => Boolean(value)));
+  const portableTemplates = selectAllTemplates(state).filter((template) => (
+    template.templateSource === 'user' || Boolean(template.id && referencedTemplateIds.has(template.id))
+  ));
   const assetStorage = getProjectAssetStorage();
   const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets, customFonts] = await Promise.all([
     readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
@@ -40,7 +50,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   ]);
 
   return createProjectDocumentFromState({
-    userTemplates: state.userTemplates,
+    userTemplates: portableTemplates,
     cardSets: state.cardSets,
     activeCardSetId: state.activeCardSet.id,
     storedCards: state.storedCards,
@@ -60,14 +70,22 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   });
 };
 
+export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => (
+  isolateProjectDocumentToSet(await captureCurrentProjectDocument(), setId)
+);
+
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
 ): Promise<ProjectWorkspaceApplySummary> => {
-  const patch = applyProjectDocumentToState(document);
+  const sourceDocument = mode === 'copy'
+    ? instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`)
+    : document;
+  const writeMode = mode === 'copy' ? 'merge' : mode;
+  const patch = applyProjectDocumentToState(sourceDocument);
   const assetStorage = getProjectAssetStorage();
-  const writeAssets = mode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
-  const nextFonts = mode === 'merge'
+  const writeAssets = writeMode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
+  const nextFonts = writeMode === 'merge'
     ? [
         ...await readProjectFonts(),
         ...patch.customFonts,
@@ -82,12 +100,12 @@ export const applyProjectDocumentToWorkspace = async (
   ]);
 
   const state = useProjectStore.getState();
-  const importedTemplateCount = mode === 'merge'
+  const importedTemplateCount = writeMode === 'merge'
     ? state.mergeUserTemplatesFromFiles(patch.userTemplates)
     : state.setUserTemplatesFromFiles(patch.userTemplates);
 
   const afterTemplates = useProjectStore.getState();
-  if (mode === 'merge') {
+  if (writeMode === 'merge') {
     afterTemplates.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
     afterTemplates.setAppearanceStylesFromFiles(patch.appearanceStyles);
   } else {
@@ -106,7 +124,7 @@ export const applyProjectDocumentToWorkspace = async (
   if (patch.exportMode) afterSets.setExportMode(patch.exportMode);
   if (patch.exportDpi) afterSets.setExportDpi(patch.exportDpi);
 
-  const cardResult = mode === 'merge'
+  const cardResult = writeMode === 'merge'
     ? useProjectStore.getState().mergeStoredCardsFromFile(patch.storedCards)
     : useProjectStore.getState().setStoredCardsFromFile(patch.storedCards);
   const activeSet = useProjectStore.getState().activeCardSet;

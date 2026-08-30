@@ -9,7 +9,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
 - Studio: `/studio`.
 - Account, Creator Pass, Designer Pass, and profile: `/account`, `/profile`.
-- Protected contributor workspace: `/developer/cockpit`.
+- Contributor work is capability-gated inside Desk, Library, and Profile; owner review and publication remain in `/owner`.
 - Owner console: `/owner`.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
 
@@ -64,13 +64,14 @@ npm run brand:export
 - `src/app/`: Next.js routes and HTTP composition.
 - `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell/`: Studio shell and workspace bootstrap.
-- `src/features/home/`: the two-scale Home Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
+- `src/features/home/`: the internal owner for the two-scale user-facing Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: card creation, bulk generation, gallery, and export.
-- `src/features/card-rendering/`: shared card rendering and rich-text/vector presentation.
-- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, and project files.
+- `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
+- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, published-package installation, and provider/local-folder adapters.
+- `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location/default/transfer tools; it does not own those underlying stores.
 - `src/features/account/` and `src/features/billing/`: Clerk-backed account access and Stripe-backed product/support billing.
-- `src/features/developer-access/` and `src/features/developer-assets/`: developer identity, Forge Review, voting, publication, attribution, and shared library.
+- `src/features/contributor-access/` and `src/features/pipeline/`: Contributor identity/scopes plus Forge Review, voting, publication, attribution, and the shared Library.
 - `src/features/studio-documents/`: private account Studio documents and MCP authoring bridge.
 - `src/features/marketing/`, `marketing-content/`, `marketing-distribution/`, `social-publishing/`: strategy, content, distribution state, and stateless provider publishing.
 - `src/features/public-site/`, `business-identity/`, `legal/`, `contact/`, `roadmap/`, `analytics/`, `experience-settings/`: public/control-plane product owners.
@@ -94,7 +95,7 @@ CardForge has three deliberate storage lanes:
 - **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, developer profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
-`cardforge_asset_registry` is the single runtime shared Studio catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. The registry stores only the active revision pointer and routing/discovery metadata; a database constraint prevents it from cloning Template documents. Generic developer uploads accept media/fonts rather than parallel JSON authoring. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
 
 ## Agent authoring
 

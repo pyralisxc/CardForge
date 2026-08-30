@@ -25,7 +25,7 @@ describe('unified account environment', () => {
   it('makes Home, Library, and Profile direct zones instead of nested account pages', () => {
     expect(accountPage).toContain('<AccountHomeBoundary');
     expect(accountPage).toContain('<HomeDesk');
-    expect(homeDesk).toContain('Your creative desk');
+    expect(homeDesk).toContain('Your creative workspace');
     expect(homeDesk).toContain('<EnvironmentShell');
     expect(accountLibrary).toContain('<EnvironmentShell');
     expect(accountPage).toContain("activeSection === 'library' || activeSection === 'storage'");
@@ -67,13 +67,20 @@ describe('unified account environment', () => {
     expect(accountLibraryProjection).toContain('buildAccountLibraryItems');
   });
 
-  it('runs the live Library as a compact ledger with exact detail actions', () => {
+  it('runs the live Library as a scoped visual collection with exact detail actions', () => {
     expect(accountLibrary).toContain('activeZone="library"');
-    expect(accountLibrary).toContain('<CollectionLedgerRow');
+    expect(accountLibrary).toContain('getLibraryScopeDefinitions');
+    expect(accountLibrary).toContain("scope: 'personal'");
+    expect(accountLibrary).toContain("scope: 'published'");
+    expect(accountLibrary).toContain("scope: 'pipeline'");
+    expect(accountLibrary).toContain('<LibraryVisual');
     expect(accountLibrary).toContain('getAccountLibraryEnvironmentActions');
-    expect(accountLibrary).toContain("action.id === 'library.view-source'");
-    expect(accountLibrary).toContain("action.id === 'library.manage-location'");
-    expect(accountLibrary).toContain('projection.failures.map');
+    expect(accountLibrary).toContain("id: 'library.copy-published-template'");
+    expect(accountLibrary).toContain('setTemplateEditorSelectedTemplateId(selectedTemplateId)');
+    expect(accountLibrary).toContain("actionId === 'library.view-source'");
+    expect(accountLibrary).toContain("actionId === 'library.manage-location'");
+    expect(accountLibrary).toContain('getAccountLibraryMcpWorkflow');
+    expect(accountLibrary).toContain("activeTool === 'locations'");
     expect(accountLibrary).not.toContain('<AccountLibraryItemRow');
   });
 
@@ -101,7 +108,7 @@ describe('unified account environment', () => {
   it('keeps Stripe-owned billing inside the focused Profile utility', () => {
     expect(accountPage).toContain('getMcpAllowances()');
     expect(accountPage).toContain('plans={plans}');
-    expect(accountPage).toContain("initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : null}");
+    expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : null");
     expect(profileEnvironment).toContain('Manage access, billing, and usage');
     expect(profileEnvironment).toContain('<AccountPlanBillingUtility');
     expect(planBillingUtility).toContain('<AccountPlanManagementPanel');
@@ -123,9 +130,10 @@ describe('unified account environment', () => {
   });
 
   it('routes protected account entries to their real zones', () => {
-    expect(profileEnvironment).toContain("router.push('/developer/cockpit')");
+    expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=contributor')");
     expect(profileEnvironment).toContain("router.push('/owner')");
-    expect(accountPage).toContain("redirect('/developer/cockpit')");
+    expect(accountPage).toContain('initialContributorAccess={contributorAccess}');
+    expect(accountPage).not.toContain("section === 'developer'");
   });
 
   it('uses native Next navigation when opening Library work', () => {

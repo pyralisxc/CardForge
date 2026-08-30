@@ -13,7 +13,7 @@ export interface QueueItem extends DetailRecord {
   owner: string;
   updated: string;
   nextAction: string;
-  permission: 'developer' | 'owner';
+  permission: 'contributor' | 'owner';
 }
 
 export interface StudioArtifact extends DetailRecord {

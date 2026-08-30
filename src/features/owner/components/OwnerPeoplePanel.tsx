@@ -12,7 +12,7 @@ import type {
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 
-type PeopleFilter = 'all' | 'developers' | 'active' | 'needs_attention';
+type PeopleFilter = 'all' | 'contributors' | 'active' | 'needs_attention';
 
 type PersonDraft = {
   access: OwnerPerson['access'];
@@ -23,7 +23,7 @@ type PersonDraft = {
   canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: string;
   monthlyPublishedRequirementOverride: string;
-  developerNote: string;
+  contributorNote: string;
 };
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
@@ -37,7 +37,7 @@ const createDraft = (person: OwnerPerson): PersonDraft => ({
   canProposeSiteContent: person.canProposeSiteContent,
   monthlySubmissionLimitOverride: person.monthlySubmissionLimitOverride === null ? '' : String(person.monthlySubmissionLimitOverride),
   monthlyPublishedRequirementOverride: person.monthlyPublishedRequirementOverride === null ? '' : String(person.monthlyPublishedRequirementOverride),
-  developerNote: person.developerNote,
+  contributorNote: person.contributorNote,
 });
 
 const identityLabel = (person: OwnerPerson) => {
@@ -66,13 +66,13 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
     try {
       const params = new URLSearchParams({ query, filter, page: String(page), pageSize: '12' });
       const response = await fetch(`/api/owner/people?${params}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load people and developer access.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load people and contributor access.'));
       const body = await response.json() as { people: OwnerPeoplePage };
       setPeople(body.people);
       if (body.people.page !== page) setPage(body.people.page);
       setSelected((current) => current ? body.people.items.find((person) => person.id === current.id) ?? null : null);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Unable to load people and developer access.');
+      setError(nextError instanceof Error ? nextError.message : 'Unable to load people and contributor access.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       const warnings = result.warnings ?? [];
       toast({
         title: successTitle,
-        description: warnings.length ? warnings.join(' ') : 'Account, developer authority, and owner history are synchronized.',
+        description: warnings.length ? warnings.join(' ') : 'Account, contributor authority, and owner history are synchronized.',
         variant: warnings.length ? 'destructive' : 'default',
       });
       setSelected(null);
@@ -113,13 +113,13 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       action: 'update',
       userId: selected.id,
       account: { access: draft.access, owner: draft.owner, note: draft.accountNote },
-      developer: {
+      contributor: {
         status: draft.profileStatus,
         canDraftCampaigns: draft.canDraftCampaigns,
         canProposeSiteContent: draft.canProposeSiteContent,
         monthlySubmissionLimitOverride: draft.monthlySubmissionLimitOverride,
         monthlyPublishedRequirementOverride: draft.monthlyPublishedRequirementOverride,
-        ownerNote: draft.developerNote,
+        ownerNote: draft.contributorNote,
       },
     }, 'Person controls saved');
   };
@@ -127,15 +127,15 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
   return (
     <section className="space-y-4">
       <header className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
-        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Users className="h-5 w-5" aria-hidden="true" /><div><p className="text-xs uppercase tracking-[0.16em]">One people directory</p><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Accounts &amp; developers</h2></div></div>
+        <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]"><Users className="h-5 w-5" aria-hidden="true" /><div><p className="text-xs uppercase tracking-[0.16em]">One people directory</p><h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Accounts &amp; contributors</h2></div></div>
         <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">Clerk owns sign-in and account entitlement. CardForge owns contribution status, scopes, quotas, and history. A connected row shows both; a history-only row preserves attribution after its Clerk account was deleted.</p>
-        {people ? <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><OwnerMetricTile label="Clerk accounts" value={String(people.summary.accounts)} /><OwnerMetricTile label="Active developers" value={String(people.summary.activeDevelopers)} /><OwnerMetricTile label="History only" value={String(people.summary.historyOnly)} /><OwnerMetricTile label="Needs attention" value={String(people.summary.needsAttention)} /></div> : null}
+        {people ? <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><OwnerMetricTile label="Clerk accounts" value={String(people.summary.accounts)} /><OwnerMetricTile label="Active contributors" value={String(people.summary.activeContributors)} /><OwnerMetricTile label="History only" value={String(people.summary.historyOnly)} /><OwnerMetricTile label="Needs attention" value={String(people.summary.needsAttention)} /></div> : null}
       </header>
 
       <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <form className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={(event) => { event.preventDefault(); setPage(1); setQuery(queryDraft.trim()); }}>
           <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Search name, email, or identity<input className={inputClassName} value={queryDraft} onChange={(event) => setQueryDraft(event.target.value)} /></label>
-          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Directory view<select className={inputClassName} value={filter} onChange={(event) => { setFilter(event.target.value as PeopleFilter); setPage(1); }}><option value="all">Everyone</option><option value="developers">Developer-linked</option><option value="active">Active profiles</option><option value="needs_attention">Needs attention</option></select></label>
+          <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Directory view<select className={inputClassName} value={filter} onChange={(event) => { setFilter(event.target.value as PeopleFilter); setPage(1); }}><option value="all">Everyone</option><option value="contributors">Contributor-linked</option><option value="active">Active profiles</option><option value="needs_attention">Needs attention</option></select></label>
           <Button type="submit" className="self-end bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"><Search className="mr-2 h-4 w-4" />Search</Button>
         </form>
       </div>
@@ -157,33 +157,33 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
         </div>
 
         <aside className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5 xl:sticky xl:top-4 xl:self-start">
-          {!selected || !draft ? <div className="text-sm leading-6 text-[var(--cf-text-muted)]"><UserRoundCog className="mb-3 h-6 w-6 text-[var(--cf-accent-strong)]" /><h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a person</h3><p className="mt-2">Open one row to update account entitlement, developer participation, contribution lanes, notes, or removal.</p></div> : <>
+          {!selected || !draft ? <div className="text-sm leading-6 text-[var(--cf-text-muted)]"><UserRoundCog className="mb-3 h-6 w-6 text-[var(--cf-accent-strong)]" /><h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a person</h3><p className="mt-2">Open one row to update account entitlement, contributor participation, contribution lanes, notes, or removal.</p></div> : <>
             <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">{selected.name}</h3>
             <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">{selected.email ?? selected.id}</p>
             {selected.identityState === 'history_only' ? <div className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm leading-6 text-[var(--cf-warning)]"><AlertTriangle className="mr-2 inline h-4 w-4" />This Clerk account no longer exists. Contribution history remains intentionally attributed to this profile.</div> : null}
 
             {selected.identityState !== 'history_only' ? <div className="mt-4 grid gap-3">
-              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account access<select className={inputClassName} value={draft.access} onChange={(event) => setDraft((current) => current ? { ...current, access: event.target.value as PersonDraft['access'] } : current)}><option value="free">Free</option><option value="paid">Creator Pass</option><option value="dev">Developer</option></select></label>
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account access<select className={inputClassName} value={draft.access} onChange={(event) => setDraft((current) => current ? { ...current, access: event.target.value as PersonDraft['access'] } : current)}><option value="free">Free</option><option value="paid">Creator Pass</option><option value="dev">Contributor</option></select></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"><span>Owner authority<span className="mt-1 block text-[11px] text-[var(--cf-text-subtle)]">{selected.ownerSource === 'environment' ? 'Owned by the Vercel owner-email allowlist.' : 'Owned by Clerk private metadata.'}</span></span><input type="checkbox" checked={draft.owner} disabled={selected.id === currentOwnerId || selected.ownerSource === 'environment'} onChange={(event) => setDraft((current) => current ? { ...current, owner: event.target.checked } : current)} /></label>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.accountNote} onChange={(event) => setDraft((current) => current ? { ...current, accountNote: event.target.value } : current)} /></label>
             </div> : null}
 
             {(selected.profileStatus !== null || draft.access === 'dev' || draft.owner || selected.identityState === 'history_only') ? <div className="mt-4 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Developer contribution controls</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Contributor controls</p>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Profile status<select className={inputClassName} value={draft.profileStatus} onChange={(event) => setDraft((current) => current ? { ...current, profileStatus: event.target.value as PersonDraft['profileStatus'] } : current)}><option value="active">Active</option><option value="invited">Invited</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Draft campaign packages<input type="checkbox" checked={draft.canDraftCampaigns} onChange={(event) => setDraft((current) => current ? { ...current, canDraftCampaigns: event.target.checked } : current)} /></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Propose public-site copy<input type="checkbox" checked={draft.canProposeSiteContent} onChange={(event) => setDraft((current) => current ? { ...current, canProposeSiteContent: event.target.checked } : current)} /></label>
               <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Monthly submission override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlySubmissionLimitOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlySubmissionLimitOverride: event.target.value } : current)} /></label><label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Published requirement override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlyPublishedRequirementOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlyPublishedRequirementOverride: event.target.value } : current)} /></label></div>
-              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Developer note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.developerNote} onChange={(event) => setDraft((current) => current ? { ...current, developerNote: event.target.value } : current)} /></label>
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Contributor note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.contributorNote} onChange={(event) => setDraft((current) => current ? { ...current, contributorNote: event.target.value } : current)} /></label>
             </div> : null}
 
             <div className="mt-5 flex flex-wrap gap-2">
               {selected.identityState !== 'history_only' ? <Button type="button" disabled={busy} onClick={save} className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]"><Save className="mr-2 h-4 w-4" />Save controls</Button> : null}
-              {selected.id !== currentOwnerId ? <Button type="button" disabled={busy} variant="outline" onClick={() => void mutate('PATCH', { action: selected.identityState === 'history_only' ? 'deactivate_history' : 'revoke', userId: selected.id }, selected.identityState === 'history_only' ? 'Retained profile deactivated' : 'Developer access revoked')}><ShieldOff className="mr-2 h-4 w-4" />{selected.identityState === 'history_only' ? 'Deactivate retained profile' : 'Revoke developer access'}</Button> : null}
+              {selected.id !== currentOwnerId ? <Button type="button" disabled={busy} variant="outline" onClick={() => void mutate('PATCH', { action: selected.identityState === 'history_only' ? 'deactivate_history' : 'revoke', userId: selected.id }, selected.identityState === 'history_only' ? 'Retained profile deactivated' : 'Contributor access revoked')}><ShieldOff className="mr-2 h-4 w-4" />{selected.identityState === 'history_only' ? 'Deactivate retained profile' : 'Revoke contributor access'}</Button> : null}
             </div>
 
             {selected.identityState !== 'history_only' && selected.id !== currentOwnerId && !selected.isOwner ? <div className="mt-5 border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-3">
-              <p className="text-sm font-semibold text-[var(--cf-danger)]">Delete Clerk account</p><p className="mt-1 text-xs leading-5 text-[#e7b3a8]">This permanently removes sign-in. CardForge retains contribution and vote attribution, then marks the developer profile inactive.</p>
+              <p className="text-sm font-semibold text-[var(--cf-danger)]">Delete Clerk account</p><p className="mt-1 text-xs leading-5 text-[#e7b3a8]">This permanently removes sign-in. CardForge retains contribution and vote attribution, then marks the contributor profile inactive.</p>
               <label className="mt-3 grid gap-1 text-xs text-[#e7b3a8]">Type {selected.email ?? selected.id}<input className={inputClassName} value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label>
               <Button type="button" className="mt-3 bg-[#8f3024] text-white hover:bg-[#a93b2d]" disabled={busy || deleteConfirmation.trim().toLowerCase() !== (selected.email ?? selected.id).toLowerCase()} onClick={() => void mutate('DELETE', { userId: selected.id, confirmation: deleteConfirmation }, 'Clerk account deleted')}><Trash2 className="mr-2 h-4 w-4" />Delete account</Button>
             </div> : null}

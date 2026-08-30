@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { DeveloperCockpitAccessError } from '@/features/developer-access/server';
+import { AccountToolAccessError } from '@/features/account/server';
+import { ContributorAccessError } from '@/features/contributor-access/server';
 import { McpUsageStoreError } from '@/features/mcp-usage/server';
 import { StudioDocumentStoreError } from '@/features/studio-documents/server';
 import {
@@ -10,7 +11,8 @@ import {
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 
 const isSafeMcpError = (error: unknown): error is Error => (
-  error instanceof DeveloperCockpitAccessError
+  error instanceof AccountToolAccessError
+  || error instanceof ContributorAccessError
   || error instanceof StudioDocumentStoreError
   || error instanceof RateLimitExceededError
   || error instanceof RateLimitUnavailableError

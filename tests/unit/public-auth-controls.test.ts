@@ -16,7 +16,7 @@ describe('public header authentication controls', () => {
   });
 
   it('builds Clerk-native same-site auth journeys with preserved return intent', () => {
-    expect(clerkConfig.createAuthRouteHref('/sign-in', '/developer')).toBe('/sign-in?redirect_url=%2Fdeveloper');
+    expect(clerkConfig.createAuthRouteHref('/sign-in', '/contributors')).toBe('/sign-in?redirect_url=%2Fcontributors');
     expect(clerkConfig.createAuthRouteHref('/sign-up', '/studio?document=abc')).toBe('/sign-up?redirect_url=%2Fstudio%3Fdocument%3Dabc');
     expect(clerkConfig.createAuthRouteHref('/sign-in', 'https://evil.example/studio')).toBe('/sign-in?redirect_url=%2Faccount');
   });
@@ -27,7 +27,7 @@ describe('public header authentication controls', () => {
       'src/features/account/components/AccountControls.tsx',
       'src/features/home/components/HomeDesk.tsx',
       'src/features/account/components/ProfileManagementPage.tsx',
-      'src/features/developer-program/components/DeveloperProgramPage.tsx',
+      'src/features/contributor-program/components/ContributorProgramPage.tsx',
     ].map((relativePath) => readFileSync(resolve(process.cwd(), relativePath), 'utf8'));
 
     for (const source of sources) {
@@ -38,7 +38,7 @@ describe('public header authentication controls', () => {
     expect(sources[1]).toContain("createAuthRouteHref('/sign-in', '/studio')");
     expect(sources[2]).toContain("createAuthRouteHref('/sign-up', '/account')");
     expect(sources[3]).toContain("createAuthRouteHref('/sign-in', '/account?section=profile')");
-    expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/developer')");
+    expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/contributors')");
   });
 
   it('mounts the dynamic public account control only in the desktop header and avoids duplicate mobile account navigation', () => {
@@ -59,16 +59,16 @@ describe('public header authentication controls', () => {
     expect(dialogSource).toContain("href={accountSlot ? '/account' : '/sign-in'}");
   });
 
-  it('keeps public auth lightweight instead of reconciling developer entitlements in the header', () => {
-    const developerAuthSource = readFileSync(
-      resolve(process.cwd(), 'src/features/developer-access/components/DeveloperPublicAuthControls.tsx'),
+  it('keeps public auth lightweight instead of reconciling contributor entitlements in the header', () => {
+    const contributorAuthSource = readFileSync(
+      resolve(process.cwd(), 'src/features/contributor-access/components/ContributorPublicAuthControls.tsx'),
       'utf8',
     );
 
-    expect(developerAuthSource).toContain('<PublicAuthControls />');
-    expect(developerAuthSource).not.toContain('useAccountEntitlement');
-    expect(developerAuthSource).not.toContain('setTimeout');
-    expect(developerAuthSource).not.toContain('refreshEntitlement');
+    expect(contributorAuthSource).toContain('<PublicAuthControls />');
+    expect(contributorAuthSource).not.toContain('useAccountEntitlement');
+    expect(contributorAuthSource).not.toContain('setTimeout');
+    expect(contributorAuthSource).not.toContain('refreshEntitlement');
   });
 
   it('opens the CardForge account from the signed-in public control', () => {
@@ -114,26 +114,25 @@ describe('public header authentication controls', () => {
     expect(signUpPageSource).toContain("signInUrl={createAuthRouteHref('/sign-in', fallbackRedirectUrl)}");
   });
 
-  it('server-gates owner and developer workspaces before their client shells load', () => {
+  it('server-gates Owner while contributor work stays behind account and API capability checks', () => {
     const ownerPageSource = readFileSync(resolve(process.cwd(), 'src/app/owner/page.tsx'), 'utf8');
-    const developerPageSource = readFileSync(resolve(process.cwd(), 'src/app/developer/cockpit/page.tsx'), 'utf8');
+    const accountPageSource = readFileSync(resolve(process.cwd(), 'src/app/account/page.tsx'), 'utf8');
 
-    for (const source of [ownerPageSource, developerPageSource]) {
-      expect(source).toContain("import { auth } from '@clerk/nextjs/server'");
-      expect(source).toContain("redirect(createAuthRouteHref('/sign-in'");
-    }
+    expect(ownerPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
+    expect(ownerPageSource).toContain("redirect(createAuthRouteHref('/sign-in'");
     expect(ownerPageSource).toContain('getCurrentOwnerAccess()');
     expect(ownerPageSource).toContain('if (!ownerAccess.isOwner)');
-    expect(developerPageSource).toContain('getCurrentDeveloperAccessSessionState()');
-    expect(developerPageSource).toContain('if (!developerAccess.projection.hasCockpitAccess)');
+    expect(accountPageSource).toContain('getCurrentContributorAccessSessionState()');
+    expect(accountPageSource).toContain('hasContributionScope(contributionScopes');
+    expect(accountPageSource).toContain('<UnifiedAccountLibrary');
   });
 
-  it('lets optional developer projection fail soft without blocking Studio boot', () => {
+  it('lets optional contributor projection fail soft without blocking Studio boot', () => {
     const studioPageSource = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
 
-    expect(studioPageSource).toContain('EMPTY_DEVELOPER_ACCESS_SESSION_STATE');
-    expect(studioPageSource).toContain('getCurrentDeveloperAccessSessionState().catch');
-    expect(studioPageSource).toContain('Unable to load optional Studio developer access');
+    expect(studioPageSource).toContain('EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE');
+    expect(studioPageSource).toContain('getCurrentContributorAccessSessionState().catch');
+    expect(studioPageSource).toContain('Unable to load optional Studio contributor access');
   });
 
   it('lets the broad proxy matcher establish Clerk context without a second route allowlist', () => {

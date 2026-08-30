@@ -1,6 +1,7 @@
 {
   "id": "arcane-forge-back-obsidian-neon-premium",
   "name": "Obsidian Neon Full Back",
+  "pipelineAccessTier": "paid",
   "tileMode": "contain",
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],

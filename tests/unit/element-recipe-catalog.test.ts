@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { AppearanceStylePreset } from '@/domain/templates';
-import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
+import { isRepositoryStyle } from '@/features/pipeline/lib/registryContentValidation';
 import { createRecipesFromAppearanceStyles } from '@/features/template-editor/lib/elementPresetRecipes';
 
 describe('element recipe catalog', () => {

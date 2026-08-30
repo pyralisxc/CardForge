@@ -14,6 +14,7 @@ import {
   GOOGLE_DRIVE_ROOT_FOLDER_NAME,
   isGoogleDriveFileId,
   isGoogleDriveProviderRevision,
+  isGoogleDriveWorkId,
   type GoogleDriveProjectConnectionSummary,
   type GoogleDriveProjectDownload,
   type GoogleDriveProjectListResult,
@@ -41,6 +42,7 @@ const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,modifiedTime,size,parents,webViewLink,appProperties';
 const GOOGLE_DRIVE_PROJECT_APP_PROPERTY = 'cardforgeProject';
 const GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY = 'cardforgeProjectRevision';
+const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId';
 const GOOGLE_DRIVE_ROOT_PROPERTY = 'cardforgeRoot';
 const GOOGLE_DRIVE_PROJECT_VALUE = '1';
 const GOOGLE_DRIVE_LIST_PAGE_SIZE = 100;
@@ -412,6 +414,8 @@ const toProjectSummary = (file: GoogleDriveFile): GoogleDriveProjectSummary | nu
   const modifiedAt = file.modifiedTime ?? '';
   if (!isGoogleDriveFileId(fileId) || !isGoogleDriveProviderRevision(version) || Number.isNaN(Date.parse(modifiedAt))) return null;
   const projectRevision = file.appProperties?.[GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY] ?? null;
+  const rawWorkId = file.appProperties?.[GOOGLE_DRIVE_WORK_ID_PROPERTY]?.trim() ?? '';
+  const workId = isGoogleDriveWorkId(rawWorkId) ? rawWorkId : null;
   return {
     provider: GOOGLE_DRIVE_PROJECT_PROVIDER,
     fileId,
@@ -421,6 +425,7 @@ const toProjectSummary = (file: GoogleDriveFile): GoogleDriveProjectSummary | nu
     modifiedAt,
     size: Math.max(0, Number(file.size) || 0),
     webViewLink: file.webViewLink ?? null,
+    workId,
   };
 };
 
@@ -535,6 +540,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   fileId = null,
   expectedProviderRevision = null,
   expectedProjectRevision = null,
+  workId = null,
 }: {
   ownerUserId: string;
   name: string;
@@ -543,6 +549,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   fileId?: string | null;
   expectedProviderRevision?: string | null;
   expectedProjectRevision?: string | null;
+  workId?: string | null;
 }): Promise<GoogleDriveUploadPrepareResult> => {
   if (!Number.isInteger(size) || size <= 0 || size > MAX_ENCODED_PROJECT_BYTES) {
     throw new ProjectStorageProviderError('The CardForge project is empty or exceeds the safe portable-project size limit.', 413, { kind: 'limit' });
@@ -552,10 +559,11 @@ export const prepareGoogleDriveProjectUpload = async ({
   }
   const { row, accessToken } = await requireConnection(ownerUserId);
   const normalizedName = normalizeDriveProjectName(name);
-  const appProperties = {
-    [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
-    [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
-  };
+  const requestedWorkId = workId?.trim() ?? '';
+  if (requestedWorkId && !isGoogleDriveWorkId(requestedWorkId)) {
+    throw new ProjectStorageProviderError('The CardForge work id is invalid.', 400, { kind: 'invalid' });
+  }
+  let effectiveWorkId = requestedWorkId || null;
   let requestUrl: URL;
   let method: 'POST' | 'PATCH';
   let metadata: Record<string, unknown>;
@@ -563,6 +571,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   if (fileId) {
     const current = await getDriveFileMetadata({ accessToken, fileId });
     const currentSummary = assertOwnedCardForgeProject(current, row.root_folder_id);
+    effectiveWorkId = effectiveWorkId ?? currentSummary.workId;
     if (!expectedProviderRevision || !expectedProjectRevision) {
       throw new ProjectStorageProviderError('Updating a Google Drive project requires the exact provider and CardForge revisions previously read.', 409, { kind: 'conflict' });
     }
@@ -575,7 +584,15 @@ export const prepareGoogleDriveProjectUpload = async ({
     }
     requestUrl = new URL(`${GOOGLE_DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}`);
     method = 'PATCH';
-    metadata = { name: normalizedName, mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE, appProperties };
+    metadata = {
+      name: normalizedName,
+      mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE,
+      appProperties: {
+        [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
+        [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
+        ...(effectiveWorkId ? { [GOOGLE_DRIVE_WORK_ID_PROPERTY]: effectiveWorkId } : {}),
+      },
+    };
   } else {
     requestUrl = new URL(`${GOOGLE_DRIVE_UPLOAD_API}/files`);
     method = 'POST';
@@ -583,7 +600,11 @@ export const prepareGoogleDriveProjectUpload = async ({
       name: normalizedName,
       mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE,
       parents: [row.root_folder_id],
-      appProperties,
+      appProperties: {
+        [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
+        [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
+        ...(effectiveWorkId ? { [GOOGLE_DRIVE_WORK_ID_PROPERTY]: effectiveWorkId } : {}),
+      },
     };
   }
   requestUrl.searchParams.set('uploadType', 'resumable');
@@ -611,6 +632,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     fileId,
     name: normalizedName,
     projectRevision,
+    workId: effectiveWorkId,
   };
 };
 
@@ -678,6 +700,7 @@ export const updateGoogleDriveProjectFromServer = async ({
     appProperties: completed.appProperties ?? {
       [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
       [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
+      ...(plan.workId ? { [GOOGLE_DRIVE_WORK_ID_PROPERTY]: plan.workId } : {}),
     },
   });
   if (!summary) throw new ProjectStorageProviderError('Google Drive returned invalid project metadata after saving.', 503, { kind: 'unavailable' });

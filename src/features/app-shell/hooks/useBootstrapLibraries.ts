@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client/catalog';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 
 interface UseBootstrapLibrariesInput {

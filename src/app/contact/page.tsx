@@ -8,7 +8,7 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
   title: 'Contact CardForge',
-  description: 'Contact CardForge Studio for product support, billing, privacy, accessibility, developer, or legal questions.',
+  description: 'Contact CardForge Studio for product support, billing, privacy, accessibility, contributor, or legal questions.',
   path: '/contact',
 });
 

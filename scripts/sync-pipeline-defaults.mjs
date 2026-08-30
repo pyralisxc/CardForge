@@ -19,6 +19,7 @@ const BOOTSTRAP_ROOT = path.join('data', 'pipeline-bootstrap');
 const BOOTSTRAP_MEDIA_PREFIX = 'bootstrap-media://';
 const SITE_FALLBACK_PREFIX = 'site-fallback://';
 const LEGACY_PUBLIC_MEDIA_PREFIX = '/card-assets/';
+const BOOTSTRAP_ACCESS_TIERS = new Set(['free', 'paid', 'developer']);
 
 const projectRoot = process.cwd();
 const envPath = path.join(projectRoot, '.env.local');
@@ -93,6 +94,10 @@ const readJson = async (filePath) => {
   const contents = await fs.readFile(filePath, 'utf8');
   return JSON.parse(contents);
 };
+
+const resolveBootstrapAccessTier = (value) => (
+  BOOTSTRAP_ACCESS_TIERS.has(value) ? value : 'free'
+);
 
 const rewritePipelineAssetUrls = (value, publicUrlByLocalPath) => {
   if (typeof value === 'string') return publicUrlByLocalPath.get(value) || value;
@@ -255,6 +260,24 @@ const defaultAssetMetadata = (registryType, relativePath) => {
 };
 
 const upsertRegistryItem = async (supabase, item, ownerProfile) => {
+  if (item.registry_asset_type === 'template') {
+    const { error } = await supabase.rpc('cardforge_upsert_pipeline_template_asset', {
+      p_asset_id: item.asset_id,
+      p_name: item.name,
+      p_url: item.url,
+      p_preview_url: item.preview_url,
+      p_description: item.description,
+      p_developer_id: ownerProfile.clerk_user_id,
+      p_developer_email: ownerProfile.email,
+      p_file_size_bytes: item.file_size_bytes,
+      p_source_mime_type: item.source_mime_type,
+      p_metadata: item.metadata,
+      p_template_payload: item.template_payload,
+    });
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase.rpc('cardforge_upsert_pipeline_registry_asset', {
     p_asset_id: item.asset_id,
     p_name: item.name,
@@ -395,6 +418,7 @@ const collectStaticAssetItems = async (
         ? `public/${relativePath}`
         : `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/media/${relativePath}`,
     };
+    const accessTier = resolveBootstrapAccessTier(metadata.pipelineAccessTier);
     const existing = existingRegistryByAssetId.get(metadata.id);
     const uploaded = uploadedByRelativePath.get(relativePath);
     const storagePath = uploaded?.storagePath || existing?.storage_path || `owner-defaults/${relativePath}`;
@@ -415,7 +439,7 @@ const collectStaticAssetItems = async (
       file_size_bytes: uploaded?.fileSizeBytes || existing?.file_size_bytes || 0,
       source_mime_type: uploaded?.mimeType || mimeByExtension[extension] || 'application/octet-stream',
       description: `${metadata.name} starter ${descriptor.registryType} imported into the Forge Pipeline.`,
-      metadata,
+      metadata: { ...metadata, bootstrapAccessTier: accessTier },
       requires_storage_migration: storageMigrationRelativePaths.has(relativePath),
       expected_repository_url: expectedRepositoryUrlByRelativePath.get(relativePath)
         || `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`,
@@ -434,6 +458,7 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
       publicUrlByLocalPath,
     );
     if (!template?.id || !template?.name) continue;
+    const accessTier = resolveBootstrapAccessTier(template.templateAccessTier);
     items.push({
       asset_id: template.id,
       name: template.name,
@@ -446,17 +471,18 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
       file_size_bytes: Buffer.byteLength(JSON.stringify(template)),
       source_mime_type: 'application/json',
       description: template.templateDescription || `${template.name} starter template imported into the Forge Pipeline.`,
+      template_payload: {
+        ...template,
+        templateSource: 'default',
+        templateLibrarySource: 'pipeline',
+        templateAccessTier: accessTier,
+        templateRegistryStatus: 'published',
+        templateContributorName: 'Pyralis Cameron',
+      },
       metadata: {
         sourceKind: 'pipeline-owner-import',
         sourcePath: `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/templates/${file}`,
-        template: {
-          ...template,
-          templateSource: 'default',
-          templateLibrarySource: 'pipeline',
-          templateAccessTier: 'free',
-          templateRegistryStatus: 'published',
-          templateContributorName: 'Pyralis Cameron',
-        },
+        bootstrapAccessTier: accessTier,
       },
     });
   }
@@ -475,6 +501,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
     const styles = Array.isArray(document?.styles) ? document.styles : [document];
     for (const style of styles) {
       if (!style?.id || !style?.name) continue;
+      const accessTier = resolveBootstrapAccessTier(style.accessTier);
       items.push({
         asset_id: style.id,
         name: style.name,
@@ -490,10 +517,11 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
         metadata: {
           sourceKind: 'pipeline-owner-import',
           sourcePath: `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/recipes/${file}`,
+          bootstrapAccessTier: accessTier,
           style: {
             ...style,
             librarySource: 'developer',
-            accessTier: 'free',
+            accessTier,
             registryStatus: 'published',
             contributorName: 'Pyralis Cameron',
           },

@@ -1,4 +1,4 @@
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
@@ -30,7 +30,7 @@ export default async function PlansPage() {
   ]);
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined} currentPath="/plans">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/plans">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Plans', path: '/plans' },

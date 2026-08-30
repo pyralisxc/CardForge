@@ -19,15 +19,15 @@ import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 describe('Environment Foundation model', () => {
   it('keeps zone availability separate from private-rail visibility', () => {
-    expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'developer', 'owner']);
+    expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'owner']);
     expect(ENVIRONMENT_ZONES.find((zone) => zone.id === 'studio')?.viewportPolicy).toBe('desk');
 
-    const signedOut = { signedIn: false, developer: false, owner: false };
+    const signedOut = { signedIn: false, contributor: false, owner: false };
     expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
     expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, developer: false, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, developer: true, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'developer']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, developer: false, owner: true }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'developer', 'owner']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: true, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: true }).map((zone) => zone.id)).toEqual(['home', 'library', 'studio', 'profile', 'owner']);
   });
 
   it('makes disabled reasons and published MCP tools explicit and enforces object applicability', () => {
@@ -38,7 +38,7 @@ describe('Environment Foundation model', () => {
       supportedObjectKinds: ['set'],
       supportedSources: ['google-drive'],
       revisionPolicy: 'current-required',
-      requiredPermission: 'creator',
+      requiredPermission: 'member',
       scope: 'object',
       hierarchy: 'primary',
       availability: { kind: 'disabled', reason: 'Reconnect this location before opening its copy.' },
@@ -48,13 +48,13 @@ describe('Environment Foundation model', () => {
     };
 
     expect(action.availability).toEqual({ kind: 'disabled', reason: 'Reconnect this location before opening its copy.' });
-    const creator = { signedIn: true, developer: false, owner: false };
+    const creator = { signedIn: true, contributor: false, owner: false };
     const currentDrive = { id: 'drive-current', label: 'Google Drive', source: 'google-drive' as const, currentRevisionAvailable: true };
     const staleDrive = { ...currentDrive, id: 'drive-stale', currentRevisionAvailable: false };
     const currentDevice = { id: 'device-current', label: 'This device', source: 'browser-local' as const, currentRevisionAvailable: true };
     expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: creator })).toBe(true);
     expect(isActionApplicable(action, { objectKind: 'template', sources: [currentDevice], viewer: creator })).toBe(false);
-    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: { signedIn: false, developer: false, owner: false } })).toBe(false);
+    expect(isActionApplicable(action, { objectKind: 'set', sources: [currentDrive], viewer: { signedIn: false, contributor: false, owner: false } })).toBe(false);
     expect(isActionApplicable(action, { objectKind: 'set', sources: [staleDrive], viewer: creator })).toBe(false);
     expect(getApplicableActionSources(action, { objectKind: 'set', sources: [staleDrive, currentDrive, currentDevice], viewer: creator })).toEqual([currentDrive]);
   });

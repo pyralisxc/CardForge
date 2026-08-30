@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { createCardSetTransfer } from '@/features/project/model/cardTransfer';
-import { createStableAgentCardId } from '@/features/studio-documents/server/developerCardSetDrafts';
+import { createStableAgentCardId } from '@/features/studio-documents/server/cardSetWorkingDocuments';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -58,7 +58,7 @@ describe('MCP workflow hardening', () => {
   it('requires explicit revise identity and provides maintenance operations', () => {
     const schemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
     const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
-    const drafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
+    const drafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
 
     expect(schemas).toContain("export type McpCardWriteMode = 'upsert' | 'create' | 'revise'");
     expect(drafts).toContain("writeMode === 'revise' && !input.cardId?.trim()");
@@ -83,18 +83,20 @@ describe('MCP workflow hardening', () => {
 
   it('exposes account capabilities rather than asking the model to infer privilege', () => {
     const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
-    const access = readSource('src/features/developer-access/server/access.ts');
+    const accountAccess = readSource('src/features/account/server/accountToolAccess.ts');
+    const contributorAccess = readSource('src/features/contributor-access/server/access.ts');
 
     expect(accountTools).toContain("'get_cardforge_capabilities'");
     expect(accountTools).toContain('isOwner: access.isOwner');
-    expect(accountTools).toContain('isDeveloper: access.isDeveloper');
+    expect(accountTools).toContain('isContributor: access.isContributor');
     expect(accountTools).toContain('scopes: access.scopes');
-    expect(access).toContain("scopes: ['studio.ai.create']");
-    expect(access).toContain('{ allowStudioAiOnly: true }');
+    expect(accountAccess).toContain("ACCOUNT_TOOL_CAPABILITIES = ['studio.ai.create']");
+    expect(contributorAccess).toContain('getContributorCapabilities');
+    expect(contributorAccess).not.toContain('allowStudioAiOnly');
   });
 
   it('materializes private Studio artwork before a Template enters owner Pipeline review', () => {
-    const drafts = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
+    const drafts = readSource('src/features/studio-documents/server/templateWorkingDocuments.ts');
     expect(drafts).toContain('materializeTemplateForPipelineReview');
     expect(drafts).toContain('getStudioDocumentAssetDownloads');
     expect(drafts).toContain('replaceStudioDocumentAssetReferences');

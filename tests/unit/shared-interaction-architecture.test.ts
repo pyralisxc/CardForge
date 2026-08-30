@@ -104,7 +104,7 @@ describe('shared CardForge interaction architecture', () => {
 
   it('centralizes recurring CardForge surfaces, status, workspace navigation, and lazy workspace states', () => {
     const primitives = readSource('src/components/ui/cardforge-presentation.tsx');
-    const developer = readSource('src/features/developer-cockpit/components/DeveloperCockpitPage.tsx');
+    const owner = readSource('src/features/owner/components/OwnerConsolePage.tsx');
     const backWorkflow = readSource('src/features/app-shell/components/GeneratorBackWorkflowBanner.tsx');
     const scopedStudio = readSource('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx');
 
@@ -113,10 +113,9 @@ describe('shared CardForge interaction architecture', () => {
     expect(primitives).toContain('CardForgeStatusBadge');
     expect(primitives).toContain('CardForgeWorkspaceNavigation');
     expect(primitives).toContain('CardForgeWorkspaceState');
-    expect(developer).toContain('CardForgeWorkspaceNavigation');
-    expect(developer).toContain('CardForgeWorkspaceState');
-    expect(developer).toContain('CardForgeStatusBadge');
-    expect(developer).not.toContain('function LazyWorkspace');
+    expect(owner).toContain('CardForgeWorkspaceNavigation');
+    expect(owner).toContain('CardForgeWorkspaceState');
+    expect(owner).not.toContain('function LazyWorkspace');
     expect(backWorkflow).toContain('CardForgeSurface');
     expect(scopedStudio).toContain('CardForgeWorkspaceState');
   });

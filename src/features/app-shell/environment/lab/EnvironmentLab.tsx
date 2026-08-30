@@ -28,7 +28,6 @@ const initialSelections = (): Record<ZoneId, SelectionSession> => ({
   library: createSelectionSession(),
   studio: createSelectionSession({ objectId: null, listOffset: 0, focusReturnId: null, zoom: 0.64 }),
   profile: createSelectionSession(),
-  developer: createSelectionSession(),
   owner: createSelectionSession(),
 });
 
@@ -43,8 +42,8 @@ const recipeForZone = (zone: ZoneId): RecipeId => {
 export function EnvironmentLab() {
   const [viewerMode, setViewerMode] = useState<'owner' | 'guest'>('owner');
   const viewer: EnvironmentViewer = useMemo(() => viewerMode === 'owner'
-    ? { signedIn: true, developer: true, owner: true }
-    : { signedIn: false, developer: false, owner: false }, [viewerMode]);
+    ? { signedIn: true, contributor: true, owner: true }
+    : { signedIn: false, contributor: false, owner: false }, [viewerMode]);
   const zones = useMemo(() => getVisibleEnvironmentZones(viewer), [viewer]);
   const [activeZone, setActiveZone] = useState<ZoneId>('home');
   const [selections, setSelections] = useState(initialSelections);
@@ -155,7 +154,7 @@ export function EnvironmentLab() {
         {recipe === 'home' ? <HomeRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
         {recipe === 'collection' ? <CollectionRecipe query={query} selectedId={selection.objectId} onOpen={openDetail} onQueryChange={setQuery} onRetry={() => setAnnouncement('Google Drive retry demonstrated. Available local work remains visible during recovery.')} /> : null}
         {recipe === 'profile' ? <ProfileRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
-        {recipe === 'queue' ? <QueueRecipe activePermission={activeZone === 'owner' ? 'owner' : 'developer'} selectedId={selection.objectId} onOpen={openDetail} /> : null}
+        {recipe === 'queue' ? <QueueRecipe activePermission={activeZone === 'owner' ? 'owner' : 'contributor'} selectedId={selection.objectId} onOpen={openDetail} /> : null}
         {recipe === 'studio' ? <StudioRecipe selectedId={selection.objectId} onOpen={openDetail} /> : null}
       </EnvironmentShell>
     </>

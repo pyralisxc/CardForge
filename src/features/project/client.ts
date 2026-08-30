@@ -23,6 +23,9 @@ export {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+  isolateProjectDocumentToSet,
+  instantiateProjectDocumentCopy,
+  isUntouchedBootstrapCardSet,
   parseProjectDocumentFile,
   parseProjectDocumentValue,
 } from './model/projectDocument';
@@ -102,7 +105,10 @@ export type { DecodedProjectFile } from './lib/projectPackageCodec';
 export {
   applyProjectDocumentToWorkspace,
   captureCurrentProjectDocument,
+  captureCardSetProjectDocument,
 } from './client/projectWorkspaceDocument';
+export { createPublishedSetCopy } from './client/publishedSet';
+export type { PublishedSetCopyResult } from './client/publishedSet';
 export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,
@@ -118,13 +124,17 @@ export type {
 } from './client/googleDrivePicker';
 export {
   deleteGoogleDriveProjectFromLibrary,
+  deleteGoogleDriveProjectCopy,
   disconnectGoogleDriveProjectBinding,
   disconnectGoogleDriveStorage,
   getGoogleDriveProjectBinding,
   getGoogleDriveProjectSourceDescriptor,
   loadGoogleDriveProjectLibrary,
   openGoogleDriveProject,
+  copyGoogleDriveProjectToBrowser,
   saveCurrentProjectToGoogleDrive,
+  saveCardSetToGoogleDrive,
+  getGoogleDriveWorkBinding,
 } from './client/googleDriveProjectTransfer';
 export type { GoogleDriveProjectBinding } from './client/googleDriveProjectTransfer';
 export {
@@ -133,13 +143,18 @@ export {
   getLocalProjectFolderStatus,
   isLocalProjectFolderSupported,
   openProjectFromFolder,
+  getLocalProjectWorkBinding,
+  listLocalProjectWorkBindings,
   reconnectAttachedProjectFolder,
   saveCurrentProjectToNewFolder,
+  saveCardSetToNewFolder,
+  saveCardSetToAttachedFolder,
   saveProjectToAttachedFolder,
 } from './client/localProjectFolder';
 export type {
   LocalProjectFolderBinding,
   LocalProjectFolderStatus,
+  LocalProjectWorkBindingStatus,
 } from './client/localProjectFolder';
 export {
   BROWSER_STORAGE_DATABASE,
