@@ -66,9 +66,14 @@ describe('Studio focused workbench architecture', () => {
 
     expect(contextTools).toContain('<StudioOutputPanel');
     expect(contextTools).toContain('<StudioSaveMoveDialog');
-    expect(contextTools).toContain('<StudioPipelineSubmission compact submitOnly');
-    expect(contribution).toContain('submitOnly = false');
-    expect(submission).toContain('embedded = false');
+    expect(contextTools).toContain('<StudioPipelineSubmission compact initialSubmitSetId={activeSetId}');
+    expect(contribution).toContain("fetch('/api/pipeline/contributor-summary'");
+    expect(contribution).not.toContain('<Tabs');
+    expect(contribution).not.toContain('Voting Lane');
+    expect(contribution).not.toContain('My Pipeline');
+    expect(contribution).not.toContain('Pipeline metrics');
+    expect(submission).toContain('Submit to the Pipeline');
+    expect(submission).not.toContain('TabsContent');
   });
 
   it('does not ship a duplicate Set organization surface through Studio', () => {

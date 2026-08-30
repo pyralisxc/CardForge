@@ -57,7 +57,7 @@ export function StudioContextTools({
             <SheetDescription className="text-[var(--cf-text-muted)]">Classify and submit this portable Set through the same contributor review path used by Library.</SheetDescription>
           </SheetHeader>
           <div className="p-3 md:p-5">
-            {canSubmitToPipeline ? <StudioPipelineSubmission compact submitOnly initialSubmitSetId={activeSetId} /> : null}
+            {canSubmitToPipeline ? <StudioPipelineSubmission compact initialSubmitSetId={activeSetId} /> : null}
           </div>
         </SheetContent>
       </Sheet>

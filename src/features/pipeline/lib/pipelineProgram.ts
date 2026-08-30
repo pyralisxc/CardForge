@@ -106,6 +106,16 @@ export interface PipelineProgramView {
   remainingSubmissions: number;
 }
 
+export interface PipelineContributorSummary {
+  maxSubmissionFileSizeMb: number;
+  monthlySubmissionLimit: number;
+  monthlyPublishedRequirement: number;
+  submittedThisMonth: number;
+  publishedThisMonth: number;
+  remainingSubmissions: number;
+  ownerNote: string | null;
+}
+
 export interface PipelinePageSummary {
   total: number;
   page: number;

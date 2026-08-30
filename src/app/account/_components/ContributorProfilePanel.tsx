@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
-import type { PipelineProgramView } from '@/features/pipeline/client';
+import type { PipelineContributorSummary } from '@/features/pipeline/client';
 import {
   CONTRIBUTOR_SCOPE_LABELS,
   hasContributionScope,
@@ -21,7 +21,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function ContributorProfilePanel({ access }: { access: ContributorAccessProjection }) {
   const router = useRouter();
-  const [program, setProgram] = useState<PipelineProgramView | null>(null);
+  const [summary, setSummary] = useState<PipelineContributorSummary | null>(null);
   const [site, setSite] = useState<SiteProposalWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,14 +31,14 @@ export function ContributorProfilePanel({ access }: { access: ContributorAccessP
     setLoading(true);
     setError(null);
     try {
-      const [programResponse, siteWorkspace] = await Promise.all([
-        fetch('/api/pipeline/library', { cache: 'no-store' }).then(async (response) => {
+      const [summaryResponse, siteWorkspace] = await Promise.all([
+        fetch('/api/pipeline/contributor-summary', { cache: 'no-store' }).then(async (response) => {
           if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
-          return response.json() as Promise<{ program: PipelineProgramView }>;
+          return response.json() as Promise<{ summary: PipelineContributorSummary }>;
         }),
         canProposeSite ? loadSiteProposalWorkspace() : Promise.resolve(null),
       ]);
-      setProgram(programResponse.program);
+      setSummary(summaryResponse.summary);
       setSite(siteWorkspace);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Contributor details are unavailable.');
@@ -49,17 +49,17 @@ export function ContributorProfilePanel({ access }: { access: ContributorAccessP
 
   useEffect(() => { void load(); }, [load]);
 
-  if (loading && !program) return <div className="grid min-h-40 place-items-center text-sm text-[var(--cf-text-muted)]"><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
+  if (loading && !summary) return <div className="grid min-h-40 place-items-center text-sm text-[var(--cf-text-muted)]"><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
 
   return <div className="space-y-5">
     {error ? <EnvironmentBoundaryNotice title="Contributor details are unavailable" message={`${error} Your granted access has not been relabeled or removed.`} actionLabel="Retry" onAction={() => void load()} /> : null}
     <section aria-labelledby="contributor-access-heading">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--cf-border)] pb-3"><div><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Contributor profile</p><h2 id="contributor-access-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Access and personal progress</h2></div><Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button></div>
-      {program ? <dl className="mt-3 grid grid-cols-2 border border-[var(--cf-border)] sm:grid-cols-4">
-        <CompactStat label="Submitted this month" value={program.contributionStats.submitted} />
-        <CompactStat label="Published this month" value={program.contributionStats.published} />
-        <CompactStat label="Monthly target" value={program.effectiveMonthlyPublishedRequirement} />
-        <CompactStat label="Submissions left" value={program.remainingSubmissions} />
+      {summary ? <dl className="mt-3 grid grid-cols-2 border border-[var(--cf-border)] sm:grid-cols-4">
+        <CompactStat label="Submitted this month" value={summary.submittedThisMonth} />
+        <CompactStat label="Published this month" value={summary.publishedThisMonth} />
+        <CompactStat label="Monthly target" value={summary.monthlyPublishedRequirement} />
+        <CompactStat label="Submissions left" value={summary.remainingSubmissions} />
       </dl> : null}
       <details className="group mt-3 border-y border-[var(--cf-border-subtle)]">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm text-[var(--cf-text-muted)]">

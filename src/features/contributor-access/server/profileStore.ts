@@ -65,6 +65,24 @@ const readProfileRows = async (): Promise<ContributorProfileRow[]> => {
 
 export const fetchContributorProfileRows = readProfileRows;
 
+export const fetchContributorProfileRow = async (
+  contributorId: string,
+): Promise<ContributorProfileRow | null> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase || !contributorId) return null;
+
+  const { data, error } = await supabase
+    .from('cardforge_developer_profiles')
+    .select(PROFILE_COLUMNS)
+    .eq('clerk_user_id', contributorId)
+    .limit(1);
+  if (error) {
+    console.error('Failed to load Contributor profile:', error);
+    throw new ContributorAccessStoreError('Contributor profile is temporarily unavailable.', 503);
+  }
+  return (data?.[0] as ContributorProfileRow | undefined) ?? null;
+};
+
 export const fetchContributorProfileRowsForOwner = async (): Promise<ContributorProfileRow[]> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);

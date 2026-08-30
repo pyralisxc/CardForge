@@ -1,21 +1,14 @@
-import {
-  PIPELINE_STATUSES,
-  type PipelineAccessTier,
-  type ContributorUploadAssetType,
-} from '@/features/pipeline/lib/pipelineItems';
+import { type PipelineAccessTier, type ContributorUploadAssetType } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import { getPipelineImagePreviewUrl } from '@/features/pipeline/lib/pipelineLibrary';
 import {
-  getPipelineStatusDescription,
   getPipelineStatusLabel,
-  getPipelineTierDescription,
   getPipelineTierLabel,
   getPipelineTypeLabel,
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 
 export type PipelineSubmission = PipelineProgramView['submissions'][number];
-export type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
 export type PersonalLibraryFilter = ContributorUploadAssetType | 'all';
 
 export interface PersonalLibraryItem {
@@ -50,8 +43,6 @@ export interface PipelineSubmissionGuidance {
   notesHelp: string;
   checklist: [string, string, string];
 }
-
-export const reviewQueueHelp = 'All shared Pipeline assets live in one lane. Use status, tier, family, and vote filters to narrow active review, live library assets, and recoverable archived history.';
 
 export const pipelineSubmissionGuidance: Record<ContributorUploadAssetType, PipelineSubmissionGuidance> = {
   textures: {
@@ -110,24 +101,12 @@ export const pipelineSubmissionGuidance: Record<ContributorUploadAssetType, Pipe
   },
 };
 
-export const assetTierOrder: PipelineAccessTier[] = ['hidden', 'free', 'paid', 'developer'];
-
 export const tierClasses: Record<PipelineAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
   free: 'border-[#5f7f54] text-[#bde3a8]',
   paid: 'border-[#8a642f] text-[#f0c568]',
   developer: 'border-[#35445a] text-[#b9d5ff]',
 };
-
-export const statusGlossary = PIPELINE_STATUSES.map((status) => ({
-  label: getPipelineStatusLabel(status),
-  body: getPipelineStatusDescription(status),
-}));
-
-export const tierGlossary = assetTierOrder.map((tier) => ({
-  label: getPipelineTierLabel(tier),
-  body: getPipelineTierDescription(tier),
-}));
 
 export const getReviewProgressLabel = (
   submission: Pick<PipelineSubmission, 'positiveVotes' | 'negativeVotes'>,
@@ -180,17 +159,6 @@ export const getSubmissionNextStep = (
   }
   return 'Gathering review signal. Votes, quality threshold, and open caps decide where it goes next.';
 };
-
-export const isEditableSubmission = (submission: PipelineSubmission, currentUserId: string) => (
-  submission.contributorId === currentUserId
-  && submission.status !== 'published'
-  && submission.status !== 'rejected'
-);
-
-export const isCurrentContributorSubmission = (
-  submission: PipelineSubmission,
-  program: PipelineProgramView,
-) => program.currentContributorIds.includes(submission.contributorId);
 
 export const getCandidateSourceEmptyMessage = (assetType: ContributorUploadAssetType): string => {
   if (assetType === 'sets') return 'Create a Set on Desk or in Studio first, then select its portable package here.';

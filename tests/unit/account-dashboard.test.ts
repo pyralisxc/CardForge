@@ -9,6 +9,7 @@ describe('unified account environment', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const homeBoundary = readSource('src/features/account/components/AccountHomeBoundary.tsx');
   const environmentNavigation = readSource('src/features/app-shell/environment/components/EnvironmentNavigation.tsx');
+  const environmentCommandBand = readSource('src/features/app-shell/environment/components/EnvironmentCommandBand.tsx');
   const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
   const planBillingUtility = readSource('src/features/account/components/AccountPlanBillingUtility.tsx');
   const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
@@ -43,6 +44,8 @@ describe('unified account environment', () => {
     expect(environmentNavigation).toContain('protectedZones.length === 1');
     expect(environmentNavigation).toContain('zone={protectedZones[0]!}');
     expect(environmentNavigation).toContain('aria-label="Open the CardForge public site"');
+    expect(environmentCommandBand).toContain('styles.mobileBrand');
+    expect(environmentCommandBand).toContain('aria-label="Open the CardForge public site"');
     expect(homeBoundary).not.toContain('AccountMobileNavigation');
     expect(profileEnvironment).not.toContain('AccountUtilityPanel');
   });

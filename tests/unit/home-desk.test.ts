@@ -60,7 +60,9 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('Export / print');
     expect(homeDesk).toContain('Duplicate');
     expect(homeDesk).toContain('Send to Pipeline');
-    expect(homeDesk).toContain('submitSet=');
+    expect(homeDesk).toContain('openPipelineSubmission');
+    expect(homeDesk).toContain('<EnvironmentToolLayer');
+    expect(homeDesk).not.toContain('scope=pipeline&tool=contribute');
     expect(homeDesk).toContain('<AlertDialog');
   });
 

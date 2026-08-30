@@ -1,8 +1,7 @@
 import {
   PipelineStoreError,
   getCurrentPipelineRequestAccess,
-  getPipelineProgramView,
-  getPipelineContributorIds,
+  getPipelineContributorSummary,
   preparePipelineUpload,
   removePendingPipelineUpload,
   requirePipelineRequestScope,
@@ -60,19 +59,15 @@ export async function POST(request: Request) {
         unit: 'attempts_per_hour',
       });
     }
-    const program = await getPipelineProgramView(
-      access.user.id,
-      getPipelineContributorIds(access.user.id),
-      { includeRegistryRecipePayloads: access.isOwner },
-    );
-    if (program.remainingSubmissions <= 0) {
+    const submissionContext = await getPipelineContributorSummary(access.user.id);
+    if (submissionContext.remainingSubmissions <= 0) {
       return createApiErrorResponse(409, 'pipeline_limit', 'This Contributor has reached the monthly Forge Review submission allowance.', {
         kind: 'limit',
         nextAction: 'Wait for the next calendar month or ask the owner to raise this Contributor’s submission allowance.',
         limit: {
           resource: 'developer_monthly_submissions',
-          current: program.effectiveMonthlySubmissionLimit,
-          maximum: program.effectiveMonthlySubmissionLimit,
+          current: submissionContext.submittedThisMonth,
+          maximum: submissionContext.monthlySubmissionLimit,
           unit: 'submissions_per_month',
         },
       });
@@ -81,7 +76,7 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     const upload = await preparePipelineUpload({
       contributorId: access.user.id,
-      maxFileSizeMb: program.settings.maxSubmissionFileSizeMb,
+      maxFileSizeMb: submissionContext.maxSubmissionFileSizeMb,
       assetType: body.assetType,
       studioDestination: body.studioDestination,
       fileName: body.fileName,

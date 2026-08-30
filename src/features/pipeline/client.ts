@@ -4,6 +4,7 @@ export * from './lib/pipelineLibrary';
 export { isRepositoryStyle, isRepositoryTemplate } from './lib/registryContentValidation';
 export type {
   PipelineProgramView,
+  PipelineContributorSummary,
   PipelineSubmission,
 } from './lib/pipelineProgram';
 export type { CardForgeCatalogManifest } from './lib/catalogManifest';

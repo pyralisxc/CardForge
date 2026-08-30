@@ -86,12 +86,11 @@ describe('developer asset upload submission', () => {
 
   it('persists a verified uploaded object, destination, and taxonomy as one workflow', async () => {
     const storage = setupStorage();
-    mockedCreatePipelineSubmission.mockResolvedValue({ submissions: [] } as never);
+    mockedCreatePipelineSubmission.mockResolvedValue();
 
-    const program = await createUploadedPipelineSubmission({
+    const result = await createUploadedPipelineSubmission({
       contributorId: 'developer-1',
       contributorEmail: 'dev@example.com',
-      currentContributorIds: ['developer-1'],
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',
@@ -102,7 +101,7 @@ describe('developer asset upload submission', () => {
       uploadedFile,
     });
 
-    expect(program).toEqual({ submissions: [] });
+    expect(result).toBeUndefined();
     expect(storage.list).toHaveBeenCalledOnce();
     expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({
       contributorId: 'developer-1',
@@ -169,7 +168,6 @@ describe('developer asset upload submission', () => {
     await expect(createUploadedPipelineSubmission({
       contributorId: 'developer-1',
       contributorEmail: 'dev@example.com',
-      currentContributorIds: ['developer-1'],
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',

@@ -5,6 +5,7 @@ import {
   getCurrentPipelineRequestAccess,
   getPipelineContributorIds,
   getPipelineProgramView,
+  getPipelineContributorSummary,
   projectPipelineProgramForViewer,
   requirePipelineRequestScope,
   updateContributorProfileOverrides,
@@ -120,17 +121,11 @@ export async function POST(request: Request) {
     if (!uploadedFile || typeof uploadedFile !== 'object' || Array.isArray(uploadedFile)) {
       return createApiErrorResponse(400, 'pipeline_request_invalid', 'Upload a source file before submitting it to Forge Review.');
     }
-    const programView = await getPipelineProgramView(
-      access.user.id,
-      getPipelineContributorIds(access.user.id),
-      { includeRegistryRecipePayloads: access.isOwner },
-    );
-    const program = await createUploadedPipelineSubmission({
+    const submissionContext = await getPipelineContributorSummary(access.user.id);
+    await createUploadedPipelineSubmission({
       contributorId: access.user.id,
       contributorEmail: access.email,
-      currentContributorIds: getPipelineContributorIds(access.user.id),
-      includeRegistryRecipePayloads: access.isOwner,
-      maxFileSizeMb: programView.settings.maxSubmissionFileSizeMb,
+      maxFileSizeMb: submissionContext.maxSubmissionFileSizeMb,
       assetType: body.assetType,
       studioDestination: body.studioDestination,
       specialtyTags: body.specialtyTags,
@@ -146,12 +141,7 @@ export async function POST(request: Request) {
       },
     });
     revalidateCardForgeCatalog();
-    return createNoStoreJsonResponse({
-      program: projectPipelineProgramForViewer(program, {
-        currentUserId: access.user.id,
-        isOwner: access.isOwner,
-      }),
-    }, { status: 201 });
+    return createNoStoreJsonResponse({ submitted: true }, { status: 201 });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

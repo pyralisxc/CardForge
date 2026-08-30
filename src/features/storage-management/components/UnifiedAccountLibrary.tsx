@@ -199,14 +199,12 @@ const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
 
 function PipelineDetailContent({
   item,
-  onOpenRevision,
   onVoteRevision,
   canReview,
   votingId,
   isSelfVoteBlocked,
 }: {
   item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
-  onOpenRevision: (submissionId: string) => void;
   onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
   canReview: boolean;
   votingId: string | null;
@@ -219,7 +217,7 @@ function PipelineDetailContent({
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
       return <li key={revision.id}>
-        <button type="button" className={styles.revisionOpen} onClick={() => onOpenRevision(revision.id)}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getPipelineStatusLabel(revision.status)} · Compare</span></button>
+        <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getPipelineStatusLabel(revision.status)}</span></div>
         {canReview ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
@@ -237,18 +235,11 @@ const zoneAction = (id: 'library.refresh' | 'library.close-locations' | 'library
 });
 
 const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
-  if (item.scope === 'pipeline') return [
-    {
-      id: 'library.open-pipeline', label: 'Inspect exact revision', ownerFeature: 'pipeline', supportedObjectKinds: ['pipeline-asset'],
-      supportedSources: ['provider-native'], revisionPolicy: 'current-required', requiredPermission: 'contributor', scope: 'object', hierarchy: item.pipeline.template ? 'supporting' : 'primary',
-      availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
-    },
-    ...(item.pipeline.template ? [{
+  if (item.scope === 'pipeline') return item.pipeline.template ? [{
       id: 'library.test-pipeline' as const, label: 'Test exact revision in Studio', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
-    }] : []),
-  ];
+    }] : [];
   const actions: ActionDescriptor[] = [{
     id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'pipeline', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
@@ -281,7 +272,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
   const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | null>(() => initialTool);
-  const [contributionTarget, setContributionTarget] = useState<{ submissionId: string | null; setId: string | null }>({ submissionId: null, setId: null });
+  const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
@@ -306,16 +297,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     const requestedScope = params.get('scope');
     if (requestedScope === 'published' || requestedScope === 'pipeline' || requestedScope === 'campaigns') setScope(requestedScope);
     const tool = params.get('tool');
-    if (tool === 'contribute' && pipelineAccess) {
+    if (tool === 'contribute' && experience.contributor.canSubmit) {
       setActiveTool('contribute');
-      setContributionTarget({ submissionId: params.get('submission'), setId: params.get('submitSet') });
+      setContributionTargetSetId(params.get('submitSet'));
     }
     setCampaignTargetId(params.get('campaign'));
     const status = params.get('storage');
     if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Google Drive is now available as a durable project and asset location.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
     else setStorageCallback(null);
-  }, [pipelineAccess]);
+  }, [experience.contributor.canSubmit]);
   useEffect(() => {
     if (scope === activeScope) return;
     setScope(activeScope);
@@ -479,12 +470,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setActiveTool(null);
     projection.router.replace(`/account?section=library&scope=${nextScope}`);
   };
-  const openContributionTool = ({ submissionId = null, setId = null }: { submissionId?: string | null; setId?: string | null } = {}) => {
-    setContributionTarget({ submissionId, setId });
+  const openContributionTool = ({ setId = null }: { setId?: string | null } = {}) => {
+    setContributionTargetSetId(setId);
     setActiveTool('contribute');
     closeDetail();
     const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'contribute' });
-    if (submissionId) params.set('submission', submissionId);
     if (setId) params.set('submitSet', setId);
     projection.router.replace(`/account?${params.toString()}`);
   };
@@ -554,18 +544,30 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     } finally { setVotingId(null); }
   };
 
+  const personalActions = (item: AccountLibraryItem): ActionDescriptor[] => [
+    ...getAccountLibraryEnvironmentActions(item, {
+      disabledReason: projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined,
+      canUseProjectFiles: experience.capabilities.canUseProjectFiles,
+    }),
+    ...(experience.contributor.canSubmit && item.references.localSetId ? [{
+      id: 'library.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'pipeline' as const,
+      supportedObjectKinds: [item.kind], supportedSources: ['browser-local' as const], revisionPolicy: 'none' as const,
+      requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'supporting' as const,
+      availability: { kind: 'available' as const }, commitment: 'none' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
+  ];
+
   const actions: ActionDescriptor[] = activeTool
     ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
-      ? getAccountLibraryEnvironmentActions(currentItem.personal, {
-          disabledReason: projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined,
-          canUseProjectFiles: experience.capabilities.canUseProjectFiles,
-        })
+      ? personalActions(currentItem.personal)
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
   const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
     if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryStudioReturnTo());
+    else if (actionId === 'library.send-pipeline' && item.references.localSetId) openContributionTool({ setId: item.references.localSetId });
     else if (actionId === 'library.save-move') setLocationItem(item);
     else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
       const duplicateId = item.references.localSetId
@@ -620,7 +622,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
       requestAnimationFrame(() => document.getElementById(action.id === 'library.close-locations' ? 'library-locations-trigger' : 'library-contribute-trigger')?.focus());
     } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
     else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
-    else if (action.id === 'library.open-pipeline' && currentItem?.scope === 'pipeline') openContributionTool({ submissionId: currentItem.pipeline.submission.id });
     else if (action.id === 'library.test-pipeline' && currentItem?.scope === 'pipeline' && currentItem.pipeline.template) {
       const store = useProjectStore.getState();
       const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
@@ -667,7 +668,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
-      onOpenRevision={(submissionId) => openContributionTool({ submissionId })}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
       canReview={experience.contributor.canReview}
       votingId={votingId}
@@ -703,7 +703,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
           </> : <Select value={sharedType} onValueChange={setSharedType}><SelectTrigger aria-label={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect}><span>{sharedType === 'all' ? activeScope === 'pipeline' ? 'All work' : 'All types' : sharedType}</span></SelectTrigger><SelectContent><SelectItem value="all">{activeScope === 'pipeline' ? 'All work' : 'All types'}</SelectItem>{sharedTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>}
           <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
           <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
-          {pipelineAccess && (activeScope === 'pipeline' || activeScope === 'published') ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
+          {experience.contributor.canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
         </div>
         {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? refresh : undefined} /> : null}
         {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
@@ -716,7 +716,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
               {item.scope === 'personal' ? <DropdownMenu>
                 <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {getAccountLibraryEnvironmentActions(item.personal, { canUseProjectFiles: experience.capabilities.canUseProjectFiles }).map((action) => <Fragment key={action.id}>
+                  {personalActions(item.personal).map((action) => <Fragment key={action.id}>
                     {action.commitment === 'destructive' ? <DropdownMenuSeparator /> : null}
                     <DropdownMenuItem
                       disabled={action.availability.kind === 'disabled'}
@@ -724,7 +724,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
                       className={action.commitment === 'destructive' ? 'text-destructive focus:text-destructive' : undefined}
                       onSelect={() => runPersonalAction(action.id, item.personal)}
                     >
-                      {action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}
+                      {action.id === 'library.send-pipeline' ? <UploadCloud aria-hidden="true" /> : action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}
                       {action.label}
                     </DropdownMenuItem>
                   </Fragment>)}
@@ -772,7 +772,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
           closeLabel="Close contribution tool"
           onClose={() => runAction(actions[0]!)}
         >
-          <PipelineContributionPanel compact initialSubmissionId={contributionTarget.submissionId} initialSubmitSetId={contributionTarget.setId} />
+          <PipelineContributionPanel compact initialSubmitSetId={contributionTargetSetId} />
         </EnvironmentToolLayer>
       ) : null}
     </div>

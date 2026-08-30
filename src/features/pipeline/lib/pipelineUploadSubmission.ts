@@ -8,7 +8,6 @@ import {
   isStudioAssetDestination,
   type StudioAssetDestination,
 } from '@/domain/templates';
-import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import {
   createPipelineSubmission,
   PipelineStoreError,
@@ -329,8 +328,6 @@ export const removePendingPipelineUpload = async ({
 export interface CreateUploadedPipelineSubmissionInput {
   contributorId: string;
   contributorEmail: string | null;
-  currentContributorIds: string[];
-  includeRegistryRecipePayloads?: boolean;
   maxFileSizeMb: number;
   assetType: unknown;
   studioDestination: unknown;
@@ -345,8 +342,6 @@ export interface CreateUploadedPipelineSubmissionInput {
 export const createUploadedPipelineSubmission = async ({
   contributorId,
   contributorEmail,
-  currentContributorIds,
-  includeRegistryRecipePayloads = false,
   maxFileSizeMb,
   assetType,
   studioDestination,
@@ -356,7 +351,7 @@ export const createUploadedPipelineSubmission = async ({
   description,
   previewUrl,
   uploadedFile,
-}: CreateUploadedPipelineSubmissionInput): Promise<PipelineProgramView> => {
+}: CreateUploadedPipelineSubmissionInput): Promise<void> => {
   const descriptor = validatePipelineUploadDescriptor({
     assetType,
     studioDestination,
@@ -372,11 +367,9 @@ export const createUploadedPipelineSubmission = async ({
     await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
     if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedFile.storagePath);
     const { data } = storage.getPublicUrl(uploadedFile.storagePath);
-    return await createPipelineSubmission({
+    await createPipelineSubmission({
       contributorId,
       contributorEmail,
-      currentContributorIds,
-      includeRegistryRecipePayloads,
       input: {
         assetType: descriptor.assetType,
         studioDestination: descriptor.studioDestination,

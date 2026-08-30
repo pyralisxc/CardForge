@@ -62,6 +62,7 @@ import {
   EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
+  EnvironmentToolLayer,
   getVisibleEnvironmentZones,
   type ActionDescriptor,
   type EnvironmentViewer,
@@ -112,6 +113,9 @@ import styles from './HomeDesk.module.css';
 const CampaignDeskShelf = dynamic(() => import(
   '@/features/marketing-content/client'
 ).then((module) => module.CampaignDeskShelf));
+const PipelineContributionPanel = dynamic(() => import(
+  '@/features/pipeline/client'
+).then((module) => module.PipelineContributionPanel));
 
 export interface HomeAccountStatus {
   label: string;
@@ -192,6 +196,7 @@ export function HomeDesk({
   const [publishedSetsLoading, setPublishedSetsLoading] = useState(false);
   const [publishedSetsFailure, setPublishedSetsFailure] = useState<string | null>(null);
   const [creatingPublishedSetId, setCreatingPublishedSetId] = useState<string | null>(null);
+  const [pipelineSubmitSetId, setPipelineSubmitSetId] = useState<string | null>(null);
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeCardSetId = useProjectStore((state) => state.activeCardSet.id);
@@ -472,6 +477,19 @@ export function HomeDesk({
     toast({ title: 'Work duplicated', description: 'The copied Set and its cards are independently editable.' });
   };
 
+  const openPipelineSubmission = (setId: string) => {
+    setPipelineSubmitSetId(setId);
+    setInspectorWorkId(null);
+  };
+
+  const closePipelineSubmission = () => {
+    const setId = pipelineSubmitSetId;
+    setPipelineSubmitSetId(null);
+    requestAnimationFrame(() => {
+      if (setId) document.getElementById(`home-work-info-set:${setId}`)?.focus();
+    });
+  };
+
   const commitRename = () => {
     if (!focusedLocalSetId) return;
     renameCardSet(focusedLocalSetId, renameDraft);
@@ -518,7 +536,7 @@ export function HomeDesk({
       setStudioView('generate');
       projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(item.id), tool: 'output' }));
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
-    else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
+    else if (action.id === 'home.send-pipeline' && item?.references.localSetId) openPipelineSubmission(item.references.localSetId);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
       focusWork(inspectorItem);
       setRenaming(true);
@@ -739,7 +757,7 @@ export function HomeDesk({
                             <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Edit in Studio</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={!experience.capabilities.canUseProjectFiles} onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move{experience.capabilities.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
-                            {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId!)}`)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+                            {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => openPipelineSubmission(item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => duplicateWork(item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={index === 0} onSelect={() => moveDeskWork(item.id, 'earlier')}><ArrowUp aria-hidden="true" />Move earlier on desk</DropdownMenuItem>
                             <DropdownMenuItem disabled={index === visibleWork.length - 1} onSelect={() => moveDeskWork(item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>
@@ -758,6 +776,16 @@ export function HomeDesk({
             </div>
           )}
         </div>
+        {pipelineSubmitSetId ? <EnvironmentToolLayer
+          id="desk-pipeline-submit-title"
+          eyebrow="Desk tool"
+          title="Send Set to the Pipeline"
+          summary="Your Set remains on the Desk while you classify and submit this independent review candidate."
+          closeLabel="Close Pipeline submission"
+          onClose={closePipelineSubmission}
+        >
+          <PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId} />
+        </EnvironmentToolLayer> : null}
       </EnvironmentShell>
 
       <WorkLocationDialog

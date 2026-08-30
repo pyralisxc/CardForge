@@ -22,9 +22,12 @@ describe('Pipeline reactions', () => {
     expect(voteRoute).not.toContain('Voting is closed for this Pipeline revision.');
   });
 
-  it('keeps the contributor submission action visible in the compact Library toolbar', () => {
+  it('keeps new submission in Published and contextual Set actions instead of the review collection', () => {
     expect(library).toContain('className={styles.contributeButton}');
+    expect(library).toContain("experience.contributor.canSubmit && activeScope === 'published'");
+    expect(library).toContain("id: 'library.send-pipeline'");
     expect(library).not.toContain('id="library-contribute-trigger" type="button" className={styles.locationsButton}');
+    expect(library).not.toContain("activeScope === 'pipeline' || activeScope === 'published'");
     expect(libraryStyles).toContain('.contributeButton { min-width: 0;');
   });
 

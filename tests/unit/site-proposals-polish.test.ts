@@ -244,6 +244,12 @@ describe('contributor surface polish contract', () => {
     const zones = readFileSync(sourcePath('features', 'app-shell', 'environment', 'model.ts'), 'utf8');
 
     expect(library).toContain('<PipelineContributionPanel compact');
+    expect(library).toContain("activeScope === 'published'");
+    expect(library).not.toContain('initialSubmissionId');
+    expect(desk).toContain('<PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId}');
+    expect(desk).toContain('title="Send Set to the Pipeline"');
+    expect(profile).toContain("fetch('/api/pipeline/contributor-summary'");
+    expect(profile).not.toContain("fetch('/api/pipeline/library'");
     expect(library).toContain('<CampaignLibraryWorkspace');
     expect(desk).toContain('<CampaignDeskShelf');
     expect(profile).toContain('Site proposals');

@@ -9,6 +9,7 @@ import {
 import {
   countActiveContributors,
   ContributorAccessStoreError,
+  fetchContributorProfileRow,
   fetchContributorProfileRows,
   updateContributorPipelineRules,
 } from '@/features/contributor-access/server';
@@ -103,6 +104,29 @@ export const getPipelineProgramContext = async (
     fetchPipelineProgramAggregate(currentUserId, settings.allowContributorSelfVoting),
   ]);
   return { configured, settings, profiles, activeContributorCount, aggregate };
+};
+
+export const getPipelineContributorSummary = async (
+  currentUserId: string,
+): Promise<import('./pipelineProgram').PipelineContributorSummary> => {
+  const { settings } = await fetchContributorSettings();
+  const [profile, aggregate] = await Promise.all([
+    fetchContributorProfileRow(currentUserId),
+    fetchPipelineProgramAggregate(currentUserId, settings.allowContributorSelfVoting),
+  ]);
+  const submissionLimit = profile?.monthly_submission_limit_override ?? settings.monthlySubmissionLimit;
+  const publishedRequirement = profile?.monthly_published_requirement_override ?? settings.monthlyPublishedRequirement;
+  const stats = aggregate.monthlyStatsByContributor[currentUserId];
+  const submitted = stats?.submitted ?? 0;
+  return {
+    maxSubmissionFileSizeMb: settings.maxSubmissionFileSizeMb,
+    monthlySubmissionLimit: submissionLimit,
+    monthlyPublishedRequirement: publishedRequirement,
+    submittedThisMonth: submitted,
+    publishedThisMonth: stats?.published ?? 0,
+    remainingSubmissions: Math.max(0, submissionLimit - submitted),
+    ownerNote: profile?.owner_note ?? null,
+  };
 };
 
 export const getPipelineProgramView = async (
@@ -247,13 +271,9 @@ export const createPipelineSubmission = async ({
   contributorId,
   contributorEmail,
   input,
-  currentContributorIds = [contributorId],
-  includeRegistryRecipePayloads = false,
 }: {
   contributorId: string;
   contributorEmail: string | null;
-  currentContributorIds?: string[];
-  includeRegistryRecipePayloads?: boolean;
   input: {
     assetType?: unknown;
     studioDestination?: unknown;
@@ -268,12 +288,12 @@ export const createPipelineSubmission = async ({
     sourceStorageBucket?: unknown;
     sourceStoragePath?: unknown;
   };
-}): Promise<PipelineProgramView> => {
+}): Promise<void> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
 
-  const view = await getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads });
-  if (view.remainingSubmissions <= 0) {
+  const context = await getPipelineContributorSummary(contributorId);
+  if (context.remainingSubmissions <= 0) {
     throw new PipelineStoreError(
       'This Contributor has reached the monthly Forge Review submission allowance.',
       409,
@@ -282,8 +302,8 @@ export const createPipelineSubmission = async ({
         nextAction: 'Wait for the next calendar month or ask the owner to raise this Contributor’s submission allowance.',
         limit: {
           resource: 'developer_monthly_submissions',
-          current: view.effectiveMonthlySubmissionLimit,
-          maximum: view.effectiveMonthlySubmissionLimit,
+          current: context.submittedThisMonth,
+          maximum: context.monthlySubmissionLimit,
           unit: 'submissions_per_month',
         },
       },
@@ -327,12 +347,6 @@ export const createPipelineSubmission = async ({
     throw new PipelineStoreError('Unable to submit Pipeline.', 500);
   }
 
-  try {
-    return await getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads });
-  } catch (error) {
-    console.error('Pipeline was submitted, but the refreshed program view was unavailable:', error);
-    return view;
-  }
 };
 
 export const voteOnPipelineSubmission = async ({

@@ -3,17 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { FileUp, Library, UploadCloud } from 'lucide-react';
-import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
-import { TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import {
   PIPELINE_STORAGE_ESTIMATE_BYTES,
   CONTRIBUTOR_UPLOAD_ASSET_TYPES,
   type ContributorUploadAssetType,
 } from '@/features/pipeline/lib/pipelineItems';
-import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
+import type { PipelineContributorSummary } from '@/features/pipeline/lib/pipelineProgram';
 import type { PipelineUploadPlan } from '@/features/pipeline/lib/pipelineUploadPolicy';
 import {
   pipelineSubmissionGuidance,
@@ -23,7 +21,7 @@ import {
   type PersonalLibraryItem,
 } from '@/features/pipeline/components/PipelineContributionModel';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
-import { FieldHelp, GuidanceCard } from '@/features/pipeline/components/PipelineContributionUi';
+import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi';
 import { usePipelineSubmissionCandidates } from '@/features/pipeline/components/usePipelineSubmissionCandidates';
 import {
   CARDFORGE_SPECIALTY_OPTIONS,
@@ -38,10 +36,6 @@ import {
 import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
 
-interface PipelineItemsResponse {
-  program: PipelineProgramView;
-}
-
 interface PipelineUploadPlanResponse {
   upload: PipelineUploadPlan;
 }
@@ -55,15 +49,13 @@ const formatBytes = (value: number): string => {
 };
 
 export function PipelineSubmissionPanel({
-  program,
+  context,
   onSubmitted,
   initialSetId = null,
-  embedded = false,
 }: {
-  program: PipelineProgramView;
+  context: PipelineContributorSummary;
   onSubmitted: () => Promise<void>;
   initialSetId?: string | null;
-  embedded?: boolean;
 }) {
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<ContributorUploadAssetType>('icons');
@@ -200,7 +192,7 @@ export function PipelineSubmissionPanel({
         }),
       });
       if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
-      await response.json() as PipelineItemsResponse;
+      await response.json();
       submitted = true;
       await onSubmitted();
       setName('');
@@ -229,37 +221,14 @@ export function PipelineSubmissionPanel({
     }
   };
 
-  const content = (
+  return (
     <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
-        <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit a Library Candidate</h3>
-        <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
-          Media, fonts, and portable Sets enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used inside Template Studio.
-        </p>
-        <div className="mt-4 flex flex-col gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-[var(--cf-accent-text)]">Revising a shared Template?</p>
-            <p className="mt-1 text-xs leading-5 text-[var(--cf-text-subtle)]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
+            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit to the Pipeline</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">Choose owned work or a source file, classify it, then send it to Forge Review.</p>
           </div>
-          <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[var(--cf-accent-text)]">
-            <Link href="/studio">Open Template Studio</Link>
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <GuidanceCard
-            eyebrow="Destination"
-            title={studioDestination ? getPipelineStudioDestinationLabel(studioDestination) : 'Desk & Library'}
-            body={`${getPipelineTypeLabel(assetType)} publish to this creator surface after voting, owner review, and cap checks.`}
-          />
-          <GuidanceCard
-            eyebrow="Source"
-            title={submissionGuidance.sourceLabel}
-            body={submissionGuidance.sourceHelp}
-          />
-          <GuidanceCard
-            eyebrow="Reviewers check"
-            title={submissionGuidance.checklist.join(' / ')}
-            body={submissionGuidance.notesHelp}
-          />
+          <span className="border border-[var(--cf-border-subtle)] px-2 py-1 text-xs text-[var(--cf-text-subtle)]">{context.remainingSubmissions} submission{context.remainingSubmissions === 1 ? '' : 's'} left this month</span>
         </div>
         <div className="mt-4 grid gap-3">
           <div className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
@@ -410,7 +379,7 @@ export function PipelineSubmissionPanel({
                   </span>
                   <span className="text-sm font-medium text-[var(--cf-accent-text)]">{getCandidateBrowseLabel(assetType)}</span>
                   <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-                    {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}. Owner ceiling: {program.settings.maxSubmissionFileSizeMb} MB.
+                    {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}. Owner ceiling: {context.maxSubmissionFileSizeMb} MB.
                   </span>
                   <input
                     key={fileInputKey}
@@ -449,12 +418,10 @@ export function PipelineSubmissionPanel({
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
-          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={submitAsset}>
-            {isSaving ? 'Uploading...' : program.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly limit reached — review'}
+          <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || context.remainingSubmissions <= 0} onClick={submitAsset}>
+            {isSaving ? 'Uploading...' : context.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly submission limit reached'}
           </Button>
         </div>
     </div>
   );
-
-  return embedded ? content : <TabsContent value="submit" className="mt-4">{content}</TabsContent>;
 }
