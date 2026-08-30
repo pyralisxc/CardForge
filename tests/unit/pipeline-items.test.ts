@@ -20,6 +20,7 @@ import {
   getSubmissionNextStep,
 } from '@/features/pipeline/components/PipelineContributionModel';
 import type { PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
+import { getPipelineDecisionReasonLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 
 const baseSubmission: PipelineSubmission = {
   id: 'asset-1',
@@ -66,6 +67,12 @@ const baseSubmission: PipelineSubmission = {
 };
 
 describe('developer asset program rules', () => {
+  it('translates Pipeline decision codes into product language', () => {
+    expect(getPipelineDecisionReasonLabel('owner_forced_paid')).toBe('The CardForge owner placed this work in Creator Pass.');
+    expect(getPipelineDecisionReasonLabel('needs_more_votes')).toBe('Gathering contributor review signal.');
+    expect(getPipelineDecisionReasonLabel('unrecognized_internal_code')).toBe('Placement reflects the current Pipeline rules.');
+  });
+
   it('defines submission guidance for every supported asset family', () => {
     for (const assetType of CONTRIBUTOR_UPLOAD_ASSET_TYPES) {
       const guidance = pipelineSubmissionGuidance[assetType];

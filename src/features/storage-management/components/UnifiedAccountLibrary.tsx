@@ -29,7 +29,7 @@ import {
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { getPipelineStatusLabel, type PipelineSubmission } from '@/features/pipeline/client';
+import { getPipelineDecisionReasonLabel, getPipelineStatusLabel, type PipelineSubmission } from '@/features/pipeline/client';
 import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -216,7 +216,7 @@ function PipelineDetailContent({
   const submission = item.pipeline.submission;
   return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
     <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
-    {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Decision reasoning</h3><p>{submission.tierDecisionReason || submission.decisionReason}</p></div> : null}
+    {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
       return <li key={revision.id}>

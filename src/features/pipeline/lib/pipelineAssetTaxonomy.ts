@@ -113,6 +113,29 @@ export const getPipelineTierDescription = (tier: PipelineAccessTier): string => 
   return 'Archived, rejected, or owner-held outside the creator-facing Studio libraries.';
 };
 
+const pipelineDecisionReasonLabels: Record<string, string> = {
+  contributor_review: 'Gathering contributor review signal.',
+  needs_more_votes: 'Gathering contributor review signal.',
+  below_free_threshold: 'Below the current Starter Library signal.',
+  paid_candidate: 'Qualifies for Creator Pass placement.',
+  free_candidate: 'Qualifies for Starter Library placement.',
+  tier_cap_full: 'Waiting for room in a published tier.',
+  hidden_status: 'Hidden because this submission is not currently published.',
+  owner_forced_hidden: 'The CardForge owner placed this work outside the shared Library.',
+  owner_forced_free: 'The CardForge owner placed this work in the Starter Library.',
+  owner_forced_paid: 'The CardForge owner placed this work in Creator Pass.',
+  owner_forced_official: 'The CardForge owner classified this as official CardForge content.',
+  owner_status_override: 'The CardForge owner set the current lifecycle.',
+  pipeline_owner_edit: 'Submission details were updated by the CardForge owner.',
+  superseded_revision: 'A newer revision now represents this work.',
+  owner_deleted_from_library: 'The CardForge owner removed this work from the shared Library.',
+  published: 'Published after CardForge review.',
+};
+
+export const getPipelineDecisionReasonLabel = (reason: string | null | undefined): string => (
+  reason ? pipelineDecisionReasonLabels[reason] ?? 'Placement reflects the current Pipeline rules.' : 'Gathering contributor review signal.'
+);
+
 export const getLibrarySourceLabel = (source?: CardAssetOption['librarySource']): string => {
   if (source === 'local') return 'Local only';
   if (source === 'developer') return 'Contributor upload';

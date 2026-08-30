@@ -23,6 +23,7 @@ import {
 } from '@/features/pipeline/components/PipelineContributionModel';
 import {
   getPipelineStudioDestinationLabel,
+  getPipelineDecisionReasonLabel,
   getPipelineStatusDescription,
   getPipelineStatusLabel,
   getPipelineTierDescription,
@@ -359,7 +360,7 @@ export function AssetRow({
             <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">{progressLabel}</p>
           </div>
           <p className="mt-1 text-xs text-[var(--cf-text-subtle)]">
-            {(submission.tierDecisionReason ?? submission.decisionReason ?? 'contributor_review').replaceAll('_', ' ')}
+            {getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
