@@ -35,8 +35,8 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 import { AccountProfileEnvironment } from './_components/AccountProfileEnvironment';
 
 export const metadata: Metadata = createPageMetadata({
-  title: 'CardForge Account',
-  description: 'Manage your CardForge account, storage, and access.',
+  title: 'CardForge Desk',
+  description: 'Organize your CardForge work, Library, profile, and connected locations.',
   path: '/account',
   index: false,
 });
@@ -44,11 +44,14 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; section?: string; utility?: string }>;
+  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; section?: string; utility?: string }>;
 }) {
   const params = await searchParams;
   const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
     ? params.focus
+    : null;
+  const initialReturnContextKey = typeof params.returnContext === 'string' && params.returnContext.length <= 128
+    ? params.returnContext
     : null;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
     ? params.intent
@@ -162,6 +165,7 @@ export default async function AccountPage({
         <UnifiedAccountLibrary
           persistenceScope={persistenceScope}
           experience={experience}
+          initialReturnContextKey={initialReturnContextKey}
           initialTool={activeSection === 'storage' ? 'locations' : null}
           storageConnections={storageConnections}
         />
@@ -182,10 +186,11 @@ export default async function AccountPage({
         />
       ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
           <HomeDesk
-            key={initialFocusedWorkId ? `home-desk:${initialFocusedWorkId}` : 'home-desk'}
+            key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
             persistenceScope={persistenceScope}
             experience={experience}
             initialFocusedWorkId={initialFocusedWorkId}
+            initialReturnContextKey={initialReturnContextKey}
             homeAccessStatus={homeAccessStatus}
             homeSecurityStatus={homeSecurityStatus}
           />

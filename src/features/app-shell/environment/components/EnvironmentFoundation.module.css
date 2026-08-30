@@ -273,6 +273,7 @@
 }
 
 .primarySurface {
+  position: relative;
   grid-area: primary;
   min-width: 0;
   min-height: 0;
@@ -280,6 +281,100 @@
   background: var(--cf-canvas);
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+.toolLayer {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.28fr) minmax(26rem, 0.72fr);
+}
+
+.toolScrim {
+  border: 0;
+  background: color-mix(in srgb, var(--cf-canvas) 52%, transparent);
+  backdrop-filter: blur(1px);
+  cursor: pointer;
+}
+
+.toolPanel {
+  min-width: 0;
+  border-left: 1px solid var(--cf-border-strong);
+  background: var(--cf-canvas);
+  box-shadow: var(--cf-panel-shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.toolHeader {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: var(--cf-canvas);
+}
+
+.toolEyebrow,
+.toolTitle,
+.toolSummary {
+  margin: 0;
+}
+
+.toolEyebrow {
+  color: var(--cf-accent-strong);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.toolTitle {
+  margin-top: 0.1rem;
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-size: clamp(1.35rem, 2vw, 1.85rem);
+  font-weight: 600;
+}
+
+.toolSummary {
+  margin-top: 0.12rem;
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.toolClose {
+  display: inline-grid;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: transparent;
+  color: var(--cf-text-muted);
+  cursor: pointer;
+}
+
+.toolClose:hover {
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+  color: var(--cf-accent-text);
+}
+
+.toolClose svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.toolContent {
+  padding: 1rem;
 }
 
 .detailVisual {
@@ -777,6 +872,31 @@
 }
 
 @media (max-width: 767px) {
+  .toolLayer {
+    position: fixed;
+    z-index: 90;
+    grid-template-columns: 1fr;
+    inset: 0;
+    padding-top: 3.5rem;
+  }
+
+  .toolScrim {
+    position: absolute;
+    inset: 0;
+  }
+
+  .toolPanel {
+    position: relative;
+    z-index: 1;
+    max-height: calc(100dvh - 3.5rem);
+    border-top: 1px solid var(--cf-border-strong);
+    border-left: 0;
+  }
+
+  .toolContent {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
   .mobileSheetBackdrop {
     display: block;
     z-index: 90;

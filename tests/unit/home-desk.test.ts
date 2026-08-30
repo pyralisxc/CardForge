@@ -108,11 +108,14 @@ describe('Home spatial desk', () => {
 
   it('restores the focused Set after Studio closes', () => {
     expect(accountPage).toContain('initialFocusedWorkId={initialFocusedWorkId}');
-    expect(accountPage).toContain("key={initialFocusedWorkId ? `home-desk:${initialFocusedWorkId}` : 'home-desk'}");
+    expect(accountPage).toContain("key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}");
     expect(homeDesk).toContain('initialFocusedWorkId?: string | null;');
     expect(homeDesk).toContain('useState<string | null>(initialFocusedWorkId ?? null)');
-    expect(homeDesk).toContain('createDeskReturnHref(item.id)');
+    expect(homeDesk).toContain('createDeskStudioReturnTo(item.id)');
     expect(homeDesk).toContain('createStudioHref({');
+    expect(homeDesk).toContain('storeSurfaceReturnContext');
+    expect(homeDesk).toContain('readSurfaceReturnContext');
+    expect(homeDesk).toContain('initialReturnContextKey');
   });
 
   it('starts fresh or published work through one canonical Set-copy boundary', () => {

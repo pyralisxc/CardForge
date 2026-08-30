@@ -33,7 +33,7 @@ import {
 import { usePipelineReviewQueue } from '@/features/pipeline/components/usePipelineReviewQueue';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { AssetRow, EditSubmissionForm, QueuePager, VoteButtons } from '@/features/pipeline/components/PipelineSubmissionRows';
-import { GlossaryPanel, GuidanceCard, PipelineMetric, ProgramRule, QueueSelect, Stat } from '@/features/pipeline/components/PipelineContributionUi';
+import { GlossaryPanel, PipelineMetric, ProgramRule, QueueSelect, Stat } from '@/features/pipeline/components/PipelineContributionUi';
 import { PipelineSubmissionPanel } from '@/features/pipeline/components/PipelineSubmissionPanel';
 
 interface PipelineItemsResponse { program: PipelineProgramView }
@@ -94,7 +94,6 @@ export function PipelineContributionPanel({
   const ownSubmissions = program?.submissions ?? [];
   const liveLibraryCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0) ?? 0;
   const openDefaultSlotCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0) ?? 0;
-  const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
 
   const loadProgram = useCallback(async (attempt = 0) => {
     if (!hasLoadedRef.current) setIsLoading(true);
@@ -302,66 +301,22 @@ export function PipelineContributionPanel({
   return (
     <TooltipProvider>
     <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
-      <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-6 md:p-8">
+      <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface)] p-4 md:p-6">
         <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
           <UploadCloud className="h-6 w-6" />
           <span className="text-sm font-semibold uppercase tracking-[0.2em]">Forge Review</span>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-px bg-[var(--cf-border)] p-px sm:grid-cols-4">
           <Stat label="Submitted this month" value={program.contributionStats.submitted} help="Assets you uploaded into the site pipeline this calendar month." />
           <Stat label="Published this month" value={program.contributionStats.published} help="Your assets that reached published status this calendar month." />
           <Stat label="Required published" value={program.effectiveMonthlyPublishedRequirement} help="Your current monthly published asset expectation. Owners can set a base rule and adjust individual accounts." />
           <Stat label="Uploads left" value={program.remainingSubmissions} help="Uploads remaining before your monthly site-submission allowance is reached." />
         </div>
 
-        <div className="mt-4 grid gap-3 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:grid-cols-3">
-          <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
-          <ProgramRule label="Open live slots" value={openDefaultSlotCount} body="Available Starter and Creator Pass slots before passing assets have to wait in candidate review." />
-          <ProgramRule label="Shared Pipeline" value={program.totalVoteableCount} body="Review candidates, live assets, and recoverable archived history in one contributor-visible lane." />
-        </div>
-
-        <div className="mt-4 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Start here</p>
-              <h3 className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">Your Contributor loop is submit, review, track, improve.</h3>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]"
-              onClick={() => void loadProgram()}
-            >
-              Refresh pipeline
-            </Button>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <GuidanceCard
-              eyebrow="1. Submit"
-              title={program.remainingSubmissions > 0 ? `${program.remainingSubmissions} uploads left` : 'Limit reached'}
-              body={program.remainingSubmissions > 0
-                ? 'Choose saved browser work or local files, then send the candidate through Forge Review.'
-                : 'Your monthly submission allowance is used. Review and polish existing work until the next cycle.'}
-              tone={program.remainingSubmissions > 0 ? 'ready' : 'warning'}
-            />
-            <GuidanceCard
-              eyebrow="2. Review"
-              title={`${program.totalVoteableCount} shared assets`}
-              body={program.settings.allowContributorSelfVoting
-                ? 'Active candidates accept votes; published and archived revisions remain visible as lineage history.'
-                : 'Self-voting is off. Your own work remains visible, but only eligible peer candidates accept your vote.'}
-            />
-            <GuidanceCard
-              eyebrow="3. Track"
-              title={`${program.submissionPage.total} owned assets`}
-              body="Use My Pipeline to expand previews, edit eligible uploads, and see why each asset is waiting, live, or archived."
-            />
-            <GuidanceCard
-              eyebrow="4. Improve"
-              title={`${archiveCount} archived`}
-              body="Archived assets preserve prior votes and decisions for comparison without reopening the closed revision."
-            />
-          </div>
+        <div className="mt-3 grid gap-x-5 gap-y-3 border-y border-[var(--cf-border)] py-3 sm:grid-cols-3">
+          <PipelineMetric label="Live library" value={liveLibraryCount} body="Published Pipeline work available in CardForge." />
+          <PipelineMetric label="Open slots" value={openDefaultSlotCount} body="Starter and Creator Pass publication capacity." />
+          <PipelineMetric label="Shared work" value={program.totalVoteableCount} body="Candidates, published work, and recoverable history." />
         </div>
 
         {program.contributorOwnerNote ? (
@@ -370,23 +325,7 @@ export function PipelineContributionPanel({
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
-            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">How assets move</h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
-              Votes, thresholds, and live-library capacity move assets automatically. Published and retired assets stay voteable, while a visible owner override can pin a different status or tier until it is cleared.
-            </p>
-          </div>
-          <div className="grid gap-2 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]">
-            <PipelineMetric label="Votes to grade" value={program.settings.minimumVotesForGrading} body="Minimum votes before the pipeline can judge pass/fail signal." />
-            <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Automatic tier thresholds after the minimum vote count is met." />
-            <PipelineMetric label="Owner vote" value={`${program.settings.ownerVoteWeight}x`} body="Owner signal weight when the owner votes." />
-            <PipelineMetric label="Self voting" value={program.settings.allowContributorSelfVoting ? 'On' : 'Off'} body="Controls whether your own assets appear in your review queue." />
-            <PipelineMetric label="Operation" value="Automatic" body="Owner overrides can pin a different result without stopping automatic scoring." />
-          </div>
-        </div>
-
-        <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="mt-6">
+        <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="mt-4">
           <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-2">
             <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Submit</TabsTrigger>
             <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[var(--cf-text-muted)] data-[state=active]:border-[var(--cf-accent)] data-[state=active]:bg-[var(--cf-surface-hover)] data-[state=active]:text-[var(--cf-accent-text)]">Voting Lane</TabsTrigger>
@@ -563,6 +502,20 @@ export function PipelineContributionPanel({
           </TabsContent>
 
           <TabsContent value="program" className="mt-4">
+            <div className="grid gap-3 border-y border-[var(--cf-border)] py-3 lg:grid-cols-[1.1fr_0.9fr]">
+              <div>
+                <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">How work moves</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">
+                  Votes, thresholds, and live-library capacity move work automatically. Published and retired revisions stay voteable; a visible owner override can pin a different status or tier until it is cleared.
+                </p>
+              </div>
+              <div className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+                <PipelineMetric label="Votes to grade" value={program.settings.minimumVotesForGrading} body="Minimum votes before the Pipeline judges the current revision." />
+                <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Automatic publication thresholds after the minimum vote count." />
+                <PipelineMetric label="Owner vote" value={`${program.settings.ownerVoteWeight}x`} body="Owner signal weight when the owner votes." />
+                <PipelineMetric label="Self voting" value={program.settings.allowContributorSelfVoting ? 'On' : 'Off'} body="Whether your own work accepts your vote." />
+              </div>
+            </div>
             <div className="grid gap-3 md:grid-cols-3">
               <ProgramRule label="Submission allowance" value={program.effectiveMonthlySubmissionLimit} body="Site-library candidates you can submit this calendar month. This may be the base rule or an account-specific owner adjustment." />
               <ProgramRule label="Required published" value={program.effectiveMonthlyPublishedRequirement} body="Monthly published expectation currently assigned to your Contributor profile." />

@@ -113,6 +113,8 @@ describe('unified account environment', () => {
     expect(accountPage).toContain('plans={plans}');
     expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : null");
     expect(profileEnvironment).toContain('Manage access, billing, and usage');
+    expect(profileEnvironment).toContain('<EnvironmentToolLayer');
+    expect(profileEnvironment).toContain('eyebrow="Profile"');
     expect(profileEnvironment).toContain('<AccountPlanBillingUtility');
     expect(planBillingUtility).toContain('<AccountPlanManagementPanel');
     expect(planManagement).toContain('<PlanChoiceGrid');

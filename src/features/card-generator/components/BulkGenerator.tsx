@@ -4,9 +4,10 @@ import type { CardSet } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { ChangeEvent } from 'react';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
-import { PackagePlus } from 'lucide-react';
+import { CheckCircle2, Download, FileJson, FileText, PackagePlus, Plus } from 'lucide-react';
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import {
   buildInitialColumnMapping,
@@ -25,7 +26,6 @@ import {
 } from '@/features/card-generator/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
-import { BulkTemplateSetupPanel } from '@/features/card-generator/components/BulkTemplateSetupPanel';
 import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvInputPanel';
 import { BulkMappingReviewPanel } from '@/features/card-generator/components/BulkMappingReviewPanel';
 import { BulkGenerateActionBar } from '@/features/card-generator/components/BulkGenerateActionBar';
@@ -38,6 +38,7 @@ interface BulkGeneratorProps {
   backingTemplate?: TCGCardTemplate | null;
   activeCardSet: CardSet;
   onCardsGenerated: (cards: DisplayCard[]) => void;
+  onViewGeneratedCards: (cards: DisplayCard[]) => void;
   selectedTemplateIdProp: string | null;
 }
 
@@ -48,6 +49,7 @@ export function BulkGenerator({
   backingTemplate,
   activeCardSet,
   onCardsGenerated,
+  onViewGeneratedCards,
   selectedTemplateIdProp,
 }: BulkGeneratorProps) {
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
@@ -60,6 +62,7 @@ export function BulkGenerator({
   const [conflictFocusField, setConflictFocusField] = useState<string | null>(null);
   const [dataReviewOpen, setDataReviewOpen] = useState(false);
   const [dataReviewIssues, setDataReviewIssues] = useState<string[]>([]);
+  const [lastGeneratedCards, setLastGeneratedCards] = useState<DisplayCard[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -319,6 +322,7 @@ export function BulkGenerator({
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
+        setLastGeneratedCards(generatedCards);
         toast({ title: 'Cards added to your set', description: `${generatedCards.length} cards are ready to review, edit, or download.` });
       } else {
         toast({
@@ -341,6 +345,7 @@ export function BulkGenerator({
 
   const handleDataInputChange = (value: string) => {
     setBulkDataInput(value);
+    if (lastGeneratedCards.length > 0) setLastGeneratedCards([]);
   };
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -399,21 +404,21 @@ export function BulkGenerator({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Make cards from a list</CardTitle>
-        <CardDescription>Choose a Template, add your data, and generate cards you can edit individually.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <BulkTemplateSetupPanel
-          selectedTemplateId={selectedTemplateIdProp}
-          selectedTemplate={selectedTemplate}
-          backingTemplate={backingTemplate}
-          bulkFieldDefinitions={bulkFieldDefinitions}
-          onDownloadExampleCsv={handleDownloadExampleCsv}
-          onDownloadExampleJson={handleDownloadExampleJson}
-          onDownloadStructuredText={handleDownloadStructuredText}
-        />
+    <section aria-labelledby="bulk-generator-heading" className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 id="bulk-generator-heading" className="flex items-center gap-2 text-lg font-semibold"><PackagePlus className="h-5 w-5 text-primary" aria-hidden="true" />Add card data</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Paste a simple list, upload a file, or start from a CardForge example.</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" disabled={!selectedTemplate}><Download className="mr-2 h-4 w-4" aria-hidden="true" />Download starter</Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDownloadStructuredText}><FileText className="mr-2 h-4 w-4" aria-hidden="true" />Text / Markdown</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadExampleCsv}><Download className="mr-2 h-4 w-4" aria-hidden="true" />CSV</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadExampleJson}><FileJson className="mr-2 h-4 w-4" aria-hidden="true" />JSON</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </header>
 
         <BulkCsvInputPanel
           selectedTemplateId={selectedTemplateIdProp}
@@ -462,13 +467,22 @@ export function BulkGenerator({
           </BulkDataResolutionDialog>
         ) : null}
 
+      {lastGeneratedCards.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-emerald-500/35 bg-emerald-500/10 p-4" role="status" tabIndex={-1}>
+          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" /><div><p className="font-semibold text-foreground">{lastGeneratedCards.length} card{lastGeneratedCards.length === 1 ? '' : 's'} added to {activeCardSet.name}</p><p className="mt-1 text-sm text-muted-foreground">Return to the Set to arrange, tag, edit, or export the new cards.</p></div></div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => { setBulkDataInput(''); setLastGeneratedCards([]); }}><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Add another batch</Button>
+            <Button type="button" onClick={() => onViewGeneratedCards(lastGeneratedCards)}>View cards on Desk</Button>
+          </div>
+        </div>
+      ) : (
         <BulkGenerateActionBar
           isLoading={isLoading}
           disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim() || reviewIssues.length > 0}
           helperText={reviewIssues[0]}
           onGenerate={handleGenerate}
         />
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }

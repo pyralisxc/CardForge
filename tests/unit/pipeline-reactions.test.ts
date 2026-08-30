@@ -6,6 +6,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 
 describe('Pipeline reactions', () => {
   const library = source('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const libraryStyles = source('src/features/storage-management/components/UnifiedAccountLibrary.module.css');
   const route = source('src/app/api/pipeline/hearts/route.ts');
   const migration = source('supabase/migrations/20260829052228_pipeline_lineages_hearts_and_durable_votes.sql');
   const voteRoute = source('src/app/api/pipeline/[submissionId]/vote/route.ts');
@@ -19,6 +20,12 @@ describe('Pipeline reactions', () => {
     expect(library).toContain('activeFailure && !scopeItems.length ? null');
     expect(library).not.toContain("reviewState === 'available' || pipelineItem.pipeline.reviewState === 'already-voted'");
     expect(voteRoute).not.toContain('Voting is closed for this Pipeline revision.');
+  });
+
+  it('keeps the contributor submission action visible in the compact Library toolbar', () => {
+    expect(library).toContain('className={styles.contributeButton}');
+    expect(library).not.toContain('id="library-contribute-trigger" type="button" className={styles.locationsButton}');
+    expect(libraryStyles).toContain('.contributeButton { min-width: 0;');
   });
 
   it('keeps account hearts on stable lineages and separate from review math', () => {

@@ -42,6 +42,23 @@ describe('Studio focused workbench architecture', () => {
     expect(shell).not.toContain('target?.scrollIntoView');
   });
 
+  it('presents Generate as progressive work and returns new cards to Desk', () => {
+    const workspace = readSource('src/features/card-generator/components/GenerationWorkspace.tsx');
+    const bulkGenerator = readSource('src/features/card-generator/components/BulkGenerator.tsx');
+    const bulkInput = readSource('src/features/card-generator/components/BulkCsvInputPanel.tsx');
+    const bulkAction = readSource('src/features/card-generator/components/BulkGenerateActionBar.tsx');
+
+    expect(workspace).toContain("useState<GenerationStage>('setup')");
+    expect(workspace).toContain('generation-step-setup');
+    expect(workspace).toContain('generation-step-data');
+    expect(workspace).toContain('Continue to card data');
+    expect(bulkGenerator).not.toContain('BulkTemplateSetupPanel');
+    expect(bulkGenerator).not.toContain('<Card>');
+    expect(bulkGenerator).toContain('View cards on Desk');
+    expect(bulkInput).not.toContain('<Card>');
+    expect(bulkAction).not.toContain('-mx-3');
+  });
+
   it('keeps output, storage, and Pipeline behind their native feature owners', () => {
     const contextTools = readSource('src/features/app-shell/components/StudioContextTools.tsx');
     const contribution = readSource('src/features/pipeline/components/PipelineContributionPanel.tsx');

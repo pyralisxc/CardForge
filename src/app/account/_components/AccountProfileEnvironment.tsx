@@ -12,6 +12,7 @@ import {
   EnvironmentShell,
   EnvironmentStatus,
   EnvironmentSurfaceHeader,
+  EnvironmentToolLayer,
   ENVIRONMENT_ZONES,
   getVisibleEnvironmentZones,
   type ActionDescriptor,
@@ -256,71 +257,70 @@ export function AccountProfileEnvironment({
       onAction={runAction}
       onCloseDetail={() => {}}
     >
-      {activeUtility === 'billing' ? (
-        <section id="profile-utility-surface" tabIndex={-1} className="scroll-mt-20 outline-none" aria-label="Plan and billing">
-          <span id="account-and-billing" className="sr-only" aria-hidden="true" />
-          <EnvironmentSurfaceHeader
-            eyebrow="Plan & billing"
-            title="Manage access, billing, and usage"
-            body="Your current access and next actions come first. Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation."
+      <>
+        <EnvironmentSurfaceHeader
+          eyebrow="Profile"
+          title={isSignedIn ? accountName : 'Your CardForge profile'}
+          body="Identity, security, access, and account utilities stay compact around you. Provider-sensitive controls remain with the provider that owns them."
+        />
+        {entitlementUnavailable ? (
+          <EnvironmentBoundaryNotice
+            title="Account access is unavailable"
+            message="CardForge is not presenting this account as signed-out or Free. Clerk profile controls and local work remain available."
+            actionLabel="Retry"
+            onAction={() => { void entitlement.refreshEntitlement({ force: true }); }}
           />
-          <div className="mt-5 scroll-mt-20">
-            <AccountPlanBillingUtility
-              checkoutStatus={checkoutStatus}
-              entitlement={entitlement}
-              entitlementState={entitlement.entitlementStatus}
-              initialPlanIntent={initialPlanIntent}
-              isContributor={isContributor}
-              isOwner={isOwner}
-              onRetryEntitlement={() => { void entitlement.refreshEntitlement({ force: true }); }}
-              planLabel={planLabel}
-              plans={plans}
-            />
-          </div>
-        </section>
-      ) : activeUtility === 'identity' ? (
-        <section id="profile-utility-surface" tabIndex={-1} className="scroll-mt-20 outline-none" aria-label="Identity and security controls">
-          <span id="profile-native-controls" className="sr-only" aria-hidden="true" />
-          <EnvironmentSurfaceHeader
-            eyebrow="Identity & security"
-            title="Manage your Clerk account"
-            body="Clerk remains the native owner of profile details, verified addresses, sign-in methods, devices, sessions, and security operations."
-          />
-          <div className="mt-5">
-            <ProfileManagementPage authConfigured={entitlement.authConfigured} />
-          </div>
-        </section>
-      ) : activeUtility === 'contributor' ? (
-        <section id="profile-utility-surface" tabIndex={-1} className="scroll-mt-20 outline-none" aria-label="Contributor profile">
-          <EnvironmentSurfaceHeader eyebrow="Contributor" title="Your contribution access and work" body="Personal access, progress, and site-proposal drafts live with your profile. Shared assets and campaigns remain in Library." />
-          <div className="mt-5"><ContributorProfilePanel access={contributorAccess} /></div>
-        </section>
-      ) : (
-        <>
-          <EnvironmentSurfaceHeader
-            eyebrow="Profile"
-            title={isSignedIn ? accountName : 'Your CardForge profile'}
-            body="Identity, security, access, and account utilities stay compact around you. Provider-sensitive controls remain with the provider that owns them."
-          />
-          {entitlementUnavailable ? (
-            <EnvironmentBoundaryNotice
-              title="Account access is unavailable"
-              message="CardForge is not presenting this account as signed-out or Free. Clerk profile controls and local work remain available."
-              actionLabel="Retry"
-              onAction={() => { void entitlement.refreshEntitlement({ force: true }); }}
-            />
-          ) : null}
-          {groups.map((group) => (
-            <section key={group.id} className="mt-5" aria-labelledby={`profile-${group.id}-heading`}>
-              <EnvironmentSectionHeading id={`profile-${group.id}-heading`} title={group.title} meta={`${group.items.length} ${group.items.length === 1 ? 'utility' : 'utilities'}`} />
-              {group.items.map((item) => {
-                const record = toRecord(item);
-                return <CompactSettingRow key={item.id} item={record} selected={false} onOpen={() => openUtility(item.target)} />;
-              })}
+        ) : null}
+        {groups.map((group) => (
+          <section key={group.id} className="mt-5" aria-labelledby={`profile-${group.id}-heading`}>
+            <EnvironmentSectionHeading id={`profile-${group.id}-heading`} title={group.title} meta={`${group.items.length} ${group.items.length === 1 ? 'utility' : 'utilities'}`} />
+            {group.items.map((item) => {
+              const record = toRecord(item);
+              return <CompactSettingRow key={item.id} item={record} selected={false} onOpen={() => openUtility(item.target)} />;
+            })}
+          </section>
+        ))}
+        {activeUtility ? (
+          <EnvironmentToolLayer
+            id="profile-utility-title"
+            eyebrow={activeUtility === 'billing' ? 'Plan & billing' : activeUtility === 'identity' ? 'Identity & security' : 'Contributor'}
+            title={activeUtility === 'billing' ? 'Manage access, billing, and usage' : activeUtility === 'identity' ? 'Manage your Clerk account' : 'Your contribution access and work'}
+            summary={activeUtility === 'billing'
+              ? 'Your current access comes first. Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation.'
+              : activeUtility === 'identity'
+                ? 'Clerk owns profile details, verified addresses, sign-in methods, devices, sessions, and security operations.'
+                : 'Personal access, progress, and site-proposal drafts live with your profile. Shared assets and campaigns remain in Library.'}
+            closeLabel="Close profile tool"
+            onClose={closeUtility}
+          >
+            <section id="profile-utility-surface" tabIndex={-1} className="outline-none">
+              {activeUtility === 'billing' ? (
+                <>
+                  <span id="account-and-billing" className="sr-only" aria-hidden="true" />
+                  <AccountPlanBillingUtility
+                    checkoutStatus={checkoutStatus}
+                    entitlement={entitlement}
+                    entitlementState={entitlement.entitlementStatus}
+                    initialPlanIntent={initialPlanIntent}
+                    isContributor={isContributor}
+                    isOwner={isOwner}
+                    onRetryEntitlement={() => { void entitlement.refreshEntitlement({ force: true }); }}
+                    planLabel={planLabel}
+                    plans={plans}
+                  />
+                </>
+              ) : activeUtility === 'identity' ? (
+                <>
+                  <span id="profile-native-controls" className="sr-only" aria-hidden="true" />
+                  <ProfileManagementPage authConfigured={entitlement.authConfigured} />
+                </>
+              ) : (
+                <ContributorProfilePanel access={contributorAccess} />
+              )}
             </section>
-          ))}
-        </>
-      )}
+          </EnvironmentToolLayer>
+        ) : null}
+      </>
     </EnvironmentShell>
   );
 }

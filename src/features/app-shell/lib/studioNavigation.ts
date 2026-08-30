@@ -24,13 +24,15 @@ export const normalizeStudioReturnTo = (value: string | null | undefined): strin
   }
 };
 
-export const createDeskReturnHref = (workId: string): string => {
+export const createDeskReturnHref = (workId: string, returnContext?: string | null): string => {
   const params = new URLSearchParams({ focus: workId });
+  if (returnContext) params.set('returnContext', returnContext);
   return `/account?${params.toString()}`;
 };
 
-export const createLibraryReturnHref = (scope: string = 'personal'): string => {
+export const createLibraryReturnHref = (scope: string = 'personal', returnContext?: string | null): string => {
   const params = new URLSearchParams({ section: 'library', scope });
+  if (returnContext) params.set('returnContext', returnContext);
   return `/account?${params.toString()}`;
 };
 

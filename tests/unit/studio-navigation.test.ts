@@ -9,10 +9,10 @@ import {
 
 describe('Studio navigation contract', () => {
   it('round-trips a focused Desk Set through Studio', () => {
-    const returnTo = createDeskReturnHref('set:playing-cards');
+    const returnTo = createDeskReturnHref('set:playing-cards', 'desk-context');
 
-    expect(returnTo).toBe('/account?focus=set%3Aplaying-cards');
-    expect(createStudioHref({ returnTo })).toBe('/studio?returnTo=%2Faccount%3Ffocus%3Dset%253Aplaying-cards');
+    expect(returnTo).toBe('/account?focus=set%3Aplaying-cards&returnContext=desk-context');
+    expect(createStudioHref({ returnTo })).toBe('/studio?returnTo=%2Faccount%3Ffocus%3Dset%253Aplaying-cards%26returnContext%3Ddesk-context');
     expect(resolveStudioReturnTarget({
       activeSetId: 'playing-cards',
       activeSetName: 'Playing Cards',
@@ -25,9 +25,9 @@ describe('Studio navigation contract', () => {
   });
 
   it('preserves a Library scope while rejecting non-account destinations', () => {
-    const returnTo = createLibraryReturnHref('pipeline');
+    const returnTo = createLibraryReturnHref('pipeline', 'library-context');
 
-    expect(returnTo).toBe('/account?section=library&scope=pipeline');
+    expect(returnTo).toBe('/account?section=library&scope=pipeline&returnContext=library-context');
     expect(resolveStudioReturnTarget({
       activeSetId: 'set-one',
       activeSetName: 'Set One',

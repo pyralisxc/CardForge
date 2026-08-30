@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { FileText, FileUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,12 +60,11 @@ export function BulkCsvInputPanel({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">2. Add your card data</CardTitle>
-        <CardDescription>Upload a file or paste a list. CardForge checks it as you go.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section aria-labelledby="bulk-data-heading" className="space-y-4 border-y border-[var(--cf-border-subtle)] py-4">
+      <div>
+        <h4 id="bulk-data-heading" className="text-base font-semibold">Choose how to begin</h4>
+        <p className="mt-1 text-sm text-muted-foreground">CardForge accepts ordinary writing, spreadsheets, JSON, or an uploaded file and checks it as you go.</p>
+      </div>
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <div className="space-y-2">
             <Label htmlFor="bulk-starter-choice">Start with</Label>
@@ -96,10 +94,13 @@ export function BulkCsvInputPanel({
         </div>
 
         {selectedTemplate ? (
-          <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <details className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer font-medium text-foreground">Fields CardForge can fill</summary>
+            <div className="mt-3 space-y-2">
             <p><span className="font-medium text-foreground">Card fields:</span> {bulkFieldDefinitions.map((field) => field.label).join(', ') || 'No card fields found.'}</p>
             <p><span className="font-medium text-foreground">Plain text:</span> One block becomes one card. Use Field: value lines and separate cards with ---.</p>
-          </div>
+            </div>
+          </details>
         ) : null}
 
         <div className="space-y-2">
@@ -118,10 +119,9 @@ Cost: 3
 Rules: Deal 3 damage.
 ---
 Name: Second Card`}
-            className="min-h-[220px] font-mono text-xs"
+            className="min-h-[180px] font-mono text-xs sm:min-h-[220px]"
           />
         </div>
-      </CardContent>
-    </Card>
+    </section>
   );
 }

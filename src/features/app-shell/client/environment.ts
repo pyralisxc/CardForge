@@ -20,6 +20,7 @@ export { CollectionLedgerRow, CompactSettingRow, EnvironmentBoundaryNotice, Envi
 export { EnvironmentNavigation } from '../environment/components/EnvironmentNavigation';
 export { EnvironmentShell } from '../environment/components/EnvironmentShell';
 export { EnvironmentStatus } from '../environment/components/EnvironmentStatus';
+export { EnvironmentToolLayer } from '../environment/components/EnvironmentToolLayer';
 export type {
   ActionAutomation,
   ActionAvailability,

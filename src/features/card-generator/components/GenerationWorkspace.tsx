@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo } from 'react';
-import { FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, ChevronRight, FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CardPreview, CardWatermarkOverlay, shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
@@ -33,6 +33,7 @@ interface GenerationWorkspaceProps {
   onEditSelectedBack: (templateId: string) => void;
   onManageCardBacks: () => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
+  onViewGeneratedCards: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
   onSetActiveCardSetBackingTemplateId: (templateId: string | null) => void;
 }
@@ -52,9 +53,12 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     onEditSelectedBack,
     onManageCardBacks,
     onBulkCardsGenerated,
+    onViewGeneratedCards,
     onTemplateSelectionChange,
     onSetActiveCardSetBackingTemplateId,
   } = props;
+  type GenerationStage = 'setup' | 'data';
+  const [generationStage, setGenerationStage] = useState<GenerationStage>('setup');
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === generatorSelectedTemplateId) || null,
@@ -85,6 +89,10 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
   const showGeneratedPreviewWatermark = shouldShowVisibleCardWatermark(canExportClean);
+
+  useEffect(() => {
+    setGenerationStage('setup');
+  }, [activeCardSet.id]);
 
   const requestMatchingBack = useCallback(() => {
     if (!selectedTemplate) return;
@@ -127,8 +135,19 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   }
 
   return (
-    <div className="space-y-6 pb-6">
-      <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="border-b border-[var(--cf-border-subtle)] pb-5">
+    <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 pb-6">
+      <nav aria-label="Generate steps" className="grid grid-cols-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]">
+        <button id="generation-step-setup" type="button" aria-current={generationStage === 'setup' ? 'step' : undefined} onClick={() => setGenerationStage('setup')} className={`flex min-h-12 items-center gap-3 px-4 text-left ${generationStage === 'setup' ? 'bg-[var(--cf-surface-raised)] text-[var(--cf-text-strong)] shadow-[inset_0_-2px_var(--cf-accent-strong)]' : 'text-[var(--cf-text-muted)]'}`}>
+          <span className="grid h-6 w-6 place-items-center border border-[var(--cf-border-strong)] text-xs">1</span>
+          <span><strong className="block text-sm">Card setup</strong><span className="hidden text-xs sm:block">Front, back, and preview</span></span>
+        </button>
+        <button id="generation-step-data" type="button" aria-current={generationStage === 'data' ? 'step' : undefined} onClick={() => setGenerationStage('data')} disabled={!selectedTemplate} className={`flex min-h-12 items-center gap-3 border-l border-[var(--cf-border-subtle)] px-4 text-left disabled:cursor-not-allowed disabled:opacity-45 ${generationStage === 'data' ? 'bg-[var(--cf-surface-raised)] text-[var(--cf-text-strong)] shadow-[inset_0_-2px_var(--cf-accent-strong)]' : 'text-[var(--cf-text-muted)]'}`}>
+          <span className="grid h-6 w-6 place-items-center border border-[var(--cf-border-strong)] text-xs">2</span>
+          <span><strong className="block text-sm">Card data</strong><span className="hidden text-xs sm:block">Add, check, and create</span></span>
+        </button>
+      </nav>
+
+      {generationStage === 'setup' ? <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="outline-none">
         <div className="mb-4 flex items-center gap-2">
           <Layers3 className="h-5 w-5 text-primary" />
           <div>
@@ -237,16 +256,19 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             </div>
           ) : null}
         </div>
-      </section>
+        <div className="mt-5 flex justify-end border-t border-[var(--cf-border-subtle)] pt-4">
+          <Button type="button" size="lg" onClick={() => setGenerationStage('data')} disabled={!selectedTemplate} className="min-h-11">
+            Continue to card data <ChevronRight className="ml-2 h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </section> : null}
 
-      <section data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
+      {generationStage === 'data' ? <section data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
             <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Generate cards from a list</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Generate adds cards to the active Set. Return to Desk to arrange the finished cards, or open Output when they are ready.
-            </p>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Choose a starting format, add the information for each card, and let CardForge check it before anything changes.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
             <PackagePlus className="h-4 w-4 text-primary" />
@@ -254,16 +276,22 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 border-y border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2 text-sm">
+          <span className="inline-flex min-w-0 items-center gap-2 text-[var(--cf-text-muted)]"><Check className="h-4 w-4 shrink-0 text-[var(--cf-success)]" aria-hidden="true" /><span className="truncate">{selectedTemplate?.name} · {selectedBackingTemplate?.name ?? 'No card back'}</span></span>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setGenerationStage('setup')}>Change setup</Button>
+        </div>
+
         <BulkGenerator
           templates={templates}
           backingTemplate={selectedBackingTemplate}
           activeCardSet={activeCardSet}
           onCardsGenerated={handleBulkCardsGenerated}
+          onViewGeneratedCards={onViewGeneratedCards}
           selectedTemplateIdProp={generatorSelectedTemplateId}
         />
-      </section>
+      </section> : null}
 
-      {generatedDisplayCards.length > 0 ? (
+      {generationStage === 'setup' && generatedDisplayCards.length > 0 ? (
         <div className="rounded-md border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-text-muted)]" role="status">
           This Set already has {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'}. Return to <span className="font-semibold text-[var(--cf-text-strong)]">Desk</span> to arrange them, or use Output here for production settings.
         </div>

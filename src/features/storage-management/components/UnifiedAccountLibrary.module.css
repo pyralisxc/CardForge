@@ -1,12 +1,12 @@
 .library { position: relative; display: grid; min-width: 0; min-height: 100%; grid-template-rows: auto auto minmax(0, 1fr); color: var(--cf-text); }
 .libraryHeader { display: flex; min-width: 0; align-items: end; justify-content: space-between; gap: 1rem; padding: .1rem .2rem .7rem; }
-.libraryHeader p, .libraryHeader h1, .libraryHeader span, .collectionHeading h2, .collectionHeading p, .objectCopy p, .toolPanel header p, .toolPanel header h2, .toolPanel header span { margin: 0; }
-.libraryHeader p, .toolPanel header p { color: var(--cf-accent-strong); font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.libraryHeader h1, .toolPanel header h2 { margin-top: .1rem; color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: clamp(1.35rem, 2vw, 1.85rem); font-weight: 600; }
-.libraryHeader span, .toolPanel header span { display: block; margin-top: .12rem; color: var(--cf-text-muted); font-size: .72rem; }
-.locationsButton, .scopeTabs button, .densityControls button, .reactionActions button, .toolPanel header button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; cursor: pointer; }
-.locationsButton { flex: 0 0 auto; gap: .45rem; padding: .45rem .75rem; font-size: .75rem; }
-.locationsButton:hover, .scopeTabs button:hover, .scopeTabs button[aria-current="page"], .densityControls button:hover, .densityControls button[aria-pressed="true"], .reactionActions button:hover, .reactionActions button[data-active="true"], .toolPanel header button:hover { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
+.libraryHeader p, .libraryHeader h1, .libraryHeader span, .collectionHeading h2, .collectionHeading p, .objectCopy p { margin: 0; }
+.libraryHeader p { color: var(--cf-accent-strong); font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.libraryHeader h1 { margin-top: .1rem; color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: clamp(1.35rem, 2vw, 1.85rem); font-weight: 600; }
+.libraryHeader span { display: block; margin-top: .12rem; color: var(--cf-text-muted); font-size: .72rem; }
+.locationsButton, .contributeButton, .scopeTabs button, .densityControls button, .reactionActions button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; cursor: pointer; }
+.locationsButton, .contributeButton { flex: 0 0 auto; gap: .45rem; padding: .45rem .75rem; font-size: .75rem; }
+.locationsButton:hover, .contributeButton:hover, .scopeTabs button:hover, .scopeTabs button[aria-current="page"], .densityControls button:hover, .densityControls button[aria-pressed="true"], .reactionActions button:hover, .reactionActions button[data-active="true"] { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
 .scopeTabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); border-block: 1px solid var(--cf-border-subtle); }
 .scopeTabs button { min-width: 0; flex-direction: column; align-items: flex-start; border-width: 0 1px 0 0; padding: .55rem .8rem; text-align: left; }
 .scopeTabs button:last-child { border-right: 0; }
@@ -24,7 +24,7 @@
 .searchField input { padding-left: 1.9rem; }
 .densityControls { display: flex; }
 .densityControls button, .reactionActions button { width: 2.75rem; padding: 0; }
-.densityControls svg, .reactionActions svg, .toolPanel header button svg { width: 1rem; height: 1rem; }
+.densityControls svg, .reactionActions svg { width: 1rem; height: 1rem; }
 .objectGrid { display: grid; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .55rem; padding: .75rem; }
 .objectTile { position: relative; min-width: 0; border: 1px solid transparent; background: var(--cf-canvas); }
 .objectTile:hover, .objectTile[data-selected="true"] { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); }
@@ -84,13 +84,6 @@
 .emptyState > svg { width: 1.5rem; height: 1.5rem; }
 .emptyState strong { color: var(--cf-text-strong); font-family: var(--cf-font-display); }
 .emptyState p { max-width: 25rem; margin: 0; font-size: .72rem; }
-.toolLayer { position: absolute; z-index: 30; inset: 0; display: grid; grid-template-columns: minmax(7rem, .28fr) minmax(26rem, .72fr); }
-.toolScrim { border: 0; background: color-mix(in srgb, var(--cf-canvas) 52%, transparent); backdrop-filter: blur(1px); cursor: pointer; }
-.toolPanel { min-width: 0; border-left: 1px solid var(--cf-border-strong); background: var(--cf-canvas); box-shadow: var(--cf-panel-shadow); overflow: auto; }
-.toolPanel > header { position: sticky; z-index: 2; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--cf-border-subtle); background: var(--cf-canvas); }
-.toolPanel header button { width: 2.75rem; flex: 0 0 auto; padding: 0; }
-.toolContent { padding: 1rem; }
-
 @media (max-width: 1050px) {
   .toolbar { grid-template-columns: minmax(10rem, 1fr) 8rem 7rem auto; }
   .toolbar > :nth-child(3) { display: none; }
@@ -102,6 +95,7 @@
   .libraryHeader span { display: none; }
   .locationsButton { position: absolute; top: 0; right: .1rem; width: 2.75rem; overflow: hidden; gap: 0; padding: 0; font-size: 0; white-space: nowrap; }
   .locationsButton svg { flex: 0 0 auto; }
+  .contributeButton { min-width: 0; padding-inline: .45rem; font-size: .68rem; white-space: nowrap; }
   .objectMenu { opacity: 1; }
   .scopeTabs button { align-items: center; padding-inline: .35rem; }
   .scopeTabs small { display: none; }
@@ -117,8 +111,4 @@
   .objectCopy { padding: .45rem .5rem .55rem; }
   .library[data-density="list"] .objectCopy { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .library[data-density="list"] .objectCopy > span:not(.objectTopline) { display: none; }
-  .toolLayer { position: fixed; z-index: 90; grid-template-columns: 1fr; inset: 0; padding-top: 3.5rem; }
-  .toolScrim { position: absolute; inset: 0; }
-  .toolPanel { position: relative; z-index: 1; max-height: calc(100dvh - 3.5rem); border-top: 1px solid var(--cf-border-strong); border-left: 0; }
-  .toolContent { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
 }

@@ -13,6 +13,7 @@ describe('account storage library', () => {
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
   const googleDriveProjects = readSource('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
   const connectedPersonalLibrary = readSource('src/features/storage-management/components/ConnectedPersonalLibraryPanel.tsx');
+  const environmentToolLayer = readSource('src/features/app-shell/environment/components/EnvironmentToolLayer.tsx');
 
   it('makes storage a first-class account surface while preserving project ownership', () => {
     expect(accountPage).toContain("UnifiedAccountLibrary");
@@ -69,6 +70,10 @@ describe('account storage library', () => {
     expect(storageWorkspace).not.toContain("id: 'cloud-usage'");
     expect(storageWorkspace).toContain("focusedStorageContent(workspaceStorage, 'device')");
     expect(unifiedLibrary).toContain('Nothing moves between locations automatically');
+    expect(unifiedLibrary).toContain('<EnvironmentToolLayer');
+    expect(unifiedLibrary).not.toContain('className={styles.toolLayer}');
+    expect(environmentToolLayer).toContain('role="dialog"');
+    expect(environmentToolLayer).toContain('className={styles.toolContent}');
     expect(unifiedLibrary).toContain("status === 'google-drive-connected'");
     expect(unifiedLibrary).toContain("status === 'google-drive-error'");
     expect(storageLibrary).toContain("focus = 'overview'");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app-shell/lib/studioPresentation';
 import { useToast } from '@/components/ui/use-toast';
@@ -15,6 +15,7 @@ import {
   GenerationWorkspace,
 } from '@/features/app-shell/components/StudioLazyWorkspaces';
 import { StudioCommandBar } from '@/features/app-shell/components/StudioCommandBar';
+import { createDeskReturnHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { resolveStudioReturnTarget } from '@/features/app-shell/lib/studioNavigation';
 import { StudioContextTools, type StudioContextTool } from '@/features/app-shell/components/StudioContextTools';
 import { GeneratorBackWorkflowBanner } from '@/features/app-shell/components/GeneratorBackWorkflowBanner';
@@ -37,6 +38,7 @@ import {
   writeProjectPreference,
 } from '@/features/project/client';
 import { useStudioDocumentHandoff } from '@/features/studio-documents/client';
+import type { DisplayCard } from '@/domain/rendering';
 
 export type StudioBusinessIdentity = {
   brandName: string;
@@ -51,6 +53,7 @@ export function CardForgeStudioShell({
   initialContributorAccess: ContributorAccessSessionState;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const contributorAccess = useContributorAccess({
@@ -143,6 +146,18 @@ export function CardForgeStudioShell({
     activeSetName: activeCardSet.name,
     requestedReturnTo: searchParams.get('returnTo'),
   });
+  const viewGeneratedCardsOnDesk = useCallback((cards: DisplayCard[]) => {
+    const workId = `set:${activeCardSet.id}`;
+    const previousContextKey = new URL(returnTarget.href, 'https://cardforge.local').searchParams.get('returnContext');
+    const previousContext = readSurfaceReturnContext(previousContextKey);
+    const returnContext = storeSurfaceReturnContext(previousContext?.kind === 'desk'
+      ? { ...previousContext, focusedWorkId: workId, inspectorWorkId: null, selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all' }
+      : {
+          kind: 'desk', focusedWorkId: workId, inspectorWorkId: null, query: '', sourceFilter: 'all', sort: 'desk',
+          selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all', scrollTop: 0,
+        });
+    router.push(createDeskReturnHref(workId, returnContext));
+  }, [activeCardSet.id, returnTarget.href, router]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
@@ -405,7 +420,7 @@ export function CardForgeStudioShell({
   }, [focusStudioRegion, handleStudioViewChange]);
 
   return (
-    <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
+    <div className="flex h-dvh max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       {accountEntitlement.entitlementError ? (
         <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
           Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
@@ -515,6 +530,7 @@ export function CardForgeStudioShell({
               onEditSelectedBack={handleEditCardBack}
               onManageCardBacks={handleManageCardBacks}
               onBulkCardsGenerated={handleBulkCardsGenerated}
+              onViewGeneratedCards={viewGeneratedCardsOnDesk}
               onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}
               onSetActiveCardSetBackingTemplateId={setActiveCardSetBackingTemplateIdAction}
             />

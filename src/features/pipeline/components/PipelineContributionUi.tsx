@@ -26,22 +26,22 @@ export function FieldHelp({ text }: { text: string }) {
 
 export function Stat({ label, value, help }: { label: string; value: number; help: string }) {
   return (
-    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+    <div className="min-w-0 bg-[var(--cf-surface-inset)] px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</p>
+        <p className="text-[0.62rem] uppercase leading-4 tracking-[0.14em] text-[var(--cf-text-subtle)]">{label}</p>
         <FieldHelp text={help} />
       </div>
-      <p className="mt-2 text-2xl font-semibold text-[var(--cf-accent-text)]">{value}</p>
+      <p className="mt-1 text-xl font-semibold text-[var(--cf-accent-text)]">{value}</p>
     </div>
   );
 }
 
 export function ProgramRule({ label, value, body }: { label: string; value: number; body: string }) {
   return (
-    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+    <div className="border-b border-[var(--cf-border)] pb-3 last:border-b-0 md:border-b-0 md:border-r md:pb-0 md:pr-3 md:last:border-r-0">
       <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[var(--cf-accent-text)]">{value}</p>
-      <p className="mt-2 text-sm leading-5 text-[var(--cf-text-muted)]">{body}</p>
+      <p className="mt-1 text-xl font-semibold text-[var(--cf-accent-text)]">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{body}</p>
     </div>
   );
 }

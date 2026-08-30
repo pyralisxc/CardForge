@@ -67,7 +67,7 @@ import {
   type EnvironmentViewer,
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -125,6 +125,7 @@ export interface HomeDeskProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
   initialFocusedWorkId?: string | null;
+  initialReturnContextKey?: string | null;
   homeAccessStatus?: HomeAccountStatus;
   homeSecurityStatus?: HomeAccountStatus;
 }
@@ -156,6 +157,7 @@ export function HomeDesk({
   persistenceScope,
   experience,
   initialFocusedWorkId,
+  initialReturnContextKey,
   homeAccessStatus,
   homeSecurityStatus,
 }: HomeDeskProps) {
@@ -165,6 +167,7 @@ export function HomeDesk({
   const searchRef = useRef<HTMLInputElement | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const cardStageRef = useRef<HTMLDivElement | null>(null);
+  const returnContextRestoredRef = useRef(false);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const zones = getVisibleEnvironmentZones(viewer);
   const [query, setQuery] = useState('');
@@ -323,6 +326,26 @@ export function HomeDesk({
     setTagFilter('all');
   }, [focusedItemId, focusedItemName]);
 
+  useEffect(() => {
+    if (!initialReturnContextKey || returnContextRestoredRef.current) return;
+    const context = readSurfaceReturnContext(initialReturnContextKey);
+    if (!context || context.kind !== 'desk') {
+      returnContextRestoredRef.current = true;
+      return;
+    }
+    if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
+    returnContextRestoredRef.current = true;
+    setFocusedWorkId(context.focusedWorkId);
+    setInspectorWorkId(context.inspectorWorkId && itemById.has(context.inspectorWorkId) ? context.inspectorWorkId : null);
+    setQuery(context.query);
+    setSourceFilter(context.sourceFilter);
+    setSort(context.sort);
+    setSelectedCardIds(context.selectedCardIds);
+    setCardQuery(context.cardQuery);
+    setTagFilter(context.tagFilter);
+    requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
+  }, [initialReturnContextKey, itemById]);
+
   const applyNewTag = () => {
     if (!focusedLocalSetId || !selectedCards.length) return;
     const tagId = addCardSetTag(focusedLocalSetId, tagDraft);
@@ -460,6 +483,22 @@ export function HomeDesk({
     requestAnimationFrame(() => document.getElementById(`home-work-${item.id}`)?.focus());
   };
 
+  const createDeskStudioReturnTo = (workId: string, nextSelectedCardIds: string[] = selectedCardIds) => {
+    const returnContext = storeSurfaceReturnContext({
+      kind: 'desk',
+      focusedWorkId: workId,
+      inspectorWorkId,
+      query,
+      sourceFilter,
+      sort,
+      selectedCardIds: nextSelectedCardIds,
+      cardQuery,
+      tagFilter,
+      scrollTop: surfaceRef.current?.scrollTop ?? 0,
+    });
+    return createDeskReturnHref(workId, returnContext);
+  };
+
   const actions: ActionDescriptor[] = inspectorItem
     ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem ? [] : [zoneAction('home.create-work', 'New Set', 'mutation')];
@@ -468,16 +507,16 @@ export function HomeDesk({
   const runAction = (action: ActionDescriptor) => {
     const item = inspectorItem ?? focusedItem;
     if (action.id === 'home.create-work') openCreateMenu();
-    else if (action.id === 'home.open-work' && item) void projection.openItem(item, createDeskReturnHref(item.id));
+    else if (action.id === 'home.open-work' && item) void projection.openItem(item, createDeskStudioReturnTo(item.id));
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
     else if (action.id === 'home.generate-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
       setStudioView('generate');
-      projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(item.id) }));
+      projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(item.id) }));
     } else if (action.id === 'home.export-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
       setStudioView('generate');
-      projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(item.id), tool: 'output' }));
+      projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(item.id), tool: 'output' }));
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
     else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
@@ -491,14 +530,14 @@ export function HomeDesk({
 
   const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => {
     if (!item.references.localSetId) {
-      if (lane === 'open') void projection.openItem(item, createDeskReturnHref(item.id));
+      if (lane === 'open') void projection.openItem(item, createDeskStudioReturnTo(item.id));
       else setLocationItem(item);
       return;
     }
     setActiveCardSetId(item.references.localSetId);
     setStudioView('generate');
     projection.router.push(createStudioHref({
-      returnTo: createDeskReturnHref(item.id),
+      returnTo: createDeskStudioReturnTo(item.id),
       tool: lane === 'export' ? 'output' : null,
     }));
   };
@@ -517,7 +556,7 @@ export function HomeDesk({
     setActiveCardSetId(focusedLocalSetId);
     setStudioView('generate');
     openEditDialog(selectedCard.uniqueId);
-    projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(`set:${focusedLocalSetId}`) }));
+    projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(`set:${focusedLocalSetId}`, [selectedCard.uniqueId]) }));
   };
 
   const duplicateSelectedCards = () => {
@@ -663,10 +702,10 @@ export function HomeDesk({
                           {card.tagIds?.length ? <small>{card.tagIds.map((id) => organization.tags.find((tag) => tag.id === id)?.label).filter(Boolean).join(' · ')}</small> : null}
                         </button>;
                       })}</div>
-                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Cards you create in Studio return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskReturnHref(focusedItem.id))}>Add first cards</Button> : null}</div></div>}
+                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Cards you create in Studio return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskStudioReturnTo(focusedItem.id))}>Add first cards</Button> : null}</div></div>}
                   </div>
                   {sortedCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 cards in each group. Narrow the view or open Studio for the complete production view.</p> : null}
-                </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskReturnHref(focusedItem.id))}>Open in Studio</Button></div></div>}
+                </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskStudioReturnTo(focusedItem.id))}>Open in Studio</Button></div></div>}
               </section>
             </div>
           ) : (

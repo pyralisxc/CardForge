@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import {
   Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
   Copy, ExternalLink, Heart, LayoutList, Loader2, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
-  ThumbsUp, Trash2, UploadCloud, X, type LucideIcon,
+  ThumbsUp, Trash2, UploadCloud, type LucideIcon,
 } from 'lucide-react';
 
 import {
@@ -22,12 +22,12 @@ import type { DisplayCard } from '@/domain/rendering';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
-  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus,
+  ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
   closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
   type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
   type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref, createLibraryReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { getPipelineStatusLabel } from '@/features/pipeline/client';
 import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
@@ -62,6 +62,7 @@ const PipelineContributionPanel = dynamic(() => import(
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
+  initialReturnContextKey?: string | null;
   initialTool?: 'locations' | null;
   storageConnections?: ReactNode;
 }
@@ -261,10 +262,16 @@ const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pi
   return actions;
 };
 
-export function UnifiedAccountLibrary({ persistenceScope, experience, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
+export function UnifiedAccountLibrary({ persistenceScope, experience, initialReturnContextKey = null, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
   const isSignedIn = experience.signedIn;
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
+  const {
+    setKind: setLibraryKind,
+    setQuery: setLibraryQuery,
+    setSort: setLibrarySort,
+    setSource: setLibrarySource,
+  } = projection;
   const { toast } = useToast();
   const [scope, setScope] = useState<LibraryScope>('personal');
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
@@ -284,6 +291,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
   const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const returnContextRestoredRef = useRef(false);
   const displayCards = useProjectStore(selectAllGeneratedDisplayCards);
   const templates = useProjectStore(selectAllTemplates);
   const cardSets = useProjectStore((state) => state.cardSets);
@@ -414,6 +422,59 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     ? { kind: 'ready' as const, label: 'Workspace' }
     : getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
 
+  const createLibraryStudioReturnTo = () => {
+    const returnContext = storeSurfaceReturnContext({
+      kind: 'library',
+      scope: activeScope,
+      objectId: selection.objectId,
+      query: projection.query,
+      source: projection.source,
+      itemKind: projection.kind,
+      sort: projection.sort,
+      density,
+      sharedType,
+      scrollTop: surfaceRef.current?.scrollTop ?? 0,
+    });
+    return createLibraryReturnHref(activeScope, returnContext);
+  };
+
+  useEffect(() => {
+    if (!initialReturnContextKey || returnContextRestoredRef.current || activeLoading) return;
+    const context = readSurfaceReturnContext(initialReturnContextKey);
+    if (!context || context.kind !== 'library') {
+      returnContextRestoredRef.current = true;
+      return;
+    }
+    returnContextRestoredRef.current = true;
+    const restoredScope = resolveLibraryScopeForViewer(context.scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
+    setScope(restoredScope);
+    setDensity(context.density);
+    setSharedType(context.sharedType);
+    setLibraryQuery(context.query);
+    setLibrarySource(context.source);
+    setLibraryKind(context.itemKind);
+    setLibrarySort(context.sort);
+    if (context.objectId && itemMap.has(context.objectId)) {
+      setSelection((current) => openEnvironmentDetail({ ...current, listOffset: context.scrollTop }, {
+        objectId: context.objectId,
+        listOffset: context.scrollTop,
+        focusReturnId: `library-object-${context.objectId}`,
+      }));
+    }
+    requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
+  }, [
+    activeLoading,
+    campaignAccess,
+    experience.owner,
+    initialReturnContextKey,
+    itemMap,
+    pipelineAccess,
+    setLibraryKind,
+    setLibraryQuery,
+    setLibrarySort,
+    setLibrarySource,
+  ]);
+
   const chooseScope = (nextScope: LibraryScope) => {
     setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setActiveTool(null);
     projection.router.replace(`/account?section=library&scope=${nextScope}`);
@@ -504,7 +565,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
   const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
-    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryReturnHref(activeScope));
+    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryStudioReturnTo());
     else if (actionId === 'library.save-move') setLocationItem(item);
     else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
       const duplicateId = item.references.localSetId
@@ -533,7 +594,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     }
     const template = item.published.template;
     if (!template) {
-      projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
+      projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
       return;
     }
     const store = useProjectStore.getState();
@@ -550,7 +611,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     if (actionId === 'library.copy-published-template') {
       toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
     }
-    projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
+    projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
   };
 
   const runAction = (action: ActionDescriptor) => {
@@ -566,7 +627,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       store.setTemplateEditorSelectedTemplateId(templateId);
       store.setStudioView('template');
       toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
-      projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
+      projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
     }
     else if (action.id === 'library.refresh') refresh();
   };
@@ -642,7 +703,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
           </> : <Select value={sharedType} onValueChange={setSharedType}><SelectTrigger aria-label={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect}><span>{sharedType === 'all' ? activeScope === 'pipeline' ? 'All work' : 'All types' : sharedType}</span></SelectTrigger><SelectContent><SelectItem value="all">{activeScope === 'pipeline' ? 'All work' : 'All types'}</SelectItem>{sharedTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>}
           <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
           <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
-          {pipelineAccess && (activeScope === 'pipeline' || activeScope === 'published') ? <button id="library-contribute-trigger" type="button" className={styles.locationsButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
+          {pipelineAccess && (activeScope === 'pipeline' || activeScope === 'published') ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
         </div>
         {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? refresh : undefined} /> : null}
         {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
@@ -689,8 +750,31 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
         </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
         </>}
       </section>
-      {activeTool === 'locations' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-locations-title"><button type="button" className={styles.toolScrim} aria-label="Close locations and connections" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-locations-title">Locations &amp; connections</h2><span>Inspect one owner at a time. Changes affect only the named location.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close locations and connections"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />{storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}</div></section></div> : null}
-      {activeTool === 'contribute' ? <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby="library-contribute-title"><button type="button" className={styles.toolScrim} aria-label="Close contribution tool" onClick={() => runAction(actions[0]!)} /><section className={styles.toolPanel}><header><div><p>Library tool</p><h2 id="library-contribute-title">Submit &amp; revise Pipeline work</h2><span>Use the same Library objects, exact revisions, voting rules, and publication lifecycle.</span></div><button type="button" onClick={() => runAction(actions[0]!)} aria-label="Close contribution tool"><X aria-hidden="true" /></button></header><div className={styles.toolContent}><PipelineContributionPanel compact initialSubmissionId={contributionTarget.submissionId} initialSubmitSetId={contributionTarget.setId} /></div></section></div> : null}
+      {activeTool === 'locations' ? (
+        <EnvironmentToolLayer
+          id="library-locations-title"
+          eyebrow="Library tool"
+          title="Locations & connections"
+          summary="Inspect one owner at a time. Changes affect only the named location."
+          closeLabel="Close locations and connections"
+          onClose={() => runAction(actions[0]!)}
+        >
+          <DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />
+          {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+        </EnvironmentToolLayer>
+      ) : null}
+      {activeTool === 'contribute' ? (
+        <EnvironmentToolLayer
+          id="library-contribute-title"
+          eyebrow="Library tool"
+          title="Submit & revise Pipeline work"
+          summary="Use the same Library objects, exact revisions, voting rules, and publication lifecycle."
+          closeLabel="Close contribution tool"
+          onClose={() => runAction(actions[0]!)}
+        >
+          <PipelineContributionPanel compact initialSubmissionId={contributionTarget.submissionId} initialSubmitSetId={contributionTarget.setId} />
+        </EnvironmentToolLayer>
+      ) : null}
     </div>
   </EnvironmentShell>
   <WorkLocationDialog

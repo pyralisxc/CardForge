@@ -155,6 +155,7 @@ CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 
 - Studio receives the active Set/object context from Desk, Library, public creation entry points, or agent handoff instead of presenting another Set browser;
 - Design and Generate remain the two focused authoring modes and preserve the active Set when switching;
+- Generate progressively separates Template/back setup from card-data entry and validation, then returns the new card selection to its originating Desk context;
 - Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
 - one compact workbench bar provides return to Desk, active identity, Design/Generate mode, Save, Output, Pipeline, Library, and account access;
 - legacy tab navigation, tab IDs, Set Library component, duplicate Studio Set Desk, and duplicate inline output surface are removed;
@@ -172,7 +173,7 @@ Studio opens for one active object/tool context:
 - advanced Output is contextual and already knows object/group/Set scope;
 - Save names the current durable destination;
 - Library/source selection opens around the work;
-- returning to Desk or Library restores the originating selection and arrangement;
+- returning to Desk or Library restores the originating selection, filters, arrangement, inspector, and scroll context;
 - Set switching and spatial organization stay on Desk;
 - full editing power follows the focused object rather than turning every Desk object into a live editor.
 
