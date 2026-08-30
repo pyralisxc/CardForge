@@ -67,6 +67,7 @@ import {
   type EnvironmentViewer,
   type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
+import { createDeskReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -123,6 +124,7 @@ export interface HomeAccountStatus {
 export interface HomeDeskProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
+  initialFocusedWorkId?: string | null;
   homeAccessStatus?: HomeAccountStatus;
   homeSecurityStatus?: HomeAccountStatus;
 }
@@ -153,6 +155,7 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
 export function HomeDesk({
   persistenceScope,
   experience,
+  initialFocusedWorkId,
   homeAccessStatus,
   homeSecurityStatus,
 }: HomeDeskProps) {
@@ -169,7 +172,7 @@ export function HomeDesk({
   const [sort, setSort] = useState<HomeSort>('desk');
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
-  const [focusedWorkId, setFocusedWorkId] = useState<string | null>(null);
+  const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
@@ -459,24 +462,22 @@ export function HomeDesk({
 
   const actions: ActionDescriptor[] = inspectorItem
     ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
-    : focusedItem
-      ? [zoneAction('home.open-work', 'Edit in Studio')]
-      : [zoneAction('home.create-work', 'New Set', 'mutation')];
+    : focusedItem ? [] : [zoneAction('home.create-work', 'New Set', 'mutation')];
   const detail = inspectorItem ? workDetailRecord(inspectorItem) : null;
 
   const runAction = (action: ActionDescriptor) => {
     const item = inspectorItem ?? focusedItem;
     if (action.id === 'home.create-work') openCreateMenu();
-    else if (action.id === 'home.open-work' && item) void projection.openItem(item);
+    else if (action.id === 'home.open-work' && item) void projection.openItem(item, createDeskReturnHref(item.id));
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
     else if (action.id === 'home.generate-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
       setStudioView('generate');
-      projection.router.push('/studio');
+      projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(item.id) }));
     } else if (action.id === 'home.export-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
       setStudioView('generate');
-      projection.router.push('/studio?tool=output');
+      projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(item.id), tool: 'output' }));
     } else if (action.id === 'home.save-move-work' && item) setLocationItem(item);
     else if (action.id === 'home.send-pipeline' && item?.references.localSetId) projection.router.push(`/account?section=library&scope=pipeline&tool=contribute&submitSet=${encodeURIComponent(item.references.localSetId)}`);
     else if (action.id === 'home.rename-work' && inspectorItem?.references.localSetId) {
@@ -490,13 +491,16 @@ export function HomeDesk({
 
   const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => {
     if (!item.references.localSetId) {
-      if (lane === 'open') void projection.openItem(item);
+      if (lane === 'open') void projection.openItem(item, createDeskReturnHref(item.id));
       else setLocationItem(item);
       return;
     }
     setActiveCardSetId(item.references.localSetId);
     setStudioView('generate');
-    projection.router.push(lane === 'export' ? '/studio?tool=output' : '/studio');
+    projection.router.push(createStudioHref({
+      returnTo: createDeskReturnHref(item.id),
+      tool: lane === 'export' ? 'output' : null,
+    }));
   };
 
   const moveSelectedCards = () => {
@@ -513,7 +517,7 @@ export function HomeDesk({
     setActiveCardSetId(focusedLocalSetId);
     setStudioView('generate');
     openEditDialog(selectedCard.uniqueId);
-    projection.router.push('/studio');
+    projection.router.push(createStudioHref({ returnTo: createDeskReturnHref(`set:${focusedLocalSetId}`) }));
   };
 
   const duplicateSelectedCards = () => {
@@ -570,8 +574,8 @@ export function HomeDesk({
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
           {focusedItem ? (
             <div className={styles.focusSurface} data-home-desk="focused">
-              <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }}>
-                <ArrowLeft size={16} aria-hidden="true" /> Pull back
+              <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); projection.router.replace('/account'); }}>
+                <ArrowLeft size={16} aria-hidden="true" /> Back to Desk
               </button>
               <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
                 {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
@@ -659,10 +663,10 @@ export function HomeDesk({
                           {card.tagIds?.length ? <small>{card.tagIds.map((id) => organization.tags.find((tag) => tag.id === id)?.label).filter(Boolean).join(' · ')}</small> : null}
                         </button>;
                       })}</div>
-                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Open Studio and the new card will return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem)}>Add cards in Studio</Button> : null}</div></div>}
+                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Cards you create in Studio return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskReturnHref(focusedItem.id))}>Add first cards</Button> : null}</div></div>}
                   </div>
                   {sortedCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 cards in each group. Narrow the view or open Studio for the complete production view.</p> : null}
-                </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem)}>Open in Studio</Button></div></div>}
+                </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskReturnHref(focusedItem.id))}>Open in Studio</Button></div></div>}
               </section>
             </div>
           ) : (

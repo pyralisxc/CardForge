@@ -38,7 +38,8 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('<CardPreview');
     expect(homeDesk).toContain('<AuthoredObjectPreview');
     expect(homeDesk).toContain('Inside this Set');
-    expect(homeDesk).toContain('Pull back');
+    expect(homeDesk).toContain('Back to Desk');
+    expect(homeDesk).toContain("projection.router.replace('/account')");
     expect(libraryProjection).toContain('isUntouchedBootstrapCardSet');
     expect(homeModel).not.toContain('isUntouchedBootstrapWork');
   });
@@ -103,6 +104,15 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('setFocusedWorkId(`set:${id}`);');
     expect(homeDesk).toContain('setRenaming(true);');
     expect(focusEffect).not.toContain('setRenaming(false)');
+  });
+
+  it('restores the focused Set after Studio closes', () => {
+    expect(accountPage).toContain('initialFocusedWorkId={initialFocusedWorkId}');
+    expect(accountPage).toContain("key={initialFocusedWorkId ? `home-desk:${initialFocusedWorkId}` : 'home-desk'}");
+    expect(homeDesk).toContain('initialFocusedWorkId?: string | null;');
+    expect(homeDesk).toContain('useState<string | null>(initialFocusedWorkId ?? null)');
+    expect(homeDesk).toContain('createDeskReturnHref(item.id)');
+    expect(homeDesk).toContain('createStudioHref({');
   });
 
   it('starts fresh or published work through one canonical Set-copy boundary', () => {

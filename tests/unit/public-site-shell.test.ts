@@ -46,6 +46,7 @@ describe('public site shell source contract', () => {
 
     expect(navigationSource).toContain('export const PUBLIC_NAVIGATION');
     expect(navigationSource).toContain('footerGroups');
+    expect(navigationSource).toContain("account: { href: '/account', label: 'Desk' }");
     expect(navigationSource).toContain('footerGroups\n  .flatMap<PublicNavigationLink>');
     expect(headerSource).toContain("from '../model/publicNavigation'");
     expect(footerSource).toContain("from '../model/publicNavigation'");
@@ -71,10 +72,11 @@ describe('public site shell source contract', () => {
     expect(footerSource).toContain('aria-label="Footer links"');
   });
 
-  it('uses an accessible non-wrapping mobile dialog menu without owning account state', () => {
+  it('uses an accessible non-wrapping mobile sheet menu without owning account state', () => {
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
 
-    expect(headerSource).toContain('Dialog');
+    expect(headerSource).toContain('Sheet');
+    expect(headerSource).toContain('<SheetContent');
     expect(headerSource).toContain('aria-expanded={mobileMenuOpen}');
     expect(headerSource).toContain('aria-label="Open menu"');
     expect(headerSource).toContain('min-h-11');
@@ -87,18 +89,20 @@ describe('public site shell source contract', () => {
     expect(headerSource).toContain("siteContent['shell.mobile.developer.body']");
     expect(headerSource).toContain('PUBLIC_NAVIGATION.founder.href');
     expect(headerSource).toContain('Follow {businessIdentity.brandName}');
+    expect(headerSource).toContain("const primaryCtaHref = '/account'");
+    expect(headerSource).toContain("const primaryCtaLabel = 'Open Desk'");
   });
 
   it('opts the portaled mobile menu into canonical public aliases and reduced motion', () => {
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
-    const dialogSource = readSource('src/components/ui/dialog.tsx');
+    const sheetSource = readSource('src/components/ui/sheet.tsx');
     const globalStyles = readSource('src/app/globals.css');
     const presentationStyles = readSource('src/app/cardforgePresentation.css');
 
     expect(headerSource).toContain('className="cardforge-public-tokens cardforge-public-mobile-menu');
     expect(headerSource).toContain('overlayClassName="cardforge-public-tokens"');
-    expect(dialogSource).toContain('overlayClassName?: string;');
-    expect(dialogSource).toContain('<DialogOverlay className={overlayClassName} />');
+    expect(sheetSource).toContain('overlayClassName?: string;');
+    expect(sheetSource).toContain('<SheetOverlay className={overlayClassName} />');
     expect(presentationStyles).toContain('.cardforge-public,\n.cardforge-public-tokens {');
     expect(globalStyles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.cardforge-public-tokens,[\s\S]*\.cardforge-public-tokens \*/);
   });

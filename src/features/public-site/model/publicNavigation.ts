@@ -15,7 +15,7 @@ const NAVIGATION_LINKS = {
   plans: { href: '/plans', label: 'Plans' },
   roadmap: { href: '/roadmap', label: 'Roadmap' },
   contributor: { href: '/contributors', label: 'Contributors' },
-  account: { href: '/account', label: 'Account' },
+  account: { href: '/account', label: 'Desk' },
   founder: { href: '/cameron', label: 'Meet Cameron' },
 } as const satisfies Record<string, PublicNavigationLink>;
 

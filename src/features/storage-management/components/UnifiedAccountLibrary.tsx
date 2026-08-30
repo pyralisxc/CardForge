@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
-  Copy, ExternalLink, Heart, LayoutList, Loader2, MapPin, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
+  Copy, ExternalLink, Heart, LayoutList, Loader2, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
   ThumbsUp, Trash2, UploadCloud, X, type LucideIcon,
 } from 'lucide-react';
 
@@ -27,6 +27,7 @@ import {
   type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
   type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
+import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { getPipelineStatusLabel } from '@/features/pipeline/client';
 import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
@@ -503,7 +504,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
   const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
-    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item);
+    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryReturnHref(activeScope));
     else if (actionId === 'library.save-move') setLocationItem(item);
     else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
       const duplicateId = item.references.localSetId
@@ -524,7 +525,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
         const result = await createPublishedSetCopy({ packageUrl: item.published.packageUrl, expectedName: item.name });
         toast({ title: 'Set created', description: `${result.setName} is now independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
         projection.refresh();
-        projection.router.push('/account');
+        projection.router.push(createDeskReturnHref(`set:${result.setId}`));
       } catch (error) {
         toast({ title: 'Set was not created', description: error instanceof Error ? error.message : 'The published Set package is unavailable.', variant: 'destructive' });
       }
@@ -532,7 +533,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     }
     const template = item.published.template;
     if (!template) {
-      projection.router.push('/studio');
+      projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
       return;
     }
     const store = useProjectStore.getState();
@@ -549,7 +550,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     if (actionId === 'library.copy-published-template') {
       toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
     }
-    projection.router.push('/studio');
+    projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
   };
 
   const runAction = (action: ActionDescriptor) => {
@@ -565,7 +566,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
       store.setTemplateEditorSelectedTemplateId(templateId);
       store.setStudioView('template');
       toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
-      projection.router.push('/studio');
+      projection.router.push(createStudioHref({ returnTo: createLibraryReturnHref(activeScope) }));
     }
     else if (action.id === 'library.refresh') refresh();
   };
@@ -617,14 +618,14 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialToo
     /> : undefined}
     actions={actions} accountControl={<PublicAuthControls />} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
     statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
-    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <button id="library-locations-trigger" type="button" onClick={() => { setActiveTool('locations'); projection.router.replace('/account?section=storage'); }}><MapPin size={14} aria-hidden="true" /> Locations &amp; connections</button>}
+    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)} onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
     <div className={styles.library} data-density={density} data-tool-open={Boolean(activeTool)}>
       <header className={styles.libraryHeader}>
         <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
-        <button type="button" className={styles.locationsButton} onClick={() => { setActiveTool('locations'); closeDetail(); projection.router.replace('/account?section=storage'); }}><HardDrive size={16} aria-hidden="true" />Locations</button>
+        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={() => { setActiveTool('locations'); closeDetail(); projection.router.replace('/account?section=storage'); }}><HardDrive size={16} aria-hidden="true" />Locations</button>
       </header>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}

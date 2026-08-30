@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app-shell/lib/studioPresentation';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +15,7 @@ import {
   GenerationWorkspace,
 } from '@/features/app-shell/components/StudioLazyWorkspaces';
 import { StudioCommandBar } from '@/features/app-shell/components/StudioCommandBar';
+import { resolveStudioReturnTarget } from '@/features/app-shell/lib/studioNavigation';
 import { StudioContextTools, type StudioContextTool } from '@/features/app-shell/components/StudioContextTools';
 import { GeneratorBackWorkflowBanner } from '@/features/app-shell/components/GeneratorBackWorkflowBanner';
 import { StudioConfirmationDialogs } from '@/features/app-shell/components/StudioConfirmationDialogs';
@@ -48,6 +50,7 @@ export function CardForgeStudioShell({
   businessIdentity: StudioBusinessIdentity;
   initialContributorAccess: ContributorAccessSessionState;
 }) {
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const contributorAccess = useContributorAccess({
@@ -135,6 +138,11 @@ export function CardForgeStudioShell({
       userTemplatesFromStore,
     },
   } = useCardForgeWorkspaceState();
+  const returnTarget = resolveStudioReturnTarget({
+    activeSetId: activeCardSet.id,
+    activeSetName: activeCardSet.name,
+    requestedReturnTo: searchParams.get('returnTo'),
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
@@ -407,6 +415,7 @@ export function CardForgeStudioShell({
       <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
         <StudioCommandBar
           activeSetName={activeCardSet.name}
+          returnTarget={returnTarget}
           studioView={studioView}
           cardCount={generatedDisplayCards.length}
           canSubmitToPipeline={canSubmitTemplateRevisions}

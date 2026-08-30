@@ -53,7 +53,7 @@ const DEFAULT_NAVIGATION_LABELS: Record<PrimaryNavigationId, string> = {
   about: 'How it works',
   plans: 'Plans',
   roadmap: 'Roadmap',
-  account: 'Account',
+  account: 'Desk',
 };
 
 const defaultHomepageSection = (id: HomepageSectionId): HomepageSectionSetting => ({

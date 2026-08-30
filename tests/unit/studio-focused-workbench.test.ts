@@ -19,7 +19,10 @@ describe('Studio focused workbench architecture', () => {
     expect(normalizeStudioView('unknown')).toBe('generate');
     expect(shell).not.toContain('data-studio-set-desk');
     expect(shell).not.toContain('StudioSetDesk');
-    expect(commands).toContain('Return to Desk');
+    expect(shell).toContain('useSearchParams()');
+    expect(shell).toContain("searchParams.get('returnTo')");
+    expect(commands).toContain('returnTarget.ariaLabel');
+    expect(commands).toContain('returnTarget.href');
     expect(commands).toContain('Studio tools');
     expect(commands).toContain('aria-label="Design"');
     expect(commands).toContain('aria-label="Generate"');

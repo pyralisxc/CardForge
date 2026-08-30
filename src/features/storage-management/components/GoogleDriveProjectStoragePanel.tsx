@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createStudioHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -258,7 +259,7 @@ export function GoogleDriveProjectStoragePanel({
                     onOpen={() => void run(`open:${project.fileId}`, async () => {
                       const opened = await openGoogleDriveProject(project);
                       toast({ title: 'Google Drive project opened', description: `Loaded “${opened.name}” into this browser workspace.` });
-                      router.push('/studio');
+                      router.push(createStudioHref({ returnTo: '/account?section=storage' }));
                     })}
                     onDelete={() => void run(`delete:${project.fileId}`, async () => {
                       await deleteGoogleDriveProjectFromLibrary(project);

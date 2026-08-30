@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
+import { createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import type { CardAssetOption } from '@/domain/templates';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import {
@@ -326,29 +327,29 @@ export function useAccountLibraryProjection({
 
   const home = useMemo(() => resolveAccountHomeLibraryProjection(items, activeSetId), [activeSetId, items]);
 
-  const openItem = useCallback(async (item: AccountLibraryItem) => {
+  const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) => {
     setBusyItemId(item.id);
     try {
       if (item.references.workingDraftId) {
-        router.push(`/studio?document=${encodeURIComponent(item.references.workingDraftId)}&revision=${encodeURIComponent(item.revision ?? '')}`);
+        router.push(createStudioHref({ documentId: item.references.workingDraftId, revision: item.revision, returnTo }));
         return;
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
         useProjectStore.getState().setStudioView('generate');
-        router.push('/studio');
+        router.push(createStudioHref({ returnTo }));
         return;
       }
       if (item.references.localTemplateId) {
         const store = useProjectStore.getState();
         store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
         store.setStudioView('template');
-        router.push('/studio');
+        router.push(createStudioHref({ returnTo }));
         return;
       }
       if (item.references.driveFileId) {
         await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
-        router.push('/studio');
+        router.push(createStudioHref({ returnTo }));
       }
     } catch (error) {
       toast({

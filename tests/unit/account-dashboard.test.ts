@@ -40,6 +40,9 @@ describe('unified account environment', () => {
     expect(environmentNavigation).toContain('zone.label');
     expect(environmentNavigation).toContain('zone.shortLabel');
     expect(environmentNavigation).toContain('styles.mobileNav');
+    expect(environmentNavigation).toContain('protectedZones.length === 1');
+    expect(environmentNavigation).toContain('zone={protectedZones[0]!}');
+    expect(environmentNavigation).toContain('aria-label="Open the CardForge public site"');
     expect(homeBoundary).not.toContain('AccountMobileNavigation');
     expect(profileEnvironment).not.toContain('AccountUtilityPanel');
   });
@@ -138,7 +141,7 @@ describe('unified account environment', () => {
 
   it('uses native Next navigation when opening Library work', () => {
     expect(accountLibraryProjection).toContain("import { useRouter } from 'next/navigation';");
-    expect(accountLibraryProjection).toContain("router.push('/studio')");
+    expect(accountLibraryProjection).toContain('router.push(createStudioHref({ returnTo }))');
     expect(accountLibraryProjection).not.toContain("window.location.assign('/studio')");
   });
 });

@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 
 import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
+import { createStudioHref, normalizeStudioReturnTo } from '@/features/app-shell/client/navigation';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
@@ -21,9 +22,11 @@ export const metadata = createPageMetadata({
 export default async function StudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ document?: string }>;
+  searchParams: Promise<{ document?: string; returnTo?: string; revision?: string }>;
 }) {
-  const documentId = (await searchParams).document;
+  const params = await searchParams;
+  const documentId = params.document;
+  const requestedReturnTo = normalizeStudioReturnTo(params.returnTo);
   const authConfigured = isClerkServerConfigPresent();
   let accountUserId: string | null = null;
 
@@ -31,7 +34,7 @@ export default async function StudioPage({
     const { isAuthenticated, redirectToSignIn, userId } = await auth();
     if (documentId && !isAuthenticated) {
       return redirectToSignIn({
-        returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`,
+        returnBackUrl: createStudioHref({ documentId, revision: params.revision, returnTo: requestedReturnTo }),
       });
     }
     accountUserId = userId;

@@ -41,22 +41,21 @@ describe('public header authentication controls', () => {
     expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/contributors')");
   });
 
-  it('mounts the dynamic public account control only in the desktop header and avoids duplicate mobile account navigation', () => {
+  it('lets the account-owned control provide Profile or sign-in state beside one Desk entry', () => {
     const headerSource = readFileSync(
       resolve(process.cwd(), 'src/features/public-site/components/PublicSiteHeader.tsx'),
       'utf8',
     );
-    const dialogStart = headerSource.indexOf('<DialogContent');
-    const dialogEnd = headerSource.indexOf('</DialogContent>');
-    const dialogSource = headerSource.slice(dialogStart, dialogEnd);
+    const sheetStart = headerSource.indexOf('<SheetContent');
+    const sheetEnd = headerSource.indexOf('</SheetContent>');
+    const sheetSource = headerSource.slice(sheetStart, sheetEnd);
 
-    expect(dialogStart).toBeGreaterThan(-1);
-    expect(dialogEnd).toBeGreaterThan(dialogStart);
+    expect(sheetStart).toBeGreaterThan(-1);
+    expect(sheetEnd).toBeGreaterThan(sheetStart);
     expect(headerSource).toContain('cardforge-public-auth-status hidden shrink-0 xl:block');
-    expect(dialogSource).not.toContain('{accountSlot}');
-    expect(headerSource).toContain("item.visible && item.href === '/account'");
-    expect(dialogSource).toContain('{!hasVisibleAccountNavigation ? (');
-    expect(dialogSource).toContain("href={accountSlot ? '/account' : '/sign-in'}");
+    expect(sheetSource).toContain('{accountSlot}');
+    expect(headerSource).toContain("item.visible && item.href !== '/account'");
+    expect(headerSource).toContain("const primaryCtaLabel = 'Open Desk'");
   });
 
   it('keeps public auth lightweight instead of reconciling contributor entitlements in the header', () => {
@@ -78,12 +77,17 @@ describe('public header authentication controls', () => {
     );
 
     expect(controlsSource).toContain('userProfileUrl="/account"');
+    expect(controlsSource).toContain('href="/account?section=profile"');
     expect(controlsSource).not.toContain('userProfileUrl="/profile"');
   });
 
   it('keeps Clerk session ownership at the root and provides dedicated sign-in and sign-up pages', () => {
     const headerSource = readFileSync(
       resolve(process.cwd(), 'src/features/public-site/components/PublicSiteHeader.tsx'),
+      'utf8',
+    );
+    const authControlsSource = readFileSync(
+      resolve(process.cwd(), 'src/features/account/components/PublicAuthControls.tsx'),
       'utf8',
     );
     const rootLayoutSource = readFileSync(
@@ -103,7 +107,7 @@ describe('public header authentication controls', () => {
       'utf8',
     );
 
-    expect(headerSource).toContain('href="/sign-in"');
+    expect(authControlsSource).toContain("createAuthRouteHref('/sign-in', pathname)");
     expect(headerSource).not.toContain('@clerk/nextjs');
     expect(rootLayoutSource).toContain("import { ClerkProvider } from '@clerk/nextjs'");
     expect(pageProvidersSource).not.toContain('ClerkProvider');
@@ -165,7 +169,7 @@ describe('public header authentication controls', () => {
     expect(studioPageSource).toContain('if (authConfigured)');
     expect(studioPageSource).toContain('if (documentId && !isAuthenticated)');
     expect(studioPageSource).toContain('redirectToSignIn');
-    expect(studioPageSource).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
+    expect(studioPageSource).toContain('returnBackUrl: createStudioHref({ documentId, revision: params.revision, returnTo: requestedReturnTo })');
     expect(studioPageSource).toContain('accountUserId = userId');
     expect(studioPageSource).toContain('createProjectPersistenceScope({');
     expect(studioPageSource).not.toContain('if (!isAuthenticated)' + " return redirectToSignIn()" );

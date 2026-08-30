@@ -96,11 +96,12 @@ describe('consolidated public routes and account navigation', () => {
     expect(studioPage).toContain('initialContributorAccess={initialContributorAccess}');
   });
 
-  it('keeps Clerk controls out of the mobile modal and names identity management separately', () => {
+  it('keeps Clerk ownership separate while exposing account state inside mobile navigation', () => {
     const header = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     expect(header).toContain('cardforge-public-auth-status hidden shrink-0 xl:block');
-    expect(header).toContain("href={accountSlot ? '/account' : '/sign-in'}");
-    expect(header).not.toContain('cardforge-public-auth-status border-t');
+    expect(header).toContain("const primaryCtaHref = '/account'");
+    expect(header).toContain('{accountSlot ? <div className="border-t border-[var(--public-border)] pt-5">{accountSlot}</div> : null}');
+    expect(header).not.toContain('@clerk/nextjs');
 
     const authControls = readSource('src/features/account/components/PublicAuthControls.tsx');
     expect(authControls).toContain('if (!isClerkPublicConfigPresent()) return null;');

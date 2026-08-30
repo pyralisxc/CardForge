@@ -3,16 +3,16 @@
 import { type ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, LogIn, Menu } from 'lucide-react';
+import { ArrowRight, Menu } from 'lucide-react';
 
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
@@ -43,9 +43,11 @@ export function PublicSiteHeader({
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const hasVisibleAccountNavigation = siteConfiguration.primaryNavigation.some(
-    (item) => item.visible && item.href === '/account',
-  );
+  const visibleNavigation = siteConfiguration.primaryNavigation.filter((item) => (
+    item.visible && item.href !== '/account'
+  ));
+  const primaryCtaHref = '/account';
+  const primaryCtaLabel = 'Open Desk';
 
   return (
     <header className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] text-[var(--public-ivory)]">
@@ -71,7 +73,7 @@ export function PublicSiteHeader({
         </Link>
 
         <nav aria-label="Primary navigation" className="ml-auto hidden items-center gap-5 xl:flex">
-          {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
+          {visibleNavigation.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -89,23 +91,13 @@ export function PublicSiteHeader({
         </div>
 
         <Link
-          href={siteConfiguration.primaryCtaHref}
+          href={primaryCtaHref}
           prefetch={false}
           className="ml-auto hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)] shadow-[var(--public-shadow)] transition-colors hover:bg-[#e4bd68] xl:inline-flex"
         >
-          {siteConfiguration.primaryCtaLabel}
+          {primaryCtaLabel}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
-
-        {!accountSlot ? (
-          <Link
-            href="/sign-in"
-            prefetch={false}
-            className="hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-4 text-base font-bold text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)] xl:inline-flex"
-          >
-            <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
-          </Link>
-        ) : null}
 
         {accountSlot ? (
           <div className="cardforge-public-auth-status hidden shrink-0 xl:block">
@@ -113,8 +105,8 @@ export function PublicSiteHeader({
           </div>
         ) : null}
 
-        <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <DialogTrigger asChild>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
             <button
               type="button"
               aria-label="Open menu"
@@ -124,23 +116,24 @@ export function PublicSiteHeader({
             >
               <Menu className="h-6 w-6" aria-hidden="true" />
             </button>
-          </DialogTrigger>
-          <DialogContent
+          </SheetTrigger>
+          <SheetContent
+            side="right"
             id="public-mobile-navigation"
             overlayClassName="cardforge-public-tokens"
-            className="cardforge-public-tokens cardforge-public-mobile-menu cardforge-mobile-scroll-surface left-auto right-0 top-0 h-dvh max-w-sm translate-x-0 translate-y-0 content-start gap-6 overflow-y-auto rounded-none border-y-0 border-l border-r-0 border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
+            className="cardforge-public-tokens cardforge-public-mobile-menu cardforge-mobile-scroll-surface grid h-dvh w-[90vw] max-w-sm content-start gap-6 overflow-y-auto border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
           >
             <div className="pr-12">
-              <DialogTitle className="font-[var(--public-font-display)] text-2xl text-[var(--public-ivory)]">
+              <SheetTitle className="font-[var(--public-font-display)] text-2xl text-[var(--public-ivory)]">
                 Navigation
-              </DialogTitle>
-              <DialogDescription className="mt-2 text-base text-[var(--public-muted-text)]">
+              </SheetTitle>
+              <SheetDescription className="mt-2 text-base text-[var(--public-muted-text)]">
                 {siteContent['shell.mobile.description']}
-              </DialogDescription>
+              </SheetDescription>
             </div>
             <nav aria-label="Mobile navigation" className="grid content-start gap-1">
-              {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
-                <DialogClose key={item.href} asChild>
+              {visibleNavigation.map((item) => (
+                <SheetClose key={item.href} asChild>
                   <Link
                     href={item.href}
                     prefetch={false}
@@ -149,30 +142,20 @@ export function PublicSiteHeader({
                   >
                     {item.label}
                   </Link>
-                </DialogClose>
+                </SheetClose>
               ))}
-              {!hasVisibleAccountNavigation ? (
-                <DialogClose asChild>
-                  <Link
-                    href={accountSlot ? '/account' : '/sign-in'}
-                    prefetch={false}
-                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
-                  >
-                    <LogIn className="h-4 w-4" aria-hidden="true" /> {accountSlot ? 'Account' : 'Sign in'}
-                  </Link>
-                </DialogClose>
-              ) : null}
-              <DialogClose asChild>
+              <SheetClose asChild>
                 <Link
-                  href={siteConfiguration.primaryCtaHref}
+                  href={primaryCtaHref}
                   prefetch={false}
                   className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)]"
                 >
-                  {siteConfiguration.primaryCtaLabel}
+                  {primaryCtaLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
-              </DialogClose>
+              </SheetClose>
             </nav>
+            {accountSlot ? <div className="border-t border-[var(--public-border)] pt-5">{accountSlot}</div> : null}
             <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-developer-heading">
               <h2 id="mobile-developer-heading" className="text-base font-semibold text-[var(--public-ivory)]">
                 {siteContent['shell.mobile.developer.heading']}
@@ -180,7 +163,7 @@ export function PublicSiteHeader({
               <p className="mt-2 text-sm leading-6 text-[var(--public-muted-text)]">
                 {siteContent['shell.mobile.developer.body']}
               </p>
-              <DialogClose asChild>
+              <SheetClose asChild>
                 <Link
                   href={PUBLIC_NAVIGATION.founder.href}
                   prefetch={false}
@@ -188,14 +171,14 @@ export function PublicSiteHeader({
                 >
                   {PUBLIC_NAVIGATION.founder.label}
                 </Link>
-              </DialogClose>
+              </SheetClose>
             </section>
             <div className="border-t border-[var(--public-border)] pt-5">
               <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow {businessIdentity.brandName}</p>
               <FounderSocialLinks profile={founderProfile} brandName={businessIdentity.brandName} />
             </div>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );

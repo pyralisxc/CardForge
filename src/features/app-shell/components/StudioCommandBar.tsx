@@ -5,10 +5,12 @@ import { ArrowLeft, FileOutput, LibraryBig, Pencil, Save, UploadCloud, WandSpark
 
 import { Button } from '@/components/ui/button';
 import { AccountControls } from '@/features/account/client/auth';
+import type { StudioReturnTarget } from '@/features/app-shell/lib/studioNavigation';
 import type { BrowserStorageSaveStatus, StudioView } from '@/features/project/client';
 
 export function StudioCommandBar({
   activeSetName,
+  returnTarget,
   studioView,
   cardCount,
   canSubmitToPipeline,
@@ -25,6 +27,7 @@ export function StudioCommandBar({
   onOpenPipeline,
 }: {
   activeSetName: string;
+  returnTarget: StudioReturnTarget;
   studioView: StudioView;
   cardCount: number;
   canSubmitToPipeline: boolean;
@@ -49,8 +52,8 @@ export function StudioCommandBar({
   return (
     <header className="cardforge-studio-workspace-nav shrink-0 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] no-print">
       <div className="grid min-h-14 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-2 py-1.5 sm:flex sm:gap-2 sm:px-3 lg:px-5">
-        <Link href="/account" prefetch={false} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 border-r border-[var(--cf-border-subtle)] pr-2 text-sm font-semibold text-[var(--cf-text-muted)] hover:text-[var(--cf-text-strong)] sm:pr-3" aria-label="Return to Desk">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Desk</span>
+        <Link href={returnTarget.href} prefetch={false} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 border-r border-[var(--cf-border-subtle)] pr-2 text-sm font-semibold text-[var(--cf-text-muted)] hover:text-[var(--cf-text-strong)] sm:pr-3" aria-label={returnTarget.ariaLabel}>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{returnTarget.label}</span>
         </Link>
         <div className="min-w-0 max-w-52 truncate px-1 sm:min-w-36 sm:shrink sm:px-2">
           <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Studio</span>

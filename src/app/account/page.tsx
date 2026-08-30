@@ -44,9 +44,12 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; intent?: string; storage?: string; message?: string; section?: string; utility?: string }>;
+  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; section?: string; utility?: string }>;
 }) {
   const params = await searchParams;
+  const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
+    ? params.focus
+    : null;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
     ? params.intent
     : null;
@@ -179,9 +182,10 @@ export default async function AccountPage({
         />
       ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
           <HomeDesk
-            key="home-desk"
+            key={initialFocusedWorkId ? `home-desk:${initialFocusedWorkId}` : 'home-desk'}
             persistenceScope={persistenceScope}
             experience={experience}
+            initialFocusedWorkId={initialFocusedWorkId}
             homeAccessStatus={homeAccessStatus}
             homeSecurityStatus={homeSecurityStatus}
           />

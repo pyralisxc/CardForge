@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
 
 import {
@@ -26,6 +27,29 @@ interface EnvironmentNavigationProps {
   onChooseZone: (zone: ZoneDefinition) => void;
 }
 
+function MobileZoneButton({
+  zone,
+  activeZone,
+  onChooseZone,
+}: {
+  zone: ZoneDefinition;
+  activeZone: ZoneId;
+  onChooseZone: (zone: ZoneDefinition) => void;
+}) {
+  const Icon = ZONE_ICONS[zone.id];
+  return (
+    <button
+      type="button"
+      className={styles.mobileZoneButton}
+      aria-current={activeZone === zone.id ? 'page' : undefined}
+      onClick={() => onChooseZone(zone)}
+    >
+      <Icon size={19} aria-hidden="true" />
+      <span>{zone.shortLabel}</span>
+    </button>
+  );
+}
+
 export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }: EnvironmentNavigationProps) {
   const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'member');
   const protectedZones = zones.filter((zone) => zone.minimumAccess === 'contributor' || zone.minimumAccess === 'owner');
@@ -33,7 +57,7 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
   return (
     <>
       <aside className={styles.rail} aria-label="CardForge zones">
-        <div className={styles.brand}><Image src={brand.src} alt={brand.alt} width={30} height={30} priority /></div>
+        <Link href="/" prefetch={false} className={styles.brand} aria-label="Open the CardForge public site" title="CardForge public site"><Image src={brand.src} alt="" width={30} height={30} priority /></Link>
         <nav className={styles.railNav} aria-label="Environment zones">
           {zones.map((zone, index) => {
             const Icon = ZONE_ICONS[zone.id];
@@ -52,15 +76,12 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
       </aside>
 
       <nav className={styles.mobileNav} aria-label="CardForge zones" style={{ gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}>
-        {coreZones.map((zone) => {
-          const Icon = ZONE_ICONS[zone.id];
-          return (
-            <button key={zone.id} type="button" className={styles.mobileZoneButton} aria-current={activeZone === zone.id ? 'page' : undefined} onClick={() => onChooseZone(zone)}>
-              <Icon size={19} aria-hidden="true" /><span>{zone.shortLabel}</span>
-            </button>
-          );
-        })}
-        {protectedZones.length > 0 ? (
+        {coreZones.map((zone) => (
+          <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} onChooseZone={onChooseZone} />
+        ))}
+        {protectedZones.length === 1 ? (
+          <MobileZoneButton zone={protectedZones[0]!} activeZone={activeZone} onChooseZone={onChooseZone} />
+        ) : protectedZones.length > 1 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className={styles.mobileZoneButton} aria-label="Open protected zones">
