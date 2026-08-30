@@ -10,6 +10,8 @@ describe('account storage library', () => {
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
   const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const pipelineSubmissionEditor = readSource('src/features/pipeline/components/PipelineSubmissionEditPanel.tsx');
+  const pipelineSubmissionRoute = readSource('src/app/api/pipeline/[submissionId]/route.ts');
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
   const googleDriveProjects = readSource('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
   const connectedPersonalLibrary = readSource('src/features/storage-management/components/ConnectedPersonalLibraryPanel.tsx');
@@ -79,6 +81,20 @@ describe('account storage library', () => {
     expect(storageLibrary).toContain("focus = 'overview'");
     expect(storageLibrary).toContain("focus === 'device'");
     expect(storageLibrary).toContain("focus === 'drafts'");
+  });
+
+  it('keeps contributor submission editing with the owned Pipeline object instead of the retired cockpit', () => {
+    expect(unifiedLibrary).toContain("id: 'library.edit-pipeline'");
+    expect(unifiedLibrary).toContain("item.pipeline.ownership === 'mine'");
+    expect(unifiedLibrary).toContain("setActiveTool('edit-contribution')");
+    expect(unifiedLibrary).toContain('<PipelineSubmissionEditPanel');
+    expect(pipelineSubmissionEditor).toContain("method: submitDraft ? 'POST' : 'PATCH'");
+    expect(pipelineSubmissionEditor).toContain('<EditSubmissionForm');
+    expect(pipelineSubmissionEditor).not.toContain('Voting Lane');
+    expect(pipelineSubmissionEditor).not.toContain('My Pipeline');
+    expect(pipelineSubmissionRoute).toContain('createNoStoreJsonResponse({ updated: true })');
+    expect(pipelineSubmissionRoute).toContain('createNoStoreJsonResponse({ submitted: true })');
+    expect(pipelineSubmissionRoute).not.toContain('projectPipelineProgramForViewer(program');
   });
 
   it('keeps signed-out connected-storage states actionable', () => {

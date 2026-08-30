@@ -5,7 +5,6 @@ import {
   finalizeContributorTemplatePipelineDraft,
   getCurrentPipelineRequestAccess,
   permanentlyDeletePipelineSubmission,
-  projectPipelineProgramForViewer,
   requirePipelineRequestScope,
   updatePipelineSubmissionDetails,
   updatePipelineSubmissionStatus,
@@ -42,21 +41,14 @@ export async function PATCH(
       useCaseTags?: unknown;
       requestedStudioDestination?: unknown;
     };
-    const program = await updatePipelineSubmissionDetails({
+    await updatePipelineSubmissionDetails({
       submissionId,
       contributorId: access.user.id,
       input: body,
       allowOwnerEdit: access.isOwner,
-      currentContributorIds: getContributorIds(access.user.id),
     });
     revalidateCardForgeCatalog();
-
-    return createNoStoreJsonResponse({
-      program: projectPipelineProgramForViewer(program, {
-        currentUserId: access.user.id,
-        isOwner: access.isOwner,
-      }),
-    });
+    return createNoStoreJsonResponse({ updated: true });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
@@ -95,20 +87,13 @@ export async function POST(
       useCaseTags?: unknown;
       requestedStudioDestination?: unknown;
     };
-    const program = await finalizeContributorTemplatePipelineDraft({
+    await finalizeContributorTemplatePipelineDraft({
       submissionId,
       contributorId: access.user.id,
       input: body,
-      currentContributorIds: getContributorIds(access.user.id),
-      includeRegistryRecipePayloads: access.isOwner,
     });
     revalidateCardForgeCatalog();
-    return createNoStoreJsonResponse({
-      program: projectPipelineProgramForViewer(program, {
-        currentUserId: access.user.id,
-        isOwner: access.isOwner,
-      }),
-    });
+    return createNoStoreJsonResponse({ submitted: true });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

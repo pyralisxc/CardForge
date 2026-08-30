@@ -381,7 +381,6 @@ export const updatePipelineSubmissionDetails = async ({
   contributorId,
   input,
   allowOwnerEdit = false,
-  currentContributorIds = [contributorId],
 }: {
   submissionId: string;
   contributorId: string;
@@ -395,8 +394,7 @@ export const updatePipelineSubmissionDetails = async ({
     requestedStudioDestination?: unknown;
   };
   allowOwnerEdit?: boolean;
-  currentContributorIds?: string[];
-}): Promise<PipelineProgramView> => {
+}): Promise<void> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
 
@@ -449,17 +447,12 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to edit Pipeline submission.', 500);
   }
 
-  return getPipelineProgramView(contributorId, currentContributorIds, {
-    includeRegistryRecipePayloads: allowOwnerEdit,
-  });
 };
 
 export const finalizeContributorTemplatePipelineDraft = async ({
   submissionId,
   contributorId,
   input,
-  currentContributorIds = [contributorId],
-  includeRegistryRecipePayloads = false,
 }: {
   submissionId: string;
   contributorId: string;
@@ -472,9 +465,7 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     useCaseTags?: unknown;
     requestedStudioDestination?: unknown;
   };
-  currentContributorIds?: string[];
-  includeRegistryRecipePayloads?: boolean;
-}): Promise<PipelineProgramView> => {
+}): Promise<void> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
   const { data: rows, error } = await supabase
@@ -510,7 +501,6 @@ export const finalizeContributorTemplatePipelineDraft = async ({
       requestedStudioDestination: normalized.value.requestedStudioDestination!,
     });
   });
-  return getPipelineProgramView(contributorId, currentContributorIds, { includeRegistryRecipePayloads });
 };
 
 export const updatePipelineSubmissionStatus = async ({
