@@ -314,8 +314,8 @@ describe('app store helpers', () => {
       singleCardGeneratorSelectedTemplateId: 'poker-front',
       templateEditorSelectedTemplateId: 'poker-front',
       activeCardSet: {
-        frontTemplateId: 'poker-front',
-        backingTemplateId: 'poker-back',
+        frontTemplateId: null,
+        backingTemplateId: null,
       },
     });
   });
@@ -708,6 +708,51 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().studioView).toBe('generate');
   });
 
+  it('creates a neutral Set without inheriting Generator template choices', () => {
+    useProjectStore.setState({
+      singleCardGeneratorSelectedTemplateId: 'generator-template',
+    });
+
+    const setId = useProjectStore.getState().createCardSet('Neutral Set');
+    const created = useProjectStore.getState().cardSets.find((set) => set.id === setId);
+
+    expect(created).toMatchObject({
+      name: 'Neutral Set',
+      frontTemplateId: null,
+      backingTemplateId: null,
+    });
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
+  });
+
+  it('keeps Generator template selection independent from the active Set', () => {
+    useProjectStore.setState({
+      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
+      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+    });
+
+    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId('generator-template');
+
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
+    expect(useProjectStore.getState().activeCardSet.frontTemplateId).toBeNull();
+    expect(useProjectStore.getState().cardSets[0]?.frontTemplateId).toBeNull();
+  });
+
+  it('returns to the hidden bootstrap context when the final authored Set is deleted', () => {
+    useProjectStore.setState({
+      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
+      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      storedCards: [],
+    });
+
+    expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(true);
+    expect(useProjectStore.getState().cardSets).toEqual([{
+      id: 'active-card-set',
+      name: 'Untitled Set',
+      frontTemplateId: null,
+      backingTemplateId: null,
+    }]);
+  });
+
   it('persists the selected physical PDF front/back layout option', () => {
     useProjectStore.getState().setPdfOptions({ duplexLayout: 'same-page' });
 
@@ -810,6 +855,7 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().cardSets.map((set) => set.id)).toEqual(['set-a']);
     expect(useProjectStore.getState().activeCardSet.id).toBe('set-a');
     expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).toEqual(['card-a']);
-    expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(false);
+    expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(true);
+    expect(useProjectStore.getState().cardSets[0]?.id).toBe('active-card-set');
   });
 });

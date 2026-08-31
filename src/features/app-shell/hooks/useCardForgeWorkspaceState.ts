@@ -24,6 +24,7 @@ export function useCardForgeWorkspaceState() {
   const studioView = useProjectStore((state) => state.studioView);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const singleCardGeneratorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const singleCardGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedBackingTemplateId);
   const templateEditorSelectedTemplateId = useProjectStore((state) => state.templateEditorSelectedTemplateId);
   const pdfMarginMm = useProjectStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useProjectStore((state) => state.pdfCardSpacingMm);
@@ -58,6 +59,7 @@ export function useCardForgeWorkspaceState() {
   const setActiveCardSetFrontTemplateIdAction = useProjectStore((state) => state.setActiveCardSetFrontTemplateId);
   const setActiveCardSetBackingTemplateIdAction = useProjectStore((state) => state.setActiveCardSetBackingTemplateId);
   const setSingleCardGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
+  const setSingleCardGeneratorSelectedBackingTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateIdAction = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const setPdfOptionsAction = useProjectStore((state) => state.setPdfOptions);
   const setExportModeAction = useProjectStore((state) => state.setExportMode);
@@ -107,6 +109,7 @@ export function useCardForgeWorkspaceState() {
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
+      setSingleCardGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -131,6 +134,7 @@ export function useCardForgeWorkspaceState() {
       richTextHighlightColor,
       selectedPaperSize,
       singleCardGeneratorSelectedTemplateId,
+      singleCardGeneratorSelectedBackingTemplateId,
       standardDefaultTemplates,
       storedCards,
       templateEditorSelectedTemplateId,

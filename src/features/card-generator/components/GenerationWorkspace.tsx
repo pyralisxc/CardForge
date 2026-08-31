@@ -25,6 +25,7 @@ interface GenerationWorkspaceProps {
   backFaceTemplates: TCGCardTemplate[];
   activeCardSet: CardSet;
   generatorSelectedTemplateId: string | null;
+  generatorSelectedBackingTemplateId: string | null;
   richTextHighlightColor: string;
   generatedDisplayCards: DisplayCard[];
   canExportClean: boolean;
@@ -35,7 +36,7 @@ interface GenerationWorkspaceProps {
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
   onViewGeneratedCards: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
-  onSetActiveCardSetBackingTemplateId: (templateId: string | null) => void;
+  onBackingTemplateSelectionChange: (templateId: string | null) => void;
 }
 
 export function GenerationWorkspace(props: GenerationWorkspaceProps) {
@@ -45,6 +46,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     backFaceTemplates,
     activeCardSet,
     generatorSelectedTemplateId,
+    generatorSelectedBackingTemplateId,
     richTextHighlightColor,
     canExportClean,
     generatedDisplayCards,
@@ -55,7 +57,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     onBulkCardsGenerated,
     onViewGeneratedCards,
     onTemplateSelectionChange,
-    onSetActiveCardSetBackingTemplateId,
+    onBackingTemplateSelectionChange,
   } = props;
   type GenerationStage = 'setup' | 'data';
   const [generationStage, setGenerationStage] = useState<GenerationStage>('setup');
@@ -69,10 +71,10 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     [backFaceTemplates, selectedTemplate],
   );
   const selectedBackingTemplate = useMemo(
-    () => activeCardSet.backingTemplateId
-      ? compatibleBackTemplates.find((template) => template.id === activeCardSet.backingTemplateId) || null
+    () => generatorSelectedBackingTemplateId
+      ? compatibleBackTemplates.find((template) => template.id === generatorSelectedBackingTemplateId) || null
       : null,
-    [activeCardSet.backingTemplateId, compatibleBackTemplates],
+    [compatibleBackTemplates, generatorSelectedBackingTemplateId],
   );
   const selectedFormat = selectedTemplate ? resolveTemplateCardFormat(selectedTemplate) : null;
   const deckPreviewCard = useMemo<DisplayCard | null>(() => (
@@ -180,9 +182,9 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           <div>
             <Label htmlFor="deck-backing-template">Card back</Label>
             <Select
-              value={activeCardSet.backingTemplateId || '_none_'}
+              value={generatorSelectedBackingTemplateId || '_none_'}
               onValueChange={(value) => {
-                onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value);
+                onBackingTemplateSelectionChange(value === '_none_' ? null : value);
                 trackCardForgeEvent('card_back_selected', {
                   format_id: selectedFormat?.formatId ?? 'custom',
                   has_matching_back: value !== '_none_',

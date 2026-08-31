@@ -16,7 +16,7 @@ export const normalizeStudioView = (view: unknown): StudioView => {
   if (STUDIO_VIEWS.includes(view as StudioView)) return view as StudioView;
   if (view === 'template-maker' || view === 'templates') return 'template';
   if (view === 'generator' || view === 'desk' || view === 'sets') return 'generate';
-  return 'generate';
+  return 'template';
 };
 
 export const isDraftTemplateSelection = (templateId: string | null): boolean => (

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ArrowDown,
   ArrowLeft,
@@ -47,6 +48,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -116,6 +118,9 @@ const CampaignDeskShelf = dynamic(() => import(
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client'
 ).then((module) => module.PipelineContributionPanel));
+const DeskGenerationWorkspace = dynamic(() => import(
+  '@/features/card-generator/components/GenerationWorkspace'
+).then((module) => module.GenerationWorkspace));
 
 export interface HomeAccountStatus {
   label: string;
@@ -142,7 +147,7 @@ const statusIcons: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 const DEFAULT_FOCUSED_ORGANIZATION: CardSetOrganization = {
-  arrangement: 'grid', groupBy: 'none', sort: 'manual', tags: [], positions: {},
+  arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {},
 };
 
 const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; className?: string }) => {
@@ -155,6 +160,17 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
         ? FileArchive
         : Cloud;
   return <Icon className={className} aria-hidden="true" />;
+};
+
+const runDeskTransition = (update: () => void) => {
+  const startViewTransition = (document as Document & {
+    startViewTransition?: (callback: () => void) => void;
+  }).startViewTransition;
+  if (!startViewTransition || globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    update();
+    return;
+  }
+  startViewTransition.call(document, () => flushSync(update));
 };
 
 export function HomeDesk({
@@ -197,9 +213,14 @@ export function HomeDesk({
   const [publishedSetsFailure, setPublishedSetsFailure] = useState<string | null>(null);
   const [creatingPublishedSetId, setCreatingPublishedSetId] = useState<string | null>(null);
   const [pipelineSubmitSetId, setPipelineSubmitSetId] = useState<string | null>(null);
+  const [generateSetId, setGenerateSetId] = useState<string | null>(null);
+  const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(true);
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeCardSetId = useProjectStore((state) => state.activeCardSet.id);
+  const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const storedCards = useProjectStore((state) => state.storedCards);
   const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
   const userTemplates = useProjectStore((state) => state.userTemplates);
@@ -214,6 +235,12 @@ export function HomeDesk({
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
   const openEditDialog = useProjectStore((state) => state.openEditDialog);
   const setStudioView = useProjectStore((state) => state.setStudioView);
+  const generatorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const generatorSelectedBackingTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedBackingTemplateId);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
+  const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
+  const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
   const addCardSetTag = useProjectStore((state) => state.addCardSetTag);
   const setCardsTag = useProjectStore((state) => state.setCardsTag);
@@ -229,6 +256,7 @@ export function HomeDesk({
   const templateById = useMemo(() => new Map(templates.flatMap((template) => template.id ? [[template.id, template] as const] : [])), [templates]);
   const pinKey = `${HOME_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${HOME_ORDER_KEY}:${persistenceScope}`;
+  const spatialKey = `cardforge:desk-spatial:${persistenceScope}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +273,23 @@ export function HomeDesk({
     });
     return () => { cancelled = true; };
   }, [orderKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readProjectPreference<{ showGrid?: boolean; snapToGrid?: boolean }>(spatialKey).then((value) => {
+      if (cancelled || !value) return;
+      if (typeof value.showGrid === 'boolean') setShowGrid(value.showGrid);
+      if (typeof value.snapToGrid === 'boolean') setSnapToGrid(value.snapToGrid);
+    });
+    return () => { cancelled = true; };
+  }, [spatialKey]);
+
+  const setSpatialPreference = (next: { showGrid?: boolean; snapToGrid?: boolean }) => {
+    const value = { showGrid: next.showGrid ?? showGrid, snapToGrid: next.snapToGrid ?? snapToGrid };
+    setShowGrid(value.showGrid);
+    setSnapToGrid(value.snapToGrid);
+    void writeProjectPreference(spatialKey, value);
+  };
 
   const workItems = useMemo(() => projection.items.filter((item) => (
     visibleWorkKinds.has(item.kind)
@@ -276,9 +321,13 @@ export function HomeDesk({
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
   const focusedSet = focusedLocalSetId ? cardSets.find((set) => set.id === focusedLocalSetId) ?? null : null;
+  const generationSet = generateSetId ? cardSets.find((set) => set.id === generateSetId) ?? null : null;
   const organization = focusedSet?.organization ?? DEFAULT_FOCUSED_ORGANIZATION;
   const focusedCards = focusedLocalSetId
     ? displayCards.filter((card) => card.setId === focusedLocalSetId || (!card.setId && cardSets[0]?.id === focusedLocalSetId))
+    : [];
+  const generationCards = generationSet
+    ? displayCards.filter((card) => card.setId === generationSet.id || (!card.setId && cardSets[0]?.id === generationSet.id))
     : [];
   const focusedContentsLabel = focusedLocalSetId
     ? `${focusedCards.length} card${focusedCards.length === 1 ? '' : 's'}`
@@ -286,7 +335,7 @@ export function HomeDesk({
   const normalizedCardQuery = cardQuery.trim().toLocaleLowerCase();
   const availableFields = [...new Set(focusedCards.flatMap((card) => Object.keys(card.data)
     .filter((key) => card.data[key] !== undefined && String(card.data[key]).trim())))].toSorted();
-  const visibleCards = focusedCards.filter((card, index) => (!normalizedCardQuery || [getCardTitle(card, index), card.template.name, ...Object.values(card.data), ...organization.tags.filter((tag) => card.tagIds?.includes(tag.id)).map((tag) => tag.label)]
+  const visibleCards = focusedCards.filter((card, index) => (latestGeneratedIds.length === 0 || latestGeneratedIds.includes(card.uniqueId)) && (!normalizedCardQuery || [getCardTitle(card, index), card.template.name, ...Object.values(card.data), ...organization.tags.filter((tag) => card.tagIds?.includes(tag.id)).map((tag) => tag.label)]
       .join(' ')
       .toLocaleLowerCase()
       .includes(normalizedCardQuery)) && (tagFilter === 'all' || card.tagIds?.includes(tagFilter)));
@@ -329,6 +378,7 @@ export function HomeDesk({
     setSelectedCardIds([]);
     setCardQuery('');
     setTagFilter('all');
+    setLatestGeneratedIds([]);
   }, [focusedItemId, focusedItemName]);
 
   useEffect(() => {
@@ -368,10 +418,12 @@ export function HomeDesk({
     const stage = cardStageRef.current;
     if (!stage) return;
     const bounds = stage.getBoundingClientRect();
+    const grid = 24;
+    const place = (value: number) => snapToGrid ? Math.round(value / grid) * grid : Math.round(value);
     setCardPositions(focusedLocalSetId, {
       [card.uniqueId]: {
-        x: Math.max(0, Math.min(bounds.width - 150, clientX - bounds.left - 66)),
-        y: Math.max(0, Math.min(Math.max(bounds.height, 460) - 210, clientY - bounds.top - 90)),
+        x: Math.max(0, Math.min(bounds.width - 150, place(clientX - bounds.left - 66))),
+        y: Math.max(0, Math.min(Math.max(bounds.height, 460) - 210, place(clientY - bounds.top - 90))),
       },
     });
   };
@@ -423,9 +475,11 @@ export function HomeDesk({
 
   const focusWork = (item: AccountLibraryItem) => {
     if (item.references.localSetId) setActiveCardSetId(item.references.localSetId);
-    setRenaming(false);
-    setFocusedWorkId(item.id);
-    setInspectorWorkId(null);
+    runDeskTransition(() => {
+      setRenaming(false);
+      setFocusedWorkId(item.id);
+      setInspectorWorkId(null);
+    });
   };
 
   const createWork = () => {
@@ -518,7 +572,7 @@ export function HomeDesk({
   };
 
   const actions: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), cardSets.length > 1, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
     : focusedItem ? [] : [zoneAction('home.create-work', 'New Set', 'mutation')];
   const detail = inspectorItem ? workDetailRecord(inspectorItem) : null;
 
@@ -529,8 +583,7 @@ export function HomeDesk({
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
     else if (action.id === 'home.generate-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
-      setStudioView('generate');
-      projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(item.id) }));
+      setGenerateSetId(item.references.localSetId);
     } else if (action.id === 'home.export-work' && item?.references.localSetId) {
       setActiveCardSetId(item.references.localSetId);
       setStudioView('generate');
@@ -553,11 +606,12 @@ export function HomeDesk({
       return;
     }
     setActiveCardSetId(item.references.localSetId);
-    setStudioView('generate');
-    projection.router.push(createStudioHref({
-      returnTo: createDeskStudioReturnTo(item.id),
-      tool: lane === 'export' ? 'output' : null,
-    }));
+    if (lane === 'generate') {
+      setGenerateSetId(item.references.localSetId);
+      return;
+    }
+    setStudioView('template');
+    projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(item.id), tool: lane === 'export' ? 'output' : null }));
   };
 
   const moveSelectedCards = () => {
@@ -572,7 +626,7 @@ export function HomeDesk({
   const editSelectedCard = () => {
     if (!selectedCard || !focusedLocalSetId) return;
     setActiveCardSetId(focusedLocalSetId);
-    setStudioView('generate');
+    setStudioView('template');
     openEditDialog(selectedCard.uniqueId);
     projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(`set:${focusedLocalSetId}`, [selectedCard.uniqueId]) }));
   };
@@ -595,7 +649,26 @@ export function HomeDesk({
   const workTemplate = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return null;
     const set = cardSets.find((candidate) => candidate.id === item.references.localSetId);
-    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
+    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? null : null;
+  };
+  const transitionName = (item: AccountLibraryItem) => `cardforge-set-${(item.references.localSetId ?? item.id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  const transitionStyle = (item: AccountLibraryItem) => ({ viewTransitionName: transitionName(item) }) as CSSProperties;
+  const closeGenerate = () => setGenerateSetId(null);
+  const showTemplateTool = (templateId?: string | null) => {
+    if (templateId) setTemplateEditorSelectedTemplateId(templateId);
+    setGenerateSetId(null);
+    setStudioView('template');
+    projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(focusedItem?.id ?? `set:${activeCardSet.id}`) }));
+  };
+  const viewGeneratedCards = (cards: DisplayCard[]) => {
+    const ids = cards.map((card) => card.uniqueId);
+    setGenerateSetId(null);
+    setFocusedWorkId(`set:${activeCardSet.id}`);
+    setCardQuery('');
+    setTagFilter('all');
+    setLatestGeneratedIds(ids);
+    setSelectedCardIds(ids);
+    requestAnimationFrame(() => cardStageRef.current?.focus());
   };
 
   return (
@@ -631,20 +704,21 @@ export function HomeDesk({
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
           {focusedItem ? (
             <div className={styles.focusSurface} data-home-desk="focused">
-              <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); projection.router.replace('/account'); }}>
+              <button type="button" className={styles.backButton} onClick={() => { runDeskTransition(() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }); projection.router.replace('/account'); }}>
                 <ArrowLeft size={16} aria-hidden="true" /> Back to Desk
               </button>
               <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
                 {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
                   const cards = workCards(item);
                   return <button key={item.id} type="button" className={styles.nearbyObject} data-slot={index} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                    <span className={styles.nearbyVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size="compact" emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <WorkSourceIcon item={item} />}</span>
+                    <span className={styles.nearbyVisual} data-home-set-stack>{item.references.localSetId ? <span style={transitionStyle(item)}><AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size="compact" emptyLabel={cards.length ? undefined : 'Empty Set'} /></span> : <WorkSourceIcon item={item} />}</span>
                     <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
                   </button>;
                 })}
               </aside>
               <section className={styles.focusWorkspace} data-home-set-board aria-label={focusedItem.name}>
                 <header className={styles.focusHeader}>
+                  {focusedLocalSetId ? <div className={styles.focusPreview} data-home-set-stack style={transitionStyle(focusedItem)}><AuthoredObjectPreview cards={workCards(focusedItem)} template={workTemplate(focusedItem)} label={focusedItem.name} size="compact" emptyLabel={focusedCards.length ? undefined : 'Empty Set'} /></div> : null}
                   <div className={styles.focusIdentity}>
                     {renaming && focusedLocalSetId ? (
                       <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); commitRename(); }}>
@@ -666,7 +740,7 @@ export function HomeDesk({
                         {focusedLocalSetId ? <DropdownMenuItem onSelect={() => openWorkLane(focusedItem, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
                         <DropdownMenuItem onSelect={() => togglePin(focusedItem.id)}><Pin aria-hidden="true" />{pinnedIds.includes(focusedItem.id) ? 'Unpin from desk' : 'Pin to desk'}</DropdownMenuItem>
                         <DropdownMenuItem id={`home-work-info-${focusedItem.id}`} onSelect={() => inspectItem(focusedItem)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-                        {focusedLocalSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={cardSets.length <= 1} onSelect={() => setPendingDeleteWork(focusedItem)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+                        {focusedLocalSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setPendingDeleteWork(focusedItem)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -685,7 +759,9 @@ export function HomeDesk({
                       {organization.groupBy === 'field' && availableFields.length ? <Select value={organization.groupField ?? availableFields[0]} onValueChange={(groupField) => updateOrganization({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{organization.groupField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
                       <Select value={organization.sort} onValueChange={(value) => updateOrganization({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? organization.sortField ?? availableFields[0] : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{organization.sort === 'manual' ? 'Manual order' : organization.sort === 'field-value' ? 'Field value' : organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{availableFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recently changed</SelectItem></SelectContent></Select>
                       {organization.sort === 'field-value' && availableFields.length ? <Select value={organization.sortField ?? availableFields[0]} onValueChange={(sortField) => updateOrganization({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{organization.sortField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
-                      {organization.tags.length ? <Select value={tagFilter} onValueChange={setTagFilter}><SelectTrigger aria-label="Filter cards by tag" className={styles.compactSelect}><Tag aria-hidden="true" /><span>{tagFilter === 'all' ? 'All tags' : organization.tags.find((tag) => tag.id === tagFilter)?.label}</span></SelectTrigger><SelectContent><SelectItem value="all">All tags</SelectItem>{organization.tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.label}</SelectItem>)}</SelectContent></Select> : null}
+                      {organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />{tagFilter === 'all' ? 'Filter' : organization.tags.find((tag) => tag.id === tagFilter)?.label}</Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem disabled={tagFilter === 'all'} onSelect={() => setTagFilter('all')}>Clear all</DropdownMenuItem><DropdownMenuSeparator />{organization.tags.map((tag) => <DropdownMenuCheckboxItem key={tag.id} checked={tagFilter === tag.id} onCheckedChange={() => setTagFilter(tagFilter === tag.id ? 'all' : tag.id)}>{tag.label}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu> : null}
+                      <Button type="button" size="sm" variant="ghost" aria-pressed={showGrid} onClick={() => setSpatialPreference({ showGrid: !showGrid })}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button>
+                      <Button type="button" size="sm" variant="ghost" aria-pressed={snapToGrid} onClick={() => setSpatialPreference({ snapToGrid: !snapToGrid })}>Snap</Button>
                     </div>
                     {visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedCardIds((current) => allVisibleCardsSelected
                       ? current.filter((id) => !visibleCards.some((card) => card.uniqueId === id))
@@ -709,7 +785,8 @@ export function HomeDesk({
                       </div>
                     </div> : null}
                   </div>
-                  <div ref={cardStageRef} className={styles.contentStage} data-home-card-stage data-arrangement={organization.arrangement} aria-label={`${focusedItem.name} contents`}>
+                  {latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {visibleCards.length} newly generated card{visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={() => { setLatestGeneratedIds([]); setSelectedCardIds([]); }}>Clear all</Button></div> : null}
+                  <div ref={cardStageRef} tabIndex={-1} className={styles.contentStage} data-home-card-stage data-arrangement={organization.arrangement} data-grid={showGrid && organization.arrangement === 'manual'} aria-label={`${focusedItem.name} contents`}>
                     {sortedCards.length ? <div className={styles.groupPlane} data-arrangement={organization.arrangement} data-grouped={organization.groupBy !== 'none'}>{organizedGroups.map(([groupLabel, cards]) => <section key={groupLabel} className={styles.cardGroup} aria-label={groupLabel}>
                       {organization.groupBy !== 'none' ? <header><strong>{groupLabel}</strong><span>{cards.length}</span></header> : null}
                       <div className={styles.cardGrid} data-arrangement={organization.arrangement}>{cards.slice(0, 24).map((card) => {
@@ -720,7 +797,7 @@ export function HomeDesk({
                           {card.tagIds?.length ? <small>{card.tagIds.map((id) => organization.tags.find((tag) => tag.id === id)?.label).filter(Boolean).join(' · ')}</small> : null}
                         </button>;
                       })}</div>
-                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear search or tag filters to bring the cards back.' : 'Cards you create in Studio return to this exact work surface.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskStudioReturnTo(focusedItem.id))}>Add first cards</Button> : null}</div></div>}
+                    </section>)}</div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Generate cards here, or enter Studio to design a specific object.'}</p>{!focusedCards.length ? <Button type="button" onClick={() => openWorkLane(focusedItem, 'generate')}>Generate first cards</Button> : null}</div></div>}
                   </div>
                   {sortedCards.length > 24 ? <p className={styles.emptyCopy}>Showing the first 24 cards in each group. Narrow the view or open Studio for the complete production view.</p> : null}
                 </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}><WorkSourceIcon item={focusedItem} /><h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedItem.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(focusedItem)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={() => void projection.openItem(focusedItem, createDeskStudioReturnTo(focusedItem.id))}>Open in Studio</Button></div></div>}
@@ -737,7 +814,7 @@ export function HomeDesk({
                 <div className={styles.workSurfaceHeader}><h2 id="home-open-work-heading">Open work</h2><span>Each pile is one Set</span></div>
                 <div className={styles.deskToolbar}>
                   <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find work" /></label>
-                  <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as HomeSourceFilter)}><SelectTrigger aria-label="Filter open work by source" className={styles.sourceSelect}><span>{sourceFilterOptions.find((option) => option.id === sourceFilter)?.label ?? 'All work'}</span></SelectTrigger><SelectContent>{sourceFilterOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent></Select>
+                  <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className={styles.sourceSelect}>{sourceFilterOptions.find((option) => option.id === sourceFilter)?.label ?? 'All work'}</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={sourceFilter === 'all'} onSelect={() => setSourceFilter('all')}>Clear all</DropdownMenuItem><DropdownMenuSeparator />{sourceFilterOptions.filter((option) => option.id !== 'all').map((option) => <DropdownMenuCheckboxItem key={option.id} checked={sourceFilter === option.id} onCheckedChange={() => setSourceFilter(sourceFilter === option.id ? 'all' : option.id as HomeSourceFilter)}>{option.label}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu>
                   <Select value={sort} onValueChange={(value) => setSort(value as HomeSort)}><SelectTrigger aria-label="Arrange open work" className={styles.arrangeSelect}><span>{sort === 'desk' ? 'Desk order' : sort === 'name' ? 'Name' : 'Largest first'}</span></SelectTrigger><SelectContent><SelectItem value="desk">Desk order</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="size">Largest first</SelectItem></SelectContent></Select>
                 </div>
                 {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div className={styles.workGrid}>
@@ -746,7 +823,7 @@ export function HomeDesk({
                     const featured = index === 0;
                     return <article key={item.id} className={styles.workTile} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
                       <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                        <div className={styles.workVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
+                        <div className={styles.workVisual} data-home-set-stack style={item.references.localSetId ? transitionStyle(item) : undefined}>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
                         <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
                       </button>
                       <div className={styles.tileActions}>
@@ -763,7 +840,7 @@ export function HomeDesk({
                             <DropdownMenuItem disabled={index === visibleWork.length - 1} onSelect={() => moveDeskWork(item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
                             <DropdownMenuItem onSelect={() => inspectItem(item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-                            {item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={cardSets.length <= 1} onSelect={() => setPendingDeleteWork(item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+                            {item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setPendingDeleteWork(item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -785,6 +862,34 @@ export function HomeDesk({
           onClose={closePipelineSubmission}
         >
           <PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId} />
+        </EnvironmentToolLayer> : null}
+        {generateSetId ? <EnvironmentToolLayer
+          id="desk-generate-title"
+          eyebrow="Desk tool"
+          title={`Generate into ${generationSet?.name ?? activeCardSet.name}`}
+          summary="The Set stays open behind this tool. Generated cards return here as the active selection."
+          closeLabel="Close Generate"
+          onClose={closeGenerate}
+        >
+          <DeskGenerationWorkspace
+            isLoadingTemplates={false}
+            templates={templates.filter((template) => template.templateUsage !== 'back-preset')}
+            backFaceTemplates={templates.filter((template) => template.templateUsage === 'back-preset')}
+            activeCardSet={generationSet ?? activeCardSet}
+            generatorSelectedTemplateId={generatorSelectedTemplateId}
+            generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId}
+            richTextHighlightColor={richTextHighlightColor}
+            generatedDisplayCards={generationCards}
+            canExportClean={experience.capabilities.canExportClean}
+            onOpenTemplateMaker={() => showTemplateTool()}
+            onCreateMatchingBack={(template) => showTemplateTool(template.id)}
+            onEditSelectedBack={(templateId) => showTemplateTool(templateId)}
+            onManageCardBacks={() => showTemplateTool()}
+            onBulkCardsGenerated={addGeneratedCards}
+            onViewGeneratedCards={viewGeneratedCards}
+            onTemplateSelectionChange={setGeneratorSelectedTemplateId}
+            onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateId}
+          />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
 
@@ -808,7 +913,7 @@ export function HomeDesk({
           <div className={styles.createChoices}>
             <button type="button" className={styles.createChoice} onClick={createWork}>
               <span className={styles.createChoiceVisual}><FolderPlus aria-hidden="true" /></span>
-              <span><strong>Fresh Set</strong><small>An empty Set using your current Template selection.</small></span>
+              <span><strong>Fresh Set</strong><small>An empty, flexible space for any cards or creative objects.</small></span>
             </button>
             {publishedSets.map((set) => <button key={set.id} type="button" className={styles.createChoice} disabled={creatingPublishedSetId !== null} onClick={() => void createFromPublishedSet(set)}>
               <span className={styles.createChoiceVisual}>{set.previewUrl ? <img src={set.previewUrl} alt="" /> : <Boxes aria-hidden="true" />}</span>

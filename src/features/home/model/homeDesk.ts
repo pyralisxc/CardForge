@@ -135,7 +135,7 @@ export const getWorkActions = (
       id: 'home.generate-work', label: 'Generate cards', ownerFeature: 'card-generator',
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before generating cards.' }, commitment: 'none',
-      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     {
       id: 'home.export-work', label: 'Export / print', ownerFeature: 'card-generator',
@@ -171,7 +171,7 @@ export const getWorkActions = (
       id: 'home.delete-work' as const, label: 'Delete from this device', ownerFeature: 'project' as const,
       supportedObjectKinds: ['home-work'], supportedSources: ['browser-local'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
       scope: 'object' as const, hierarchy: 'overflow' as const,
-      availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'Keep at least one local Set on this device.' },
+      availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'This Set cannot be deleted right now.' },
       commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : [{
       id: 'home.manage-location' as const, label: 'Manage source', ownerFeature: 'storage-management' as const,

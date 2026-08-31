@@ -30,12 +30,10 @@ const upsertCardSet = (sets: CardSet[], nextSet: CardSet): CardSet[] => {
 };
 
 const normalizeSetForState = (state: ProjectState, set: CardSet): CardSet => {
-  const templates = selectAllTemplates(state);
-  const frontTemplateId = resolveGeneratorFrontTemplateId(templates, set.frontTemplateId);
   return {
     ...set,
-    frontTemplateId,
-    backingTemplateId: getCompatibleBackingId(state, frontTemplateId, set.backingTemplateId),
+    frontTemplateId: set.frontTemplateId ?? null,
+    backingTemplateId: getCompatibleBackingId(state, set.frontTemplateId ?? null, set.backingTemplateId),
   };
 };
 
@@ -44,7 +42,6 @@ const activateCardSet = (state: ProjectState, set: CardSet) => {
   return {
     cardSets: upsertCardSet(state.cardSets, activeCardSet),
     activeCardSet,
-    singleCardGeneratorSelectedTemplateId: activeCardSet.frontTemplateId,
   };
 };
 
@@ -66,11 +63,12 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   const initialSet = createDefaultActiveCardSet();
   return {
     selectedPaperSize: PAPER_SIZES[0],
-    studioView: 'generate',
+    studioView: 'template',
     richTextHighlightColor: '#ffd700',
     cardSets: [initialSet],
     activeCardSet: initialSet,
     singleCardGeneratorSelectedTemplateId: null,
+    singleCardGeneratorSelectedBackingTemplateId: null,
     templateEditorSelectedTemplateId: null,
     pdfMarginMm: 5,
     pdfCardSpacingMm: 0,
@@ -88,7 +86,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         const nextSet: CardSet = {
           id,
           name: name?.trim() || 'Untitled Set',
-          frontTemplateId: state.singleCardGeneratorSelectedTemplateId,
+          frontTemplateId: null,
           backingTemplateId: null,
         };
         return activateCardSet(state, nextSet);
@@ -158,9 +156,17 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     },
     deleteCardSet: (id) => {
       const current = get();
-      if (current.cardSets.length <= 1 || !current.cardSets.some((candidate) => candidate.id === id)) return false;
+      if (!current.cardSets.some((candidate) => candidate.id === id)) return false;
       set((state) => {
         const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
+        if (cardSets.length === 0) {
+          const fallback = createDefaultActiveCardSet();
+          return {
+            cardSets: [fallback],
+            activeCardSet: fallback,
+            storedCards: state.storedCards.filter((card) => card.setId !== id),
+          };
+        }
         const requested = state.activeCardSet.id === id
           ? cardSets[0]
           : cardSets.find((candidate) => candidate.id === state.activeCardSet.id);
@@ -169,7 +175,6 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         return {
           cardSets,
           activeCardSet,
-          singleCardGeneratorSelectedTemplateId: activeCardSet.frontTemplateId,
           storedCards: state.storedCards.filter((card) => card.setId !== id),
         };
       });
@@ -184,7 +189,6 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       set({
         cardSets: upsertCardSet(cardSets, activeCardSet),
         activeCardSet,
-        singleCardGeneratorSelectedTemplateId: activeCardSet.frontTemplateId,
       });
       return cardSets.length;
     },
@@ -204,7 +208,6 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       set({
         cardSets: upsertCardSet(cardSets, activeCardSet),
         activeCardSet,
-        singleCardGeneratorSelectedTemplateId: activeCardSet.frontTemplateId,
       });
       return imported.length;
     },
@@ -246,19 +249,21 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         storedCards: retargetSetCards(state, activeCardSet),
       };
     }),
-    setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => {
-      const activeCardSet = {
-        ...state.activeCardSet,
-        frontTemplateId: id,
-        backingTemplateId: getCompatibleBackingId(state, id, state.activeCardSet.backingTemplateId),
-      };
-      return {
-        singleCardGeneratorSelectedTemplateId: id,
-        activeCardSet,
-        cardSets: upsertCardSet(state.cardSets, activeCardSet),
-        storedCards: retargetSetCards(state, activeCardSet),
-      };
-    }),
+    setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({
+      singleCardGeneratorSelectedTemplateId: id,
+      singleCardGeneratorSelectedBackingTemplateId: getCompatibleBackingId(
+        state,
+        id,
+        state.singleCardGeneratorSelectedBackingTemplateId,
+      ),
+    })),
+    setSingleCardGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
+      singleCardGeneratorSelectedBackingTemplateId: getCompatibleBackingId(
+        state,
+        state.singleCardGeneratorSelectedTemplateId,
+        id,
+      ),
+    })),
     setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),
     setPdfOptions: (options) => set((state) => ({
       pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,

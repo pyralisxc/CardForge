@@ -49,6 +49,7 @@ export interface SettingsSlice {
   cardSets: CardSet[];
   activeCardSet: CardSet;
   singleCardGeneratorSelectedTemplateId: string | null;
+  singleCardGeneratorSelectedBackingTemplateId: string | null;
   templateEditorSelectedTemplateId: string | null;
   pdfMarginMm: number;
   pdfCardSpacingMm: number;
@@ -70,6 +71,7 @@ export interface SettingsSlice {
   setActiveCardSetFrontTemplateId: (id: string | null) => void;
   setActiveCardSetBackingTemplateId: (id: string | null) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
+  setSingleCardGeneratorSelectedBackingTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setExportMode: (mode: ExportMode) => void;

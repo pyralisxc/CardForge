@@ -40,6 +40,7 @@ type WorkspacePersistedState = Pick<
   | 'cardSets'
   | 'activeCardSet'
   | 'singleCardGeneratorSelectedTemplateId'
+  | 'singleCardGeneratorSelectedBackingTemplateId'
   | 'templateEditorSelectedTemplateId'
   | 'pdfMarginMm'
   | 'pdfCardSpacingMm'
@@ -64,6 +65,16 @@ const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersist
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 
+const getCompatibleGeneratorBackingId = (
+  templates: ReturnType<typeof selectAllTemplates>,
+  frontTemplateId: string | null,
+  backingTemplateId: string | null,
+) => {
+  const front = templates.find((template) => template.id === frontTemplateId);
+  const back = templates.find((template) => template.id === backingTemplateId && template.templateUsage === 'back-preset');
+  return front && back && areTemplateFormatsCompatible(front, back) ? back.id ?? null : null;
+};
+
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
   _rehydrateCallback: () => {
     const state = get();
@@ -80,11 +91,17 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       fallback: fallbackSet,
     });
     const templates = selectAllTemplates(state);
-    const currentId = resolveGeneratorFrontTemplateId(
+    const currentId = resolveGeneratorFrontTemplateId(templates, state.singleCardGeneratorSelectedTemplateId);
+    const generatorBackingTemplateId = getCompatibleGeneratorBackingId(
       templates,
-      requestedActiveSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId,
+      currentId,
+      state.singleCardGeneratorSelectedBackingTemplateId,
     );
-    const frontTemplate = templates.find((template) => template.id === currentId);
+    const requestedSetFront = templates.find((template) => template.id === requestedActiveSet.frontTemplateId);
+    const setFrontTemplateId = requestedSetFront?.templateUsage === 'back-preset'
+      ? null
+      : requestedSetFront?.id ?? null;
+    const frontTemplate = templates.find((template) => template.id === setFrontTemplateId);
     const backTemplate = templates.find((template) => (
       template.id === requestedActiveSet.backingTemplateId && template.templateUsage === 'back-preset'
     ));
@@ -93,7 +110,7 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       : null;
     const activeCardSet = {
       ...requestedActiveSet,
-      frontTemplateId: currentId,
+      frontTemplateId: setFrontTemplateId,
       backingTemplateId,
     };
     const nextCardSets = cardSets.map((candidate) => candidate.id === activeCardSet.id ? activeCardSet : candidate);
@@ -106,13 +123,15 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       JSON.stringify(state.cardSets ?? []) !== JSON.stringify(nextCardSets)
       || state.activeCardSet?.id !== activeCardSet.id
       || state.singleCardGeneratorSelectedTemplateId !== currentId
-      || state.activeCardSet?.frontTemplateId !== currentId
+      || state.singleCardGeneratorSelectedBackingTemplateId !== generatorBackingTemplateId
+      || state.activeCardSet?.frontTemplateId !== setFrontTemplateId
       || state.activeCardSet?.backingTemplateId !== backingTemplateId
       || state.templateEditorSelectedTemplateId !== templateEditorSelectedTemplateId
     ) {
       set({
         cardSets: nextCardSets,
         singleCardGeneratorSelectedTemplateId: currentId,
+        singleCardGeneratorSelectedBackingTemplateId: generatorBackingTemplateId,
         templateEditorSelectedTemplateId,
         activeCardSet,
       });
@@ -150,6 +169,7 @@ export const useProjectStore = create<ProjectState>()(
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
+          singleCardGeneratorSelectedBackingTemplateId: state.singleCardGeneratorSelectedBackingTemplateId,
           templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,

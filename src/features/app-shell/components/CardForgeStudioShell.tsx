@@ -109,8 +109,8 @@ export function CardForgeStudioShell({
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
       setActiveCardSetBackingTemplateIdAction,
-      setActiveCardSetFrontTemplateIdAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
+      setSingleCardGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -127,6 +127,7 @@ export function CardForgeStudioShell({
       freeformTemplatesForGenerator,
       generatedDisplayCards,
       generatorSelectedTemplateId,
+      singleCardGeneratorSelectedBackingTemplateId,
       isEditDialogOpen,
       pdfCardSpacingMm,
       pdfDuplexLayout,
@@ -522,6 +523,7 @@ export function CardForgeStudioShell({
               backFaceTemplates={backFacePresetTemplates}
               activeCardSet={activeCardSet}
               generatorSelectedTemplateId={generatorSelectedTemplateId}
+              generatorSelectedBackingTemplateId={singleCardGeneratorSelectedBackingTemplateId}
               richTextHighlightColor={richTextHighlightColor}
               generatedDisplayCards={generatedDisplayCards}
               canExportClean={projectCapabilities.canExportClean}
@@ -531,8 +533,8 @@ export function CardForgeStudioShell({
               onManageCardBacks={handleManageCardBacks}
               onBulkCardsGenerated={handleBulkCardsGenerated}
               onViewGeneratedCards={viewGeneratedCardsOnDesk}
-              onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}
-              onSetActiveCardSetBackingTemplateId={setActiveCardSetBackingTemplateIdAction}
+              onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
+              onBackingTemplateSelectionChange={setSingleCardGeneratorSelectedBackingTemplateIdAction}
             />
           </div>
         </main>

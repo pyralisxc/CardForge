@@ -16,7 +16,7 @@ describe('Studio focused workbench architecture', () => {
     expect(normalizeStudioView('desk')).toBe('generate');
     expect(normalizeStudioView('template-maker')).toBe('template');
     expect(normalizeStudioView('generator')).toBe('generate');
-    expect(normalizeStudioView('unknown')).toBe('generate');
+    expect(normalizeStudioView('unknown')).toBe('template');
     expect(shell).not.toContain('data-studio-set-desk');
     expect(shell).not.toContain('StudioSetDesk');
     expect(shell).toContain('useSearchParams()');

@@ -679,6 +679,13 @@
   overflow: hidden;
 }
 
+.contentStage[data-grid="true"] {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
@@ -1157,4 +1164,24 @@
   .cardButton {
     transition: none;
   }
+}
+.focusPreview {
+  width: clamp(5.25rem, 8vw, 7rem);
+  flex: 0 0 auto;
+}
+
+.resultFilter {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  border-block: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-accent-soft) 38%, var(--cf-surface-inset));
+  color: var(--cf-text-muted);
+  font-size: 0.78rem;
+}
+
+.resultFilter > :last-child {
+  margin-left: auto;
 }
