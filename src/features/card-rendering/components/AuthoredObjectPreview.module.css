@@ -34,6 +34,7 @@
 }
 
 .fallback {
+  position: relative;
   display: grid;
   min-block-size: 8.5rem;
   inline-size: 100%;

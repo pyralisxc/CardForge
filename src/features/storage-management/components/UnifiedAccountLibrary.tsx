@@ -146,7 +146,7 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
 
 function LibraryVisual({ item, cards, template, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean }) {
   if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
-    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} />;
+    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} />;
   }
   const previewUrl = safePreviewUrl(item.previewUrl);
   return <SharedLibraryVisual key={previewUrl ?? item.id} item={item} previewUrl={previewUrl} />;

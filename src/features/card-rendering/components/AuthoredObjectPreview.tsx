@@ -32,9 +32,9 @@ const previewCardFromTemplate = (template: TCGCardTemplate, label: string): Disp
 /**
  * Canonical visual identity for authored CardForge work.
  *
- * Real card output wins. An empty Set renders its selected Template with the
- * Template's own preview data. The generic work mark is reserved for remote or
- * unreadable work whose package has not been materialized on this device.
+ * Real card output wins. A caller can mark a container explicitly empty so it
+ * stays visually neutral instead of borrowing a Template it does not own.
+ * Template objects may still render their own preview data.
  */
 export function AuthoredObjectPreview({
   cards = [],
@@ -45,15 +45,17 @@ export function AuthoredObjectPreview({
   emptyLabel,
 }: AuthoredObjectPreviewProps) {
   const renderedCards = cards.slice(0, 3);
-  const fallbackCard = renderedCards.length === 0 && template
+  const explicitlyEmpty = renderedCards.length === 0 && Boolean(emptyLabel);
+  const fallbackCard = !explicitlyEmpty && renderedCards.length === 0 && template
     ? previewCardFromTemplate(template, label)
     : null;
   const visualCards = fallbackCard ? [fallbackCard] : renderedCards;
 
   if (visualCards.length === 0) {
     return (
-      <span className={cn(styles.fallback, className)} data-size={size} aria-label={`${label} preview unavailable`}>
+      <span className={cn(styles.fallback, className)} data-size={size} aria-label={explicitlyEmpty ? `${label} ${emptyLabel}` : `${label} preview unavailable`}>
         <Boxes aria-hidden="true" />
+        {explicitlyEmpty ? <span className={styles.emptyBadge}>{emptyLabel}</span> : null}
       </span>
     );
   }
@@ -65,7 +67,6 @@ export function AuthoredObjectPreview({
           <CardPreview card={card} targetWidthPx={widthBySize[size]} isEditorPreview />
         </span>
       ))}
-      {fallbackCard && emptyLabel ? <span className={styles.emptyBadge}>{emptyLabel}</span> : null}
     </span>
   );
 }
