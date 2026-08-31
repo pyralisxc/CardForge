@@ -117,7 +117,7 @@ describe('agent card generation field bindings', () => {
     });
   });
 
-  it('binds a new agent working set to the front Template immediately', () => {
+  it('keeps a new agent Template draft independent until a Set is explicitly created', () => {
     const template = makeLiteralContractTemplate();
     const document = createProjectDocumentFromTemplateDraft({
       title: 'Clash of Fists',
@@ -134,13 +134,8 @@ describe('agent card generation field bindings', () => {
       template: template as Parameters<typeof createProjectDocumentFromTemplateDraft>[0]['template'],
     }, 'clash-template');
 
-    expect(document.activeCardSetId).toBe('active-card-set');
-    expect(document.cardSets).toEqual([{
-      id: 'active-card-set',
-      name: 'Untitled Set',
-      frontTemplateId: 'clash-template',
-      backingTemplateId: null,
-    }]);
+    expect(document.activeCardSetId).toBeUndefined();
+    expect(document.cardSets).toEqual([]);
     expect(document.userTemplates[0].freeformCanvas?.elements.find((element) => element.id === 'card-name')?.content)
       .toBe('{{card_name:"ROCK"}}');
   });

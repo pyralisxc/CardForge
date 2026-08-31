@@ -5,7 +5,16 @@ import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
 import { selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
-import { createDefaultActiveCardSet } from './workspaceDefaults';
+
+const ensureImportSet = (getState: () => ProjectState): NonNullable<ProjectState['activeCardSet']> => {
+  const state = getState();
+  if (state.activeCardSet) return state.activeCardSet;
+  const id = state.createCardSet('Recovered Set');
+  const nextState = getState();
+  const set = nextState.cardSets.find((candidate) => candidate.id === id) ?? nextState.activeCardSet;
+  if (!set) throw new Error('CardForge could not create the required Set.');
+  return set;
+};
 
 export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> = (set, get) => ({
   storedCards: [],
@@ -14,10 +23,11 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
 
   addGeneratedCards: (newCards) => {
     const activeCardSet = get().activeCardSet;
+    if (!activeCardSet) return;
     const storedCards = newCards.map((card) => ({
       uniqueId: card.uniqueId,
       templateId: card.template.id!,
-      backingTemplateId: card.backingTemplateId ?? card.backingTemplate?.id ?? activeCardSet.backingTemplateId,
+      backingTemplateId: card.backingTemplateId ?? card.backingTemplate?.id ?? null,
       ...(card.backingData ? { backingData: card.backingData } : {}),
       setId: card.setId ?? activeCardSet.id,
       setName: card.setName ?? activeCardSet.name,
@@ -28,7 +38,9 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     set((state) => ({ storedCards: [...state.storedCards, ...storedCards] }));
   },
   clearGeneratedCards: () => set((state) => ({
-    storedCards: state.storedCards.filter((card) => card.setId && card.setId !== state.activeCardSet.id),
+    storedCards: state.activeCardSet
+      ? state.storedCards.filter((card) => card.setId && card.setId !== state.activeCardSet?.id)
+      : state.storedCards,
   })),
   removeGeneratedCard: (cardUniqueId) => {
     get().removeGeneratedCards([cardUniqueId]);
@@ -127,8 +139,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     return changed ? { storedCards } : state;
   }),
   setStoredCardsFromFile: (loadedCards) => {
+    const activeCardSet = ensureImportSet(get);
     const templates = selectAllTemplates(get());
-    const activeCardSet = get().activeCardSet || createDefaultActiveCardSet();
     let successCount = 0;
     let skippedCount = 0;
     const storedCards: StoredDisplayCard[] = [];
@@ -159,8 +171,8 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     return { successCount, skippedCount };
   },
   mergeStoredCardsFromFile: (loadedCards) => {
+    const activeCardSet = ensureImportSet(get);
     const templates = selectAllTemplates(get());
-    const activeCardSet = get().activeCardSet || createDefaultActiveCardSet();
     const merged = new Map<string, StoredDisplayCard>();
     get().storedCards.forEach((card) => merged.set(card.uniqueId || nanoid(), card));
     let successCount = 0;

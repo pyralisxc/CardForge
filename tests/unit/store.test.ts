@@ -17,9 +17,8 @@ describe('app store helpers', () => {
       activeCardSet: {
         id: 'active-card-set',
         name: 'Untitled Set',
-        frontTemplateId: null,
-        backingTemplateId: null,
       },
+      cardSets: [{ id: 'active-card-set', name: 'Untitled Set' }],
       singleCardGeneratorSelectedTemplateId: null,
       templateEditorSelectedTemplateId: null,
       editingCardUniqueId: null,
@@ -188,21 +187,14 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, tarotFront, pokerBack],
-      activeCardSet: {
-        id: 'active-card-set',
-        name: 'Set',
-        frontTemplateId: 'poker-front',
-        backingTemplateId: 'poker-back',
-      },
       singleCardGeneratorSelectedTemplateId: 'poker-front',
+      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
     });
 
-    useProjectStore.getState().setActiveCardSetFrontTemplateId('tarot-front');
+    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId('tarot-front');
 
-    expect(useProjectStore.getState().activeCardSet).toMatchObject({
-      frontTemplateId: 'tarot-front',
-      backingTemplateId: null,
-    });
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('tarot-front');
+    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBeNull();
   });
 
   it('rejects an incompatible back selection', () => {
@@ -215,21 +207,15 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, tarotBack],
-      activeCardSet: {
-        id: 'active-card-set',
-        name: 'Set',
-        frontTemplateId: 'poker-front',
-        backingTemplateId: null,
-      },
       singleCardGeneratorSelectedTemplateId: 'poker-front',
     });
 
-    useProjectStore.getState().setActiveCardSetBackingTemplateId('tarot-back');
+    useProjectStore.getState().setSingleCardGeneratorSelectedBackingTemplateId('tarot-back');
 
-    expect(useProjectStore.getState().activeCardSet.backingTemplateId).toBeNull();
+    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBeNull();
   });
 
-  it('repairs a stale card-set front when selecting a compatible visible back', () => {
+  it('accepts a compatible Generator back without changing Set identity', () => {
     const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
     const pokerBack = reconstructMinimalTemplateObject({
       id: 'poker-back',
@@ -239,21 +225,13 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      activeCardSet: {
-        id: 'active-card-set',
-        name: 'Set',
-        frontTemplateId: null,
-        backingTemplateId: null,
-      },
       singleCardGeneratorSelectedTemplateId: 'poker-front',
     });
 
-    useProjectStore.getState().setActiveCardSetBackingTemplateId('poker-back');
+    useProjectStore.getState().setSingleCardGeneratorSelectedBackingTemplateId('poker-back');
 
-    expect(useProjectStore.getState().activeCardSet).toMatchObject({
-      frontTemplateId: 'poker-front',
-      backingTemplateId: 'poker-back',
-    });
+    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBe('poker-back');
+    expect(useProjectStore.getState().activeCardSet).toEqual({ id: 'active-card-set', name: 'Untitled Set' });
   });
 
   it('keeps the Generator set selection stable when Layout Studio opens a card back', () => {
@@ -266,13 +244,8 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      activeCardSet: {
-        id: 'active-card-set',
-        name: 'Set',
-        frontTemplateId: 'poker-front',
-        backingTemplateId: 'poker-back',
-      },
       singleCardGeneratorSelectedTemplateId: 'poker-front',
+      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: 'poker-front',
     });
 
@@ -280,11 +253,8 @@ describe('app store helpers', () => {
 
     expect(useProjectStore.getState()).toMatchObject({
       singleCardGeneratorSelectedTemplateId: 'poker-front',
+      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: 'poker-back',
-      activeCardSet: {
-        frontTemplateId: 'poker-front',
-        backingTemplateId: 'poker-back',
-      },
     });
   });
 
@@ -298,13 +268,8 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      activeCardSet: {
-        id: 'active-card-set',
-        name: 'Set',
-        frontTemplateId: 'poker-back',
-        backingTemplateId: 'poker-back',
-      },
       singleCardGeneratorSelectedTemplateId: 'poker-back',
+      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: null,
     });
 
@@ -313,10 +278,7 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState()).toMatchObject({
       singleCardGeneratorSelectedTemplateId: 'poker-front',
       templateEditorSelectedTemplateId: 'poker-front',
-      activeCardSet: {
-        frontTemplateId: null,
-        backingTemplateId: null,
-      },
+      activeCardSet: { id: 'active-card-set', name: 'Untitled Set' },
     });
   });
 
@@ -422,10 +384,10 @@ describe('app store helpers', () => {
   it('organizes selected cards as one native project mutation', () => {
     useProjectStore.setState({
       cardSets: [
-        { id: 'set-a', name: 'Set A', frontTemplateId: null, backingTemplateId: null },
-        { id: 'set-b', name: 'Set B', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-a', name: 'Set A' },
+        { id: 'set-b', name: 'Set B' },
       ],
-      activeCardSet: { id: 'set-a', name: 'Set A', frontTemplateId: null, backingTemplateId: null },
+      activeCardSet: { id: 'set-a', name: 'Set A' },
       storedCards: [
         { uniqueId: 'a-1', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
         { uniqueId: 'a-2', templateId: 'template', setId: 'set-a', setName: 'Set A', data: {} },
@@ -716,41 +678,34 @@ describe('app store helpers', () => {
     const setId = useProjectStore.getState().createCardSet('Neutral Set');
     const created = useProjectStore.getState().cardSets.find((set) => set.id === setId);
 
-    expect(created).toMatchObject({
-      name: 'Neutral Set',
-      frontTemplateId: null,
-      backingTemplateId: null,
-    });
+    expect(created).toEqual(expect.objectContaining({ name: 'Neutral Set' }));
+    expect(created && 'frontTemplateId' in created).toBe(false);
+    expect(created && 'backingTemplateId' in created).toBe(false);
     expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
   });
 
   it('keeps Generator template selection independent from the active Set', () => {
     useProjectStore.setState({
-      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
-      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      cardSets: [{ id: 'set-a', name: 'Alpha' }],
+      activeCardSet: { id: 'set-a', name: 'Alpha' },
     });
 
     useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId('generator-template');
 
     expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
-    expect(useProjectStore.getState().activeCardSet.frontTemplateId).toBeNull();
-    expect(useProjectStore.getState().cardSets[0]?.frontTemplateId).toBeNull();
+    expect(useProjectStore.getState().activeCardSet).toEqual({ id: 'set-a', name: 'Alpha' });
   });
 
-  it('returns to the hidden bootstrap context when the final authored Set is deleted', () => {
+  it('returns to an empty Desk when the final Set is deleted', () => {
     useProjectStore.setState({
-      cardSets: [{ id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null }],
-      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      cardSets: [{ id: 'set-a', name: 'Alpha' }],
+      activeCardSet: { id: 'set-a', name: 'Alpha' },
       storedCards: [],
     });
 
     expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(true);
-    expect(useProjectStore.getState().cardSets).toEqual([{
-      id: 'active-card-set',
-      name: 'Untitled Set',
-      frontTemplateId: null,
-      backingTemplateId: null,
-    }]);
+    expect(useProjectStore.getState().cardSets).toEqual([]);
+    expect(useProjectStore.getState().activeCardSet).toBeNull();
   });
 
   it('persists the selected physical PDF front/back layout option', () => {
@@ -767,15 +722,15 @@ describe('app store helpers', () => {
   it('renames one set without changing the selected work and keeps card ownership aligned', () => {
     useProjectStore.setState({
       cardSets: [
-        { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
-        { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-a', name: 'Alpha' },
+        { id: 'set-b', name: 'Beta' },
       ],
-      activeCardSet: { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
+      activeCardSet: { id: 'set-a', name: 'Alpha' },
       storedCards: [{ uniqueId: 'card-b', templateId: 'template', setId: 'set-b', setName: 'Beta', data: {} }],
     });
 
     expect(useProjectStore.getState().renameCardSet('set-b', 'Beta revised')).toBe(true);
-    expect(useProjectStore.getState().activeCardSet.name).toBe('Alpha');
+    expect(useProjectStore.getState().activeCardSet?.name).toBe('Alpha');
     expect(useProjectStore.getState().cardSets.find((set) => set.id === 'set-b')?.name).toBe('Beta revised');
     expect(useProjectStore.getState().storedCards[0]?.setName).toBe('Beta revised');
   });
@@ -785,8 +740,6 @@ describe('app store helpers', () => {
       cardSets: [{
         id: 'set-a',
         name: 'Alpha',
-        frontTemplateId: null,
-        backingTemplateId: null,
         organization: {
           arrangement: 'manual',
           groupBy: 'tag',
@@ -798,8 +751,6 @@ describe('app store helpers', () => {
       activeCardSet: {
         id: 'set-a',
         name: 'Alpha',
-        frontTemplateId: null,
-        backingTemplateId: null,
         organization: {
           arrangement: 'manual',
           groupBy: 'tag',
@@ -821,7 +772,7 @@ describe('app store helpers', () => {
     const duplicateId = useProjectStore.getState().duplicateCardSet('set-a');
     const next = useProjectStore.getState();
     expect(duplicateId).toBeTruthy();
-    expect(next.activeCardSet.id).toBe(duplicateId);
+    expect(next.activeCardSet?.id).toBe(duplicateId);
     expect(next.cardSets.find((set) => set.id === duplicateId)?.name).toBe('Alpha copy');
     expect(next.storedCards).toHaveLength(2);
     expect(next.storedCards.find((card) => card.setId === duplicateId)).toMatchObject({
@@ -841,10 +792,10 @@ describe('app store helpers', () => {
   it('deletes a non-final set with its cards and moves selection to surviving work', () => {
     useProjectStore.setState({
       cardSets: [
-        { id: 'set-a', name: 'Alpha', frontTemplateId: null, backingTemplateId: null },
-        { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+        { id: 'set-a', name: 'Alpha' },
+        { id: 'set-b', name: 'Beta' },
       ],
-      activeCardSet: { id: 'set-b', name: 'Beta', frontTemplateId: null, backingTemplateId: null },
+      activeCardSet: { id: 'set-b', name: 'Beta' },
       storedCards: [
         { uniqueId: 'card-a', templateId: 'template', setId: 'set-a', setName: 'Alpha', data: {} },
         { uniqueId: 'card-b', templateId: 'template', setId: 'set-b', setName: 'Beta', data: {} },
@@ -853,9 +804,10 @@ describe('app store helpers', () => {
 
     expect(useProjectStore.getState().deleteCardSet('set-b')).toBe(true);
     expect(useProjectStore.getState().cardSets.map((set) => set.id)).toEqual(['set-a']);
-    expect(useProjectStore.getState().activeCardSet.id).toBe('set-a');
+    expect(useProjectStore.getState().activeCardSet?.id).toBe('set-a');
     expect(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).toEqual(['card-a']);
     expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(true);
-    expect(useProjectStore.getState().cardSets[0]?.id).toBe('active-card-set');
+    expect(useProjectStore.getState().cardSets).toEqual([]);
+    expect(useProjectStore.getState().activeCardSet).toBeNull();
   });
 });

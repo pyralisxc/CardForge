@@ -107,16 +107,10 @@ export const createProjectDocumentFromTemplateDraft = (
   templateId: string,
 ): ProjectDocumentV1 => {
   const template = createTemplateFromTemplateDraft(input.template, templateId);
-  const initialSetId = 'active-card-set';
   return createProjectDocumentFromState({
     userTemplates: [template],
-    cardSets: [{
-      id: initialSetId,
-      name: 'Untitled Set',
-      frontTemplateId: template.templateUsage === 'back-preset' ? null : template.id!,
-      backingTemplateId: null,
-    }],
-    activeCardSetId: initialSetId,
+    cardSets: [],
+    activeCardSetId: null,
     storedCards: [],
     appearanceStyles: [],
     productionPlan: input.productionPlan,

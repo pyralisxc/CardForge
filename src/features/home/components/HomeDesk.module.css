@@ -6,11 +6,11 @@
 }
 
 .desk {
-  display: grid;
+  display: flex;
   width: 100%;
   min-width: 0;
   min-height: 100%;
-  grid-template-rows: auto minmax(25rem, 1fr) auto;
+  flex-direction: column;
   gap: 0.55rem;
 }
 
@@ -64,10 +64,18 @@
   width: 100%;
   min-width: 0;
   min-height: 25rem;
+  flex: 1 0 25rem;
   border-top: 1px solid var(--cf-border-subtle);
   border-bottom: 1px solid var(--cf-border-subtle);
   background: var(--cf-surface-inset);
   overflow: hidden;
+}
+
+.workSurface[data-grid="true"] {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 3%) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .workSurfaceHeader {
@@ -148,7 +156,14 @@
   width: 8.75rem;
 }
 
+.spatialControls {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
 .workGrid {
+  position: relative;
   display: grid;
   width: 100%;
   min-width: 0;
@@ -158,6 +173,24 @@
   gap: 0.25rem 0.8rem;
   align-items: center;
   padding: 2.75rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
+}
+
+@media (min-width: 768px) {
+  .workTile[data-positioned="true"] {
+    position: absolute;
+    top: var(--desk-y);
+    left: var(--desk-x);
+    width: clamp(9rem, 22%, 16rem);
+    grid-column: auto;
+    grid-row: auto;
+    transform: none;
+    touch-action: none;
+  }
+
+  .workTile[data-positioned="true"]:hover,
+  .workTile[data-positioned="true"]:focus-within {
+    transform: translateY(-0.2rem);
+  }
 }
 
 .workTile {
@@ -884,11 +917,14 @@
     padding-right: 6rem;
     padding-left: 6rem;
   }
+
+  .focusSurface[data-has-orbit="false"] {
+    padding-top: 4.75rem;
+  }
 }
 
 @media (max-width: 767px) {
   .desk {
-    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 0.45rem;
   }
 
@@ -1134,12 +1170,8 @@
     grid-template-columns: minmax(0, 1fr) 6.25rem;
   }
 
-  .arrangeSelect {
-    grid-column: 1 / -1;
-  }
-
   .workGrid {
-    padding-top: 9.15rem;
+    padding-top: 7rem;
   }
 
   .deskIntro > strong {

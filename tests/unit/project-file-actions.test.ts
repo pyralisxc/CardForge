@@ -40,7 +40,7 @@ describe('project file actions', () => {
           { id: 'template-1', name: 'Imported Over Existing', aspectRatio: '2.5:3.5' },
           { id: 'template-3', name: 'Same Name', aspectRatio: '2.5:3.5' },
         ],
-        cardSets: [{ id: 'set-1', name: 'Imported Set', frontTemplateId: 'template-1', backingTemplateId: null }],
+        cardSets: [{ id: 'set-1', name: 'Imported Set' }],
         activeCardSetId: 'set-1',
         storedCards: [{ uniqueId: 'card-1', templateId: 'template-1', setId: 'set-1', setName: 'Imported Set', data: {} }],
         appearanceStyles: [{ id: 'style-1', name: 'Style', kind: 'theme', targets: [], appearance: {} }],

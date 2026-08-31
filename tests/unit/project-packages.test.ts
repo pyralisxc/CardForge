@@ -43,7 +43,7 @@ const createProject = (): ProjectDocumentV1 => ({
       }],
     },
   }],
-  cardSets: [{ id: 'set-1', name: 'Clash of Fists', frontTemplateId: 'template-1', backingTemplateId: null }],
+  cardSets: [{ id: 'set-1', name: 'Clash of Fists' }],
   activeCardSetId: 'set-1',
   storedCards: [{
     templateId: 'template-1',

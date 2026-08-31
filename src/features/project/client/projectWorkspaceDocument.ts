@@ -34,7 +34,6 @@ export interface ProjectWorkspaceApplySummary {
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
   const state = useProjectStore.getState();
   const referencedTemplateIds = new Set([
-    ...state.cardSets.flatMap((set) => [set.frontTemplateId, set.backingTemplateId]),
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
   const portableTemplates = selectAllTemplates(state).filter((template) => (
@@ -52,7 +51,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   return createProjectDocumentFromState({
     userTemplates: portableTemplates,
     cardSets: state.cardSets,
-    activeCardSetId: state.activeCardSet.id,
+    activeCardSetId: state.activeCardSet?.id ?? null,
     storedCards: state.storedCards,
     appearanceStyles: state.appearanceStyles,
     selectedPaperSize: state.selectedPaperSize,
@@ -128,8 +127,11 @@ export const applyProjectDocumentToWorkspace = async (
     ? useProjectStore.getState().mergeStoredCardsFromFile(patch.storedCards)
     : useProjectStore.getState().setStoredCardsFromFile(patch.storedCards);
   const activeSet = useProjectStore.getState().activeCardSet;
-  useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId(activeSet.frontTemplateId);
-  useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeSet.frontTemplateId);
+  const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId ?? null;
+  if (activeTemplateId) {
+    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId(activeTemplateId);
+    useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
+  }
 
   return {
     importedTemplateCount,

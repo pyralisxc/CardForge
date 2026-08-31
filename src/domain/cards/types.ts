@@ -44,7 +44,5 @@ export interface CardSetOrganization {
 export interface CardSet {
   id: string;
   name: string;
-  frontTemplateId: string | null;
-  backingTemplateId: string | null;
   organization?: CardSetOrganization;
 }

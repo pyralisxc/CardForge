@@ -48,13 +48,13 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import type { CardSetOrganization } from '@/domain/cards';
@@ -75,11 +75,13 @@ import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { AuthoredObjectPreview, CardPreview } from '@/features/card-rendering/client';
+import { loadGenerationWorkspace } from '@/features/card-generator/client';
 import {
   readProjectPreference,
   createPublishedSetCopy,
   selectAllGeneratedDisplayCards,
   selectAllTemplates,
+  useSpatialWorkspacePreferences,
   useProjectStore,
   writeProjectPreference,
   type ProjectPersistenceScope,
@@ -110,6 +112,7 @@ import {
   type HomeSort,
   type HomeSourceFilter,
 } from '../model/homeDesk';
+import { useDeskSpatialLayout } from '../hooks/useDeskSpatialLayout';
 import styles from './HomeDesk.module.css';
 
 const CampaignDeskShelf = dynamic(() => import(
@@ -118,9 +121,7 @@ const CampaignDeskShelf = dynamic(() => import(
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client'
 ).then((module) => module.PipelineContributionPanel));
-const DeskGenerationWorkspace = dynamic(() => import(
-  '@/features/card-generator/components/GenerationWorkspace'
-).then((module) => module.GenerationWorkspace));
+const DeskGenerationWorkspace = dynamic(() => loadGenerationWorkspace().then((module) => module.GenerationWorkspace));
 
 export interface HomeAccountStatus {
   label: string;
@@ -215,11 +216,10 @@ export function HomeDesk({
   const [pipelineSubmitSetId, setPipelineSubmitSetId] = useState<string | null>(null);
   const [generateSetId, setGenerateSetId] = useState<string | null>(null);
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
-  const [showGrid, setShowGrid] = useState(true);
-  const [snapToGrid, setSnapToGrid] = useState(true);
+  const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
 
   const cardSets = useProjectStore((state) => state.cardSets);
-  const activeCardSetId = useProjectStore((state) => state.activeCardSet.id);
+  const activeCardSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const storedCards = useProjectStore((state) => state.storedCards);
   const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
@@ -247,16 +247,23 @@ export function HomeDesk({
   const setCardPositions = useProjectStore((state) => state.setCardPositions);
   const displayCards = useMemo(() => selectAllGeneratedDisplayCards({
     cardSets,
-    activeCardSet: cardSets.find((set) => set.id === activeCardSetId) ?? cardSets[0],
+    activeCardSet: cardSets.find((set) => set.id === activeCardSetId) ?? null,
     storedCards,
     defaultTemplates,
     userTemplates,
   } as ProjectState), [activeCardSetId, cardSets, defaultTemplates, storedCards, userTemplates]);
   const templates = useMemo(() => selectAllTemplates({ defaultTemplates, userTemplates } as ProjectState), [defaultTemplates, userTemplates]);
-  const templateById = useMemo(() => new Map(templates.flatMap((template) => template.id ? [[template.id, template] as const] : [])), [templates]);
   const pinKey = `${HOME_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${HOME_ORDER_KEY}:${persistenceScope}`;
-  const spatialKey = `cardforge:desk-spatial:${persistenceScope}`;
+  const positionKey = `${HOME_ORDER_KEY}:positions:${persistenceScope}`;
+  const {
+    beginDrag: beginDeskDrag,
+    endDrag: endDeskDrag,
+    moveDrag: moveDeskDrag,
+    positions: deskPositions,
+    shouldSuppressFocus,
+    workGridRef,
+  } = useDeskSpatialLayout({ positionKey, snapToGrid });
 
   useEffect(() => {
     let cancelled = false;
@@ -273,23 +280,6 @@ export function HomeDesk({
     });
     return () => { cancelled = true; };
   }, [orderKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void readProjectPreference<{ showGrid?: boolean; snapToGrid?: boolean }>(spatialKey).then((value) => {
-      if (cancelled || !value) return;
-      if (typeof value.showGrid === 'boolean') setShowGrid(value.showGrid);
-      if (typeof value.snapToGrid === 'boolean') setSnapToGrid(value.snapToGrid);
-    });
-    return () => { cancelled = true; };
-  }, [spatialKey]);
-
-  const setSpatialPreference = (next: { showGrid?: boolean; snapToGrid?: boolean }) => {
-    const value = { showGrid: next.showGrid ?? showGrid, snapToGrid: next.snapToGrid ?? snapToGrid };
-    setShowGrid(value.showGrid);
-    setSnapToGrid(value.snapToGrid);
-    void writeProjectPreference(spatialKey, value);
-  };
 
   const workItems = useMemo(() => projection.items.filter((item) => (
     visibleWorkKinds.has(item.kind)
@@ -648,8 +638,7 @@ export function HomeDesk({
     : [];
   const workTemplate = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return null;
-    const set = cardSets.find((candidate) => candidate.id === item.references.localSetId);
-    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? null : null;
+    return workCards(item)[0]?.template ?? null;
   };
   const transitionName = (item: AccountLibraryItem) => `cardforge-set-${(item.references.localSetId ?? item.id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
   const transitionStyle = (item: AccountLibraryItem) => ({ viewTransitionName: transitionName(item) }) as CSSProperties;
@@ -658,12 +647,15 @@ export function HomeDesk({
     if (templateId) setTemplateEditorSelectedTemplateId(templateId);
     setGenerateSetId(null);
     setStudioView('template');
-    projection.router.push(createStudioHref({ returnTo: createDeskStudioReturnTo(focusedItem?.id ?? `set:${activeCardSet.id}`) }));
+    const returnTarget = focusedItem?.id ?? (activeCardSet ? `set:${activeCardSet.id}` : null);
+    projection.router.push(createStudioHref({ returnTo: returnTarget ? createDeskStudioReturnTo(returnTarget) : '/account' }));
   };
   const viewGeneratedCards = (cards: DisplayCard[]) => {
     const ids = cards.map((card) => card.uniqueId);
+    const targetSetId = cards[0]?.setId ?? generationSet?.id ?? activeCardSet?.id;
+    if (!targetSetId) return;
     setGenerateSetId(null);
-    setFocusedWorkId(`set:${activeCardSet.id}`);
+    setFocusedWorkId(`set:${targetSetId}`);
     setCardQuery('');
     setTagFilter('all');
     setLatestGeneratedIds(ids);
@@ -703,11 +695,11 @@ export function HomeDesk({
       >
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
           {focusedItem ? (
-            <div className={styles.focusSurface} data-home-desk="focused">
+            <div className={styles.focusSurface} data-home-desk="focused" data-has-orbit={visibleWork.some((item) => item.id !== focusedItem.id)}>
               <button type="button" className={styles.backButton} onClick={() => { runDeskTransition(() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }); projection.router.replace('/account'); }}>
                 <ArrowLeft size={16} aria-hidden="true" /> Back to Desk
               </button>
-              <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
+              {visibleWork.some((item) => item.id !== focusedItem.id) ? <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
                 {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
                   const cards = workCards(item);
                   return <button key={item.id} type="button" className={styles.nearbyObject} data-slot={index} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
@@ -715,7 +707,7 @@ export function HomeDesk({
                     <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
                   </button>;
                 })}
-              </aside>
+              </aside> : null}
               <section className={styles.focusWorkspace} data-home-set-board aria-label={focusedItem.name}>
                 <header className={styles.focusHeader}>
                   {focusedLocalSetId ? <div className={styles.focusPreview} data-home-set-stack style={transitionStyle(focusedItem)}><AuthoredObjectPreview cards={workCards(focusedItem)} template={workTemplate(focusedItem)} label={focusedItem.name} size="compact" emptyLabel={focusedCards.length ? undefined : 'Empty Set'} /></div> : null}
@@ -759,9 +751,9 @@ export function HomeDesk({
                       {organization.groupBy === 'field' && availableFields.length ? <Select value={organization.groupField ?? availableFields[0]} onValueChange={(groupField) => updateOrganization({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{organization.groupField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
                       <Select value={organization.sort} onValueChange={(value) => updateOrganization({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? organization.sortField ?? availableFields[0] : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{organization.sort === 'manual' ? 'Manual order' : organization.sort === 'field-value' ? 'Field value' : organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{availableFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recently changed</SelectItem></SelectContent></Select>
                       {organization.sort === 'field-value' && availableFields.length ? <Select value={organization.sortField ?? availableFields[0]} onValueChange={(sortField) => updateOrganization({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{organization.sortField ?? availableFields[0]}</span></SelectTrigger><SelectContent>{availableFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}</SelectContent></Select> : null}
-                      {organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />{tagFilter === 'all' ? 'Filter' : organization.tags.find((tag) => tag.id === tagFilter)?.label}</Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem disabled={tagFilter === 'all'} onSelect={() => setTagFilter('all')}>Clear all</DropdownMenuItem><DropdownMenuSeparator />{organization.tags.map((tag) => <DropdownMenuCheckboxItem key={tag.id} checked={tagFilter === tag.id} onCheckedChange={() => setTagFilter(tagFilter === tag.id ? 'all' : tag.id)}>{tag.label}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu> : null}
-                      <Button type="button" size="sm" variant="ghost" aria-pressed={showGrid} onClick={() => setSpatialPreference({ showGrid: !showGrid })}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button>
-                      <Button type="button" size="sm" variant="ghost" aria-pressed={snapToGrid} onClick={() => setSpatialPreference({ snapToGrid: !snapToGrid })}>Snap</Button>
+                      {organization.tags.length ? <SelectionFilterMenu allLabel="All tags" ariaLabel="Filter cards by tag" value={tagFilter} onChange={setTagFilter} options={organization.tags.map((tag) => ({ value: tag.id, label: tag.label }))} /> : null}
+                      <Button type="button" size="sm" variant="ghost" aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button>
+                      <Button type="button" size="sm" variant="ghost" aria-pressed={snapToGrid} onClick={() => setSnapToGrid((value) => !value)}>Snap</Button>
                     </div>
                     {visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedCardIds((current) => allVisibleCardsSelected
                       ? current.filter((id) => !visibleCards.some((card) => card.uniqueId === id))
@@ -810,19 +802,25 @@ export function HomeDesk({
                 <strong>{visibleWork.length} open</strong>
               </header>
               {projection.failures.length ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${projection.failures[0]?.message ?? 'A source could not be reached.'} Available work remains unchanged.`} actionLabel="Retry" onAction={projection.refresh} /> : null}
-              <section className={styles.workSurface} aria-labelledby="home-open-work-heading">
+              <section className={styles.workSurface} data-grid={showGrid} aria-labelledby="home-open-work-heading">
                 <div className={styles.workSurfaceHeader}><h2 id="home-open-work-heading">Open work</h2><span>Each pile is one Set</span></div>
                 <div className={styles.deskToolbar}>
                   <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find work" /></label>
-                  <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className={styles.sourceSelect}>{sourceFilterOptions.find((option) => option.id === sourceFilter)?.label ?? 'All work'}</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={sourceFilter === 'all'} onSelect={() => setSourceFilter('all')}>Clear all</DropdownMenuItem><DropdownMenuSeparator />{sourceFilterOptions.filter((option) => option.id !== 'all').map((option) => <DropdownMenuCheckboxItem key={option.id} checked={sourceFilter === option.id} onCheckedChange={() => setSourceFilter(sourceFilter === option.id ? 'all' : option.id as HomeSourceFilter)}>{option.label}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu>
+                  <SelectionFilterMenu allLabel="All work" ariaLabel="Filter open work by source" className={styles.sourceSelect} value={sourceFilter} onChange={(value) => setSourceFilter(value as HomeSourceFilter)} options={sourceFilterOptions.filter((option) => option.id !== 'all').map((option) => ({ value: option.id, label: option.label }))} />
                   <Select value={sort} onValueChange={(value) => setSort(value as HomeSort)}><SelectTrigger aria-label="Arrange open work" className={styles.arrangeSelect}><span>{sort === 'desk' ? 'Desk order' : sort === 'name' ? 'Name' : 'Largest first'}</span></SelectTrigger><SelectContent><SelectItem value="desk">Desk order</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="size">Largest first</SelectItem></SelectContent></Select>
+                  <div className={styles.spatialControls} aria-label="Desk positioning">
+                    <Button type="button" size="icon" variant="ghost" aria-label={showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)}><LayoutGrid aria-hidden="true" /></Button>
+                    <Button type="button" size="sm" variant="ghost" aria-pressed={snapToGrid} onClick={() => setSnapToGrid((value) => !value)}>Snap</Button>
+                  </div>
                 </div>
-                {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div className={styles.workGrid}>
+                {projection.isLoading && !workItems.length ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : visibleWork.length ? <div ref={workGridRef} className={styles.workGrid}>
                   {visibleWork.map((item, index) => {
                     const cards = workCards(item);
                     const featured = index === 0;
-                    return <article key={item.id} className={styles.workTile} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
-                      <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
+                    const position = deskPositions[item.id];
+                    const positionStyle = position ? ({ '--desk-x': `${position.x}px`, '--desk-y': `${position.y}px` } as CSSProperties) : undefined;
+                    return <article key={item.id} className={styles.workTile} style={positionStyle} data-positioned={Boolean(position)} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
+                      <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onPointerDown={(event) => beginDeskDrag(item.id, event)} onPointerMove={moveDeskDrag} onPointerUp={endDeskDrag} onPointerCancel={endDeskDrag} onClick={() => { if (shouldSuppressFocus(item.id)) return; focusWork(item); }} aria-label={`Focus ${item.name}`}>
                         <div className={styles.workVisual} data-home-set-stack style={item.references.localSetId ? transitionStyle(item) : undefined}>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
                         <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
                       </button>
@@ -863,10 +861,10 @@ export function HomeDesk({
         >
           <PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId} />
         </EnvironmentToolLayer> : null}
-        {generateSetId ? <EnvironmentToolLayer
+        {generationSet ? <EnvironmentToolLayer
           id="desk-generate-title"
           eyebrow="Desk tool"
-          title={`Generate into ${generationSet?.name ?? activeCardSet.name}`}
+          title={`Generate into ${generationSet.name}`}
           summary="The Set stays open behind this tool. Generated cards return here as the active selection."
           closeLabel="Close Generate"
           onClose={closeGenerate}
@@ -875,7 +873,7 @@ export function HomeDesk({
             isLoadingTemplates={false}
             templates={templates.filter((template) => template.templateUsage !== 'back-preset')}
             backFaceTemplates={templates.filter((template) => template.templateUsage === 'back-preset')}
-            activeCardSet={generationSet ?? activeCardSet}
+            activeCardSet={generationSet}
             generatorSelectedTemplateId={generatorSelectedTemplateId}
             generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId}
             richTextHighlightColor={richTextHighlightColor}

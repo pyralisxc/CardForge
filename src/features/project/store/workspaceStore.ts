@@ -18,7 +18,6 @@ import { createSettingsSlice } from './settingsSlice';
 import { createTemplateSlice } from './templateSlice';
 import type { ProjectState, WorkspaceLifecycleSlice } from './types';
 import {
-  createDefaultActiveCardSet,
   dedupeAppearanceStyles,
   normalizeStudioView,
 } from './workspaceDefaults';
@@ -78,17 +77,14 @@ const getCompatibleGeneratorBackingId = (
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
   _rehydrateCallback: () => {
     const state = get();
-    const fallbackSet = createDefaultActiveCardSet();
     const cardSets = reconcileCardSets({
       cardSets: Array.isArray(state.cardSets) ? state.cardSets : [],
       activeCardSet: state.activeCardSet,
       storedCards: state.storedCards,
-      fallback: fallbackSet,
     });
-    const requestedActiveSet = resolveActiveCardSet({
+    const activeCardSet = resolveActiveCardSet({
       cardSets,
       preferredId: state.activeCardSet?.id,
-      fallback: fallbackSet,
     });
     const templates = selectAllTemplates(state);
     const currentId = resolveGeneratorFrontTemplateId(templates, state.singleCardGeneratorSelectedTemplateId);
@@ -97,39 +93,20 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       currentId,
       state.singleCardGeneratorSelectedBackingTemplateId,
     );
-    const requestedSetFront = templates.find((template) => template.id === requestedActiveSet.frontTemplateId);
-    const setFrontTemplateId = requestedSetFront?.templateUsage === 'back-preset'
-      ? null
-      : requestedSetFront?.id ?? null;
-    const frontTemplate = templates.find((template) => template.id === setFrontTemplateId);
-    const backTemplate = templates.find((template) => (
-      template.id === requestedActiveSet.backingTemplateId && template.templateUsage === 'back-preset'
-    ));
-    const backingTemplateId = frontTemplate && backTemplate && areTemplateFormatsCompatible(frontTemplate, backTemplate)
-      ? backTemplate.id ?? null
-      : null;
-    const activeCardSet = {
-      ...requestedActiveSet,
-      frontTemplateId: setFrontTemplateId,
-      backingTemplateId,
-    };
-    const nextCardSets = cardSets.map((candidate) => candidate.id === activeCardSet.id ? activeCardSet : candidate);
     const templateEditorSelectedTemplateId = state.templateEditorSelectedTemplateId
       && templates.some((template) => template.id === state.templateEditorSelectedTemplateId)
       ? state.templateEditorSelectedTemplateId
       : currentId ?? templates[0]?.id ?? null;
 
     if (
-      JSON.stringify(state.cardSets ?? []) !== JSON.stringify(nextCardSets)
-      || state.activeCardSet?.id !== activeCardSet.id
+      JSON.stringify(state.cardSets ?? []) !== JSON.stringify(cardSets)
+      || state.activeCardSet?.id !== activeCardSet?.id
       || state.singleCardGeneratorSelectedTemplateId !== currentId
       || state.singleCardGeneratorSelectedBackingTemplateId !== generatorBackingTemplateId
-      || state.activeCardSet?.frontTemplateId !== setFrontTemplateId
-      || state.activeCardSet?.backingTemplateId !== backingTemplateId
       || state.templateEditorSelectedTemplateId !== templateEditorSelectedTemplateId
     ) {
       set({
-        cardSets: nextCardSets,
+        cardSets,
         singleCardGeneratorSelectedTemplateId: currentId,
         singleCardGeneratorSelectedBackingTemplateId: generatorBackingTemplateId,
         templateEditorSelectedTemplateId,
@@ -183,7 +160,7 @@ export const useProjectStore = create<ProjectState>()(
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
         skipHydration: true,
-        version: 2,
+        version: 3,
         migrate: (persistedState, version) => {
           const legacy = persistedState as WorkspacePersistedState & { activeTab?: unknown };
           if (version < 2) {

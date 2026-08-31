@@ -111,17 +111,6 @@ const validateRequiredCardData = (template: TCGCardTemplate, data: CardData, fac
   }
 };
 
-const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: string) => {
-  validateIncomingCardFields(template, data, faceLabel);
-  validateRequiredCardData(template, data, faceLabel);
-};
-
-const isDisposableFallbackSet = (set: CardSet, cards: StoredDisplayCard[]): boolean => (
-  set.id === 'active-card-set'
-  && set.name === 'Untitled Set'
-  && !cards.some((card) => card.setId === set.id)
-);
-
 const normalizeSetName = (value: string): string => value.trim() || 'Untitled Set';
 
 const findSameNameSet = (sets: CardSet[], name: string): CardSet | null => {
@@ -165,23 +154,19 @@ export const getCardGenerationContract = async ({
   );
   const templates = materializeGenerationTemplates(document.document.userTemplates);
   const set = setId ? requireSet(document.document.cardSets, setId) : document.document.cardSets[0];
-  const front = selectFrontTemplate(templates, set?.frontTemplateId);
-  const back = set?.backingTemplateId
-    ? selectBackTemplate(templates, front, set.backingTemplateId)
+  const representativeCard = set
+    ? document.document.storedCards.find((card) => card.setId === set.id)
+    : document.document.storedCards[0];
+  const front = selectFrontTemplate(templates, representativeCard?.templateId);
+  const back = representativeCard?.backingTemplateId
+    ? selectBackTemplate(templates, front, representativeCard.backingTemplateId)
     : null;
   const frontFields = getCardFields(front);
   const backFields = back ? getCardFields(back) : [];
   const bulkFields = createBulkFaceFieldDefinitions(frontFields, backFields);
-  const resolvedSet = set
-    ? {
-        ...set,
-        frontTemplateId: set.frontTemplateId ?? front.id!,
-        backingTemplateId: set.backingTemplateId ?? back?.id ?? null,
-      }
-    : null;
   return {
     document,
-    set: resolvedSet,
+    set: set ?? null,
     frontTemplateId: front.id!,
     backingTemplateId: back?.id ?? null,
     frontFields,
@@ -197,51 +182,33 @@ export const upsertWorkingCardSet = async ({
   expectedRevision,
   setId,
   name,
-  frontTemplateId,
-  backingTemplateId,
 }: {
   access: AccountToolAccess;
   documentId: string;
   expectedRevision: number;
   setId?: string;
   name: string;
-  frontTemplateId?: string | null;
-  backingTemplateId?: string | null;
 }) => {
   requireAccountToolCapability(access, 'studio.ai.create');
   const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
-  const templates = materializeGenerationTemplates(current.document.userTemplates);
   const explicitExisting = setId ? current.document.cardSets.find((candidate) => candidate.id === setId) : null;
   const sameNameExisting = !setId ? findSameNameSet(current.document.cardSets, name) : null;
-  const disposableFallback = !setId
-    && current.document.cardSets.length === 1
-    && isDisposableFallbackSet(current.document.cardSets[0], current.document.storedCards)
-    ? current.document.cardSets[0]
-    : null;
-  const existing = explicitExisting ?? sameNameExisting ?? disposableFallback;
-  const front = selectFrontTemplate(templates, frontTemplateId ?? existing?.frontTemplateId);
-  const back = selectBackTemplate(templates, front, backingTemplateId ?? existing?.backingTemplateId);
+  const existing = explicitExisting ?? sameNameExisting;
   const nextSet: CardSet = {
     id: existing?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
     name: normalizeSetName(name),
-    frontTemplateId: front.id!,
-    backingTemplateId: back?.id ?? null,
   };
-  const replacingFallback = disposableFallback?.id === existing?.id;
-  const sets = replacingFallback ? [] : [...current.document.cardSets];
+  const sets = [...current.document.cardSets];
   const index = sets.findIndex((candidate) => candidate.id === nextSet.id);
   if (index >= 0) sets[index] = nextSet;
   else sets.push(nextSet);
-  const replacedSetId = replacingFallback ? disposableFallback?.id : undefined;
   const storedCards = current.document.storedCards.map((card) => (
-    card.setId === nextSet.id || (replacedSetId && card.setId === replacedSetId)
+    card.setId === nextSet.id
       ? {
           ...card,
           setId: nextSet.id,
           setName: nextSet.name,
-          templateId: nextSet.frontTemplateId!,
-          backingTemplateId: nextSet.backingTemplateId,
         }
       : card
   ));
@@ -252,7 +219,6 @@ export const upsertWorkingCardSet = async ({
     title: current.title,
     document: {
       ...current.document,
-      userTemplates: templates,
       cardSets: sets,
       activeCardSetId: nextSet.id,
       storedCards,
@@ -282,9 +248,10 @@ export const upsertWorkingCards = async ({
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
-  const front = selectFrontTemplate(templates, set.frontTemplateId);
-  const back = set.backingTemplateId
-    ? selectBackTemplate(templates, front, set.backingTemplateId)
+  const representativeCard = current.document.storedCards.find((card) => card.setId === set.id);
+  const defaultFront = selectFrontTemplate(templates, representativeCard?.templateId);
+  const defaultBack = representativeCard?.backingTemplateId
+    ? selectBackTemplate(templates, defaultFront, representativeCard.backingTemplateId)
     : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
@@ -318,6 +285,10 @@ export const upsertWorkingCards = async ({
         409,
       );
     }
+    const front = existing ? selectFrontTemplate(templates, existing.templateId) : defaultFront;
+    const back = existing?.backingTemplateId
+      ? selectBackTemplate(templates, front, existing.backingTemplateId)
+      : existing ? null : defaultBack;
 
     // Validate only the incoming delta against today's contract. Historical values
     // already stored on the card may be legacy/orphaned and must not block an
@@ -449,9 +420,6 @@ export const moveWorkingCards = async ({
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   const source = requireSet(current.document.cardSets, sourceSetId);
   const target = requireSet(current.document.cardSets, targetSetId);
-  const templates = materializeGenerationTemplates(current.document.userTemplates);
-  const targetFront = selectFrontTemplate(templates, target.frontTemplateId);
-  const targetBack = target.backingTemplateId ? selectBackTemplate(templates, targetFront, target.backingTemplateId) : null;
   const requested = new Set(cardIds);
   const cardsById = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   for (const id of requested) {
@@ -459,8 +427,6 @@ export const moveWorkingCards = async ({
     if (!card || card.setId !== source.id) {
       throw new StudioDocumentStoreError(`Card ${id} is not in "${source.name}". Reload both Sets before moving cards.`, 404);
     }
-    validateCardData(targetFront, card.data, 'Front');
-    if (targetBack) validateCardData(targetBack, card.backingData ?? {}, 'Back');
   }
   const storedCards = current.document.storedCards.map((card) => (
     requested.has(card.uniqueId)
@@ -468,9 +434,6 @@ export const moveWorkingCards = async ({
           ...card,
           setId: target.id,
           setName: target.name,
-          templateId: targetFront.id!,
-          backingTemplateId: targetBack?.id ?? null,
-          backingData: targetBack ? card.backingData : undefined,
         }
       : card
   ));
@@ -481,7 +444,6 @@ export const moveWorkingCards = async ({
     title: current.title,
     document: {
       ...current.document,
-      userTemplates: templates,
       activeCardSetId: target.id,
       storedCards,
     },
@@ -514,21 +476,11 @@ export const deleteWorkingCardSet = async ({
       409,
     );
   }
-  let cardSets = current.document.cardSets.filter((candidate) => candidate.id !== set.id);
+  const cardSets = current.document.cardSets.filter((candidate) => candidate.id !== set.id);
   const storedCards = deleteCards
     ? current.document.storedCards.filter((card) => card.setId !== set.id)
     : current.document.storedCards;
-  if (cardSets.length === 0) {
-    const front = materializeGenerationTemplates(current.document.userTemplates)
-      .find((template) => template.templateUsage !== 'back-preset');
-    cardSets = [{
-      id: 'active-card-set',
-      name: 'Untitled Set',
-      frontTemplateId: front?.id ?? null,
-      backingTemplateId: null,
-    }];
-  }
-  const activeSet = cardSets[0]!;
+  const activeSet = cardSets[0] ?? null;
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
@@ -537,7 +489,7 @@ export const deleteWorkingCardSet = async ({
     document: {
       ...current.document,
       cardSets,
-      activeCardSetId: activeSet.id,
+      activeCardSetId: activeSet?.id ?? null,
       storedCards,
     },
     retentionHours,

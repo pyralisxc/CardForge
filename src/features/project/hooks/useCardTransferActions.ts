@@ -96,6 +96,10 @@ export function useCardTransferActions({ toast }: { toast: ToastFn }) {
       return;
     }
     const set = state.cardSets.find((candidate) => candidate.id === card.setId) ?? state.activeCardSet;
+    if (!set) {
+      toast({ title: 'Set not found', description: 'Move this card into a Set before exporting it.', variant: 'destructive' });
+      return;
+    }
     const transfer = createCardTransfer({
       card,
       set,

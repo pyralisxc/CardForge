@@ -148,12 +148,6 @@ export const validateProjectDocumentStructure = (document: ProjectDocumentV1): S
       issues.push({ code: 'duplicate_set_id', severity: 'error', message: `Set id "${set.id}" is duplicated.`, setId: set.id });
     }
     setIds.add(set.id);
-    if (!set.frontTemplateId || !templatesById.has(set.frontTemplateId)) {
-      issues.push({ code: 'missing_set_front_template', severity: 'error', message: `Set ${set.id} does not resolve to a current front Template.`, setId: set.id });
-    }
-    if (set.backingTemplateId && !templatesById.has(set.backingTemplateId)) {
-      issues.push({ code: 'missing_set_back_template', severity: 'error', message: `Set ${set.id} refers to missing back Template ${set.backingTemplateId}.`, setId: set.id });
-    }
   }
 
   const cardIds = new Set<string>();
@@ -172,13 +166,13 @@ export const validateProjectDocumentStructure = (document: ProjectDocumentV1): S
       issues.push({ code: 'missing_card_set', severity: 'error', message: `Card ${card.uniqueId} refers to missing Set ${cardSetId}.`, cardId: card.uniqueId, setId: cardSetId });
       continue;
     }
-    const front = templatesById.get(card.templateId) ?? (set.frontTemplateId ? templatesById.get(set.frontTemplateId) : undefined);
+    const front = templatesById.get(card.templateId);
     if (!front) {
       issues.push({ code: 'missing_card_template', severity: 'error', message: `Card ${card.uniqueId} cannot resolve its front Template.`, cardId: card.uniqueId, setId: set.id });
       continue;
     }
     validateFaceData({ issues, template: front, data: card.data, cardId: card.uniqueId, setId: set.id, face: 'front' });
-    const backId = card.backingTemplateId ?? set.backingTemplateId;
+    const backId = card.backingTemplateId;
     if (backId) {
       const back = templatesById.get(backId);
       if (!back) {

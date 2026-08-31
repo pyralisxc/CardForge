@@ -18,7 +18,7 @@ interface EnvironmentToolLayerProps {
 export function EnvironmentToolLayer({ id, eyebrow, title, summary, closeLabel, children, onClose }: EnvironmentToolLayerProps) {
   return (
     <div className={styles.toolLayer} role="dialog" aria-modal="false" aria-labelledby={id}>
-      <button type="button" className={styles.toolScrim} aria-label={closeLabel} onClick={onClose} />
+      <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={onClose} />
       <section className={styles.toolPanel}>
         <header className={styles.toolHeader}>
           <div>

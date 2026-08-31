@@ -50,12 +50,8 @@ const normalizeAssets = (value: unknown): ProjectDocumentCustomAssets => {
   };
 };
 
-const collectTemplateIds = (sets: CardSet[], cards: StoredDisplayCard[]): Set<string> => {
+const collectTemplateIds = (cards: StoredDisplayCard[]): Set<string> => {
   const ids = new Set<string>();
-  sets.forEach((set) => {
-    if (set.frontTemplateId) ids.add(set.frontTemplateId);
-    if (set.backingTemplateId) ids.add(set.backingTemplateId);
-  });
   cards.forEach((card) => {
     if (card.templateId) ids.add(card.templateId);
     if (card.backingTemplateId) ids.add(card.backingTemplateId);
@@ -65,10 +61,9 @@ const collectTemplateIds = (sets: CardSet[], cards: StoredDisplayCard[]): Set<st
 
 const selectTemplates = (
   templates: TCGCardTemplate[],
-  sets: CardSet[],
   cards: StoredDisplayCard[],
 ): TCGCardTemplate[] => {
-  const ids = collectTemplateIds(sets, cards);
+  const ids = collectTemplateIds(cards);
   // Published CardForge Library Templates keep stable catalog ids and are resolved
   // from the current library. Only personal Templates travel with portable cards/Sets.
   // Agent project checkouts can temporarily materialize a published pipeline Template
@@ -112,7 +107,7 @@ export const createCardSetTransfer = ({
   customAssets?: ProjectDocumentCustomAssets;
 }): CardForgeTransferV1 => {
   const cards = storedCards.filter((card) => card.setId === set.id);
-  const transferTemplates = selectTemplates(templates, [set], cards);
+  const transferTemplates = selectTemplates(templates, cards);
   return {
     cardforgeTransfer: CARD_TRANSFER_VERSION,
     kind: 'set',
@@ -134,7 +129,7 @@ export const createCardTransfer = ({
   templates: TCGCardTemplate[];
   customAssets?: ProjectDocumentCustomAssets;
 }): CardForgeTransferV1 => {
-  const transferTemplates = selectTemplates(templates, [set], [card]);
+  const transferTemplates = selectTemplates(templates, [card]);
   return {
     cardforgeTransfer: CARD_TRANSFER_VERSION,
     kind: 'card',
@@ -159,16 +154,9 @@ export const parseCardForgeTransferValue = (value: unknown): CardForgeTransferV1
     && typeof candidate.uniqueId === 'string'
   ));
   if (cards.length !== value.cards.length) return null;
-  const fallback: CardSet = {
-    id: cards[0]?.setId || 'imported-set',
-    name: cards[0]?.setName || 'Imported Set',
-    frontTemplateId: cards[0]?.templateId ?? null,
-    backingTemplateId: cards[0]?.backingTemplateId ?? null,
-  };
   const sets = reconcileCardSets({
     cardSets: Array.isArray(value.sets) ? value.sets : [],
     storedCards: cards,
-    fallback,
   });
   if (value.kind === 'card' && cards.length !== 1) return null;
   if (sets.length === 0) return null;

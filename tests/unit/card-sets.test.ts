@@ -9,13 +9,6 @@ import {
 } from '@/features/project/model/cardTransfer';
 import { parseProjectDocumentValue } from '@/features/project/model/projectDocument';
 
-const fallback: CardSet = {
-  id: 'active-card-set',
-  name: 'Untitled Set',
-  frontTemplateId: null,
-  backingTemplateId: null,
-};
-
 const template: TCGCardTemplate = {
   id: 'template-front',
   name: 'Front',
@@ -36,8 +29,6 @@ const card: StoredDisplayCard = {
 const set: CardSet = {
   id: 'set-clash',
   name: 'Clash of Fists',
-  frontTemplateId: 'template-front',
-  backingTemplateId: null,
 };
 
 describe('first-class local card sets', () => {
@@ -46,10 +37,9 @@ describe('first-class local card sets', () => {
       cardSets: [],
       activeCardSet: set,
       storedCards: [card, { ...card, uniqueId: 'card-2' }],
-      fallback,
     });
     expect(result).toEqual([set]);
-    expect(resolveActiveCardSet({ cardSets: result, preferredId: set.id, fallback })).toEqual(set);
+    expect(resolveActiveCardSet({ cardSets: result, preferredId: set.id })).toEqual(set);
   });
 
   it('upgrades legacy version-1 project files by deriving their set registry', () => {

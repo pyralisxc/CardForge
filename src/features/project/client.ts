@@ -34,7 +34,6 @@ export {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   isolateProjectDocumentToSet,
   instantiateProjectDocumentCopy,
-  isUntouchedBootstrapCardSet,
   parseProjectDocumentFile,
   parseProjectDocumentValue,
 } from './model/projectDocument';
@@ -198,6 +197,7 @@ export {
   setProjectPersistenceScope,
 } from './persistence/projectPersistenceScope';
 export type { ProjectPersistenceScope } from './persistence/projectPersistenceScope';
+export { SPATIAL_WORKSPACE_PREFERENCE_KEY, useSpatialWorkspacePreferences } from './client/useSpatialWorkspacePreferences';
 export {
   readProjectPreference,
   removeProjectPreference,

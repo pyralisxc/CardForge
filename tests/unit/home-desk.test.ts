@@ -40,7 +40,7 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain('Inside this Set');
     expect(homeDesk).toContain('Back to Desk');
     expect(homeDesk).toContain("projection.router.replace('/account')");
-    expect(libraryProjection).toContain('isUntouchedBootstrapCardSet');
+    expect(libraryProjection).not.toContain('isUntouchedBootstrapCardSet');
     expect(homeModel).not.toContain('isUntouchedBootstrapWork');
   });
 
@@ -68,7 +68,7 @@ describe('Home spatial desk', () => {
 
   it('keeps focused Set organization durable and normalizes unsafe persisted geometry', () => {
     expect(normalizeCardSet({
-      id: 'set:organized', name: 'Organized', frontTemplateId: null, backingTemplateId: null,
+      id: 'set:organized', name: 'Organized',
       organization: {
         arrangement: 'manual', groupBy: 'field', groupField: 'faction', sort: 'field-value', sortField: 'rank',
         tags: [{ id: 'tag:red', label: 'Red' }], positions: { 'card:one': { x: 12, y: 24 }, bad: { x: 'no', y: 2 } },

@@ -57,7 +57,7 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 ### Shipped foundation
 
 - Desk uses the shared Environment shell through the dedicated internal `home` feature owner.
-- Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; the untouched bootstrap Set stays out of the meaningful-work view.
+- Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
 - Focusing local work reveals its contained cards in place with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal; Pull back restores the Desk.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
@@ -70,7 +70,7 @@ Desk is the user's real higher-level spatial account home, not merely a router/d
 Required behavior:
 
 - show meaningful work containers as visual authored objects;
-- do not promote untouched bootstrap `Untitled Set` state as meaningful work;
+- do not manufacture an `Untitled Set` or assign a starting Template before the user creates or imports work;
 - allow constrained spatial grouping/stacks/saved views rather than a filesystem folder metaphor;
 - preserve selection/position/context;
 - opening a Set reveals its contained objects and pulling back restores the prior arrangement;

@@ -1,4 +1,3 @@
-import type { CardSet } from '@/domain/cards';
 import type { AppearanceStylePreset } from '@/domain/templates';
 
 export const STUDIO_VIEWS = ['template', 'generate'] as const;
@@ -22,10 +21,3 @@ export const normalizeStudioView = (view: unknown): StudioView => {
 export const isDraftTemplateSelection = (templateId: string | null): boolean => (
   typeof templateId === 'string' && templateId.startsWith('draft-')
 );
-
-export const createDefaultActiveCardSet = (): CardSet => ({
-  id: 'active-card-set',
-  name: 'Untitled Set',
-  frontTemplateId: null,
-  backingTemplateId: null,
-});

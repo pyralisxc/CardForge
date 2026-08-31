@@ -25,6 +25,7 @@ import {
   CANVAS_ZOOM,
 } from '@/features/template-editor/lib/canvasViewportConfig';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
+import { useSpatialWorkspacePreferences } from '@/features/project/client';
 
 export type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
 
@@ -108,8 +109,7 @@ export function useTemplateEditorViewport({
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
   const [mobilePanel, setMobilePanel] = useState<MobileMakerPanel>('canvas');
-  const [snapToGrid, setSnapToGrid] = useState(true);
-  const [showGrid, setShowGrid] = useState(true);
+  const { snapToGrid, showGrid, setSnapToGrid, setShowGrid } = useSpatialWorkspacePreferences();
   const [previewMode, setPreviewMode] = useState(false);
   const gridSize = canvas.gridSize || 20;
 

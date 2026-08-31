@@ -33,13 +33,16 @@ export const createPublishedSetCopy = async ({
   await applyProjectDocumentToWorkspace(document, 'copy');
   const state = useProjectStore.getState();
   const set = state.activeCardSet;
+  if (!set) throw new ProjectPackageError('The published Set could not be added to this Desk.');
   if (expectedName?.trim() && set.name !== expectedName.trim()) {
     state.renameCardSet(set.id, expectedName.trim());
   }
   const next = useProjectStore.getState();
+  if (!next.activeCardSet) throw new ProjectPackageError('The published Set could not be focused on this Desk.');
+  const activeSet = next.activeCardSet;
   return {
-    setId: next.activeCardSet.id,
-    setName: next.activeCardSet.name,
-    cardCount: next.storedCards.filter((card) => card.setId === next.activeCardSet.id).length,
+    setId: activeSet.id,
+    setName: activeSet.name,
+    cardCount: next.storedCards.filter((card) => card.setId === activeSet.id).length,
   };
 };

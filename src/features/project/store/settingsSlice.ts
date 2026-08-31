@@ -5,9 +5,9 @@ import { reconcileCardSets, resolveActiveCardSet, type CardSet } from '@/domain/
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
 
-import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
+import { selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
-import { createDefaultActiveCardSet, normalizeStudioView } from './workspaceDefaults';
+import { normalizeStudioView } from './workspaceDefaults';
 
 const getCompatibleBackingId = (
   state: ProjectState,
@@ -29,44 +29,20 @@ const upsertCardSet = (sets: CardSet[], nextSet: CardSet): CardSet[] => {
   return next;
 };
 
-const normalizeSetForState = (state: ProjectState, set: CardSet): CardSet => {
-  return {
-    ...set,
-    frontTemplateId: set.frontTemplateId ?? null,
-    backingTemplateId: getCompatibleBackingId(state, set.frontTemplateId ?? null, set.backingTemplateId),
-  };
-};
-
 const activateCardSet = (state: ProjectState, set: CardSet) => {
-  const activeCardSet = normalizeSetForState(state, set);
   return {
-    cardSets: upsertCardSet(state.cardSets, activeCardSet),
-    activeCardSet,
+    cardSets: upsertCardSet(state.cardSets, set),
+    activeCardSet: set,
   };
 };
-
-const retargetSetCards = (
-  state: ProjectState,
-  activeCardSet: CardSet,
-) => state.storedCards.map((card) => (
-  card.setId === activeCardSet.id
-    ? {
-        ...card,
-        setName: activeCardSet.name,
-        templateId: activeCardSet.frontTemplateId ?? card.templateId,
-        backingTemplateId: activeCardSet.backingTemplateId,
-      }
-    : card
-));
 
 export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => {
-  const initialSet = createDefaultActiveCardSet();
   return {
     selectedPaperSize: PAPER_SIZES[0],
     studioView: 'template',
     richTextHighlightColor: '#ffd700',
-    cardSets: [initialSet],
-    activeCardSet: initialSet,
+    cardSets: [],
+    activeCardSet: null,
     singleCardGeneratorSelectedTemplateId: null,
     singleCardGeneratorSelectedBackingTemplateId: null,
     templateEditorSelectedTemplateId: null,
@@ -86,8 +62,6 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         const nextSet: CardSet = {
           id,
           name: name?.trim() || 'Untitled Set',
-          frontTemplateId: null,
-          backingTemplateId: null,
         };
         return activateCardSet(state, nextSet);
       });
@@ -106,7 +80,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         const renamedSet = { ...currentSet, name: requestedName };
         return {
           cardSets: upsertCardSet(state.cardSets, renamedSet),
-          activeCardSet: state.activeCardSet.id === id ? renamedSet : state.activeCardSet,
+          activeCardSet: state.activeCardSet?.id === id ? renamedSet : state.activeCardSet,
           storedCards: state.storedCards.map((card) => card.setId === id
             ? { ...card, setName: requestedName }
             : card),
@@ -132,12 +106,12 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
             return nextId ? [[nextId, position] as const] : [];
           })),
         } : undefined;
-        const duplicate = normalizeSetForState(state, {
+        const duplicate: CardSet = {
           ...source,
           id: duplicateId,
           name: duplicateName,
           ...(organization ? { organization } : {}),
-        });
+        };
         return {
           ...activateCardSet(state, duplicate),
           storedCards: [
@@ -160,21 +134,19 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       set((state) => {
         const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
         if (cardSets.length === 0) {
-          const fallback = createDefaultActiveCardSet();
           return {
-            cardSets: [fallback],
-            activeCardSet: fallback,
+            cardSets: [],
+            activeCardSet: null,
             storedCards: state.storedCards.filter((card) => card.setId !== id),
           };
         }
-        const requested = state.activeCardSet.id === id
+        const requested = state.activeCardSet?.id === id
           ? cardSets[0]
-          : cardSets.find((candidate) => candidate.id === state.activeCardSet.id);
+          : cardSets.find((candidate) => candidate.id === state.activeCardSet?.id);
         if (!requested) return state;
-        const activeCardSet = normalizeSetForState(state, requested);
         return {
           cardSets,
-          activeCardSet,
+          activeCardSet: requested,
           storedCards: state.storedCards.filter((card) => card.setId !== id),
         };
       });
@@ -182,71 +154,39 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     },
     setCardSetsFromFiles: (sets, activeSetId) => {
       const state = get();
-      const fallback = createDefaultActiveCardSet();
-      const cardSets = reconcileCardSets({ cardSets: sets, storedCards: state.storedCards, fallback });
-      const requested = resolveActiveCardSet({ cardSets, preferredId: activeSetId, fallback });
-      const activeCardSet = normalizeSetForState(state, requested);
+      const cardSets = reconcileCardSets({ cardSets: sets, storedCards: state.storedCards });
+      const activeCardSet = resolveActiveCardSet({ cardSets, preferredId: activeSetId });
       set({
-        cardSets: upsertCardSet(cardSets, activeCardSet),
+        cardSets,
         activeCardSet,
       });
       return cardSets.length;
     },
     mergeCardSetsFromFiles: (sets, activeSetId) => {
       const state = get();
-      const fallback = createDefaultActiveCardSet();
-      const imported = reconcileCardSets({ cardSets: sets, fallback });
+      const imported = reconcileCardSets({ cardSets: sets });
       const merged = new Map(state.cardSets.map((set) => [set.id, set]));
       imported.forEach((set) => merged.set(set.id, set));
       const cardSets = Array.from(merged.values());
       const requested = resolveActiveCardSet({
         cardSets,
-        preferredId: activeSetId ?? state.activeCardSet.id,
-        fallback,
+        preferredId: activeSetId ?? state.activeCardSet?.id,
       });
-      const activeCardSet = normalizeSetForState(state, requested);
       set({
-        cardSets: upsertCardSet(cardSets, activeCardSet),
-        activeCardSet,
+        cardSets,
+        activeCardSet: requested,
       });
       return imported.length;
     },
     setActiveCardSetName: (name) => set((state) => {
+      if (!state.activeCardSet) return state;
       const activeCardSet = { ...state.activeCardSet, name: name.trim() || 'Untitled Set' };
       return {
         activeCardSet,
         cardSets: upsertCardSet(state.cardSets, activeCardSet),
-        storedCards: retargetSetCards(state, activeCardSet),
-      };
-    }),
-    setActiveCardSetFrontTemplateId: (id) => set((state) => {
-      const activeCardSet = {
-        ...state.activeCardSet,
-        frontTemplateId: id,
-        backingTemplateId: getCompatibleBackingId(state, id, state.activeCardSet.backingTemplateId),
-      };
-      return {
-        activeCardSet,
-        cardSets: upsertCardSet(state.cardSets, activeCardSet),
-        storedCards: retargetSetCards(state, activeCardSet),
-        singleCardGeneratorSelectedTemplateId: id,
-      };
-    }),
-    setActiveCardSetBackingTemplateId: (id) => set((state) => {
-      const frontTemplateId = resolveGeneratorFrontTemplateId(
-        selectAllTemplates(state),
-        state.singleCardGeneratorSelectedTemplateId,
-      );
-      const activeCardSet = {
-        ...state.activeCardSet,
-        frontTemplateId,
-        backingTemplateId: getCompatibleBackingId(state, frontTemplateId, id),
-      };
-      return {
-        singleCardGeneratorSelectedTemplateId: frontTemplateId,
-        activeCardSet,
-        cardSets: upsertCardSet(state.cardSets, activeCardSet),
-        storedCards: retargetSetCards(state, activeCardSet),
+        storedCards: state.storedCards.map((card) => card.setId === activeCardSet.id
+          ? { ...card, setName: activeCardSet.name }
+          : card),
       };
     }),
     setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({

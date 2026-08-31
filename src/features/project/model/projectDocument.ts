@@ -19,18 +19,6 @@ import {
 import { normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
 
 const PROJECT_DOCUMENT_VERSION = 1;
-const PROJECT_FALLBACK_SET: CardSet = {
-  id: 'active-card-set',
-  name: 'Untitled Set',
-  frontTemplateId: null,
-  backingTemplateId: null,
-};
-
-export const isUntouchedBootstrapCardSet = (
-  set: Pick<CardSet, 'id'>,
-  cardCount: number,
-): boolean => set.id === PROJECT_FALLBACK_SET.id
-  && cardCount === 0;
 
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
@@ -98,7 +86,7 @@ export interface CreateProjectDocumentInput extends ProjectDocumentExportSetting
 export interface ProjectDocumentStatePatch extends ProjectDocumentExportSettings {
   userTemplates: TCGCardTemplate[];
   cardSets: CardSet[];
-  activeCardSetId: string;
+  activeCardSetId: string | null;
   storedCards: StoredDisplayCard[];
   appearanceStyles: AppearanceStylePreset[];
   customAssets: ProjectDocumentCustomAssets;
@@ -251,12 +239,10 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
   const cardSets = reconcileCardSets({
     cardSets: asArray<unknown>(value.cardSets),
     storedCards,
-    fallback: PROJECT_FALLBACK_SET,
   });
   const activeCardSet = resolveActiveCardSet({
     cardSets,
     preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
-    fallback: PROJECT_FALLBACK_SET,
   });
   const customFonts = normalizeProjectFontAssets(value.customFonts);
   const productionPlan = normalizeProjectProductionPlan(value.productionPlan);
@@ -266,7 +252,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates: normalizeTemplates(value.userTemplates),
     cardSets,
-    activeCardSetId: activeCardSet.id,
+    ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
     storedCards,
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
@@ -297,11 +283,10 @@ export const createProjectDocumentFromState = ({
   customFonts = [],
   productionPlan,
 }: CreateProjectDocumentInput): ProjectDocumentV1 => {
-  const normalizedSets = reconcileCardSets({ cardSets, storedCards, fallback: PROJECT_FALLBACK_SET });
+  const normalizedSets = reconcileCardSets({ cardSets, storedCards });
   const activeCardSet = resolveActiveCardSet({
     cardSets: normalizedSets,
     preferredId: activeCardSetId,
-    fallback: PROJECT_FALLBACK_SET,
   });
   const normalizedFonts = normalizeProjectFontAssets(customFonts);
   const normalizedProductionPlan = normalizeProjectProductionPlan(productionPlan);
@@ -309,7 +294,7 @@ export const createProjectDocumentFromState = ({
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates,
     cardSets: normalizedSets,
-    activeCardSetId: activeCardSet.id,
+    ...(activeCardSet ? { activeCardSetId: activeCardSet.id } : {}),
     storedCards,
     appearanceStyles,
     exportSettings: {
@@ -335,7 +320,7 @@ export const createProjectDocumentFromState = ({
 export const applyProjectDocumentToState = (document: ProjectDocumentV1): ProjectDocumentStatePatch => ({
   userTemplates: document.userTemplates,
   cardSets: document.cardSets,
-  activeCardSetId: document.activeCardSetId ?? document.cardSets[0]?.id ?? PROJECT_FALLBACK_SET.id,
+  activeCardSetId: document.activeCardSetId ?? document.cardSets[0]?.id ?? null,
   storedCards: document.storedCards,
   appearanceStyles: document.appearanceStyles,
   ...document.exportSettings,
@@ -359,8 +344,6 @@ export const isolateProjectDocumentToSet = (
     card.setId === setId || (!card.setId && firstSetId === setId)
   )).map((card) => ({ ...card, setId, setName: set.name }));
   const templateIds = new Set<string>([
-    set.frontTemplateId,
-    set.backingTemplateId,
     ...storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
 
@@ -425,8 +408,6 @@ export const instantiateProjectDocumentCopy = (
     cardSets: document.cardSets.map((set) => ({
       ...set,
       id: setIds.get(set.id)!,
-      frontTemplateId: remapTemplateId(set.frontTemplateId),
-      backingTemplateId: remapTemplateId(set.backingTemplateId),
       ...(set.organization ? { organization: {
         ...set.organization,
         tags: set.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(`${set.id}:${tag.id}`)! })),

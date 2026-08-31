@@ -229,9 +229,9 @@ export const registerAgentCardTools = ({
       outputSchema: cardSetWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId }) => runObserved({
+    async ({ documentId, expectedRevision, setId, name }) => runObserved({
       toolName: 'upsert_card_set',
-      input: { documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId },
+      input: { documentId, expectedRevision, setId, name },
       execute: async (access) => {
         const document = await upsertWorkingCardSet({
           access,
@@ -239,8 +239,6 @@ export const registerAgentCardTools = ({
           expectedRevision,
           setId,
           name,
-          frontTemplateId,
-          backingTemplateId,
         });
         const set = document.document.cardSets.find((candidate) => candidate.id === document.document.activeCardSetId);
         return {

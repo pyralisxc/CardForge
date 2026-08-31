@@ -157,7 +157,7 @@ Desk quick actions use the same scope contract as Studio:
 | Multiple objects | Batch move/tag/archive/export where the domain supports it. |
 | One contained object | Edit/Test, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
 
-The untouched bootstrap `Untitled Set` must not masquerade as meaningful current work merely because internal state created it.
+An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container; contained cards and other authored objects own their own Template and rendering dependencies.
 
 ## Library: Personal, Pipeline, Published
 

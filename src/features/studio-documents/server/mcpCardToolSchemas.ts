@@ -18,8 +18,6 @@ export interface UpsertCardSetInput {
   expectedRevision: number;
   setId?: string;
   name: string;
-  frontTemplateId?: string;
-  backingTemplateId?: string;
 }
 
 export interface McpCardInput {
@@ -190,18 +188,6 @@ export const upsertCardSetInputSchema = fromJsonSchema<UpsertCardSetInput>({
       minLength: 1,
       maxLength: 160,
       description: 'User-facing set name, for example “Clash of Fists”. If setId is omitted, CardForge safely reuses an existing set with the same name before creating another one.',
-    },
-    frontTemplateId: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 255,
-      description: 'Front Template id from the current working document. Omit to keep or resolve the current front Template.',
-    },
-    backingTemplateId: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 255,
-      description: 'Optional compatible card-back Template id from the current working document.',
     },
   },
 });

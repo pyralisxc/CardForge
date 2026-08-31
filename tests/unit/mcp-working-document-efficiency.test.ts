@@ -78,7 +78,7 @@ const makeCurrent = (revision = 60) => ({
   document: {
     version: 1 as const,
     userTemplates: [makeTemplate()],
-    cardSets: [{ id: 'set-1', name: 'Set One', frontTemplateId: 'template-1', backingTemplateId: null }],
+    cardSets: [{ id: 'set-1', name: 'Set One' }],
     activeCardSetId: 'set-1',
     storedCards: [{
       uniqueId: 'card-1',

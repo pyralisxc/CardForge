@@ -13,8 +13,6 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 const set: CardSet = {
   id: 'set-1',
   name: 'Test Set',
-  frontTemplateId: 'official-template',
-  backingTemplateId: null,
 };
 const card: StoredDisplayCard = {
   uniqueId: 'card-1',
@@ -52,7 +50,8 @@ describe('MCP workflow hardening', () => {
     });
     expect(transfer.templates).toEqual([]);
     expect(transfer.cards).toHaveLength(1);
-    expect(transfer.sets[0]?.frontTemplateId).toBe('official-template');
+    expect(transfer.sets[0]).toEqual(set);
+    expect(transfer.cards[0]?.templateId).toBe('official-template');
   });
 
   it('requires explicit revise identity and provides maintenance operations', () => {

@@ -8,19 +8,10 @@ import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
   instantiateProjectDocumentCopy,
-  isUntouchedBootstrapCardSet,
   isolateProjectDocumentToSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
 } from '@/features/project/client';
-
-describe('bootstrap Set visibility', () => {
-  it('hides the empty legacy bootstrap even when old Generator templates remain attached', () => {
-    expect(isUntouchedBootstrapCardSet({ id: 'active-card-set' }, 0)).toBe(true);
-    expect(isUntouchedBootstrapCardSet({ id: 'active-card-set' }, 1)).toBe(false);
-    expect(isUntouchedBootstrapCardSet({ id: 'set-authored' }, 0)).toBe(false);
-  });
-});
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',
@@ -37,8 +28,6 @@ const template: TCGCardTemplate = {
 const cardSet: CardSet = {
   id: 'set-1',
   name: 'Rift Set',
-  frontTemplateId: 'user-template-1',
-  backingTemplateId: 'back-template-1',
 };
 
 const storedCard: StoredDisplayCard = {
@@ -203,7 +192,6 @@ describe('project document serialization', () => {
       userTemplates: [template],
       cardSets: [{
         ...cardSet,
-        backingTemplateId: null,
         organization: {
           arrangement: 'manual',
           groupBy: 'tag',
@@ -408,8 +396,6 @@ describe('project document serialization', () => {
     const secondSet: CardSet = {
       id: 'set-2',
       name: 'Second Set',
-      frontTemplateId: null,
-      backingTemplateId: null,
     };
     const document = createProjectDocumentFromState({
       userTemplates: [template],

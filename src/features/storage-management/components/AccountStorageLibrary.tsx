@@ -156,29 +156,7 @@ export function AccountStorageLibrary({
     const state = useProjectStore.getState();
     const target = state.cardSets.find((set) => set.id === setId);
     if (!target) return;
-    const remainingCards = state.storedCards.filter((card) => card.setId !== setId);
-    let remainingSets = state.cardSets.filter((set) => set.id !== setId);
-    let nextActive = state.activeCardSet;
-
-    if (remainingSets.length === 0) {
-      const replacementId = state.createCardSet();
-      const replacement = useProjectStore.getState().cardSets.find((set) => set.id === replacementId);
-      if (!replacement) return;
-      remainingSets = [replacement];
-      nextActive = replacement;
-    } else if (state.activeCardSet.id === setId) {
-      nextActive = remainingSets[0]!;
-    }
-
-    const editingStillExists = remainingCards.some((card) => card.uniqueId === state.editingCardUniqueId);
-    useProjectStore.setState({
-      cardSets: remainingSets,
-      activeCardSet: nextActive,
-      storedCards: remainingCards,
-      singleCardGeneratorSelectedTemplateId: nextActive.frontTemplateId,
-      editingCardUniqueId: editingStillExists ? state.editingCardUniqueId : null,
-      isEditDialogOpen: editingStillExists ? state.isEditDialogOpen : false,
-    });
+    if (!state.deleteCardSet(setId)) return;
     toast({
       title: 'Set removed from this device',
       description: `“${target.name}” and its local cards were removed here. Shared Templates and assets were left alone.`,

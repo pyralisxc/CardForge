@@ -55,8 +55,6 @@ export const normalizeCardSet = (value: unknown): CardSet | null => {
   return {
     id,
     name: cleanName(record.name),
-    frontTemplateId: cleanId(record.frontTemplateId),
-    backingTemplateId: cleanId(record.backingTemplateId),
     ...(organization ? { organization } : {}),
   };
 };
@@ -67,12 +65,10 @@ export const reconcileCardSets = ({
   cardSets = [],
   activeCardSet,
   storedCards = [],
-  fallback,
 }: {
   cardSets?: unknown[];
   activeCardSet?: CardSet | null;
   storedCards?: StoredDisplayCard[];
-  fallback: CardSet;
 }): CardSet[] => {
   const byId = new Map<string, CardSet>();
   let hasExplicitSets = false;
@@ -96,25 +92,20 @@ export const reconcileCardSets = ({
       byId.set(setId, {
         id: setId,
         name: cleanName(card.setName),
-        frontTemplateId: cleanId(card.templateId),
-        backingTemplateId: cleanId(card.backingTemplateId),
       });
     });
   }
-  if (byId.size === 0) byId.set(fallback.id, fallback);
   return Array.from(byId.values());
 };
 
 export const resolveActiveCardSet = ({
   cardSets,
   preferredId,
-  fallback,
 }: {
   cardSets: CardSet[];
   preferredId?: string | null;
-  fallback: CardSet;
-}): CardSet => (
+}): CardSet | null => (
   (preferredId ? cardSets.find((set) => set.id === preferredId) : null)
   ?? cardSets[0]
-  ?? fallback
+  ?? null
 );

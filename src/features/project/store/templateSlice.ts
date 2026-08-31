@@ -1,8 +1,6 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import type { CardSet } from '@/domain/cards';
-import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 
 import { selectAllTemplates } from './selectors';
@@ -40,26 +38,6 @@ const selectFallbackEditorTemplateId = (
   }
   return templates[0]?.id ?? null;
 };
-
-const reconcileCardSet = (
-  activeCardSet: CardSet,
-  templates: TCGCardTemplate[],
-  selectedId: string | null,
-): CardSet => ({
-  ...activeCardSet,
-  frontTemplateId: selectedId,
-  backingTemplateId: activeCardSet.backingTemplateId
-    && templates.some((template) => (
-      template.id === activeCardSet.backingTemplateId
-      && template.templateUsage === 'back-preset'
-      && (!selectedId || areTemplateFormatsCompatible(
-        templates.find((candidate) => candidate.id === selectedId) || {},
-        template,
-      ))
-    ))
-    ? activeCardSet.backingTemplateId
-    : null,
-});
 
 export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSlice> = (set, get) => ({
   defaultTemplates: [],
@@ -115,7 +93,6 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
           state.templateEditorSelectedTemplateId,
           selectedId,
         ),
-        activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
     return reconstructed.length;
@@ -140,7 +117,6 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
           state.templateEditorSelectedTemplateId,
           selectedId,
         ),
-        activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
     return reconstructed.length;
@@ -171,7 +147,6 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
           state.templateEditorSelectedTemplateId,
           selectedId,
         ),
-        activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
     return reconstructed.length;
@@ -212,15 +187,6 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     const editorSelectedId = state.templateEditorSelectedTemplateId === templateId
       ? selectFallbackEditorTemplateId(allTemplates, null, selectedId)
       : state.templateEditorSelectedTemplateId;
-    const activeCardSet: CardSet = {
-      ...state.activeCardSet,
-      frontTemplateId: state.activeCardSet.frontTemplateId === templateId
-        ? selectedId
-        : state.activeCardSet.frontTemplateId,
-      backingTemplateId: state.activeCardSet.backingTemplateId === templateId
-        ? null
-        : state.activeCardSet.backingTemplateId,
-    };
     const editingCardUniqueId = state.editingCardUniqueId
       && state.storedCards.find((card) => card.uniqueId === state.editingCardUniqueId)?.templateId === templateId
       ? null
@@ -232,7 +198,6 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       storedCards,
       singleCardGeneratorSelectedTemplateId: selectedId,
       templateEditorSelectedTemplateId: editorSelectedId,
-      activeCardSet,
       editingCardUniqueId,
       isEditDialogOpen: editingCardUniqueId ? state.isEditDialogOpen : false,
     };

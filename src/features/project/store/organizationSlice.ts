@@ -23,7 +23,7 @@ const updateSet = (
   organization: CardSetOrganization,
 ) => {
   const cardSets = state.cardSets.map((set) => set.id === setId ? { ...set, organization } : set);
-  const activeCardSet = state.activeCardSet.id === setId
+  const activeCardSet = state.activeCardSet?.id === setId
     ? { ...state.activeCardSet, organization }
     : state.activeCardSet;
   return { cardSets, activeCardSet };

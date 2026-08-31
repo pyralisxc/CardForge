@@ -92,6 +92,7 @@ export function CardForgeStudioShell({
       clearGeneratedCardsAction,
       cloneTemplateAction,
       closeEditDialogAction,
+      createCardSetAction,
       deleteAppearanceStyleAction,
       deleteTemplateAction,
       mergeUserTemplatesFromFilesAction,
@@ -108,7 +109,6 @@ export function CardForgeStudioShell({
       setExportModeAction,
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
-      setActiveCardSetBackingTemplateIdAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
       setSingleCardGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
@@ -143,11 +143,12 @@ export function CardForgeStudioShell({
     },
   } = useCardForgeWorkspaceState();
   const returnTarget = resolveStudioReturnTarget({
-    activeSetId: activeCardSet.id,
-    activeSetName: activeCardSet.name,
+    activeSetId: activeCardSet?.id ?? '',
+    activeSetName: activeCardSet?.name ?? 'Desk',
     requestedReturnTo: searchParams.get('returnTo'),
   });
   const viewGeneratedCardsOnDesk = useCallback((cards: DisplayCard[]) => {
+    if (!activeCardSet) return;
     const workId = `set:${activeCardSet.id}`;
     const previousContextKey = new URL(returnTarget.href, 'https://cardforge.local').searchParams.get('returnContext');
     const previousContext = readSurfaceReturnContext(previousContextKey);
@@ -158,7 +159,7 @@ export function CardForgeStudioShell({
           selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all', scrollTop: 0,
         });
     router.push(createDeskReturnHref(workId, returnContext));
-  }, [activeCardSet.id, returnTarget.href, router]);
+  }, [activeCardSet, returnTarget.href, router]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
@@ -314,12 +315,12 @@ export function CardForgeStudioShell({
     matchingBackRequest,
     pendingTemplateRetarget,
   } = useTemplateStudioHandoffs({
-    activeBackingTemplateId: activeCardSet.backingTemplateId,
+    activeBackingTemplateId: singleCardGeneratorSelectedBackingTemplateId,
     focusStudioRegion,
     retargetGeneratedCardsBackingTemplate: retargetGeneratedCardsBackingTemplateAction,
     retargetGeneratedCardsTemplate: retargetGeneratedCardsTemplateAction,
     saveTemplateToLibrary,
-    setActiveCardSetBackingTemplateId: setActiveCardSetBackingTemplateIdAction,
+    setGeneratorBackingTemplateId: setSingleCardGeneratorSelectedBackingTemplateIdAction,
     setStudioView: setStudioViewAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
@@ -419,6 +420,24 @@ export function CardForgeStudioShell({
     setOpenStudioSheet(null);
     focusStudioRegion('[data-workflow-step="setup"]');
   }, [focusStudioRegion, handleStudioViewChange]);
+
+  if (!activeCardSet) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]">
+        <section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p>
+          <h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">
+            Studio opens around a card or Template inside a Set. Start a Set here, or return to your Desk and open existing work.
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+            <Button type="button" onClick={() => createCardSetAction('Untitled Set')}>Create a Set</Button>
+            <Button type="button" variant="outline" onClick={() => router.push('/account')}>Return to Desk</Button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">

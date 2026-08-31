@@ -35,8 +35,6 @@ const projectDocument = {
   cardSets: [{
     id: 'active-card-set',
     name: 'Untitled Set',
-    frontTemplateId: template.id,
-    backingTemplateId: null,
   }],
   activeCardSetId: 'active-card-set',
   storedCards: [],

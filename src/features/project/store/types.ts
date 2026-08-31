@@ -47,7 +47,7 @@ export interface SettingsSlice {
   studioView: StudioView;
   richTextHighlightColor: string;
   cardSets: CardSet[];
-  activeCardSet: CardSet;
+  activeCardSet: CardSet | null;
   singleCardGeneratorSelectedTemplateId: string | null;
   singleCardGeneratorSelectedBackingTemplateId: string | null;
   templateEditorSelectedTemplateId: string | null;
@@ -68,8 +68,6 @@ export interface SettingsSlice {
   setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
-  setActiveCardSetFrontTemplateId: (id: string | null) => void;
-  setActiveCardSetBackingTemplateId: (id: string | null) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   setSingleCardGeneratorSelectedBackingTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;

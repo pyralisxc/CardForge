@@ -16,6 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
@@ -403,8 +404,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     if (item.scope !== 'personal') return null;
     if (item.personal.references.localTemplateId) return templateById.get(item.personal.references.localTemplateId) ?? null;
     if (!item.personal.references.localSetId) return null;
-    const set = cardSets.find((candidate) => candidate.id === item.personal.references.localSetId);
-    return set?.frontTemplateId ? templateById.get(set.frontTemplateId) ?? templates[0] ?? null : templates[0] ?? null;
+    return cardsFor(item)[0]?.template ?? null;
   };
   const activeFailure = activeScope === 'campaigns'
     ? null
@@ -719,9 +719,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
         <div className={styles.toolbar} aria-label="Library toolbar">
           <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
           {activeScope === 'personal' ? <>
-            <Select value={projection.source} onValueChange={(value) => projection.setSource(value as AccountLibrarySource | 'all')}><SelectTrigger aria-label="Filter by source" className={styles.filterSelect}><span>{projection.source === 'all' ? 'All sources' : getAccountLibrarySourceLabel(projection.source)}</span></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem>{LIBRARY_SOURCES.map((source) => <SelectItem key={source} value={source}>{getAccountLibrarySourceLabel(source)} · {projection.sourceCounts.get(source) ?? 0}</SelectItem>)}</SelectContent></Select>
-            <Select value={projection.kind} onValueChange={(value) => projection.setKind(value as AccountLibraryKind | 'all')}><SelectTrigger aria-label="Filter by type" className={styles.filterSelect}><span>{projection.kind === 'all' ? 'All types' : accountLibraryKindLabels[projection.kind]}</span></SelectTrigger><SelectContent><SelectItem value="all">All types</SelectItem>{ACCOUNT_LIBRARY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{accountLibraryKindLabels[kind]}</SelectItem>)}</SelectContent></Select>
-          </> : <Select value={sharedType} onValueChange={setSharedType}><SelectTrigger aria-label={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect}><span>{sharedType === 'all' ? activeScope === 'pipeline' ? 'All work' : 'All types' : sharedType}</span></SelectTrigger><SelectContent><SelectItem value="all">{activeScope === 'pipeline' ? 'All work' : 'All types'}</SelectItem>{sharedTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>}
+            <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter by source" compactLabel="Source" className={styles.filterSelect} value={projection.source} onChange={projection.setSource} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
+            <SelectionFilterMenu allLabel="All types" ariaLabel="Filter by type" compactLabel="Type" className={styles.filterSelect} value={projection.kind} onChange={projection.setKind} options={ACCOUNT_LIBRARY_KINDS.map((kind) => ({ value: kind, label: accountLibraryKindLabels[kind] }))} />
+          </> : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={setSharedType} options={sharedTypes.map((value) => ({ value, label: value }))} />}
           <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
           <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
           {experience.contributor.canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}

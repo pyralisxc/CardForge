@@ -154,9 +154,7 @@ export function useStudioDocumentHandoff({
             })));
           }
 
-          const shouldInstallSetState = patch.storedCards.length > 0
-            || patch.cardSets.some((set) => set.id !== 'active-card-set' || set.name !== 'Untitled Set');
-          if (shouldInstallSetState) {
+          if (patch.cardSets.length > 0) {
             useProjectStore.getState().mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
           }
 
@@ -172,7 +170,7 @@ export function useStudioDocumentHandoff({
           const templateAddedCount = personalTemplates.filter((template) => template.id && !existingTemplateIds.has(template.id)).length;
           const templateUpdatedCount = Math.max(0, personalTemplates.length - templateAddedCount);
           const destination: StudioDocumentInstallSummary['destination'] = cardResult.successCount > 0 ? 'sets' : 'template-maker';
-          const activeFrontTemplateId = patch.cardSets.find((set) => set.id === patch.activeCardSetId)?.frontTemplateId ?? null;
+          const activeFrontTemplateId = patch.storedCards.find((card) => card.setId === patch.activeCardSetId)?.templateId ?? null;
           const installedTemplateId = activeFrontTemplateId
             ?? personalTemplates.find((template) => template.id)?.id
             ?? patch.userTemplates.find((template) => template.id)?.id
@@ -185,7 +183,7 @@ export function useStudioDocumentHandoff({
             templateCount: personalTemplates.length,
             templateAddedCount,
             templateUpdatedCount,
-            setCount: shouldInstallSetState ? patch.cardSets.length : 0,
+            setCount: patch.cardSets.length,
             cardCount: cardResult.successCount,
             cardAddedCount,
             cardUpdatedCount,
@@ -257,7 +255,8 @@ export function useStudioDocumentHandoff({
         if (patch.exportDpi) setExportDpi(patch.exportDpi);
         mergeStoredCards(patch.storedCards);
 
-        const firstTemplateId = useProjectStore.getState().activeCardSet.frontTemplateId
+        const activeSetId = useProjectStore.getState().activeCardSet?.id ?? null;
+        const firstTemplateId = useProjectStore.getState().storedCards.find((card) => card.setId === activeSetId)?.templateId
           ?? patch.userTemplates.find((template) => template.id)?.id
           ?? null;
         setSelectedTemplateId(firstTemplateId);

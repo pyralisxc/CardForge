@@ -18,7 +18,6 @@ import {
   listLocalProjectWorkBindings,
   getProjectAssetStorage,
   hydrateProjectWorkspaceForScope,
-  isUntouchedBootstrapCardSet,
   loadGoogleDriveProjectLibrary,
   openGoogleDriveProject,
   readTypedProjectAssetListFromStorage,
@@ -148,7 +147,7 @@ export function useAccountLibraryProjection({
   const deferredQuery = useDeferredValue(query);
 
   const cardSets = useProjectStore((state) => state.cardSets);
-  const activeSetId = useProjectStore((state) => state.activeCardSet.id);
+  const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
   const storedCards = useProjectStore((state) => state.storedCards);
   const userTemplates = useProjectStore((state) => state.userTemplates);
   const setDefaultTemplatesFromFiles = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
@@ -271,9 +270,7 @@ export function useAccountLibraryProjection({
   }, [storedCards]);
 
   const items = useMemo(() => buildAccountLibraryItems({
-    localSets: cardSets
-      .filter((set) => !isUntouchedBootstrapCardSet(set, cardCounts.get(set.id) ?? 0))
-      .map((set) => ({
+    localSets: cardSets.map((set) => ({
       id: set.id,
       name: set.name,
       cardCount: cardCounts.get(set.id) ?? 0,

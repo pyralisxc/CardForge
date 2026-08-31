@@ -46,6 +46,7 @@ export function useCardForgeWorkspaceState() {
   const addOrUpdateAppearanceStyleAction = useProjectStore((state) => state.addOrUpdateAppearanceStyle);
   const deleteAppearanceStyleAction = useProjectStore((state) => state.deleteAppearanceStyle);
   const addGeneratedCardsAction = useProjectStore((state) => state.addGeneratedCards);
+  const createCardSetAction = useProjectStore((state) => state.createCardSet);
   const clearGeneratedCardsAction = useProjectStore((state) => state.clearGeneratedCards);
   const removeGeneratedCardAction = useProjectStore((state) => state.removeGeneratedCard);
   const updateGeneratedCardAction = useProjectStore((state) => state.updateGeneratedCard);
@@ -56,8 +57,6 @@ export function useCardForgeWorkspaceState() {
   const setSelectedPaperSizeAction = useProjectStore((state) => state.setSelectedPaperSize);
   const setStudioViewAction = useProjectStore((state) => state.setStudioView);
   const setActiveCardSetNameAction = useProjectStore((state) => state.setActiveCardSetName);
-  const setActiveCardSetFrontTemplateIdAction = useProjectStore((state) => state.setActiveCardSetFrontTemplateId);
-  const setActiveCardSetBackingTemplateIdAction = useProjectStore((state) => state.setActiveCardSetBackingTemplateId);
   const setSingleCardGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
   const setSingleCardGeneratorSelectedBackingTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateIdAction = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
@@ -84,6 +83,7 @@ export function useCardForgeWorkspaceState() {
   return {
     actions: {
       addGeneratedCardsAction,
+      createCardSetAction,
       addOrUpdateAppearanceStyleAction,
       addOrUpdateTemplateAction,
       clearGeneratedCardsAction,
@@ -96,8 +96,6 @@ export function useCardForgeWorkspaceState() {
       retargetGeneratedCardsBackingTemplateAction,
       retargetGeneratedCardsTemplateAction,
       setStudioViewAction,
-      setActiveCardSetBackingTemplateIdAction,
-      setActiveCardSetFrontTemplateIdAction,
       setActiveCardSetNameAction,
       setAppearanceStylesFromFilesAction,
       replaceAppearanceStylesFromFilesAction,

@@ -290,8 +290,8 @@ const applyCardPatches = ({
         404,
       );
     }
-    const front = requireTemplate(templates, card.templateId || set.frontTemplateId || '');
-    const backId = card.backingTemplateId ?? set.backingTemplateId;
+    const front = requireTemplate(templates, card.templateId);
+    const backId = card.backingTemplateId;
     const back = backId ? requireTemplate(templates, backId) : null;
     if ((patch.backingFields || patch.unsetBackingFields?.length) && !back) {
       throw new StudioDocumentStoreError(`Card ${patch.cardId} does not have a back Template.`, 409);

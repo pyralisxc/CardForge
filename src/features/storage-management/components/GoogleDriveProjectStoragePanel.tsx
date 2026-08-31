@@ -44,7 +44,7 @@ export function GoogleDriveProjectStoragePanel({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const activeSetName = useProjectStore((state) => state.activeCardSet.name);
+  const activeSetName = useProjectStore((state) => state.activeCardSet?.name ?? 'No Set selected');
   const [ready, setReady] = useState(false);
   const [library, setLibrary] = useState<GoogleDriveProjectListResult | null>(null);
   const [binding, setBinding] = useState<GoogleDriveProjectBinding | null>(null);

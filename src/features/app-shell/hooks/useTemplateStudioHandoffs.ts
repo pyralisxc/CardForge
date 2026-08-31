@@ -24,7 +24,7 @@ type TemplateStudioHandoffOptions = {
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   saveTemplateToLibrary: (template: TCGCardTemplate) => Promise<string>;
-  setActiveCardSetBackingTemplateId: (templateId: string | null) => void;
+  setGeneratorBackingTemplateId: (templateId: string | null) => void;
   setStudioView: (view: StudioView) => void;
   setTemplateEditorSelectedTemplateId: (templateId: string | null) => void;
   storedCards: StoredDisplayCard[];
@@ -37,7 +37,7 @@ export function useTemplateStudioHandoffs({
   retargetGeneratedCardsBackingTemplate,
   retargetGeneratedCardsTemplate,
   saveTemplateToLibrary,
-  setActiveCardSetBackingTemplateId,
+  setGeneratorBackingTemplateId,
   setStudioView,
   setTemplateEditorSelectedTemplateId,
   storedCards,
@@ -97,7 +97,7 @@ export function useTemplateStudioHandoffs({
     if (!pendingTemplateRetarget) return;
 
     if (pendingTemplateRetarget.side === 'back') {
-      setActiveCardSetBackingTemplateId(pendingTemplateRetarget.toTemplateId);
+      setGeneratorBackingTemplateId(pendingTemplateRetarget.toTemplateId);
       if (pendingTemplateRetarget.fromTemplateId) {
         retargetGeneratedCardsBackingTemplate(
           pendingTemplateRetarget.fromTemplateId,
@@ -115,12 +115,12 @@ export function useTemplateStudioHandoffs({
       title: pendingTemplateRetarget.side === 'back' ? 'Saved back applied' : 'Existing cards updated',
       description: pendingTemplateRetarget.side === 'back'
         ? pendingTemplateRetarget.count > 0
-          ? `The current set and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved back.`
-          : 'The current set now uses the saved back.'
+          ? `The Generator and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved back.`
+          : 'The Generator now uses the saved back.'
         : `${pendingTemplateRetarget.count} card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved design.`,
     });
     setPendingTemplateRetarget(null);
-  }, [pendingTemplateRetarget, retargetGeneratedCardsBackingTemplate, retargetGeneratedCardsTemplate, setActiveCardSetBackingTemplateId, toast]);
+  }, [pendingTemplateRetarget, retargetGeneratedCardsBackingTemplate, retargetGeneratedCardsTemplate, setGeneratorBackingTemplateId, toast]);
 
   const dismissPendingTemplateRetarget = useCallback(() => setPendingTemplateRetarget(null), []);
   const clearMatchingBackRequest = useCallback(() => setMatchingBackRequest(null), []);

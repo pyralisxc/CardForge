@@ -47,8 +47,6 @@ export async function GET(request: Request) {
       return createApiErrorResponse(404, 'studio_document_not_found', 'One or more requested stable card ids are no longer part of this Set.');
     }
     const requiredTemplateIds = new Set<string>();
-    if (set.frontTemplateId) requiredTemplateIds.add(set.frontTemplateId);
-    if (set.backingTemplateId) requiredTemplateIds.add(set.backingTemplateId);
     cards.forEach((card) => {
       if (card.templateId) requiredTemplateIds.add(card.templateId);
       if (card.backingTemplateId) requiredTemplateIds.add(card.backingTemplateId);
