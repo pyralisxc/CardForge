@@ -965,6 +965,11 @@
     box-shadow: none;
   }
 
+  .sourceSelect {
+    gap: 0.25rem;
+    padding-inline: 0.4rem;
+  }
+
   .searchField,
   .sourceSelect,
   .arrangeSelect {
