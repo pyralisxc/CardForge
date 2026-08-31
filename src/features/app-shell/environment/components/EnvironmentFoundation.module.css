@@ -91,20 +91,12 @@
   text-decoration: none;
 }
 
-.zonePending {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
-  width: 0.32rem;
-  height: 0.32rem;
-  border-radius: 999px;
-  background: var(--cf-accent-strong);
-  animation: zone-pending-pulse 900ms ease-in-out infinite alternate;
+.zonePendingIcon {
+  animation: zone-pending-spin 700ms linear infinite;
 }
 
-@keyframes zone-pending-pulse {
-  from { opacity: 0.28; transform: scale(0.75); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes zone-pending-spin {
+  to { transform: rotate(360deg); }
 }
 
 .railButton {

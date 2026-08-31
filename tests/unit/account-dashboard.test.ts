@@ -112,6 +112,10 @@ describe('unified account environment', () => {
 
   it('keeps Stripe-owned billing inside the focused Profile utility', () => {
     expect(accountPage).toContain('getMcpAllowances()');
+    expect(accountPage).toContain("const needsPlans = activeSection === 'profile' || activeSection === 'billing';");
+    expect(accountPage).toContain('needsPlans ? getMcpAllowances() : Promise.resolve([])');
+    expect(accountPage).toContain("const needsAccountContent = activeSection === 'library' || activeSection === 'storage';");
+    expect(accountPage).toContain("needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([])");
     expect(accountPage).toContain('plans={plans}');
     expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : null");
     expect(profileEnvironment).toContain('Manage access, billing, and usage');

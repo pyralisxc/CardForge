@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link, { useLinkStatus } from 'next/link';
-import { Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
+import { Home, LibraryBig, LoaderCircle, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -28,10 +28,10 @@ interface EnvironmentNavigationProps {
 
 function ZoneLinkContents({ Icon, label }: { Icon: LucideIcon; label: string }) {
   const { pending } = useLinkStatus();
+  const StatusIcon = pending ? LoaderCircle : Icon;
   return <>
-    <Icon size={19} aria-hidden="true" />
-    <span>{label}</span>
-    {pending ? <span className={styles.zonePending} aria-hidden="true" /> : null}
+    <StatusIcon className={pending ? styles.zonePendingIcon : undefined} size={19} aria-hidden="true" />
+    <span>{pending ? 'Opening…' : label}</span>
   </>;
 }
 

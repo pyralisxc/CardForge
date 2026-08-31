@@ -67,6 +67,8 @@ export default async function AccountPage({
     hasStorageResult: storageStatus !== null,
     hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
   });
+  const needsPlans = activeSection === 'profile' || activeSection === 'billing';
+  const needsAccountContent = activeSection === 'library' || activeSection === 'storage';
   const [entitlementResult, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
@@ -75,8 +77,8 @@ export default async function AccountPage({
         unavailable: true,
       };
     }),
-    getMcpAllowances(),
-    getCachedSiteContentBlocks('account'),
+    needsPlans ? getMcpAllowances() : Promise.resolve([]),
+    needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([]),
   ]);
   const { entitlement, unavailable: entitlementUnavailable } = entitlementResult;
   const authConfigured = entitlement.authConfigured;

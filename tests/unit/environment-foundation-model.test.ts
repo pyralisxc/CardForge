@@ -25,6 +25,8 @@ describe('Environment Foundation model', () => {
   it('uses prefetched navigation links for stable zone changes', () => {
     expect(navigationSource).toContain('<Link');
     expect(navigationSource).toContain('prefetch={true}');
+    expect(navigationSource).toContain('LoaderCircle');
+    expect(navigationSource).toContain("pending ? 'Opening…' : label");
     expect(navigationSource).not.toContain('onChooseZone');
   });
 
