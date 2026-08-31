@@ -8,10 +8,19 @@ import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
   instantiateProjectDocumentCopy,
+  isUntouchedBootstrapCardSet,
   isolateProjectDocumentToSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
 } from '@/features/project/client';
+
+describe('bootstrap Set visibility', () => {
+  it('hides the empty legacy bootstrap even when old Generator templates remain attached', () => {
+    expect(isUntouchedBootstrapCardSet({ id: 'active-card-set' }, 0)).toBe(true);
+    expect(isUntouchedBootstrapCardSet({ id: 'active-card-set' }, 1)).toBe(false);
+    expect(isUntouchedBootstrapCardSet({ id: 'set-authored' }, 0)).toBe(false);
+  });
+});
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',

@@ -27,11 +27,9 @@ const PROJECT_FALLBACK_SET: CardSet = {
 };
 
 export const isUntouchedBootstrapCardSet = (
-  set: Pick<CardSet, 'id' | 'frontTemplateId' | 'backingTemplateId'>,
+  set: Pick<CardSet, 'id'>,
   cardCount: number,
 ): boolean => set.id === PROJECT_FALLBACK_SET.id
-  && !set.frontTemplateId
-  && !set.backingTemplateId
   && cardCount === 0;
 
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
