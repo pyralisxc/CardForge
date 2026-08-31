@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react';
-import { flushSync } from 'react-dom';
 import {
   ArrowDown,
   ArrowLeft,
@@ -160,17 +159,6 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
         ? FileArchive
         : Cloud;
   return <Icon className={className} aria-hidden="true" />;
-};
-
-const runDeskTransition = (update: () => void) => {
-  const startViewTransition = (document as Document & {
-    startViewTransition?: (callback: () => void) => void;
-  }).startViewTransition;
-  if (!startViewTransition || globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    update();
-    return;
-  }
-  startViewTransition.call(document, () => flushSync(update));
 };
 
 export function HomeDesk({
@@ -464,11 +452,9 @@ export function HomeDesk({
 
   const focusWork = (item: AccountLibraryItem) => {
     if (item.references.localSetId) setActiveCardSetId(item.references.localSetId);
-    runDeskTransition(() => {
-      setRenaming(false);
-      setFocusedWorkId(item.id);
-      setInspectorWorkId(null);
-    });
+    setRenaming(false);
+    setFocusedWorkId(item.id);
+    setInspectorWorkId(null);
   };
 
   const createWork = () => {
@@ -640,8 +626,6 @@ export function HomeDesk({
     if (!item.references.localSetId) return null;
     return workCards(item)[0]?.template ?? null;
   };
-  const transitionName = (item: AccountLibraryItem) => `cardforge-set-${(item.references.localSetId ?? item.id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-  const transitionStyle = (item: AccountLibraryItem) => ({ viewTransitionName: transitionName(item) }) as CSSProperties;
   const closeGenerate = () => setGenerateSetId(null);
   const showTemplateTool = (templateId?: string | null) => {
     if (templateId) setTemplateEditorSelectedTemplateId(templateId);
@@ -695,21 +679,21 @@ export function HomeDesk({
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
           {focusedItem ? (
             <div className={styles.focusSurface} data-home-desk="focused" data-has-orbit={visibleWork.some((item) => item.id !== focusedItem.id)}>
-              <button type="button" className={styles.backButton} onClick={() => { runDeskTransition(() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); }); projection.router.replace('/account'); }}>
+              <button type="button" className={styles.backButton} onClick={() => { setRenaming(false); setFocusedWorkId(null); setInspectorWorkId(null); projection.router.replace('/account'); }}>
                 <ArrowLeft size={16} aria-hidden="true" /> Back to Desk
               </button>
               {visibleWork.some((item) => item.id !== focusedItem.id) ? <aside className={styles.focusOrbit} aria-label="Work surrounding the focused Set">
                 {visibleWork.filter((item) => item.id !== focusedItem.id).slice(0, 5).map((item, index) => {
                   const cards = workCards(item);
                   return <button key={item.id} type="button" className={styles.nearbyObject} data-slot={index} onClick={() => focusWork(item)} aria-label={`Focus ${item.name}`}>
-                    <span className={styles.nearbyVisual} data-home-set-stack>{item.references.localSetId ? <span style={transitionStyle(item)}><AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size="compact" emptyLabel={cards.length ? undefined : 'Empty Set'} /></span> : <WorkSourceIcon item={item} />}</span>
+                    <span className={styles.nearbyVisual} data-home-set-stack>{item.references.localSetId ? <span><AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size="compact" emptyLabel={cards.length ? undefined : 'Empty Set'} /></span> : <WorkSourceIcon item={item} />}</span>
                     <span><strong>{item.name}</strong><small>{item.details[0] ?? workSourceLabel(item)}</small></span>
                   </button>;
                 })}
               </aside> : null}
               <section className={styles.focusWorkspace} data-home-set-board aria-label={focusedItem.name}>
                 <header className={styles.focusHeader}>
-                  {focusedLocalSetId ? <div className={styles.focusPreview} data-home-set-stack style={transitionStyle(focusedItem)}><AuthoredObjectPreview cards={workCards(focusedItem)} template={workTemplate(focusedItem)} label={focusedItem.name} size="compact" emptyLabel={focusedCards.length ? undefined : 'Empty Set'} /></div> : null}
+                  {focusedLocalSetId ? <div className={styles.focusPreview} data-home-set-stack><AuthoredObjectPreview cards={workCards(focusedItem)} template={workTemplate(focusedItem)} label={focusedItem.name} size="compact" emptyLabel={focusedCards.length ? undefined : 'Empty Set'} /></div> : null}
                   <div className={styles.focusIdentity}>
                     {renaming && focusedLocalSetId ? (
                       <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); commitRename(); }}>
@@ -820,7 +804,7 @@ export function HomeDesk({
                     const positionStyle = position ? ({ '--desk-x': `${position.x}px`, '--desk-y': `${position.y}px` } as CSSProperties) : undefined;
                     return <article key={item.id} className={styles.workTile} style={positionStyle} data-positioned={Boolean(position)} data-home-work-object data-featured={featured} data-slot={index % 6} data-active={item.id === activeWorkId} data-pinned={pinnedIds.includes(item.id)}>
                       <button id={`home-work-${item.id}`} type="button" className={styles.workTileMain} onPointerDown={(event) => beginDeskDrag(item.id, event)} onPointerMove={moveDeskDrag} onPointerUp={endDeskDrag} onPointerCancel={endDeskDrag} onClick={() => { if (shouldSuppressFocus(item.id)) return; focusWork(item); }} aria-label={`Focus ${item.name}`}>
-                        <div className={styles.workVisual} data-home-set-stack style={item.references.localSetId ? transitionStyle(item) : undefined}>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
+                        <div className={styles.workVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={cards} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={cards.length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>
                         <span className={styles.workMeta}><strong>{item.name}</strong><span>{item.details.join(' · ') || workSourceLabel(item)}</span><span>{workSourceLabel(item)}</span></span>
                       </button>
                       <div className={styles.tileActions}>

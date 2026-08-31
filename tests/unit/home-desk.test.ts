@@ -17,6 +17,8 @@ describe('Home spatial desk', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const homeClient = readSource('src/features/home/client.ts');
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
+  const homeDeskStyles = readSource('src/features/home/components/HomeDesk.module.css');
+  const globalStyles = readSource('src/app/globals.css');
   const homeModel = readSource('src/features/home/model/homeDesk.ts');
   const library = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const libraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
@@ -44,6 +46,13 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain("projection.router.replace('/account')");
     expect(libraryProjection).not.toContain('isUntouchedBootstrapCardSet');
     expect(homeModel).not.toContain('isUntouchedBootstrapWork');
+  });
+
+  it('uses a single-surface focus animation instead of duplicating Set previews through native view transitions', () => {
+    expect(homeDesk).not.toContain('startViewTransition');
+    expect(homeDesk).not.toContain('viewTransitionName');
+    expect(homeDeskStyles).toContain('animation: focus-workspace-enter');
+    expect(globalStyles).not.toContain('::view-transition');
   });
 
   it('keeps a local Set on Desk until a contained object is chosen for Studio', () => {
