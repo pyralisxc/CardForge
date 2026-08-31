@@ -28,13 +28,12 @@ interface EnvironmentShellProps {
   footerContent: ReactNode;
   surfaceRef?: Ref<HTMLElement>;
   children?: ReactNode;
-  onChooseZone: (zone: ZoneDefinition) => void;
   onCommand: () => void;
   onAction: (action: ActionDescriptor) => void;
   onCloseDetail: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, search, accountControl, statusContent, footerContent, surfaceRef, children, onChooseZone, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, search, accountControl, statusContent, footerContent, surfaceRef, children, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
@@ -54,7 +53,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   return (
     <section className={styles.lab} aria-label={ariaLabel}>
       <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy}>
-        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onChooseZone={onChooseZone} />
+        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} />
         <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} onCommand={onCommand} onAction={onAction} />
         <main ref={surfaceRef} className={styles.primarySurface}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}

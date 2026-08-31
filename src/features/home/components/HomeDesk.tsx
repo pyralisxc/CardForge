@@ -68,7 +68,6 @@ import {
   getVisibleEnvironmentZones,
   type ActionDescriptor,
   type EnvironmentViewer,
-  type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
@@ -569,6 +568,7 @@ export function HomeDesk({
   const runAction = (action: ActionDescriptor) => {
     const item = inspectorItem ?? focusedItem;
     if (action.id === 'home.create-work') openCreateMenu();
+    else if (action.id === 'home.open-work' && item?.references.localSetId) focusWork(item);
     else if (action.id === 'home.open-work' && item) void projection.openItem(item, createDeskStudioReturnTo(item.id));
     else if (action.id === 'home.pin-work' && inspectorItem) togglePin(inspectorItem.id);
     else if (action.id === 'home.generate-work' && item?.references.localSetId) {
@@ -688,7 +688,6 @@ export function HomeDesk({
             <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-up', '/account')} prefetch={false} onClick={markSignUpIntent}>Create account</Link>
           </span>
         )}
-        onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)}
         onCommand={() => focusedItem ? setFocusedWorkId(null) : searchRef.current?.focus()}
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
@@ -721,7 +720,7 @@ export function HomeDesk({
                     <p>{focusedContentsLabel} · {workSourceLabel(focusedItem)}</p>
                   </div>
                   <div className={styles.focusActions}>
-                    <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Edit in Studio</button>
+                    {!focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}><Pencil size={15} aria-hidden="true" />Open in Studio</button> : null}
                     {focusedLocalSetId ? <button type="button" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'generate')}><WandSparkles size={15} aria-hidden="true" />Generate</button> : null}
                     <button type="button" className={styles.quietAction} onClick={() => setLocationItem(focusedItem)}><Save size={15} aria-hidden="true" />Save &amp; move</button>
                     <DropdownMenu>
@@ -829,7 +828,9 @@ export function HomeDesk({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><button id={`home-work-info-${item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Edit in Studio</DropdownMenuItem>
+                            {item.references.localSetId
+                              ? <DropdownMenuItem onSelect={() => focusWork(item)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem>
+                              : <DropdownMenuItem onSelect={() => openWorkLane(item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
                             {item.references.localSetId ? <DropdownMenuItem onSelect={() => openWorkLane(item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
                             <DropdownMenuItem disabled={!experience.capabilities.canUseProjectFiles} onSelect={() => setLocationItem(item)}><Save aria-hidden="true" />Save / move{experience.capabilities.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
                             {experience.contributor.canSubmit && item.references.localSetId ? <DropdownMenuItem onSelect={() => openPipelineSubmission(item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}

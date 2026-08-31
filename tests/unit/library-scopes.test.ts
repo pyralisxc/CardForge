@@ -12,6 +12,7 @@ import {
 
 describe('Library scopes', () => {
   const library = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/UnifiedAccountLibrary.tsx'), 'utf8');
+  const libraryActions = readFileSync(resolve(process.cwd(), 'src/features/storage-management/model/accountLibraryEnvironment.ts'), 'utf8');
   const sharedProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useLibrarySharedProjection.ts'), 'utf8');
   it('keeps Personal and Pipeline visible while protecting contributor publication history', () => {
     expect(getLibraryScopeDefinitions({ contributor: false, campaigns: false, owner: false }).map((scope) => scope.id))
@@ -67,5 +68,10 @@ describe('Library scopes', () => {
     expect(library).toContain('appearanceToStyle(style.appearance)');
     expect(library).toContain('className={styles.stylePreview}');
     expect(library).toContain('item.pipeline.style');
+  });
+
+  it('opens Set containers on Desk instead of dropping them into an unrelated Studio Template', () => {
+    expect(libraryActions).toContain("item.references.localSetId ? 'Open on Desk'");
+    expect(library).toContain("createDeskReturnHref(`set:${item.references.localSetId}`)");
   });
 });

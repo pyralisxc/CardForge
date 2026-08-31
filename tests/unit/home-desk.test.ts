@@ -4,10 +4,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  getWorkActions,
   normalizeDeskOrder,
   reorderDeskItem,
 } from '@/features/home/model/homeDesk';
 import { normalizeCardSet } from '@/domain/cards';
+import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -42,6 +44,30 @@ describe('Home spatial desk', () => {
     expect(homeDesk).toContain("projection.router.replace('/account')");
     expect(libraryProjection).not.toContain('isUntouchedBootstrapCardSet');
     expect(homeModel).not.toContain('isUntouchedBootstrapWork');
+  });
+
+  it('keeps a local Set on Desk until a contained object is chosen for Studio', () => {
+    const localSet: AccountLibraryItem = {
+      id: 'set:set-alpha',
+      kind: 'set',
+      name: 'Set Alpha',
+      locations: [{ source: 'device', status: 'available', label: 'This device' }],
+      details: ['0 cards', 'Device only'],
+      sizeBytes: null,
+      revision: null,
+      updatedAt: null,
+      expiresAt: null,
+      webViewLink: null,
+      references: { localSetId: 'set-alpha' },
+    };
+
+    expect(getWorkActions(localSet, false, true)[0]).toMatchObject({
+      id: 'home.open-work',
+      label: 'Open Set',
+      ownerFeature: 'project',
+    });
+    expect(homeDesk).toContain("action.id === 'home.open-work' && item?.references.localSetId");
+    expect(homeDesk).toContain("{!focusedLocalSetId ? <button type=\"button\" className={styles.quietAction} onClick={() => openWorkLane(focusedItem, 'open')}");
   });
 
   it('keeps organization and destructive actions attached to their native owners', () => {

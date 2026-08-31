@@ -26,7 +26,7 @@ import {
   ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
   closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
   type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
-  type EnvironmentViewer, type SelectionSession, type ZoneDefinition,
+  type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
@@ -577,7 +577,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
   const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
-    if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryStudioReturnTo());
+    if ((actionId === 'library.open' || actionId === 'library.continue') && item.references.localSetId) {
+      projection.router.push(createDeskReturnHref(`set:${item.references.localSetId}`));
+    } else if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryStudioReturnTo());
     else if (actionId === 'library.send-pipeline' && item.references.localSetId) openContributionTool({ setId: item.references.localSetId });
     else if (actionId === 'library.save-move') setLocationItem(item);
     else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
@@ -701,7 +703,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     actions={actions} accountControl={<PublicAuthControls />} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
     statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
     footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
-    onChooseZone={(zone: ZoneDefinition) => projection.router.push(zone.href)} onCommand={() => searchRef.current?.focus()}
+    onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
     <div className={styles.library} data-density={density} data-tool-open={Boolean(activeTool)}>

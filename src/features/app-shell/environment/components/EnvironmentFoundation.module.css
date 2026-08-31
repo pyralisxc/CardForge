@@ -88,6 +88,23 @@
   background: transparent;
   color: var(--cf-text-subtle);
   cursor: pointer;
+  text-decoration: none;
+}
+
+.zonePending {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 0.32rem;
+  height: 0.32rem;
+  border-radius: 999px;
+  background: var(--cf-accent-strong);
+  animation: zone-pending-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes zone-pending-pulse {
+  from { opacity: 0.28; transform: scale(0.75); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .railButton {

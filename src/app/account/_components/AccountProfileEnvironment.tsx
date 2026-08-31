@@ -18,7 +18,6 @@ import {
   type ActionDescriptor,
   type EnvironmentSettingRecord,
   type EnvironmentViewer,
-  type ZoneDefinition,
 } from '@/features/app-shell/client/environment';
 import { projectAccountExperience } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
@@ -252,7 +251,6 @@ export function AccountProfileEnvironment({
         </>
       )}
       footerContent={<span>{isSignedIn ? accountEmail : 'Profile controls remain provider-owned'}</span>}
-      onChooseZone={(zone: ZoneDefinition) => router.push(zone.href)}
       onCommand={() => router.push('/account?section=library#library-search')}
       onAction={runAction}
       onCloseDetail={() => {}}

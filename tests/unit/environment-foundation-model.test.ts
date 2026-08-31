@@ -16,8 +16,18 @@ import {
 } from '@/features/app-shell/client/environment';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 describe('Environment Foundation model', () => {
+  const navigationSource = readFileSync(resolve(process.cwd(), 'src/features/app-shell/environment/components/EnvironmentNavigation.tsx'), 'utf8');
+
+  it('uses prefetched navigation links for stable zone changes', () => {
+    expect(navigationSource).toContain('<Link');
+    expect(navigationSource).toContain('prefetch={true}');
+    expect(navigationSource).not.toContain('onChooseZone');
+  });
+
   it('keeps zone availability separate from private-rail visibility', () => {
     expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['home', 'library', 'profile', 'owner']);
 

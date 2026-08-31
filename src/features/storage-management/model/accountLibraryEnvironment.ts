@@ -36,7 +36,7 @@ const openAutomation = (item: AccountLibraryItem): ActionAutomation => {
 };
 
 const openOwner = (item: AccountLibraryItem): FeatureOwnerId => (
-  item.kind === 'working-draft' ? 'studio-documents' : item.kind === 'template' ? 'template-editor' : 'card-generator'
+  item.references.localSetId ? 'project' : item.kind === 'working-draft' ? 'studio-documents' : item.kind === 'template' ? 'template-editor' : 'card-generator'
 );
 
 const openPermission = (item: AccountLibraryItem): ActionPermission => (
@@ -93,7 +93,7 @@ export const getAccountLibraryEnvironmentActions = (
   if (availableActions.includes('open')) {
     actions.push({
       id: 'library.open',
-      label: item.references.localSetId || item.references.localTemplateId ? 'Open in Studio' : 'Open project',
+      label: item.references.localSetId ? 'Open on Desk' : item.references.localTemplateId ? 'Open in Studio' : 'Open project',
       ownerFeature: openOwner(item),
       supportedObjectKinds: [item.kind],
       supportedSources: sources,

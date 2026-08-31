@@ -1039,7 +1039,7 @@
   .focusSurface {
     display: block;
     min-height: 100%;
-    padding: 8.3rem 0.25rem 0.5rem;
+    padding: 7rem 0.25rem 0.5rem;
     overflow: visible;
   }
 
@@ -1079,12 +1079,7 @@
   }
 
   .nearbyVisual {
-    min-height: 2.75rem;
-  }
-
-  .nearbyVisual svg {
-    width: 1.45rem;
-    height: 1.45rem;
+    display: none;
   }
 
   .nearbyObject small {

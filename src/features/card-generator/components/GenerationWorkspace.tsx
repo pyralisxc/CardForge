@@ -205,7 +205,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
             </Select>
 
             {selectedTemplate && compatibleBackTemplates.length > 0 ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="mt-2 grid gap-2">
                 {selectedBackingTemplate?.id ? (
                   <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={() => onEditSelectedBack(selectedBackingTemplate.id!)}>
                     <Pencil className="mr-2 h-4 w-4" /> Edit selected back

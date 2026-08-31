@@ -120,7 +120,7 @@ export const getWorkActions = (
     : { kind: 'human-only', owner: 'cardforge' };
   return [
     {
-      id: 'home.open-work', label: 'Edit in Studio', ownerFeature: item.kind === 'working-draft' ? 'studio-documents' : 'project',
+      id: 'home.open-work', label: localSet ? 'Open Set' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.kind === 'working-draft' ? 'studio-documents' : 'project',
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation, result: 'navigation',

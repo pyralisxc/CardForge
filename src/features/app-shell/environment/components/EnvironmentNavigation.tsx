@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { Home, LibraryBig, Menu, ShieldCheck, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
 
 import {
@@ -24,33 +24,38 @@ interface EnvironmentNavigationProps {
   zones: readonly ZoneDefinition[];
   activeZone: ZoneId;
   brand: { src: string; alt: string };
-  onChooseZone: (zone: ZoneDefinition) => void;
+}
+
+function ZoneLinkContents({ Icon, label }: { Icon: LucideIcon; label: string }) {
+  const { pending } = useLinkStatus();
+  return <>
+    <Icon size={19} aria-hidden="true" />
+    <span>{label}</span>
+    {pending ? <span className={styles.zonePending} aria-hidden="true" /> : null}
+  </>;
 }
 
 function MobileZoneButton({
   zone,
   activeZone,
-  onChooseZone,
 }: {
   zone: ZoneDefinition;
   activeZone: ZoneId;
-  onChooseZone: (zone: ZoneDefinition) => void;
 }) {
   const Icon = ZONE_ICONS[zone.id];
   return (
-    <button
-      type="button"
+    <Link
+      href={zone.href}
+      prefetch={true}
       className={styles.mobileZoneButton}
       aria-current={activeZone === zone.id ? 'page' : undefined}
-      onClick={() => onChooseZone(zone)}
     >
-      <Icon size={19} aria-hidden="true" />
-      <span>{zone.shortLabel}</span>
-    </button>
+      <ZoneLinkContents Icon={Icon} label={zone.shortLabel} />
+    </Link>
   );
 }
 
-export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }: EnvironmentNavigationProps) {
+export function EnvironmentNavigation({ zones, activeZone, brand }: EnvironmentNavigationProps) {
   const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'member');
   const protectedZones = zones.filter((zone) => zone.minimumAccess === 'contributor' || zone.minimumAccess === 'owner');
 
@@ -66,9 +71,9 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
             return (
               <div key={zone.id}>
                 {showDivider ? <div className={styles.railDivider} aria-hidden="true" /> : null}
-                <button type="button" className={styles.railButton} aria-current={activeZone === zone.id ? 'page' : undefined} onClick={() => onChooseZone(zone)}>
-                  <Icon size={20} aria-hidden="true" /><span>{zone.shortLabel}</span>
-                </button>
+                <Link href={zone.href} prefetch={true} className={styles.railButton} aria-current={activeZone === zone.id ? 'page' : undefined}>
+                  <ZoneLinkContents Icon={Icon} label={zone.shortLabel} />
+                </Link>
               </div>
             );
           })}
@@ -77,10 +82,10 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
 
       <nav className={styles.mobileNav} aria-label="CardForge zones" style={{ gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}>
         {coreZones.map((zone) => (
-          <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} onChooseZone={onChooseZone} />
+          <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} />
         ))}
         {protectedZones.length === 1 ? (
-          <MobileZoneButton zone={protectedZones[0]!} activeZone={activeZone} onChooseZone={onChooseZone} />
+          <MobileZoneButton zone={protectedZones[0]!} activeZone={activeZone} />
         ) : protectedZones.length > 1 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -91,7 +96,7 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onChooseZone }
             <DropdownMenuContent className={styles.mobileMoreMenu} side="top" align="end">
               {protectedZones.map((zone) => {
                 const Icon = ZONE_ICONS[zone.id];
-                return <DropdownMenuItem key={zone.id} onSelect={() => onChooseZone(zone)}><Icon aria-hidden="true" />{zone.label}</DropdownMenuItem>;
+                return <DropdownMenuItem key={zone.id} asChild><Link href={zone.href} prefetch={true}><Icon aria-hidden="true" />{zone.label}</Link></DropdownMenuItem>;
               })}
             </DropdownMenuContent>
           </DropdownMenu>
