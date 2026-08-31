@@ -60,7 +60,7 @@ describe('repository security defaults', () => {
 
     expect(operations).toContain('Authenticated production smoke');
     expect(operations).toContain('former reusable QA accounts were retired');
-    expect(operations).toContain('real signed-in owner/developer account');
+    expect(operations).toContain('real signed-in owner/contributor account');
     expect(operations).toContain('ledgerCreated');
     expect(operations).toContain('Stripe Workbench');
     expect(operations).toContain('Solo-maintainer branch rule');

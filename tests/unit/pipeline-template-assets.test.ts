@@ -51,7 +51,7 @@ describe('Pipeline Template assets', () => {
 
     const [published] = await mapRegistryRowsToTemplateLibrary([{
       asset_id: 'template-1',
-      developer_submission_id: 'revision-1',
+      contributor_submission_id: 'revision-1',
       name: 'Template',
       url: '/api/templates#template-1',
       status: 'published',
@@ -70,7 +70,7 @@ describe('Pipeline Template assets', () => {
 
     const retiredRegistryCopy = await mapRegistryRowsToTemplateLibrary([{
       asset_id: 'template-without-revision',
-      developer_submission_id: 'missing-revision',
+      contributor_submission_id: 'missing-revision',
       name: 'Legacy registry copy',
       url: '/api/templates#template-without-revision',
       status: 'published',

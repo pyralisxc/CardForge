@@ -42,7 +42,7 @@ export const getContributorCapabilities = async (
     };
   }
 
-  if (account.entitlement.accessMode !== 'dev') {
+  if (account.entitlement.accessMode !== 'contributor') {
     return { active: false, scopes: [] };
   }
 

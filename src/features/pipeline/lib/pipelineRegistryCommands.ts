@@ -117,7 +117,7 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 };
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
-  if (errorMessage?.includes('developer_asset_not_found')) {
+  if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('The Template Pipeline draft was not found.', 404);
   }
   if (errorMessage?.includes('template_draft_owner_required')) {
@@ -141,7 +141,7 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
       409,
     );
   }
-  if (errorMessage?.includes('developer_asset_lineage_purge_pending')) {
+  if (errorMessage?.includes('contributor_asset_lineage_purge_pending')) {
     throw new PipelineRegistryCommandError(
       'This Pipeline object is being permanently deleted and can no longer be changed.',
       409,
@@ -160,13 +160,13 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
 };
 
 const throwPipelinePurgeError = (errorMessage?: string): never => {
-  if (errorMessage?.includes('developer_asset_not_found')) {
+  if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('Pipeline submission was not found.', 404);
   }
-  if (errorMessage?.includes('developer_asset_purge_confirmation_mismatch')) {
+  if (errorMessage?.includes('contributor_asset_purge_confirmation_mismatch')) {
     throw new PipelineRegistryCommandError('Type the exact asset name to confirm permanent deletion.', 400);
   }
-  if (errorMessage?.includes('developer_asset_storage_reference_incomplete')) {
+  if (errorMessage?.includes('contributor_asset_storage_reference_incomplete')) {
     throw new PipelineRegistryCommandError(
       'This asset has an incomplete storage reference. Repair it before permanent deletion.',
       409,
@@ -181,7 +181,7 @@ const loadTemplatePipelineResult = async (
 ): Promise<TemplatePipelineDraftResult> => {
   const supabase = requireSupabase();
   const { data: rows, error } = await supabase
-    .from('cardforge_developer_asset_submissions')
+    .from('cardforge_contributor_asset_submissions')
     .select('id,status,base_revision_number,revision_number,target_registry_asset_id')
     .eq('id', submissionId)
     .limit(1);
@@ -221,8 +221,8 @@ export const createTemplatePipelineDraft = async ({
   const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
     p_asset_id: storedTemplate.id,
     p_name: storedTemplate.name,
-    p_developer_id: contributorId,
-    p_developer_email: contributorEmail ?? '',
+    p_contributor_id: contributorId,
+    p_contributor_email: contributorEmail ?? '',
     p_template_payload: {
       ...storedTemplate,
       templateSource: 'default',
@@ -259,7 +259,7 @@ export const submitTemplatePipelineDraft = async ({
   const supabase = requireSupabase();
   const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
     p_submission_id: submissionId,
-    p_developer_id: contributorId,
+    p_contributor_id: contributorId,
     p_name: name,
     p_description: description,
     p_preview_url: previewUrl,
@@ -287,8 +287,8 @@ const writeTemplateRevision = async ({
       p_asset_id: storedTemplate.id,
       p_name: storedTemplate.name,
       p_description: storedTemplate.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
-      p_developer_id: contributorId,
-      p_developer_email: contributorEmail ?? '',
+      p_contributor_id: contributorId,
+      p_contributor_email: contributorEmail ?? '',
       p_template_payload: {
         ...storedTemplate,
         templateSource: 'default',
@@ -302,7 +302,7 @@ const writeTemplateRevision = async ({
   if (error || !revisionId) throwTemplateRevisionError(error?.message);
 
   const { data: rows, error: loadError } = await supabase
-    .from('cardforge_developer_asset_submissions')
+    .from('cardforge_contributor_asset_submissions')
     .select('id,status,base_revision_number,revision_number,target_registry_asset_id')
     .eq('id', String(revisionId))
     .limit(1);
@@ -355,16 +355,16 @@ export const castPipelineVote = async ({
   ownerContributorId?: string | null;
 }): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_cast_developer_asset_vote', {
+  const { error } = await supabase.rpc('cardforge_cast_contributor_asset_vote', {
     p_submission_id: submissionId,
-    p_developer_id: contributorId,
+    p_contributor_id: contributorId,
     p_vote_value: voteValue,
-    p_owner_developer_id: ownerContributorId ?? null,
+    p_owner_contributor_id: ownerContributorId ?? null,
   });
   if (error) {
     if (
-      error.message?.includes('developer_asset_vote_not_permitted')
-      || error.message?.includes('developer_asset_self_vote_not_permitted')
+      error.message?.includes('contributor_asset_vote_not_permitted')
+      || error.message?.includes('contributor_asset_self_vote_not_permitted')
     ) {
       throw new PipelineRegistryCommandError(
         error.message.includes('self_vote')
@@ -374,13 +374,13 @@ export const castPipelineVote = async ({
         'pipeline_not_permitted',
       );
     }
-    if (error.message?.includes('developer_program_settings_unavailable')) {
+    if (error.message?.includes('contributor_program_settings_unavailable')) {
       throw new PipelineRegistryCommandError('Pipeline voting rules are temporarily unavailable.', 503);
     }
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
-    const statusCode = error.message?.includes('developer_asset_not_found') ? 404 : 500;
+    const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
       statusCode === 404
         ? 'Pipeline submission was not found.'
@@ -395,9 +395,9 @@ export const savePipelineProgramSettings = async (
   ownerContributorId: string,
 ): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_update_developer_program_settings', {
+  const { error } = await supabase.rpc('cardforge_update_contributor_program_settings', {
     p_settings: settings,
-    p_owner_developer_id: ownerContributorId,
+    p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
     throw new PipelineRegistryCommandError(
@@ -415,17 +415,17 @@ export const setPipelineOwnerOverride = async ({
   ownerContributorId,
 }: SetPipelineOwnerOverrideInput): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_set_developer_asset_owner_override', {
+  const { error } = await supabase.rpc('cardforge_set_contributor_asset_owner_override', {
     p_submission_id: submissionId,
     p_update_status_override: ownerStatusOverride !== undefined,
     p_status_override: ownerStatusOverride ?? null,
     p_update_tier_override: ownerAccessTierOverride !== undefined,
     p_tier_override: ownerAccessTierOverride ?? null,
     p_owner_note: ownerNote,
-    p_owner_developer_id: ownerContributorId,
+    p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
-    if (error.message?.includes('developer_asset_lineage_purge_pending')) {
+    if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineRegistryCommandError(
         'This Pipeline object is being permanently deleted and can no longer be changed.',
         409,
@@ -434,7 +434,7 @@ export const setPipelineOwnerOverride = async ({
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
-    const statusCode = error.message?.includes('developer_asset_not_found') ? 404 : 500;
+    const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
       statusCode === 404
         ? 'Pipeline submission was not found.'
@@ -449,7 +449,7 @@ export const purgePipelineSubmission = async ({
   confirmationName,
 }: PurgePipelineSubmissionInput): Promise<void> => {
   const supabase = requireSupabase();
-  const { data, error: prepareError } = await supabase.rpc('cardforge_prepare_developer_asset_purge', {
+  const { data, error: prepareError } = await supabase.rpc('cardforge_prepare_contributor_asset_purge', {
     p_submission_id: submissionId,
     p_expected_name: confirmationName,
   });
@@ -480,7 +480,7 @@ export const purgePipelineSubmission = async ({
     }
   }
 
-  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_developer_asset_purge', {
+  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_contributor_asset_purge', {
     p_submission_id: submissionId,
   });
   if (finalizeError) {
@@ -529,8 +529,8 @@ export const upsertPipelineRegistryAsset = async ({
     p_url: url,
     p_preview_url: previewUrl,
     p_description: description,
-    p_developer_id: ownerProfile.contributorId,
-    p_developer_email: ownerProfile.email,
+    p_contributor_id: ownerProfile.contributorId,
+    p_contributor_email: ownerProfile.email,
     p_file_size_bytes: fileSizeBytes,
     p_source_mime_type: sourceMimeType,
     p_storage_bucket: storageBucket,

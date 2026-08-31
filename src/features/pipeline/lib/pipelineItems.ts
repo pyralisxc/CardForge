@@ -37,7 +37,7 @@ export type PipelineType = typeof PIPELINE_TYPES[number];
 export type ContributorUploadAssetType = typeof CONTRIBUTOR_UPLOAD_ASSET_TYPES[number];
 export type PipelineStatus = typeof PIPELINE_STATUSES[number];
 export type PipelineVoteValue = 'positive' | 'negative';
-export type PipelineAccessTier = 'hidden' | 'free' | 'paid' | 'developer';
+export type PipelineAccessTier = 'hidden' | 'free' | 'paid' | 'contributor';
 export type PipelineAccessTierOverride = 'hidden' | 'free' | 'paid';
 
 export type PipelinePublishCapsByType = Record<PipelineType, number>;
@@ -203,7 +203,7 @@ export const isContributorAssetStatus = (value: unknown): value is PipelineStatu
   typeof value === 'string' && (PIPELINE_STATUSES as readonly string[]).includes(value);
 
 export const isContributorAssetAccessTier = (value: unknown): value is PipelineAccessTier =>
-  value === 'hidden' || value === 'free' || value === 'paid' || value === 'developer';
+  value === 'hidden' || value === 'free' || value === 'paid' || value === 'contributor';
 
 export const isContributorAssetAccessTierOverride = (value: unknown): value is PipelineAccessTierOverride =>
   value === 'hidden' || value === 'free' || value === 'paid';

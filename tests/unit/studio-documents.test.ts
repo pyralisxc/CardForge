@@ -45,7 +45,7 @@ const nativeTextElement = (id: string, index = 0) => ({
 });
 
 describe('account Studio documents', () => {
-  it('turns a planned developer AI template into a private editable project document', () => {
+  it('turns a planned contributor AI template into a private editable project document', () => {
     const input = gptTemplateDraftInputSchema.parse({
       title: 'Launch proof poster',
       productionPlan: productionPlan(),
@@ -256,7 +256,7 @@ describe('account Studio documents', () => {
     expect(normalizeStudioDocumentPayload(document)).toEqual(document);
   });
 
-  it('bounds the developer-only AI input instead of accepting an arbitrary project payload', () => {
+  it('bounds the contributor-only AI input instead of accepting an arbitrary project payload', () => {
     expect(gptTemplateDraftInputSchema.safeParse({
       title: 'Too many layers',
       productionPlan: productionPlan({ width: 1000, height: 1000 }),

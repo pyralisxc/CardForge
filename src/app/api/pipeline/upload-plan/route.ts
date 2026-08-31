@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
     const rateLimit = await consumeRateLimit({
-      action: 'developer-upload-plan',
+      action: 'contributor-upload-plan',
       identity: access.user.id,
       limit: 60,
       windowSeconds: 3600,
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       return createRateLimitErrorResponse('Too many Forge Review upload attempts.', {
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         nextAction: 'Wait for the upload window to reset, then try again.',
-        resource: 'developer_upload_attempts',
+        resource: 'contributor_upload_attempts',
         maximum: 60,
         unit: 'attempts_per_hour',
       });
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         kind: 'limit',
         nextAction: 'Wait for the next calendar month or ask the owner to raise this Contributor’s submission allowance.',
         limit: {
-          resource: 'developer_monthly_submissions',
+          resource: 'contributor_monthly_submissions',
           current: submissionContext.submittedThisMonth,
           maximum: submissionContext.monthlySubmissionLimit,
           unit: 'submissions_per_month',

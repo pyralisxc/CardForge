@@ -44,7 +44,7 @@ export const getCurrentPipelineRequestAccess = async (): Promise<PipelineRequest
     privateMetadata: user.privateMetadata,
     ownerAccess,
   });
-  const isContributor = entitlement.accessMode === 'dev';
+  const isContributor = entitlement.accessMode === 'contributor';
   if (!isContributor && !ownerAccess.isOwner) {
     throw new PipelineStoreError('Contributor access is required for Pipeline submissions.', 403);
   }

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     const body = parsedBody.data;
-    const current = await getRepositoryStyleLibrary('dev');
+    const current = await getRepositoryStyleLibrary('contributor');
     const bodyRecord = typeof body === 'object' && body !== null
       ? body as Record<string, unknown>
       : null;
@@ -131,7 +131,7 @@ export async function DELETE(request: Request) {
     }
     await archivePipelineRegistryAsset(body.id);
     revalidateCardForgeCatalog();
-    const next = await getRepositoryStyleLibrary('dev');
+    const next = await getRepositoryStyleLibrary('contributor');
     return createNoStoreJsonResponse(next);
   } catch (error) {
     if (error instanceof ContributorAccessError) {

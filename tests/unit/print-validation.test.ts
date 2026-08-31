@@ -141,7 +141,7 @@ describe('print validation', () => {
     expect(validation.warnings.some((message) => message.includes('inside the print safe area'))).toBe(true);
   });
 
-  it('does not warn for reviewed developer font ids', () => {
+  it('does not warn for reviewed contributor font ids', () => {
     const template: TCGCardTemplate = {
       ...baseTemplate,
       freeformCanvas: {
@@ -149,7 +149,7 @@ describe('print validation', () => {
         elements: [
           {
             ...baseTemplate.freeformCanvas!.elements[0],
-            fontFamily: 'font-dev-aurora-display',
+            fontFamily: 'font-contributor-aurora-display',
           },
         ],
       },

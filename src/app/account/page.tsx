@@ -86,7 +86,7 @@ export default async function AccountPage({
   });
   const accountContent = createSiteContentMap(accountContentBlocks);
   const isOwner = entitlement.isSignedIn && entitlement.ownerAccess.isOwner;
-  const hasContributorEntitlement = entitlement.isSignedIn && entitlement.accessMode === 'dev';
+  const hasContributorEntitlement = entitlement.isSignedIn && entitlement.accessMode === 'contributor';
   const contributorAccess = hasContributorEntitlement || isOwner
     ? await getCurrentContributorAccessSessionState().catch((error) => {
         console.error('Unable to verify contributor access during page render:', error);

@@ -45,8 +45,8 @@ const submission = (
   status: 'voting',
   automatedStatus: 'voting',
   ownerStatusOverride: null,
-  calculatedAccessTier: 'developer',
-  automatedAccessTier: 'developer',
+  calculatedAccessTier: 'contributor',
+  automatedAccessTier: 'contributor',
   ownerAccessTierOverride: null,
   qualityScore: 0,
   tierDecisionReason: 'needs_more_votes',
@@ -66,7 +66,7 @@ const submission = (
   ...input,
 });
 
-describe('developer asset store helpers', () => {
+describe('contributor asset store helpers', () => {
   it('uses authoritative registry content only when a submission has no proposed payload', () => {
     const proposed = { id: 'proposed-recipe' };
     const registry = { id: 'published-recipe' };
@@ -78,7 +78,7 @@ describe('developer asset store helpers', () => {
 
   it('maps database settings into the compact automatic-pipeline contract', () => {
     expect(mapPipelineProgramSettingsRow({
-      max_active_developers: 25,
+      max_active_contributors: 25,
       monthly_submission_limit: 25,
       max_submission_file_size_mb: 32,
       monthly_published_requirement: 5,
@@ -107,7 +107,7 @@ describe('developer asset store helpers', () => {
     });
   });
 
-  it('normalizes developer contract overrides', () => {
+  it('normalizes contributor contract overrides', () => {
     expect(normalizeContributorProfileOverrideInput({
       monthlySubmissionLimitOverride: 100,
       monthlyPublishedRequirementOverride: 0,
@@ -131,15 +131,15 @@ describe('developer asset store helpers', () => {
       sourceUrl: '  https://storage.example.test/moon.svg  ',
       sourceFileSizeBytes: '2048',
       sourceMimeType: ' image/svg+xml ',
-      sourceStorageBucket: ' cardforge-developer-assets ',
-      sourceStoragePath: ' dev-1/icons/moon.svg ',
+      sourceStorageBucket: ' cardforge-contributor-assets ',
+      sourceStoragePath: ' contributor-1/icons/moon.svg ',
     })).toMatchObject({
       ok: true,
       value: {
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
         name: 'Moon Sigil',
-        sourceStoragePath: 'dev-1/icons/moon.svg',
+        sourceStoragePath: 'contributor-1/icons/moon.svg',
       },
     });
     expect(normalizePipelineSubmissionInput({ assetType: 'tsx', name: 'Executable' }))
@@ -201,8 +201,8 @@ describe('developer asset store helpers', () => {
   it('maps automatic, override, publication, revision, and category-safe taxonomy state from the database', () => {
     expect(mapPipelineSubmissionRow({
       id: 'asset-1',
-      developer_id: 'dev-1',
-      developer_email: 'dev@example.test',
+      contributor_id: 'contributor-1',
+      contributor_email: 'contributor@example.test',
       asset_type: 'templates',
       requested_studio_destination: 'template.front',
       specialty_tags: ['games', 'tcg'],
@@ -220,7 +220,7 @@ describe('developer asset store helpers', () => {
       automated_status: 'voting',
       owner_status_override: 'published',
       calculated_access_tier: 'free',
-      automated_access_tier: 'developer',
+      automated_access_tier: 'contributor',
       owner_access_tier_override: 'free',
       quality_score: 80,
       tier_decision_reason: 'owner_forced_free',
@@ -241,7 +241,7 @@ describe('developer asset store helpers', () => {
       automatedStatus: 'voting',
       ownerStatusOverride: 'published',
       calculatedAccessTier: 'free',
-      automatedAccessTier: 'developer',
+      automatedAccessTier: 'contributor',
       ownerAccessTierOverride: 'free',
       specialtyTags: ['games'],
       useCaseTags: ['tcg'],
@@ -256,12 +256,12 @@ describe('developer asset store helpers', () => {
     const view = buildPipelineProgramView({
       configured: true,
       settings,
-      currentUserId: 'dev-1',
+      currentUserId: 'contributor-1',
       submissions: [
-        submission({ id: 'own-1', contributorId: 'dev-1', name: 'Submitted this month' }),
+        submission({ id: 'own-1', contributorId: 'contributor-1', name: 'Submitted this month' }),
         submission({
           id: 'own-2',
-          contributorId: 'dev-1',
+          contributorId: 'contributor-1',
           name: 'Published this month',
           status: 'published',
           automatedStatus: 'published',
@@ -282,34 +282,34 @@ describe('developer asset store helpers', () => {
     const full = buildPipelineProgramView({
       configured: true,
       settings,
-      currentUserId: 'dev-1',
+      currentUserId: 'contributor-1',
       submissions: [
         submission({
           id: 'own-1',
-          contributorId: 'dev-1',
+          contributorId: 'contributor-1',
           name: 'Mine',
           sourceUrl: 'https://storage.example.test/mine.svg',
-          sourceStorageBucket: 'cardforge-developer-assets',
-          sourceStoragePath: 'dev-1/icons/mine.svg',
+          sourceStorageBucket: 'cardforge-contributor-assets',
+          sourceStoragePath: 'contributor-1/icons/mine.svg',
         }),
         submission({
           id: 'peer-1',
-          contributorId: 'dev-2',
+          contributorId: 'contributor-2',
           contributorEmail: 'peer@example.test',
           contributorDisplayName: 'Peer Maker',
           name: 'Peer',
           previewUrl: 'https://storage.example.test/peer.svg',
           sourceUrl: 'https://storage.example.test/peer.svg',
-          sourceStorageBucket: 'cardforge-developer-assets',
-          sourceStoragePath: 'dev-2/icons/peer.svg',
+          sourceStorageBucket: 'cardforge-contributor-assets',
+          sourceStoragePath: 'contributor-2/icons/peer.svg',
         }),
       ],
     });
-    const projected = projectPipelineProgramForViewer(full, { currentUserId: 'dev-1', isOwner: false });
+    const projected = projectPipelineProgramForViewer(full, { currentUserId: 'contributor-1', isOwner: false });
 
     expect(projected.submissions[0]).toMatchObject({
-      contributorEmail: 'dev-1@example.test',
-      sourceStoragePath: 'dev-1/icons/mine.svg',
+      contributorEmail: 'contributor-1@example.test',
+      sourceStoragePath: 'contributor-1/icons/mine.svg',
     });
     expect(projected.submissions[1]).toMatchObject({
       contributorEmail: null,

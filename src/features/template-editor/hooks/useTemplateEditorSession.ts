@@ -60,10 +60,10 @@ export function useTemplateEditorSession({
         readProjectFonts().catch(() => []),
       ]);
       if (!mounted) return;
-      const developerFonts = bootstrapResult?.fonts.fonts ?? [];
+      const contributorFonts = bootstrapResult?.fonts.fonts ?? [];
       const personalFonts = mapProjectFontsToCardFontOptions(projectFonts);
       setFontOptions(mergeCardFontOptions(
-        mergeCardFontOptions(CARD_FONT_OPTIONS, developerFonts),
+        mergeCardFontOptions(CARD_FONT_OPTIONS, contributorFonts),
         personalFonts,
       ));
     };
@@ -104,7 +104,7 @@ export function useTemplateEditorSession({
     availableFonts: cardFontOptionsToSelectOptions(fontOptions),
     beginDraft,
     controller,
-    developerFontFaceCss: createPipelineFontFaceCss(fontOptions),
+    contributorFontFaceCss: createPipelineFontFaceCss(fontOptions),
     isDirty: savedTemplateJson !== null && savedTemplateJson !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
     isHydrated: true,
   };

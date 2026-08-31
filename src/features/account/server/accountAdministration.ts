@@ -1,4 +1,4 @@
-export type OwnerManagedAccess = 'free' | 'paid' | 'dev';
+export type OwnerManagedAccess = 'free' | 'paid' | 'contributor';
 
 export interface OwnerAccountRoleInput {
   access?: unknown;
@@ -33,7 +33,7 @@ const normalizeNote = (value: unknown): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, 300) : '';
 
 const normalizeAccess = (value: unknown): OwnerManagedAccess | null =>
-  value === 'free' || value === 'paid' || value === 'dev' ? value : null;
+  value === 'free' || value === 'paid' || value === 'contributor' ? value : null;
 
 const getString = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null;

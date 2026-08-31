@@ -15,7 +15,6 @@ describe('unified account environment', () => {
   const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
   const profileEnvironment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');
   const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
-  const profileRoute = readSource('src/app/profile/page.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
@@ -134,14 +133,13 @@ describe('unified account environment', () => {
     expect(profileEnvironment).toContain('<ProfileManagementPage authConfigured={entitlement.authConfigured} />');
     expect(profileManagement).toContain('<UserProfile');
     expect(profileManagement).not.toContain('elements:');
-    expect(profileRoute).toContain("redirect('/account?section=profile')");
   });
 
   it('routes protected account entries to their real zones', () => {
     expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=contributor')");
     expect(profileEnvironment).toContain("router.push('/owner')");
     expect(accountPage).toContain('initialContributorAccess={contributorAccess}');
-    expect(accountPage).not.toContain("section === 'developer'");
+    expect(accountPage).not.toContain("section === 'contributor'");
   });
 
   it('uses native Next navigation when opening Library work', () => {

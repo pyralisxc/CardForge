@@ -72,7 +72,7 @@ describe('workspace-scoped data loading', () => {
   it('keeps Marketing consumers on the Campaign workspace instead of the combined bootstrap', () => {
     const marketingClient = readSource('src/features/marketing-content/client/api.ts');
     expect(marketingClient).toContain("fetch('/api/marketing-content'");
-    expect(marketingClient).not.toContain('/api/developer-cockpit');
+    expect(marketingClient).not.toContain('/api/contributor-cockpit');
     expect(marketingClient).toContain('body.campaigns');
   });
 });

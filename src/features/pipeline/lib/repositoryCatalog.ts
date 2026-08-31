@@ -71,7 +71,7 @@ export const mapRegistryRowsToStyleLibrary = async (
       ...style,
       id: row.asset_id,
       name: style.name || row.name,
-      librarySource: row.library_source === 'developer' ? 'developer' as const : 'official' as const,
+      librarySource: row.library_source === 'contributor' ? 'contributor' as const : 'official' as const,
       accessTier: row.access_tier,
       registryStatus: row.status,
       contributorName: style.contributorName || contributorName,
@@ -116,7 +116,7 @@ export const publishRepositoryStyle = async (style: AppearanceStylePreset): Prom
       sourceKind: 'pipeline-owner-edit',
       style: {
         ...style,
-        librarySource: 'developer',
+        librarySource: 'contributor',
         accessTier: 'free',
         registryStatus: 'published',
         contributorName,

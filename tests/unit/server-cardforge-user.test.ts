@@ -79,12 +79,12 @@ describe('server CardForge user resolution', () => {
   it('uses Clerk Backend API only when resolving an explicit user id', async () => {
     clerk.getUser.mockResolvedValue({
       id: 'user_mcp',
-      emailAddresses: [{ emailAddress: 'developer@example.com' }],
-      primaryEmailAddress: { emailAddress: 'developer@example.com' },
+      emailAddresses: [{ emailAddress: 'contributor@example.com' }],
+      primaryEmailAddress: { emailAddress: 'contributor@example.com' },
       firstName: 'Dev',
       lastName: 'User',
       publicMetadata: {},
-      privateMetadata: { cardforgeAccess: 'dev' },
+      privateMetadata: { cardforgeAccess: 'contributor' },
     });
 
     const access = await getCardforgeUserAccessForUserId('user_mcp');

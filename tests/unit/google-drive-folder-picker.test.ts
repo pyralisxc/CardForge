@@ -16,7 +16,7 @@ describe('Google Drive project folder selection', () => {
     expect(pickerRuntime).toContain("https://apis.google.com/js/api.js");
     expect(pickerRuntime).toContain("gapi.load('picker'");
     expect(pickerRuntime).toContain('setOAuthToken(config.accessToken)');
-    expect(pickerRuntime).toContain('setDeveloperKey(config.developerKey)');
+    expect(pickerRuntime).toContain('setContributorKey(config.contributorKey)');
     expect(pickerRuntime).toContain('setAppId(config.appId)');
     expect(folderPicker).toContain('pickGoogleDriveItems');
     expect(folderPicker).toContain('includeFolders: true');
@@ -54,6 +54,6 @@ describe('Google Drive project folder selection', () => {
     expect(panel).toContain('Choose project folder');
     expect(panel).toContain('chooseGoogleDriveProjectFolder');
     expect(mcp).not.toContain('accessToken');
-    expect(mcp).not.toContain('developerKey');
+    expect(mcp).not.toContain('contributorKey');
   });
 });

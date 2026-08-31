@@ -63,7 +63,7 @@ describe('legal document store', () => {
       businessIdentityVersion: 3,
     });
     expect(documents.find(({ slug }) => slug === 'terms')).toMatchObject({ version: 4, title: 'Terms v4' });
-    expect(documents).toHaveLength(9);
+    expect(documents).toHaveLength(8);
     expect(mocks.select).toHaveBeenCalledWith(
       'slug,version,title,body,effective_date,published_at,business_identity_version',
     );

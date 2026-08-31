@@ -1,4 +1,4 @@
-export const PIPELINE_STORAGE_BUCKET = 'cardforge-developer-assets';
+export const PIPELINE_STORAGE_BUCKET = 'cardforge-contributor-assets';
 
 export const DEFAULT_PIPELINE_UPLOAD_MAX_MB = 25;
 export const PIPELINE_UPLOAD_HARD_MAX_MB = 50;

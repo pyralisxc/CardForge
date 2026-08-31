@@ -43,7 +43,7 @@ describe('card font registry', () => {
   it('resolves selector ids through the shared CSS stacks', () => {
     expect(cardFontFamilyToCss('font-cinzel')).toContain('--font-cardforge-cinzel');
     expect(cardFontFamilyToCss('font-orbitron')).toContain('--font-cardforge-orbitron');
-    expect(cardFontFamilyToCss('font-dev-aurora-display')).toBe('"font-dev-aurora-display"');
+    expect(cardFontFamilyToCss('font-contributor-aurora-display')).toBe('"font-contributor-aurora-display"');
     expect(cardFontFamilyToCss('Custom Card Font')).toBe('Custom Card Font');
   });
 
@@ -52,10 +52,10 @@ describe('card font registry', () => {
     expect(AVAILABLE_FONTS.map((font) => font.value)).toEqual(CARD_FONT_OPTIONS.map((font) => font.value));
   });
 
-  it('maps published developer font registry rows into selectable font options', () => {
+  it('maps published contributor font registry rows into selectable font options', () => {
     const fonts = mapRegistryRowsToCardFontOptions([
       {
-        asset_id: 'developer-fonts-display-1',
+        asset_id: 'contributor-fonts-display-1',
         name: 'Aurora Display',
         url: 'https://example.test/aurora.woff2',
         metadata: {
@@ -64,7 +64,7 @@ describe('card font registry', () => {
         },
       },
       {
-        asset_id: 'developer-fonts-bad',
+        asset_id: 'contributor-fonts-bad',
         name: '',
         url: 'https://example.test/bad.txt',
         metadata: {},
@@ -74,15 +74,15 @@ describe('card font registry', () => {
     expect(fonts).toEqual([
       {
         name: 'Aurora Display',
-        value: 'font-dev-developer-fonts-display-1',
+        value: 'font-contributor-contributor-fonts-display-1',
         category: 'Fantasy',
-        cssFamily: '"font-dev-developer-fonts-display-1", serif',
+        cssFamily: '"font-contributor-contributor-fonts-display-1", serif',
         sourceUrl: 'https://example.test/aurora.woff2',
       },
     ]);
   });
 
-  it('merges reviewed developer fonts after built-ins without duplicate ids', () => {
+  it('merges reviewed contributor fonts after built-ins without duplicate ids', () => {
     const fonts = mergeCardFontOptions(CARD_FONT_OPTIONS, [
       {
         name: 'System Sans Duplicate',
@@ -93,14 +93,14 @@ describe('card font registry', () => {
       },
       {
         name: 'Aurora Display',
-        value: 'font-dev-aurora-display',
+        value: 'font-contributor-aurora-display',
         category: 'Fantasy',
         cssFamily: '"Aurora Display", serif',
         sourceUrl: 'https://example.test/aurora.woff2',
       },
     ]);
 
-    expect(fonts.at(-1)?.value).toBe('font-dev-aurora-display');
+    expect(fonts.at(-1)?.value).toBe('font-contributor-aurora-display');
     expect(fonts.filter((font) => font.value === 'font-sans')).toHaveLength(1);
   });
 });

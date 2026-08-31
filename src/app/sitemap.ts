@@ -16,7 +16,7 @@ const publicRoutes = [
   '/creator-pass-terms',
   '/supporter-terms',
   '/refund',
-  '/developer-terms',
+  '/contributor-terms',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

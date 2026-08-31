@@ -57,7 +57,7 @@ export function CardForgeStudioShell({
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const contributorAccess = useContributorAccess({
-    eligible: accountEntitlement.accessMode === 'dev' || accountEntitlement.ownerAccess.isOwner,
+    eligible: accountEntitlement.accessMode === 'contributor' || accountEntitlement.ownerAccess.isOwner,
     initialState: initialContributorAccess,
     isOwner: accountEntitlement.ownerAccess.isOwner,
     sessionKey: accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
@@ -78,7 +78,7 @@ export function CardForgeStudioShell({
     ? accessExpiresOn
       ? `${exportEntitlementCopy.panelMessage} Your access is active through ${accessExpiresOn}.`
       : exportEntitlementCopy.panelMessage
-    : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and dev account testing starts after adding CLERK_SECRET_KEY.';
+    : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and Contributor account testing starts after adding CLERK_SECRET_KEY.';
   const canUploadCustomAssets = canUploadCustomLocalAssets({
     authConfigured: accountEntitlement.authConfigured,
     isSignedIn: accountEntitlement.isSignedIn,

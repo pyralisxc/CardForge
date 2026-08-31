@@ -24,7 +24,7 @@ Use `.env.example` as the complete catalog.
 - Core: `NEXT_PUBLIC_APP_URL`, Clerk keys, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. `SUPABASE_SERVICE_ROLE_KEY` is a temporary compatibility fallback only.
 - Billing: Stripe secret/webhook keys, Creator Pass and Designer Pass Prices, support Prices/currency/portal configuration.
 - Email: `RESEND_API_KEY`, `CARDFORGE_EMAIL_FROM`, `CARDFORGE_EMAIL_REPLY_TO`.
-- Access: one canonical `CARDFORGE_OWNER_ACCOUNT_EMAILS` identity plus developer/paid allowlists where still intentionally used.
+- Access: one canonical `CARDFORGE_OWNER_ACCOUNT_EMAILS` identity plus contributor/paid allowlists where still intentionally used.
 - Analytics: public enable/measurement values plus server-only GA/Search Console/PostHog reporting credentials.
 - Social: Meta app/configuration/Graph version, token-encryption key, dispatch secret, and publishing flag.
 - OpenAI plugin verification: `OPENAI_APPS_CHALLENGE_TOKEN` only while OpenAI is verifying the production domain.
@@ -57,7 +57,7 @@ Preview test identities are durable environment fixtures, not production users:
 | Free | `qa+clerk_test_free@cardforges.com` | Free access and the Free temporary-working-document retention policy |
 | Creator | `qa+clerk_test_creator@cardforges.com` | Active Creator Pass from Stripe sandbox |
 | Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
-| Contributor | `qa+clerk_test_developer@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
+| Contributor | `qa+clerk_test_contributor@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
 | Owner | `qa+clerk_test_owner@cardforges.com` | Owner Console and owner review scopes through the branch-only owner allowlist |
 | Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; contribution tools denied |
 
@@ -75,7 +75,7 @@ Release sequence:
 6. Merge through the PR; do not bypass `main` safety.
 7. Require Vercel Production READY for the merge commit and run `npm run health:production`.
 8. Apply a destructive schema contraction only after the compatible runtime is already READY in production and provider postflight proves the retired records or objects are empty. If deployment order cannot be guaranteed, split runtime retirement and schema contraction into separate reviewed releases.
-9. Perform the smallest real signed-in production check needed for auth/owner/developer/billing/provider changes.
+9. Perform the smallest real signed-in production check needed for auth/owner/contributor/billing/provider changes.
 
 Cloud Set Mirror retirement follows that two-release boundary. The runtime release removes new saves, restore/update UI, plan slots, Cloud Mirror MCP tools, and all normal product promotion while remaining compatible with the empty legacy table and Studio lineage columns. Production identity verification established that the two remaining mirrors belonged only to the owner-approved test accounts; their 10 cards, two rows, and 12 artwork objects were explicitly erased, and the dedicated Storage bucket was deleted through the Supabase Storage API. After the runtime release is production READY, a separate forward migration drops `cardforge_cloud_sets` and the two unused `source_cloud_*` columns. Verify zero rows/lineage before that migration and table/column absence plus Supabase advisors afterward.
 
@@ -133,7 +133,7 @@ Changing the operator is a legal/operational migration, not a display edit. Requ
 Use `/owner` through six workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
 
 - Overview > Integrations: provider inventory/readiness without secrets.
-- Growth & People: current Clerk accounts plus retained developer profile/scopes/history.
+- Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
 - Site Controls: constrained public copy/navigation/SEO/media/experience settings.
 - Studio Library: complete shared registry, Forge Review, and Studio destination map.
 - Governance: append-only owner history and legal/versioned operations.
@@ -171,7 +171,7 @@ After analytics/privacy/domain changes:
 
 For Pipeline/catalog changes, apply required forward migrations before a bundle that depends on them, run `npm run pipeline:sync-defaults`, verify expected registry destinations/tiers, then deploy. Never restore retired asset categories or deleted/tombstoned assets as rollback.
 
-Before enabling extended contributors, verify protected source storage, approved-only public derivatives, canonical media/attachment relationships, private preview authorization, owner-only approval/provider mutations, current legal publications, and scoped developer grants.
+Before enabling extended contributors, verify protected source storage, approved-only public derivatives, canonical media/attachment relationships, private preview authorization, owner-only approval/provider mutations, current legal publications, and scoped contributor grants.
 
 Before enabling native Meta publishing:
 
@@ -187,7 +187,7 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 
 ## Authenticated production smoke
 
-The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/developer, or protected-recovery changes, use the real signed-in owner/developer account and verify only the affected path.
+The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/contributor, or protected-recovery changes, use the real signed-in owner/contributor account and verify only the affected path.
 
 `npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
 
@@ -197,14 +197,14 @@ The packaged integration is `plugins/cardforge-studio`, authored by Cameron Lock
 
 `plugins/cardforge-studio/SUBMISSION.md` is the reusable portal listing and review-case source. Keep it aligned with the packaged manifest, live MCP annotations, exact CSP, and current production behavior. Reviewer credentials and the OpenAI challenge token must never be committed.
 
-Assistant draft retention is also controlled by the plan records in Owner Console. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/developer 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
+Assistant draft retention is also controlled by the plan records in Owner Console. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/contributor 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
 
 Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Edge Function. Vault must contain `project_url` and an active `publishable_key`; the retention migration generates a separate random `assistant_draft_retention_cron_secret`. Never place the service-role key in Cron SQL. Schedule the function every 15 minutes with `pg_cron` + `pg_net` following Supabase's scheduled-functions pattern. Supabase's `apikey` header identifies the project, while the dedicated `X-CardForge-Cron-Secret` is the function's custom authorization and must be validated before maintenance begins. Verify one scheduled invocation reports `expired`, `claimed`, `purged`, and `failed`, then confirm the Cron job exists by name and the function remains custom-authenticated. Storage objects must be removed through the Storage API before the corresponding row is finalized.
 
 For a development-beta release:
 
 1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.
-2. Verify MCP discovery/OAuth against the real signed-in owner/developer account and confirm signed-out requests fail closed.
+2. Verify MCP discovery/OAuth against the real signed-in owner/contributor account and confirm signed-out requests fail closed.
 3. In the MCP Inspector, confirm every tool exposes an input schema, output schema, and accurate annotations; confirm `skills/list`, `skills/get`, and each listed `resources/read` digest resolve.
 4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
 5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and connected-project list/checkout/commit when that provider boundary changed.
@@ -238,7 +238,7 @@ Use only checks relevant to the release:
 
 - changed public workflow on exact Preview at desktop/mobile, then once on merged production;
 - apex/`www`/robots/sitemap/canonical/Open Graph/noindex behavior after route/domain/SEO changes;
-- one real owner/developer/account flow after protected changes;
+- one real owner/contributor/account flow after protected changes;
 - downloaded PDF/TTS artifact inspection and a real TTS import after export changes;
 - customer receipt/reply-to proof after billing/email identity changes;
 - Search Console discovery after domain/metadata/route changes.

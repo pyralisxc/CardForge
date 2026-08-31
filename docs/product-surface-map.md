@@ -37,7 +37,7 @@ This document is the canonical placement map connecting current shipped capabili
 
 **Contributor is a capability layer, not a permanent destination.**
 
-The separate Developer/Cockpit destination is retired. Its shipped capabilities are composed through Desk, Library, Profile, and Owner; do not replace it with another permanent Contributor zone.
+The separate Developer/Cockpit destination is retired. Its shipped capabilities are composed through Desk, Library, Profile, focused Studio tools, and Owner; do not replace it with another permanent Contributor zone.
 
 ## Shared UI grammar
 
@@ -248,7 +248,7 @@ Do not put work inventory or Pipeline queue here.
 
 ## Pipeline and revision policy
 
-Current Forge Pipeline owner remains `developer-assets` and associated Supabase records.
+Current Forge Pipeline owner remains `contributor-assets` and associated Supabase records.
 
 Preserve:
 
@@ -331,7 +331,7 @@ Public remains the entrance:
 - authentication;
 - Specialty/Kits storytelling through outcomes.
 
-Use Contributor in user-facing role language. Technical `/developer` compatibility may remain until a deliberate route migration.
+Use Contributor in user-facing and runtime language. The former Developer, Developer Terms, standalone Profile, and Environment Lab routes are cold-cut rather than redirected; `/contributors`, `/contributor-terms`, and Account Profile are the current surfaces.
 
 ## Specialty / Kits placement
 
@@ -382,7 +382,7 @@ All other existing feature owners keep their native records/providers; placement
 - Studio provides Design/Generate/Validate/Output over the selected object, with Save/Pipeline as contextual commitments.
 - Profile remains personal configuration.
 - Templates / Make Cards / Sets peer Studio destinations are retired; their feature owners remain native tools.
-- Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, and Owner.
+- Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, focused Studio tools, and Owner.
 - CardForge Cloud Set Mirror remains retired.
 - Provider save and Pipeline submission remain semantically separate.
 - Review follows the object and is also available in Pipeline Library for deliberate batch review.

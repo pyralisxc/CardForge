@@ -117,7 +117,7 @@ export const pipelineHandoffOutputSchema = objectOutput(
 );
 
 export const accountCapabilitiesOutputSchema = objectOutput(
-  ['account', 'studio', 'developer', 'guidance'],
+  ['account', 'studio', 'contributor', 'guidance'],
   {
     account: objectValue,
     studio: objectValue,

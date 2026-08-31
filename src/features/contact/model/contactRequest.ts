@@ -1,6 +1,6 @@
 export interface ContactRequest {
   id: string;
-  kind: 'support' | 'developer' | 'business';
+  kind: 'support' | 'contributor' | 'business';
   name: string;
   email: string;
   subject: string;

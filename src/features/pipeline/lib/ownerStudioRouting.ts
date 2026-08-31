@@ -52,7 +52,7 @@ type RegistryRoutingRow = {
   status: string;
   access_tier: string;
   library_source: string;
-  developer_submission_id: string | null;
+  contributor_submission_id: string | null;
   metadata: unknown;
   studio_destinations: unknown;
   studio_sort_order: unknown;
@@ -103,7 +103,7 @@ export const getOwnerStudioRoutingPage = async ({
 
   let registryQuery = supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,name,asset_type,url,status,access_tier,library_source,developer_submission_id,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode', { count: 'exact' });
+    .select('asset_id,name,asset_type,url,status,access_tier,library_source,contributor_submission_id,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode', { count: 'exact' });
   if (destination) registryQuery = registryQuery.contains('studio_destinations', [destination]);
   if (normalizedQuery) registryQuery = registryQuery.ilike('name', `%${normalizedQuery}%`);
 
@@ -131,7 +131,7 @@ export const getOwnerStudioRoutingPage = async ({
       status: row.status,
       accessTier: row.access_tier,
       librarySource: row.library_source,
-      pipelineSubmissionId: row.developer_submission_id,
+      pipelineSubmissionId: row.contributor_submission_id,
       studioDestinations: normalizeStudioAssetDestinations(row.studio_destinations),
       compatibleDestinations: getCompatibleStudioAssetDestinations({ kind: row.asset_type, metadata: row.metadata }),
       studioSortOrder: clampInteger(row.studio_sort_order, 100, 0, 100000),

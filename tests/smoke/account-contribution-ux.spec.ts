@@ -18,7 +18,7 @@ test.describe('account contribution surfaces', () => {
 
     await expect(page.getByRole('heading', { name: 'Your materials and work' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Library scopes' })).toBeVisible();
-    await expect(page.getByText('Developer', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Contributor', { exact: true })).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByRole('navigation', { name: 'CardForge zones' })).toBeHidden();
@@ -27,8 +27,10 @@ test.describe('account contribution surfaces', () => {
     await expectNoWcagViolations(page);
   });
 
-  test('the retired Developer workspace is no longer a public application route', async ({ page }) => {
-    const response = await page.goto('/developer/cockpit', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    expect(response?.status()).toBe(404);
+  test('retired account and program routes are cold-cut to 404', async ({ page }) => {
+    for (const route of ['/developer', '/developer/cockpit', '/developer-terms', '/profile', '/environment-lab', '/creator-pool']) {
+      const response = await page.goto(route, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+      expect(response?.status(), route).toBe(404);
+    }
   });
 });

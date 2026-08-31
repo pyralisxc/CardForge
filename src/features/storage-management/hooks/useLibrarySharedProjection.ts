@@ -75,7 +75,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     name: asset.name,
     kind: asset.kind,
     kindLabel: getAssetKindLabel(asset.kind),
-    sourceLabel: asset.librarySource === 'developer' ? 'Community' : 'CardForge',
+    sourceLabel: asset.librarySource === 'contributor' ? 'Community' : 'CardForge',
     accessLabel: asset.accessTier === 'paid' ? 'Creator Pass' : 'Starter Library',
     previewUrl: asset.previewUrl
       || (asset.kind === 'image' || asset.kind === 'texture' || asset.kind === 'divider' || asset.kind === 'icon' ? asset.url : null),
@@ -110,7 +110,7 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     name: set.name,
     kind: 'set',
     kindLabel: 'Set',
-    sourceLabel: set.source === 'developer' ? 'Community' : 'CardForge',
+    sourceLabel: set.source === 'contributor' ? 'Community' : 'CardForge',
     accessLabel: set.access === 'paid' ? 'Creator Pass' : 'Starter Library',
     previewUrl: set.previewUrl,
     sizeBytes: set.fileSizeBytes,

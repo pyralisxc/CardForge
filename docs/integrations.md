@@ -17,7 +17,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 3. `src/app/sign-in/[[...sign-in]]/page.tsx` and `src/app/sign-up/[[...sign-up]]/page.tsx` — Clerk's native components on CardForge routes.
 4. `src/features/account/lib/serverCardforgeUser.ts` — one `currentUser()` read for the current account; `clerkClient()` only for an explicit user id or metadata mutation.
 
-**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, developer, and owner. CardForge does not own a parallel session or sign-in lifecycle.
+**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, contributor, and owner. CardForge does not own a parallel session or sign-in lifecycle.
 
 ## Supabase — shared platform state
 
@@ -33,7 +33,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 
 Production uses the Supabase project `Card Forge` (`mpmmhjjhdxjedbmuctiv`). Preview uses the separately named staging project documented below. Destructive inventory or cleanup must identify the project by both name and ref; a clean staging result is never evidence that production is empty.
 
-Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. Template revision media is normalized server-side to content-addressed WebP in the public developer-assets bucket; `cardforge_pipeline_template_assets` records the binary owner and the immutable submission revision holds hash references. The registry's durable role is limited to the active revision pointer plus routing/discovery metadata, and its schema rejects cloned Template documents. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
+Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. Template revision media is normalized server-side to content-addressed WebP in the public contributor-assets bucket; `cardforge_pipeline_template_assets` records the binary owner and the immutable submission revision holds hash references. The registry's durable role is limited to the active revision pointer plus routing/discovery metadata, and its schema rejects cloned Template documents. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
 
 ## Stripe — checkout, subscriptions, and billing portal
 
@@ -54,7 +54,7 @@ Forge Review source files and private Studio-document media use server-issued, s
 
 **Start here:** `src/features/contact/lib/emailOperations.ts` for the direct `POST /emails` adapter and `src/features/contact/server/contactRequestStore.ts` for CardForge's support-request history.
 
-**CardForge owns:** contact validation, support/developer routing, message copy, and its own request history. Direct use of Resend's documented HTTP API is intentional; an extra SDK wrapper would not remove CardForge responsibility or simplify this path.
+**CardForge owns:** contact validation, support/contributor routing, message copy, and its own request history. Direct use of Resend's documented HTTP API is intentional; an extra SDK wrapper would not remove CardForge responsibility or simplify this path.
 
 ## Meta — Facebook and Instagram authorization/publication
 
@@ -95,7 +95,7 @@ Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` t
 
 `list_connected_projects`, `checkout_project`, and `commit_project` expose only provider files the linked account explicitly authorized. Checkout creates a temporary private Studio document; commit requires exact provider, CardForge project, and working-document revisions. Browser-only and local-folder projects remain invisible to the remote connector unless the user explicitly hands them into a reachable workflow.
 
-Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, capacity targets, and assistant-draft inactivity window. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved developers and the owner retain their separately validated developer scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
+Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, capacity targets, and assistant-draft inactivity window. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved contributors and the owner retain their separately validated contributor scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
 
 Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invokes the custom-authenticated `purge-assistant-drafts` Edge Function through `pg_net`, with the project URL, publishable key, and a dedicated random maintenance secret stored in Vault. The publishable key is sent through Supabase's native `apikey` header; the function requires the private maintenance secret before using its built-in service role to expire inactive rows, claim retry-safe purge work, delete artwork through the Storage API, and finalize the row. Browser roles cannot call the retention functions, authorize maintenance, or read the private bucket.
 
@@ -118,7 +118,7 @@ Preview uses provider-native isolation rather than CardForge emulation:
 - Stripe's sandbox products and webhook endpoint exercise the same Checkout/webhook code without touching production subscriptions. The Vercel protection-bypass value remains provider-managed and must never appear in Git or logs.
 - Google Drive uses a dedicated Preview OAuth Web client and token-encryption key. The shared Picker key permits only the stable Preview and production origins and remains restricted to Google Picker API; ordinary feature-deployment hosts are not authorized.
 - Google Picker remains the native browser selection surface. Project-folder selection opens at My Drive so the user can authorize a destination; the current CardForge folder is displayed as account storage state rather than used as an empty Picker parent. Google Drive Set packages and explicitly indexed assets feed the account Library read model while Drive remains authoritative for their bytes, revisions, links, and permissions. CardForge writes `cardforgeWorkId` as private app metadata so the same Set can be pooled with its device/folder copies; provider updates preserve that identity and still require the exact Drive and package revisions previously read.
-- The production CardForge Studio plugin remains pointed at `https://cardforges.com/mcp`. Preview MCP verification uses the stable Preview `/mcp` URL through a temporary developer/Inspector connection; it does not fork the plugin manifest or create alternate auth semantics.
+- The production CardForge Studio plugin remains pointed at `https://cardforges.com/mcp`. Preview MCP verification uses the stable Preview `/mcp` URL through a temporary contributor/Inspector connection; it does not fork the plugin manifest or create alternate auth semantics.
 
 The only CardForge-owned bridge is release policy: mirror the exact candidate to `vercel-preview`, verify the hosted user stories, send Cameron the stable link and SHA, and wait for explicit approval before merging to `main`.
 
@@ -144,7 +144,7 @@ When reading a workflow, start at the route/surface and follow the named owner r
 - **Sign in / account access:** `app/sign-in` -> Clerk -> `features/account` -> Domain entitlement policy.
 - **Studio local project:** `app/studio` -> `features/app-shell` -> `features/project` -> Template Editor / Generator.
 - **Agent-created Template:** `app/mcp` -> `features/studio-documents` -> canonical Project document -> Studio install -> normal Template library.
-- **Shared Template publication:** Template Editor -> `developer-assets` / Forge Review -> `cardforge_asset_registry` -> Studio catalog.
+- **Shared Template publication:** Template Editor -> `contributor-assets` / Forge Review -> `cardforge_asset_registry` -> Studio catalog.
 - **Creator Pass:** billing checkout route -> Stripe -> signed webhook -> billing purpose -> Clerk private metadata -> account entitlement.
 - **Business Solutions:** owner-authored plan invitation -> business contact request -> Resend -> Owner Inbox. No enterprise entitlement or self-serve checkout is created.
 - **Campaign publication:** Owner Marketing -> `marketing-content` approval -> `marketing-distribution` job -> stateless `social-publishing` provider adapter.

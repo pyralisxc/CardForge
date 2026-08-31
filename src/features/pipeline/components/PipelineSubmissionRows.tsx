@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Archive, Check, ChevronLeft, ChevronRight, Eye, Save, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import {
   appearanceToStyle,
   CardPreview,
@@ -34,7 +35,6 @@ import {
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
   formatContentTaxonomyTag,
-  type ContentTaxonomyOption,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import { isRepositoryStyle } from '@/features/pipeline/lib/registryContentValidation';
@@ -51,143 +51,6 @@ const getFontPreviewFormat = (url: string): string => {
 const parseTaxonomySelection = (value: string): string[] => [...new Set(
   value.split(',').map((tag) => tag.trim()).filter(Boolean),
 )];
-
-function ControlledTaxonomySelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: readonly ContentTaxonomyOption[];
-  onChange: (value: string) => void;
-}) {
-  const selected = parseTaxonomySelection(value);
-  const available = options.filter((option) => !selected.includes(option.id));
-  const update = (next: string[]) => onChange(next.join(','));
-
-  return (
-    <div className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
-      <span>{label}</span>
-      <select
-        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
-        value=""
-        onChange={(event) => {
-          if (!event.target.value) return;
-          update([...selected, event.target.value]);
-        }}
-      >
-        <option value="">Add from CardForge taxonomy…</option>
-        {available.map((option) => (
-          <option key={option.id} value={option.id}>{option.label}</option>
-        ))}
-      </select>
-      {selected.length ? (
-        <div className="flex flex-wrap gap-1.5 pt-1 normal-case tracking-normal">
-          {selected.map((id) => {
-            const option = options.find((candidate) => candidate.id === id);
-            if (!option) return null;
-            return (
-              <button
-                key={id}
-                type="button"
-                className="inline-flex items-center gap-1 border border-[var(--cf-border)] bg-[var(--cf-surface)] px-2 py-1 text-[11px] text-[var(--cf-accent-text)]"
-                title={option.description}
-                onClick={() => update(selected.filter((candidate) => candidate !== id))}
-              >
-                {option.label}
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <span className="pt-1 text-[10px] normal-case tracking-normal text-[#7f715c]">No classification selected.</span>
-      )}
-    </div>
-  );
-}
-
-export function VoteButtons({
-  submission,
-  onVote,
-}: {
-  submission: PipelineSubmission;
-  onVote: (submissionId: string, voteValue: 'positive' | 'negative') => void;
-}) {
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        className={`border-[var(--cf-success-border)] bg-transparent text-[var(--cf-success)] ${submission.currentUserVote === 'positive' ? 'bg-[#142416]' : ''}`}
-        onClick={() => onVote(submission.id, 'positive')}
-        aria-label={`Upvote ${submission.name}`}
-      >
-        <ThumbsUp className="h-4 w-4" />
-        <span className="ml-1 text-xs">+{submission.positiveVotes}</span>
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={`border-[var(--cf-danger-border)] bg-transparent text-[var(--cf-danger)] ${submission.currentUserVote === 'negative' ? 'bg-[#2a120d]' : ''}`}
-        onClick={() => onVote(submission.id, 'negative')}
-        aria-label={`Downvote ${submission.name}`}
-      >
-        <ThumbsDown className="h-4 w-4" />
-        <span className="ml-1 text-xs">-{submission.negativeVotes}</span>
-      </Button>
-    </>
-  );
-}
-
-export function QueuePager({
-  page,
-  pageCount,
-  total,
-  pageSize,
-  onPrevious,
-  onNext,
-}: {
-  page: number;
-  pageCount: number;
-  total: number;
-  pageSize: number;
-  onPrevious: () => void;
-  onNext: () => void;
-}) {
-  const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
-  const end = Math.min(total, page * pageSize);
-  return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--cf-border-subtle)] pt-4 text-xs text-[var(--cf-text-subtle)]">
-      <span>{start}-{end} of {total} assets</span>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]"
-          disabled={page <= 1}
-          onClick={onPrevious}
-          aria-label="Previous queue page"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="min-w-20 text-center text-[var(--cf-text-muted)]">Page {page} / {pageCount}</span>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]"
-          disabled={page >= pageCount}
-          onClick={onNext}
-          aria-label="Next queue page"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function EditSubmissionForm({
   name,
@@ -249,15 +112,15 @@ export function EditSubmissionForm({
       <div className="grid gap-3 md:grid-cols-2">
         <ControlledTaxonomySelect
           label="Specialties"
-          value={specialtyTags}
+          selectedIds={parseTaxonomySelection(specialtyTags)}
           options={CARDFORGE_SPECIALTY_OPTIONS}
-          onChange={onSpecialtyTagsChange}
+          onChange={(value) => onSpecialtyTagsChange(value.join(','))}
         />
         <ControlledTaxonomySelect
           label="Use cases"
-          value={useCaseTags}
+          selectedIds={parseTaxonomySelection(useCaseTags)}
           options={CARDFORGE_USE_CASE_OPTIONS}
-          onChange={onUseCaseTagsChange}
+          onChange={(value) => onUseCaseTagsChange(value.join(','))}
         />
       </div>
       <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">

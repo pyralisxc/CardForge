@@ -1,4 +1,4 @@
-export type SiteContentGroup = 'shell' | 'landing' | 'plans' | 'account' | 'about' | 'founder' | 'developer' | 'roadmap' | 'sharing';
+export type SiteContentGroup = 'shell' | 'landing' | 'plans' | 'account' | 'about' | 'founder' | 'contributor' | 'roadmap' | 'sharing';
 export type SiteContentKind = 'short' | 'long';
 
 type SiteContentDefinition = {
@@ -97,10 +97,10 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'about.direction.future.label', group: 'about', section: 'Direction cards', label: 'Future label', body: 'Long-term direction', kind: 'short', maxLength: 80 },
   { slug: 'about.direction.future.title', group: 'about', section: 'Direction cards', label: 'Future title', body: 'More kinds of printable creation', kind: 'short', maxLength: 120 },
   { slug: 'about.direction.future.body', group: 'about', section: 'Direction cards', label: 'Future description', body: 'Our future printable formats may include game aids, reference sheets, labels, badges, tokens, and other reusable layouts. These formats are a direction, not currently available features.', kind: 'long', maxLength: 500 },
-  { slug: 'about.contributors.headline', group: 'about', section: 'Contributors', label: 'Headline', body: 'Growing with creators and developers', kind: 'short', maxLength: 180 },
+  { slug: 'about.contributors.headline', group: 'about', section: 'Contributors', label: 'Headline', body: 'Growing with creators and contributors', kind: 'short', maxLength: 180 },
   { slug: 'about.contributors.body', group: 'about', section: 'Contributors', label: 'Introduction', body: 'Public roadmap voting helps creators influence priorities. Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.', kind: 'long', maxLength: 500 },
   { slug: 'about.contributors.ownership', group: 'about', section: 'Contributors', label: 'Ownership note', body: 'All public changes remain owner-approved. Contributions follow the current Contributor Terms and do not create guaranteed payment, ownership of CardForge, or revenue-sharing rights.', kind: 'long', maxLength: 500 },
-  { slug: 'about.contributors.developer-action', group: 'about', section: 'Contributor actions', label: 'Contributor program action', body: 'Contributor program', kind: 'short', maxLength: 80 },
+  { slug: 'about.contributors.contributor-action', group: 'about', section: 'Contributor actions', label: 'Contributor program action', body: 'Contributor program', kind: 'short', maxLength: 80 },
   { slug: 'about.contributors.roadmap-action', group: 'about', section: 'Contributor actions', label: 'Roadmap action', body: 'Public roadmap', kind: 'short', maxLength: 80 },
   { slug: 'about.contributors.founder-action', group: 'about', section: 'Contributor actions', label: 'Founder action', body: 'About Cameron', kind: 'short', maxLength: 80 },
   { slug: 'about.beta.headline', group: 'about', section: 'Public beta', label: 'Headline', body: 'An honest public beta', kind: 'short', maxLength: 160 },
@@ -129,18 +129,18 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'founder.support-use4.title', group: 'founder', section: 'Support use cards', label: 'Use 4 title', body: 'Business expenses', kind: 'short', maxLength: 100 },
   { slug: 'founder.support-use4.body', group: 'founder', section: 'Support use cards', label: 'Use 4 description', body: 'Hosting, software, testing, design resources, and the services that keep CardForge running.', kind: 'long', maxLength: 300 },
 
-  { slug: 'developer.meta.title', group: 'developer', section: 'Search & sharing', label: 'Page title', body: 'CardForge Contributor Program', kind: 'short', maxLength: 100 },
-  { slug: 'developer.meta.description', group: 'developer', section: 'Search & sharing', label: 'Page description', body: 'Learn how approved CardForge contributors submit shared assets, prepare campaign drafts, and propose public-site improvements.', kind: 'long', maxLength: 200 },
-  { slug: 'developer.hero.eyebrow', group: 'developer', section: 'Hero', label: 'Eyebrow', body: 'Contributor Program', kind: 'short', maxLength: 100 },
-  { slug: 'developer.hero.headline', group: 'developer', section: 'Hero', label: 'Headline', body: 'Help improve CardForge with reviewable contributions.', kind: 'short', maxLength: 180 },
-  { slug: 'developer.hero.body', group: 'developer', section: 'Hero', label: 'Introduction', body: 'Approved contributors add shared assets, prepare marketing drafts, and propose clearer public-site text from one secure workspace. Every contribution keeps its source and review history, and the owner approves all public changes.', kind: 'long', maxLength: 600 },
-  { slug: 'developer.lane.assets.title', group: 'developer', section: 'Contribution lanes', label: 'Assets title', body: 'Shared library assets', kind: 'short', maxLength: 100 },
-  { slug: 'developer.lane.assets.body', group: 'developer', section: 'Contribution lanes', label: 'Assets description', body: 'Submit templates, overlays, icons, textures, fonts, and reusable design presets for owner review.', kind: 'long', maxLength: 350 },
-  { slug: 'developer.lane.campaigns.title', group: 'developer', section: 'Contribution lanes', label: 'Campaigns title', body: 'Campaign packages', kind: 'short', maxLength: 100 },
-  { slug: 'developer.lane.campaigns.body', group: 'developer', section: 'Contribution lanes', label: 'Campaigns description', body: 'Combine post copy, media, rights details, and release context into reusable marketing drafts.', kind: 'long', maxLength: 350 },
-  { slug: 'developer.lane.site.title', group: 'developer', section: 'Contribution lanes', label: 'Site improvements title', body: 'Site improvements', kind: 'short', maxLength: 100 },
-  { slug: 'developer.lane.site.body', group: 'developer', section: 'Contribution lanes', label: 'Site improvements description', body: 'Propose clearer public-site copy against the current live text, with rationale and owner review.', kind: 'long', maxLength: 350 },
-  { slug: 'developer.rules.heading', group: 'developer', section: 'Contribution rules', label: 'Heading', body: 'Contribution rules', kind: 'short', maxLength: 120 },
+  { slug: 'contributor.meta.title', group: 'contributor', section: 'Search & sharing', label: 'Page title', body: 'CardForge Contributor Program', kind: 'short', maxLength: 100 },
+  { slug: 'contributor.meta.description', group: 'contributor', section: 'Search & sharing', label: 'Page description', body: 'Learn how approved CardForge contributors submit shared assets, prepare campaign drafts, and propose public-site improvements.', kind: 'long', maxLength: 200 },
+  { slug: 'contributor.hero.eyebrow', group: 'contributor', section: 'Hero', label: 'Eyebrow', body: 'Contributor Program', kind: 'short', maxLength: 100 },
+  { slug: 'contributor.hero.headline', group: 'contributor', section: 'Hero', label: 'Headline', body: 'Help improve CardForge with reviewable contributions.', kind: 'short', maxLength: 180 },
+  { slug: 'contributor.hero.body', group: 'contributor', section: 'Hero', label: 'Introduction', body: 'Approved contributors add shared assets, prepare marketing drafts, and propose clearer public-site text from one secure workspace. Every contribution keeps its source and review history, and the owner approves all public changes.', kind: 'long', maxLength: 600 },
+  { slug: 'contributor.lane.assets.title', group: 'contributor', section: 'Contribution lanes', label: 'Assets title', body: 'Shared library assets', kind: 'short', maxLength: 100 },
+  { slug: 'contributor.lane.assets.body', group: 'contributor', section: 'Contribution lanes', label: 'Assets description', body: 'Submit templates, overlays, icons, textures, fonts, and reusable design presets for owner review.', kind: 'long', maxLength: 350 },
+  { slug: 'contributor.lane.campaigns.title', group: 'contributor', section: 'Contribution lanes', label: 'Campaigns title', body: 'Campaign packages', kind: 'short', maxLength: 100 },
+  { slug: 'contributor.lane.campaigns.body', group: 'contributor', section: 'Contribution lanes', label: 'Campaigns description', body: 'Combine post copy, media, rights details, and release context into reusable marketing drafts.', kind: 'long', maxLength: 350 },
+  { slug: 'contributor.lane.site.title', group: 'contributor', section: 'Contribution lanes', label: 'Site improvements title', body: 'Site improvements', kind: 'short', maxLength: 100 },
+  { slug: 'contributor.lane.site.body', group: 'contributor', section: 'Contribution lanes', label: 'Site improvements description', body: 'Propose clearer public-site copy against the current live text, with rationale and owner review.', kind: 'long', maxLength: 350 },
+  { slug: 'contributor.rules.heading', group: 'contributor', section: 'Contribution rules', label: 'Heading', body: 'Contribution rules', kind: 'short', maxLength: 120 },
 
   { slug: 'roadmap.meta.title', group: 'roadmap', section: 'Search & sharing', label: 'Page title', body: 'CardForge Roadmap', kind: 'short', maxLength: 100 },
   { slug: 'roadmap.meta.description', group: 'roadmap', section: 'Search & sharing', label: 'Page description', body: 'Vote on CardForge feature priorities and follow planned service upgrades for the shared card-system studio.', kind: 'long', maxLength: 200 },

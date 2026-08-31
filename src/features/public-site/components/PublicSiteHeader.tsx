@@ -156,8 +156,8 @@ export function PublicSiteHeader({
               </SheetClose>
             </nav>
             {accountSlot ? <div className="border-t border-[var(--public-border)] pt-5">{accountSlot}</div> : null}
-            <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-developer-heading">
-              <h2 id="mobile-developer-heading" className="text-base font-semibold text-[var(--public-ivory)]">
+            <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-contributor-heading">
+              <h2 id="mobile-contributor-heading" className="text-base font-semibold text-[var(--public-ivory)]">
                 {siteContent['shell.mobile.developer.heading']}
               </h2>
               <p className="mt-2 text-sm leading-6 text-[var(--public-muted-text)]">

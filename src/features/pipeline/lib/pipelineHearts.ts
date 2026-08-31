@@ -84,19 +84,19 @@ export const getViewerVisiblePipelineLineageIds = async ({
           .eq('status', 'published').in('access_tier', getVisibleRegistryAccessTiers(viewerAccess))
       : Promise.resolve({ data: [], error: null }),
     contributor
-      ? database.from('cardforge_developer_asset_submissions').select('lineage_id,developer_id,status,purge_state')
+      ? database.from('cardforge_contributor_asset_submissions').select('lineage_id,contributor_id,status,purge_state')
           .in('lineage_id', lineageIds).is('purge_state', null)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (registryResult.error || submissionResult.error) throw new Error('Pipeline reactions are unavailable.');
   const visibleRegistryAssets = new Set((registryResult.data ?? []).map((entry) => String((entry as { asset_id: string }).asset_id)));
   const visibleLineages = new Set((submissionResult.data ?? []).flatMap((entry) => {
-    const row = entry as { lineage_id?: unknown; developer_id?: unknown; status?: unknown; purge_state?: unknown };
+    const row = entry as { lineage_id?: unknown; contributor_id?: unknown; status?: unknown; purge_state?: unknown };
     return typeof row.lineage_id === 'string'
-      && typeof row.developer_id === 'string'
+      && typeof row.contributor_id === 'string'
       && typeof row.status === 'string'
       && isPipelineRevisionVisibleToContributor({
-        contributorId: row.developer_id,
+        contributorId: row.contributor_id,
         status: row.status as Parameters<typeof isPipelineRevisionVisibleToContributor>[0]['status'],
         purgeState: row.purge_state === 'pending' ? 'pending' : null,
         viewerId,

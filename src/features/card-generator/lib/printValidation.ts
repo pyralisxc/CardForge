@@ -98,7 +98,7 @@ const KNOWN_FONT_VALUES = new Set(AVAILABLE_FONTS.map((font) => font.value));
 const PHYSICAL_SAFE_AREA_RATIO = 0.04;
 
 const isKnownFontValue = (fontFamily: string): boolean =>
-  KNOWN_FONT_VALUES.has(fontFamily) || fontFamily.startsWith('font-dev-');
+  KNOWN_FONT_VALUES.has(fontFamily) || fontFamily.startsWith('font-contributor-');
 
 const isLikelyImageSource = (value: string): boolean => {
   return (

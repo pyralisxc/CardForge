@@ -36,9 +36,9 @@ describe('contributor surface polish contract', () => {
     });
   });
 
-  it('gives the developer profile table one source owner', () => {
+  it('gives the contributor profile table one source owner', () => {
     const owners = collectSourceFiles(sourcePath())
-      .filter((path) => readFileSync(path, 'utf8').includes(".from('cardforge_developer_profiles')"))
+      .filter((path) => readFileSync(path, 'utf8').includes(".from('cardforge_contributor_profiles')"))
       .map((path) => relative(root, path).replaceAll('\\', '/'));
 
     expect(owners).toEqual([
@@ -98,7 +98,7 @@ describe('contributor surface polish contract', () => {
 
   it('keeps owner work visible from review through publishing setup', () => {
     const campaign = {
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       status: 'submitted' as const,
     };
 
@@ -253,7 +253,7 @@ describe('contributor surface polish contract', () => {
     expect(library).toContain('<CampaignLibraryWorkspace');
     expect(desk).toContain('<CampaignDeskShelf');
     expect(profile).toContain('Site proposals');
-    expect(zones).not.toContain("id: 'developer'");
+    expect(zones).not.toContain("id: 'contributor'");
   });
 
   it('gives owners reversible campaign-media retirement and guarded permanent deletion', () => {

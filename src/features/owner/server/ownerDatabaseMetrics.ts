@@ -6,7 +6,7 @@ type DatabaseMetricsRow = {
   cardforge_table_size_bytes: number | null;
   storage_size_bytes: number | null;
   asset_registry_count: number | null;
-  developer_submission_count: number | null;
+  contributor_submission_count: number | null;
 };
 
 export const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | null> => {
@@ -23,6 +23,6 @@ export const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | 
     cardforgeTableSizeBytes: Number(row.cardforge_table_size_bytes ?? 0),
     storageSizeBytes: Number(row.storage_size_bytes ?? 0),
     assetRegistryCount: Number(row.asset_registry_count ?? 0),
-    developerSubmissionCount: Number(row.developer_submission_count ?? 0),
+    contributorSubmissionCount: Number(row.contributor_submission_count ?? 0),
   } : null;
 };

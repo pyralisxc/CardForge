@@ -5,8 +5,8 @@ import {
   isRoadmapContributorFormComplete,
 } from '@/features/roadmap/components/RoadmapContributorControlsModel';
 
-describe('roadmap developer controls', () => {
-  it('gives owners checkpoint controls and developers shipped-update controls', () => {
+describe('roadmap contributor controls', () => {
+  it('gives owners checkpoint controls and contributors shipped-update controls', () => {
     expect(createRoadmapContributorFormState(true, new Date('2026-08-11T12:00:00.000Z')))
       .toMatchObject({ itemType: 'roi_checkpoint', visibleMonth: '2026-08' });
     expect(createRoadmapContributorFormState(false, new Date('2026-08-11T12:00:00.000Z')))

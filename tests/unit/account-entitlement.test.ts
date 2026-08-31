@@ -26,7 +26,7 @@ describe('accountEntitlement', () => {
         NODE_ENV: 'development',
       },
     })).toMatchObject({
-      accessMode: 'dev',
+      accessMode: 'contributor',
       authConfigured: false,
       isSignedIn: false,
       ownerAccess: { isOwner: false, source: 'none' },
@@ -47,7 +47,7 @@ describe('accountEntitlement', () => {
     })).toBe('free');
   });
 
-  it('maps trusted Clerk private metadata to paid and dev export entitlements', () => {
+  it('maps trusted Clerk private metadata to paid and Contributor export entitlements', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
@@ -60,11 +60,11 @@ describe('accountEntitlement', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
-      emailAddresses: ['dev@example.com'],
+      emailAddresses: ['contributor@example.com'],
       publicMetadata: {},
-      privateMetadata: { cardforgeAccess: 'dev' },
+      privateMetadata: { cardforgeAccess: 'contributor' },
       env: {},
-    })).toBe('dev');
+    })).toBe('contributor');
   });
 
   it('distinguishes Designer Pass from Creator Pass without granting contributor access', () => {
@@ -131,7 +131,7 @@ describe('accountEntitlement', () => {
     })).toBe('free');
   });
 
-  it('does not trust public Clerk metadata for paid or dev entitlement', () => {
+  it('does not trust public Clerk metadata for paid or Contributor entitlement', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
@@ -144,14 +144,14 @@ describe('accountEntitlement', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
-      emailAddresses: ['dev@example.com'],
-      publicMetadata: { cardforgeAccess: 'dev' },
+      emailAddresses: ['contributor@example.com'],
+      publicMetadata: { cardforgeAccess: 'contributor' },
       privateMetadata: {},
       env: {},
     })).toBe('free');
   });
 
-  it('maps server email allowlists to paid and dev export entitlements', () => {
+  it('maps server email allowlists to paid and Contributor export entitlements', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
@@ -166,14 +166,14 @@ describe('accountEntitlement', () => {
     expect(resolveAccountAccessMode({
       authConfigured: true,
       isSignedIn: true,
-      emailAddresses: ['dev@example.com'],
+      emailAddresses: ['contributor@example.com'],
       publicMetadata: {},
       privateMetadata: {},
       env: {
-        CARDFORGE_DEV_ACCOUNT_EMAILS: 'dev@example.com',
-        CARDFORGE_PAID_ACCOUNT_EMAILS: 'dev@example.com',
+        CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS: 'contributor@example.com',
+        CARDFORGE_PAID_ACCOUNT_EMAILS: 'contributor@example.com',
       },
-    })).toBe('dev');
+    })).toBe('contributor');
 
   });
 
@@ -248,16 +248,16 @@ describe('accountEntitlement', () => {
     expect(resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: true,
-      emailAddresses: ['dev@example.com'],
+      emailAddresses: ['contributor@example.com'],
       privateMetadata: {
-        cardforgeAccess: 'dev',
+        cardforgeAccess: 'contributor',
         cardforgeStripeCustomerId: 'cus_123',
       },
       env: {},
     }).hasStripeCustomer).toBe(false);
   });
 
-  it('elevates trusted owner access to developer-grade export and tool capabilities', () => {
+  it('elevates trusted owner access to contributor-grade export and tool capabilities', () => {
     const entitlement = resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: true,
@@ -271,7 +271,7 @@ describe('accountEntitlement', () => {
     });
 
     expect(entitlement).toMatchObject({
-      accessMode: 'dev',
+      accessMode: 'contributor',
       canExportClean: true,
       ownerAccess: {
         isOwner: true,

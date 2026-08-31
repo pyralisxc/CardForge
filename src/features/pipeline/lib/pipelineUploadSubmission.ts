@@ -124,7 +124,7 @@ export const validatePipelineUploadDescriptor = ({
         kind: 'limit',
         nextAction: 'Choose a smaller source file or ask the owner to raise the Forge Review file ceiling.',
         limit: {
-          resource: 'developer_source_file_bytes',
+          resource: 'contributor_source_file_bytes',
           current: normalizedFileSize,
           maximum: maxFileSizeBytes,
           unit: 'bytes',
@@ -170,7 +170,7 @@ export const validatePipelineUploadDescriptor = ({
 
 const getContributorStoragePrefix = (contributorId: string): string => sanitizePathSegment(
   contributorId,
-  'developer',
+  'contributor',
   100,
 );
 
@@ -309,9 +309,9 @@ export const removePendingPipelineUpload = async ({
   assertOwnedStoragePath(contributorId, assetType, storagePath);
   const supabase = requireSupabase();
   const { data: submitted, error: lookupError } = await supabase
-    .from('cardforge_developer_asset_submissions')
+    .from('cardforge_contributor_asset_submissions')
     .select('id')
-    .eq('developer_id', contributorId)
+    .eq('contributor_id', contributorId)
     .eq('source_storage_bucket', PIPELINE_STORAGE_BUCKET)
     .eq('source_storage_path', storagePath)
     .maybeSingle();

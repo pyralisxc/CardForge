@@ -10,10 +10,9 @@ export type LegalDocumentSlug =
   | 'creator-pass-terms'
   | 'supporter-terms'
   | 'refund'
-  | 'developer-terms'
+  | 'contributor-terms'
   | 'contact'
-  | 'accessibility'
-  | 'creator-pool';
+  | 'accessibility';
 
 export interface LegalDocument {
   slug: LegalDocumentSlug;
@@ -131,12 +130,6 @@ Known limitations may include complex canvas-style editing controls, keyboard in
 
 If an accessibility barrier prevents you from using CardForge Studio, contact the support email listed on this site and include the page, task, assistive technology if relevant, and the format or accommodation that would help.`;
 
-const creatorPoolBody = `The Creator Pool concept is archived and inactive. CardForge Studio does not currently operate creator-pool payout infrastructure or accrue creator-pool balances.
-
-The creator pool is not active payout infrastructure today. It is not stock, equity, a security, employment, partnership, a wage promise, or guaranteed income. Any future program would depend on billing, refund handling, tax handling, payout provider setup, creator eligibility rules, legal review, and separately published program terms.
-
-Archived planning language does not create a payable balance or enforceable distribution schedule.`;
-
 const DEFAULT_EFFECTIVE_DATE = '2026-07-16';
 const DEFAULT_PUBLISHED_AT = '2026-07-16T00:00:00.000Z';
 
@@ -163,10 +156,9 @@ export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
   createDefaultDocument('creator-pass-terms', 'Creator and Designer Pass Terms', creatorPassTermsBody, '2026-08-21'),
   createDefaultDocument('supporter-terms', 'Supporter Terms', supporterTermsBody),
   createDefaultDocument('refund', 'Refund and Cancellation Policy', refundBody),
-  createDefaultDocument('developer-terms', 'Contributor Terms', contributorTermsBody),
+  createDefaultDocument('contributor-terms', 'Contributor Terms', contributorTermsBody),
   createDefaultDocument('contact', 'Contact and Support', contactBody, '2026-08-11'),
   createDefaultDocument('accessibility', 'Accessibility Statement', accessibilityBody),
-  createDefaultDocument('creator-pool', 'Archived Creator Pool Notice', creatorPoolBody),
 ];
 
 const legalSlugs = new Set<LegalDocumentSlug>(DEFAULT_LEGAL_DOCUMENTS.map((document) => document.slug));

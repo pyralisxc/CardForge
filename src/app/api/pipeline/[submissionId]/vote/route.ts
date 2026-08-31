@@ -23,7 +23,7 @@ export async function POST(
     requirePipelineRequestScope(access, 'assets.review');
 
     const rateLimit = await consumeRateLimit({
-      action: 'developer-vote',
+      action: 'contributor-vote',
       identity: access.user.id,
       limit: 120,
       windowSeconds: 3600,
@@ -31,7 +31,7 @@ export async function POST(
     if (!rateLimit.allowed) {
       return createRateLimitErrorResponse('Too many Contributor votes.', {
         retryAfterSeconds: rateLimit.retryAfterSeconds,
-        resource: 'developer_votes',
+        resource: 'contributor_votes',
         maximum: 120,
         unit: 'attempts_per_hour',
       });

@@ -19,11 +19,11 @@ const groupLabels: Record<SiteContentBlock['group'], string> = {
   account: 'Account page',
   about: 'About page',
   founder: 'Founder page',
-  developer: 'Contributor program',
+  contributor: 'Contributor program',
   roadmap: 'Roadmap',
   sharing: 'Sharing',
 };
-const contentGroups: Array<SiteContentBlock['group']> = ['shell', 'landing', 'plans', 'account', 'about', 'founder', 'developer', 'roadmap', 'sharing'];
+const contentGroups: Array<SiteContentBlock['group']> = ['shell', 'landing', 'plans', 'account', 'about', 'founder', 'contributor', 'roadmap', 'sharing'];
 
 export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange }: {
   consolePayload: OwnerConsolePayload;

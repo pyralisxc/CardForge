@@ -120,7 +120,7 @@ export async function PATCH(request: Request) {
       await client.users.updateUserMetadata(userId, { privateMetadata });
       account = mapOwnerAccountSummary(await client.users.getUser(userId));
 
-      if (profile || accountValue.access === 'dev' || accountValue.owner) {
+      if (profile || accountValue.access === 'contributor' || accountValue.owner) {
         if (!profile) {
           await upsertContributorProfile({
             contributorId: userId,
@@ -130,7 +130,7 @@ export async function PATCH(request: Request) {
           });
         }
         const requestedStatus = body.contributor?.status;
-        const status: ContributorProfileStatus = action === 'revoke' || (accountValue.access !== 'dev' && !accountValue.owner)
+        const status: ContributorProfileStatus = action === 'revoke' || (accountValue.access !== 'contributor' && !accountValue.owner)
           ? 'inactive'
           : typeof requestedStatus === 'string' && CONTRIBUTOR_PROFILE_STATUSES.includes(requestedStatus as ContributorProfileStatus)
             ? requestedStatus as ContributorProfileStatus

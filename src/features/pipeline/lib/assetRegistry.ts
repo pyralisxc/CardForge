@@ -105,13 +105,13 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
           : row.asset_type === 'elementPreset'
             ? 'elementPreset'
             : asset.kind,
-    librarySource: row.library_source === 'developer' ? 'developer' : 'official',
+    librarySource: row.library_source === 'contributor' ? 'contributor' : 'official',
     accessTier: row.access_tier === 'paid'
       ? 'paid'
       : row.access_tier === 'free'
         ? 'free'
-        : row.access_tier === 'developer'
-          ? 'developer'
+        : row.access_tier === 'contributor'
+          ? 'contributor'
           : row.access_tier === 'hidden'
             ? 'hidden'
             : 'free',

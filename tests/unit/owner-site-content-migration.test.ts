@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20260821143500_owner_site_content_group_controls.sql'),
   'utf8',
 );
+const contributorCutover = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20260831015135_contributor_cold_cut.sql'),
+  'utf8',
+);
 
 describe('owner site content group migration', () => {
   it('expands the existing content control-plane allowlist without rewriting user data', () => {
@@ -15,5 +19,6 @@ describe('owner site content group migration', () => {
     expect(migration).not.toContain('delete from');
     expect(migration).not.toContain('drop table');
     expect(migration).not.toContain('drop column');
+    expect(contributorCutover).toContain("^(shell|landing|plans|account|about|founder|contributor|roadmap|sharing)");
   });
 });

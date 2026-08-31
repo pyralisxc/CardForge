@@ -46,17 +46,10 @@ describe('site metadata', () => {
   });
 
   it('marks every private or application route noindex', () => {
-    for (const route of ['studio', 'account', 'owner', 'profile', 'creator-pool']) {
+    for (const route of ['studio', 'account', 'owner']) {
       const source = readRoute(route);
       expect(source, route).toContain('index: false');
     }
   });
 
-  it('keeps archived Creator Pool language out of primary marketing pages', () => {
-    for (const route of ['page.tsx']) {
-      const source = readFileSync(join(process.cwd(), 'src/app', route), 'utf8');
-      expect(source).not.toContain('href="/creator-pool"');
-      expect(source).not.toContain('Creator Pool Notice');
-    }
-  });
 });

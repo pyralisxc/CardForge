@@ -35,8 +35,8 @@ describe('projectAccess', () => {
     });
   });
 
-  it('maps dev access to project and export capabilities without owning developer permissions', () => {
-    expect(getProjectCapabilities('dev')).toEqual({
+  it('maps Contributor access to project and export capabilities without owning contributor permissions', () => {
+    expect(getProjectCapabilities('contributor')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: true,
@@ -54,20 +54,20 @@ describe('projectAccess', () => {
   it('resolves explicit server access mode overrides', () => {
     expect(resolveAccessMode({
       NODE_ENV: 'production',
-      CARDFORGE_ACCESS_MODE: 'dev',
-    })).toBe('dev');
+      CARDFORGE_ACCESS_MODE: 'contributor',
+    })).toBe('contributor');
   });
 
   it('prefers server access mode when both explicit overrides are present', () => {
     expect(resolveAccessMode({
       NODE_ENV: 'production',
       NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: 'free',
-      CARDFORGE_ACCESS_MODE: 'dev',
-    })).toBe('dev');
+      CARDFORGE_ACCESS_MODE: 'contributor',
+    })).toBe('contributor');
   });
 
-  it('defaults development to dev and production to free', () => {
-    expect(resolveAccessMode({ NODE_ENV: 'development' })).toBe('dev');
+  it('defaults local development to Contributor and production to Free', () => {
+    expect(resolveAccessMode({ NODE_ENV: 'development' })).toBe('contributor');
     expect(resolveAccessMode({ NODE_ENV: 'production' })).toBe('free');
   });
 
@@ -81,7 +81,7 @@ describe('projectAccess', () => {
   it('returns export gate copy only when clean export is unavailable', () => {
     expect(getExportGateMessage('free')).toBe('Free PNG, PDF, ZIP, and Tabletop Simulator downloads include the CardForge watermark. Creator Pass removes it from finished files.');
     expect(getExportGateMessage('paid')).toBeNull();
-    expect(getExportGateMessage('dev')).toBeNull();
+    expect(getExportGateMessage('contributor')).toBeNull();
   });
 
   it('describes free access without internal entitlement terminology', () => {
@@ -118,8 +118,8 @@ describe('projectAccess', () => {
     });
   });
 
-  it('describes dev access with portable files while keeping local projects unlimited', () => {
-    expect(getExportEntitlementCopy('dev')).toEqual({
+  it('describes Contributor access with portable files while keeping local projects unlimited', () => {
+    expect(getExportEntitlementCopy('contributor')).toEqual({
       modeLabel: 'Contributor access',
       canExportClean: true,
       gateMessage: null,

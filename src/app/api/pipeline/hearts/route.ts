@@ -15,7 +15,7 @@ const getViewer = async () => {
     privateMetadata: access.user?.privateMetadata ?? {},
     ownerAccess: access.ownerAccess,
   });
-  const contributor = access.ownerAccess.isOwner || (access.user && entitlement.accessMode === 'dev'
+  const contributor = access.ownerAccess.isOwner || (access.user && entitlement.accessMode === 'contributor'
     ? (await getContributorProfileCapabilities(access.user.id)).status === 'active'
     : false);
   return { access, entitlement, contributor, owner: access.ownerAccess.isOwner };

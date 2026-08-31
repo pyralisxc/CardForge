@@ -141,7 +141,7 @@ export interface PipelineProgramAggregate {
 }
 
 export interface PipelineProgramSettingsRow {
-  max_active_developers?: unknown;
+  max_active_contributors?: unknown;
   monthly_submission_limit?: unknown;
   max_submission_file_size_mb?: unknown;
   monthly_published_requirement?: unknown;
@@ -156,8 +156,8 @@ export interface PipelineProgramSettingsRow {
 export interface PipelineSubmissionRow {
   id: string;
   lineage_id?: string;
-  developer_id: string;
-  developer_email: string | null;
+  contributor_id: string;
+  contributor_email: string | null;
   asset_type: unknown;
   requested_studio_destination: unknown;
   specialty_tags?: unknown;
@@ -359,7 +359,7 @@ export const mapPipelineProgramSettingsRow = (
   row: PipelineProgramSettingsRow | null | undefined,
 ): PipelineProgramSettings => normalizePipelineProgramSettingsInput(row
   ? {
-      maxActiveContributors: row.max_active_developers,
+      maxActiveContributors: row.max_active_contributors,
       monthlySubmissionLimit: row.monthly_submission_limit,
       maxSubmissionFileSizeMb: row.max_submission_file_size_mb,
       monthlyPublishedRequirement: row.monthly_published_requirement,
@@ -385,11 +385,11 @@ export const mapPipelineSubmissionRow = (
 ): PipelineSubmission => ({
   id: row.id,
   lineageId: row.lineage_id,
-  contributorId: row.developer_id,
-  contributorEmail: profile?.email ?? row.developer_email,
+  contributorId: row.contributor_id,
+  contributorEmail: profile?.email ?? row.contributor_email,
   contributorFirstName: profile?.first_name ?? null,
   contributorLastName: profile?.last_name ?? null,
-  contributorDisplayName: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || profile?.email || row.developer_email,
+  contributorDisplayName: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || profile?.email || row.contributor_email,
   assetType: isContributorAssetType(row.asset_type) ? row.asset_type : 'imageAssets',
   requestedStudioDestination: isStudioAssetDestination(row.requested_studio_destination)
     ? row.requested_studio_destination
@@ -413,8 +413,8 @@ export const mapPipelineSubmissionRow = (
     ? row.automated_status
     : 'voting',
   ownerStatusOverride: isContributorAssetStatus(row.owner_status_override) ? row.owner_status_override : null,
-  calculatedAccessTier: isContributorAssetAccessTier(row.calculated_access_tier) ? row.calculated_access_tier : 'developer',
-  automatedAccessTier: isContributorAssetAccessTier(row.automated_access_tier) ? row.automated_access_tier : 'developer',
+  calculatedAccessTier: isContributorAssetAccessTier(row.calculated_access_tier) ? row.calculated_access_tier : 'contributor',
+  automatedAccessTier: isContributorAssetAccessTier(row.automated_access_tier) ? row.automated_access_tier : 'contributor',
   ownerAccessTierOverride: isContributorAssetAccessTierOverride(row.owner_access_tier_override) ? row.owner_access_tier_override : null,
   qualityScore: row.quality_score ?? 0,
   tierDecisionReason: row.tier_decision_reason,

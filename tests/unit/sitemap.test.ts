@@ -24,7 +24,7 @@ describe('sitemap', () => {
       'https://cardforges.com/creator-pass-terms',
       'https://cardforges.com/supporter-terms',
       'https://cardforges.com/refund',
-      'https://cardforges.com/developer-terms',
+      'https://cardforges.com/contributor-terms',
     ]);
   });
 

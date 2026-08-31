@@ -132,7 +132,7 @@ const createUnavailablePayload = async (
   maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
   maxSuggestionLength: settings.maxRoadmapSuggestionLength,
   creatorPassIncome: creatorPassIncome ?? await loadCreatorPassIncome(settings),
-  developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
+  contributorRequestEmail: DEVELOPER_REQUEST_EMAIL,
 });
 
 const mapRoadmapPayload = ({
@@ -204,7 +204,7 @@ const mapRoadmapPayload = ({
     maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
     maxSuggestionLength: settings.maxRoadmapSuggestionLength,
     creatorPassIncome,
-    developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
+    contributorRequestEmail: DEVELOPER_REQUEST_EMAIL,
   };
 };
 
@@ -412,7 +412,7 @@ export const createContributorRoadmapItem = async ({
     });
 
   if (insertError) {
-    console.error('Failed to create developer roadmap item:', insertError);
+    console.error('Failed to create contributor roadmap item:', insertError);
     throw new RoadmapStoreError('Unable to create roadmap item.', 500);
   }
 
@@ -441,7 +441,7 @@ export const deleteContributorRoadmapItem = async ({
     .eq('id', itemId);
 
   if (error) {
-    console.error('Failed to delete developer roadmap item:', error);
+    console.error('Failed to delete contributor roadmap item:', error);
     throw new RoadmapStoreError('Unable to delete roadmap item.', 500);
   }
 

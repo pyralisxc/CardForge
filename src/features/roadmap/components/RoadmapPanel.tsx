@@ -201,7 +201,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
     }
   };
 
-  const submitDeveloperItem = async (event: FormEvent<HTMLFormElement>) => {
+  const submitContributorItem = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSaving(true);
     try {
@@ -209,7 +209,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          developerItem: true,
+          contributorItem: true,
           title: devForm.title,
           description: devForm.description,
           itemType: devForm.itemType,
@@ -483,7 +483,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
           isOwner={isOwner}
           isSaving={isSaving}
           onChange={setDevForm}
-          onSubmit={submitDeveloperItem}
+          onSubmit={submitContributorItem}
         />
       </div>
     </section>

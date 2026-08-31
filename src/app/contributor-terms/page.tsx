@@ -8,12 +8,12 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 export const metadata = createPageMetadata({
   title: 'Contributor Terms',
   description: 'Terms for submitting and reviewing Contributor assets for CardForge Studio.',
-  path: '/developer-terms',
+  path: '/contributor-terms',
 });
 
-export default async function DeveloperTermsPage() {
+export default async function ContributorTermsPage() {
   const [{ businessIdentity, document }, siteConfiguration] = await Promise.all([
-    getCachedPublishedLegalDocument('developer-terms'),
+    getCachedPublishedLegalDocument('contributor-terms'),
     getCachedPublicSiteConfiguration(),
   ]);
   return <ConfiguredPublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration} />;

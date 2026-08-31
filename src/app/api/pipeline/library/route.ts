@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const timing = createServerTimingTracker();
   try {
-    const access = await timing.track('developer_access', getCurrentPipelineRequestAccess);
+    const access = await timing.track('contributor_access', getCurrentPipelineRequestAccess);
     requirePipelineRequestScope(access, 'assets.review');
     const program = await timing.track('library_program', () => getPipelineLibraryProgramView(
       access.user.id,

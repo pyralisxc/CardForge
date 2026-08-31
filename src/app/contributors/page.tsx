@@ -7,10 +7,10 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
 
 export async function generateMetadata() {
-  const content = createSiteContentMap(await getCachedSiteContentBlocks('developer'));
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('contributor'));
   return createPageMetadata({
-    title: content['developer.meta.title'],
-    description: content['developer.meta.description'],
+    title: content['contributor.meta.title'],
+    description: content['contributor.meta.description'],
     path: '/contributors',
   });
 }

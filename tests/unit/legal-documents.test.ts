@@ -22,10 +22,9 @@ describe('legal document rules', () => {
       'creator-pass-terms',
       'supporter-terms',
       'refund',
-      'developer-terms',
+      'contributor-terms',
       'contact',
       'accessibility',
-      'creator-pool',
     ]);
   });
 
@@ -46,7 +45,7 @@ describe('legal document rules', () => {
       DEFAULT_LEGAL_DOCUMENTS.map((document) => [document.slug, document]),
     );
 
-    for (const slug of ['privacy', 'terms', 'refund', 'contact', 'developer-terms'] as const) {
+    for (const slug of ['privacy', 'terms', 'refund', 'contact', 'contributor-terms'] as const) {
       expect(documents[slug].body).toContain(approvedOperatorDescription);
     }
 
@@ -54,7 +53,7 @@ describe('legal document rules', () => {
       'Your agreement for the service is with Cameron Locke as the legal operator of CardForge Studio.',
     );
     expect(documents.contact.body).toContain('Cameron Locke handles support');
-    expect(documents['developer-terms'].body).toContain(
+    expect(documents['contributor-terms'].body).toContain(
       'Your Contributor agreement is with Cameron Locke as the legal operator of CardForge Studio.',
     );
     expect(documents.privacy.body).toContain('local-first card creation tool');
@@ -62,8 +61,6 @@ describe('legal document rules', () => {
     expect(documents.refund.body).toContain('Nothing in this policy limits rights that cannot legally be limited.');
     expect(documents.accessibility.body).toContain('WCAG 2.2 Level AA');
     expect(documents.accessibility.body).not.toContain('fully conforms');
-    expect(documents['creator-pool'].body).toContain('not active payout infrastructure today');
-    expect(documents['creator-pool'].body).toContain('archived and inactive');
   });
 
   it('covers the required privacy architecture without unsupported promises', () => {
@@ -203,8 +200,8 @@ Use the service responsibly.
       },
     });
     expect(normalizeLegalDocumentInput({
-      slug: 'developer-terms',
-      title: ' Developer Terms ',
+      slug: 'contributor-terms',
+      title: ' Contributor Terms ',
       body: ' Contributor policy ',
       effectiveDate: '2026-07-17',
       expectedBusinessIdentityVersion: 4,

@@ -54,7 +54,7 @@ export interface OwnerPerson {
   email: string | null;
   name: string;
   identityState: OwnerPersonIdentityState;
-  access: 'free' | 'paid' | 'dev';
+  access: 'free' | 'paid' | 'contributor';
   isOwner: boolean;
   ownerSource: 'clerk_private_metadata' | 'environment' | 'none';
   createdAt: string | null;

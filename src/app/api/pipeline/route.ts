@@ -6,7 +6,6 @@ import {
   getPipelineContributorIds,
   getPipelineProgramView,
   getPipelineContributorSummary,
-  projectPipelineProgramForViewer,
   requirePipelineRequestScope,
   updateContributorProfileOverrides,
   updatePipelineProgramSettings,
@@ -37,18 +36,22 @@ const parsePositiveInteger = (value: string | null, fallback: number): number =>
 export async function GET(request: Request) {
   const timing = createServerTimingTracker();
   try {
-    const access = await timing.track('developer_access', getCurrentPipelineRequestAccess);
-    requirePipelineRequestScope(access, 'assets.review');
+    const access = await timing.track('owner_access', getOwnerAccess);
+    if (!access.ok) return access.response;
+    const ownerUserId = access.owner.userId;
+    if (!ownerUserId) {
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for Contributor program settings.');
+    }
     const url = new URL(request.url);
     const program = await timing.track(
       'program_view',
       () => getPipelineProgramView(
-        access.user.id,
-        getPipelineContributorIds(access.user.id),
+        ownerUserId,
+        getPipelineContributorIds(ownerUserId),
         {
-          includeRegistryRecipePayloads: access.isOwner,
+          includeRegistryRecipePayloads: true,
           submissionQuery: {
-            scope: access.isOwner ? 'all' : 'own',
+            scope: 'all',
             query: url.searchParams.get('query') ?? '',
             assetType: url.searchParams.get('assetType') ?? 'all',
             status: url.searchParams.get('status') ?? 'all',
@@ -70,13 +73,10 @@ export async function GET(request: Request) {
     );
 
     const response = createNoStoreJsonResponse({
-      ownerAccess: access.ownerAccess,
-      isContributor: access.isContributor,
-      isOwner: access.isOwner,
-      program: projectPipelineProgramForViewer(program, {
-        currentUserId: access.user.id,
-        isOwner: access.isOwner,
-      }),
+      ownerAccess: access.owner,
+      isContributor: true,
+      isOwner: true,
+      program,
     });
     response.headers.set('Server-Timing', timing.header());
     return response;
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     const access = await getCurrentPipelineRequestAccess();
     requirePipelineRequestScope(access, 'assets.submit');
     const rateLimit = await consumeRateLimit({
-      action: 'developer-submission',
+      action: 'contributor-submission',
       identity: access.user.id,
       limit: 30,
       windowSeconds: 3600,
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       return createRateLimitErrorResponse('Too many Contributor submissions.', {
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         nextAction: 'Wait for the submission window to reset, then retry the same upload.',
-        resource: 'developer_submission_attempts',
+        resource: 'contributor_submission_attempts',
         maximum: 30,
         unit: 'attempts_per_hour',
       });

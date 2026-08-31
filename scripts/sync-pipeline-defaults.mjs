@@ -14,12 +14,12 @@ const configuredOwnerEmail = (value) => {
 };
 
 let OWNER_EMAIL = null;
-const ASSET_BUCKET = process.env.CARDFORGE_DEVELOPER_ASSET_BUCKET || 'cardforge-developer-assets';
+const ASSET_BUCKET = process.env.CARDFORGE_CONTRIBUTOR_ASSET_BUCKET || 'cardforge-contributor-assets';
 const BOOTSTRAP_ROOT = path.join('data', 'pipeline-bootstrap');
 const BOOTSTRAP_MEDIA_PREFIX = 'bootstrap-media://';
 const SITE_FALLBACK_PREFIX = 'site-fallback://';
 const LEGACY_PUBLIC_MEDIA_PREFIX = '/card-assets/';
-const BOOTSTRAP_ACCESS_TIERS = new Set(['free', 'paid', 'developer']);
+const BOOTSTRAP_ACCESS_TIERS = new Set(['free', 'paid', 'contributor']);
 
 const projectRoot = process.cwd();
 const envPath = path.join(projectRoot, '.env.local');
@@ -60,7 +60,7 @@ const mimeByExtension = {
   '.json': 'application/json',
 };
 
-const developerTypeByRegistryType = {
+const contributorTypeByRegistryType = {
   texture: 'textures',
   divider: 'dividers',
   icon: 'icons',
@@ -267,8 +267,8 @@ const upsertRegistryItem = async (supabase, item, ownerProfile) => {
       p_url: item.url,
       p_preview_url: item.preview_url,
       p_description: item.description,
-      p_developer_id: ownerProfile.clerk_user_id,
-      p_developer_email: ownerProfile.email,
+      p_contributor_id: ownerProfile.clerk_user_id,
+      p_contributor_email: ownerProfile.email,
       p_file_size_bytes: item.file_size_bytes,
       p_source_mime_type: item.source_mime_type,
       p_metadata: item.metadata,
@@ -281,13 +281,13 @@ const upsertRegistryItem = async (supabase, item, ownerProfile) => {
   const { error } = await supabase.rpc('cardforge_upsert_pipeline_registry_asset', {
     p_asset_id: item.asset_id,
     p_name: item.name,
-    p_submission_asset_type: item.developer_asset_type,
+    p_submission_asset_type: item.contributor_asset_type,
     p_registry_asset_type: item.registry_asset_type,
     p_url: item.url,
     p_preview_url: item.preview_url,
     p_description: item.description,
-    p_developer_id: ownerProfile.clerk_user_id,
-    p_developer_email: ownerProfile.email,
+    p_contributor_id: ownerProfile.clerk_user_id,
+    p_contributor_email: ownerProfile.email,
     p_file_size_bytes: item.file_size_bytes,
     p_source_mime_type: item.source_mime_type,
     p_storage_bucket: item.storage_bucket,
@@ -427,7 +427,7 @@ const collectStaticAssetItems = async (
       asset_id: metadata.id,
       name: metadata.name,
       registry_asset_type: descriptor.registryType,
-      developer_asset_type: developerTypeByRegistryType[descriptor.registryType],
+      contributor_asset_type: contributorTypeByRegistryType[descriptor.registryType],
       url: publicUrlByLocalPath.get(relativePath.startsWith('site-fallbacks/')
         ? `${SITE_FALLBACK_PREFIX}${descriptor.catalogPath}`
         : `${BOOTSTRAP_MEDIA_PREFIX}${relativePath}`),
@@ -463,7 +463,7 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
       asset_id: template.id,
       name: template.name,
       registry_asset_type: 'template',
-      developer_asset_type: 'templates',
+      contributor_asset_type: 'templates',
       url: `/api/templates#${template.id}`,
       preview_url: `/api/templates#${template.id}`,
       storage_bucket: null,
@@ -506,7 +506,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
         asset_id: style.id,
         name: style.name,
         registry_asset_type: 'elementPreset',
-        developer_asset_type: 'elementPresets',
+        contributor_asset_type: 'elementPresets',
         url: `/api/styles#${style.id}`,
         preview_url: `/api/styles#${style.id}`,
         storage_bucket: null,
@@ -520,7 +520,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
           bootstrapAccessTier: accessTier,
           style: {
             ...style,
-            librarySource: 'developer',
+            librarySource: 'contributor',
             accessTier,
             registryStatus: 'published',
             contributorName: 'Pyralis Cameron',
@@ -558,7 +558,7 @@ const main = async () => {
     },
   });
   const { data: ownerProfiles, error: ownerError } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select('clerk_user_id,email,first_name,last_name')
     .eq('email', OWNER_EMAIL)
     .eq('status', 'active')
@@ -566,7 +566,7 @@ const main = async () => {
   if (ownerError) throw ownerError;
 
   if (ownerProfiles?.length !== 1) {
-    throw new Error('The configured owner identity must match exactly one active Forge Pipeline developer profile.');
+    throw new Error('The configured owner identity must match exactly one active Forge Pipeline contributor profile.');
   }
   const [ownerProfile] = ownerProfiles;
 

@@ -278,7 +278,7 @@ The review queue does not belong in Profile.
 
 ### User-facing naming
 
-Use **Contributor** for the creative/product role across public and private UI. Internal `developer` identifiers, `accessMode === 'dev'`, database names, and compatibility routes may remain until a deliberate migration is safe. Do not create a new permanent Contributor destination merely to rename the old Developer Cockpit.
+Use **Contributor** for the creative/product role across public and private UI and runtime ownership. Contributor identity, access, Pipeline records, and storage use Contributor names directly. The former Developer/Profile routes and Contributor Cockpit are not compatibility surfaces; Desk, Library, Account Profile, focused Studio tools, and Owner own those capabilities.
 
 ## Pipeline, Revisions, Voting, and Publication
 

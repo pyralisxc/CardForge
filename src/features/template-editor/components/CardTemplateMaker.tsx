@@ -105,7 +105,7 @@ export function CardTemplateMaker({
     availableFonts,
     beginDraft,
     controller,
-    developerFontFaceCss,
+    contributorFontFaceCss,
     isDirty,
     isHydrated: draftPersistenceHydrated,
   } = useTemplateEditorSession({
@@ -476,7 +476,7 @@ export function CardTemplateMaker({
           onOpenMenu={openLibrary}
         />
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
-          {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
+          {contributorFontFaceCss && <style>{contributorFontFaceCss}</style>}
           <TemplateEditorLibrarySidebar
             backFaceTemplates={backFaceTemplates}
             canUseProjectFiles={canUseProjectFiles}

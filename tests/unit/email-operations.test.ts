@@ -7,23 +7,23 @@ import {
 } from '@/features/contact/lib/emailOperations';
 
 describe('email operations', () => {
-  it('normalizes public contact and developer request payloads', () => {
+  it('normalizes public contact and contributor request payloads', () => {
     expect(normalizeContactRequestInput({
-      kind: 'developer',
+      kind: 'contributor',
       name: '  Ada  ',
       email: '  ada@example.test ',
-      subject: '  Developer access ',
+      subject: '  Contributor access ',
       message: ' I want to submit fonts. ',
-      pageUrl: 'https://cardforge.example/developer',
+      pageUrl: 'https://cardforge.example/contributor',
     })).toEqual({
       ok: true,
       value: {
-        kind: 'developer',
+        kind: 'contributor',
         name: 'Ada',
         email: 'ada@example.test',
-        subject: 'Developer access',
+        subject: 'Contributor access',
         message: 'I want to submit fonts.',
-        pageUrl: 'https://cardforge.example/developer',
+        pageUrl: 'https://cardforge.example/contributor',
       },
     });
   });

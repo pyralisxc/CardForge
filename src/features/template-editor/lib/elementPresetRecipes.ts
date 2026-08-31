@@ -48,8 +48,8 @@ export interface ElementPresetRecipe {
   kind: ElementPresetKind;
   contributorName: string;
   status: 'published' | 'voting' | 'archived';
-  tier: 'free' | 'paid' | 'developer';
-  source: 'developer-pipeline' | 'registry-style';
+  tier: 'free' | 'paid' | 'contributor';
+  source: 'contributor-pipeline' | 'registry-style';
   appliesTo: ElementPresetApplicability;
   updates?: Partial<FreeformCardElement>;
   appearance?: FreeformAppearance;
@@ -120,7 +120,7 @@ export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): Eleme
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
     tier: 'free',
-    source: 'developer-pipeline',
+    source: 'contributor-pipeline',
     appliesTo: { elementTypes: ['template'], surfaces: ['templateCanvas'] },
     preview: { imageUrl: template.cardBackgroundImageUrl, background: template.baseBackgroundColor },
     templateUpdates: {
@@ -178,7 +178,7 @@ const appearanceStyleStatusToRecipeStatus = (
 const appearanceStyleTierToRecipeTier = (
   tier: AppearanceStylePreset['accessTier'],
 ): ElementPresetRecipe['tier'] =>
-  tier === 'developer' || tier === 'free' || tier === 'paid' ? tier : 'free';
+  tier === 'contributor' || tier === 'free' || tier === 'paid' ? tier : 'free';
 
 export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[]): ElementPresetRecipe[] =>
   styles.map((style) => {
@@ -188,15 +188,15 @@ export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[
     return {
       id: style.id,
       label: style.name,
-      description: style.librarySource === 'developer'
+      description: style.librarySource === 'contributor'
         ? 'Shared contributor appearance preset.'
         : 'CardForge starter appearance preset.',
       kind: appearanceKindToRecipeKind(style.kind),
       contributorName: style.contributorName
-        || (style.librarySource === 'developer' ? 'CardForge contributor' : DEFAULT_OWNER_CONTRIBUTOR_NAME),
+        || (style.librarySource === 'contributor' ? 'CardForge contributor' : DEFAULT_OWNER_CONTRIBUTOR_NAME),
       status: appearanceStyleStatusToRecipeStatus(style.registryStatus),
       tier: appearanceStyleTierToRecipeTier(style.accessTier),
-      source: style.librarySource === 'developer' ? 'developer-pipeline' : 'registry-style',
+      source: style.librarySource === 'contributor' ? 'contributor-pipeline' : 'registry-style',
       appliesTo: {
         elementTypes: elementTypes.length ? elementTypes : ['text', 'shape'],
         roles: style.targets.includes('divider') ? ['divider'] : undefined,

@@ -17,10 +17,10 @@ describe('assistant draft retention', () => {
   const storageLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
   const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
 
-  it('uses the approved plan windows and maps owner/developer accounts to Designer retention', () => {
+  it('uses the approved plan windows and maps owner/contributor accounts to Designer retention', () => {
     expect(DEFAULT_MCP_ALLOWANCES.slice(0, 3).map((plan) => plan.draftRetentionHours)).toEqual([12, 24, 48]);
     expect(resolveMcpUsagePlanKey({ accessMode: 'free', isOwner: true })).toBe('designer');
-    expect(resolveMcpUsagePlanKey({ accessMode: 'dev', isOwner: false })).toBe('designer');
+    expect(resolveMcpUsagePlanKey({ accessMode: 'contributor', isOwner: false })).toBe('designer');
     expect(planChoiceGrid).toContain('plan.draftRetentionHours');
   });
 

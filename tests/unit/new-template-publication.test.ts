@@ -7,26 +7,26 @@ import { createNewSharedTemplateId } from '@/features/pipeline/lib/pipelineRegis
 import { normalizeContentTaxonomyTags } from '@/features/pipeline/lib/contentTaxonomy';
 
 describe('new Template publication', () => {
-  it('creates a stable, developer-owned shared id without trusting a local id as the public id', () => {
+  it('creates a stable, contributor-owned shared id without trusting a local id as the public id', () => {
     const first = createNewSharedTemplateId({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
     const retry = createNewSharedTemplateId({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
-    const otherDeveloper = createNewSharedTemplateId({
-      contributorId: 'developer-2',
+    const otherContributor = createNewSharedTemplateId({
+      contributorId: 'contributor-2',
       localTemplateId: 'draft-local-1',
       name: 'Summer Event Poster',
     });
 
     expect(first).toBe(retry);
     expect(first).toMatch(/^community-summer-event-poster-[a-f0-9]{12}$/);
-    expect(otherDeveloper).not.toBe(first);
+    expect(otherContributor).not.toBe(first);
   });
 
   it('hands first publication to an editable Pipeline draft without granting publication authority', () => {
@@ -54,7 +54,7 @@ describe('new Template publication', () => {
     expect(ownerReview).toContain('submission.baseRevisionNumber === 0');
   });
 
-  it('normalizes only developer-supplied taxonomy instead of inventing classifications', () => {
+  it('normalizes only contributor-supplied taxonomy instead of inventing classifications', () => {
     expect(normalizeContentTaxonomyTags(' Games, Event Poster, games, TCG! ')).toEqual([
       'games',
       'event-poster',

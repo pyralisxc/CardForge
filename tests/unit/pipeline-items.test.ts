@@ -24,8 +24,8 @@ import { getPipelineDecisionReasonLabel } from '@/features/pipeline/lib/pipeline
 
 const baseSubmission: PipelineSubmission = {
   id: 'asset-1',
-  contributorId: 'dev-1',
-  contributorEmail: 'dev@example.test',
+  contributorId: 'contributor-1',
+  contributorEmail: 'contributor@example.test',
   contributorFirstName: null,
   contributorLastName: null,
   contributorDisplayName: 'Dev Example',
@@ -46,8 +46,8 @@ const baseSubmission: PipelineSubmission = {
   status: 'voting',
   automatedStatus: 'voting',
   ownerStatusOverride: null,
-  calculatedAccessTier: 'developer',
-  automatedAccessTier: 'developer',
+  calculatedAccessTier: 'contributor',
+  automatedAccessTier: 'contributor',
   ownerAccessTierOverride: null,
   qualityScore: 0,
   tierDecisionReason: 'needs_more_votes',
@@ -66,7 +66,7 @@ const baseSubmission: PipelineSubmission = {
   updatedAt: '2026-05-01T00:00:00.000Z',
 };
 
-describe('developer asset program rules', () => {
+describe('contributor asset program rules', () => {
   it('translates Pipeline decision codes into product language', () => {
     expect(getPipelineDecisionReasonLabel('owner_forced_paid')).toBe('The CardForge owner placed this work in Creator Pass.');
     expect(getPipelineDecisionReasonLabel('needs_more_votes')).toBe('Gathering contributor review signal.');
@@ -146,19 +146,17 @@ describe('developer asset program rules', () => {
     expect(settings.publishCapsByType.templates).toBe(18);
   });
 
-  it('keeps the retired Creator Pool outside the live pipeline contract', () => {
+  it('cold-cuts the retired Creator Pool schema from the Contributor runtime', () => {
     const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260814153745_complete_owner_site_content_and_brand_media.sql'),
+      join(process.cwd(), 'supabase/migrations/20260831015135_contributor_cold_cut.sql'),
       'utf8',
     );
 
     expect(DEFAULT_PIPELINE_PROGRAM_SETTINGS).not.toHaveProperty('profitSharePoolPercent');
-    expect(migration).toContain('set profit_share_pool_percent = 0');
-    expect(migration).toContain('set eligible_for_profit_share = false');
-    expect(migration).toContain('alter column profit_share_pool_percent set default 0');
-    expect(migration).toContain('alter column eligible_for_profit_share set default false');
-    expect(migration).toContain('cardforge_freeze_archived_creator_pool_fields');
-    expect(migration).not.toContain("profit_share_pool_percent = (p_settings ->> 'profitSharePoolPercent')");
+    expect(migration).toContain('drop column profit_share_pool_percent');
+    expect(migration).toContain('drop column eligible_for_profit_share');
+    expect(migration).toContain('drop function if exists public.cardforge_freeze_archived_creator_pool_fields()');
+    expect(migration).toMatch(/delete from public\.cardforge_legal_documents\s+where slug = 'creator-pool'/u);
   });
 
   it('keeps the upload-ceiling migration compatible with the previous owner payload', () => {

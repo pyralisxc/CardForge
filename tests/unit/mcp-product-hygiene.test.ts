@@ -190,7 +190,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(plugin.version).toBe(serverVersion);
   });
 
-  it('presents CardForge as a card-making product rather than a developer Template utility', () => {
+  it('presents CardForge as a card-making product rather than a contributor Template utility', () => {
     expect(plugin.description).toContain('complete sets');
     expect(plugin.interface.shortDescription).toBe('Design cards and generate complete card sets');
     expect(plugin.interface.longDescription).toContain('bulk-generate');

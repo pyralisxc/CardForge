@@ -93,7 +93,7 @@ describe('Google Drive project storage', () => {
     expect(pickerRuntime).toContain('setSelectFolderEnabled(selectFolders)');
     expect(pickerRuntime).toContain('setMode(picker.DocsViewMode.LIST)');
     expect(pickerRuntime).toContain('setOAuthToken(config.accessToken)');
-    expect(pickerRuntime).toContain('setDeveloperKey(config.developerKey)');
+    expect(pickerRuntime).toContain('setContributorKey(config.contributorKey)');
     expect(pickerRuntime).toContain('setAppId(config.appId)');
     expect(folderPicker).toContain('pickGoogleDriveItems');
     expect(folderPicker).toContain('includeFolders: true');

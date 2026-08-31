@@ -50,13 +50,13 @@ const setupStorage = (storedSize = 128, submittedUpload = false) => {
 };
 
 const uploadedFile = {
-  storagePath: 'developer-1/dividers/123-gold-divider-token.svg',
+  storagePath: 'contributor-1/dividers/123-gold-divider-token.svg',
   fileName: 'gold-divider.svg',
   fileSizeBytes: 128,
   mimeType: 'image/svg+xml',
 };
 
-describe('developer asset upload submission', () => {
+describe('contributor asset upload submission', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     mockedCreatePipelineSubmission.mockReset();
@@ -66,7 +66,7 @@ describe('developer asset upload submission', () => {
     const storage = setupStorage();
 
     const plan = await preparePipelineUpload({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',
@@ -80,7 +80,7 @@ describe('developer asset upload submission', () => {
       fileSizeBytes: 20 * 1024 * 1024,
       maxFileSizeBytes: 25 * 1024 * 1024,
     });
-    expect(plan.storagePath).toMatch(/^developer-1\/dividers\//u);
+    expect(plan.storagePath).toMatch(/^contributor-1\/dividers\//u);
     expect(storage.createSignedUploadUrl).toHaveBeenCalledWith(plan.storagePath, { upsert: false });
   });
 
@@ -89,8 +89,8 @@ describe('developer asset upload submission', () => {
     mockedCreatePipelineSubmission.mockResolvedValue();
 
     const result = await createUploadedPipelineSubmission({
-      contributorId: 'developer-1',
-      contributorEmail: 'dev@example.com',
+      contributorId: 'contributor-1',
+      contributorEmail: 'contributor@example.com',
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',
@@ -104,14 +104,14 @@ describe('developer asset upload submission', () => {
     expect(result).toBeUndefined();
     expect(storage.list).toHaveBeenCalledOnce();
     expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       input: expect.objectContaining({
         assetType: 'dividers',
         studioDestination: 'element.divider',
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
         sourceUrl: 'https://cdn.example/gold-divider.svg',
-        sourceStorageBucket: 'cardforge-developer-assets',
+        sourceStorageBucket: 'cardforge-contributor-assets',
         sourceStoragePath: uploadedFile.storagePath,
       }),
     }));
@@ -142,7 +142,7 @@ describe('developer asset upload submission', () => {
         status: 413,
         boundary: {
           kind: 'limit',
-          limit: { resource: 'developer_source_file_bytes', maximum: 25 * 1024 * 1024 },
+          limit: { resource: 'contributor_source_file_bytes', maximum: 25 * 1024 * 1024 },
         },
       });
     }
@@ -166,8 +166,8 @@ describe('developer asset upload submission', () => {
     mockedCreatePipelineSubmission.mockRejectedValue(new Error('insert failed'));
 
     await expect(createUploadedPipelineSubmission({
-      contributorId: 'developer-1',
-      contributorEmail: 'dev@example.com',
+      contributorId: 'contributor-1',
+      contributorEmail: 'contributor@example.com',
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',
@@ -184,7 +184,7 @@ describe('developer asset upload submission', () => {
   it('only removes unfinished uploads through the cleanup endpoint', async () => {
     const pendingStorage = setupStorage();
     await removePendingPipelineUpload({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       assetType: 'dividers',
       storagePath: uploadedFile.storagePath,
     });
@@ -192,7 +192,7 @@ describe('developer asset upload submission', () => {
 
     const submittedStorage = setupStorage(128, true);
     await expect(removePendingPipelineUpload({
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       assetType: 'dividers',
       storagePath: uploadedFile.storagePath,
     })).rejects.toThrow('cannot be removed as an unfinished upload');

@@ -6,9 +6,9 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 
 ## Live product
 
-- Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
+- Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
 - Studio: `/studio`.
-- Account, Creator Pass, Designer Pass, and profile: `/account`, `/profile`.
+- Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; owner review and publication remain in `/owner`.
 - Owner console: `/owner`.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
@@ -92,7 +92,7 @@ Retired root ownership lanes `src/lib/`, `src/store/`, and `src/types/` must not
 CardForge has three deliberate storage lanes:
 
 - **Browser workspace:** user templates, cards, uploaded project assets, preferences, and portable project files; persisted JSON points to content-addressed IndexedDB Blobs rather than repeating Base64 bytes.
-- **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, developer profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
+- **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, contributor profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
 `cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.

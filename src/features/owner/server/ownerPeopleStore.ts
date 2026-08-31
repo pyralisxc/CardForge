@@ -40,18 +40,18 @@ const readSubmissionCounts = async (contributorIds: string[]): Promise<Map<strin
   for (let offset = 0; offset < uniqueIds.length; offset += CLERK_PAGE_LIMIT) {
     const ids = uniqueIds.slice(offset, offset + CLERK_PAGE_LIMIT);
     const { data, error } = await supabase
-      .rpc('cardforge_get_developer_submission_counts', { p_developer_ids: ids });
+      .rpc('cardforge_get_contributor_submission_counts', { p_contributor_ids: ids });
     if (error) {
       console.error('Failed to load contributor counts for owner people:', error);
       throw new Error('Unable to load contributor counts.');
     }
     ids.forEach((id) => counts.set(id, emptySubmissionCounts()));
     ((data ?? []) as Array<{
-      developer_id: string;
+      contributor_id: string;
       total_count: number | string;
       published_count: number | string;
       in_review_count: number | string;
-    }>).forEach((row) => counts.set(row.developer_id, {
+    }>).forEach((row) => counts.set(row.contributor_id, {
       total: Number(row.total_count) || 0,
       published: Number(row.published_count) || 0,
       inReview: Number(row.in_review_count) || 0,
@@ -76,8 +76,8 @@ const loadClerkUsersByIds = async (userIds: string[]): Promise<ClerkUser[]> => {
 
 const needsAttention = (person: OwnerPerson): boolean => (
   person.identityState === 'history_only'
-  || (person.access === 'dev' && person.profileStatus === null)
-  || (person.profileStatus === 'active' && person.access !== 'dev' && !person.isOwner)
+  || (person.access === 'contributor' && person.profileStatus === null)
+  || (person.profileStatus === 'active' && person.access !== 'contributor' && !person.isOwner)
 );
 
 const mapPerson = (
@@ -180,7 +180,7 @@ export const getOwnerPeople = async ({
   const accountSummaryPage = await client.users.getUserList({ limit: 1 });
   const summary = {
     accounts: accountSummaryPage.totalCount,
-    activeContributors: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.access === 'dev' || person.isOwner)).length,
+    activeContributors: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.access === 'contributor' || person.isOwner)).length,
     historyOnly: historyPeople.length,
     needsAttention: summaryPeople.filter(needsAttention).length,
   };

@@ -13,7 +13,7 @@ describe('public site content rules', () => {
     expect(slugs).toContain('landing.hero.headline');
     expect(slugs).toContain('about.meta.description');
     expect(slugs).toContain('founder.meta.title');
-    expect(slugs).toContain('developer.hero.headline');
+    expect(slugs).toContain('contributor.hero.headline');
     expect(slugs).toContain('roadmap.hero.headline');
     expect(slugs).toContain('sharing.message');
     expect(new Set(slugs).size).toBe(slugs.length);

@@ -44,8 +44,8 @@ export interface PublishedPipelineCatalogItem {
   name: string;
   assetType: string;
   previewUrl: string | null;
-  access: 'free' | 'paid' | 'developer';
-  source: 'official' | 'developer';
+  access: 'free' | 'paid' | 'contributor';
+  source: 'official' | 'contributor';
   fileSizeBytes: number | null;
   updatedAt: string | null;
 }
@@ -55,8 +55,8 @@ export interface PublishedSetCatalogItem {
   name: string;
   packageUrl: string;
   previewUrl: string | null;
-  access: 'free' | 'paid' | 'developer';
-  source: 'official' | 'developer';
+  access: 'free' | 'paid' | 'contributor';
+  source: 'official' | 'contributor';
   fileSizeBytes: number | null;
   revision: number;
   description: string;

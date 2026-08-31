@@ -16,7 +16,7 @@ type EntitlementEnvironment = Partial<Record<
   | 'CARDFORGE_ACCESS_MODE'
   | 'NEXT_PUBLIC_CARDFORGE_ACCESS_MODE'
   | 'CARDFORGE_PAID_ACCOUNT_EMAILS'
-  | 'CARDFORGE_DEV_ACCOUNT_EMAILS',
+  | 'CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS',
   string
 >>;
 
@@ -67,7 +67,7 @@ const readEnvironment = (env?: EntitlementEnvironment): EntitlementEnvironment =
   CARDFORGE_ACCESS_MODE: process.env.CARDFORGE_ACCESS_MODE,
   NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: process.env.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE,
   CARDFORGE_PAID_ACCOUNT_EMAILS: process.env.CARDFORGE_PAID_ACCOUNT_EMAILS,
-  CARDFORGE_DEV_ACCOUNT_EMAILS: process.env.CARDFORGE_DEV_ACCOUNT_EMAILS,
+  CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS: process.env.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS,
 };
 
 export const isClerkAuthConfigured = (env?: EntitlementEnvironment): boolean => {
@@ -83,7 +83,7 @@ const parseEmailList = (value?: string): Set<string> =>
 
 const readMetadataAccessMode = (metadata: AccountMetadata | undefined): AccessMode | null => {
   const value = metadata?.cardforgeAccess;
-  return value === 'dev' || value === 'paid' || value === 'free' ? value : null;
+  return value === 'contributor' || value === 'paid' || value === 'free' ? value : null;
 };
 
 const readMetadataPaidPlan = (metadata: AccountMetadata | undefined): PaidPlan => (
@@ -137,15 +137,15 @@ export const resolveAccountAccessMode = ({
   if (!isSignedIn) return 'free';
 
   const privateMode = readActiveMetadataAccessMode(privateMetadata, now);
-  if (privateMode === 'dev') return 'dev';
+  if (privateMode === 'contributor') return 'contributor';
   if (privateMode === 'paid') return 'paid';
 
   const source = readEnvironment(env);
   const normalizedEmails = emailAddresses.map((email) => email.trim().toLowerCase()).filter(Boolean);
-  const devEmails = parseEmailList(source.CARDFORGE_DEV_ACCOUNT_EMAILS);
+  const contributorEmails = parseEmailList(source.CARDFORGE_CONTRIBUTOR_ACCOUNT_EMAILS);
   const paidEmails = parseEmailList(source.CARDFORGE_PAID_ACCOUNT_EMAILS);
 
-  if (normalizedEmails.some((email) => devEmails.has(email))) return 'dev';
+  if (normalizedEmails.some((email) => contributorEmails.has(email))) return 'contributor';
   if (normalizedEmails.some((email) => paidEmails.has(email))) return 'paid';
   return 'free';
 };
@@ -170,7 +170,7 @@ export const resolveAccountEntitlement = ({
     env,
     now,
   });
-  const accessMode = ownerAccess.isOwner ? 'dev' : baseAccessMode;
+  const accessMode = ownerAccess.isOwner ? 'contributor' : baseAccessMode;
   const capabilities = getProjectCapabilities(accessMode, projectFileAccess);
   const copy = getExportEntitlementCopy(accessMode, projectFileAccess);
 

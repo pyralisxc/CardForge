@@ -13,7 +13,7 @@ export interface OwnerDatabaseMetrics {
   cardforgeTableSizeBytes: number;
   storageSizeBytes: number;
   assetRegistryCount: number;
-  developerSubmissionCount: number;
+  contributorSubmissionCount: number;
 }
 
 export type OwnerConnectedServiceStatus = 'ready' | 'attention' | 'disabled' | 'reference';

@@ -20,7 +20,7 @@ describe('consolidated public routes and account navigation', () => {
     expect([...primaryLinks, ...footerLinks]).not.toContain('/access');
     expect(footerLinks).not.toContain('/cameron#support');
     expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/cameron');
-    expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/developer');
+    expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/contributor');
   });
 
   it('provides one canonical public plans page backed by owner-controlled allowances and copy', () => {

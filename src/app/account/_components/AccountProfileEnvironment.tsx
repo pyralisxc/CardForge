@@ -122,7 +122,7 @@ export function AccountProfileEnvironment({
   ));
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const contributorAccess = useContributorAccess({
-    eligible: entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner,
+    eligible: entitlement.accessMode === 'contributor' || entitlement.ownerAccess.isOwner,
     initialState: initialContributorAccess,
     isOwner: entitlement.ownerAccess.isOwner,
     sessionKey: entitlement.isSignedIn ? entitlement.accountUserId : null,

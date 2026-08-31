@@ -17,8 +17,8 @@ export interface CardAssetOption {
   url: string;
   previewUrl?: string;
   kind: 'texture' | 'divider' | 'border' | 'frame' | 'icon' | 'image' | 'template' | 'elementPreset';
-  librarySource?: 'official' | 'developer' | 'local';
-  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
+  librarySource?: 'official' | 'contributor' | 'local';
+  accessTier?: 'free' | 'paid' | 'contributor' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   fileSizeBytes?: number;
   packId?: string;
@@ -124,8 +124,8 @@ export interface AppearanceStylePreset {
   appearance: FreeformAppearance;
   updates?: Partial<FreeformCardElement>;
   templateUpdates?: Partial<TCGCardTemplate>;
-  librarySource?: 'official' | 'developer' | 'local';
-  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
+  librarySource?: 'official' | 'contributor' | 'local';
+  accessTier?: 'free' | 'paid' | 'contributor' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   contributorName?: string;
   studioDestinations?: StudioAssetDestination[];
@@ -239,7 +239,7 @@ export interface TCGCardTemplate {
   trimHeightMm?: number;
   templateSource?: TemplateSource;
   templateLibrarySource?: 'base' | 'pipeline' | 'personal';
-  templateAccessTier?: 'free' | 'paid' | 'developer' | 'hidden';
+  templateAccessTier?: 'free' | 'paid' | 'contributor' | 'hidden';
   templateRegistryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   templateContributorName?: string;
   templateRevision?: number;

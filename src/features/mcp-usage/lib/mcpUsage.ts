@@ -86,7 +86,7 @@ export const resolveMcpUsagePlanKey = ({
   isOwner: boolean;
   paidPlan?: PaidPlan | null;
 }): McpUsagePlanKey => {
-  if (isOwner || accessMode === 'dev') return 'designer';
+  if (isOwner || accessMode === 'contributor') return 'designer';
   if (accessMode === 'paid' && paidPlan === 'designer') return 'designer';
   return accessMode === 'paid' ? 'creator' : 'free';
 };

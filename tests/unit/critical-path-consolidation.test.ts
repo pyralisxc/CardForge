@@ -59,7 +59,7 @@ describe('critical-path provider ownership', () => {
     ]) {
       expect(readSource(path)).toContain('<CardForgeAppProviders scope="shell">');
     }
-    expect(readSource('src/app/profile/page.tsx')).toContain("redirect('/account?section=profile')");
+    expect(readSource('src/app/account/page.tsx')).toContain('<AccountProfileEnvironment');
   });
 
   it('does not allow analytics consent UI to intercept auth, account, private, or MCP preview routes', () => {
@@ -68,7 +68,6 @@ describe('critical-path provider ownership', () => {
     for (const prefix of [
       "'/owner'",
       "'/account'",
-      "'/profile'",
       "'/sign-in'",
       "'/sign-up'",
       "'/mcp-template-preview'",
@@ -100,8 +99,7 @@ describe('critical-path provider ownership', () => {
       'src/app/accessibility/page.tsx',
       'src/app/creator-pass-terms/page.tsx',
       'src/app/supporter-terms/page.tsx',
-      'src/app/developer-terms/page.tsx',
-      'src/app/creator-pool/page.tsx',
+      'src/app/contributor-terms/page.tsx',
     ]) {
       expect(readSource(path)).toContain('ConfiguredPublicLegalPage');
     }

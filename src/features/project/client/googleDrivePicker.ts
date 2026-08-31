@@ -47,7 +47,7 @@ type PickerBuilderInstance = {
   addView: (view: DocsViewInstance) => PickerBuilderInstance;
   enableFeature: (feature: string) => PickerBuilderInstance;
   setOAuthToken: (token: string) => PickerBuilderInstance;
-  setDeveloperKey: (key: string) => PickerBuilderInstance;
+  setContributorKey: (key: string) => PickerBuilderInstance;
   setAppId: (appId: string) => PickerBuilderInstance;
   setCallback: (callback: (response: PickerResponse) => void) => PickerBuilderInstance;
   setTitle: (title: string) => PickerBuilderInstance;
@@ -151,7 +151,7 @@ export const pickGoogleDriveItems = async ({
     let builder = new picker.PickerBuilder()
       .addView(view)
       .setOAuthToken(config.accessToken)
-      .setDeveloperKey(config.developerKey)
+      .setContributorKey(config.contributorKey)
       .setAppId(config.appId)
       .setTitle(title)
       .setCallback((response) => {

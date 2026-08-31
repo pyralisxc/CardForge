@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const legacyServerTables = [
+const preCutoverServerTables = [
   'cardforge_asset_registry',
   'cardforge_contact_requests',
   'cardforge_developer_asset_submissions',
@@ -25,7 +25,7 @@ describe('legacy server table grants', () => {
 
     expect(migration).toContain('from public, anon, authenticated');
     expect(migration).toContain('to service_role');
-    for (const table of legacyServerTables) {
+    for (const table of preCutoverServerTables) {
       expect(migration).toContain(`public.${table}`);
     }
   });

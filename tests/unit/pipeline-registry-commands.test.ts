@@ -25,7 +25,7 @@ vi.mock('@/features/contributor-access/server', () => ({
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedGetContributorProfileReferenceByEmail = vi.mocked(getUniqueActiveContributorProfileReferenceByEmail);
 
-describe('developer asset registry commands', () => {
+describe('contributor asset registry commands', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     mockedGetContributorProfileReferenceByEmail.mockReset();
@@ -59,8 +59,8 @@ describe('developer asset registry commands', () => {
       p_url: '/api/templates#starter-template',
       p_preview_url: '/api/templates#starter-template',
       p_description: 'Maintained in the Forge Pipeline.',
-      p_developer_id: 'owner-user-id',
-      p_developer_email: 'owner@cardforges.com',
+      p_contributor_id: 'owner-user-id',
+      p_contributor_email: 'owner@cardforges.com',
       p_file_size_bytes: 420,
       p_source_mime_type: 'application/json',
       p_storage_bucket: null,
@@ -140,8 +140,8 @@ describe('developer asset registry commands', () => {
         aspectRatio: '63:88',
         templateSource: 'default',
       },
-      contributorId: 'developer-1',
-      contributorEmail: 'developer@cardforges.com',
+      contributorId: 'contributor-1',
+      contributorEmail: 'contributor@cardforges.com',
       expectedRevision: 2,
       submissionKey: 'save-attempt-1',
     })).resolves.toEqual({
@@ -154,7 +154,7 @@ describe('developer asset registry commands', () => {
 
     expect(rpc).toHaveBeenCalledWith('cardforge_submit_template_revision', expect.objectContaining({
       p_asset_id: 'starter-template',
-      p_developer_id: 'developer-1',
+      p_contributor_id: 'contributor-1',
       p_expected_revision: 2,
       p_submission_key: 'save-attempt-1',
     }));
@@ -196,7 +196,7 @@ describe('developer asset registry commands', () => {
 
     expect(rpc).toHaveBeenCalledWith('cardforge_publish_owner_template_revision', expect.objectContaining({
       p_asset_id: 'starter-template',
-      p_developer_id: 'owner-user-id',
+      p_contributor_id: 'owner-user-id',
       p_expected_revision: 3,
       p_submission_key: 'owner-save-4',
     }));
@@ -209,7 +209,7 @@ describe('developer asset registry commands', () => {
 
     await expect(submitTemplateRevision({
       template: { id: 'starter-template', name: 'Starter Template', aspectRatio: '63:88' },
-      contributorId: 'developer-1',
+      contributorId: 'contributor-1',
       contributorEmail: null,
       expectedRevision: 1,
       submissionKey: 'save-attempt-2',
@@ -224,16 +224,16 @@ describe('developer asset registry commands', () => {
 
     await castPipelineVote({
       submissionId: 'asset-1',
-      contributorId: 'dev-1',
+      contributorId: 'contributor-1',
       voteValue: 'positive',
       ownerContributorId: null,
     });
 
-    expect(rpc).toHaveBeenCalledWith('cardforge_cast_developer_asset_vote', {
+    expect(rpc).toHaveBeenCalledWith('cardforge_cast_contributor_asset_vote', {
       p_submission_id: 'asset-1',
-      p_developer_id: 'dev-1',
+      p_contributor_id: 'contributor-1',
       p_vote_value: 'positive',
-      p_owner_developer_id: null,
+      p_owner_contributor_id: null,
     });
   });
 
@@ -243,9 +243,9 @@ describe('developer asset registry commands', () => {
 
     await savePipelineProgramSettings(DEFAULT_PIPELINE_PROGRAM_SETTINGS, 'owner-1');
 
-    expect(rpc).toHaveBeenCalledWith('cardforge_update_developer_program_settings', {
+    expect(rpc).toHaveBeenCalledWith('cardforge_update_contributor_program_settings', {
       p_settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
-      p_owner_developer_id: 'owner-1',
+      p_owner_contributor_id: 'owner-1',
     });
   });
 
@@ -261,14 +261,14 @@ describe('developer asset registry commands', () => {
       ownerContributorId: 'owner-1',
     });
 
-    expect(rpc).toHaveBeenCalledWith('cardforge_set_developer_asset_owner_override', {
+    expect(rpc).toHaveBeenCalledWith('cardforge_set_contributor_asset_owner_override', {
       p_submission_id: 'asset-1',
       p_update_status_override: true,
       p_status_override: null,
       p_update_tier_override: true,
       p_tier_override: 'free',
       p_owner_note: 'Keep Starter access.',
-      p_owner_developer_id: 'owner-1',
+      p_owner_contributor_id: 'owner-1',
     });
   });
 
@@ -279,7 +279,7 @@ describe('developer asset registry commands', () => {
 
     await expect(castPipelineVote({
       submissionId: 'asset-1',
-      contributorId: 'dev-1',
+      contributorId: 'contributor-1',
       voteValue: 'negative',
     })).rejects.toEqual(expect.objectContaining<Partial<PipelineRegistryCommandError>>({
       message: 'Unable to save the vote and automatic pipeline decision.',
@@ -292,8 +292,8 @@ describe('developer asset registry commands', () => {
       .mockResolvedValueOnce({
         data: {
           storageObjects: [{
-            storageBucket: 'cardforge-developer-assets',
-            storagePath: 'developer-1/icons/example.svg',
+            storageBucket: 'cardforge-contributor-assets',
+            storagePath: 'contributor-1/icons/example.svg',
           }],
         },
         error: null,
@@ -308,13 +308,13 @@ describe('developer asset registry commands', () => {
       confirmationName: 'Example icon',
     });
 
-    expect(rpc).toHaveBeenNthCalledWith(1, 'cardforge_prepare_developer_asset_purge', {
+    expect(rpc).toHaveBeenNthCalledWith(1, 'cardforge_prepare_contributor_asset_purge', {
       p_submission_id: 'asset-1',
       p_expected_name: 'Example icon',
     });
-    expect(from).toHaveBeenCalledWith('cardforge-developer-assets');
-    expect(remove).toHaveBeenCalledWith(['developer-1/icons/example.svg']);
-    expect(rpc).toHaveBeenNthCalledWith(2, 'cardforge_finalize_developer_asset_purge', {
+    expect(from).toHaveBeenCalledWith('cardforge-contributor-assets');
+    expect(remove).toHaveBeenCalledWith(['contributor-1/icons/example.svg']);
+    expect(rpc).toHaveBeenNthCalledWith(2, 'cardforge_finalize_contributor_asset_purge', {
       p_submission_id: 'asset-1',
     });
   });

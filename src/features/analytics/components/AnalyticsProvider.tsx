@@ -31,7 +31,6 @@ import {
 const NON_TRACKABLE_PATH_PREFIXES = [
   '/owner',
   '/account',
-  '/profile',
   '/sign-in',
   '/sign-up',
   '/mcp-template-preview',

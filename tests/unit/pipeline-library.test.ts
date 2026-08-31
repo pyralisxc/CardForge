@@ -35,8 +35,8 @@ const submission = (
   status: 'submitted',
   automatedStatus: 'voting',
   ownerStatusOverride: null,
-  calculatedAccessTier: 'developer',
-  automatedAccessTier: 'developer',
+  calculatedAccessTier: 'contributor',
+  automatedAccessTier: 'contributor',
   ownerAccessTierOverride: null,
   qualityScore: 72,
   tierDecisionReason: null,
@@ -126,7 +126,7 @@ describe('Pipeline Library projection', () => {
     });
     const catalog = {
       version: 'test',
-      access: 'dev',
+      access: 'contributor',
       templates: { defaults: [], userTemplates: [] },
       styles: { version: 1, styles: [] },
       assets: {
@@ -156,7 +156,7 @@ describe('Pipeline Library projection', () => {
     });
     const catalog = {
       version: 'test',
-      access: 'dev',
+      access: 'contributor',
       templates: { defaults: [], userTemplates: [] },
       styles: { version: 1, styles: [] },
       assets: {
@@ -187,7 +187,7 @@ describe('Pipeline Library projection', () => {
       sourceMimeType: 'application/octet-stream',
     });
     const catalog = {
-      version: 'test', access: 'dev', templates: { defaults: [], userTemplates: [] }, styles: { version: 1, styles: [] },
+      version: 'test', access: 'contributor', templates: { defaults: [], userTemplates: [] }, styles: { version: 1, styles: [] },
       assets: {
         textures: [], dividers: [], icons: [], templates: [], elementPresets: [],
         imageAssets: [{

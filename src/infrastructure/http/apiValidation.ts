@@ -29,7 +29,7 @@ const studioAssetDestinationSchema = z.enum(STUDIO_ASSET_DESTINATIONS);
 export const cardAssetMetadataOverrideSchema = z.object({
   id: nonEmptyStringSchema.optional(),
   name: nonEmptyStringSchema.optional(),
-  pipelineAccessTier: z.enum(['free', 'paid', 'developer']).optional(),
+  pipelineAccessTier: z.enum(['free', 'paid', 'contributor']).optional(),
   packId: nonEmptyStringSchema.optional(),
   packName: nonEmptyStringSchema.optional(),
   tileMode: tileModeSchema.optional(),

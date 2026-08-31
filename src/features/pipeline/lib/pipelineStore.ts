@@ -66,9 +66,9 @@ const fetchContributorSettings = async (): Promise<{ configured: boolean; settin
     return { configured: false, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS };
   }
 
-  const settingsColumns = 'max_active_developers,monthly_submission_limit,max_submission_file_size_mb,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,tier_caps_by_type';
+  const settingsColumns = 'max_active_contributors,monthly_submission_limit,max_submission_file_size_mb,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,tier_caps_by_type';
   const { data, error } = await supabase
-    .from('cardforge_developer_program_settings')
+    .from('cardforge_contributor_program_settings')
     .select(settingsColumns)
     .eq('id', PROGRAM_SETTINGS_ID)
     .limit(1);
@@ -188,8 +188,8 @@ export const getPipelineVotePolicy = async (
   const [{ settings }, { data, error }] = await Promise.all([
     fetchContributorSettings(),
     supabase
-      .from('cardforge_developer_asset_submissions')
-      .select('developer_id,status,purge_state')
+      .from('cardforge_contributor_asset_submissions')
+      .select('contributor_id,status,purge_state')
       .eq('id', submissionId)
       .limit(1),
   ]);
@@ -199,13 +199,13 @@ export const getPipelineVotePolicy = async (
     throw new PipelineStoreError('Unable to load vote rules for this submission.', 500);
   }
 
-  const row = data?.[0] as { developer_id?: string | null; status?: PipelineStatus | null; purge_state?: 'pending' | null } | undefined;
+  const row = data?.[0] as { contributor_id?: string | null; status?: PipelineStatus | null; purge_state?: 'pending' | null } | undefined;
   return {
     allowContributorSelfVoting: settings.allowContributorSelfVoting,
-    submissionContributorId: row?.developer_id ?? null,
+    submissionContributorId: row?.contributor_id ?? null,
     submissionStatus: row?.status ?? null,
-    visibleToViewer: Boolean(row?.developer_id && row.status && isPipelineRevisionVisibleToContributor({
-      contributorId: row.developer_id,
+    visibleToViewer: Boolean(row?.contributor_id && row.status && isPipelineRevisionVisibleToContributor({
+      contributorId: row.contributor_id,
       status: row.status,
       purgeState: row.purge_state ?? null,
       viewerId: viewer.viewerId,
@@ -301,7 +301,7 @@ export const createPipelineSubmission = async ({
         kind: 'limit',
         nextAction: 'Wait for the next calendar month or ask the owner to raise this Contributor’s submission allowance.',
         limit: {
-          resource: 'developer_monthly_submissions',
+          resource: 'contributor_monthly_submissions',
           current: context.submittedThisMonth,
           maximum: context.monthlySubmissionLimit,
           unit: 'submissions_per_month',
@@ -314,10 +314,10 @@ export const createPipelineSubmission = async ({
   if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
 
   const { error } = await supabase
-    .from('cardforge_developer_asset_submissions')
+    .from('cardforge_contributor_asset_submissions')
     .insert({
-      developer_id: contributorId,
-      developer_email: contributorEmail,
+      contributor_id: contributorId,
+      contributor_email: contributorEmail,
       asset_type: normalized.value.assetType,
       requested_studio_destination: normalized.value.requestedStudioDestination,
       specialty_tags: normalized.value.specialtyTags,
@@ -333,8 +333,8 @@ export const createPipelineSubmission = async ({
       status: 'voting',
       automated_status: 'voting',
       owner_status_override: null,
-      calculated_access_tier: 'developer',
-      automated_access_tier: 'developer',
+      calculated_access_tier: 'contributor',
+      automated_access_tier: 'contributor',
       owner_access_tier_override: null,
       quality_score: 0,
       tier_decision_reason: 'needs_more_votes',
@@ -399,8 +399,8 @@ export const updatePipelineSubmissionDetails = async ({
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
 
   const { data: rows, error: loadError } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('developer_id,status,source_url,asset_type')
+    .from('cardforge_contributor_asset_submissions')
+    .select('contributor_id,status,source_url,asset_type')
     .eq('id', submissionId)
     .limit(1);
 
@@ -409,9 +409,9 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to load Pipeline submission.', 500);
   }
 
-  const row = rows?.[0] as { developer_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown } | undefined;
+  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown } | undefined;
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
-  if (!allowOwnerEdit && row.developer_id !== contributorId) {
+  if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
   }
   if (row.status === 'published' || row.status === 'rejected') {
@@ -423,7 +423,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const previewUrl = normalized.value.previewUrl || row.source_url || '';
   const { error } = await supabase
-    .from('cardforge_developer_asset_submissions')
+    .from('cardforge_contributor_asset_submissions')
     .update({
       name: normalized.value.name,
       description: normalized.value.description,
@@ -439,7 +439,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   if (error) {
     console.error('Failed to edit Pipeline submission:', error);
-    if (error.message?.includes('developer_asset_lineage_purge_pending')) {
+    if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineStoreError('This Pipeline object is being permanently deleted and can no longer be edited.', 409, {
         kind: 'conflict',
       });
@@ -469,14 +469,14 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PipelineStoreError('Pipeline database is not configured yet.', 503);
   const { data: rows, error } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('developer_id,status,asset_type')
+    .from('cardforge_contributor_asset_submissions')
+    .select('contributor_id,status,asset_type')
     .eq('id', submissionId)
     .limit(1);
   if (error) throw new PipelineStoreError('Unable to load the Template Pipeline draft.', 500);
-  const row = rows?.[0] as { developer_id?: string; status?: unknown; asset_type?: unknown } | undefined;
+  const row = rows?.[0] as { contributor_id?: string; status?: unknown; asset_type?: unknown } | undefined;
   if (!row) throw new PipelineStoreError('Template Pipeline draft was not found.', 404);
-  if (row.developer_id !== contributorId) throw new PipelineStoreError('Only the draft owner can submit this Template.', 403);
+  if (row.contributor_id !== contributorId) throw new PipelineStoreError('Only the draft owner can submit this Template.', 403);
   if (row.status !== 'draft' || row.asset_type !== 'templates') {
     throw new PipelineStoreError('Only a new Template Pipeline draft can be submitted through this action.', 409);
   }

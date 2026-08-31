@@ -13,7 +13,7 @@ const marketingContext = {
   funnelStage: 'consideration',
   contentKind: 'demonstration',
   callToAction: 'Enter the Studio',
-  creationSource: 'developer',
+  creationSource: 'contributor',
   utmContent: 'founder_workflow_proof',
 } as const;
 import {

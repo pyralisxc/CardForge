@@ -149,7 +149,10 @@ describe('Owner Console composition', () => {
       expect(source, appPath).toContain('@/features/public-site/server');
       expect(source, appPath).toContain('<ConfiguredPublicSiteShell');
     }
-    const retiredDeveloperRoute = await readFile(rootPath('src/app/developer/page.tsx'), 'utf8');
-    expect(retiredDeveloperRoute).toContain("permanentRedirect('/contributors')");
+    await expect(pathExists('src', 'app', 'developer', 'page.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'app', 'developer-terms', 'page.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'app', 'profile', 'page.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'app', 'environment-lab', 'page.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'app', 'creator-pool', 'page.tsx')).resolves.toBe(false);
   });
 });

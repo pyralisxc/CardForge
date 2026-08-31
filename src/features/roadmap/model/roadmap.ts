@@ -162,7 +162,7 @@ export interface RoadmapPayload {
   maxActiveUserSuggestions: number;
   maxSuggestionLength: number;
   creatorPassIncome: RoadmapIncomeBreakdown;
-  developerRequestEmail: string;
+  contributorRequestEmail: string;
 }
 
 export type RoadmapSuggestionResult =

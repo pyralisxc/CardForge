@@ -18,7 +18,7 @@ import type { ContributorProfileRow } from '@/features/contributor-access/server
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { hydratePipelineTemplateAssetReferences } from './pipelineTemplateAssets';
 
-const SUBMISSION_COLUMNS = 'id,lineage_id,developer_id,developer_email,asset_type,requested_studio_destination,specialty_tags,use_case_tags,source_notes,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
+const SUBMISSION_COLUMNS = 'id,lineage_id,contributor_id,contributor_email,asset_type,requested_studio_destination,specialty_tags,use_case_tags,source_notes,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
 
 export type PipelineListScope = 'all' | 'own' | 'review';
 
@@ -41,7 +41,7 @@ interface PipelineProgramSummaryRow {
   status_counts?: unknown;
   review_status_counts?: unknown;
   asset_type_counts?: unknown;
-  monthly_counts_by_developer?: unknown;
+  monthly_counts_by_contributor?: unknown;
 }
 
 const asCount = (value: unknown): number => {
@@ -64,9 +64,9 @@ const fetchSubmissionRows = async (
   const supabase = getSupabaseServerClient();
   if (!supabase || submissionIds.length === 0) return [];
   const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }] = await Promise.all([
-    supabase.from('cardforge_developer_asset_submissions').select(SUBMISSION_COLUMNS).in('id', submissionIds),
-    supabase.from('cardforge_developer_asset_votes').select('submission_id,vote_value')
-      .eq('developer_id', currentUserId).in('submission_id', submissionIds),
+    supabase.from('cardforge_contributor_asset_submissions').select(SUBMISSION_COLUMNS).in('id', submissionIds),
+    supabase.from('cardforge_contributor_asset_votes').select('submission_id,vote_value')
+      .eq('contributor_id', currentUserId).in('submission_id', submissionIds),
   ]);
   if (rowsError || votesError) {
     console.error('Failed to load Pipeline submissions:', rowsError ?? votesError);
@@ -108,7 +108,7 @@ const fetchSubmissionRows = async (
     return [row.id, mapPipelineSubmissionRow(
       row,
       currentUserVotes,
-      profilesById.get(row.developer_id),
+      profilesById.get(row.contributor_id),
       registryAssetId ? registryStylesById.get(registryAssetId) : undefined,
     )] as const;
   }));
@@ -132,7 +132,7 @@ export const fetchPipelineProgramAggregate = async (
     monthlyStatsByContributor: {},
   };
   if (!supabase) return aggregate;
-  const { data, error } = await supabase.rpc('cardforge_get_developer_asset_program_summary', {
+  const { data, error } = await supabase.rpc('cardforge_get_contributor_asset_program_summary', {
     p_current_user_id: currentUserId,
     p_allow_self_voting: allowSelfVoting,
   });
@@ -160,7 +160,7 @@ export const fetchPipelineProgramAggregate = async (
       archived: asCount(metrics.archived),
     };
   }
-  for (const [contributorId, value] of Object.entries(asRecord(row.monthly_counts_by_developer))) {
+  for (const [contributorId, value] of Object.entries(asRecord(row.monthly_counts_by_contributor))) {
     const metrics = asRecord(value);
     aggregate.monthlyStatsByContributor[contributorId] = {
       submitted: asCount(metrics.submitted),
@@ -200,7 +200,7 @@ export const fetchPipelineSubmissionPage = async ({
   const supabase = getSupabaseServerClient();
   const normalized = normalizeListQuery(query);
   if (!supabase) return { submissions: [], total: 0, page: normalized.page, pageSize: normalized.pageSize };
-  const { data, error } = await supabase.rpc('cardforge_list_developer_asset_submission_ids', {
+  const { data, error } = await supabase.rpc('cardforge_list_contributor_asset_submission_ids', {
     p_current_user_id: currentUserId,
     p_scope: normalized.scope,
     p_query: normalized.query,

@@ -102,14 +102,14 @@ export const getPipelineStatusDescription = (status: PipelineStatus | 'localOnly
 export const getPipelineTierLabel = (tier: PipelineAccessTier): string => {
   if (tier === 'free') return 'Starter Library';
   if (tier === 'paid') return 'Creator Pass';
-  if (tier === 'developer') return 'Pipeline Only';
+  if (tier === 'contributor') return 'Pipeline Only';
   return 'Not Live';
 };
 
 export const getPipelineTierDescription = (tier: PipelineAccessTier): string => {
   if (tier === 'free') return 'Published into the free Starter Library.';
   if (tier === 'paid') return 'Published into the paid Creator Pass library.';
-  if (tier === 'developer') return 'Kept inside the Contributor Pipeline and not loaded into creator-facing Studio libraries.';
+  if (tier === 'contributor') return 'Kept inside the Contributor Pipeline and not loaded into creator-facing Studio libraries.';
   return 'Archived, rejected, or owner-held outside the creator-facing Studio libraries.';
 };
 
@@ -138,7 +138,7 @@ export const getPipelineDecisionReasonLabel = (reason: string | null | undefined
 
 export const getLibrarySourceLabel = (source?: CardAssetOption['librarySource']): string => {
   if (source === 'local') return 'Local only';
-  if (source === 'developer') return 'Contributor upload';
+  if (source === 'contributor') return 'Contributor upload';
   return 'Forge Library';
 };
 

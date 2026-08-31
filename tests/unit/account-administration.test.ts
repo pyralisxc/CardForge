@@ -9,13 +9,13 @@ import {
 describe('account administration', () => {
   it('normalizes owner account role changes to supported private metadata values', () => {
     expect(normalizeOwnerAccountRoleInput({
-      access: 'dev',
+      access: 'contributor',
       owner: true,
       note: '  trusted collaborator ',
     })).toEqual({
       ok: true,
       value: {
-        access: 'dev',
+        access: 'contributor',
         owner: true,
         note: 'trusted collaborator',
       },
@@ -35,9 +35,9 @@ describe('account administration', () => {
         cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
         cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
       },
-      input: { access: 'dev', owner: true, note: 'Lead tester' },
+      input: { access: 'contributor', owner: true, note: 'Lead tester' },
     })).toMatchObject({
-      cardforgeAccess: 'dev',
+      cardforgeAccess: 'contributor',
       cardforgeRole: 'owner',
       cardforgeOwnerNote: 'Lead tester',
       cardforgeStripeCustomerId: 'cus_123',
@@ -48,7 +48,7 @@ describe('account administration', () => {
         cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
         cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
       },
-      input: { access: 'dev', owner: false, note: '' },
+      input: { access: 'contributor', owner: false, note: '' },
     });
     expect(patch).not.toHaveProperty('cardforgeAccessExpiresAt');
     expect(patch).not.toHaveProperty('cardforgeFounderBetaClaimedAt');

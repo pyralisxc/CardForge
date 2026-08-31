@@ -34,25 +34,25 @@ describe('asset registry', () => {
     expect(Array.isArray(payload.elementPresets)).toBe(true);
   });
 
-  it('enforces free, Creator Pass, and developer visibility from one policy', () => {
+  it('enforces free, Creator Pass, and contributor visibility from one policy', () => {
     expect(getVisibleRegistryAccessTiers('free')).toEqual(['free']);
     expect(getVisibleRegistryAccessTiers('paid')).toEqual(['free', 'paid']);
-    expect(getVisibleRegistryAccessTiers('dev')).toEqual(['free', 'paid', 'developer']);
+    expect(getVisibleRegistryAccessTiers('contributor')).toEqual(['free', 'paid', 'contributor']);
   });
 
-  it('maps every developer registry asset class, preserving metadata with provenance fields', () => {
+  it('maps every contributor registry asset class, preserving metadata with provenance fields', () => {
     const payload = mapAssetRegistryRowsToPayload([
       {
-        asset_id: 'developer-textures-1',
-        name: 'Developer Texture',
+        asset_id: 'contributor-textures-1',
+        name: 'Contributor Texture',
         asset_type: 'texture',
         url: 'https://storage.example.test/texture.svg',
         status: 'published',
         access_tier: 'free',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 2048,
         metadata: {
-          contributorId: 'dev-1',
+          contributorId: 'contributor-1',
           sourceMimeType: 'image/svg+xml',
           tileMode: 'repeat',
           seamless: true,
@@ -63,60 +63,60 @@ describe('asset registry', () => {
         },
       },
       {
-        asset_id: 'developer-templates-1',
-        name: 'Developer Template',
+        asset_id: 'contributor-templates-1',
+        name: 'Contributor Template',
         asset_type: 'template',
         url: 'https://storage.example.test/template.json',
         status: 'published',
         access_tier: 'paid',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 4096,
-        metadata: { contributorId: 'dev-1' },
+        metadata: { contributorId: 'contributor-1' },
       },
       {
-        asset_id: 'developer-dividers-1',
-        name: 'Developer Divider',
+        asset_id: 'contributor-dividers-1',
+        name: 'Contributor Divider',
         asset_type: 'divider',
         url: 'https://storage.example.test/divider.svg',
         status: 'published',
         access_tier: 'free',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 1024,
-        metadata: { contributorId: 'dev-1', tileMode: 'stretch', allowedTargets: ['divider'] },
+        metadata: { contributorId: 'contributor-1', tileMode: 'stretch', allowedTargets: ['divider'] },
       },
       {
-        asset_id: 'developer-icons-1',
-        name: 'Developer Icon',
+        asset_id: 'contributor-icons-1',
+        name: 'Contributor Icon',
         asset_type: 'icon',
         url: 'https://storage.example.test/icon.svg',
         status: 'published',
         access_tier: 'free',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 1024,
-        metadata: { contributorId: 'dev-1', defaultWidth: 64, defaultHeight: 64 },
+        metadata: { contributorId: 'contributor-1', defaultWidth: 64, defaultHeight: 64 },
       },
       {
-        asset_id: 'developer-images-1',
-        name: 'Developer Image',
+        asset_id: 'contributor-images-1',
+        name: 'Contributor Image',
         asset_type: 'image',
         url: 'https://storage.example.test/image.png',
         preview_url: 'https://storage.example.test/image-preview.webp',
         status: 'published',
         access_tier: 'paid',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 8192,
-        metadata: { contributorId: 'dev-1', defaultWidth: 300, defaultHeight: 180 },
+        metadata: { contributorId: 'contributor-1', defaultWidth: 300, defaultHeight: 180 },
       },
       {
-        asset_id: 'developer-elementPresets-1',
-        name: 'Developer Element Preset',
+        asset_id: 'contributor-elementPresets-1',
+        name: 'Contributor Element Preset',
         asset_type: 'elementPreset',
         url: 'https://storage.example.test/preset.json',
         status: 'published',
         access_tier: 'free',
-        library_source: 'developer',
+        library_source: 'contributor',
         file_size_bytes: 1024,
-        metadata: { contributorId: 'dev-1' },
+        metadata: { contributorId: 'contributor-1' },
       },
     ]);
 
@@ -128,20 +128,20 @@ describe('asset registry', () => {
     expect(payload?.templates).toHaveLength(1);
     expect(payload?.elementPresets).toHaveLength(1);
     expect(payload?.textures[0]).toMatchObject({
-      librarySource: 'developer',
+      librarySource: 'contributor',
       allowedTargets: ['shape', 'template'],
       defaultBlendMode: 'overlay',
       defaultOpacity: 33,
       defaultScale: 140,
     });
     expect(payload?.templates[0]).toMatchObject({
-      id: 'developer-templates-1',
+      id: 'contributor-templates-1',
       kind: 'template',
       accessTier: 'paid',
     });
     expect(payload?.imageAssets[0]?.previewUrl).toBe('https://storage.example.test/image-preview.webp');
     expect(payload?.elementPresets[0]).toMatchObject({
-      id: 'developer-elementPresets-1',
+      id: 'contributor-elementPresets-1',
       kind: 'elementPreset',
       accessTier: 'free',
     });

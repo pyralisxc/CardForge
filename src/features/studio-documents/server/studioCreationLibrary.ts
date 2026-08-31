@@ -133,8 +133,8 @@ export const searchStudioCreationLibrary = async ({
   limit?: number;
 }): Promise<StudioCreationLibraryItem[]> => {
   const [bootstrap, assetManifest] = await Promise.all([
-    getCachedCardForgeStudioBootstrap('dev'),
-    getCachedCardForgeStudioAssets('dev'),
+    getCachedCardForgeStudioBootstrap('contributor'),
+    getCachedCardForgeStudioAssets('contributor'),
   ]);
   const fonts = mergeCardFontOptions(CARD_FONT_OPTIONS, bootstrap.fonts.fonts ?? []);
   const frameKits = bootstrap.templates.defaults

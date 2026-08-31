@@ -56,7 +56,7 @@ const readProfileRows = async (): Promise<ContributorProfileRow[]> => {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select(PROFILE_COLUMNS);
   if (!error) return (data ?? []) as ContributorProfileRow[];
   console.error('Failed to load Contributor profiles:', error);
@@ -72,7 +72,7 @@ export const fetchContributorProfileRow = async (
   if (!supabase || !contributorId) return null;
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select(PROFILE_COLUMNS)
     .eq('clerk_user_id', contributorId)
     .limit(1);
@@ -90,7 +90,7 @@ export const fetchContributorProfileRowsForOwner = async (): Promise<Contributor
   const pageSize = 1_000;
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
-      .from('cardforge_developer_profiles')
+      .from('cardforge_contributor_profiles')
       .select(PROFILE_COLUMNS)
       .range(from, from + pageSize - 1);
     if (error) {
@@ -108,7 +108,7 @@ export const countActiveContributors = async (): Promise<number> => {
   if (!supabase) return 1;
 
   const { count, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select('clerk_user_id', { count: 'exact', head: true })
     .eq('status', 'active');
   if (error) {
@@ -125,7 +125,7 @@ export const getContributorProfileIdentity = async (
   if (!supabase || !contributorId) return null;
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select('email,first_name,last_name')
     .eq('clerk_user_id', contributorId)
     .limit(1);
@@ -151,7 +151,7 @@ export const getUniqueActiveContributorProfileReferenceByEmail = async (
   if (!supabase || !normalizedEmail) return null;
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select('clerk_user_id,email')
     .eq('email', normalizedEmail)
     .eq('status', 'active')
@@ -182,7 +182,7 @@ export const getContributorProfileCapabilities = async (
   }
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .select('status,can_draft_campaigns,can_propose_site_content')
     .eq('clerk_user_id', contributorId)
     .limit(1);
@@ -231,7 +231,7 @@ export const upsertContributorProfile = async ({
   if (!supabase || !contributorId) return;
 
   const { error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .upsert({
       clerk_user_id: contributorId,
       email,
@@ -258,7 +258,7 @@ export const updateContributorScopes = async ({
   if (!normalizedId) throw new ContributorAccessStoreError('Choose a Contributor profile.', 400);
 
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .update({
       can_draft_campaigns: canDraftCampaigns === true,
       can_propose_site_content: canProposeSiteContent === true,
@@ -288,7 +288,7 @@ export const updateContributorPipelineRules = async ({
   if (!normalizedId) throw new ContributorAccessStoreError('Choose a Contributor profile to update.', 400);
 
   const { error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .update(rules)
     .eq('clerk_user_id', normalizedId);
   if (error) {
@@ -322,7 +322,7 @@ export const updateContributorProfileControl = async ({
     value === null ? null : Math.min(maximum, Math.max(minimum, Math.trunc(value)))
   );
   const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
+    .from('cardforge_contributor_profiles')
     .update({
       status,
       can_draft_campaigns: status === 'active' && canDraftCampaigns,

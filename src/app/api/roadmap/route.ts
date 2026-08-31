@@ -63,11 +63,11 @@ export async function POST(request: Request) {
       expensePlan?: unknown;
       expenseSourceUrl?: unknown;
       expenseVerifiedAt?: unknown;
-      developerItem?: unknown;
+      contributorItem?: unknown;
     };
 
     const userEmail = user.primaryEmailAddress?.emailAddress ?? null;
-    const wantsDeveloperItem = body.developerItem === true;
+    const wantsContributorItem = body.contributorItem === true;
     const emailAddresses = user.emailAddresses.map((email) => email.emailAddress);
     const ownerAccess = resolveOwnerAccess({
       authConfigured: true,
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       publicMetadata: user.publicMetadata,
       privateMetadata: user.privateMetadata,
     });
-    if (wantsDeveloperItem) {
+    if (wantsContributorItem) {
       if (!ownerAccess.isOwner) {
         return createApiErrorResponse(
           403,

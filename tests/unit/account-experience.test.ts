@@ -27,7 +27,7 @@ describe('account experience projection', () => {
       entitlement: entitlement({ cardforgeAccess: 'paid', cardforgePaidPlan: 'designer' }),
     });
     const contributor = projectAccountExperience({
-      entitlement: entitlement({ cardforgeAccess: 'dev' }),
+      entitlement: entitlement({ cardforgeAccess: 'contributor' }),
       contribution: {
         active: true,
         canSubmit: true,
@@ -56,9 +56,9 @@ describe('account experience projection', () => {
     expect(owner).toMatchObject({ plan: 'creator', contributor: { active: true, canPublish: true }, owner: true });
   });
 
-  it('does not infer contributor access from dev entitlement without an active scoped profile', () => {
+  it('does not infer contributor access from Contributor entitlement without an active scoped profile', () => {
     expect(projectAccountExperience({
-      entitlement: entitlement({ cardforgeAccess: 'dev' }),
+      entitlement: entitlement({ cardforgeAccess: 'contributor' }),
     })).toMatchObject({
       plan: 'creator',
       contributor: {

@@ -118,7 +118,7 @@ export interface MarketingContentPackage {
   funnelStage: MarketingFunnelStage;
   contentKind: MarketingContentKind;
   callToAction: string;
-  creationSource: 'human' | 'developer' | 'ai-assisted';
+  creationSource: 'human' | 'contributor' | 'ai-assisted';
   utmContent: string;
   variants: MarketingChannelVariant[];
   associations: CampaignDevelopmentAssociation[];
@@ -195,7 +195,7 @@ export type CampaignInputResult = { ok: true; value: {
   marketingCampaignId: string; audienceKey: MarketingAudienceId;
   contentPillar: MarketingContentPillar; funnelStage: MarketingFunnelStage;
   contentKind: MarketingContentKind; callToAction: string;
-  creationSource: 'human' | 'developer' | 'ai-assisted'; utmContent: string;
+  creationSource: 'human' | 'contributor' | 'ai-assisted'; utmContent: string;
   requestedPublishAt: string | null; variants: Array<{ service: MarketingChannel; text: string; attachments: CampaignAttachmentInput[] }>;
   associations: Array<Omit<CampaignDevelopmentAssociation, 'id' | 'createdBy' | 'createdAt'>>;
 } } | { ok: false; message: string };
@@ -241,8 +241,8 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
   if (!['demonstration', 'education', 'question', 'update', 'creator-story'].includes(contentKind)) return { ok: false, message: 'Choose a supported content format.' };
   const callToAction = longText(input.callToAction);
   if (!callToAction || callToAction.length > CAMPAIGN_FIELD_LIMITS.callToAction) return { ok: false, message: 'Add a call to action of 500 characters or fewer.' };
-  const creationSource = shortText(input.creationSource) as 'human' | 'developer' | 'ai-assisted';
-  if (!['human', 'developer', 'ai-assisted'].includes(creationSource)) return { ok: false, message: 'Choose how this content was created.' };
+  const creationSource = shortText(input.creationSource) as 'human' | 'contributor' | 'ai-assisted';
+  if (!['human', 'contributor', 'ai-assisted'].includes(creationSource)) return { ok: false, message: 'Choose how this content was created.' };
   const utmContent = shortText(input.utmContent).toLowerCase().replace(/[^a-z0-9]+/gu, '_').replace(/^_+|_+$/gu, '');
   if (!utmContent || utmContent.length > CAMPAIGN_FIELD_LIMITS.utmContent) return { ok: false, message: 'Add a short tracking key for this content.' };
   if (!Array.isArray(input.variants) || !input.variants.length) return { ok: false, message: 'Add at least one channel variant.' };

@@ -68,7 +68,7 @@ describe('repository maintenance policy', () => {
 
     for (const route of [templateRoute, styleRoute]) {
       expect(route).not.toContain(".from('cardforge_asset_registry')");
-      expect(route).not.toContain(".from('cardforge_developer_asset_submissions')");
+      expect(route).not.toContain(".from('cardforge_contributor_asset_submissions')");
     }
     expect(templateRoute).not.toMatch(/fs\.(?:writeFile|unlink|mkdir)/u);
     expect(pipelineSync).toContain("rpc('cardforge_upsert_pipeline_registry_asset'");
@@ -83,7 +83,7 @@ describe('repository maintenance policy', () => {
     expect(pipelineSync).not.toContain('CARDFORGE_PIPELINE_OWNER_EMAIL');
     expect(pipelineSync).not.toContain(".eq('decision_reason', 'pipeline_owner_edit')");
     expect(pipelineSync).toContain('configuredOwnerEmail');
-    expect(pipelineSync).toContain('must match exactly one active Forge Pipeline developer profile');
+    expect(pipelineSync).toContain('must match exactly one active Forge Pipeline contributor profile');
     expect(pipelineSync).not.toContain(".upsert({\n      clerk_user_id: ownerProfile.clerk_user_id");
   });
 

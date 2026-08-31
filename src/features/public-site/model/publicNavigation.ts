@@ -70,7 +70,7 @@ export const PUBLIC_NAVIGATION = {
         { href: '/creator-pass-terms', label: 'Creator Pass Terms' },
         { href: '/supporter-terms', label: 'Supporter Terms' },
         { href: '/refund', label: 'Refunds' },
-        { href: '/developer-terms', label: 'Contributor Terms' },
+        { href: '/contributor-terms', label: 'Contributor Terms' },
       ],
     },
   ],

@@ -36,9 +36,9 @@ export function ContributorProgramPage({
 }) {
   const siteContent = useSiteContent();
   const contributionLanes = [
-    { icon: UploadCloud, title: siteContent['developer.lane.assets.title'], copy: siteContent['developer.lane.assets.body'] },
-    { icon: Megaphone, title: siteContent['developer.lane.campaigns.title'], copy: siteContent['developer.lane.campaigns.body'] },
-    { icon: Vote, title: siteContent['developer.lane.site.title'], copy: siteContent['developer.lane.site.body'] },
+    { icon: UploadCloud, title: siteContent['contributor.lane.assets.title'], copy: siteContent['contributor.lane.assets.body'] },
+    { icon: Megaphone, title: siteContent['contributor.lane.campaigns.title'], copy: siteContent['contributor.lane.campaigns.body'] },
+    { icon: Vote, title: siteContent['contributor.lane.site.title'], copy: siteContent['contributor.lane.site.body'] },
   ];
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [identity, setIdentity] = useState({
@@ -51,7 +51,7 @@ export function ContributorProgramPage({
     : entitlement.isSignedIn;
   const accountEmail = identity.email ?? entitlement.accountEmail;
   const isContributor = signedIn
-    && (entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner);
+    && (entitlement.accessMode === 'contributor' || entitlement.ownerAccess.isOwner);
   const requestMailto = useMemo(
     () => createContributorRequestMailto({ accountEmail, supportEmail }),
     [accountEmail, supportEmail],
@@ -65,13 +65,13 @@ export function ContributorProgramPage({
           <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-5 md:p-7">
             <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
               <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['developer.hero.eyebrow']}</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['contributor.hero.eyebrow']}</span>
             </div>
             <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-5xl">
-              {siteContent['developer.hero.headline']}
+              {siteContent['contributor.hero.headline']}
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
-              {siteContent['developer.hero.body']}
+              {siteContent['contributor.hero.body']}
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {contributionLanes.map(({ icon: Icon, title, copy }) => (
@@ -112,7 +112,7 @@ export function ContributorProgramPage({
             </div>
             {entitlement.authConfigured && signedIn && !isContributor ? (
               <ContactRequestForm
-                kind="developer"
+                kind="contributor"
                 defaultEmail={accountEmail}
                 defaultName=""
                 defaultSubject="CardForge Contributor program request"
@@ -135,7 +135,7 @@ export function ContributorProgramPage({
         </div>
 
         <section className="mt-5 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
-          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">{siteContent['developer.rules.heading']}</h2>
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">{siteContent['contributor.rules.heading']}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {standards.map((standard) => (
               <div key={standard} className="flex gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">

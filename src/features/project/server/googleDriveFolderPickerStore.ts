@@ -116,10 +116,10 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
 };
 
 const requirePickerEnvironment = () => {
-  const developerKey = process.env.CARDFORGE_GOOGLE_PICKER_API_KEY?.trim() ?? '';
+  const contributorKey = process.env.CARDFORGE_GOOGLE_PICKER_API_KEY?.trim() ?? '';
   const appId = process.env.CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ?? '';
   const missing = [
-    !developerKey ? 'CARDFORGE_GOOGLE_PICKER_API_KEY' : null,
+    !contributorKey ? 'CARDFORGE_GOOGLE_PICKER_API_KEY' : null,
     !appId ? 'CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER' : null,
   ].filter((value): value is string => Boolean(value));
   if (missing.length > 0) {
@@ -132,7 +132,7 @@ const requirePickerEnvironment = () => {
   if (!/^\d{4,32}$/u.test(appId)) {
     throw new ProjectStorageProviderError('Google Drive Picker project number is invalid.', 503, { kind: 'unavailable' });
   }
-  return { developerKey, appId };
+  return { contributorKey, appId };
 };
 
 export const getGoogleDrivePickerConfiguration = async (
@@ -143,7 +143,7 @@ export const getGoogleDrivePickerConfiguration = async (
   const accessToken = await refreshPickerAccessToken(row);
   return {
     accessToken,
-    developerKey: picker.developerKey,
+    contributorKey: picker.contributorKey,
     appId: picker.appId,
     initialFolderId: isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
   };

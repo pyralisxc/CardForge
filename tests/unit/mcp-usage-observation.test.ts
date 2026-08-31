@@ -17,7 +17,7 @@ describe('MCP usage observation', () => {
     expect(resolveMcpUsagePlanKey({ accessMode: 'free', isOwner: false })).toBe('free');
     expect(resolveMcpUsagePlanKey({ accessMode: 'paid', isOwner: false })).toBe('creator');
     expect(resolveMcpUsagePlanKey({ accessMode: 'paid', paidPlan: 'designer', isOwner: false })).toBe('designer');
-    expect(resolveMcpUsagePlanKey({ accessMode: 'dev', isOwner: false })).toBe('designer');
+    expect(resolveMcpUsagePlanKey({ accessMode: 'contributor', isOwner: false })).toBe('designer');
     expect(resolveMcpUsagePlanKey({ accessMode: 'free', isOwner: true })).toBe('designer');
     expect(DEFAULT_MCP_ALLOWANCES.map(({ monthlyActionLimit }) => monthlyActionLimit)).toEqual([
       30,

@@ -316,7 +316,7 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
       id: sharedTemplateId,
       templateSource: 'default',
       templateLibrarySource: 'pipeline',
-      templateAccessTier: 'developer',
+      templateAccessTier: 'contributor',
       templateRegistryStatus: 'draft',
       templateRevision: 0,
       templateRevisionId: undefined,

@@ -16,10 +16,9 @@ const pathBySlug: Record<LegalDocumentSlug, string> = {
   'creator-pass-terms': '/creator-pass-terms',
   'supporter-terms': '/supporter-terms',
   refund: '/refund',
-  'developer-terms': '/developer-terms',
+  'contributor-terms': '/contributor-terms',
   contact: '/contact',
   accessibility: '/accessibility',
-  'creator-pool': '/creator-pool',
 };
 
 export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {

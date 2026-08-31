@@ -135,7 +135,7 @@ export default async function AboutPage() {
           </div>
           <div className="grid gap-3 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
             <Link href="/contributors" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-bold text-[var(--public-brass)]">
-              {siteContent['about.contributors.developer-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {siteContent['about.contributors.contributor-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-semibold text-[var(--public-ivory)]">
               {siteContent['about.contributors.roadmap-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />

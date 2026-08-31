@@ -146,7 +146,7 @@ const sanitizeFontValue = (value: string): string => (
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 96) || 'developer-font'
+    .slice(0, 96) || 'contributor-font'
 );
 
 const getFontExtension = (url: string): string => {
@@ -181,7 +181,7 @@ export const mapRegistryRowsToCardFontOptions = (rows: RegistryFontRow[]): CardF
       : category === 'System' || category === 'Utility' || category === 'Sci-Fi'
         ? 'sans-serif'
         : 'serif';
-    const value = `font-dev-${sanitizeFontValue(row.asset_id)}`;
+    const value = `font-contributor-${sanitizeFontValue(row.asset_id)}`;
 
     return {
       name,
@@ -195,10 +195,10 @@ export const mapRegistryRowsToCardFontOptions = (rows: RegistryFontRow[]): CardF
 
 export const mergeCardFontOptions = (
   baseFonts: CardFontOption[],
-  developerFonts: CardFontOption[],
+  contributorFonts: CardFontOption[],
 ): CardFontOption[] => {
   const seen = new Set<string>();
-  return [...baseFonts, ...developerFonts].filter((font) => {
+  return [...baseFonts, ...contributorFonts].filter((font) => {
     if (seen.has(font.value)) return false;
     seen.add(font.value);
     return true;
@@ -225,7 +225,7 @@ export const createPipelineFontFaceCss = (fonts: CardFontOption[]): string => fo
 
 export const cardFontFamilyToCss = (fontFamily?: string): string | undefined => {
   if (!fontFamily) return undefined;
-  if (fontFamily.startsWith('font-dev-') || fontFamily.startsWith('font-personal-')) {
+  if (fontFamily.startsWith('font-contributor-') || fontFamily.startsWith('font-personal-')) {
     return `"${cssString(fontFamily)}"`;
   }
   return CARD_FONT_STACKS[fontFamily] || fontFamily;

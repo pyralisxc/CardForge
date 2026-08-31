@@ -71,7 +71,7 @@ export const createFounderProfileStructuredData = (
       '@id': personId(identity),
       name: identity.legalOperatorName,
       url: absoluteUrl(identity, '/cameron'),
-      jobTitle: `Founder and independent developer of ${identity.brandName}`,
+      jobTitle: `Founder and independent contributor of ${identity.brandName}`,
       address: {
         '@type': 'PostalAddress',
         addressRegion: identity.jurisdictionState,

@@ -1,4 +1,4 @@
-export type AccessMode = 'free' | 'paid' | 'dev';
+export type AccessMode = 'free' | 'paid' | 'contributor';
 export type PaidPlan = 'creator' | 'designer';
 export type ProjectFileAccessPolicy = 'free' | 'creator_pass';
 
@@ -22,7 +22,7 @@ type AccessEnvironment = Partial<Record<
   string
 >>;
 
-const ACCESS_MODES = new Set<AccessMode>(['free', 'paid', 'dev']);
+const ACCESS_MODES = new Set<AccessMode>(['free', 'paid', 'contributor']);
 
 const isAccessMode = (value: string | undefined): value is AccessMode =>
   typeof value === 'string' && ACCESS_MODES.has(value as AccessMode);
@@ -50,7 +50,7 @@ export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
   const source = readEnvironment(env);
   const explicitMode = source.CARDFORGE_ACCESS_MODE ?? source.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE;
   if (isAccessMode(explicitMode)) return explicitMode;
-  return source.NODE_ENV === 'development' ? 'dev' : 'free';
+  return source.NODE_ENV === 'development' ? 'contributor' : 'free';
 };
 
 export const getExportGateMessage = (mode: AccessMode): string | null =>
@@ -73,7 +73,7 @@ export const getExportEntitlementCopy = (
   const projectFileGateMessage = getProjectFileGateMessage(mode, projectFileAccess);
   const canExportClean = getProjectCapabilities(mode, projectFileAccess).canExportClean;
 
-  if (mode === 'dev') {
+  if (mode === 'contributor') {
     return {
       modeLabel: 'Contributor access',
       canExportClean,

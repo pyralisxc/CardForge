@@ -143,7 +143,7 @@ export async function PUT(
       actorUserId: owner.userId,
       actorEmail: owner.email,
       action: 'library.asset.override',
-      targetType: 'developer_asset',
+      targetType: 'contributor_asset',
       targetId: submissionId,
       summary: 'Updated an owner publication or access-tier override for a shared library asset.',
     });
@@ -193,7 +193,7 @@ export async function DELETE(
       actorUserId: owner.userId,
       actorEmail: owner.email,
       action: 'library.asset.delete',
-      targetType: 'developer_asset',
+      targetType: 'contributor_asset',
       targetId: submissionId,
       summary: `Permanently deleted the shared asset lineage for ${typeof body.confirmationName === 'string' ? body.confirmationName : submissionId}.`,
     });

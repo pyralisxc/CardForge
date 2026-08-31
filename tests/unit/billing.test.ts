@@ -337,10 +337,10 @@ describe('billing', () => {
     });
 
     expect(buildStripeRevokedAccessMetadata({
-      cardforgeAccess: 'dev',
+      cardforgeAccess: 'contributor',
       cardforgeRole: 'owner',
     })).toMatchObject({
-      cardforgeAccess: 'dev',
+      cardforgeAccess: 'contributor',
       cardforgeRole: 'owner',
       cardforgeAccessExpiresAt: null,
     });

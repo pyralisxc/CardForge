@@ -4,27 +4,27 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import type { StudioAssetDestination, StudioAssetRoutingMode } from '@/domain/templates';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';
-export type RegistryViewerAccess = 'free' | 'paid' | 'dev';
-export type RegistryVisibleAccessTier = 'free' | 'paid' | 'developer';
+export type RegistryViewerAccess = 'free' | 'paid' | 'contributor';
+export type RegistryVisibleAccessTier = 'free' | 'paid' | 'contributor';
 
 export const getVisibleRegistryAccessTiers = (
   viewerAccess: RegistryViewerAccess,
-): RegistryVisibleAccessTier[] => viewerAccess === 'dev'
-  ? ['free', 'paid', 'developer']
+): RegistryVisibleAccessTier[] => viewerAccess === 'contributor'
+  ? ['free', 'paid', 'contributor']
   : viewerAccess === 'paid'
     ? ['free', 'paid']
     : ['free'];
 
 export interface RegistryContentAssetRow {
   asset_id: string;
-  developer_submission_id?: string | null;
+  contributor_submission_id?: string | null;
   lineage_id?: string | null;
   name: string;
   url: string;
   preview_url?: string | null;
   status?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
-  access_tier?: 'free' | 'paid' | 'developer' | 'hidden';
-  library_source?: 'official' | 'developer';
+  access_tier?: 'free' | 'paid' | 'contributor' | 'hidden';
+  library_source?: 'official' | 'contributor';
   metadata: unknown;
   content_payload?: unknown;
   studio_destinations?: StudioAssetDestination[];
@@ -36,8 +36,8 @@ export interface RegistryContentAssetRow {
 export interface PublishedRegistryAssetRow extends RegistryContentAssetRow {
   asset_type: string;
   status: 'published';
-  access_tier: 'free' | 'paid' | 'developer';
-  library_source: 'official' | 'developer';
+  access_tier: 'free' | 'paid' | 'contributor';
+  library_source: 'official' | 'contributor';
   file_size_bytes: number | null;
   updated_at: string | null;
 }
@@ -109,12 +109,12 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   rows: Row[],
 ): Promise<Row[]> => {
   const submissionIds = [...new Set(rows.flatMap((row) => (
-    row.developer_submission_id ? [row.developer_submission_id] : []
+    row.contributor_submission_id ? [row.contributor_submission_id] : []
   )))];
   const registryAssetIds = [...new Set(rows.map((row) => row.asset_id).filter(Boolean))];
   const [submissionResult, lineageResult] = await Promise.all([
     submissionIds.length
-      ? supabase.from('cardforge_developer_asset_submissions').select('id,lineage_id,source_payload').in('id', submissionIds)
+      ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload').in('id', submissionIds)
       : Promise.resolve({ data: [], error: null }),
     registryAssetIds.length
       ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
@@ -136,11 +136,11 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   }));
   return rows.map((row) => ({
     ...row,
-    lineage_id: row.developer_submission_id
-      ? payloadsById.get(row.developer_submission_id)?.lineageId ?? lineageByAssetId.get(row.asset_id) ?? null
+    lineage_id: row.contributor_submission_id
+      ? payloadsById.get(row.contributor_submission_id)?.lineageId ?? lineageByAssetId.get(row.asset_id) ?? null
       : lineageByAssetId.get(row.asset_id) ?? null,
-    content_payload: row.developer_submission_id
-      ? payloadsById.get(row.developer_submission_id)?.payload
+    content_payload: row.contributor_submission_id
+      ? payloadsById.get(row.contributor_submission_id)?.payload
       : undefined,
   }));
 };
@@ -157,7 +157,7 @@ export const getPublishedRegistryContentRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,developer_submission_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+        .select('asset_id,contributor_submission_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('asset_type', assetType)
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
@@ -197,7 +197,7 @@ export const getPublishedRegistryRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,developer_submission_id,name,asset_type,url,preview_url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
+        .select('asset_id,contributor_submission_id,name,asset_type,url,preview_url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
         .order('asset_type', { ascending: true })

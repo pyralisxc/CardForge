@@ -2,11 +2,6 @@ import { type PipelineAccessTier, type ContributorUploadAssetType } from '@/feat
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import { getPipelineImagePreviewUrl } from '@/features/pipeline/lib/pipelineLibrary';
-import {
-  getPipelineStatusLabel,
-  getPipelineTierLabel,
-  getPipelineTypeLabel,
-} from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 
 export type PipelineSubmission = PipelineProgramView['submissions'][number];
 export type PersonalLibraryFilter = ContributorUploadAssetType | 'all';
@@ -105,7 +100,7 @@ export const tierClasses: Record<PipelineAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
   free: 'border-[#5f7f54] text-[#bde3a8]',
   paid: 'border-[#8a642f] text-[#f0c568]',
-  developer: 'border-[#35445a] text-[#b9d5ff]',
+  contributor: 'border-[#35445a] text-[#b9d5ff]',
 };
 
 export const getReviewProgressLabel = (
@@ -173,22 +168,6 @@ export const getCandidateBrowseLabel = (assetType: ContributorUploadAssetType): 
   if (assetType === 'fonts') return 'Drop or browse a font file';
   return 'Drop a file or browse';
 };
-
-export const getSearchableSubmissionText = (submission: PipelineSubmission) => [
-  submission.name,
-  submission.description,
-  submission.contributorEmail ?? '',
-  submission.contributorDisplayName ?? '',
-  submission.contributorFirstName ?? '',
-  submission.contributorLastName ?? '',
-  getPipelineTypeLabel(submission.assetType, { plural: false }),
-  getPipelineStatusLabel(submission.status),
-  getPipelineTierLabel(submission.calculatedAccessTier),
-  submission.tierDecisionReason ?? '',
-  submission.decisionReason ?? '',
-  submission.automatedStatus,
-  submission.ownerStatusOverride ?? '',
-].join(' ').toLowerCase();
 
 export const getContributorLabel = (submission: PipelineSubmission) => {
   if (submission.contributorDisplayName) return submission.contributorDisplayName;

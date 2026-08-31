@@ -35,7 +35,7 @@ export interface GoogleDriveProjectListResult {
 
 export interface GoogleDrivePickerConfiguration {
   accessToken: string;
-  developerKey: string;
+  contributorKey: string;
   appId: string;
   initialFolderId: string | null;
 }

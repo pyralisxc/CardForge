@@ -12,7 +12,7 @@ describe('account section navigation', () => {
     expect(resolveAccountSection({ requestedSection: 'storage' })).toBe('storage');
     expect(resolveAccountSection({ requestedSection: 'billing' })).toBe('billing');
     expect(resolveAccountSection({ requestedSection: 'profile' })).toBe('profile');
-    expect(resolveAccountSection({ requestedSection: 'developer' })).toBe('home');
+    expect(resolveAccountSection({ requestedSection: 'contributor' })).toBe('home');
     expect(resolveAccountSection({ requestedSection: 'unknown' })).toBe('home');
   });
 

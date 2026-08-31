@@ -7,7 +7,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { EnvironmentCommandBand } from '@/features/app-shell/environment/components/EnvironmentCommandBand';
 import { EnvironmentDesktopInspector } from '@/features/app-shell/environment/components/EnvironmentDetail';
 import { EnvironmentShell } from '@/features/app-shell/environment/components/EnvironmentShell';
-import { getActionsForRecord, homeCurrentWork, profileGroups, queueItems } from '@/features/app-shell/environment/lab/fixtures';
 import type { ActionDescriptor } from '@/features/app-shell/environment/model';
 import type { EnvironmentDetailRecord } from '@/features/app-shell/environment/presentation';
 
@@ -114,12 +113,4 @@ describe('Environment action presentation', () => {
     expect(multiLocationMarkup).toContain('Open in Studio');
   });
 
-  it('maps demonstrated actions to their canonical feature owners', () => {
-    expect(getActionsForRecord('home', homeCurrentWork, 'home')[0]?.ownerFeature).toBe('card-generator');
-    expect(getActionsForRecord('profile', profileGroups[0]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
-    expect(getActionsForRecord('profile', profileGroups[1]?.items[0] ?? null, 'profile')[0]?.ownerFeature).toBe('account');
-    expect(getActionsForRecord('queue', queueItems[0] ?? null, 'owner').map((action) => action.ownerFeature)).toEqual(['pipeline', 'pipeline']);
-    expect(getActionsForRecord('collection', { ...record, kind: 'template' }, 'library')[0]?.ownerFeature).toBe('template-editor');
-    expect(getActionsForRecord('queue', queueItems[2] ?? null, 'owner')[0]?.ownerFeature).toBe('billing');
-  });
 });
