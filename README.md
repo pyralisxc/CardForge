@@ -55,9 +55,12 @@ Maintained operational commands:
 ```bash
 npm run health:production
 npm run smoke:ui
+npm run smoke:scale
 npm run pipeline:sync-defaults
 npm run brand:export
 ```
+
+`smoke:ui` includes generated 100/500/1,000-Artifact browser fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
 
 ## Source map
 

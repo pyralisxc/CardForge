@@ -32,7 +32,8 @@ describe('repository maintenance policy', () => {
       'architecture:check': 'node scripts/check-architecture.mjs',
       'migrations:check': 'node scripts/check-migration-safety.mjs',
       'health:production': 'node scripts/check-production-health.mjs',
-      'smoke:ui': 'playwright test tests/smoke/account-contribution-ux.spec.ts --workers=1',
+      'smoke:ui': 'playwright test tests/smoke --workers=1',
+      'smoke:scale': 'playwright test tests/smoke/artifact-scale-performance.spec.ts --workers=1',
       'pipeline:sync-defaults': 'node scripts/sync-pipeline-defaults.mjs',
     });
     expect(packageJson.scripts).not.toHaveProperty('audit:site');
