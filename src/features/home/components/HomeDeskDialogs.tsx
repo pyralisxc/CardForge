@@ -1,6 +1,7 @@
 "use client";
 
 import { Boxes, FolderPlus, Loader2, Pencil } from 'lucide-react';
+import { useId } from 'react';
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,10 +36,13 @@ interface HomeDeskDialogsProps {
 }
 
 export function HomeDeskDialogs(props: HomeDeskDialogsProps) {
+  const freshSetDescriptionId = useId();
+  const freshSetDesignDescriptionId = useId();
+
   return <>
     <Dialog open={props.createOpen} onOpenChange={props.onCreateOpenChange}><DialogContent className={styles.createDialog}><DialogHeader><DialogTitle>Start a new Set</DialogTitle><DialogDescription>Begin empty or make an independent editable copy of a published Set.</DialogDescription></DialogHeader><div className={styles.createChoices}>
-      <button type="button" className={styles.createChoice} onClick={() => props.onCreateWork(false)}><span className={styles.createChoiceVisual}><FolderPlus aria-hidden="true" /></span><span><strong>Fresh Set</strong><small>An empty, flexible space for any cards or creative objects.</small></span></button>
-      <button type="button" className={styles.createChoice} onClick={() => props.onCreateWork(true)}><span className={styles.createChoiceVisual}><Pencil aria-hidden="true" /></span><span><strong>Fresh Set + Design</strong><small>Create the Set and open the contextual Design tool immediately.</small></span></button>
+      <button type="button" className={styles.createChoice} aria-label="Fresh Set" aria-describedby={freshSetDescriptionId} onClick={() => props.onCreateWork(false)}><span className={styles.createChoiceVisual}><FolderPlus aria-hidden="true" /></span><span><strong>Fresh Set</strong><small id={freshSetDescriptionId}>An empty, flexible space for any cards or creative objects.</small></span></button>
+      <button type="button" className={styles.createChoice} aria-label="Fresh Set + Design" aria-describedby={freshSetDesignDescriptionId} onClick={() => props.onCreateWork(true)}><span className={styles.createChoiceVisual}><Pencil aria-hidden="true" /></span><span><strong>Fresh Set + Design</strong><small id={freshSetDesignDescriptionId}>Create the Set and open the contextual Design tool immediately.</small></span></button>
       {props.publishedSets.map((set) => <button key={set.id} type="button" className={styles.createChoice} disabled={props.creatingPublishedSetId !== null} onClick={() => props.onCreatePublishedSet(set)}><span className={styles.createChoiceVisual}>{set.previewUrl ? <img src={set.previewUrl} alt="" /> : <Boxes aria-hidden="true" />}</span><span><strong>{set.name}</strong><small>{set.description} · Revision {set.revision}</small></span>{props.creatingPublishedSetId === set.id ? <Loader2 className="animate-spin" aria-label="Creating Set" /> : null}</button>)}
       {props.publishedSetsLoading ? <div className={styles.createStatus}><Loader2 className="animate-spin" aria-hidden="true" />Loading published Sets</div> : null}
       {props.publishedSetsFailure ? <EnvironmentBoundaryNotice title="Published Sets are unavailable" message={`${props.publishedSetsFailure} You can still create a fresh Set.`} actionLabel="Retry" onAction={props.onRetryPublishedSets} /> : null}
