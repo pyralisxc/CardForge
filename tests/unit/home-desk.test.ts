@@ -55,6 +55,11 @@ describe('Home spatial desk', () => {
     expect(globalStyles).not.toContain('::view-transition');
   });
 
+  it('gives mobile Desk positioning controls a full toolbar row', () => {
+    const mobileStyles = homeDeskStyles.slice(homeDeskStyles.indexOf('@media (max-width: 767px)'));
+    expect(mobileStyles).toMatch(/\.spatialControls\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;/);
+  });
+
   it('keeps a local Set on Desk until a contained object is chosen for Studio', () => {
     const localSet: AccountLibraryItem = {
       id: 'set:set-alpha',
