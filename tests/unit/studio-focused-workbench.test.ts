@@ -88,10 +88,12 @@ describe('Studio focused workbench architecture', () => {
     const deskOwnership = `${deskController}\n${artifactCommands}\n${projectWorkspace}`;
 
     expect(client).not.toContain('loadStudioSetDesk');
+    expect(client).not.toContain('loadExportControlsPanel');
     expect(lazy).not.toContain('StudioSetDesk');
     expect(deskOwnership).toContain('updateCardSetOrganization');
     expect(desk).toContain('setCardPositions');
     expect(deskOwnership).toContain('moveGeneratedCardsToSet');
     expect(lazy).toContain('export const StudioOutputPanel = dynamic(');
+    expect(lazy).toContain("import('@/features/card-generator/client/export-controls-panel')");
   });
 });

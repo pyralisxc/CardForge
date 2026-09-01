@@ -27,7 +27,7 @@ test.describe('account contribution surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
     await page.getByRole('button', { name: 'Create your first Set' }).click();
     await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
-    await expect(page.locator('[data-home-desk="focused"]')).toBeVisible();
+    await expect(page.locator('[data-home-work-object][data-presentation="focused"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Design', exact: true }).click();

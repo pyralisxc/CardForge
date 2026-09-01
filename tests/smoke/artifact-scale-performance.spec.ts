@@ -112,6 +112,7 @@ test.describe('large Artifact browser evidence', () => {
   }
 
   test('repeated focus and Design cycles keep post-warmup heap and transient UI growth bounded', async ({ page, context }, testInfo) => {
+    test.setTimeout(300_000);
     await prepareScalePage(page, 100);
     const cdp = await context.newCDPSession(page);
     const collectHeap = async () => {

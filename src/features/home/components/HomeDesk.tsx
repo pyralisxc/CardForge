@@ -18,7 +18,6 @@ import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { loadGenerationWorkspace } from '@/features/card-generator/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client';
 import {
@@ -43,7 +42,9 @@ const CampaignDeskShelf = dynamic(() => import(
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client'
 ).then((module) => module.PipelineContributionPanel));
-const DeskGenerationWorkspace = dynamic(() => loadGenerationWorkspace().then((module) => module.GenerationWorkspace));
+const DeskGenerationWorkspace = dynamic(() => import(
+  '@/features/card-generator/client/generation-workspace'
+).then((module) => module.GenerationWorkspace), { ssr: false });
 const DeskDesignWorkspace = dynamic(() => import(
   '@/features/app-shell/client/studio'
 ).then((module) => module.CardForgeStudioShell), { ssr: false });
