@@ -23,6 +23,7 @@ describe('unified account environment', () => {
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
   const deskOverview = readSource('src/features/home/components/DeskOverviewSurface.tsx');
   const homeDeskController = readSource('src/features/home/hooks/useHomeDeskController.ts');
+  const homeAccountStatuses = readSource('src/features/home/model/homeAccountStatuses.ts');
   const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
   const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
@@ -99,7 +100,7 @@ describe('unified account environment', () => {
   it('keeps account status and storage measurement semantics compact', () => {
     expect(deskOverview).toContain('Account essentials');
     expect(homeDeskController).toContain('homeAccessStatus');
-    expect(homeDeskController).toContain('Connections');
+    expect(homeAccountStatuses).toContain('Connections');
     expect(homeDesk).not.toContain('Account snapshot');
     expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
     expect(storageLibrary).toContain('function StorageMetric');
