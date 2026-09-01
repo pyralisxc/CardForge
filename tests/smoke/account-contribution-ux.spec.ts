@@ -13,13 +13,20 @@ async function expectNoWcagViolations(page: Page) {
 }
 
 test.describe('account contribution surfaces', () => {
+  test.beforeEach(async ({ page }) => {
+    const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
+    if (previewShareUrl) {
+      await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    }
+  });
+
   test('keeps Set focus and Design as one accessible Desk interaction', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
 
     await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
     await page.getByRole('button', { name: 'Create your first Set' }).click();
-    await page.getByRole('button', { name: /Fresh Set$/ }).click();
+    await page.getByRole('button', { name: /^Fresh Set An empty/ }).click();
     await expect(page.locator('[data-home-desk="focused"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
 
@@ -51,7 +58,7 @@ test.describe('account contribution surfaces', () => {
     await expect(page.getByText('Contributor', { exact: true })).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('navigation', { name: 'CardForge zones' })).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'CardForge zones' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Library scopes' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expectNoWcagViolations(page);
