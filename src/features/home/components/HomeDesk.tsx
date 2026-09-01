@@ -253,71 +253,10 @@ export function HomeDesk({
         onCloseDetail={() => setInspectorWorkId(null)}
       >
         <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
-          {focusedItem ? <FocusedWorkSurface
-            item={focusedItem}
-            localSetId={focusedLocalSetId}
-            preview={focusedLocalSetId ? <div className={styles.focusPreview} data-home-set-stack><AuthoredObjectPreview cards={workCards(focusedItem)} template={workTemplate(focusedItem)} label={focusedItem.name} size="compact" emptyLabel={focusedCards.length ? undefined : 'Empty Set'} /></div> : null}
-            remoteIcon={<WorkSourceIcon item={focusedItem} />}
-            contentsLabel={focusedContentsLabel}
-            renaming={renaming}
-            renameDraft={renameDraft}
-            pinned={pinnedIds.includes(focusedItem.id)}
-            focusedCards={focusedCards}
-            visibleCards={visibleCards}
-            sortedCards={sortedCards}
-            groups={organizedGroups}
-            organization={organization}
-            availableFields={availableFields}
-            selectedCards={selectedCards}
-            selectedCard={selectedCard}
-            selectedCardIndex={selectedCardIndex}
-            allVisibleSelected={allVisibleCardsSelected}
-            allArtifactsSelected={allArtifactsSelected}
-            selectionScope={selectionScope}
-            otherSets={otherSets}
-            moveTargetId={effectiveMoveTargetId}
-            cardQuery={cardQuery}
-            tagFilter={tagFilter}
-            tagDraft={tagDraft}
-            latestGeneratedIds={latestGeneratedIds}
-            showGrid={showGrid}
-            snapToGrid={snapToGrid}
-            session={interactionSession}
-            setSession={setInteractionSession}
-            stageRef={cardStageRef}
-            onBack={() => { setRenaming(false); requestHistoryBack(); }}
-            onRenameDraftChange={setRenameDraft}
-            onCommitRename={commitRename}
-            onToggleRenaming={() => setRenaming((current) => !current)}
-            onOpenWork={() => openWorkLane(focusedItem, 'open')}
-            onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
-            onOpenGenerate={() => openWorkLane(focusedItem, 'generate')}
-            onOpenLocation={() => setLocationItem(focusedItem)}
-            onDuplicateWork={() => duplicateWork(focusedItem)}
-            onOpenOutput={() => openWorkLane(focusedItem, 'export')}
-            onTogglePin={() => togglePin(focusedItem.id)}
-            onInspect={() => inspectItem(focusedItem)}
-            onDeleteWork={() => setPendingDeleteWork(focusedItem)}
-            onCardQueryChange={setCardQuery}
-            onOrganizationChange={updateOrganization}
-            onTagFilterChange={setTagFilter}
-            onShowGridChange={() => setShowGrid((value) => !value)}
-            onSnapToGridChange={() => setSnapToGrid((value) => !value)}
-            onSelectionChange={setSelectedCardIds}
-            onReorderSelected={reorderSelectedCard}
-            onMoveTargetChange={setMoveTargetId}
-            onMoveSelected={moveSelectedCards}
-            onEditSelected={editSelectedCard}
-            onDuplicateSelected={duplicateSelectedCards}
-            onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
-            onSetCardsTag={setCardsTag}
-            onTagDraftChange={setTagDraft}
-            onApplyNewTag={applyNewTag}
-            onClearGenerated={() => { setLatestGeneratedIds([]); setSelectedCardIds([]); }}
-            onMoveArtifacts={(positions) => focusedLocalSetId && setCardPositions(focusedLocalSetId, positions)}
-          /> : <DeskOverviewSurface
+          <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
+            focusedItemId={focusedItem?.id ?? null}
             activeWorkId={activeWorkId}
             pinnedIds={pinnedIds}
             positions={deskPositions}
@@ -334,7 +273,69 @@ export function HomeDesk({
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
             campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
-            renderWorkPreview={(item, featured) => <div className={styles.workVisual} data-home-set-stack>{item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}</div>}
+            renderWorkPreview={(item, featured, focused) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            renderFocusedSurface={(item) => <FocusedWorkSurface
+              item={item}
+              localSetId={focusedLocalSetId}
+              remoteIcon={<WorkSourceIcon item={item} />}
+              contentsLabel={focusedContentsLabel}
+              renaming={renaming}
+              renameDraft={renameDraft}
+              pinned={pinnedIds.includes(item.id)}
+              focusedCards={focusedCards}
+              visibleCards={visibleCards}
+              sortedCards={sortedCards}
+              groups={organizedGroups}
+              organization={organization}
+              availableFields={availableFields}
+              selectedCards={selectedCards}
+              selectedCard={selectedCard}
+              selectedCardIndex={selectedCardIndex}
+              allVisibleSelected={allVisibleCardsSelected}
+              allArtifactsSelected={allArtifactsSelected}
+              selectionScope={selectionScope}
+              otherSets={otherSets}
+              moveTargetId={effectiveMoveTargetId}
+              cardQuery={cardQuery}
+              tagFilter={tagFilter}
+              tagDraft={tagDraft}
+              latestGeneratedIds={latestGeneratedIds}
+              showGrid={showGrid}
+              snapToGrid={snapToGrid}
+              session={interactionSession}
+              setSession={setInteractionSession}
+              stageRef={cardStageRef}
+              onBack={() => { setRenaming(false); requestHistoryBack(); }}
+              onRenameDraftChange={setRenameDraft}
+              onCommitRename={commitRename}
+              onToggleRenaming={() => setRenaming((current) => !current)}
+              onOpenWork={() => openWorkLane(item, 'open')}
+              onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+              onOpenGenerate={() => openWorkLane(item, 'generate')}
+              onOpenLocation={() => setLocationItem(item)}
+              onDuplicateWork={() => duplicateWork(item)}
+              onOpenOutput={() => openWorkLane(item, 'export')}
+              onTogglePin={() => togglePin(item.id)}
+              onInspect={() => inspectItem(item)}
+              onDeleteWork={() => setPendingDeleteWork(item)}
+              onCardQueryChange={setCardQuery}
+              onOrganizationChange={updateOrganization}
+              onTagFilterChange={setTagFilter}
+              onShowGridChange={() => setShowGrid((value) => !value)}
+              onSnapToGridChange={() => setSnapToGrid((value) => !value)}
+              onSelectionChange={setSelectedCardIds}
+              onReorderSelected={reorderSelectedCard}
+              onMoveTargetChange={setMoveTargetId}
+              onMoveSelected={moveSelectedCards}
+              onEditSelected={editSelectedCard}
+              onDuplicateSelected={duplicateSelectedCards}
+              onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
+              onSetCardsTag={setCardsTag}
+              onTagDraftChange={setTagDraft}
+              onApplyNewTag={applyNewTag}
+              onClearGenerated={() => { setLatestGeneratedIds([]); setSelectedCardIds([]); }}
+              onMoveArtifacts={(positions) => focusedLocalSetId && setCardPositions(focusedLocalSetId, positions)}
+            />}
             beginDrag={beginDeskDrag}
             moveDrag={moveDeskDrag}
             endDrag={endDeskDrag}
@@ -356,7 +357,7 @@ export function HomeDesk({
             onCreate={openCreateMenu}
             onRetry={projection.refresh}
             onNavigate={projection.router.push}
-          />}
+          />
         </div>
         {pipelineSubmitSetId ? <EnvironmentToolLayer
           id="desk-pipeline-submit-title"

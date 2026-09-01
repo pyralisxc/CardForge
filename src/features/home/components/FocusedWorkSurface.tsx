@@ -21,7 +21,6 @@ import styles from './HomeDesk.module.css';
 export interface FocusedWorkSurfaceProps {
   item: AccountLibraryItem;
   localSetId: string | null;
-  preview: ReactNode;
   remoteIcon: ReactNode;
   contentsLabel: string;
   renaming: boolean;
@@ -87,7 +86,6 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
     <button type="button" className={styles.backButton} onClick={props.onBack}><ArrowLeft size={16} aria-hidden="true" /> Back to Desk</button>
     <section className={styles.focusWorkspace} data-home-set-board aria-label={props.item.name}>
       <header className={styles.focusHeader}>
-        {props.preview}
         <div className={styles.focusIdentity}>
           {props.renaming && props.localSetId ? <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input id="home-work-name" value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Work name" /><Button type="submit" size="sm">Save</Button></form> : <h1>{props.item.name}</h1>}
           <p>{props.contentsLabel} · {workSourceLabel(props.item)}</p>

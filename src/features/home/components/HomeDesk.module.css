@@ -14,6 +14,24 @@
   gap: 0.55rem;
 }
 
+.desk[data-focused="true"] > :not(.workSurface) {
+  display: none;
+}
+
+.desk[data-focused="true"] .workSurfaceHeader,
+.desk[data-focused="true"] .deskToolbar {
+  visibility: hidden;
+}
+
+.desk[data-focused="true"] .workSurface,
+.desk[data-focused="true"] .workGrid {
+  min-height: 100%;
+}
+
+.desk[data-focused="true"] .workGrid {
+  padding: 0;
+}
+
 .deskIntro {
   display: flex;
   min-width: 0;
@@ -201,6 +219,44 @@
   grid-row: 2 / span 4;
   align-self: center;
   transition: filter 160ms ease, transform 180ms ease;
+}
+
+.workTile[aria-hidden="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workTile[data-presentation="focused"] {
+  z-index: 20;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"]:hover,
+.workTile[data-presentation="focused"]:focus-within {
+  filter: none;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"] .workTileMain {
+  position: absolute;
+  z-index: 12;
+  top: 4.5rem;
+  left: max(1.15rem, calc(50% - 36.85rem));
+  width: clamp(5.25rem, 8vw, 7rem);
+  opacity: 1;
+  pointer-events: none;
+}
+
+.workTile[data-presentation="focused"] .workVisual,
+.workTile[data-presentation="focused"] .sourceFallback {
+  min-height: 6.8rem;
+}
+
+.workTile[data-presentation="focused"] .workMeta {
+  display: none;
 }
 
 .workTile[data-featured="true"] {
@@ -489,19 +545,6 @@
   border: 1px solid var(--cf-border-strong);
   background: var(--cf-surface-inset);
   box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%), inset 0 0 0 1px color-mix(in srgb, var(--cf-accent-strong) 10%, transparent);
-  animation: focus-workspace-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes focus-workspace-enter {
-  from {
-    opacity: 0.72;
-    transform: translateY(0.55rem) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 .focusHeader,
@@ -519,6 +562,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding-left: 8rem;
   padding-bottom: 0.75rem;
 }
 
@@ -1010,6 +1054,22 @@
     min-height: 10.5rem;
   }
 
+  .workTile[data-presentation="focused"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .workTile[data-presentation="focused"] .workTileMain {
+    top: 8rem;
+    left: 0.85rem;
+    width: 5.25rem;
+  }
+
+  .workTile[data-presentation="focused"] .workVisual,
+  .workTile[data-presentation="focused"] .sourceFallback {
+    min-height: 6.2rem;
+  }
+
   .tileActions {
     opacity: 1;
   }
@@ -1046,6 +1106,11 @@
   .focusHeader,
   .contentHeading {
     display: grid;
+  }
+
+  .focusHeader {
+    min-height: 6.4rem;
+    padding-left: 6rem;
   }
 
   .focusActions {
@@ -1128,11 +1193,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .workTile,
-  .cardButton {
+  .workTileMain,
+  .workVisual,
+  .cardButton,
+  .focusWorkspace {
     transition: none;
   }
 
-  .focusWorkspace,
   .artifactWorld {
     animation: none;
   }
@@ -1141,11 +1208,6 @@
     scroll-behavior: auto;
   }
 }
-.focusPreview {
-  width: clamp(5.25rem, 8vw, 7rem);
-  flex: 0 0 auto;
-}
-
 .resultFilter {
   display: flex;
   min-height: 2.5rem;

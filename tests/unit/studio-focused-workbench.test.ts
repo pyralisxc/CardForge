@@ -83,12 +83,15 @@ describe('Studio focused workbench architecture', () => {
     const lazy = readSource('src/features/app-shell/components/StudioLazyWorkspaces.tsx');
     const desk = readSource('src/features/home/components/HomeDesk.tsx');
     const deskController = readSource('src/features/home/hooks/useHomeDeskController.ts');
+    const artifactCommands = readSource('src/features/home/hooks/useHomeArtifactCommands.ts');
+    const projectWorkspace = readSource('src/features/home/hooks/useHomeProjectWorkspace.ts');
+    const deskOwnership = `${deskController}\n${artifactCommands}\n${projectWorkspace}`;
 
     expect(client).not.toContain('loadStudioSetDesk');
     expect(lazy).not.toContain('StudioSetDesk');
-    expect(deskController).toContain('updateCardSetOrganization');
+    expect(deskOwnership).toContain('updateCardSetOrganization');
     expect(desk).toContain('setCardPositions');
-    expect(deskController).toContain('moveGeneratedCardsToSet');
+    expect(deskOwnership).toContain('moveGeneratedCardsToSet');
     expect(lazy).toContain('export const StudioOutputPanel = dynamic(');
   });
 });

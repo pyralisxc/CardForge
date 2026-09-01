@@ -19,13 +19,20 @@ describe('Home spatial desk', () => {
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
   const homeController = readSource('src/features/home/hooks/useHomeDeskController.ts');
   const homeNavigation = readSource('src/features/home/hooks/useHomeCreatorNavigation.ts');
+  const artifactCommands = readSource('src/features/home/hooks/useHomeArtifactCommands.ts');
+  const homeActions = readSource('src/features/home/hooks/useHomeDeskActionRuntime.ts');
+  const homeLayout = readSource('src/features/home/hooks/useHomeDeskLayout.ts');
+  const homeProjects = readSource('src/features/home/hooks/useHomeProjectWorkspace.ts');
+  const publishedStarters = readSource('src/features/home/hooks/useHomePublishedSetStarters.ts');
   const homeHistory = readSource('src/features/home/model/homeCreatorHistory.ts');
+  const homeStatuses = readSource('src/features/home/model/homeAccountStatuses.ts');
   const artifactSurface = readSource('src/features/home/components/FocusedSetArtifactSurface.tsx');
   const focusedWorkSurface = readSource('src/features/home/components/FocusedWorkSurface.tsx');
   const overviewSurface = readSource('src/features/home/components/DeskOverviewSurface.tsx');
+  const deskWorkObject = readSource('src/features/home/components/DeskWorkObject.tsx');
   const homeDialogs = readSource('src/features/home/components/HomeDeskDialogs.tsx');
-  const homeRuntime = `${homeDesk}\n${homeController}\n${homeNavigation}\n${homeHistory}`;
-  const homeSurface = `${homeRuntime}\n${focusedWorkSurface}\n${overviewSurface}\n${homeDialogs}`;
+  const homeRuntime = `${homeDesk}\n${homeController}\n${homeNavigation}\n${artifactCommands}\n${homeActions}\n${homeLayout}\n${homeProjects}\n${publishedStarters}\n${homeHistory}\n${homeStatuses}`;
+  const homeSurface = `${homeRuntime}\n${focusedWorkSurface}\n${overviewSurface}\n${deskWorkObject}\n${homeDialogs}`;
   const homeDeskStyles = readSource('src/features/home/components/HomeDesk.module.css');
   const globalStyles = readSource('src/app/globals.css');
   const homeModel = readSource('src/features/home/model/homeDesk.ts');
@@ -40,12 +47,17 @@ describe('Home spatial desk', () => {
     expect(library).not.toContain('Account snapshot');
   });
 
-  it('implements one authored-work object at two spatial scales', () => {
-    expect(overviewSurface).toContain('data-home-desk="overview"');
-    expect(focusedWorkSurface).toContain('data-home-desk="focused"');
+  it('keeps one keyed authored-work object mounted across overview and focused scales', () => {
+    expect(overviewSurface).toContain("data-home-desk={props.focusedItemId ? 'focused' : 'overview'}");
     expect(homeRuntime).toContain('data-home-desk-plane');
-    expect(overviewSurface).toContain('data-home-work-object');
-    expect(homeSurface).toContain('data-home-set-stack');
+    expect(overviewSurface).toContain('<DeskWorkObject key={item.id}');
+    expect(deskWorkObject).toContain('data-home-work-object');
+    expect(deskWorkObject).toContain('data-home-set-object-id={props.item.id}');
+    expect(deskWorkObject).toContain("data-presentation={props.focused ? 'focused' : 'overview'}");
+    expect(deskWorkObject).toContain('data-home-set-stack');
+    expect(deskWorkObject.indexOf('data-home-set-stack')).toBeLessThan(deskWorkObject.indexOf('props.focused ? props.focusedSurface'));
+    expect(homeDesk).toContain('<DeskOverviewSurface');
+    expect(homeDesk).not.toContain('focusedItem ? <FocusedWorkSurface');
     expect(focusedWorkSurface).toContain('data-home-set-board');
     expect(homeSurface).not.toContain('aria-label="Work surrounding the focused Set"');
     expect(focusedWorkSurface).toContain('<FocusedSetArtifactSurface');
@@ -71,11 +83,25 @@ describe('Home spatial desk', () => {
     expect(artifactSurface).toContain("prefers-reduced-motion: reduce");
   });
 
-  it('uses a single-surface focus animation instead of duplicating Set previews through native view transitions', () => {
+  it('transforms the shared Set surface without an enter animation and honors reduced motion', () => {
     expect(homeRuntime).not.toContain('startViewTransition');
     expect(homeRuntime).not.toContain('viewTransitionName');
-    expect(homeDeskStyles).toContain('animation: focus-workspace-enter');
+    expect(homeDeskStyles).toContain('.workTile[data-presentation="focused"]');
+    expect(homeDeskStyles).not.toContain('focus-workspace-enter');
+    const reducedMotionStyles = homeDeskStyles.slice(homeDeskStyles.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reducedMotionStyles).toContain('.workTileMain');
+    expect(reducedMotionStyles).toContain('.workVisual');
+    expect(reducedMotionStyles).toContain('transition: none');
+    expect(reducedMotionStyles).toContain('animation: none');
     expect(globalStyles).not.toContain('::view-transition');
+  });
+
+  it('keeps the controller as a narrow composition owner with bounded responsibility hooks', () => {
+    expect(homeController.split(/\r?\n/).length).toBeLessThanOrEqual(500);
+    expect(homeController).toContain('useHomeDeskLayout');
+    expect(homeController).toContain('useHomeProjectWorkspace');
+    expect(homeController).toContain('useHomeDeskActionRuntime');
+    expect(homeController).toContain('useHomePublishedSetStarters');
   });
 
   it('keeps a local Set on Desk until a contained object is chosen for Studio', () => {
@@ -98,11 +124,11 @@ describe('Home spatial desk', () => {
       label: 'Open Set',
       ownerFeature: 'project',
     });
-    expect(homeController).toContain("'home.open-work': () =>");
-    expect(homeController).toContain('createActionRuntime(actionDefinitions)');
+    expect(homeRuntime).toContain("'home.open-work': () =>");
+    expect(homeRuntime).toContain('createActionRuntime(definitions)');
     expect(homeController).not.toContain("action.id === 'home.open-work'");
     expect(focusedWorkSurface).toContain('!props.localSetId ? <button');
-    expect(homeRuntime).toContain("onOpenWork={() => openWorkLane(focusedItem, 'open')}");
+    expect(homeRuntime).toContain("onOpenWork={() => openWorkLane(item, 'open')}");
   });
 
   it('keeps organization and destructive actions attached to their native owners', () => {

@@ -3,61 +3,34 @@
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
-import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import {
   closeCreatorContext,
-  createActionDefinition,
-  createActionRuntime,
   createCreatorInteractionSession,
   focusCreatorSet,
   getVisibleEnvironmentZones,
   selectCreatorArtifacts,
   setCreatorLens,
-  type ActionDescriptor,
-  type ActionOperationResult,
   type EnvironmentViewer,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import {
-  readProjectPreference,
-  createPublishedSetCopy,
-  selectAllGeneratedDisplayCards,
-  selectAllTemplates,
-  useSpatialWorkspacePreferences,
-  useProjectStore,
-  writeProjectPreference,
-  type ProjectPersistenceScope,
-  type ProjectState,
-} from '@/features/project/client';
-import type { CardForgeCatalogManifest } from '@/features/pipeline/client';
-import { createSendToPipelineActionDefinition } from '@/features/pipeline/client';
+import { useSpatialWorkspacePreferences, type ProjectPersistenceScope } from '@/features/project/client';
 import { useAccountLibraryProjection, type AccountLibraryItem } from '@/features/storage-management/client';
 
 import {
-  getCardTitle,
-  getWorkActions,
-  HOME_ORDER_KEY,
-  HOME_PINS_KEY,
-  matchesSourceFilter,
-  normalizeDeskOrder,
-  reorderDeskItem,
   visibleWorkKinds,
-  workDetailRecord,
-  workSourceLabel,
-  zoneAction,
   type HomeAccountStatus,
   type HomeSort,
   type HomeSourceFilter,
 } from '../model/homeDesk';
-import { useDeskSpatialLayout } from './useDeskSpatialLayout';
+import { createHomeAccountStatuses } from '../model/homeAccountStatuses';
 import { useHomeCreatorNavigation } from './useHomeCreatorNavigation';
-import { getArtifactSelectionScope } from '../model/focusedArtifactLayout';
-
-const DEFAULT_FOCUSED_ORGANIZATION: CardSetOrganization = {
-  arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {},
-};
+import { useHomeArtifactCommands } from './useHomeArtifactCommands';
+import { useHomeDeskActionRuntime } from './useHomeDeskActionRuntime';
+import { useHomeDeskLayout } from './useHomeDeskLayout';
+import { useHomePublishedSetStarters } from './useHomePublishedSetStarters';
+import { useHomeProjectWorkspace } from './useHomeProjectWorkspace';
 
 interface HomeDeskControllerOptions {
   persistenceScope: ProjectPersistenceScope;
@@ -91,8 +64,6 @@ export function useHomeDeskController({
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<HomeSourceFilter>('all');
   const [sort, setSort] = useState<HomeSort>('desk');
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const {
@@ -126,168 +97,67 @@ export function useHomeDeskController({
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCards, setPendingDeleteCards] = useState<DisplayCard[]>([]);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [publishedSets, setPublishedSets] = useState<CardForgeCatalogManifest['sets']['items']>([]);
-  const [publishedSetsLoading, setPublishedSetsLoading] = useState(false);
-  const [publishedSetsFailure, setPublishedSetsFailure] = useState<string | null>(null);
-  const [creatingPublishedSetId, setCreatingPublishedSetId] = useState<string | null>(null);
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
   const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
-
-  const cardSets = useProjectStore((state) => state.cardSets);
-  const activeCardSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
-  const activeCardSet = useProjectStore((state) => state.activeCardSet);
-  const storedCards = useProjectStore((state) => state.storedCards);
-  const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
-  const userTemplates = useProjectStore((state) => state.userTemplates);
-  const createCardSet = useProjectStore((state) => state.createCardSet);
-  const setActiveCardSetId = useProjectStore((state) => state.setActiveCardSetId);
-  const renameCardSet = useProjectStore((state) => state.renameCardSet);
-  const duplicateCardSet = useProjectStore((state) => state.duplicateCardSet);
-  const deleteCardSet = useProjectStore((state) => state.deleteCardSet);
-  const moveGeneratedCardsToSet = useProjectStore((state) => state.moveGeneratedCardsToSet);
-  const reorderGeneratedCard = useProjectStore((state) => state.reorderGeneratedCard);
-  const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
-  const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
-  const openEditDialog = useProjectStore((state) => state.openEditDialog);
-  const setStudioView = useProjectStore((state) => state.setStudioView);
-  const generatorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
-  const generatorSelectedBackingTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedBackingTemplateId);
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
-  const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
-  const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
-  const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
-  const addCardSetTag = useProjectStore((state) => state.addCardSetTag);
-  const setCardsTag = useProjectStore((state) => state.setCardsTag);
-  const setCardPositions = useProjectStore((state) => state.setCardPositions);
-  const displayCards = useMemo(() => selectAllGeneratedDisplayCards({
-    cardSets,
-    activeCardSet: cardSets.find((set) => set.id === activeCardSetId) ?? null,
-    storedCards,
-    defaultTemplates,
-    userTemplates,
-  } as ProjectState), [activeCardSetId, cardSets, defaultTemplates, storedCards, userTemplates]);
-  const templates = useMemo(() => selectAllTemplates({ defaultTemplates, userTemplates } as ProjectState), [defaultTemplates, userTemplates]);
-  const pinKey = `${HOME_PINS_KEY}:${persistenceScope}`;
-  const orderKey = `${HOME_ORDER_KEY}:${persistenceScope}`;
-  const positionKey = `${HOME_ORDER_KEY}:positions:${persistenceScope}`;
-  const {
-    beginDrag: beginDeskDrag,
-    endDrag: endDeskDrag,
-    moveDrag: moveDeskDrag,
-    positions: deskPositions,
-    shouldSuppressFocus,
-    workGridRef,
-  } = useDeskSpatialLayout({ positionKey, snapToGrid });
-
-  useEffect(() => {
-    let cancelled = false;
-    void readProjectPreference<unknown>(pinKey).then((value) => {
-      if (!cancelled && Array.isArray(value)) setPinnedIds(value.filter((entry): entry is string => typeof entry === 'string'));
-    });
-    return () => { cancelled = true; };
-  }, [pinKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void readProjectPreference<unknown>(orderKey).then((value) => {
-      if (!cancelled && Array.isArray(value)) setDeskOrderIds(value.filter((entry): entry is string => typeof entry === 'string'));
-    });
-    return () => { cancelled = true; };
-  }, [orderKey]);
 
   const workItems = useMemo(() => projection.items.filter((item) => (
     visibleWorkKinds.has(item.kind)
   )), [projection.items]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
-  const normalizedDeskOrder = useMemo(() => normalizeDeskOrder(workItems.map((item) => item.id), deskOrderIds), [deskOrderIds, workItems]);
-  useEffect(() => {
-    if (normalizedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
-    setDeskOrderIds(normalizedDeskOrder);
-    void writeProjectPreference(orderKey, normalizedDeskOrder);
-  }, [deskOrderIds, normalizedDeskOrder, orderKey]);
-  const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
-    ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
-  const visibleWork = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-    const filtered = workItems.filter((item) => (
-      matchesSourceFilter(item, sourceFilter)
-      && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item)].join(' ').toLocaleLowerCase().includes(normalizedQuery))
-    ));
-    return filtered.toSorted((left, right) => {
-      if (sort === 'name') return left.name.localeCompare(right.name);
-      if (sort === 'size') return (right.sizeBytes ?? -1) - (left.sizeBytes ?? -1) || left.name.localeCompare(right.name);
-      const leftIndex = normalizedDeskOrder.indexOf(left.id);
-      const rightIndex = normalizedDeskOrder.indexOf(right.id);
-      return leftIndex - rightIndex;
-    });
-  }, [normalizedDeskOrder, query, sort, sourceFilter, workItems]);
+  const {
+    beginDrag: beginDeskDrag,
+    endDrag: endDeskDrag,
+    moveDrag: moveDeskDrag,
+    moveWork: moveDeskLayoutWork,
+    pinnedIds,
+    positions: deskPositions,
+    shouldSuppressFocus,
+    togglePin,
+    visibleWork,
+    workGridRef,
+  } = useHomeDeskLayout({ persistenceScope, workItems, query, sourceFilter, sort, snapToGrid });
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
-  const focusedSet = focusedLocalSetId ? cardSets.find((set) => set.id === focusedLocalSetId) ?? null : null;
   const activeContextTool = interactionSession.toolStack.at(-1) ?? null;
   const activeContextSetId = activeContextTool?.targetIds[0] ?? null;
   const pipelineSubmitSetId = activeContextTool?.toolId === 'pipeline' ? activeContextSetId : null;
-  const generationSet = activeContextTool?.toolId === 'generate' && activeContextSetId
-    ? cardSets.find((set) => set.id === activeContextSetId) ?? null
-    : null;
   const studioTool = activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
     ? { setId: activeContextSetId, tool: activeContextTool.toolId }
     : null;
-  const organization = focusedSet?.organization ?? DEFAULT_FOCUSED_ORGANIZATION;
-  const focusedCards = focusedLocalSetId
-    ? displayCards.filter((card) => card.setId === focusedLocalSetId || (!card.setId && cardSets[0]?.id === focusedLocalSetId))
-    : [];
-  const generationCards = generationSet
-    ? displayCards.filter((card) => card.setId === generationSet.id || (!card.setId && cardSets[0]?.id === generationSet.id))
-    : [];
+  const { actions: projectActions, state: projectState } = useHomeProjectWorkspace({
+    focusedSetId: focusedLocalSetId,
+    generationSetId: activeContextTool?.toolId === 'generate' ? activeContextSetId : null,
+    selectedCardIds,
+    latestGeneratedIds,
+    cardQuery,
+    tagFilter,
+    moveTargetId,
+  });
+  const {
+    addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet,
+    setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
+    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId,
+  } = projectActions;
+  const {
+    activeCardSet, activeCardSetId, allArtifactsSelected, allVisibleCardsSelected, availableFields, cardSets,
+    displayCards, effectiveMoveTargetId, focusedCards, generationCards, generationSet,
+    generatorSelectedBackingTemplateId, generatorSelectedTemplateId, organization, organizedGroups, otherSets,
+    richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
+    visibleCards,
+  } = projectState;
+  const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
+    ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
   const focusedContentsLabel = focusedLocalSetId
     ? `${focusedCards.length} card${focusedCards.length === 1 ? '' : 's'}`
     : 'Contents load when opened';
-  const normalizedCardQuery = cardQuery.trim().toLocaleLowerCase();
-  const availableFields = [...new Set(focusedCards.flatMap((card) => Object.keys(card.data)
-    .filter((key) => card.data[key] !== undefined && String(card.data[key]).trim())))].toSorted();
-  const visibleCards = focusedCards.filter((card, index) => (latestGeneratedIds.length === 0 || latestGeneratedIds.includes(card.uniqueId)) && (!normalizedCardQuery || [getCardTitle(card, index), card.template.name, ...Object.values(card.data), ...organization.tags.filter((tag) => card.tagIds?.includes(tag.id)).map((tag) => tag.label)]
-      .join(' ')
-      .toLocaleLowerCase()
-      .includes(normalizedCardQuery)) && (tagFilter === 'all' || card.tagIds?.includes(tagFilter)));
-  const sortedCards = [...visibleCards].sort((left, right) => {
-    if (organization.sort === 'name') return getCardTitle(left, focusedCards.indexOf(left)).localeCompare(getCardTitle(right, focusedCards.indexOf(right)));
-    if (organization.sort === 'field-value' && organization.sortField) return String(left.data[organization.sortField] ?? '').localeCompare(String(right.data[organization.sortField] ?? ''), undefined, { numeric: true });
-    if (organization.sort === 'recently-changed') return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
-    return focusedCards.indexOf(left) - focusedCards.indexOf(right);
-  });
-  const organizedGroups = (() => {
-    const groups = new Map<string, DisplayCard[]>();
-    const labelFor = (card: DisplayCard): string => {
-      if (organization.groupBy === 'tag') return organization.tags.find((tag) => card.tagIds?.includes(tag.id))?.label ?? 'Untagged';
-      if (organization.groupBy === 'field' && organization.groupField) return String(card.data[organization.groupField] ?? 'No value');
-      if (organization.groupBy === 'template') return card.template.name;
-      if (organization.groupBy === 'content-type') return String(card.data.contentType ?? card.data.type ?? card.data.kind ?? card.template.name);
-      if (organization.groupBy === 'batch') return String(card.data.batch ?? card.data.batchName ?? 'No batch');
-      return 'All cards';
-    };
-    sortedCards.forEach((card) => { const label = labelFor(card); groups.set(label, [...(groups.get(label) ?? []), card]); });
-    return [...groups.entries()];
-  })();
-  const selectedCards = focusedCards.filter((card) => selectedCardIds.includes(card.uniqueId));
-  const selectedCard = selectedCards.length === 1 ? selectedCards[0] : null;
-  const selectedCardIndex = selectedCard
-    ? focusedCards.findIndex((card) => card.uniqueId === selectedCard.uniqueId)
-    : -1;
-  const allVisibleCardsSelected = visibleCards.length > 0
-    && visibleCards.every((card) => selectedCardIds.includes(card.uniqueId));
-  const allArtifactsSelected = focusedCards.length > 0
-    && focusedCards.every((card) => selectedCardIds.includes(card.uniqueId));
-  const selectionScope = getArtifactSelectionScope(selectedCardIds, visibleCards.map((card) => card.uniqueId));
-  const otherSets = focusedLocalSetId ? cardSets.filter((set) => set.id !== focusedLocalSetId) : [];
-  const effectiveMoveTargetId = otherSets.some((set) => set.id === moveTargetId)
-    ? moveTargetId
-    : otherSets[0]?.id ?? '';
   const focusedItemId = focusedItem?.id ?? null;
   const focusedItemName = focusedItem?.name ?? '';
+  const publishedSetStarters = useHomePublishedSetStarters({
+    focusCreatedSet: (setId) => focusWorkContext(`set:${setId}`, setId),
+    refreshLibrary: projection.refresh,
+  });
+  const { openCreateMenu, setCreateOpen } = publishedSetStarters;
 
   useEffect(() => {
     if (!focusedItemId) return;
@@ -340,61 +210,11 @@ export function useHomeDeskController({
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
   }, [initialReturnContextKey, itemById, restoreFocusedContext]);
 
-  const applyNewTag = () => {
-    if (!focusedLocalSetId || !selectedCards.length) return;
-    const tagId = addCardSetTag(focusedLocalSetId, tagDraft);
-    if (!tagId) return;
-    setCardsTag(selectedCards.map((card) => card.uniqueId), tagId, true);
-    setTagDraft('');
-  };
-
-  const updateOrganization = (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => {
-    if (focusedLocalSetId) updateCardSetOrganization(focusedLocalSetId, patch);
-  };
-
-  const statuses: HomeAccountStatus[] = [
-    ...(homeAccessStatus ? [homeAccessStatus] : []),
-    {
-      label: 'Storage',
-      value: projection.failures.some((failure) => failure.id === 'workspace') ? 'Device unavailable' : 'Work available',
-      detail: `${projection.sourceCounts.get('device') ?? 0} on this device`,
-      href: '/account?section=library&tool=locations',
-      action: 'Review',
-    },
-    {
-      label: 'Connections',
-      value: !isSignedIn ? 'Sign in to connect' : projection.loadingSources ? 'Checking' : projection.driveConnection?.connected ? 'Drive connected' : 'Not connected',
-      detail: `${projection.sourceCounts.get('google-drive') ?? 0} connected work item${(projection.sourceCounts.get('google-drive') ?? 0) === 1 ? '' : 's'}`,
-      href: '/account?section=library&tool=locations',
-      action: 'Manage',
-    },
-    ...(homeSecurityStatus ? [homeSecurityStatus] : []),
-  ];
-
-  const togglePin = (itemId: string) => {
-    const wasPinned = pinnedIds.includes(itemId);
-    setPinnedIds((current) => {
-      const next = current.includes(itemId) ? current.filter((id) => id !== itemId) : [itemId, ...current];
-      void writeProjectPreference(pinKey, next);
-      return next;
-    });
-    if (!wasPinned) {
-      setDeskOrderIds((current) => {
-        const normalized = normalizeDeskOrder(workItems.map((item) => item.id), current);
-        const next = normalized.includes(itemId) ? reorderDeskItem(normalized, itemId, normalized[0]!) : normalized;
-        void writeProjectPreference(orderKey, next);
-        return next;
-      });
-    }
-  };
+  const statuses = createHomeAccountStatuses({ accessStatus: homeAccessStatus, isSignedIn, projection, securityStatus: homeSecurityStatus });
 
   const moveDeskWork = (itemId: string, direction: 'earlier' | 'later') => {
     setSort('desk');
-    setDeskOrderIds((current) => {
-      const next = reorderDeskItem(normalizeDeskOrder(workItems.map((item) => item.id), current), itemId, direction);
-      void writeProjectPreference(orderKey, next);
-      return next;
-    });
+    moveDeskLayoutWork(itemId, direction);
   };
 
   const focusWork = (item: AccountLibraryItem) => {
@@ -412,36 +232,6 @@ export function useHomeDeskController({
       openContextTool(id, 'design');
     } else focusWorkContext(`set:${id}`, id);
     requestAnimationFrame(() => document.getElementById('home-work-name')?.focus());
-  };
-
-  const openCreateMenu = () => {
-    setCreateOpen(true);
-    if (publishedSets.length || publishedSetsLoading) return;
-    setPublishedSetsLoading(true);
-    setPublishedSetsFailure(null);
-    void fetch('/api/catalog', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Published Set starters are unavailable right now.');
-        return response.json() as Promise<CardForgeCatalogManifest>;
-      })
-      .then((catalog) => setPublishedSets(catalog.sets?.items ?? []))
-      .catch((error: unknown) => setPublishedSetsFailure(error instanceof Error ? error.message : 'Published Set starters are unavailable right now.'))
-      .finally(() => setPublishedSetsLoading(false));
-  };
-
-  const createFromPublishedSet = async (set: CardForgeCatalogManifest['sets']['items'][number]) => {
-    setCreatingPublishedSetId(set.id);
-    try {
-      const result = await createPublishedSetCopy({ packageUrl: set.packageUrl, expectedName: set.name });
-      focusWorkContext(`set:${result.setId}`, result.setId);
-      setCreateOpen(false);
-      projection.refresh();
-      toast({ title: 'Set created', description: `${result.setName} is independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
-    } catch (error) {
-      toast({ title: 'Set was not created', description: error instanceof Error ? error.message : 'The published Set package is unavailable.', variant: 'destructive' });
-    } finally {
-      setCreatingPublishedSetId(null);
-    }
   };
 
   const duplicateWork = (item: AccountLibraryItem) => {
@@ -475,6 +265,15 @@ export function useHomeDeskController({
     closeContextTool();
     requestAnimationFrame(() => cardStageRef.current?.focus());
   };
+  const artifactCommands = useHomeArtifactCommands({
+    actions: projectActions,
+    state: projectState,
+    focusedSetId: focusedLocalSetId,
+    openDesign: (setId) => openContextStudio(setId, 'design'),
+    setSelection: setSelectedCardIds,
+    setTagDraft,
+    tagDraft,
+  });
 
   const commitRename = () => {
     if (!focusedLocalSetId) return;
@@ -503,72 +302,35 @@ export function useHomeDeskController({
     return createDeskReturnHref(workId, returnContext);
   };
 
-  const actionDescriptors: ActionDescriptor[] = inspectorItem
-    ? getWorkActions(inspectorItem, pinnedIds.includes(inspectorItem.id), true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
-    : focusedItem ? [] : [zoneAction('home.create-work', 'New Set', 'mutation')];
-  const detail = inspectorItem ? workDetailRecord(inspectorItem) : null;
-  const actionItem = inspectorItem ?? focusedItem;
-  const mutationResult = (targetIds: string[]): ActionOperationResult => ({ kind: 'mutation', changedIds: targetIds });
-  const navigationResult = (href: string): ActionOperationResult => ({ kind: 'navigation', href });
-  const actionOperations: Record<string, () => void | Promise<void>> = {
-    'home.create-work': openCreateMenu,
-    'home.open-work': () => {
-      if (!actionItem) return;
-      if (actionItem.references.localSetId) focusWork(actionItem);
-      else return projection.openItem(actionItem, createDeskStudioReturnTo(actionItem.id));
+  const { actions, detail, runAction } = useHomeDeskActionRuntime({
+    experience,
+    focusedItem,
+    inspectorItem,
+    pinned: Boolean(inspectorItem && pinnedIds.includes(inspectorItem.id)),
+    commands: {
+      createWork: openCreateMenu,
+      focusWork,
+      openRemoteWork: (item) => projection.openItem(item, createDeskStudioReturnTo(item.id)),
+      togglePin,
+      openGenerate: (setId) => openContextTool(setId, 'generate'),
+      openOutput: (setId) => openContextStudio(setId, 'output'),
+      openLocation: setLocationItem,
+      openPipeline: openPipelineSubmission,
+      renameWork: (item) => {
+        focusWork(item);
+        setRenaming(true);
+        requestAnimationFrame(() => document.getElementById('home-work-name')?.focus());
+      },
+      duplicateWork,
+      deleteWork: setPendingDeleteWork,
+      manageLocation: () => projection.router.push('/account?section=library&tool=locations'),
     },
-    'home.pin-work': () => { if (inspectorItem) togglePin(inspectorItem.id); },
-    'home.generate-work': () => { if (actionItem?.references.localSetId) openContextTool(actionItem.references.localSetId, 'generate'); },
-    'home.export-work': () => { if (actionItem?.references.localSetId) openContextStudio(actionItem.references.localSetId, 'output'); },
-    'home.save-move-work': () => { if (actionItem) setLocationItem(actionItem); },
-    'home.rename-work': () => {
-      if (!inspectorItem?.references.localSetId) return;
-      focusWork(inspectorItem);
-      setRenaming(true);
-      requestAnimationFrame(() => document.getElementById('home-work-name')?.focus());
-    },
-    'home.duplicate-work': () => { if (inspectorItem) duplicateWork(inspectorItem); },
-    'home.delete-work': () => { if (inspectorItem) setPendingDeleteWork(inspectorItem); },
-    'home.manage-location': () => projection.router.push('/account?section=library&tool=locations'),
-  };
-  const actionDefinitions = actionDescriptors.map((descriptor) => {
-    if (descriptor.id === 'home.send-pipeline' && actionItem?.references.localSetId) {
-      return createSendToPipelineActionDefinition({
-        id: 'home.send-pipeline',
-        objectKind: 'home-work',
-        sources: descriptor.supportedSources,
-        execute: () => openPipelineSubmission(actionItem.references.localSetId!),
-      });
-    }
-    const execute = actionOperations[descriptor.id];
-    if (!execute) throw new Error(`Desk action ${descriptor.id} has no registered execution owner.`);
-    return createActionDefinition(descriptor, async (input) => {
-      await execute();
-      if (descriptor.result === 'navigation') {
-        const href = descriptor.id === 'home.manage-location'
-          ? '/account?section=library&tool=locations'
-          : descriptor.id === 'home.export-work' && actionItem
-            ? `/account?focus=${encodeURIComponent(actionItem.id)}&tool=output`
-            : actionItem
-              ? createDeskStudioReturnTo(actionItem.id)
-              : '/account';
-        return navigationResult(href);
-      }
-      return mutationResult(input.targetIds);
-    });
+    navigationHref: (actionId, item) => actionId === 'home.manage-location'
+      ? '/account?section=library&tool=locations'
+      : actionId === 'home.export-work' && item
+        ? `/account?focus=${encodeURIComponent(item.id)}&tool=output`
+        : item ? createDeskStudioReturnTo(item.id) : '/account',
   });
-  const actions = actionDefinitions.map((definition) => definition.descriptor);
-  const actionRuntime = createActionRuntime(actionDefinitions);
-  const runAction = (action: ActionDescriptor) => {
-    const targetIds = actionItem ? [actionItem.references.localSetId ?? actionItem.id] : [];
-    void actionRuntime.execute(action.id, { targetIds }).catch((error: unknown) => {
-      toast({
-        title: 'Action could not be completed',
-        description: error instanceof Error ? error.message : 'The selected Desk action is unavailable.',
-        variant: 'destructive',
-      });
-    });
-  };
 
   const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => {
     if (!item.references.localSetId) {
@@ -582,36 +344,6 @@ export function useHomeDeskController({
       return;
     }
     openContextStudio(item.references.localSetId, lane === 'export' ? 'output' : 'design');
-  };
-
-  const moveSelectedCards = () => {
-    if (!selectedCards.length || !effectiveMoveTargetId) return;
-    const movedCount = moveGeneratedCardsToSet(selectedCards.map((card) => card.uniqueId), effectiveMoveTargetId);
-    if (!movedCount) return;
-    const destination = cardSets.find((set) => set.id === effectiveMoveTargetId);
-    toast({ title: `${movedCount} card${movedCount === 1 ? '' : 's'} moved`, description: `The selection now belongs to ${destination?.name ?? 'the selected Set'}.` });
-    setSelectedCardIds([]);
-  };
-
-  const editSelectedCard = (artifactId: string = selectedCard?.uniqueId ?? '') => {
-    const card = focusedCards.find((candidate) => candidate.uniqueId === artifactId);
-    if (!card || !focusedLocalSetId) return;
-    setActiveCardSetId(focusedLocalSetId);
-    setStudioView('template');
-    openEditDialog(card.uniqueId);
-    openContextStudio(focusedLocalSetId, 'design');
-  };
-
-  const duplicateSelectedCards = () => {
-    if (!selectedCards.length || !focusedLocalSetId) return;
-    setActiveCardSetId(focusedLocalSetId);
-    addGeneratedCards(selectedCards.map((card) => ({ ...card, uniqueId: `card-${globalThis.crypto.randomUUID()}`, setId: focusedLocalSetId })));
-    toast({ title: `${selectedCards.length} card${selectedCards.length === 1 ? '' : 's'} duplicated`, description: 'Each copy is independently editable in this Set.' });
-  };
-
-  const reorderSelectedCard = (direction: 'earlier' | 'later') => {
-    if (!selectedCard) return;
-    reorderGeneratedCard(selectedCard.uniqueId, direction);
   };
 
   const workCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
@@ -646,7 +378,6 @@ export function useHomeDeskController({
     addGeneratedCards,
     allArtifactsSelected,
     allVisibleCardsSelected,
-    applyNewTag,
     availableFields,
     beginDeskDrag,
     cardQuery,
@@ -656,17 +387,12 @@ export function useHomeDeskController({
     closePipelineSubmission,
     confirmDirtyClose,
     commitRename,
-    createFromPublishedSet,
-    createOpen,
     createWork,
-    creatingPublishedSetId,
     deleteCardSet,
     deskPositions,
     detail,
     dirtyCloseRequested,
-    duplicateSelectedCards,
     duplicateWork,
-    editSelectedCard,
     effectiveMoveTargetId,
     endDeskDrag,
     focusWork,
@@ -686,10 +412,8 @@ export function useHomeDeskController({
     locationItem,
     moveDeskDrag,
     moveDeskWork,
-    moveSelectedCards,
     moveTargetId,
     openContextStudio,
-    openCreateMenu,
     openPipelineSubmission,
     openWorkLane,
     organization,
@@ -700,14 +424,10 @@ export function useHomeDeskController({
     pinnedIds,
     pipelineSubmitSetId,
     projection,
-    publishedSets,
-    publishedSetsFailure,
-    publishedSetsLoading,
     query,
     removeGeneratedCards,
     renameDraft,
     renaming,
-    reorderSelectedCard,
     richTextHighlightColor,
     runAction,
     searchRef,
@@ -718,7 +438,6 @@ export function useHomeDeskController({
     setCardPositions,
     setCardQuery,
     setCardsTag,
-    setCreateOpen,
     setActiveToolDirty,
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
@@ -730,9 +449,6 @@ export function useHomeDeskController({
     setMoveTargetId,
     setPendingDeleteCards,
     setPendingDeleteWork,
-    setPublishedSets,
-    setPublishedSetsFailure,
-    setPublishedSetsLoading,
     setQuery,
     setRenameDraft,
     setRenaming,
@@ -759,7 +475,6 @@ export function useHomeDeskController({
     tagFilter,
     templates,
     togglePin,
-    updateOrganization,
     viewGeneratedCards,
     viewer,
     visibleCards,
@@ -769,5 +484,7 @@ export function useHomeDeskController({
     workItems,
     workTemplate,
     zones,
+    ...artifactCommands,
+    ...publishedSetStarters,
   };
 }
