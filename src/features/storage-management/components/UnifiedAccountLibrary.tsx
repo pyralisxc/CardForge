@@ -35,7 +35,7 @@ import {
 } from '../model/libraryScopes';
 import { LibraryCollection } from './LibraryCollection';
 import {
-  LibraryVisual,
+  LibraryDetailVisual,
   PipelineDetailContent,
   createLibraryDetailRecord as detailRecord,
   pipelineLineageFor,
@@ -299,7 +299,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   <EnvironmentShell
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
     zones={zones} activeZone="library" viewportPolicy="desk" detail={activeTool ? null : currentRecord}
-    detailVisual={currentItem ? <LibraryVisual item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} large /> : undefined}
+    detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
       onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}

@@ -1,17 +1,18 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Fragment, type RefObject } from 'react';
+import { Fragment, useState, type RefObject } from 'react';
 import {
   Boxes, Copy, ExternalLink, Grid2X2, Heart, LayoutList, Loader2, MoreHorizontal,
-  PanelRightOpen, Search, ThumbsDown, ThumbsUp, Trash2, UploadCloud,
+  PanelRightOpen, RefreshCcw, Search, ThumbsDown, ThumbsUp, Trash2, UploadCloud,
 } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import type { DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
+import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { EnvironmentBoundaryNotice, type ActionDescriptor, type SelectionSession } from '@/features/app-shell/client/environment';
 
@@ -68,6 +69,7 @@ export function LibraryCollection({
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, projection,
   scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, viewItems, votingId,
 }: LibraryCollectionProps) {
+  const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
     <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} shown</span>}</div>
     {activeScope === 'campaigns' ? <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
@@ -87,8 +89,12 @@ export function LibraryCollection({
           const pipelineItem = item.scope === 'pipeline' ? item : null;
           const lineageId = pipelineLineageFor(item);
           const heart = lineageId ? heartMetrics[lineageId] ?? { count: 0, hearted: false } : null;
+          const cards = cardsFor(item);
+          const face = faces[item.id] ?? 'front';
+          const canFlip = cards.some(hasCardBacking);
           return <article key={item.id} className={styles.objectTile} data-selected={selection.objectId === item.id}>
-            <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => onOpenDetail(item)}><span className={styles.visualSlot}><LibraryVisual item={item} cards={cardsFor(item)} template={templateFor(item)} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
+            <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => onOpenDetail(item)}><span className={styles.visualSlot} data-card-face={face}><LibraryVisual item={item} cards={cards} template={templateFor(item)} face={face} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
+            {canFlip ? <button type="button" className={styles.objectFlip} onClick={() => setFaces((current) => ({ ...current, [item.id]: face === 'front' ? 'back' : 'front' }))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw aria-hidden="true" /></button> : null}
             {item.scope === 'personal' ? <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
               {personalActions(item.personal).map((action) => <Fragment key={action.id}>{action.commitment === 'destructive' ? <DropdownMenuSeparator /> : null}<DropdownMenuItem disabled={action.availability.kind === 'disabled'} title={action.availability.kind === 'disabled' ? action.availability.reason : undefined} className={action.commitment === 'destructive' ? 'text-destructive focus:text-destructive' : undefined} onSelect={() => onPersonalAction(action.id, item.personal)}>{action.id === 'library.send-pipeline' ? <UploadCloud aria-hidden="true" /> : action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}{action.label}</DropdownMenuItem></Fragment>)}
             </DropdownMenuContent></DropdownMenu> : item.scope === 'published' ? <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">

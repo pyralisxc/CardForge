@@ -296,6 +296,10 @@
   overscroll-behavior: contain;
 }
 
+.primarySurface[data-scroll="contained"] {
+  overflow: hidden;
+}
+
 .toolLayer {
   position: absolute;
   z-index: 30;
@@ -942,6 +946,12 @@
     padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
 
+  .lab[data-primary-scroll="contained"] {
+    height: 100dvh;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
   .shell,
   .shell[data-detail-open="false"],
   .shell[data-viewport="desk"] {
@@ -958,6 +968,10 @@
     height: calc(100dvh - 12.5rem);
     min-height: 28rem;
     overflow: auto;
+  }
+
+  .shell[data-viewport="desk"] .primarySurface[data-scroll="contained"] {
+    overflow: hidden;
   }
 
   .rail {

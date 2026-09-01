@@ -18,6 +18,7 @@ import type { StudioBusinessIdentity } from '@/features/app-shell/client/studio'
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { hasCardBacking } from '@/domain/rendering';
 import { AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client';
@@ -237,6 +238,7 @@ export function HomeDesk({
         zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'library' || zone.id === 'profile')}
         activeZone="home"
         viewportPolicy="desk"
+        primaryScroll={interactionSession.focusPath.artifactId ? 'contained' : 'page'}
         detail={detail}
         actions={actions}
         accountControl={<PublicAuthControls />}
@@ -281,7 +283,8 @@ export function HomeDesk({
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
             campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
-            renderWorkPreview={(item, featured, focused) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface
               item={item}
               localSetId={focusedLocalSetId}

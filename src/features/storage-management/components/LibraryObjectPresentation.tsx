@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import { Boxes, Cloud, FolderOpen, ImageIcon, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Boxes, Cloud, FolderOpen, ImageIcon, RefreshCcw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 
+import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
+import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
@@ -69,11 +71,20 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
 
-export function LibraryVisual({ item, cards, template, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean }) {
+export function LibraryVisual({ item, cards, template, large = false, face = 'front' }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean; face?: CardFace }) {
   if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
-    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} />;
+    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} face={face} />;
   }
   return <SharedLibraryVisual key={safePreviewUrl(item.previewUrl) ?? item.id} item={item} previewUrl={safePreviewUrl(item.previewUrl)} />;
+}
+
+export function LibraryDetailVisual({ item, cards, template }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null }) {
+  const [face, setFace] = useState<CardFace>('front');
+  const canFlip = cards.some(hasCardBacking);
+  return <div className={styles.detailVisual} data-card-face={face}>
+    <LibraryVisual item={item} cards={cards} template={template} large face={face} />
+    {canFlip ? <button type="button" className={styles.detailFlip} onClick={() => setFace((current) => current === 'front' ? 'back' : 'front')} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${item.name}`}><RefreshCcw aria-hidden="true" />Show {face === 'front' ? 'back' : 'front'}</button> : null}
+  </div>;
 }
 
 export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {

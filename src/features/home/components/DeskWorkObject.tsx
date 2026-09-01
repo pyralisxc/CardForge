@@ -1,9 +1,10 @@
 "use client";
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Copy, Info, MoreHorizontal, Pencil, Pin, Printer, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
+import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
@@ -22,7 +23,8 @@ interface DeskWorkObjectProps {
   position?: DeskPosition;
   canUseProjectFiles: boolean;
   canSubmit: boolean;
-  preview: ReactNode;
+  preview: (face: CardFace) => ReactNode;
+  canFlip: boolean;
   focusedSurface: ReactNode;
   beginDrag: (itemId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
   moveDrag: (event: ReactPointerEvent<HTMLButtonElement>) => void;
@@ -40,6 +42,7 @@ interface DeskWorkObjectProps {
 }
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
+  const [face, setFace] = useState<CardFace>('front');
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px` } as CSSProperties)
     : undefined;
@@ -70,10 +73,12 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       onClick={() => { if (!props.shouldSuppressFocus(props.item.id)) props.onFocus(props.item); }}
       aria-label={`Focus ${props.item.name}`}
     >
-      <div className={styles.workVisual} data-home-set-stack>{props.preview}</div>
+      <div className={styles.workVisual} data-home-set-stack data-card-face={face}>{props.preview(face)}</div>
       <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' · ') || workSourceLabel(props.item)}</span><span>{workSourceLabel(props.item)}</span></span>
     </button>
-    {props.focused ? props.focusedSurface : <div className={styles.tileActions}>
+    {props.focused ? props.focusedSurface : <>
+      {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => setFace((current) => current === 'front' ? 'back' : 'front')} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
+      <div className={styles.tileActions}>
       <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
       <DropdownMenu><DropdownMenuTrigger asChild><button id={`home-work-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onFocus(props.item)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
@@ -87,6 +92,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
         {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => props.onDelete(props.item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
       </DropdownMenuContent></DropdownMenu>
-    </div>}
+      </div>
+    </>}
   </article>;
 }

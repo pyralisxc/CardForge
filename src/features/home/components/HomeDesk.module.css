@@ -190,7 +190,7 @@
   grid-template-rows: repeat(7, minmax(2.6rem, 1fr));
   gap: 0.25rem 0.8rem;
   align-items: center;
-  padding: 2.75rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
+  padding: 4.5rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
 }
 
 @media (min-width: 768px) {
@@ -396,6 +396,29 @@
   transition: opacity 150ms ease;
 }
 
+.deskTileFlip {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.deskTileFlip:hover,
+.deskTileFlip:focus-visible {
+  border-color: var(--cf-border-strong);
+  opacity: 1;
+}
+
 .workTile:hover .tileActions,
 .workTile:focus-within .tileActions,
 .workTile[data-pinned="true"] .tileActions {
@@ -527,6 +550,13 @@
   overflow: hidden;
 }
 
+.focusSurface[data-artifact-focused="true"] {
+  height: 100%;
+  min-height: 0;
+  place-items: stretch;
+  padding: 0;
+}
+
 .backButton {
   position: absolute;
   z-index: 20;
@@ -545,6 +575,19 @@
   border: 1px solid var(--cf-border-strong);
   background: var(--cf-surface-inset);
   box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%), inset 0 0 0 1px color-mix(in srgb, var(--cf-accent-strong) 10%, transparent);
+}
+
+.focusWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.focusSurface[data-artifact-focused="true"] .backButton {
+  top: 0.55rem;
+  left: 0.55rem;
 }
 
 .focusHeader,
@@ -700,8 +743,14 @@
   transform-origin: top left;
 }
 
-.artifactWorld .cardButton {
+.artifactWorld .artifactTile {
   position: absolute;
+  touch-action: none;
+}
+
+.artifactWorld .cardButton {
+  position: relative;
+  width: 100%;
   touch-action: none;
 }
 
@@ -763,6 +812,154 @@
   margin-top: 0.1rem;
   color: var(--cf-text-subtle);
   font-size: 0.6rem;
+}
+
+.artifactTileFlip,
+.artifactFlipButton {
+  position: absolute;
+  z-index: 4;
+  display: inline-flex;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.artifactTileFlip {
+  top: 0.7rem;
+  right: 0.7rem;
+  opacity: 0.82;
+  transition: opacity 140ms ease;
+}
+
+.artifactTile:hover .artifactTileFlip,
+.artifactTile:focus-within .artifactTileFlip {
+  opacity: 1;
+}
+
+.artifactTileFlip svg,
+.artifactFlipButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.setArtifactWorkspace {
+  min-width: 0;
+}
+
+.setArtifactWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.artifactWorkspace {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--cf-canvas);
+  overflow: hidden;
+}
+
+.artifactWorkspaceControls {
+  position: absolute;
+  z-index: 12;
+  top: 0.55rem;
+  right: 0.55rem;
+  left: 7.5rem;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.artifactWorkspaceControls > * {
+  pointer-events: auto;
+}
+
+.artifactWorkspaceIdentity {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+  padding: 0.4rem 0.55rem;
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+}
+
+.artifactWorkspaceIdentity strong,
+.artifactWorkspaceIdentity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifactWorkspaceIdentity strong {
+  color: var(--cf-text-strong);
+  font-size: 0.75rem;
+}
+
+.artifactWorkspaceIdentity small,
+.artifactZoomValue {
+  color: var(--cf-text-muted);
+  font-size: 0.65rem;
+}
+
+.artifactZoomValue {
+  min-width: 2.8rem;
+  text-align: center;
+}
+
+.contentStage[data-artifact-focus-exclusive="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  scrollbar-gutter: auto;
+}
+
+.focusedArtifactWorld {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.focusedArtifactFrame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1.5rem 2rem rgb(0 0 0 / 38%));
+}
+
+.focusedArtifactButton {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: default;
+}
+
+.focusedArtifactButton:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 4px;
+}
+
+.artifactFlipButton {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  padding-inline: 0.65rem;
 }
 
 .artifactLodPreview {
@@ -985,6 +1182,14 @@
     padding-left: 6rem;
   }
 
+  .focusSurface[data-artifact-focused="true"] {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
 }
 
 @media (max-width: 767px) {
@@ -1131,6 +1336,29 @@
     width: 100%;
     min-height: 36rem;
     padding: 0.8rem 0.6rem 1rem;
+  }
+
+  .focusWorkspace[data-artifact-focused="true"] {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .artifactWorkspaceControls {
+    left: 6.5rem;
+    flex-wrap: wrap;
+  }
+
+  .artifactWorkspaceIdentity {
+    display: none;
+  }
+
+  .contentStage[data-artifact-focus-exclusive="true"] {
+    min-height: 0;
+  }
+
+  .artifactTileFlip {
+    opacity: 1;
   }
 
   .focusHeader,

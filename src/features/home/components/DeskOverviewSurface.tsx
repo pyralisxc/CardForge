@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
+import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
@@ -37,7 +38,8 @@ export interface DeskOverviewSurfaceProps {
   canSubmit: boolean;
   statuses: HomeAccountStatus[];
   campaignShelf: ReactNode;
-  renderWorkPreview: (item: AccountLibraryItem, featured: boolean, focused: boolean) => ReactNode;
+  renderWorkPreview: (item: AccountLibraryItem, featured: boolean, focused: boolean, face: CardFace) => ReactNode;
+  canFlipWork: (item: AccountLibraryItem) => boolean;
   renderFocusedSurface: (item: AccountLibraryItem) => ReactNode;
   beginDrag: (itemId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
   moveDrag: (event: ReactPointerEvent<HTMLButtonElement>) => void;
@@ -84,7 +86,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         {props.visibleWork.map((item, index) => {
           const featured = index === 0;
           const focused = item.id === props.focusedItemId;
-          return <DeskWorkObject key={item.id} item={item} index={index} itemCount={props.visibleWork.length} active={item.id === props.activeWorkId} featured={featured} focused={focused} obscured={Boolean(props.focusedItemId) && !focused} pinned={props.pinnedIds.includes(item.id)} position={props.positions[item.id]} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={props.renderWorkPreview(item, featured, focused)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressFocus={props.shouldSuppressFocus} onFocus={props.onFocusWork} onTogglePin={props.onTogglePin} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onMove={props.onMoveWork} onInspect={props.onInspect} onDelete={props.onDelete} />;
+          return <DeskWorkObject key={item.id} item={item} index={index} itemCount={props.visibleWork.length} active={item.id === props.activeWorkId} featured={featured} focused={focused} obscured={Boolean(props.focusedItemId) && !focused} pinned={props.pinnedIds.includes(item.id)} position={props.positions[item.id]} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressFocus={props.shouldSuppressFocus} onFocus={props.onFocusWork} onTogglePin={props.onTogglePin} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onMove={props.onMoveWork} onInspect={props.onInspect} onDelete={props.onDelete} />;
         })}
       </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{props.workItemsCount ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{props.workItemsCount ? <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onSourceFilterChange('all'); }}>Show all work</Button> : <Button type="button" onClick={props.onCreate}>Create your first Set</Button>}</div></div>}
     </section>

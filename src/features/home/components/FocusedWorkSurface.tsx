@@ -84,9 +84,9 @@ export interface FocusedWorkSurfaceProps {
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
-  return <div className={styles.focusSurface} data-home-desk="focused" data-focus-transition="set-to-artifacts">
+  return <div className={styles.focusSurface} data-home-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
     <button type="button" className={styles.backButton} onClick={props.onBack}><ArrowLeft size={16} aria-hidden="true" /> {artifactFocused ? 'Back to Set' : 'Back to Desk'}</button>
-    <section className={styles.focusWorkspace} data-home-set-board aria-label={props.item.name}>
+    <section className={styles.focusWorkspace} data-home-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
       {!artifactFocused ? <header className={styles.focusHeader}>
         <div className={styles.focusIdentity}>
           {props.renaming && props.localSetId ? <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input id="home-work-name" value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Work name" /><Button type="submit" size="sm">Save</Button></form> : <h1>{props.item.name}</h1>}
