@@ -3,6 +3,7 @@ import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { RoadmapPage } from '@/features/roadmap/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
 
@@ -20,7 +21,7 @@ export default async function ForgeChroniclePage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/roadmap">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/roadmap" ownerControls={<OwnerPublicSiteControlsSlot currentPath="/roadmap" />}>
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Roadmap', path: '/roadmap' },

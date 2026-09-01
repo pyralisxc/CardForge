@@ -24,8 +24,9 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerSiteConfigurationPanel.tsx'],
       ['src', 'features', 'marketing', 'components', 'OwnerMarketingPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerGovernancePanels.tsx'],
-      ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
-      ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
+      ['src', 'features', 'public-site', 'components', 'PublicSiteCopyLiveEditor.tsx'],
+      ['src', 'features', 'public-site', 'components', 'PublicSiteMediaLiveEditor.tsx'],
+      ['src', 'features', 'public-site', 'components', 'PublicSiteOwnerLiveControls.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
       ['src', 'features', 'analytics', 'components', 'OwnerAnalyticsPanel.tsx'],
       ['src', 'features', 'experience-settings', 'components', 'OwnerExperienceControlsPanel.tsx'],
@@ -35,6 +36,8 @@ describe('Owner Console composition', () => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
     await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx')).resolves.toBe(false);
+    await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx')).resolves.toBe(false);
   });
 
   it('composes site controls without taking ownership from experience settings', async () => {
@@ -65,13 +68,25 @@ describe('Owner Console composition', () => {
     expect(analyticsPanel).not.toContain('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
   });
 
-  it('gives all public images one dedicated responsive owner workspace', async () => {
+  it('moves public copy and media editing to protected native public surfaces', async () => {
     const page = await readFile(rootPath('src/features/owner/components/OwnerConsolePage.tsx'), 'utf8');
-    const copy = await readFile(rootPath('src/features/owner/components/OwnerPublicContentPanel.tsx'), 'utf8');
+    const configuredShell = await readFile(rootPath('src/features/public-site/server/ConfiguredPublicSiteShell.tsx'), 'utf8');
+    const ownerSlot = await readFile(rootPath('src/app/_components/OwnerPublicSiteControlsSlot.tsx'), 'utf8');
+    const liveControls = await readFile(rootPath('src/features/public-site/components/PublicSiteOwnerLiveControls.tsx'), 'utf8');
+    const copy = await readFile(rootPath('src/features/public-site/components/PublicSiteCopyLiveEditor.tsx'), 'utf8');
     const founder = await readFile(rootPath('src/features/owner/components/OwnerFounderProfilePanel.tsx'), 'utf8');
 
-    expect(page).toContain('OwnerSiteMediaPanel');
-    expect(page).toContain('>Media</TabsTrigger>');
+    expect(page).not.toContain('OwnerSiteMediaPanel');
+    expect(page).not.toContain('OwnerPublicContentPanel');
+    expect(page).not.toContain('>Media</TabsTrigger>');
+    expect(page).not.toContain('>Copy</TabsTrigger>');
+    expect(configuredShell).toContain('{ownerControls}');
+    expect(configuredShell).toContain('<Suspense fallback={null}>');
+    expect(ownerSlot.indexOf('getCurrentOwnerAccess()')).toBeLessThan(ownerSlot.indexOf('getOwnerSiteConsolePayload()'));
+    expect(ownerSlot).toContain('if (!ownerAccess.isOwner || !ownerAccess.userId) return null');
+    expect(liveControls).toContain('Edit {context.label}');
+    expect(liveControls).toContain('blocks.filter((block) => context.contentGroups.includes(block.group))');
+    expect(liveControls).toContain('media.filter((asset) => context.mediaGroups.includes(asset.group))');
     expect(copy).not.toContain('OwnerHomepageMediaPanel');
     expect(founder).not.toContain('Upload portrait');
   });

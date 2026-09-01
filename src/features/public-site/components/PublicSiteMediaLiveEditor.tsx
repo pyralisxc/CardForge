@@ -5,17 +5,16 @@ import { ImageUp, Monitor, RotateCcw, Smartphone } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   getSiteMediaDisplaySrc,
-  getSiteMediaFrameAspectRatio,
-  ResponsiveSiteMediaImage,
   type SiteMediaAsset,
   type SiteMediaFrame,
   type SiteMediaPresentation,
   type SiteMediaSize,
-} from '@/features/public-site/client';
+} from '../model/siteMedia';
+import type { PublicSiteConfiguration } from '../model/siteConfiguration';
+import { getSiteMediaFrameAspectRatio, ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
 
 const UPLOAD_TIMEOUT_MS = 30_000;
 const inputClassName = 'min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 py-2 text-sm leading-6 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
@@ -48,25 +47,31 @@ const getDimensionNote = (
   return { tone: 'neutral', message: asset.guidance };
 };
 
-export function OwnerSiteMediaPanel({
-  consolePayload,
-  onConsoleChange,
+export function PublicSiteMediaLiveEditor({
+  initialAssets,
+  initialSiteConfiguration,
+  onAssetsChange,
+  onSiteConfigurationChange,
+  showWatermarkPresentation = false,
 }: {
-  consolePayload: OwnerConsolePayload;
-  onConsoleChange: (payload: OwnerConsolePayload) => void;
+  initialAssets: SiteMediaAsset[];
+  initialSiteConfiguration: PublicSiteConfiguration;
+  onAssetsChange: (assets: SiteMediaAsset[]) => void;
+  onSiteConfigurationChange: (settings: PublicSiteConfiguration) => void;
+  showWatermarkPresentation?: boolean;
 }) {
   const { toast } = useToast();
-  const [drafts, setDrafts] = useState(consolePayload.siteMedia);
+  const [drafts, setDrafts] = useState(initialAssets);
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
   const [inputVersion, setInputVersion] = useState(0);
-  const [brandSettings, setBrandSettings] = useState(consolePayload.siteConfiguration);
+  const [brandSettings, setBrandSettings] = useState(initialSiteConfiguration);
   const [savingBrandSettings, setSavingBrandSettings] = useState(false);
 
   useEffect(() => {
-    setDrafts(consolePayload.siteMedia);
-    setBrandSettings(consolePayload.siteConfiguration);
-  }, [consolePayload.siteConfiguration, consolePayload.siteMedia]);
+    setDrafts(initialAssets);
+    setBrandSettings(initialSiteConfiguration);
+  }, [initialAssets, initialSiteConfiguration]);
 
   const saveBrandSettings = async () => {
     setSavingBrandSettings(true);
@@ -77,8 +82,8 @@ export function OwnerSiteMediaPanel({
         body: JSON.stringify(brandSettings),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save watermark presentation.'));
-      const body = await response.json() as { settings: OwnerConsolePayload['siteConfiguration'] };
-      onConsoleChange({ ...consolePayload, siteConfiguration: body.settings });
+      const body = await response.json() as { settings: PublicSiteConfiguration };
+      onSiteConfigurationChange(body.settings);
       toast({ title: 'Watermark presentation saved', description: 'Card previews and social images now use these owner-approved settings.' });
     } catch (error) {
       toast({ title: 'Watermark presentation not saved', description: error instanceof Error ? error.message : 'Unable to save watermark presentation.', variant: 'destructive' });
@@ -105,8 +110,8 @@ export function OwnerSiteMediaPanel({
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
-      const result = await response.json() as { console: OwnerConsolePayload };
-      onConsoleChange(result.console);
+      const result = await response.json() as { console: { siteMedia: SiteMediaAsset[] } };
+      onAssetsChange(result.console.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: 'Site media published', description: `${asset.label} and its responsive presentation are now live.` });
@@ -130,8 +135,8 @@ export function OwnerSiteMediaPanel({
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to restore the previous image.'));
-      const result = await response.json() as { console: OwnerConsolePayload };
-      onConsoleChange(result.console);
+      const result = await response.json() as { console: { siteMedia: SiteMediaAsset[] } };
+      onAssetsChange(result.console.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: 'Previous image restored', description: `${asset.label} has been rolled back. The version you replaced is still available.` });
@@ -152,7 +157,7 @@ export function OwnerSiteMediaPanel({
         </p>
       </div>
       <div className="mt-6 grid gap-6">
-        <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+        {showWatermarkPresentation ? <article className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
           <h3 className="font-serif text-xl text-[var(--cf-accent-text)]">Watermark presentation</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -160,13 +165,13 @@ export function OwnerSiteMediaPanel({
             <RangeField label="Social image opacity" value={brandSettings.watermarkShareOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkShareOpacity: value }))} />
             <RangeField label="Width across card" value={brandSettings.watermarkWidthPercent} min={20} max={90} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkWidthPercent: value }))} />
           </div>
-          <Button type="button" className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(consolePayload.siteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
-        </article>
-        {(['brand', 'landing', 'showcase', 'founder'] as const).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'brand'}>
+          <Button type="button" className="mt-4 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(initialSiteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
+        </article> : null}
+        {([...new Set(drafts.map((asset) => asset.group))] as SiteMediaAsset['group'][]).map((group) => <details key={group} className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]" open={group === 'brand' || drafts.every((asset) => asset.group === group)}>
           <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[var(--cf-accent-text)]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[var(--cf-text-subtle)]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
           <div className="grid gap-6 border-t border-[var(--cf-border-subtle)] p-4">
           {drafts.filter((asset) => asset.group === group).map((draft) => {
-          const published = consolePayload.siteMedia.find((asset) => asset.slot === draft.slot) ?? draft;
+          const published = initialAssets.find((asset) => asset.slot === draft.slot) ?? draft;
           return (
             <OwnerMediaEditor
               key={draft.slot}

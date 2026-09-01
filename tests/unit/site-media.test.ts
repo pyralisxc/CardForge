@@ -115,7 +115,7 @@ describe('owner-managed homepage media', () => {
   it('keeps owner authorization and successful storage ahead of publishing media state', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/route.ts'), 'utf8');
     const restoreRoute = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/restore/route.ts'), 'utf8');
-    const panel = readFileSync(join(process.cwd(), 'src/features/owner/components/OwnerSiteMediaPanel.tsx'), 'utf8');
+    const panel = readFileSync(join(process.cwd(), 'src/features/public-site/components/PublicSiteMediaLiveEditor.tsx'), 'utf8');
     const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260814153745_complete_owner_site_content_and_brand_media.sql'), 'utf8');
 
     expect(route.indexOf('await getCurrentOwnerAccess()')).toBeLessThan(route.indexOf('await request.formData()'));

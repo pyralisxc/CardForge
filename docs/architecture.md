@@ -64,7 +64,7 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 - `src/features/marketing-content`: content packages, variants, canonical campaign media/derivatives/attachments, contributor workflow, review, and approval.
 - `src/features/marketing-distribution`: destinations, encrypted provider connections, schedules, jobs, retries, manual-publication records, and provider-post mappings.
 - `src/features/social-publishing`: stateless provider protocol adapters only.
-- `src/features/public-site`: public copy, constrained navigation/home/SEO settings, public brand/marketing media, caches, and public presentation.
+- `src/features/public-site`: public copy, constrained navigation/home/SEO settings, public brand/marketing media, caches, public presentation, and server-gated contextual Owner editing on the native public surfaces. Anonymous RSC output never includes Owner controls or unpublished control payloads.
 - `src/features/business-identity`: canonical operator identity.
 - `src/features/legal`: immutable versioned legal publication.
 - `src/features/contact`: contact/support routing and request history.
@@ -153,7 +153,7 @@ Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live ro
 
 ## Owner operations
 
-Profile composes six protected operation groups for owners: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Growth & People presents the plan catalog, capacity targets, and MCP usage observation owned by `mcp-usage`; Profile only composes that authority. `/owner` remains a permission-gated compatibility translator for historical deep links and provider callbacks, not a fourth navigation environment. Owner does not become a parallel database, provider config system, or product-domain owner.
+Profile composes six protected operation groups for owners: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Growth & People presents the plan catalog, capacity targets, and MCP usage observation owned by `mcp-usage`; Profile only composes that authority. Public copy, relevant public media, and roadmap rules edit through protected contextual controls on their native public pages instead of detached Profile panels; the existing public-content/media stores and protected APIs remain canonical. `/owner` remains a permission-gated compatibility translator for historical deep links and provider callbacks, not a fourth navigation environment. Owner does not become a parallel database, provider config system, or product-domain owner.
 
 ## Source of truth
 

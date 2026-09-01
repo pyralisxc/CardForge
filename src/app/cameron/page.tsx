@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Caravan, Compass, HeartHandshake, Home, ServerCog, Sparkles, Utensils } from 'lucide-react';
+import { Suspense } from 'react';
 
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
@@ -25,6 +26,7 @@ import {
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
   const content = createSiteContentMap(await getCachedSiteContentBlocks('founder'));
@@ -181,6 +183,9 @@ export default async function CameronPage() {
         </div>
       </section>
       </> : null}
+      <Suspense fallback={null}>
+        <OwnerPublicSiteControlsSlot currentPath="/cameron" />
+      </Suspense>
       </PublicSiteShell>
     </CardForgeAppProviders>
   );

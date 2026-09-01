@@ -134,7 +134,7 @@ Use Profile > Owner operations through six protected groups: Overview, Marketing
 
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
-- Site Controls: constrained public copy/navigation/SEO/media/experience settings.
+- Site Controls: constrained navigation/SEO/experience settings in Profile; canonical public copy and relevant media publish contextually on the native public pages for a server-confirmed Owner.
 - Studio Library: complete shared registry, Forge Review, and Studio destination map.
 - Governance: append-only owner history and legal/versioned operations.
 

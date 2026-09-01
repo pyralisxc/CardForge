@@ -398,7 +398,7 @@ Profile may hold durable personal defaults only when ownership is truly personal
 
 ## Owner Operations
 
-Owner operations reveal as a protected Profile tool because their recurring object is CardForge itself. Feature-owned panels keep their own data and mutations; Profile owns composition and return context only.
+Owner operations reveal as protected tools at their native recurring object. Profile composes account-, provider-, governance-, and service-oriented operations. Public copy/media and roadmap-rule controls reveal contextually on server-confirmed Owner views of the native public pages, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
 
 Owner responsibilities include:
 

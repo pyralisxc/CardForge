@@ -20,6 +20,7 @@ import {
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
   const content = createSiteContentMap(await getCachedSiteContentBlocks('about'));
@@ -47,7 +48,7 @@ export default async function AboutPage() {
 
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
+      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/about" ownerControls={<OwnerPublicSiteControlsSlot currentPath="/about" />}>
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },

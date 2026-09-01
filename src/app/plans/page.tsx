@@ -11,6 +11,7 @@ import {
   StructuredData,
 } from '@/features/public-site/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export async function generateMetadata() {
@@ -30,7 +31,7 @@ export default async function PlansPage() {
   ]);
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/plans">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/plans" ownerControls={<OwnerPublicSiteControlsSlot currentPath="/plans" />}>
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Plans', path: '/plans' },

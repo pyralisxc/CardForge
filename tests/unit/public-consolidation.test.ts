@@ -26,7 +26,7 @@ describe('consolidated public routes and account navigation', () => {
   it('provides one canonical public plans page backed by owner-controlled allowances and copy', () => {
     const plansPage = readSource('src/app/plans/page.tsx');
     const plansPresentation = readSource('src/features/public-site/components/PlansPageContent.tsx');
-    const ownerCopy = readSource('src/features/owner/components/OwnerPublicContentPanel.tsx');
+    const ownerCopy = readSource('src/features/public-site/components/PublicSiteCopyLiveEditor.tsx');
 
     expect(plansPage).toContain("getCachedSiteContentBlocks('plans')");
     expect(plansPage).toContain('getMcpAllowances()');
