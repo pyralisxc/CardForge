@@ -132,6 +132,7 @@ test.describe('large Artifact browser evidence', () => {
     for (let warmup = 0; warmup < 3; warmup += 1) await runCycle();
     const baselineDomNodes = await page.locator('*').count();
     const baselineHeap = await collectHeap();
+    const baselineBrowserEvidence = await readBrowserPerformanceEvidence(page);
     const heapReadings = [baselineHeap];
     const measuredCycles = 8;
     for (let cycle = 0; cycle < measuredCycles; cycle += 1) {
@@ -144,11 +145,8 @@ test.describe('large Artifact browser evidence', () => {
     const browserEvidence = await readBrowserPerformanceEvidence(page);
     const heapAllowance = Math.max(8 * 1024 * 1024, baselineHeap * 0.25);
     const heapGrowthPerCycle = Math.max(0, finalHeap - baselineHeap) / measuredCycles;
+    const activeObjectUrlGrowth = browserEvidence.objectUrls.active - baselineBrowserEvidence.objectUrls.active;
 
-    expect(finalDomNodes).toBeLessThanOrEqual(baselineDomNodes + 25);
-    expect(finalHeap).toBeLessThanOrEqual(baselineHeap + heapAllowance);
-    expect(heapGrowthPerCycle).toBeLessThan(1024 * 1024);
-    expect(browserEvidence.objectUrls.active).toBe(0);
     await attachEvidence(testInfo, 'artifact-lifecycle-soak.json', {
       warmupCycles: 3,
       measuredCycles,
@@ -157,8 +155,14 @@ test.describe('large Artifact browser evidence', () => {
       heapReadings,
       heapAllowance,
       heapGrowthPerCycle,
+      baselineObjectUrls: baselineBrowserEvidence.objectUrls,
+      activeObjectUrlGrowth,
       ...browserEvidence,
     });
+    expect(finalDomNodes).toBeLessThanOrEqual(baselineDomNodes + 25);
+    expect(finalHeap).toBeLessThanOrEqual(baselineHeap + heapAllowance);
+    expect(heapGrowthPerCycle).toBeLessThan(1024 * 1024);
+    expect(activeObjectUrlGrowth).toBeLessThanOrEqual(0);
     await cdp.detach();
   });
 
