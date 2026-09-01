@@ -1,5 +1,6 @@
 import type { DisplayCard } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
+import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
 import {
   getAccountLibraryActionSources,
   type AccountLibraryItem,
@@ -8,6 +9,14 @@ import {
 
 export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
 export type HomeSort = 'desk' | 'name' | 'size';
+
+export interface HomeAccountStatus {
+  label: string;
+  value: string;
+  detail: string;
+  href: string;
+  action: string;
+}
 
 export const HOME_PINS_KEY = 'home-desk-pins';
 export const HOME_ORDER_KEY = 'home-desk-order';
@@ -151,12 +160,9 @@ export const getWorkActions = (
         : { kind: 'disabled', reason: 'Creator Pass is required to save or move portable Set files.' }, commitment: 'permission',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
-    ...(localSet && canContribute ? [{
-      id: 'home.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'pipeline' as const,
-      supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'contributor' as const,
-      scope: 'object' as const, hierarchy: 'supporting' as const, availability: { kind: 'available' as const }, commitment: 'publication' as const,
-      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
-    }] : []),
+    ...(localSet && canContribute ? [createSendToPipelineActionDescriptor({
+      id: 'home.send-pipeline', objectKind: 'home-work', sources,
+    })] : []),
     ...(localSet ? [{
       id: 'home.rename-work' as const, label: 'Rename', ownerFeature: 'project' as const,
       supportedObjectKinds: ['home-work'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,

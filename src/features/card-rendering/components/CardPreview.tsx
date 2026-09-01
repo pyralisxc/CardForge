@@ -14,6 +14,7 @@ import {
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
 import { isDividerElement } from '@/domain/templates';
+import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
@@ -52,6 +53,24 @@ const toRenderableBackground = (value?: unknown): string | undefined => {
   return undefined;
 };
 
+function ProjectBinaryImage({
+  source,
+  alt,
+  ...props
+}: Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> & { source: string; alt: string }) {
+  const resolvedSource = useProjectBinaryAssetUrl(source);
+  return <img {...props} src={resolvedSource} alt={alt} />;
+}
+
+function ProjectBinaryFrame({
+  style,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  const backgroundImage = useProjectBinaryAssetValue(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
+  const borderImageSource = useProjectBinaryAssetValue(typeof style?.borderImageSource === 'string' ? style.borderImageSource : undefined);
+  return <div {...props} style={{ ...style, backgroundImage, borderImageSource }} />;
+}
+
 export function CardPreview({
   card,
   face = 'front',
@@ -87,8 +106,11 @@ export function CardPreview({
 
   const resolvedCardContentBgUrl = tb.cardBackgroundImageUrl ? replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview) : undefined;
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
-  const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBgUrl);
-  const resolvedBorderVisual = toRenderableBackground(resolvedCardBorderImageSource);
+  const resolvedCardContentBinaryUrl = useProjectBinaryAssetUrl(resolvedCardContentBgUrl);
+  const resolvedCardBorderBinaryUrl = useProjectBinaryAssetUrl(resolvedCardBorderImageSource);
+  const resolvedTemplateAppearanceBackground = useProjectBinaryAssetValue(templateAppearanceStyle.backgroundImage);
+  const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBinaryUrl);
+  const resolvedBorderVisual = toRenderableBackground(resolvedCardBorderBinaryUrl);
   const borderVisualIsGradient = Boolean(
     resolvedCardBorderImageSource?.startsWith('linear-gradient')
     || resolvedCardBorderImageSource?.startsWith('radial-gradient'),
@@ -123,7 +145,7 @@ export function CardPreview({
     backgroundColor: templateAppearanceStyle.backgroundColor || tb.baseBackgroundColor || undefined,
     backgroundImage: [
       resolvedCardContentBackground,
-      templateAppearanceStyle.backgroundImage,
+      resolvedTemplateAppearanceBackground,
     ].filter(Boolean).join(', ') || undefined,
     backgroundSize: resolvedCardContentBackground ? 'cover' : templateAppearanceStyle.backgroundSize || undefined,
     backgroundRepeat: resolvedCardContentBackground ? 'no-repeat' : templateAppearanceStyle.backgroundRepeat || undefined,
@@ -138,8 +160,8 @@ export function CardPreview({
     cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
     cardContainerStyle.borderStyle = structuralBorderStyle as React.CSSProperties['borderStyle'];
     cardContainerStyle.borderColor = tb.cardBorderColor || 'hsl(var(--border))';
-    if (borderVisualIsGradient && resolvedCardBorderImageSource) {
-      cardContainerStyle.borderImageSource = resolvedCardBorderImageSource;
+    if (borderVisualIsGradient && resolvedCardBorderBinaryUrl) {
+      cardContainerStyle.borderImageSource = resolvedCardBorderBinaryUrl;
       cardContainerStyle.borderImageSlice = 1;
       cardContainerStyle.borderColor = 'transparent';
     }
@@ -265,7 +287,7 @@ export function CardPreview({
           ...borderWidthClassToStyle(renderElement.borderWidth),
           backgroundImage: resolvedBgUrl && (resolvedBgUrl.startsWith('linear-gradient') || resolvedBgUrl.startsWith('radial-gradient'))
             ? resolvedBgUrl
-            : resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))
+            : resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:') || resolvedBgUrl.startsWith('cardforge-browser-asset://'))
               ? `url(${resolvedBgUrl})`
               : undefined,
           backgroundSize: 'cover',
@@ -277,9 +299,9 @@ export function CardPreview({
         if (renderElement.type === 'image') {
           const imageUrl = resolveFreeformImageUrl(renderElement, dataToRender, descriptiveArtworkText);
           return (
-            <div key={renderElement.id} style={baseStyle} data-freeform-element-id={renderElement.id}>
-              <img
-                src={imageUrl}
+            <ProjectBinaryFrame key={renderElement.id} style={baseStyle} data-freeform-element-id={renderElement.id}>
+              <ProjectBinaryImage
+                source={imageUrl}
                 alt={`Image for ${renderElement.name}`}
                 style={{
                   width: '100%',
@@ -300,17 +322,22 @@ export function CardPreview({
                   (e.currentTarget as HTMLImageElement).src = `https://placehold.co/${Math.max(80, Math.round(renderElement.width || 300))}x${Math.max(80, Math.round(renderElement.height || 200))}.png?text=${encodeURIComponent(descriptiveArtworkText || 'Image')}`;
                 }}
               />
-            </div>
+            </ProjectBinaryFrame>
           );
         }
 
         if (element.type === 'icon') {
           const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, dataToRender, isEditorPreview) : '';
-          if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:') || iconImageUrl.startsWith('/'))) {
+          if (iconImageUrl && (
+            iconImageUrl.startsWith('http')
+            || iconImageUrl.startsWith('data:')
+            || iconImageUrl.startsWith('cardforge-browser-asset://')
+            || iconImageUrl.startsWith('/')
+          )) {
             return (
-              <div key={element.id} style={{ ...baseStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-freeform-element-id={element.id}>
-                <img
-                  src={iconImageUrl}
+              <ProjectBinaryFrame key={element.id} style={{ ...baseStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-freeform-element-id={element.id}>
+                <ProjectBinaryImage
+                  source={iconImageUrl}
                   alt={`Icon for ${element.name}`}
                   style={{
                     width: '100%',
@@ -325,12 +352,12 @@ export function CardPreview({
                     display: 'block',
                   }}
                 />
-              </div>
+              </ProjectBinaryFrame>
             );
           }
           const IconComponent = (LucideIcons as unknown as Record<string, React.ElementType>)[element.iconName || 'Sparkles'] || LucideIcons.Sparkles;
           return (
-            <div key={element.id} style={{ ...baseStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-freeform-element-id={element.id}>
+            <ProjectBinaryFrame key={element.id} style={{ ...baseStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-freeform-element-id={element.id}>
               <IconComponent
                 size="80%"
                 color={element.strokeColor || element.textColor || 'currentColor'}
@@ -338,7 +365,7 @@ export function CardPreview({
                 strokeWidth={element.strokeWidth || 2}
                 aria-hidden="true"
               />
-            </div>
+            </ProjectBinaryFrame>
           );
         }
 
@@ -384,7 +411,7 @@ export function CardPreview({
               </div>
             );
           }
-          return <div key={element.id} style={shapeStyle} data-freeform-element-id={element.id} />;
+          return <ProjectBinaryFrame key={element.id} style={shapeStyle} data-freeform-element-id={element.id} />;
         }
 
         const textStyle: React.CSSProperties = {
@@ -394,7 +421,7 @@ export function CardPreview({
         const contentStyle: React.CSSProperties = { lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' };
         const textContainerStyle = { ...textStyle, fontSize: undefined as unknown as React.CSSProperties['fontSize'] };
         return (
-          <div
+          <ProjectBinaryFrame
             key={element.id}
             className={cn(element.padding || 'p-1', element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
             style={textContainerStyle}
@@ -409,7 +436,7 @@ export function CardPreview({
               style={contentStyle}
               highlightColor={highlightColor}
             />
-          </div>
+          </ProjectBinaryFrame>
         );
       });
   }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, templateToRender]);

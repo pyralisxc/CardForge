@@ -65,6 +65,35 @@ const hashBytes = async (bytes: Uint8Array): Promise<string> => {
 
 const getReference = (assetId: string): string => `${BROWSER_PROJECT_ASSET_REFERENCE_PREFIX}${assetId}`;
 
+export const getBrowserProjectAssetReference = (assetId: string): string => {
+  if (!CONTENT_ASSET_ID_PATTERN.test(assetId)) throw new Error('Browser project asset identity is invalid.');
+  return getReference(assetId);
+};
+
+export const storeBrowserProjectAssetBytes = async ({
+  scope,
+  assetId,
+  mimeType,
+  bytes,
+}: {
+  scope: string;
+  assetId: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}): Promise<string> => {
+  if (!scope || !CONTENT_ASSET_ID_PATTERN.test(assetId) || !isSupportedContentType(mimeType)) {
+    throw new Error('Browser project asset metadata is invalid.');
+  }
+  if (bytes.byteLength <= 0 || bytes.byteLength > MAX_CONTENT_ASSET_BYTES) {
+    throw new Error('Browser project artwork exceeds its safe per-asset persistence limit.');
+  }
+  await writeStructuredBrowserValue(
+    getStorageKey(scope, assetId),
+    new Blob([toArrayBuffer(bytes)], { type: mimeType }),
+  );
+  return getReference(assetId);
+};
+
 const getReferenceId = (value: string): string | null => {
   if (!value.startsWith(BROWSER_PROJECT_ASSET_REFERENCE_PREFIX)) return null;
   const assetId = value.slice(BROWSER_PROJECT_ASSET_REFERENCE_PREFIX.length);
@@ -74,6 +103,31 @@ const getReferenceId = (value: string): string | null => {
 const getStorageKey = (scope: string, assetId: string): string => (
   `project-content-asset:${encodeURIComponent(scope)}:${assetId}`
 );
+
+export const getBrowserProjectAssetIds = (value: string): string[] => {
+  const pattern = /cardforge-browser-asset:\/\/([a-f0-9]{64})/gu;
+  return [...new Set(Array.from(value.matchAll(pattern), (match) => match[1]).filter((id): id is string => Boolean(id)))];
+};
+
+export const copyBrowserProjectAssets = async ({
+  value,
+  sourceScope,
+  destinationScope,
+}: {
+  value: string;
+  sourceScope: string;
+  destinationScope: string;
+}): Promise<number> => {
+  const assetIds = getBrowserProjectAssetIds(value);
+  for (const assetId of assetIds) {
+    const blob = await readStructuredBrowserValue<Blob>(getStorageKey(sourceScope, assetId));
+    if (!(blob instanceof Blob)) {
+      throw new Error(`Guest workspace artwork ${assetId.slice(0, 12)}… is unavailable, so CardForge left both workspaces unchanged.`);
+    }
+    await writeStructuredBrowserValue(getStorageKey(destinationScope, assetId), blob);
+  }
+  return assetIds.length;
+};
 
 const visitValue = async (
   value: unknown,

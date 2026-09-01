@@ -17,6 +17,7 @@ import {
 } from '@/features/contributor-access/server';
 import { HomeDesk } from '@/features/home/client';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
+import { AccountProjectWorkspaceBoundary } from '@/features/project/client';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { SiteContentProvider } from '@/features/public-site/client';
 import {
@@ -44,7 +45,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; section?: string; utility?: string }>;
+  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; section?: string; utility?: string; ownerWorkspace?: string; pipelineStatus?: string; meta?: string; tool?: string }>;
 }) {
   const params = await searchParams;
   const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
@@ -52,6 +53,9 @@ export default async function AccountPage({
     : null;
   const initialReturnContextKey = typeof params.returnContext === 'string' && params.returnContext.length <= 128
     ? params.returnContext
+    : null;
+  const initialDeskTool = params.tool === 'design' || params.tool === 'generate' || params.tool === 'output' || params.tool === 'pipeline'
+    ? params.tool
     : null;
   const initialPlanIntent = params.intent === 'creator' || params.intent === 'designer'
     ? params.intent
@@ -67,8 +71,8 @@ export default async function AccountPage({
     hasStorageResult: storageStatus !== null,
     hasBillingIntent: checkoutStatus !== null || initialPlanIntent !== null,
   });
-  const needsPlans = activeSection === 'profile' || activeSection === 'billing';
-  const needsAccountContent = activeSection === 'library' || activeSection === 'storage';
+  const needsPlans = activeSection === 'profile';
+  const needsAccountContent = activeSection === 'library';
   const [entitlementResult, plans, accountContentBlocks] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
@@ -104,7 +108,6 @@ export default async function AccountPage({
       canReview: hasContributionScope(contributionScopes, 'assets.review'),
       canPublish: hasContributionScope(contributionScopes, 'library.publish'),
       canDraftCampaigns: hasContributionScope(contributionScopes, 'campaigns.draft'),
-      canProposeSite: hasContributionScope(contributionScopes, 'site.propose'),
     },
   });
   const isContributor = experience.contributor.active;
@@ -123,7 +126,7 @@ export default async function AccountPage({
       : entitlement.capabilities.canUseProjectFiles
         ? 'Portable project files and connected storage are available.'
         : 'Local work is available; Creator Pass adds portable project files.',
-    href: '/account?section=billing',
+    href: '/account?section=profile&utility=billing',
     action: 'Review',
   };
   const homeSecurityStatus = {
@@ -161,42 +164,55 @@ export default async function AccountPage({
     </SiteContentProvider>
   );
 
-  if (activeSection === 'library' || activeSection === 'storage') {
+  if (activeSection === 'library') {
     return (
       <CardForgeAppProviders scope="shell">
-        <UnifiedAccountLibrary
-          persistenceScope={persistenceScope}
-          experience={experience}
-          initialReturnContextKey={initialReturnContextKey}
-          initialTool={activeSection === 'storage' ? 'locations' : null}
-          storageConnections={storageConnections}
-        />
+        <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope}>
+          <UnifiedAccountLibrary
+            persistenceScope={persistenceScope}
+            experience={experience}
+            initialReturnContextKey={initialReturnContextKey}
+            initialTool={params.tool === 'locations' || storageStatus !== null || params.section === 'storage' ? 'locations' : null}
+            storageConnections={storageConnections}
+          />
+        </AccountProjectWorkspaceBoundary>
       </CardForgeAppProviders>
     );
   }
 
   return (
     <CardForgeAppProviders scope="shell">
-      {activeSection === 'profile' || activeSection === 'billing' ? (
+      {activeSection === 'profile' ? (
         <AccountProfileEnvironment
           checkoutStatus={checkoutStatus}
           initialAuthConfigured={authConfigured}
           initialContributorAccess={contributorAccess}
           initialPlanIntent={initialPlanIntent}
-          initialUtility={activeSection === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : null}
+          initialUtility={params.utility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null || params.section === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : params.utility === 'owner' && isOwner ? 'owner' : null}
+          initialOwnerWorkspace={params.ownerWorkspace === 'marketing' || params.ownerWorkspace === 'audience' || params.ownerWorkspace === 'site' || params.ownerWorkspace === 'library' || params.ownerWorkspace === 'governance' ? params.ownerWorkspace : 'overview'}
+          initialOwnerPipelineStatus={params.pipelineStatus === 'submitted' ? 'submitted' : 'all'}
+          initialOwnerMarketingNotice={params.meta === 'connected'
+            ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
+            : params.meta === 'error'
+              ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
+              : undefined}
           plans={plans}
         />
-      ) : <AccountHomeBoundary initialAuthConfigured={authConfigured}>
-          <HomeDesk
-            key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
-            persistenceScope={persistenceScope}
-            experience={experience}
-            initialFocusedWorkId={initialFocusedWorkId}
-            initialReturnContextKey={initialReturnContextKey}
-            homeAccessStatus={homeAccessStatus}
-            homeSecurityStatus={homeSecurityStatus}
-          />
-      </AccountHomeBoundary>}
+      ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope}>
+          <AccountHomeBoundary initialAuthConfigured={authConfigured}>
+            <HomeDesk
+              key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
+              persistenceScope={persistenceScope}
+              experience={experience}
+              initialContributorAccess={contributorAccess}
+              initialFocusedWorkId={initialFocusedWorkId}
+              initialTool={initialDeskTool}
+              initialReturnContextKey={initialReturnContextKey}
+              homeAccessStatus={homeAccessStatus}
+              homeSecurityStatus={homeSecurityStatus}
+            />
+          </AccountHomeBoundary>
+      </AccountProjectWorkspaceBoundary>}
     </CardForgeAppProviders>
   );
 }

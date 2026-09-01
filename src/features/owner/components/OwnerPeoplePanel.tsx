@@ -20,7 +20,6 @@ type PersonDraft = {
   accountNote: string;
   profileStatus: NonNullable<OwnerPerson['profileStatus']>;
   canDraftCampaigns: boolean;
-  canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: string;
   monthlyPublishedRequirementOverride: string;
   contributorNote: string;
@@ -34,7 +33,6 @@ const createDraft = (person: OwnerPerson): PersonDraft => ({
   accountNote: person.accountNote,
   profileStatus: person.profileStatus ?? 'active',
   canDraftCampaigns: person.canDraftCampaigns,
-  canProposeSiteContent: person.canProposeSiteContent,
   monthlySubmissionLimitOverride: person.monthlySubmissionLimitOverride === null ? '' : String(person.monthlySubmissionLimitOverride),
   monthlyPublishedRequirementOverride: person.monthlyPublishedRequirementOverride === null ? '' : String(person.monthlyPublishedRequirementOverride),
   contributorNote: person.contributorNote,
@@ -116,7 +114,6 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       contributor: {
         status: draft.profileStatus,
         canDraftCampaigns: draft.canDraftCampaigns,
-        canProposeSiteContent: draft.canProposeSiteContent,
         monthlySubmissionLimitOverride: draft.monthlySubmissionLimitOverride,
         monthlyPublishedRequirementOverride: draft.monthlyPublishedRequirementOverride,
         ownerNote: draft.contributorNote,
@@ -172,7 +169,6 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Contributor controls</p>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Profile status<select className={inputClassName} value={draft.profileStatus} onChange={(event) => setDraft((current) => current ? { ...current, profileStatus: event.target.value as PersonDraft['profileStatus'] } : current)}><option value="active">Active</option><option value="invited">Invited</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Draft campaign packages<input type="checkbox" checked={draft.canDraftCampaigns} onChange={(event) => setDraft((current) => current ? { ...current, canDraftCampaigns: event.target.checked } : current)} /></label>
-              <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Propose public-site copy<input type="checkbox" checked={draft.canProposeSiteContent} onChange={(event) => setDraft((current) => current ? { ...current, canProposeSiteContent: event.target.checked } : current)} /></label>
               <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Monthly submission override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlySubmissionLimitOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlySubmissionLimitOverride: event.target.value } : current)} /></label><label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Published requirement override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlyPublishedRequirementOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlyPublishedRequirementOverride: event.target.value } : current)} /></label></div>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Contributor note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.contributorNote} onChange={(event) => setDraft((current) => current ? { ...current, contributorNote: event.target.value } : current)} /></label>
             </div> : null}

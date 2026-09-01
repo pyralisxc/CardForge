@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Sparkles,
   UploadCloud,
-  Vote,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ const standards = [
   'Every contribution has a named owner, source notes, and a visible review state.',
   'Personal workspace uploads stay separate from CardForge-owned contribution packages.',
   'Campaign captures stay private until an owner approves their public publishing media.',
-  'Contributors propose; the owner approves site changes, channel bindings, schedules, and publication.',
+  'Contributors prepare reviewable work; the owner retains channel bindings, schedules, and publication authority.',
 ];
 
 export function ContributorProgramPage({
@@ -38,7 +37,6 @@ export function ContributorProgramPage({
   const contributionLanes = [
     { icon: UploadCloud, title: siteContent['contributor.lane.assets.title'], copy: siteContent['contributor.lane.assets.body'] },
     { icon: Megaphone, title: siteContent['contributor.lane.campaigns.title'], copy: siteContent['contributor.lane.campaigns.body'] },
-    { icon: Vote, title: siteContent['contributor.lane.site.title'], copy: siteContent['contributor.lane.site.body'] },
   ];
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [identity, setIdentity] = useState({
@@ -129,7 +127,7 @@ export function ContributorProgramPage({
               {accountEmail ?? 'No signed-in account'}
             </p>
             <p className="mt-3 text-xs leading-5 text-[var(--cf-text-muted)]">
-              Contributor access is intentionally scoped. The owner can enable campaign drafting and site proposals independently for each active contributor.
+              Contributor access is intentionally scoped. The owner can enable campaign drafting for an active contributor; public-site editing remains owner-only.
             </p>
           </aside>
         </div>

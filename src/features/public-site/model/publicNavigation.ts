@@ -11,7 +11,7 @@ export interface PublicNavigationGroup {
 const NAVIGATION_LINKS = {
   home: { href: '/', label: 'Home' },
   about: { href: '/about', label: 'How it works' },
-  studio: { href: '/studio', label: 'Studio' },
+  studio: { href: '/account', label: 'Desk' },
   plans: { href: '/plans', label: 'Plans' },
   roadmap: { href: '/roadmap', label: 'Roadmap' },
   contributor: { href: '/contributors', label: 'Contributors' },

@@ -14,6 +14,8 @@ describe('public site content rules', () => {
     expect(slugs).toContain('about.meta.description');
     expect(slugs).toContain('founder.meta.title');
     expect(slugs).toContain('contributor.hero.headline');
+    expect(slugs).not.toContain('contributor.lane.site.title');
+    expect(slugs).not.toContain('contributor.lane.site.body');
     expect(slugs).toContain('roadmap.hero.headline');
     expect(slugs).toContain('sharing.message');
     expect(new Set(slugs).size).toBe(slugs.length);
@@ -26,6 +28,8 @@ describe('public site content rules', () => {
     expect(content['landing.hero.headline']).toBe('Design one card. Add your list. CardForge builds the set.');
     expect(content['landing.hero.body']).toContain('keep your work on your device');
     expect(content['about.hero.headline']).toBe('Give everyday creators room to make it their own.');
+    expect(content['about.contributors.body']).not.toContain('site-copy proposals');
+    expect(content['contributor.hero.body']).not.toContain('public-site text');
   });
 
   it('accepts only bounded known content blocks', () => {

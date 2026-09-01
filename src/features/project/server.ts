@@ -27,6 +27,7 @@ export {
   CARDFORGE_PROJECT_FILE_EXTENSION,
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   getProjectPackageAssetExtension,
   getProjectPackageAssetIdFromReference,
   getProjectPackageAssetReference,
@@ -40,8 +41,12 @@ export {
   PROJECT_PACKAGE_ASSET_MIME_TYPES,
 } from './model/projectPackage';
 export type {
+  CardForgeProjectManifest,
   CardForgeProjectManifestV1,
+  CardForgeProjectManifestV2,
   CardForgeProjectPackageSnapshot,
+  CardForgeProjectPackageSnapshotV2,
+  PortableProjectDocumentV2,
   ProjectPackageAssetDescriptor,
   ProjectPackageAssetMimeType,
   ProjectSourceDescriptor,
@@ -74,6 +79,7 @@ export {
   decodeProjectFile,
   encodeCardForgeProjectPackage,
   hydrateCardForgeProjectSnapshot,
+  writeCardForgeProjectPackage,
   ProjectPackageError,
 } from './lib/projectPackageCodec';
 export type { DecodedProjectFile } from './lib/projectPackageCodec';

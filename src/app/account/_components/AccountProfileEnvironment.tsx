@@ -3,6 +3,7 @@
 import { useUser } from '@clerk/nextjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { CreditCard, Crown, HardDrive, UserCircle2, Wrench, type LucideIcon } from 'lucide-react';
 
 import {
@@ -35,11 +36,18 @@ import type { McpAllowance } from '@/features/mcp-usage/client/plans';
 
 import { ContributorProfilePanel } from './ContributorProfilePanel';
 
+const OwnerProfileOperations = dynamic(() => import('@/features/owner/client').then((module) => module.OwnerProfileOperations), {
+  loading: () => <div className="grid min-h-40 place-items-center text-sm text-[var(--cf-text-muted)]">Loading protected operations…</div>,
+});
+
 interface AccountProfileEnvironmentProps {
   checkoutStatus?: 'cancelled' | 'success' | null;
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
-  initialUtility?: 'billing' | 'identity' | 'contributor' | null;
+  initialUtility?: 'billing' | 'identity' | 'contributor' | 'owner' | null;
+  initialOwnerWorkspace?: 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
+  initialOwnerPipelineStatus?: 'all' | 'submitted';
+  initialOwnerMarketingNotice?: { kind: 'success' | 'error'; message: string };
   initialContributorAccess: ContributorAccessSessionState;
   plans?: McpAllowance[];
 }
@@ -108,16 +116,19 @@ export function AccountProfileEnvironment({
   initialAuthConfigured,
   initialPlanIntent = null,
   initialUtility = null,
+  initialOwnerWorkspace = 'overview',
+  initialOwnerPipelineStatus = 'all',
+  initialOwnerMarketingNotice,
   initialContributorAccess,
   plans = [],
 }: AccountProfileEnvironmentProps) {
   const router = useRouter();
   const { user: clerkUser } = useUser();
   const surfaceRef = useRef<HTMLElement | null>(null);
-  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | null>(() => (
+  const [activeUtility, setActiveUtility] = useState<'billing' | 'identity' | 'contributor' | 'owner' | null>(() => (
     initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null
       ? 'billing'
-        : initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null
+        : initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : initialUtility === 'owner' ? 'owner' : null
   ));
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const contributorAccess = useContributorAccess({
@@ -134,7 +145,6 @@ export function AccountProfileEnvironment({
       canReview: hasContributionScope(contributorAccess.scopes, 'assets.review'),
       canPublish: hasContributionScope(contributorAccess.scopes, 'library.publish'),
       canDraftCampaigns: hasContributionScope(contributorAccess.scopes, 'campaigns.draft'),
-      canProposeSite: hasContributionScope(contributorAccess.scopes, 'site.propose'),
     },
   });
   const accountEmail = entitlement.accountEmail ?? 'No signed-in account';
@@ -175,7 +185,7 @@ export function AccountProfileEnvironment({
       setActiveUtility('billing');
       return;
     }
-    setActiveUtility(initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : null);
+    setActiveUtility(initialUtility === 'identity' ? 'identity' : initialUtility === 'contributor' ? 'contributor' : initialUtility === 'owner' ? 'owner' : null);
   }, [checkoutStatus, initialPlanIntent, initialUtility]);
 
   const openIdentity = () => {
@@ -190,7 +200,7 @@ export function AccountProfileEnvironment({
       surfaceRef.current?.scrollTo({ top: 0 });
       document.getElementById('profile-utility-surface')?.focus();
     });
-    router.push('/account?section=billing');
+    router.push('/account?section=profile&utility=billing');
   };
 
   const closeUtility = () => {
@@ -198,7 +208,9 @@ export function AccountProfileEnvironment({
       ? 'environment-object-profile-plan-billing'
       : activeUtility === 'contributor'
         ? 'environment-object-profile-contributor-access'
-        : 'environment-object-profile-identity';
+        : activeUtility === 'owner'
+          ? 'environment-object-profile-owner-access'
+          : 'environment-object-profile-identity';
     setActiveUtility(null);
     router.push('/account?section=profile');
     requestAnimationFrame(() => document.getElementById(focusId)?.focus());
@@ -207,12 +219,15 @@ export function AccountProfileEnvironment({
   const openUtility = (target: AccountProfileUtilityTarget) => {
     if (target === 'clerk') openIdentity();
     if (target === 'billing') openBilling();
-    if (target === 'storage') router.push('/account?section=storage');
+    if (target === 'storage') router.push('/account?section=library&tool=locations');
     if (target === 'contributor') {
       setActiveUtility('contributor');
       router.push('/account?section=profile&utility=contributor');
     }
-    if (target === 'owner') router.push('/owner');
+    if (target === 'owner') {
+      setActiveUtility('owner');
+      router.push('/account?section=profile&utility=owner');
+    }
   };
 
   const runAction = (action: ActionDescriptor) => {
@@ -281,13 +296,15 @@ export function AccountProfileEnvironment({
         {activeUtility ? (
           <EnvironmentToolLayer
             id="profile-utility-title"
-            eyebrow={activeUtility === 'billing' ? 'Plan & billing' : activeUtility === 'identity' ? 'Identity & security' : 'Contributor'}
-            title={activeUtility === 'billing' ? 'Manage access, billing, and usage' : activeUtility === 'identity' ? 'Manage your Clerk account' : 'Your contribution access and work'}
+            eyebrow={activeUtility === 'billing' ? 'Plan & billing' : activeUtility === 'identity' ? 'Identity & security' : activeUtility === 'owner' ? 'Owner access' : 'Contributor'}
+            title={activeUtility === 'billing' ? 'Manage access, billing, and usage' : activeUtility === 'identity' ? 'Manage your Clerk account' : activeUtility === 'owner' ? 'Protected CardForge operations' : 'Your contribution access and work'}
             summary={activeUtility === 'billing'
               ? 'Your current access comes first. Stripe continues to own checkout, invoices, payment details, plan changes, and cancellation.'
               : activeUtility === 'identity'
                 ? 'Clerk owns profile details, verified addresses, sign-in methods, devices, sessions, and security operations.'
-                : 'Personal access, progress, and site-proposal drafts live with your profile. Shared assets and campaigns remain in Library.'}
+                : activeUtility === 'owner'
+                  ? 'Privileged operational controls are composed here by their owning features. Provider credentials and provider-native configuration remain with each provider.'
+                  : 'Personal access and progress live with your profile. Shared assets and campaigns remain in Library.'}
             closeLabel="Close profile tool"
             onClose={closeUtility}
           >
@@ -312,6 +329,12 @@ export function AccountProfileEnvironment({
                   <span id="profile-native-controls" className="sr-only" aria-hidden="true" />
                   <ProfileManagementPage authConfigured={entitlement.authConfigured} />
                 </>
+              ) : activeUtility === 'owner' ? (
+                <OwnerProfileOperations
+                  initialWorkspace={initialOwnerWorkspace}
+                  initialPipelineStatus={initialOwnerPipelineStatus}
+                  initialMarketingNotice={initialOwnerMarketingNotice}
+                />
               ) : (
                 <ContributorProfilePanel access={contributorAccess} />
               )}

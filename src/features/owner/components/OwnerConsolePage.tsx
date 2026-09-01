@@ -22,7 +22,6 @@ const OwnerPeoplePanel = dynamic(() => import('./OwnerPeoplePanel').then((module
 const OwnerInboxPanel = dynamic(() => import('./OwnerInboxPanel').then((module) => module.OwnerInboxPanel), { loading: panelFallback });
 const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurationPanel').then((module) => module.OwnerSiteConfigurationPanel), { loading: panelFallback });
 const OwnerMarketingPanel = dynamic(() => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel), { loading: panelFallback });
-const OwnerSiteProposalReviewPanel = dynamic(() => import('./OwnerSiteProposalReviewPanel').then((module) => module.OwnerSiteProposalReviewPanel), { loading: panelFallback });
 const OwnerPublicContentPanel = dynamic(() => import('./OwnerPublicContentPanel').then((module) => module.OwnerPublicContentPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
 const OwnerSiteMediaPanel = dynamic(() => import('./OwnerSiteMediaPanel').then((module) => module.OwnerSiteMediaPanel), { loading: panelFallback });
@@ -36,9 +35,9 @@ const OwnerRolesPanel = dynamic(() => import('./OwnerGovernancePanels').then((mo
 const OwnerActivityPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerActivityPanel), { loading: panelFallback });
 const OwnerRetentionPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerRetentionPanel), { loading: panelFallback });
 
-type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
+export type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
 
-interface OwnerConsolePageProps {
+interface OwnerProfileOperationsProps {
   initialWorkspace?: OwnerWorkspace;
   initialPipelineStatus?: 'all' | 'submitted';
   initialMarketingNotice?: { kind: 'success' | 'error'; message: string };
@@ -102,7 +101,7 @@ function SiteWorkspaceState({ loading, error, retry }: { loading: boolean; error
   );
 }
 
-export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelineStatus = 'all', initialMarketingNotice }: OwnerConsolePageProps) {
+export function OwnerProfileOperations({ initialWorkspace = 'overview', initialPipelineStatus = 'all', initialMarketingNotice }: OwnerProfileOperationsProps) {
   const {
     isLoading,
     isLoadingSite,
@@ -126,36 +125,36 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
 
   if (!payload && isLoading) {
     return (
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section>
           <CardForgeSurface className="border-[var(--cf-border-strong)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Owner console</p>
-                <h1 className="font-serif text-2xl text-[var(--cf-text-strong)]">Loading Owner Console</h1>
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Profile utility</p>
+                <h1 className="font-serif text-2xl text-[var(--cf-text-strong)]">Loading owner operations</h1>
               </div>
               <div className="h-2 w-32 animate-pulse bg-[var(--cf-border-subtle)]" />
             </div>
             {isSlow ? <p className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] p-3 text-sm leading-6 text-[var(--cf-warning)]">This is taking longer than expected. The console should recover automatically.</p> : null}
           </CardForgeSurface>
         </section>
-      </main>
+      </div>
     );
   }
 
   if (!payload) {
     return (
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section>
           <CardForgeWorkspaceState
             state="error"
             message={loadError ?? 'Owner access is required. Sign in with the owner account or set trusted owner metadata.'}
             onRetry={() => void load()}
-            retryLabel="Retry owner console"
+            retryLabel="Retry owner operations"
             className="min-h-0 p-6"
           />
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -164,8 +163,8 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
 
   return (
     <TooltipProvider>
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl space-y-4 px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section className="space-y-4">
           <OwnerConsoleSummary payload={payload} />
           <Tabs value={workspace} onValueChange={(value) => setWorkspace(value as OwnerWorkspace)} className="space-y-4">
             <CardForgeWorkspaceNavigation
@@ -221,7 +220,6 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                     <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                     <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
                     <TabsTrigger value="copy" className={subtabClassName}>Copy</TabsTrigger>
-                    <TabsTrigger value="proposals" className={subtabClassName}>Proposals</TabsTrigger>
                     <TabsTrigger value="media" className={subtabClassName}>Media</TabsTrigger>
                     <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
                     <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap</TabsTrigger>
@@ -230,7 +228,6 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
                   <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteWorkspaceContent.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteWorkspaceContent, siteConfiguration })} /></TabsContent>
                   <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteWorkspaceContent.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteWorkspaceContent, experienceSettings })} /></TabsContent>
                   <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
-                  <TabsContent value="proposals" className="mt-0"><OwnerSiteProposalReviewPanel /></TabsContent>
                   <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                   <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
                 </Tabs>
@@ -261,7 +258,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
             </TabsContent>
           </Tabs>
         </section>
-      </main>
+      </div>
     </TooltipProvider>
   );
 }

@@ -118,7 +118,7 @@ export const validatePipelineUploadDescriptor = ({
   }
   if (!Number.isInteger(normalizedFileSize) || normalizedFileSize <= 0 || normalizedFileSize > maxFileSizeBytes) {
     throw new PipelineStoreError(
-      `Forge Review source files must be ${Math.round(maxFileSizeBytes / 1024 / 1024)} MB or smaller. This limit is chosen in the Owner Console.`,
+      `Forge Review source files must be ${Math.round(maxFileSizeBytes / 1024 / 1024)} MB or smaller. This limit is chosen in protected owner operations in Profile.`,
       413,
       {
         kind: 'limit',

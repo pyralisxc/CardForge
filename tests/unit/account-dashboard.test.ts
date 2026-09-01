@@ -17,7 +17,12 @@ describe('unified account environment', () => {
   const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const libraryCollection = readSource('src/features/storage-management/components/LibraryCollection.tsx');
+  const libraryPresentation = readSource('src/features/storage-management/components/LibraryObjectPresentation.tsx');
+  const libraryScopes = readSource('src/features/storage-management/model/libraryScopes.ts');
   const homeDesk = readSource('src/features/home/components/HomeDesk.tsx');
+  const deskOverview = readSource('src/features/home/components/DeskOverviewSurface.tsx');
+  const homeDeskController = readSource('src/features/home/hooks/useHomeDeskController.ts');
   const accountLibraryProjection = readSource('src/features/storage-management/hooks/useAccountLibraryProjection.ts');
   const accountLibraryRow = readSource('src/features/storage-management/components/AccountLibraryItemRow.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
@@ -25,11 +30,11 @@ describe('unified account environment', () => {
   it('makes Home, Library, and Profile direct zones instead of nested account pages', () => {
     expect(accountPage).toContain('<AccountHomeBoundary');
     expect(accountPage).toContain('<HomeDesk');
-    expect(homeDesk).toContain('Your creative workspace');
+    expect(deskOverview).toContain('Your creative workspace');
     expect(homeDesk).toContain('<EnvironmentShell');
     expect(accountLibrary).toContain('<EnvironmentShell');
-    expect(accountPage).toContain("activeSection === 'library' || activeSection === 'storage'");
-    expect(accountPage).toContain("activeSection === 'profile' || activeSection === 'billing'");
+    expect(accountPage).toContain("activeSection === 'library'");
+    expect(accountPage).toContain("activeSection === 'profile'");
     expect(accountPage).toContain('<UnifiedAccountLibrary');
     expect(profileEnvironment).toContain('<EnvironmentShell');
     expect(homeBoundary).not.toContain('<AccountWorkspaceHeader');
@@ -65,7 +70,8 @@ describe('unified account environment', () => {
     expect(accountPage).toContain('<HomeDesk');
     expect(accountLibrary).not.toContain("view === 'home'");
     expect(accountPage).toContain('<LibraryStorageConnectionsTool');
-    expect(accountPage).toContain("initialTool={activeSection === 'storage' ? 'locations' : null}");
+    expect(accountPage).toContain("params.tool === 'locations'");
+    expect(accountPage).toContain("params.section === 'storage' ? 'locations' : null");
     expect(storageWorkspace).toContain('<CompactSettingRow');
     expect(storageWorkspace).toContain('aria-label="Storage and connections"');
     expect(accountLibrary).toContain("activeTool === 'locations'");
@@ -75,24 +81,25 @@ describe('unified account environment', () => {
   it('runs the live Library as a scoped visual collection with exact detail actions', () => {
     expect(accountLibrary).toContain('activeZone="library"');
     expect(accountLibrary).toContain('getLibraryScopeDefinitions');
-    expect(accountLibrary).toContain("scope: 'personal'");
-    expect(accountLibrary).toContain("scope: 'published'");
-    expect(accountLibrary).toContain("scope: 'pipeline'");
-    expect(accountLibrary).toContain('<LibraryVisual');
+    expect(libraryScopes).toContain("id: 'personal'");
+    expect(libraryScopes).toContain("id: 'published'");
+    expect(libraryScopes).toContain("id: 'pipeline'");
+    expect(libraryCollection).toContain('<LibraryVisual');
     expect(accountLibrary).toContain('getAccountLibraryEnvironmentActions');
-    expect(accountLibrary).toContain("id: 'library.copy-published-template'");
-    expect(accountLibrary).toContain('setTemplateEditorSelectedTemplateId(selectedTemplateId)');
+    expect(libraryPresentation).toContain("id: 'library.copy-published-template'");
+    expect(accountLibrary).toContain('setTemplateEditorSelectedTemplateId(templateId)');
+    expect(accountLibrary).toContain('openDesignTool(selectedTemplateId');
     expect(accountLibrary).toContain("actionId === 'library.view-source'");
     expect(accountLibrary).toContain("actionId === 'library.manage-location'");
-    expect(accountLibrary).toContain('getAccountLibraryMcpWorkflow');
+    expect(libraryPresentation).toContain('getAccountLibraryMcpWorkflow');
     expect(accountLibrary).toContain("activeTool === 'locations'");
     expect(accountLibrary).not.toContain('<AccountLibraryItemRow');
   });
 
   it('keeps account status and storage measurement semantics compact', () => {
-    expect(homeDesk).toContain('Account essentials');
-    expect(homeDesk).toContain('homeAccessStatus');
-    expect(homeDesk).toContain('Connections');
+    expect(deskOverview).toContain('Account essentials');
+    expect(homeDeskController).toContain('homeAccessStatus');
+    expect(homeDeskController).toContain('Connections');
     expect(homeDesk).not.toContain('Account snapshot');
     expect(accountLibraryRow).toContain('border-y border-[var(--cf-border)]');
     expect(storageLibrary).toContain('function StorageMetric');
@@ -103,21 +110,21 @@ describe('unified account environment', () => {
   });
 
   it('keeps Library search, filters, sorting, and refresh together', () => {
-    expect(accountLibrary).toContain('Filter by source');
-    expect(accountLibrary).toContain('Filter by type');
-    expect(accountLibrary).toContain('Sort library');
-    expect(accountLibrary).toContain('Refresh');
+    expect(libraryCollection).toContain('Filter by source');
+    expect(libraryCollection).toContain('Filter by type');
+    expect(libraryCollection).toContain('Sort library');
+    expect(libraryCollection).toContain('Refresh');
     expect(accountLibrary).not.toContain('cardforge-horizontal-strip');
   });
 
   it('keeps Stripe-owned billing inside the focused Profile utility', () => {
     expect(accountPage).toContain('getMcpAllowances()');
-    expect(accountPage).toContain("const needsPlans = activeSection === 'profile' || activeSection === 'billing';");
+    expect(accountPage).toContain("const needsPlans = activeSection === 'profile';");
     expect(accountPage).toContain('needsPlans ? getMcpAllowances() : Promise.resolve([])');
-    expect(accountPage).toContain("const needsAccountContent = activeSection === 'library' || activeSection === 'storage';");
+    expect(accountPage).toContain("const needsAccountContent = activeSection === 'library';");
     expect(accountPage).toContain("needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([])");
     expect(accountPage).toContain('plans={plans}');
-    expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : null");
+    expect(accountPage).toContain("params.utility === 'contributor' ? 'contributor' : params.utility === 'owner' && isOwner ? 'owner' : null");
     expect(profileEnvironment).toContain('Manage access, billing, and usage');
     expect(profileEnvironment).toContain('<EnvironmentToolLayer');
     expect(profileEnvironment).toContain('eyebrow="Profile"');
@@ -141,14 +148,17 @@ describe('unified account environment', () => {
 
   it('routes protected account entries to their real zones', () => {
     expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=contributor')");
-    expect(profileEnvironment).toContain("router.push('/owner')");
+    expect(profileEnvironment).toContain("router.push('/account?section=profile&utility=owner')");
+    expect(profileEnvironment).toContain('<OwnerProfileOperations');
     expect(accountPage).toContain('initialContributorAccess={contributorAccess}');
     expect(accountPage).not.toContain("section === 'contributor'");
   });
 
   it('uses native Next navigation when opening Library work', () => {
     expect(accountLibraryProjection).toContain("import { useRouter } from 'next/navigation';");
-    expect(accountLibraryProjection).toContain('router.push(createStudioHref({ returnTo }))');
+    expect(accountLibraryProjection).toContain('router.push(createStudioHref({ documentId: item.references.workingDraftId');
+    expect(accountLibraryProjection).toContain('router.push(createDeskReturnHref(`set:${item.references.localSetId}`))');
+    expect(accountLibraryProjection).toContain("tool: 'design'");
     expect(accountLibraryProjection).not.toContain("window.location.assign('/studio')");
   });
 });

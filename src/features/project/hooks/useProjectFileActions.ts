@@ -11,9 +11,9 @@ import { trackExportCompleted, trackExportStarted } from '@/features/analytics/c
 import { withNextStep } from '@/shared/userFacingErrors';
 import {
   buildCardForgeProjectSnapshot,
-  decodeProjectFile,
   encodeCardForgeProjectPackage,
 } from '../lib/projectPackageCodec';
+import { decodeBrowserProjectFile } from '../client/browserProjectPackage';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
 import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
 import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
@@ -228,7 +228,7 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    void decodeProjectFile(file)
+    void decodeBrowserProjectFile(file)
       .then((decoded) => {
         const patch = applyProjectDocumentToState(decoded.document);
         setPendingProjectImport({

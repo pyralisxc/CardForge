@@ -24,7 +24,7 @@ export function OutcomeHero({
   headline,
   media = getDefaultSiteMedia('landing.hero'),
   support,
-  primaryActionHref = '/studio',
+  primaryActionHref = '/account',
   primaryActionLabel = 'Try the Studio',
   secondaryActionLabel = 'See what it makes',
 }: {

@@ -3,10 +3,10 @@
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import {
   buildCardForgeProjectSnapshot,
-  decodeProjectFile,
   encodeCardForgeProjectPackage,
   ProjectPackageError,
 } from '../lib/projectPackageCodec';
+import { decodeBrowserProjectFile } from './browserProjectPackage';
 import {
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
@@ -243,7 +243,7 @@ const downloadGoogleDriveProject = async (
   }
   const blob = await response.blob();
   const file = new File([blob], summary.name, { type: GOOGLE_DRIVE_PROJECT_MIME_TYPE, lastModified: Date.parse(modifiedAt) || Date.now() });
-  const decoded = await decodeProjectFile(file);
+  const decoded = await decodeBrowserProjectFile(file);
   if (decoded.format !== 'cardforge-package' || decoded.sourceRevision !== projectRevision) {
     throw new ProjectPackageError('The downloaded Google Drive project does not match its source revision.');
   }
@@ -277,7 +277,13 @@ export const openGoogleDriveProject = async (
 ): Promise<GoogleDriveProjectBinding> => {
   const { decoded, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary);
   await applyProjectDocumentToWorkspace(decoded.document, 'replace');
-  const binding = downloadedBinding({ summary, providerRevision, projectRevision, modifiedAt });
+  const binding = downloadedBinding({
+    summary,
+    providerRevision,
+    projectRevision,
+    modifiedAt,
+    workId: decoded.document.activeCardSetId ?? decoded.document.cardSets[0]?.id ?? null,
+  });
   await persistBinding(binding);
   return binding;
 };

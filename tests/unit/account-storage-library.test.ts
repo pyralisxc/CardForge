@@ -10,6 +10,7 @@ describe('account storage library', () => {
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
   const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const libraryPresentation = readSource('src/features/storage-management/components/LibraryObjectPresentation.tsx');
   const pipelineSubmissionEditor = readSource('src/features/pipeline/components/PipelineSubmissionEditPanel.tsx');
   const pipelineSubmissionRoute = readSource('src/app/api/pipeline/[submissionId]/route.ts');
   const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
@@ -84,8 +85,8 @@ describe('account storage library', () => {
   });
 
   it('keeps contributor submission editing with the owned Pipeline object instead of the retired cockpit', () => {
-    expect(unifiedLibrary).toContain("id: 'library.edit-pipeline'");
-    expect(unifiedLibrary).toContain("item.pipeline.ownership === 'mine'");
+    expect(libraryPresentation).toContain("id: 'library.edit-pipeline'");
+    expect(libraryPresentation).toContain("item.pipeline.ownership === 'mine'");
     expect(unifiedLibrary).toContain("setActiveTool('edit-contribution')");
     expect(unifiedLibrary).toContain('<PipelineSubmissionEditPanel');
     expect(pipelineSubmissionEditor).toContain("method: submitDraft ? 'POST' : 'PATCH'");
@@ -98,9 +99,9 @@ describe('account storage library', () => {
   });
 
   it('keeps signed-out connected-storage states actionable', () => {
-    expect(googleDriveProjects).toContain("createAuthRouteHref('/sign-in', '/account?section=storage')");
+    expect(googleDriveProjects).toContain("createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')");
     expect(googleDriveProjects).toContain('Sign in to connect');
-    expect(connectedPersonalLibrary).toContain("createAuthRouteHref('/sign-in', '/account?section=storage')");
+    expect(connectedPersonalLibrary).toContain("createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')");
     expect(connectedPersonalLibrary).toContain('Sign in to connect');
   });
 });

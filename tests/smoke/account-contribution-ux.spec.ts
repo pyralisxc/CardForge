@@ -13,6 +13,36 @@ async function expectNoWcagViolations(page: Page) {
 }
 
 test.describe('account contribution surfaces', () => {
+  test('keeps Set focus and Design as one accessible Desk interaction', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await page.getByRole('button', { name: 'Create your first Set' }).click();
+    await page.getByRole('button', { name: /Fresh Set$/ }).click();
+    await expect(page.locator('[data-home-desk="focused"]')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back to Desk' }).click();
+    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await expectNoWcagViolations(page);
+  });
+
+  test('translates retired pseudo-surfaces and Studio destination links', async ({ page }) => {
+    await page.goto('/account?section=storage', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.getByRole('heading', { name: 'Locations & connections' })).toBeVisible();
+
+    await page.goto('/account?section=billing', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.getByRole('heading', { name: 'Manage access, billing, and usage' })).toBeVisible();
+
+    await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page).toHaveURL(/\/account\?tool=design$/);
+  });
+
   test('keeps contribution work inside the responsive Library environment', async ({ page }) => {
     await page.goto('/account?section=library&scope=pipeline', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
 

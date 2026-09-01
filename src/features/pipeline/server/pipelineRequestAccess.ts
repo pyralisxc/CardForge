@@ -65,7 +65,6 @@ export const getCurrentPipelineRequestAccess = async (): Promise<PipelineRequest
         isOwner: true,
         profileStatus: null,
         canDraftCampaigns: false,
-        canProposeSiteContent: false,
       }),
     };
   }
@@ -94,7 +93,6 @@ export const getCurrentPipelineRequestAccess = async (): Promise<PipelineRequest
       isOwner: false,
       profileStatus: profile.status,
       canDraftCampaigns: profile.canDraftCampaigns,
-      canProposeSiteContent: profile.canProposeSiteContent,
     }),
   };
 };

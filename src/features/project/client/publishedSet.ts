@@ -2,9 +2,9 @@
 
 import {
   decodeCardForgeProjectPackage,
-  hydrateCardForgeProjectSnapshot,
   ProjectPackageError,
 } from '../lib/projectPackageCodec';
+import { materializeBrowserProjectSnapshot } from './browserProjectPackage';
 import { applyProjectDocumentToWorkspace } from './projectWorkspaceDocument';
 import { useProjectStore } from '../store/workspaceStore';
 
@@ -24,7 +24,7 @@ export const createPublishedSetCopy = async ({
   const response = await fetch(packageUrl, { cache: 'no-store' });
   if (!response.ok) throw new ProjectPackageError('The published Set package is unavailable.');
   const snapshot = await decodeCardForgeProjectPackage(await response.blob());
-  const document = hydrateCardForgeProjectSnapshot(snapshot);
+  const document = await materializeBrowserProjectSnapshot(snapshot);
   if (document.cardSets.length !== 1) throw new ProjectPackageError('Published starters must contain exactly one Set.');
   const sourceSetId = document.cardSets[0]?.id;
   if (!sourceSetId || !document.storedCards.some((card) => card.setId === sourceSetId)) {

@@ -6,12 +6,14 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  applyGuestWorkspaceAdoption,
   BROWSER_STORAGE_DATABASE,
   createIndexedDbStorage,
   createProjectPersistenceScope,
   createScopedProjectStorage,
   getProjectAssetStorage,
   getScopedProjectStorageNamespace,
+  inspectGuestWorkspaceAdoption,
   readTypedProjectAssetListFromStorage,
   setProjectPersistenceScope,
   writeProjectAssetListToStorage,
@@ -57,7 +59,7 @@ describe('Studio account-scoped persistence', () => {
       .resolves.toContain('"marker":"b"');
   });
 
-  it('persists repeated browser artwork once by content hash and hydrates it for the editor', async () => {
+  it('persists repeated browser artwork once by content hash and keeps workspace hydration lazy', async () => {
     const artwork = 'data:image/png;base64,AAECAwQ=';
     setProjectPersistenceScope('account:user-assets');
     const workspace = createScopedProjectStorage('project-workspace');
@@ -77,7 +79,8 @@ describe('Studio account-scoped persistence', () => {
     expect(new Set(stored?.match(/cardforge-browser-asset:\/\/[a-f0-9]{64}/g))).toHaveLength(1);
 
     const hydrated = await workspace.getItem('workspace');
-    expect(hydrated?.match(new RegExp(artwork, 'g'))).toHaveLength(2);
+    expect(hydrated).not.toContain('base64');
+    expect(hydrated?.match(/cardforge-browser-asset:\/\//g)).toHaveLength(2);
   });
 
   it('uses the same content-addressed persistence for the local asset catalog', async () => {
@@ -108,6 +111,58 @@ describe('Studio account-scoped persistence', () => {
     setProjectPersistenceScope('account:user-c');
     await expect(createScopedProjectStorage('project-workspace').getItem('workspace')).resolves.toBeNull();
     await expect(legacy.getItem('workspace')).resolves.toContain('legacy-plugin-state');
+  });
+
+  it('offers guest work after sign-in and adopts it only after the explicit replace choice', async () => {
+    setProjectPersistenceScope('guest');
+    await createScopedProjectStorage('project-workspace').setItem(
+      'workspace',
+      JSON.stringify({ state: { marker: 'guest-work' }, version: 3 }),
+    );
+
+    const offer = await inspectGuestWorkspaceAdoption('account:user-adoption');
+    expect(offer).toEqual({ guestRevision: 1, hasAccountWorkspace: false });
+
+    await applyGuestWorkspaceAdoption({
+      accountScope: 'account:user-adoption',
+      choice: 'replace-with-guest-workspace',
+    });
+    setProjectPersistenceScope('account:user-adoption');
+    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
+      .resolves.toContain('guest-work');
+    setProjectPersistenceScope('guest');
+    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
+      .resolves.toContain('guest-work');
+    await expect(inspectGuestWorkspaceAdoption('account:user-adoption')).resolves.toBeNull();
+  });
+
+  it('keeps both guest and account work unchanged when the account workspace is chosen', async () => {
+    setProjectPersistenceScope('guest');
+    const guestWorkspace = createScopedProjectStorage('project-workspace');
+    await guestWorkspace.getItem('workspace');
+    await guestWorkspace.setItem(
+      'workspace',
+      JSON.stringify({ state: { marker: 'guest-kept' }, version: 3 }),
+    );
+    setProjectPersistenceScope('account:user-keep');
+    const accountWorkspace = createScopedProjectStorage('project-workspace');
+    await accountWorkspace.getItem('workspace');
+    await accountWorkspace.setItem(
+      'workspace',
+      JSON.stringify({ state: { marker: 'account-kept' }, version: 3 }),
+    );
+
+    await applyGuestWorkspaceAdoption({
+      accountScope: 'account:user-keep',
+      choice: 'keep-account-workspace',
+    });
+
+    setProjectPersistenceScope('guest');
+    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
+      .resolves.toContain('guest-kept');
+    setProjectPersistenceScope('account:user-keep');
+    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
+      .resolves.toContain('account-kept');
   });
 
   it('quarantines corrupt scoped workspace JSON instead of returning it to Zustand', async () => {

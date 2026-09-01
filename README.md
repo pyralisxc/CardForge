@@ -7,10 +7,10 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Studio: `/studio`.
+- Desk: `/account`; Design, Generate, Output, Pipeline, and location controls open as contextual tools over Desk or Library. `/studio` remains compatibility ingress for exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
-- Contributor work is capability-gated inside Desk, Library, and Profile; owner review and publication remain in `/owner`.
-- Owner console: `/owner`.
+- Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
+- Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
 
 Production runs at [cardforges.com](https://cardforges.com).
@@ -62,9 +62,9 @@ npm run brand:export
 ## Source map
 
 - `src/app/`: Next.js routes and HTTP composition.
-- `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
-- `src/features/app-shell/`: the focused Studio workbench shell, contextual-tool composition, and workspace bootstrap.
-- `src/features/home/`: the internal owner for the two-scale user-facing Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
+- `src/domain/`: pure Artifact, Card, Template, Rendering, and Entitlements policy.
+- `src/features/app-shell/`: reusable contextual-tool composition, interaction/action runtime, compatibility Studio ingress, and workspace bootstrap.
+- `src/features/home/`: the spatial Desk owner over Sets and their generalized Artifact projection; cards remain the first shipped specialized Artifact type.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: single/bulk card creation, generated-card editing, validation, and output tools consumed by Studio and Desk.
 - `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
@@ -95,7 +95,7 @@ CardForge has three deliberate storage lanes:
 - **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, contributor profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
-`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. Package v2 writes one bounded streaming archive for large Sets while the compatibility reader still accepts v1. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
 
 ## Agent authoring
 

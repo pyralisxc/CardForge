@@ -1,8 +1,15 @@
 import type { StateStorage } from 'zustand/middleware';
 
+import {
+  BrowserWorkspaceConflictError,
+  parseBrowserWorkspaceRecord,
+  serializeBrowserWorkspaceRecord,
+} from './workspaceRevision';
+
 export const BROWSER_STORAGE_DATABASE = 'cardforge-browser-storage';
 export const BROWSER_STORAGE_FAILURE_EVENT = 'cardforge:browser-storage-failure';
 export const BROWSER_STORAGE_SAVE_STATUS_EVENT = 'cardforge:workspace-save-status';
+export const BROWSER_WORKSPACE_CONFLICT_EVENT = 'cardforge:workspace-conflict';
 const BROWSER_STORAGE_OBJECT_STORE = 'key-value';
 const BROWSER_STORAGE_VERSION = 1;
 export const MAX_LOCAL_ASSET_DIMENSION = 8192;
@@ -157,6 +164,68 @@ export const createBrowserKeyValueStorage = (
       await runRequest('readwrite', (store) => store.delete(namespacedKey(key)));
     },
   };
+};
+
+export const compareAndSetBrowserWorkspaceValue = async ({
+  namespace,
+  key,
+  value,
+  expectedRevision,
+  writerId,
+  keepRecoverySnapshot = false,
+}: {
+  namespace: string;
+  key: string;
+  value: string;
+  expectedRevision: number;
+  writerId: string;
+  keepRecoverySnapshot?: boolean;
+}): Promise<number> => {
+  const namespacedKey = `${namespace}:${key}`;
+  beginWorkspaceWrite();
+  const database = await openDatabase();
+  try {
+    const revision = await new Promise<number>((resolve, reject) => {
+      const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+      const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
+      const request = store.get(namespacedKey);
+      let nextRevision: number | null = null;
+      let conflict: BrowserWorkspaceConflictError | null = null;
+      request.onsuccess = () => {
+        const previousRaw = typeof request.result === 'string' ? request.result : null;
+        const previous = previousRaw === null
+          ? { revision: 0 }
+          : parseBrowserWorkspaceRecord(previousRaw);
+        if (previous.revision !== expectedRevision) {
+          conflict = new BrowserWorkspaceConflictError(expectedRevision, previous.revision);
+          return;
+        }
+        nextRevision = previous.revision + 1;
+        if (keepRecoverySnapshot && previousRaw !== null) {
+          store.put(previousRaw, `${namespace}:__recovery__:${key}`);
+        }
+        store.put(serializeBrowserWorkspaceRecord({ revision: nextRevision, writerId, value }), namespacedKey);
+      };
+      request.onerror = () => reject(request.error ?? new Error('Unable to read the current browser workspace revision.'));
+      transaction.oncomplete = () => {
+        if (conflict) reject(conflict);
+        else if (nextRevision !== null) resolve(nextRevision);
+        else reject(new Error('The browser workspace transaction did not produce a revision.'));
+      };
+      transaction.onerror = () => reject(transaction.error ?? new Error('Unable to save browser data.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Browser storage transaction was aborted.'));
+    });
+    finishWorkspaceWrite(false);
+    return revision;
+  } catch (error) {
+    finishWorkspaceWrite(true);
+    if (typeof window !== 'undefined' && error instanceof BrowserWorkspaceConflictError) {
+      window.dispatchEvent(new CustomEvent(BROWSER_WORKSPACE_CONFLICT_EVENT, { detail: error }));
+    }
+    throw error;
+  } finally {
+    database.close();
+  }
 };
 
 export const quarantineBrowserStorageValue = async ({

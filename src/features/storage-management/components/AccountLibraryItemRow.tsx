@@ -117,7 +117,7 @@ function ItemActions({
       ) : primaryIsSource && item.webViewLink ? (
         <Button asChild size="sm" variant="ghost"><a href={item.webViewLink} target="_blank" rel="noreferrer">View source</a></Button>
       ) : primaryIsStorage ? (
-        <Button asChild size="sm" variant="ghost"><Link href="/account?section=storage">Manage</Link></Button>
+        <Button asChild size="sm" variant="ghost"><Link href="/account?section=library&tool=locations">Manage</Link></Button>
       ) : null}
 
       {hasSecondary ? (
@@ -132,7 +132,7 @@ function ItemActions({
               <DropdownMenuItem asChild><a href={item.webViewLink} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />View source</a></DropdownMenuItem>
             ) : null}
             {canManageStorage && !primaryIsStorage ? (
-              <DropdownMenuItem asChild><Link href="/account?section=storage"><HardDrive className="h-4 w-4" />Manage location</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/account?section=library&tool=locations"><HardDrive className="h-4 w-4" />Manage location</Link></DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>

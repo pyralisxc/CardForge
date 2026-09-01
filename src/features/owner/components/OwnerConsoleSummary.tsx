@@ -47,7 +47,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Owner control plane</p>
-          <h1 className="font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">CardForge Owner Console</h1>
+          <h1 className="font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">CardForge owner operations</h1>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-[var(--cf-text-muted)]">
           <CardForgeSurface tone="inset" className="border-[var(--cf-border-subtle)] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</CardForgeSurface>

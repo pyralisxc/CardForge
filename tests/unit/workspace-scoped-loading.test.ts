@@ -39,11 +39,10 @@ describe('workspace-scoped data loading', () => {
     expect(restore).toContain('getOwnerSiteConsolePayload');
   });
 
-  it('loads Campaign and Site contribution work only inside their owning surfaces', () => {
+  it('loads Campaign work in its owning surface and leaves the retired Site proposal boundary closed', () => {
     const campaignRoute = readSource('src/app/api/marketing-content/route.ts');
     const siteRoute = readSource('src/app/api/site-proposals/route.ts');
     const campaignWorkspace = readSource('src/features/marketing-content/server/workspace.ts');
-    const siteWorkspace = readSource('src/features/site-proposals/server/siteProposalWorkspaceStore.ts');
     const campaignLibrary = readSource('src/features/marketing-content/components/CampaignLibraryWorkspace.tsx');
     const contributorProfile = readSource('src/app/account/_components/ContributorProfilePanel.tsx');
 
@@ -51,22 +50,40 @@ describe('workspace-scoped data loading', () => {
     expect(campaignWorkspace).toContain('getAuthorizedCampaignMediaPage');
     expect(campaignWorkspace).not.toContain('fetchSiteProposals(access)');
     expect(campaignWorkspace).not.toContain('getSiteContentBlocks()');
-    expect(siteRoute).toContain('getSiteProposalWorkspace(access)');
-    expect(siteWorkspace).toContain('fetchSiteProposals(access)');
-    expect(siteWorkspace).not.toContain('getAuthorizedCampaignMediaPage');
+    expect(siteRoute).toContain("'site_proposal_retired'");
+    expect(siteRoute).not.toContain('getSiteProposalWorkspace');
     expect(campaignLibrary).toContain('loadMarketingContentWorkspace');
-    expect(contributorProfile).toContain('canProposeSite ? loadSiteProposalWorkspace()');
+    expect(contributorProfile).not.toContain('loadSiteProposalWorkspace');
   });
 
-  it('returns only the owning workspace after contribution mutations', () => {
+  it('returns only the owning workspace after active contribution mutations', () => {
     const proposalRoute = readSource('src/app/api/site-proposals/route.ts');
     const mediaRoute = readSource('src/app/api/marketing-content/media/[mediaId]/route.ts');
-    const client = readSource('src/features/site-proposals/client/api.ts');
 
-    expect(proposalRoute).toContain('getSiteProposalWorkspace(access)');
-    expect(client).toContain('Promise<SiteProposalWorkspace>');
+    expect(proposalRoute).toContain("'site_proposal_retired'");
     expect(mediaRoute).toContain('createNoStoreJsonResponse({ updated: true })');
     expect(mediaRoute).toContain('createNoStoreJsonResponse({ deleted: true })');
+  });
+
+  it('keeps the retired Site proposal grant out of current public, Contributor, and Owner owners', () => {
+    const contributorPage = readSource('src/features/contributor-program/components/ContributorProgramPage.tsx');
+    const publicContent = readSource('src/features/public-site/model/siteContent.ts');
+    const ownerGovernance = readSource('src/features/owner/components/OwnerGovernancePanels.tsx');
+    const ownerPeopleRoute = readSource('src/app/api/owner/people/route.ts');
+    const contributorModel = readSource('src/features/contributor-access/model.ts');
+    const contributorProfiles = readSource('src/features/contributor-access/server/profileStore.ts');
+
+    expect(contributorPage).not.toContain('contributor.lane.site');
+    expect(contributorPage).not.toContain('site proposals independently');
+    expect(publicContent).not.toContain('contributor.lane.site');
+    expect(publicContent).not.toContain('site-copy proposals');
+    expect(publicContent).not.toContain('propose public-site improvements');
+    expect(ownerGovernance).toContain('Public-site editing remains owner-only.');
+    expect(ownerGovernance).not.toContain('campaign drafting and site proposals');
+    expect(ownerPeopleRoute).not.toContain('canProposeSiteContent');
+    expect(contributorModel).not.toContain('canProposeSiteContent');
+    expect(contributorProfiles).not.toContain('can_propose_site_content');
+    expect(contributorProfiles).not.toContain('canProposeSiteContent');
   });
 
   it('keeps Marketing consumers on the Campaign workspace instead of the combined bootstrap', () => {

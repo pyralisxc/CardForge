@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { Database, HardDrive, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -209,7 +209,7 @@ export function AccountStorageLibrary({
                       <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} cards · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { useProjectStore.getState().setActiveCardSetId(set.id); router.push(createStudioHref({ returnTo: '/account?section=storage' })); }}>Open</Button>
+                      <Button size="sm" variant="outline" onClick={() => { useProjectStore.getState().setActiveCardSetId(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
                       <Button
                         size="sm"
                         variant="ghost"

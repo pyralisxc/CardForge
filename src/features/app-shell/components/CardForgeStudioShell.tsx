@@ -7,6 +7,7 @@ import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app
 import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
 import {
@@ -45,16 +46,23 @@ export type StudioBusinessIdentity = {
   copyrightHolder: string;
 };
 
+export interface CardForgeStudioShellProps {
+  businessIdentity: StudioBusinessIdentity;
+  initialContributorAccess: ContributorAccessSessionState;
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
 export function CardForgeStudioShell({
   businessIdentity,
   initialContributorAccess,
-}: {
-  businessIdentity: StudioBusinessIdentity;
-  initialContributorAccess: ContributorAccessSessionState;
-}) {
+  embedded = false,
+  onDirtyChange,
+}: CardForgeStudioShellProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
+  const checkoutReturnTo = useSafeCurrentReturnPath('/account?section=profile&utility=billing');
   const accountEntitlement = useAccountEntitlement();
   const contributorAccess = useContributorAccess({
     eligible: accountEntitlement.accessMode === 'contributor' || accountEntitlement.ownerAccess.isOwner,
@@ -279,6 +287,7 @@ export function CardForgeStudioShell({
   } = useCheckoutActions({
     authConfigured: accountEntitlement.authConfigured,
     isSignedIn: accountEntitlement.isSignedIn,
+    returnTo: checkoutReturnTo,
     toast,
   });
 
@@ -359,7 +368,7 @@ export function CardForgeStudioShell({
     setTemplateEditorSelectedTemplateIdAction(template.id);
     setStudioViewAction('template');
     url.searchParams.delete('editTemplate');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     focusStudioRegion('[data-testid="layout-studio-panel"]');
   }, [focusStudioRegion, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore, toast]);
 
@@ -375,9 +384,11 @@ export function CardForgeStudioShell({
     else if (requestedTool === 'pipeline' && canSubmitTemplateRevisions) setOpenStudioSheet('pipeline');
     else if (requestedTool === 'save') setSaveMoveOpen(true);
     requestedToolHandledRef.current = true;
-    url.searchParams.delete('tool');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [canSubmitTemplateRevisions]);
+    if (!embedded) {
+      url.searchParams.delete('tool');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, [canSubmitTemplateRevisions, embedded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -392,6 +403,16 @@ export function CardForgeStudioShell({
   }, []);
 
   const isStudioReady = !isLoadingTemplates;
+  const handleDocumentInstalled = useCallback(({ activeSetId, destination }: {
+    activeSetId: string | null;
+    destination: 'sets' | 'generator' | 'template-maker';
+  }) => {
+    if (embedded) return;
+    const params = new URLSearchParams();
+    if (activeSetId) params.set('focus', `set:${activeSetId}`);
+    params.set('tool', destination === 'template-maker' ? 'design' : 'generate');
+    router.replace(`/account?${params.toString()}`);
+  }, [embedded, router]);
   useStudioDocumentHandoff({
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
@@ -407,6 +428,7 @@ export function CardForgeStudioShell({
     setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
+    onInstalled: handleDocumentInstalled,
   });
 
   const showTemplateTool = useCallback(() => {
@@ -423,7 +445,7 @@ export function CardForgeStudioShell({
 
   if (!activeCardSet) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]">
+      <div className={`${embedded ? 'min-h-[65vh]' : 'min-h-dvh'} flex items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]`}>
         <section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p>
           <h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1>
@@ -440,7 +462,7 @@ export function CardForgeStudioShell({
   }
 
   return (
-    <div className="flex h-dvh max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]">
+    <div className={`flex max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)] ${embedded ? 'h-[min(82vh,900px)] min-h-[65vh]' : 'h-dvh'}`} data-studio-presentation={embedded ? 'contextual-tool' : 'compatibility-ingress'}>
       {accountEntitlement.entitlementError ? (
         <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
           Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
@@ -532,6 +554,7 @@ export function CardForgeStudioShell({
               onReturnToTemplateMaker={showTemplateTool}
               requestedBackFormat={matchingBackRequest}
               onRequestedBackFormatConsumed={clearMatchingBackRequest}
+              onDirtyChange={onDirtyChange}
             />
           </div>
 

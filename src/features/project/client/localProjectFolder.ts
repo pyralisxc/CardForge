@@ -3,10 +3,12 @@
 import {
   buildCardForgeProjectSnapshot,
   decodeProjectFile,
-  encodeCardForgeProjectPackage,
   ProjectPackageError,
+  writeCardForgeProjectPackage,
 } from '../lib/projectPackageCodec';
+import { decodeBrowserProjectFile } from './browserProjectPackage';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, type ProjectSourceDescriptor } from '../model/projectPackage';
+import { getProjectSourceConflict } from '../model/projectSourceConflict';
 import { getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
 import {
   readStructuredBrowserValue,
@@ -121,14 +123,21 @@ const writeSnapshotToDirectory = async (
   await requireWritePermission(directory);
   const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
   const snapshot = await buildCardForgeProjectSnapshot({ document, name: directory.name });
-  const bytes = await encodeCardForgeProjectPackage(snapshot);
+  if (existingBinding) {
+    await assertLocalProjectFolderRevisionCurrent(directory, existingBinding);
+  }
   const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME, { create: true });
   const writable = await fileHandle.createWritable();
   try {
-    const blobBytes = new Uint8Array(bytes.byteLength);
-    blobBytes.set(bytes);
-    await writable.write(new Blob([blobBytes.buffer], { type: 'application/vnd.cardforge.project+zip' }));
-    await writable.close();
+    await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
+      write: async (chunk) => {
+        const copy = new Uint8Array(chunk.byteLength);
+        copy.set(chunk);
+        await writable.write(copy);
+      },
+      close: () => writable.close(),
+      abort: () => writable.abort(),
+    }));
   } catch (error) {
     try { await writable.abort(); } catch { /* best effort */ }
     throw error;
@@ -152,6 +161,39 @@ const writeSnapshotToDirectory = async (
   }
   else await persistBinding(binding);
   return binding;
+};
+
+export const assertLocalProjectFolderRevisionCurrent = async (
+  directory: FileSystemDirectoryHandle,
+  binding: LocalProjectFolderBinding,
+): Promise<void> => {
+  if (!binding.sourceRevision) {
+    throw new ProjectPackageError('Reload this local-folder project before saving so CardForge can protect its exact revision. Existing folder work was left unchanged.');
+  }
+
+  let file: File;
+  try {
+    const fileHandle = await directory.getFileHandle(LOCAL_PROJECT_FILE_NAME);
+    file = await fileHandle.getFile();
+  } catch {
+    throw new ProjectPackageError(`“${directory.name}” no longer contains the attached CardForge project. Existing folder contents were left unchanged.`);
+  }
+
+  let currentRevision: string | null = null;
+  try {
+    const decoded = await decodeProjectFile(file);
+    currentRevision = decoded.format === 'cardforge-package' ? decoded.sourceRevision : null;
+  } catch {
+    throw new ProjectPackageError(`The CardForge project in “${directory.name}” is no longer readable. Existing folder work was left unchanged; open the folder copy to recover or compare it.`);
+  }
+
+  const conflict = getProjectSourceConflict({
+    expected: { projectRevision: binding.sourceRevision },
+    current: { projectRevision: currentRevision },
+  });
+  if (conflict) {
+    throw new ProjectPackageError(`The CardForge project in “${directory.name}” changed after revision ${binding.sourceRevision.slice(0, 12)}. Open the folder copy before saving so newer authored work is not overwritten.`);
+  }
 };
 
 export const isLocalProjectFolderSupported = (): boolean => (
@@ -233,7 +275,7 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
     throw error;
   }
   const file = await fileHandle.getFile();
-  const decoded = await decodeProjectFile(file);
+  const decoded = await decodeBrowserProjectFile(file);
   if (decoded.format !== 'cardforge-package' || !decoded.sourceRevision) {
     throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
   }
@@ -243,6 +285,7 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
     folderName: directory.name,
     sourceRevision: decoded.sourceRevision,
     lastSavedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
+    workId: decoded.document.activeCardSetId ?? decoded.document.cardSets[0]?.id ?? null,
   };
   await persistBinding(binding);
   return binding;

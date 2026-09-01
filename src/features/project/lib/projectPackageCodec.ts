@@ -1,8 +1,21 @@
-import JSZip from 'jszip';
+import {
+  BlobReader,
+  BlobWriter,
+  TextReader,
+  TextWriter,
+  Uint8ArrayReader,
+  Uint8ArrayWriter,
+  ZipReader,
+  ZipWriter,
+  type Entry,
+} from '@zip.js/zip.js';
+
+import { createCardArtifact, getCardFromArtifact } from '@/domain/artifacts';
 
 import {
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   MAX_PROJECT_PACKAGE_ASSET_BYTES,
   MAX_PROJECT_PACKAGE_ASSETS,
   MAX_PROJECT_PACKAGE_BYTES,
@@ -13,8 +26,11 @@ import {
   isProjectPackageAssetId,
   isProjectPackageAssetMimeType,
   normalizeProjectFileName,
-  type CardForgeProjectManifestV1,
+  type CardForgeProjectManifest,
+  type CardForgeProjectManifestV2,
   type CardForgeProjectPackageSnapshot,
+  type CardForgeProjectPackageSnapshotV2,
+  type PortableProjectDocumentV2,
   type ProjectPackageAssetDescriptor,
   type ProjectPackageAssetMimeType,
 } from '../model/projectPackage';
@@ -152,9 +168,9 @@ const calculateProjectRevision = async (
   assets: ProjectPackageAssetDescriptor[],
 ): Promise<string> => hashBytes(encoder.encode(getRevisionPayload(project, assets)));
 
-const getManifestByteLength = (manifest: CardForgeProjectManifestV1): number => encoder.encode(JSON.stringify(manifest)).length;
+const getManifestByteLength = (manifest: CardForgeProjectManifest): number => encoder.encode(JSON.stringify(manifest)).length;
 
-const assertPackageBounds = (manifest: CardForgeProjectManifestV1) => {
+const assertPackageBounds = (manifest: CardForgeProjectManifest) => {
   const metadataBytes = getManifestByteLength(manifest);
   if (metadataBytes > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
     throw new ProjectPackageError(`This project has more than ${Math.round(MAX_PROJECT_PACKAGE_METADATA_BYTES / 1024 / 1024)} MB of non-asset data.`);
@@ -178,8 +194,48 @@ const normalizeAssetDescriptor = (value: unknown): ProjectPackageAssetDescriptor
   return { id, mimeType, size, path };
 };
 
-const parseManifest = async (value: unknown): Promise<CardForgeProjectManifestV1> => {
-  if (!isRecord(value) || value.cardforgeProject !== CARDFORGE_PROJECT_PACKAGE_VERSION) {
+const toPortableProjectDocument = (document: ProjectDocumentV1): PortableProjectDocumentV2 => {
+  const { storedCards, ...project } = document;
+  return {
+    ...project,
+    version: 2,
+    artifacts: storedCards.map(createCardArtifact),
+  };
+};
+
+const toRuntimeProjectDocument = (document: PortableProjectDocumentV2): ProjectDocumentV1 => {
+  const { artifacts, ...project } = document;
+  return {
+    ...project,
+    version: 1,
+    storedCards: artifacts.map(getCardFromArtifact),
+  };
+};
+
+const parsePortableProjectDocument = (value: unknown): PortableProjectDocumentV2 | null => {
+  if (!isRecord(value) || value.version !== 2 || !Array.isArray(value.artifacts)) return null;
+  const artifacts = value.artifacts.flatMap((artifact) => {
+    if (!isRecord(artifact)
+      || artifact.artifactType !== 'card'
+      || typeof artifact.artifactId !== 'string'
+      || typeof artifact.setId !== 'string'
+      || !isRecord(artifact.card)) return [];
+    return [artifact];
+  });
+  if (artifacts.length !== value.artifacts.length) return null;
+  const runtime = parseProjectDocumentValue({
+    ...value,
+    version: 1,
+    storedCards: artifacts.map((artifact) => artifact.card),
+  });
+  if (!runtime.success) return null;
+  return toPortableProjectDocument(runtime.document);
+};
+
+const parseManifest = async (value: unknown): Promise<CardForgeProjectManifest> => {
+  if (!isRecord(value)
+    || (value.cardforgeProject !== CARDFORGE_PROJECT_PACKAGE_VERSION
+      && value.cardforgeProject !== LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION)) {
     throw new ProjectPackageError('Unsupported CardForge project package version.');
   }
   const name = typeof value.name === 'string' ? normalizeProjectFileName(value.name) : '';
@@ -200,27 +256,43 @@ const parseManifest = async (value: unknown): Promise<CardForgeProjectManifestV1
   if (ids.size !== normalizedAssets.length || paths.size !== normalizedAssets.length) {
     throw new ProjectPackageError('The CardForge project contains duplicate packaged assets.');
   }
-  const parsedProject = parseProjectDocumentValue(value.project);
-  if (!parsedProject.success) throw new ProjectPackageError(parsedProject.error);
+  const isLegacy = value.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
+  const parsedProject = isLegacy ? parseProjectDocumentValue(value.project) : null;
+  const portableProject = isLegacy ? null : parsePortableProjectDocument(value.project);
+  if (isLegacy && !parsedProject?.success) {
+    throw new ProjectPackageError(parsedProject?.error ?? 'The CardForge project document is invalid.');
+  }
+  if (!isLegacy && !portableProject) {
+    throw new ProjectPackageError('The CardForge project artifact document is invalid.');
+  }
   const expectedRevision = await calculateProjectRevision(value.project, normalizedAssets);
   if (expectedRevision !== projectRevision) {
     throw new ProjectPackageError('The CardForge project manifest changed without a matching project revision.');
   }
-  const manifest: CardForgeProjectManifestV1 = {
-    cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
-    name,
-    projectRevision,
-    savedAt,
-    project: parsedProject.document,
-    assets: normalizedAssets,
-  };
+  let manifest: CardForgeProjectManifest;
+  if (isLegacy) {
+    if (!parsedProject?.success) throw new ProjectPackageError('The CardForge project document is invalid.');
+    manifest = {
+      cardforgeProject: LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
+      name,
+      projectRevision,
+      savedAt,
+      project: parsedProject.document,
+      assets: normalizedAssets,
+    };
+  } else {
+    if (!portableProject) throw new ProjectPackageError('The CardForge project artifact document is invalid.');
+    manifest = {
+      cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
+      name,
+      projectRevision,
+      savedAt,
+      project: portableProject,
+      assets: normalizedAssets,
+    };
+  }
   assertPackageBounds(manifest);
   return manifest;
-};
-
-const getZipUncompressedSize = (entry: unknown): number | null => {
-  const data = isRecord(entry) && isRecord(entry._data) ? entry._data : null;
-  return data && typeof data.uncompressedSize === 'number' ? data.uncompressedSize : null;
 };
 
 export const buildCardForgeProjectSnapshot = async ({
@@ -231,12 +303,12 @@ export const buildCardForgeProjectSnapshot = async ({
   document: ProjectDocumentV1;
   name: string;
   savedAt?: string;
-}): Promise<CardForgeProjectPackageSnapshot> => {
+}): Promise<CardForgeProjectPackageSnapshotV2> => {
   const assets = new Map<string, { descriptor: ProjectPackageAssetDescriptor; bytes: Uint8Array }>();
-  const externalized = await externalizeProjectAssets(document, assets) as ProjectDocumentV1;
+  const externalized = await externalizeProjectAssets(toPortableProjectDocument(document), assets) as PortableProjectDocumentV2;
   const descriptors = [...assets.values()].map(({ descriptor }) => descriptor).sort((left, right) => left.id.localeCompare(right.id));
   const projectRevision = await calculateProjectRevision(externalized, descriptors);
-  const manifest: CardForgeProjectManifestV1 = {
+  const manifest: CardForgeProjectManifestV2 = {
     cardforgeProject: CARDFORGE_PROJECT_PACKAGE_VERSION,
     name: normalizeProjectFileName(name),
     projectRevision,
@@ -255,20 +327,67 @@ export const encodeCardForgeProjectPackage = async (
   snapshot: CardForgeProjectPackageSnapshot,
 ): Promise<Uint8Array> => {
   assertPackageBounds(snapshot.manifest);
-  const zip = new JSZip();
-  zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(snapshot.manifest, null, 2), { compression: 'STORE' });
-  for (const descriptor of snapshot.manifest.assets) {
-    const bytes = snapshot.assets.get(descriptor.id);
-    if (!bytes || bytes.length !== descriptor.size) {
-      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… does not match its manifest.`);
-    }
-    zip.file(descriptor.path, bytes, { compression: 'STORE' });
-  }
-  const encoded = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' });
+  const writer = new BlobWriter('application/zip');
+  const zip = new ZipWriter(writer);
+  await addSnapshotEntries(zip, snapshot);
+  const output = await zip.close();
+  const encoded = new Uint8Array(await output.arrayBuffer());
   if (encoded.byteLength > MAX_PROJECT_PACKAGE_BYTES + MAX_PROJECT_PACKAGE_METADATA_BYTES) {
     throw new ProjectPackageError('The encoded CardForge project exceeds the safe portable-file limit.');
   }
   return encoded;
+};
+
+const addSnapshotEntries = async (
+  zip: ZipWriter<unknown>,
+  snapshot: CardForgeProjectPackageSnapshot,
+) => {
+  try {
+    await zip.add(
+      CARDFORGE_PROJECT_MANIFEST_FILE,
+      new TextReader(JSON.stringify(snapshot.manifest, null, 2)),
+      { level: 0 },
+    );
+    for (const descriptor of snapshot.manifest.assets) {
+      const bytes = snapshot.assets.get(descriptor.id);
+      if (!bytes || bytes.length !== descriptor.size) {
+        throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… does not match its manifest.`);
+      }
+      await zip.add(descriptor.path, new Uint8ArrayReader(bytes), { level: 0 });
+    }
+  } catch (error) {
+    await zip.close().catch(() => undefined);
+    if (error instanceof ProjectPackageError) throw error;
+    throw new ProjectPackageError('The CardForge project package could not be written safely.');
+  }
+};
+
+/**
+ * Writes directly to a browser/file-provider stream. The Uint8Array encoder is
+ * retained as the bounded compatibility fallback for providers that require a
+ * complete request body.
+ */
+export const writeCardForgeProjectPackage = async (
+  snapshot: CardForgeProjectPackageSnapshot,
+  writable: WritableStream<Uint8Array>,
+): Promise<void> => {
+  assertPackageBounds(snapshot.manifest);
+  const destination = writable.getWriter();
+  let encodedBytes = 0;
+  const boundedWritable = new WritableStream<Uint8Array>({
+    write: async (chunk) => {
+      encodedBytes += chunk.byteLength;
+      if (encodedBytes > MAX_PROJECT_PACKAGE_BYTES + MAX_PROJECT_PACKAGE_METADATA_BYTES) {
+        throw new ProjectPackageError('The encoded CardForge project exceeds the safe portable-file limit.');
+      }
+      await destination.write(chunk);
+    },
+    close: () => destination.close(),
+    abort: (reason) => destination.abort(reason),
+  });
+  const zip = new ZipWriter(boundedWritable);
+  await addSnapshotEntries(zip, snapshot);
+  await zip.close();
 };
 
 export const decodeCardForgeProjectPackage = async (
@@ -278,51 +397,65 @@ export const decodeCardForgeProjectPackage = async (
   if (inputBytes <= 0 || inputBytes > MAX_PROJECT_PACKAGE_BYTES + MAX_PROJECT_PACKAGE_METADATA_BYTES) {
     throw new ProjectPackageError('This CardForge project file is empty or exceeds the safe portable-file limit.');
   }
-  let zip: JSZip;
+  let inputBlob: Blob;
+  if (input instanceof Blob) inputBlob = input;
+  else if (input instanceof Uint8Array) {
+    const copied = new Uint8Array(input.byteLength);
+    copied.set(input);
+    inputBlob = new Blob([copied.buffer]);
+  } else inputBlob = new Blob([input]);
+  let zip: ZipReader<Blob>;
+  let entries: Entry[];
   try {
-    zip = await JSZip.loadAsync(input, { createFolders: false });
+    zip = new ZipReader(new BlobReader(inputBlob), { strictness: 'strict' });
+    entries = await zip.getEntries();
   } catch {
     throw new ProjectPackageError('This file is not a readable CardForge project package.');
   }
-  const manifestEntry = zip.file(CARDFORGE_PROJECT_MANIFEST_FILE);
-  if (!manifestEntry) throw new ProjectPackageError(`This package is missing ${CARDFORGE_PROJECT_MANIFEST_FILE}.`);
-  const manifestSize = getZipUncompressedSize(manifestEntry);
-  if (manifestSize !== null && manifestSize > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
-    throw new ProjectPackageError('The CardForge project manifest is too large to open safely.');
-  }
-  const manifestText = await manifestEntry.async('string');
-  if (encoder.encode(manifestText).length > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
-    throw new ProjectPackageError('The CardForge project manifest is too large to open safely.');
-  }
-  let manifestValue: unknown;
   try {
-    manifestValue = JSON.parse(manifestText);
-  } catch {
-    throw new ProjectPackageError('The CardForge project manifest contains invalid JSON.');
+    const entriesByName = new Map(entries.map((entry) => [entry.filename, entry]));
+    const manifestEntry = entriesByName.get(CARDFORGE_PROJECT_MANIFEST_FILE);
+    if (!manifestEntry) throw new ProjectPackageError(`This package is missing ${CARDFORGE_PROJECT_MANIFEST_FILE}.`);
+    if (manifestEntry.directory) throw new ProjectPackageError(`This package has an invalid ${CARDFORGE_PROJECT_MANIFEST_FILE} entry.`);
+    if ((manifestEntry.uncompressedSize ?? 0) > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
+      throw new ProjectPackageError('The CardForge project manifest is too large to open safely.');
+    }
+    const manifestText = await manifestEntry.getData!(new TextWriter());
+    if (encoder.encode(manifestText).length > MAX_PROJECT_PACKAGE_METADATA_BYTES) {
+      throw new ProjectPackageError('The CardForge project manifest is too large to open safely.');
+    }
+    let manifestValue: unknown;
+    try {
+      manifestValue = JSON.parse(manifestText);
+    } catch {
+      throw new ProjectPackageError('The CardForge project manifest contains invalid JSON.');
+    }
+    const manifest = await parseManifest(manifestValue);
+    const assets = new Map<string, Uint8Array>();
+    let totalAssetBytes = 0;
+    for (const descriptor of manifest.assets) {
+      const entry = entriesByName.get(descriptor.path);
+      if (!entry) throw new ProjectPackageError(`This package is missing ${descriptor.path}.`);
+      if (entry.directory) throw new ProjectPackageError(`This package has an invalid ${descriptor.path} entry.`);
+      if (entry.uncompressedSize !== descriptor.size) {
+        throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
+      }
+      const bytes = await entry.getData!(new Uint8ArrayWriter());
+      if (bytes.length !== descriptor.size || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
+        throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
+      }
+      const actualId = await hashBytes(bytes);
+      if (actualId !== descriptor.id) throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… failed its integrity check.`);
+      totalAssetBytes += bytes.length;
+      if (totalAssetBytes + encoder.encode(manifestText).length > MAX_PROJECT_PACKAGE_BYTES) {
+        throw new ProjectPackageError('This project expands beyond the safe portable-file limit.');
+      }
+      assets.set(descriptor.id, bytes);
+    }
+    return { manifest, assets };
+  } finally {
+    await zip.close().catch(() => undefined);
   }
-  const manifest = await parseManifest(manifestValue);
-  const assets = new Map<string, Uint8Array>();
-  let totalAssetBytes = 0;
-  for (const descriptor of manifest.assets) {
-    const entry = zip.file(descriptor.path);
-    if (!entry) throw new ProjectPackageError(`This package is missing ${descriptor.path}.`);
-    const declaredUncompressedSize = getZipUncompressedSize(entry);
-    if (declaredUncompressedSize !== null && declaredUncompressedSize !== descriptor.size) {
-      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
-    }
-    const bytes = await entry.async('uint8array');
-    if (bytes.length !== descriptor.size || bytes.length > MAX_PROJECT_PACKAGE_ASSET_BYTES) {
-      throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… has an unexpected size.`);
-    }
-    const actualId = await hashBytes(bytes);
-    if (actualId !== descriptor.id) throw new ProjectPackageError(`Packaged asset ${descriptor.id.slice(0, 12)}… failed its integrity check.`);
-    totalAssetBytes += bytes.length;
-    if (totalAssetBytes + encoder.encode(manifestText).length > MAX_PROJECT_PACKAGE_BYTES) {
-      throw new ProjectPackageError('This project expands beyond the safe portable-file limit.');
-    }
-    assets.set(descriptor.id, bytes);
-  }
-  return { manifest, assets };
 };
 
 export const hydrateCardForgeProjectSnapshot = (
@@ -330,7 +463,10 @@ export const hydrateCardForgeProjectSnapshot = (
 ): ProjectDocumentV1 => {
   const descriptors = new Map(snapshot.manifest.assets.map((asset) => [asset.id, asset]));
   const hydrated = hydrateProjectAssets(snapshot.manifest.project, descriptors, snapshot.assets);
-  const parsed = parseProjectDocumentValue(hydrated);
+  const runtime = snapshot.manifest.cardforgeProject === LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION
+    ? hydrated
+    : toRuntimeProjectDocument(hydrated as PortableProjectDocumentV2);
+  const parsed = parseProjectDocumentValue(runtime);
   if (!parsed.success) throw new ProjectPackageError(parsed.error);
   return parsed.document;
 };

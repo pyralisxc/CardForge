@@ -66,7 +66,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
   announcementEnabled: false,
   announcementMessage: '',
   primaryCtaLabel: 'Try the Studio',
-  primaryCtaHref: '/studio',
+  primaryCtaHref: '/account',
   supportOfferVisible: true,
   homepageTitle: 'Build Complete Card Sets',
   homepageDescription: 'Create highly customized card sets from reusable layouts and structured data, then review and export the whole set in your browser.',

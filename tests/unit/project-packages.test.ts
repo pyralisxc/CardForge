@@ -9,10 +9,12 @@ import {
   decodeCardForgeProjectPackage,
   encodeCardForgeProjectPackage,
   hydrateCardForgeProjectSnapshot,
+  writeCardForgeProjectPackage,
 } from '@/features/project/lib/projectPackageCodec';
 import {
   CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX,
   CARDFORGE_PROJECT_MANIFEST_FILE,
+  CARDFORGE_PROJECT_PACKAGE_VERSION,
 } from '@/features/project/model/projectPackage';
 import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 
@@ -73,7 +75,8 @@ describe('portable CardForge project packages', () => {
     expect(snapshot.assets.size).toBe(1);
     expect(snapshot.manifest.assets).toHaveLength(1);
     expect(snapshot.manifest.projectRevision).toMatch(/^[a-f0-9]{64}$/u);
-    expect(snapshot.manifest.project.storedCards[0]!.data.artwork).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
+    expect(snapshot.manifest.cardforgeProject).toBe(CARDFORGE_PROJECT_PACKAGE_VERSION);
+    expect(snapshot.manifest.project.artifacts[0]!.card.data.artwork).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
     expect(snapshot.manifest.project.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toMatch(new RegExp(`^${CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX}`));
 
     const bytes = await encodeCardForgeProjectPackage(snapshot);
@@ -83,6 +86,65 @@ describe('portable CardForge project packages', () => {
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
+  });
+
+  it('reads the legacy v1 package while writing only the artifact-based v2 format', async () => {
+    const project = createProject();
+    const assets: never[] = [];
+    const revisionPayload = new TextEncoder().encode(JSON.stringify({ project, assets }));
+    const revision = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', revisionPayload)))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    const legacyManifest = {
+      cardforgeProject: 1,
+      name: 'Legacy Project',
+      projectRevision: revision,
+      savedAt: '2026-08-23T12:00:00.000Z',
+      project,
+      assets,
+    };
+    const zip = new JSZip();
+    zip.file(CARDFORGE_PROJECT_MANIFEST_FILE, JSON.stringify(legacyManifest), { compression: 'STORE' });
+    const decoded = await decodeCardForgeProjectPackage(await zip.generateAsync({ type: 'uint8array', compression: 'STORE' }));
+
+    expect(decoded.manifest.cardforgeProject).toBe(1);
+    expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
+  });
+
+  it('writes the canonical v2 archive to a bounded destination stream', async () => {
+    const snapshot = await buildCardForgeProjectSnapshot({ document: createProject(), name: 'Streamed Project' });
+    const chunks: Uint8Array[] = [];
+    await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
+      write: (chunk) => {
+        chunks.push(chunk.slice());
+      },
+    }));
+    const byteLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+    const bytes = new Uint8Array(byteLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const decoded = await decodeCardForgeProjectPackage(bytes);
+    expect(decoded.manifest.cardforgeProject).toBe(2);
+    expect(hydrateCardForgeProjectSnapshot(decoded).storedCards[0]?.uniqueId).toBe('card-1');
+  });
+
+  it('streams packages beyond the retired 512-asset ceiling within aggregate byte limits', async () => {
+    const project = createProject();
+    project.storedCards[0]!.data = Object.fromEntries(Array.from({ length: 513 }, (_, index) => [
+      `asset${index}`,
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg"><text>${index}</text></svg>`)}`,
+    ]));
+
+    const snapshot = await buildCardForgeProjectSnapshot({ document: project, name: 'Many Assets' });
+    expect(snapshot.assets.size).toBe(514);
+    const decoded = await decodeCardForgeProjectPackage(await encodeCardForgeProjectPackage(snapshot));
+    const hydrated = hydrateCardForgeProjectSnapshot(decoded);
+    expect(decoded.manifest.assets).toHaveLength(514);
+    expect(hydrated.storedCards[0]!.data.asset512).toMatch(/^data:image\/svg\+xml;base64,/u);
   });
 
   it('externalizes and restores a project-owned personal font without provider URLs', async () => {

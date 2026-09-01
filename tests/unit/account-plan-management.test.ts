@@ -68,7 +68,7 @@ describe('account plan and billing utility', () => {
 
     expect(environment).toContain("activeUtility === 'billing'");
     expect(environment).toContain('<AccountPlanBillingUtility');
-    expect(environment).toContain("router.push('/account?section=billing')");
+    expect(environment).toContain("router.push('/account?section=profile&utility=billing')");
     expect(environment).toContain('id="account-and-billing"');
     expect(environment).toContain('checkoutStatus={checkoutStatus}');
     expect(environment).toContain('initialPlanIntent={initialPlanIntent}');

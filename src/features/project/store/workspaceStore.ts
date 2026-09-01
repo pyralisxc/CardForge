@@ -63,6 +63,7 @@ const createWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedSta
 const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => inertStorage);
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
+let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void> } | null = null;
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -181,17 +182,30 @@ export const useProjectStore = create<ProjectState>()(
 );
 
 export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
-  const isScopeChange = hydratedPersistenceScope !== null && hydratedPersistenceScope !== scope;
-  setProjectPersistenceScope(scope);
+  if (hydratedPersistenceScope === scope) return;
+  if (hydrationTask?.scope === scope) return hydrationTask.promise;
 
-  if (isScopeChange) {
-    useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
-    useProjectStore.setState(useProjectStore.getInitialState());
-    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+  const previousTask = hydrationTask?.promise.catch(() => undefined) ?? Promise.resolve();
+  const promise = previousTask.then(async () => {
+    if (hydratedPersistenceScope === scope) return;
+    const isScopeChange = hydratedPersistenceScope !== null && hydratedPersistenceScope !== scope;
+    setProjectPersistenceScope(scope);
+
+    if (isScopeChange) {
+      useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      useProjectStore.setState(useProjectStore.getInitialState());
+      useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+    }
+
+    await useProjectStore.persist.rehydrate();
+    hydratedPersistenceScope = scope;
+  });
+  hydrationTask = { scope, promise };
+  try {
+    await promise;
+  } finally {
+    if (hydrationTask?.promise === promise) hydrationTask = null;
   }
-
-  await useProjectStore.persist.rehydrate();
-  hydratedPersistenceScope = scope;
 };
 
 export type { ProjectState } from './types';

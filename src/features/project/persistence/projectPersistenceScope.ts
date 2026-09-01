@@ -5,7 +5,12 @@ import {
   externalizeBrowserProjectAssetJson,
   hydrateBrowserProjectAssetJson,
 } from './contentAddressedBrowserAssets';
-import { createIndexedDbStorage } from './indexedDbStorage';
+import {
+  BROWSER_STORAGE_FAILURE_EVENT,
+  compareAndSetBrowserWorkspaceValue,
+  createIndexedDbStorage,
+} from './indexedDbStorage';
+import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from './workspaceRevision';
 
 export { createProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
 export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
@@ -13,6 +18,35 @@ export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity'
 const DISABLED_SCOPE = 'unscoped-disabled';
 const MAX_WORKSPACE_JSON_LENGTH = 8 * 1024 * 1024;
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
+const workspaceRevisions = new Map<string, number>();
+const workspaceWriterId = typeof globalThis.crypto?.randomUUID === 'function'
+  ? globalThis.crypto.randomUUID()
+  : `writer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+let workspaceRevisionChannel: BroadcastChannel | null = null;
+
+export const BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT = 'cardforge:workspace-remote-change';
+
+const getWorkspaceRevisionKey = (namespace: string, key: string) => `${namespace}:${key}`;
+
+const getWorkspaceRevisionChannel = () => {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!workspaceRevisionChannel) {
+    workspaceRevisionChannel = new BroadcastChannel('cardforge-workspace-revisions');
+    workspaceRevisionChannel.addEventListener('message', (event: MessageEvent<unknown>) => {
+      if (!event.data || typeof event.data !== 'object') return;
+      const message = event.data as Record<string, unknown>;
+      if (message.writerId === workspaceWriterId
+        || typeof message.namespace !== 'string'
+        || typeof message.key !== 'string'
+        || typeof message.revision !== 'number') return;
+      if (message.namespace !== `project-workspace:${activeProjectPersistenceScope}`) return;
+      const observed = workspaceRevisions.get(getWorkspaceRevisionKey(message.namespace, message.key)) ?? 0;
+      if (message.revision <= observed || typeof window === 'undefined') return;
+      window.dispatchEvent(new CustomEvent(BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT, { detail: message }));
+    });
+  }
+  return workspaceRevisionChannel;
+};
 
 export const setProjectPersistenceScope = (scope: ProjectPersistenceScope) => {
   activeProjectPersistenceScope = scope;
@@ -41,13 +75,44 @@ export const createScopedProjectStorage = (
 ): StateStorage => ({
   getItem: async (key) => {
     const scope = activeProjectPersistenceScope;
-    const storage = createIndexedDbStorage(getScopedProjectStorageNamespace(baseNamespace, scope), options);
-    const value = await storage.getItem(key);
-    if (value === null) return null;
+    const namespace = getScopedProjectStorageNamespace(baseNamespace, scope);
+    const storage = createIndexedDbStorage(namespace, options);
+    const rawValue = await storage.getItem(key);
+    if (rawValue === null) {
+      if (baseNamespace === 'project-workspace') {
+        workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), 0);
+        getWorkspaceRevisionChannel();
+      }
+      return null;
+    }
+    const record = baseNamespace === 'project-workspace'
+      ? parseBrowserWorkspaceRecord(rawValue)
+      : null;
+    if (record) {
+      workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), record.revision);
+      getWorkspaceRevisionChannel();
+    }
+    const value = record?.value ?? rawValue;
     try {
       const externalized = await externalizeBrowserProjectAssetJson(value, scope);
-      if (externalized.changed) await storage.setItem(key, externalized.storedValue);
-      if (baseNamespace !== 'project-workspace' || isValidWorkspacePayload(externalized.storedValue)) {
+      if (externalized.changed) {
+        if (baseNamespace === 'project-workspace') {
+          const expectedRevision = workspaceRevisions.get(getWorkspaceRevisionKey(namespace, key)) ?? 0;
+          const revision = await compareAndSetBrowserWorkspaceValue({
+            namespace,
+            key,
+            value: externalized.storedValue,
+            expectedRevision,
+            writerId: workspaceWriterId,
+            keepRecoverySnapshot: options.keepRecoverySnapshot,
+          });
+          workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), revision);
+        } else await storage.setItem(key, externalized.storedValue);
+      }
+      if (baseNamespace === 'project-workspace' && isValidWorkspacePayload(externalized.storedValue)) {
+        return externalized.storedValue;
+      }
+      if (baseNamespace === 'project-assets') {
         return hydrateBrowserProjectAssetJson(externalized.storedValue, scope);
       }
     } catch {
@@ -64,10 +129,32 @@ export const createScopedProjectStorage = (
   setItem: async (key, value) => {
     const scope = activeProjectPersistenceScope;
     const externalized = await externalizeBrowserProjectAssetJson(value, scope);
-    await createIndexedDbStorage(
-      getScopedProjectStorageNamespace(baseNamespace, scope),
-      options,
-    ).setItem(key, externalized.storedValue);
+    const namespace = getScopedProjectStorageNamespace(baseNamespace, scope);
+    if (baseNamespace !== 'project-workspace') {
+      await createIndexedDbStorage(namespace, options).setItem(key, externalized.storedValue);
+      return;
+    }
+    const revisionKey = getWorkspaceRevisionKey(namespace, key);
+    const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
+    try {
+      const revision = await compareAndSetBrowserWorkspaceValue({
+        namespace,
+        key,
+        value: externalized.storedValue,
+        expectedRevision,
+        writerId: workspaceWriterId,
+        keepRecoverySnapshot: options.keepRecoverySnapshot,
+      });
+      workspaceRevisions.set(revisionKey, revision);
+      getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
+    } catch (error) {
+      if (!options.suppressWriteErrors) throw error;
+      if (typeof window !== 'undefined' && !(error instanceof BrowserWorkspaceConflictError)) {
+        window.dispatchEvent(new CustomEvent(BROWSER_STORAGE_FAILURE_EVENT, {
+          detail: { message: error instanceof Error ? error.message : 'Browser storage rejected the save.' },
+        }));
+      }
+    }
   },
   removeItem: (key) => createIndexedDbStorage(
     getScopedProjectStorageNamespace(baseNamespace),

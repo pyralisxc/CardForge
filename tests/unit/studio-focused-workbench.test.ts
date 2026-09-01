@@ -82,12 +82,13 @@ describe('Studio focused workbench architecture', () => {
     const client = readSource('src/features/card-generator/client.ts');
     const lazy = readSource('src/features/app-shell/components/StudioLazyWorkspaces.tsx');
     const desk = readSource('src/features/home/components/HomeDesk.tsx');
+    const deskController = readSource('src/features/home/hooks/useHomeDeskController.ts');
 
     expect(client).not.toContain('loadStudioSetDesk');
     expect(lazy).not.toContain('StudioSetDesk');
-    expect(desk).toContain('updateCardSetOrganization');
+    expect(deskController).toContain('updateCardSetOrganization');
     expect(desk).toContain('setCardPositions');
-    expect(desk).toContain('moveGeneratedCardsToSet');
+    expect(deskController).toContain('moveGeneratedCardsToSet');
     expect(lazy).toContain('export const StudioOutputPanel = dynamic(');
   });
 });

@@ -34,8 +34,8 @@ describe('public header authentication controls', () => {
       expect(source).not.toContain('SignInButton');
       expect(source).not.toContain('mode="modal"');
     }
-    expect(sources[0]).toContain("createAuthRouteHref('/sign-in', pathname)");
-    expect(sources[1]).toContain("createAuthRouteHref('/sign-in', '/studio')");
+    expect(sources[0]).toContain("createAuthRouteHref('/sign-in', returnTo)");
+    expect(sources[1]).toContain("createAuthRouteHref('/sign-in', returnTo)");
     expect(sources[2]).toContain("createAuthRouteHref('/sign-up', '/account')");
     expect(sources[3]).toContain("createAuthRouteHref('/sign-in', '/account?section=profile')");
     expect(sources[4]).toContain("createAuthRouteHref('/sign-in', '/contributors')");
@@ -107,7 +107,8 @@ describe('public header authentication controls', () => {
       'utf8',
     );
 
-    expect(authControlsSource).toContain("createAuthRouteHref('/sign-in', pathname)");
+    expect(authControlsSource).toContain('const returnTo = useSafeCurrentReturnPath()');
+    expect(authControlsSource).toContain("createAuthRouteHref('/sign-in', returnTo)");
     expect(headerSource).not.toContain('@clerk/nextjs');
     expect(rootLayoutSource).toContain("import { ClerkProvider } from '@clerk/nextjs'");
     expect(pageProvidersSource).not.toContain('ClerkProvider');
@@ -120,12 +121,18 @@ describe('public header authentication controls', () => {
 
   it('server-gates Owner while contributor work stays behind account and API capability checks', () => {
     const ownerPageSource = readFileSync(resolve(process.cwd(), 'src/app/owner/page.tsx'), 'utf8');
+    const metaCallbackSource = readFileSync(resolve(process.cwd(), 'src/app/api/owner/marketing/meta/callback/route.ts'), 'utf8');
     const accountPageSource = readFileSync(resolve(process.cwd(), 'src/app/account/page.tsx'), 'utf8');
 
     expect(ownerPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
     expect(ownerPageSource).toContain("redirect(createAuthRouteHref('/sign-in'");
     expect(ownerPageSource).toContain('getCurrentOwnerAccess()');
     expect(ownerPageSource).toContain('if (!ownerAccess.isOwner)');
+    expect(ownerPageSource).toContain("new URLSearchParams({ section: 'profile', utility: 'owner' })");
+    expect(ownerPageSource).toContain("redirect(createAuthRouteHref('/sign-in', target))");
+    expect(ownerPageSource).toContain("targetParams.set('ownerWorkspace', workspace)");
+    expect(metaCallbackSource).toContain("new URL('/account', getPublicAppUrl())");
+    expect(metaCallbackSource).toContain("url.searchParams.set('ownerWorkspace', 'marketing')");
     expect(accountPageSource).toContain('getCurrentContributorAccessSessionState()');
     expect(accountPageSource).toContain('hasContributionScope(contributionScopes');
     expect(accountPageSource).toContain('<UnifiedAccountLibrary');

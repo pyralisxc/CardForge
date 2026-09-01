@@ -34,7 +34,6 @@ describe('account experience projection', () => {
         canReview: true,
         canPublish: false,
         canDraftCampaigns: true,
-        canProposeSite: true,
       },
     });
     const owner = projectAccountExperience({
@@ -45,7 +44,6 @@ describe('account experience projection', () => {
         canReview: true,
         canPublish: true,
         canDraftCampaigns: true,
-        canProposeSite: true,
       },
     });
 

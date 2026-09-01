@@ -105,7 +105,7 @@ export function ConnectedPersonalLibraryPanel({
         <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
           <p className="text-sm text-[var(--cf-text-muted)]">Sign in to build a connected personal library.</p>
           <Button asChild className="mt-3" size="sm">
-            <Link href={createAuthRouteHref('/sign-in', '/account?section=storage')} prefetch={false}>
+            <Link href={createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')} prefetch={false}>
               <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
             </Link>
           </Button>

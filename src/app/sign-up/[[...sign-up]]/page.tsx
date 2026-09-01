@@ -55,7 +55,7 @@ export default async function SignUpPage({
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[var(--cf-text)]">CardForge Studio</Link>
-          <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-border-strong)] px-5 font-bold text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)]">Open Studio without an account</Link>
+          <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-border-strong)] px-5 font-bold text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)]">Open Desk without an account</Link>
         </div>
         <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div className="max-w-2xl pt-2">

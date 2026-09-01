@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
 import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
@@ -26,6 +27,7 @@ export default async function StudioPage({
 }) {
   const params = await searchParams;
   const documentId = params.document;
+  if (!documentId) redirect('/account?tool=design');
   const requestedReturnTo = normalizeStudioReturnTo(params.returnTo);
   const authConfigured = isClerkServerConfigPresent();
   let accountUserId: string | null = null;

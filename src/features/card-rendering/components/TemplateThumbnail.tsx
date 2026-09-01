@@ -1,6 +1,7 @@
 "use client";
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import { useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 
 const toThumbnailBackgroundImage = (value?: string): string | undefined => {
   if (!value) return undefined;
@@ -15,7 +16,7 @@ const toThumbnailBackgroundImage = (value?: string): string | undefined => {
 
 export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
   const rawBackground = template.cardBackgroundImageUrl ?? template.appearance?.rawCss?.backgroundImage;
-  const safeBackgroundImage = toThumbnailBackgroundImage(rawBackground);
+  const safeBackgroundImage = useProjectBinaryAssetValue(toThumbnailBackgroundImage(rawBackground));
   const backgroundColor = template.baseBackgroundColor ?? template.appearance?.material?.baseColor ?? '#111827';
   const borderColor = template.cardBorderColor ?? template.appearance?.border?.color ?? '#d5ad54';
   const accent = template.baseTextColor ?? template.appearance?.material?.textColor ?? 'var(--cf-accent-text)';

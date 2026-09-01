@@ -103,12 +103,13 @@ describe('billing', () => {
       customer_email: 'maker@example.com',
       client_reference_id: 'user_123',
       line_items: [{ price: 'price_123', quantity: 1 }],
-      success_url: 'https://cardforge.example/account?checkout=success#account-and-billing',
-      cancel_url: 'https://cardforge.example/account?checkout=cancelled#account-and-billing',
+      success_url: 'https://cardforge.example/account?section=profile&utility=billing&checkout=success',
+      cancel_url: 'https://cardforge.example/account?section=profile&utility=billing&checkout=cancelled',
       metadata: {
         clerkUserId: 'user_123',
         billingPurpose: 'product_access',
         billingOffering: 'creator_pass',
+        checkoutReturnTo: '/account?section=profile&utility=billing',
         storageModel: 'local-only',
       },
       subscription_data: {
@@ -116,9 +117,22 @@ describe('billing', () => {
           clerkUserId: 'user_123',
           billingPurpose: 'product_access',
           billingOffering: 'creator_pass',
+          checkoutReturnTo: '/account?section=profile&utility=billing',
         },
       },
     });
+  });
+
+  it('returns checkout to the exact safe account context', () => {
+    const session = buildProductAccessCheckoutSessionParams({
+      appUrl: 'https://cardforge.example/',
+      priceId: 'price_123',
+      returnTo: '/account?focus=set%3Aalpha&tool=output#artifact',
+      userId: 'user_123',
+    });
+
+    expect(session.success_url).toBe('https://cardforge.example/account?focus=set%3Aalpha&tool=output&checkout=success#artifact');
+    expect(session.cancel_url).toBe('https://cardforge.example/account?focus=set%3Aalpha&tool=output&checkout=cancelled#artifact');
   });
 
   it('builds Designer Pass checkout from the server-owned price and preserves the paid plan', () => {

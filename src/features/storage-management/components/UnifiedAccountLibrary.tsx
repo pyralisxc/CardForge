@@ -1,67 +1,60 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  Boxes, Cloud, FolderOpen, Grid2X2, HardDrive, ImageIcon,
-  Copy, ExternalLink, Heart, LayoutList, Loader2, MoreHorizontal, PanelRightOpen, Search, Sparkles, ThumbsDown,
-  ThumbsUp, Trash2, UploadCloud, type LucideIcon,
-} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { HardDrive } from 'lucide-react';
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
   ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
-  closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
-  type ActionDescriptor, type EnvironmentDetailRecord, type EnvironmentStatusTone,
-  type EnvironmentViewer, type SelectionSession,
+  closeEnvironmentDetail, createActionRuntime, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
+  type ActionDescriptor, type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref, createLibraryReturnHref, createStudioHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
-import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { getPipelineDecisionReasonLabel, getPipelineStatusLabel, type PipelineSubmission } from '@/features/pipeline/client';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
+import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
+import { createSendToPipelineActionDefinition, createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
 import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
+import { useLibrarySharedProjection } from '../hooks/useLibrarySharedProjection';
+import { useLibraryReturnContext } from '../hooks/useLibraryReturnContext';
+import { useUnifiedLibraryView } from '../hooks/useUnifiedLibraryView';
+import type { AccountLibraryItem } from '../model/accountLibrary';
+import { getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
 import {
-  useLibrarySharedProjection,
-  type PipelineLibraryObject,
-  type PublishedLibraryObject,
-} from '../hooks/useLibrarySharedProjection';
-import {
-  ACCOUNT_LIBRARY_KINDS, getAccountLibraryMcpWorkflow, getAccountLibrarySourceLabel,
-  type AccountLibraryItem, type AccountLibraryKind, type AccountLibrarySource,
-} from '../model/accountLibrary';
-import { getAccountLibraryActionSources, getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
-import {
-  getLibraryScopeDefinitions, getLibraryScopeStatus, resolveLibraryScopeForViewer,
+  getLibraryScopeDefinitions, resolveLibraryScopeForViewer,
   type LibraryDensity, type LibraryScope,
 } from '../model/libraryScopes';
-import { accountLibraryKindLabels, formatAccountLibraryBytes, formatAccountLibraryDate } from './AccountLibraryItemRow';
+import { LibraryCollection } from './LibraryCollection';
+import {
+  LibraryVisual,
+  PipelineDetailContent,
+  createLibraryDetailRecord as detailRecord,
+  createLibraryZoneAction as zoneAction,
+  getSharedLibraryActions as sharedActions,
+  pipelineLineageFor,
+  type LibraryViewItem,
+} from './LibraryObjectPresentation';
 import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDialog';
 import styles from './UnifiedAccountLibrary.module.css';
 
-const CampaignLibraryWorkspace = dynamic(() => import(
-  '@/features/marketing-content/client'
-).then((module) => module.CampaignLibraryWorkspace));
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client'
 ).then((module) => module.PipelineContributionPanel));
 const PipelineSubmissionEditPanel = dynamic(() => import(
   '@/features/pipeline/client'
 ).then((module) => module.PipelineSubmissionEditPanel));
+const LibraryDesignWorkspace = dynamic(() => import(
+  '@/features/app-shell/client/studio'
+).then((module) => module.CardForgeStudioShell), { ssr: false });
 
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
@@ -71,209 +64,10 @@ interface UnifiedAccountLibraryProps {
   storageConnections?: ReactNode;
 }
 
-type LibraryViewItem =
-  | { id: string; scope: 'personal'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: null; fontFamily: null; personal: AccountLibraryItem }
-  | { id: string; scope: 'published'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; published: PublishedLibraryObject }
-  | { id: string; scope: 'pipeline'; name: string; kindLabel: string; sourceLabel: string; statusLabel: string; summary: string; updatedAt: string | null; sizeBytes: number | null; previewUrl: string | null; fontFamily: string | null; pipeline: PipelineLibraryObject };
-
-const pipelineLineageFor = (item: LibraryViewItem): string | null => item.scope === 'pipeline'
-  ? item.pipeline.submission.lineageId ?? null
-  : item.scope === 'published'
-    ? item.published.lineageId
-    : null;
-
-const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
-const kindIcons: Record<AccountLibraryKind, LucideIcon> = { set: Boxes, template: Boxes, asset: ImageIcon, 'working-draft': Sparkles };
-const sharedKindIcons: Record<string, LucideIcon> = { Set: Boxes, Template: Boxes, Image: ImageIcon, Texture: ImageIcon, Divider: ImageIcon, Icon: Sparkles, Style: Sparkles, Font: ImageIcon };
-
-const personalStatus = (item: AccountLibraryItem): { label: string; tone: EnvironmentStatusTone } => (
-  item.locations.some((location) => location.status === 'needs-permission')
-    ? { label: 'Permission required', tone: 'warning' }
-    : item.kind === 'working-draft' ? { label: 'Temporary work', tone: 'warning' } : { label: 'Available', tone: 'success' }
-);
-
-const agentLabel = (item: AccountLibraryItem): string => {
-  const workflow = getAccountLibraryMcpWorkflow(item).availability;
-  if (workflow === 'revision-safe') return 'Agent editable';
-  if (workflow === 'working-document') return 'Agent workspace';
-  if (workflow === 'read-only') return 'Agent can search';
-  return 'Device only';
-};
-
-const safePreviewUrl = (url: string | null): string | null => (
-  url && !url.startsWith('/api/templates') && !url.startsWith('/api/styles') ? url : null
-);
-const formatDate = (value: string | null) => formatAccountLibraryDate(value) ?? 'No timestamp';
-
-function SourceIcon({ item }: { item: LibraryViewItem }) {
-  if (item.scope === 'personal') {
-    const source = item.personal.locations[0]?.source;
-    if (source === 'google-drive') return <Cloud aria-hidden="true" />;
-    if (source === 'local-folder') return <FolderOpen aria-hidden="true" />;
-    if (source === 'assistant-draft') return <Sparkles aria-hidden="true" />;
-    const Icon = kindIcons[item.personal.kind];
-    return <Icon aria-hidden="true" />;
-  }
-  const Icon = sharedKindIcons[item.kindLabel] ?? ImageIcon;
-  return <Icon aria-hidden="true" />;
-}
-
-function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; previewUrl: string | null }) {
-  const [previewFailed, setPreviewFailed] = useState(false);
-
-  const template = item.scope === 'published'
-    ? item.published.template
-    : item.scope === 'pipeline'
-      ? item.pipeline.template
-      : null;
-  const style = item.scope === 'published'
-    ? item.published.style
-    : item.scope === 'pipeline'
-      ? item.pipeline.style
-      : null;
-  if (template) {
-    return <AuthoredObjectPreview template={template} label={item.name} size="standard" />;
-  }
-  if (style) {
-    return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
-  }
-  if (previewUrl && !previewFailed) {
-    return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
-  }
-  if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
-  return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
-}
-
-function LibraryVisual({ item, cards, template, large = false }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean }) {
-  if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
-    return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} />;
-  }
-  const previewUrl = safePreviewUrl(item.previewUrl);
-  return <SharedLibraryVisual key={previewUrl ?? item.id} item={item} previewUrl={previewUrl} />;
-}
-
-const detailRecord = (item: LibraryViewItem): EnvironmentDetailRecord => {
-  if (item.scope === 'personal') {
-    const status = personalStatus(item.personal);
-    return {
-      id: item.id, kind: item.personal.kind, eyebrow: `${item.kindLabel} · Personal`, title: item.name,
-      summary: item.summary, status: status.label, tone: status.tone,
-      actionSources: getAccountLibraryActionSources(item.personal),
-      meta: [
-        ['Location', item.personal.locations.map((location) => location.label).join(' + ')],
-        ['Agent access', agentLabel(item.personal)],
-        ...(item.personal.revision ? [['Revision', item.personal.revision] as const] : []),
-        ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
-        ['Updated', formatDate(item.updatedAt)],
-        ...(item.personal.expiresAt ? [['Expires', formatDate(item.personal.expiresAt)] as const] : []),
-      ],
-    };
-  }
-  if (item.scope === 'published') return {
-    id: item.id, kind: 'published-asset', eyebrow: `${item.kindLabel} · Published`, title: item.name,
-    summary: item.summary, status: item.statusLabel, tone: 'success',
-    actionSources: [{ id: `${item.id}:catalog`, label: 'CardForge catalog', source: 'provider-native', currentRevisionAvailable: true }],
-    meta: [
-      ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
-      ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
-      ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
-      ['Studio access', 'Ready to use'],
-    ],
-  };
-  return {
-    id: item.id, kind: 'pipeline-asset', eyebrow: `${item.kindLabel} · Pipeline`, title: item.name,
-    summary: item.summary, status: item.statusLabel,
-    tone: item.pipeline.submission.status === 'rejected' ? 'danger' : item.pipeline.submission.status === 'published' ? 'success' : 'warning',
-    actionSources: [{ id: `${item.id}:pipeline`, label: 'Forge Review', source: 'provider-native', currentRevisionAvailable: true }],
-    meta: [
-      ['Contributor', item.pipeline.submission.contributorDisplayName ?? item.pipeline.submission.contributorEmail ?? 'CardForge contributor'],
-      ['Ownership', item.pipeline.ownership === 'mine' ? 'Your contribution' : 'Shared Pipeline'],
-      ['Lifecycle', item.statusLabel],
-      ['Review', item.pipeline.reviewState === 'available' ? 'Vote available' : item.pipeline.reviewState === 'already-voted' ? 'Your vote is recorded' : item.pipeline.reviewState === 'self' ? 'Self-voting disabled' : 'Review closed'],
-      ['Current revision', String(item.pipeline.submission.revisionNumber ?? 1)],
-      ...(item.pipeline.currentPublishedSubmission ? [['Published revision', String(item.pipeline.currentPublishedSubmission.revisionNumber ?? 1)] as const] : []),
-      ['Votes', `${item.pipeline.submission.positiveVotes} up · ${item.pipeline.submission.negativeVotes} down`],
-      ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
-      ['Quality', `${item.pipeline.submission.qualityScore}/100`],
-      ['Revisions', String(item.pipeline.revisions.length)],
-      ['Updated', formatDate(item.updatedAt)],
-    ],
-  };
-};
-
-function PipelineDetailContent({
-  item,
-  onVoteRevision,
-  canReview,
-  votingId,
-  isSelfVoteBlocked,
-}: {
-  item: Extract<LibraryViewItem, { scope: 'pipeline' }>;
-  onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
-  canReview: boolean;
-  votingId: string | null;
-  isSelfVoteBlocked: (contributorId: string) => boolean;
-}) {
-  const submission = item.pipeline.submission;
-  return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
-    <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
-    {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
-    <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
-      const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
-      return <li key={revision.id}>
-        <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getPipelineStatusLabel(revision.status)}</span></div>
-        {canReview ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
-        </div> : null}
-      </li>;
-    })}</ol></div>
-  </section>;
-}
-
-const zoneAction = (id: 'library.refresh' | 'library.close-locations' | 'library.close-tool', label: string, loading = false): ActionDescriptor => ({
-  id, label, ownerFeature: 'storage-management', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
-  requiredPermission: 'guest', scope: 'zone', hierarchy: 'primary',
-  availability: loading ? { kind: 'disabled', reason: 'Library sources are already refreshing.' } : { kind: 'available' },
-  commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'mutation' : 'navigation',
-});
-
-const sharedActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
-  if (item.scope === 'pipeline') return [
-    ...(item.pipeline.ownership === 'mine' && item.pipeline.submission.status !== 'published' && item.pipeline.submission.status !== 'rejected' ? [{
-      id: 'library.edit-pipeline' as const, label: 'Edit submission details', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
-      supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
-      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
-    }] : []),
-    ...(item.pipeline.template ? [{
-      id: 'library.test-pipeline' as const, label: 'Test exact revision in Studio', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
-      supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
-      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
-    }] : []),
-  ];
-  const actions: ActionDescriptor[] = [{
-    id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : item.published.template ? 'Use in Studio' : 'Open Studio', ownerFeature: 'pipeline', supportedObjectKinds: ['published-asset'],
-    supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
-    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'select a published catalog asset for Studio' }, result: 'navigation',
-  }];
-  if (item.published.template) actions.push({
-    id: 'library.copy-published-template', label: 'Make editable copy', ownerFeature: 'template-editor', supportedObjectKinds: ['published-asset'],
-    supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'supporting',
-    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'copy a published Template into personal work' }, result: 'mutation',
-  });
-  return actions;
-};
-
 export function UnifiedAccountLibrary({ persistenceScope, experience, initialReturnContextKey = null, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
   const isSignedIn = experience.signedIn;
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
-  const {
-    setKind: setLibraryKind,
-    setQuery: setLibraryQuery,
-    setSort: setLibrarySort,
-    setSource: setLibrarySource,
-  } = projection;
   const { toast } = useToast();
   const [scope, setScope] = useState<LibraryScope>('personal');
   const campaignAccess = experience.contributor.canDraftCampaigns || experience.owner;
@@ -282,7 +76,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
   const [density, setDensity] = useState<LibraryDensity>('gallery');
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
-  const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | 'edit-contribution' | null>(() => initialTool);
+  const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | 'edit-contribution' | 'design' | null>(() => initialTool);
+  const [designReturnFocusId, setDesignReturnFocusId] = useState<string | null>(null);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -294,7 +89,6 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
   const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const returnContextRestoredRef = useRef(false);
   const displayCards = useProjectStore(selectAllGeneratedDisplayCards);
   const templates = useProjectStore(selectAllTemplates);
   const cardSets = useProjectStore((state) => state.cardSets);
@@ -312,6 +106,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     if (tool === 'contribute' && experience.contributor.canSubmit) {
       setActiveTool('contribute');
       setContributionTargetSetId(params.get('submitSet'));
+    } else if (tool === 'design' && params.get('artifact')) {
+      const templateId = params.get('artifact')!;
+      const store = useProjectStore.getState();
+      store.setTemplateEditorSelectedTemplateId(templateId);
+      store.setStudioView('template');
+      setActiveTool('design');
     }
     setCampaignTargetId(params.get('campaign'));
     const status = params.get('storage');
@@ -328,62 +128,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
   }, [activeScope, projection.router, scope]);
   useEffect(() => { if (initialTool) setActiveTool(initialTool); }, [initialTool]);
 
-  const personalItems = useMemo<LibraryViewItem[]>(() => projection.visibleItems.map((item) => {
-    const status = personalStatus(item);
-    return {
-      id: item.id, scope: 'personal', name: item.name, kindLabel: accountLibraryKindLabels[item.kind].replace(/s$/u, ''),
-      sourceLabel: item.locations.map((location) => location.label).join(' + '), statusLabel: status.label,
-      summary: item.details.join(' · ') || 'Ready to inspect.', updatedAt: item.updatedAt ?? item.expiresAt,
-      sizeBytes: item.sizeBytes, previewUrl: null, fontFamily: null, personal: item,
-    };
-  }), [projection.visibleItems]);
-  const publishedItems = useMemo<LibraryViewItem[]>(() => shared.publishedItems.map((item) => ({
-    id: item.id, scope: 'published', name: item.name, kindLabel: item.kindLabel, sourceLabel: item.sourceLabel,
-    statusLabel: item.accessLabel, summary: `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
-    sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
-  })), [shared.publishedItems]);
-  const pipelineItems = useMemo<LibraryViewItem[]>(() => shared.pipelineItems.map((item) => ({
-    id: `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`, scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
-    sourceLabel: item.ownership === 'mine' ? 'Your contribution' : item.submission.contributorDisplayName ?? 'Shared Pipeline', statusLabel: item.statusLabel,
-    summary: item.submission.description || `${item.kindLabel} in Forge Review.`, updatedAt: item.submission.updatedAt ?? item.submission.submittedAt,
-    sizeBytes: item.submission.sourceFileSizeBytes, previewUrl: item.previewUrl,
-    fontFamily: item.fontFamily, pipeline: item,
-  })), [shared.pipelineItems]);
-
-  const contributorPublishedItems = useMemo(() => pipelineItems.filter((item) => (
-    item.scope === 'pipeline'
-    && item.pipeline.ownership === 'mine'
-    && item.pipeline.submission.status === 'published'
-  )), [pipelineItems]);
-  const contributorPipelineItems = useMemo(() => {
-    const programLineages = new Set(pipelineItems.flatMap((item) => item.scope === 'pipeline' && item.pipeline.submission.lineageId
-      ? [item.pipeline.submission.lineageId]
-      : []));
-    return [
-      ...pipelineItems,
-      ...publishedItems.filter((item) => item.scope === 'published' && (!item.published.lineageId || !programLineages.has(item.published.lineageId))),
-    ];
-  }, [pipelineItems, publishedItems]);
-  const scopeItems = useMemo(() => activeScope === 'personal'
-    ? personalItems
-    : activeScope === 'published'
-      ? contributorPublishedItems
-      : activeScope === 'campaigns'
-        ? []
-        : pipelineAccess
-        ? contributorPipelineItems
-        : publishedItems, [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems]);
-  const normalizedQuery = projection.query.trim().toLocaleLowerCase();
-  const viewItems = useMemo(() => scopeItems.filter((item) => {
-    if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
-    return !normalizedQuery || [item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary].join(' ').toLocaleLowerCase().includes(normalizedQuery);
-  }).toSorted((left, right) => projection.sort === 'name'
-    ? left.name.localeCompare(right.name)
-    : projection.sort === 'kind'
-      ? left.kindLabel.localeCompare(right.kindLabel) || left.name.localeCompare(right.name)
-      : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name)), [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType]);
-  const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => activeScope === 'pipeline' ? [item.kindLabel, item.statusLabel] : [item.kindLabel]))].toSorted(), [activeScope, scopeItems]);
-  const itemMap = useMemo(() => new Map([...personalItems, ...publishedItems, ...pipelineItems].map((item) => [item.id, item])), [personalItems, pipelineItems, publishedItems]);
+  const { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, viewItems } = useUnifiedLibraryView({
+    activeScope,
+    pipelineAccess,
+    projection,
+    shared,
+    sharedType,
+  });
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const cardsBySetId = useMemo(() => {
@@ -406,76 +157,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     if (!item.personal.references.localSetId) return null;
     return cardsFor(item)[0]?.template ?? null;
   };
-  const activeFailure = activeScope === 'campaigns'
-    ? null
-    : activeScope === 'personal'
-    ? projection.failures[0] ?? null
-    : activeScope === 'pipeline' && pipelineAccess
-      ? shared.pipelineFailure ?? shared.catalogFailure
-      : shared.catalogFailure;
-  const activeLoading = activeScope === 'campaigns'
-    ? false
-    : activeScope === 'personal'
-    ? projection.isLoading
-    : activeScope === 'pipeline' && pipelineAccess
-      ? shared.pipelineLoading || shared.catalogLoading
-      : shared.catalogLoading;
-  const activeStatus = activeScope === 'campaigns'
-    ? { kind: 'ready' as const, label: 'Workspace' }
-    : getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
-
-  const createLibraryStudioReturnTo = () => {
-    const returnContext = storeSurfaceReturnContext({
-      kind: 'library',
-      scope: activeScope,
-      objectId: selection.objectId,
-      query: projection.query,
-      source: projection.source,
-      itemKind: projection.kind,
-      sort: projection.sort,
-      density,
-      sharedType,
-      scrollTop: surfaceRef.current?.scrollTop ?? 0,
-    });
-    return createLibraryReturnHref(activeScope, returnContext);
-  };
-
-  useEffect(() => {
-    if (!initialReturnContextKey || returnContextRestoredRef.current || activeLoading) return;
-    const context = readSurfaceReturnContext(initialReturnContextKey);
-    if (!context || context.kind !== 'library') {
-      returnContextRestoredRef.current = true;
-      return;
-    }
-    returnContextRestoredRef.current = true;
-    const restoredScope = resolveLibraryScopeForViewer(context.scope, { contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
-    setScope(restoredScope);
-    setDensity(context.density);
-    setSharedType(context.sharedType);
-    setLibraryQuery(context.query);
-    setLibrarySource(context.source);
-    setLibraryKind(context.itemKind);
-    setLibrarySort(context.sort);
-    if (context.objectId && itemMap.has(context.objectId)) {
-      setSelection((current) => openEnvironmentDetail({ ...current, listOffset: context.scrollTop }, {
-        objectId: context.objectId,
-        listOffset: context.scrollTop,
-        focusReturnId: `library-object-${context.objectId}`,
-      }));
-    }
-    requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
-  }, [
-    activeLoading,
-    campaignAccess,
-    experience.owner,
-    initialReturnContextKey,
-    itemMap,
-    pipelineAccess,
-    setLibraryKind,
-    setLibraryQuery,
-    setLibrarySort,
-    setLibrarySource,
-  ]);
+  const createLibraryCompatibilityReturnTo = useLibraryReturnContext({
+    activeLoading, activeScope, campaignAccess, density, initialReturnContextKey, itemMap,
+    owner: experience.owner, pipelineAccess, projection, selection, setDensity, setScope, setSelection,
+    setSharedType, sharedType, surfaceRef,
+  });
 
   const chooseScope = (nextScope: LibraryScope) => {
     setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setActiveTool(null);
@@ -560,17 +246,24 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
       disabledReason: projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined,
       canUseProjectFiles: experience.capabilities.canUseProjectFiles,
     }),
-    ...(experience.contributor.canSubmit && item.references.localSetId ? [{
-      id: 'library.send-pipeline' as const, label: 'Send to Pipeline', ownerFeature: 'pipeline' as const,
-      supportedObjectKinds: [item.kind], supportedSources: ['browser-local' as const], revisionPolicy: 'none' as const,
-      requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'supporting' as const,
-      availability: { kind: 'available' as const }, commitment: 'none' as const,
-      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
-    }] : []),
+    ...(experience.contributor.canSubmit && item.references.localSetId ? [createSendToPipelineActionDescriptor({
+      id: 'library.send-pipeline', objectKind: 'set', sources: ['browser-local'],
+    })] : []),
   ];
 
+  const openDesignTool = (templateId: string, focusReturnId: string) => {
+    const store = useProjectStore.getState();
+    store.setTemplateEditorSelectedTemplateId(templateId);
+    store.setStudioView('template');
+    setDesignReturnFocusId(focusReturnId);
+    setActiveTool('design');
+    closeDetail();
+    const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'design', artifact: templateId });
+    projection.router.replace(`/account?${params.toString()}`);
+  };
+
   const actions: ActionDescriptor[] = activeTool
-    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : 'Close contribution tool')]
+    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : 'Close contribution tool')]
     : currentItem?.scope === 'personal'
       ? personalActions(currentItem.personal)
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
@@ -579,8 +272,20 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
   const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
     if ((actionId === 'library.open' || actionId === 'library.continue') && item.references.localSetId) {
       projection.router.push(createDeskReturnHref(`set:${item.references.localSetId}`));
-    } else if (actionId === 'library.open' || actionId === 'library.continue') void projection.openItem(item, createLibraryStudioReturnTo());
-    else if (actionId === 'library.send-pipeline' && item.references.localSetId) openContributionTool({ setId: item.references.localSetId });
+    } else if ((actionId === 'library.open' || actionId === 'library.continue') && item.references.localTemplateId) {
+      openDesignTool(item.references.localTemplateId, `library-object-${item.id}`);
+    } else if (actionId === 'library.open' || actionId === 'library.continue') {
+      void projection.openItem(item, createLibraryCompatibilityReturnTo());
+    }
+    else if (actionId === 'library.send-pipeline' && item.references.localSetId) {
+      const definition = createSendToPipelineActionDefinition({
+        id: 'library.send-pipeline',
+        objectKind: 'set',
+        sources: ['browser-local'],
+        execute: () => openContributionTool({ setId: item.references.localSetId }),
+      });
+      void createActionRuntime([definition]).execute(definition.descriptor.id, { targetIds: [item.references.localSetId] });
+    }
     else if (actionId === 'library.save-move') setLocationItem(item);
     else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
       const duplicateId = item.references.localSetId
@@ -592,7 +297,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
       }
     } else if (actionId === 'library.delete-copy') setPendingDeleteItem(item);
     else if (actionId === 'library.view-source' && item.webViewLink) window.open(item.webViewLink, '_blank', 'noopener,noreferrer');
-    else if (actionId === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=storage'); }
+    else if (actionId === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=library&tool=locations'); }
   };
 
   const runPublishedAction = async (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
@@ -609,7 +314,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     }
     const template = item.published.template;
     if (!template) {
-      projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
+      toast({ title: 'Published object could not be opened', description: 'This object does not provide a contextual editor or a Set package.', variant: 'destructive' });
       return;
     }
     const store = useProjectStore.getState();
@@ -618,15 +323,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
       ? store.cloneTemplate(publishedTemplateId)
       : publishedTemplateId;
     if (!selectedTemplateId) {
-      toast({ title: 'Template was not opened', description: 'CardForge could not prepare this Template for Studio.', variant: 'destructive' });
+      toast({ title: 'Template was not opened', description: 'CardForge could not prepare this Template for Design.', variant: 'destructive' });
       return;
     }
-    store.setTemplateEditorSelectedTemplateId(selectedTemplateId);
-    store.setStudioView('template');
     if (actionId === 'library.copy-published-template') {
       toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
     }
-    projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
+    openDesignTool(selectedTemplateId, `library-object-${item.id}`);
   };
 
   const runAction = (action: ActionDescriptor) => {
@@ -635,9 +338,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
         ? 'library-locations-trigger'
         : activeTool === 'edit-contribution' && editingSubmission
           ? `library-object-pipeline:${editingSubmission.targetRegistryAssetId ?? editingSubmission.registryAssetId ?? editingSubmission.id}`
-          : 'library-contribute-trigger';
-      setActiveTool(null); setEditingSubmission(null); projection.router.replace(`/account?section=library&scope=${activeScope}`);
-      requestAnimationFrame(() => document.getElementById(focusId)?.focus());
+          : activeTool === 'design'
+            ? designReturnFocusId
+            : 'library-contribute-trigger';
+      setActiveTool(null); setEditingSubmission(null); setDesignReturnFocusId(null); projection.router.replace(`/account?section=library&scope=${activeScope}`);
+      requestAnimationFrame(() => { if (focusId) document.getElementById(focusId)?.focus(); });
     } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
     else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
     else if (action.id === 'library.edit-pipeline' && currentItem?.scope === 'pipeline') {
@@ -648,10 +353,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     else if (action.id === 'library.test-pipeline' && currentItem?.scope === 'pipeline' && currentItem.pipeline.template) {
       const store = useProjectStore.getState();
       const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
-      store.setTemplateEditorSelectedTemplateId(templateId);
-      store.setStudioView('template');
+      if (!templateId) {
+        toast({ title: 'Pipeline revision was not opened', description: 'CardForge could not prepare this exact revision for Design.', variant: 'destructive' });
+        return;
+      }
       toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
-      projection.router.push(createStudioHref({ returnTo: createLibraryStudioReturnTo() }));
+      openDesignTool(templateId, `library-object-${currentItem.id}`);
     }
     else if (action.id === 'library.refresh') refresh();
   };
@@ -702,77 +409,52 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     /> : undefined}
     actions={actions} accountControl={<PublicAuthControls />} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
     statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
-    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
+    footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
     <div className={styles.library} data-density={density} data-tool-open={Boolean(activeTool)}>
       <header className={styles.libraryHeader}>
         <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
-        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={() => { setActiveTool('locations'); closeDetail(); projection.router.replace('/account?section=storage'); }}><HardDrive size={16} aria-hidden="true" />Locations</button>
+        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={() => { setActiveTool('locations'); closeDetail(); projection.router.replace('/account?section=library&tool=locations'); }}><HardDrive size={16} aria-hidden="true" />Locations</button>
       </header>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
-      <section className={styles.collection} aria-labelledby="library-collection-heading">
-        <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} shown</span>}</div>
-        {activeScope === 'campaigns' ? <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
-        <div className={styles.toolbar} aria-label="Library toolbar">
-          <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
-          {activeScope === 'personal' ? <>
-            <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter by source" compactLabel="Source" className={styles.filterSelect} value={projection.source} onChange={projection.setSource} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
-            <SelectionFilterMenu allLabel="All types" ariaLabel="Filter by type" compactLabel="Type" className={styles.filterSelect} value={projection.kind} onChange={projection.setKind} options={ACCOUNT_LIBRARY_KINDS.map((kind) => ({ value: kind, label: accountLibraryKindLabels[kind] }))} />
-          </> : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={setSharedType} options={sharedTypes.map((value) => ({ value, label: value }))} />}
-          <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
-          <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => setDensity('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => setDensity('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => setDensity('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
-          {experience.contributor.canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={() => openContributionTool()}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
-        </div>
-        {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? refresh : undefined} /> : null}
-        {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
-          {viewItems.map((item) => {
-            const pipelineItem = item.scope === 'pipeline' ? item : null;
-            const lineageId = pipelineLineageFor(item);
-            const heart = lineageId ? heartMetrics[lineageId] ?? { count: 0, hearted: false } : null;
-            return <article key={item.id} className={styles.objectTile} data-selected={selection.objectId === item.id}>
-              <button id={`library-object-${item.id}`} type="button" className={styles.objectButton} onClick={() => openDetail(item)}><span className={styles.visualSlot}><LibraryVisual item={item} cards={cardsFor(item)} template={templateFor(item)} /></span><span className={styles.objectCopy}><span className={styles.objectTopline}><small>{item.kindLabel}</small><small>{item.statusLabel}</small></span><strong>{item.name}</strong><span>{item.sourceLabel}</span><p>{item.summary}</p></span></button>
-              {item.scope === 'personal' ? <DropdownMenu>
-                <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {personalActions(item.personal).map((action) => <Fragment key={action.id}>
-                    {action.commitment === 'destructive' ? <DropdownMenuSeparator /> : null}
-                    <DropdownMenuItem
-                      disabled={action.availability.kind === 'disabled'}
-                      title={action.availability.kind === 'disabled' ? action.availability.reason : undefined}
-                      className={action.commitment === 'destructive' ? 'text-destructive focus:text-destructive' : undefined}
-                      onSelect={() => runPersonalAction(action.id, item.personal)}
-                    >
-                      {action.id === 'library.send-pipeline' ? <UploadCloud aria-hidden="true" /> : action.id === 'library.duplicate' ? <Copy aria-hidden="true" /> : action.id === 'library.delete-copy' ? <Trash2 aria-hidden="true" /> : action.id === 'library.view-source' ? <ExternalLink aria-hidden="true" /> : null}
-                      {action.label}
-                    </DropdownMenuItem>
-                  </Fragment>)}
-                </DropdownMenuContent>
-              </DropdownMenu> : item.scope === 'published' ? <DropdownMenu>
-                <DropdownMenuTrigger asChild><button type="button" className={styles.objectMenu} aria-label={`Actions for ${item.name}`}><MoreHorizontal aria-hidden="true" /></button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {sharedActions(item).map((action) => <DropdownMenuItem key={action.id} onSelect={() => void runPublishedAction(action.id, item)}>
-                    {action.id === 'library.copy-published-template' ? <Copy aria-hidden="true" /> : null}
-                    {action.label}
-                  </DropdownMenuItem>)}
-                </DropdownMenuContent>
-              </DropdownMenu> : null}
-              {heart ? <div className={styles.reactionActions}>
-                <button type="button" disabled={heartingId === lineageId} data-active={heart.hearted} onClick={() => void toggleHeart(item)} aria-label={`${heart.hearted ? 'Remove heart from' : 'Heart'} ${item.name}`} title={isSignedIn ? 'Heart this Pipeline object' : 'Sign in to heart this Pipeline object'}><Heart aria-hidden="true" />{heart.count}</button>
-                {pipelineItem && experience.contributor.canReview ? <>
-                  <button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => void vote(pipelineItem.pipeline.submission.id, item.name, 'positive')} aria-label={`Vote up for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button>
-                  <button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => void vote(pipelineItem.pipeline.submission.id, item.name, 'negative')} aria-label={`Vote down for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button>
-                </> : null}
-              </div> : null}
-            </article>;
-          })}
-        </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
-        </>}
-      </section>
+      <LibraryCollection
+        activeFailure={activeFailure}
+        activeLoading={activeLoading}
+        activeScope={activeScope}
+        campaignTargetId={campaignTargetId}
+        canReview={experience.contributor.canReview}
+        canSubmit={experience.contributor.canSubmit}
+        cardsFor={cardsFor}
+        density={density}
+        heartMetrics={heartMetrics}
+        heartingId={heartingId}
+        isSignedIn={isSignedIn}
+        onDensityChange={setDensity}
+        onOpenContribution={() => openContributionTool()}
+        onOpenDetail={openDetail}
+        onPersonalAction={runPersonalAction}
+        onPublishedAction={(actionId, item) => void runPublishedAction(actionId, item)}
+        onRefresh={refresh}
+        onSharedTypeChange={setSharedType}
+        onToggleHeart={(item) => void toggleHeart(item)}
+        onVote={(submissionId, name, value) => void vote(submissionId, name, value)}
+        personalActions={personalActions}
+        projection={projection}
+        scopeDefinition={scopeDefinition}
+        scopeItems={scopeItems}
+        searchRef={searchRef}
+        selection={selection}
+        sharedType={sharedType}
+        sharedTypes={sharedTypes}
+        templateFor={templateFor}
+        viewItems={viewItems}
+        votingId={votingId}
+      />
       {activeTool === 'locations' ? (
         <EnvironmentToolLayer
           id="library-locations-title"
@@ -814,6 +496,22 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
               await shared.refresh();
               runAction(actions[0]!);
             }}
+          />
+        </EnvironmentToolLayer>
+      ) : null}
+      {activeTool === 'design' ? (
+        <EnvironmentToolLayer
+          id="library-design-title"
+          eyebrow="Library tool"
+          title="Design Template"
+          summary="The selected Template remains in Library while the reusable Design tool edits its local working copy."
+          closeLabel="Close Design"
+          onClose={() => runAction(actions[0]!)}
+        >
+          <LibraryDesignWorkspace
+            embedded
+            businessIdentity={{ brandName: 'CardForge', copyrightHolder: 'CardForge' }}
+            initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
           />
         </EnvironmentToolLayer>
       ) : null}

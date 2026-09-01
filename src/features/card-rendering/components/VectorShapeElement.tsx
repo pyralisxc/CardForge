@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 
 import { canRenderVectorShape, getVectorShapeDefinition } from '@/domain/rendering';
 import type { FreeformCardElement } from '@/domain/templates';
+import { useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { borderWidthClassToPixels } from '../model/elementStyles';
 
 interface VectorShapeElementProps {
@@ -36,6 +37,9 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
   const rawId = useId();
   const clipId = `cardforge-shape-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const definition = getVectorShapeDefinition(element.shapeKind);
+  const backgroundImage = useProjectBinaryAssetValue(
+    typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined,
+  );
 
   if (!canRenderVectorShape(element) || !definition) return null;
 
@@ -44,7 +48,6 @@ export function VectorShapeElement({ element, style, strokeScale = 1 }: VectorSh
     || element.borderColor
     || (typeof style?.borderColor === 'string' ? style.borderColor : undefined)
     || 'transparent';
-  const backgroundImage = typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined;
   const fillColor = element.fillColor
     || element.backgroundColor
     || (typeof style?.backgroundColor === 'string' ? style.backgroundColor : undefined)

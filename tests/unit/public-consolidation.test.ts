@@ -47,14 +47,12 @@ describe('consolidated public routes and account navigation', () => {
     expect(existsSync(resolve(process.cwd(), 'src/app/access/page.tsx'))).toBe(false);
   });
 
-  it('keeps the owner route in the public shell and gives account its signed-in workspace shell', () => {
+  it('keeps the owner route as protected compatibility ingress and gives account its workspace shell', () => {
     const owner = readSource('src/app/owner/page.tsx');
-    expect(owner).toContain("from '@/features/public-site/client/shell'");
-    expect(owner).toContain('getCachedBusinessIdentity');
-    expect(owner).toContain('<PublicSiteHeader');
-    expect(owner).toContain('accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined}');
-    expect(owner).toContain('className="cardforge-public-tokens"');
-    expect(owner).not.toContain('className="cardforge-public"');
+    expect(owner).not.toContain("from '@/features/public-site/client/shell'");
+    expect(owner).not.toContain('<PublicSiteHeader');
+    expect(owner).toContain("utility: 'owner'");
+    expect(owner).toContain('redirect(target)');
 
     const accountPage = readSource('src/app/account/page.tsx');
     const accountWorkspace = readSource('src/features/account/components/AccountHomeBoundary.tsx');
@@ -105,7 +103,8 @@ describe('consolidated public routes and account navigation', () => {
 
     const authControls = readSource('src/features/account/components/PublicAuthControls.tsx');
     expect(authControls).toContain('if (!isClerkPublicConfigPresent()) return null;');
-    expect(authControls).toContain("createAuthRouteHref('/sign-in', pathname)");
+    expect(authControls).toContain('const returnTo = useSafeCurrentReturnPath()');
+    expect(authControls).toContain("createAuthRouteHref('/sign-in', returnTo)");
     expect(authControls).not.toContain('SignInButton');
 
     const profileEnvironment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');

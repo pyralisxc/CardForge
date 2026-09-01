@@ -1,6 +1,6 @@
 # CardForge Risk Register
 
-Last updated: August 19, 2026
+Last updated: September 1, 2026
 
 Only unresolved or explicitly accepted risks belong here. Closed work belongs in Git/provider history and current operating instructions belong in `docs/operations.md`.
 

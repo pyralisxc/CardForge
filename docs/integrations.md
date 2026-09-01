@@ -1,6 +1,6 @@
 # CardForge Integration Ownership
 
-Last reviewed: August 26, 2026
+Last reviewed: September 1, 2026
 
 This is the human trace map for CardForge's external integrations. It answers two questions: **which system owns this lifecycle?** and **where do I start reading the CardForge code?**
 
@@ -17,7 +17,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 3. `src/app/sign-in/[[...sign-in]]/page.tsx` and `src/app/sign-up/[[...sign-up]]/page.tsx` — Clerk's native components on CardForge routes.
 4. `src/features/account/lib/serverCardforgeUser.ts` — one `currentUser()` read for the current account; `clerkClient()` only for an explicit user id or metadata mutation.
 
-**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, contributor, and owner. CardForge does not own a parallel session or sign-in lifecycle.
+**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, contributor, and owner. Auth and hosted-checkout interruptions carry the exact sanitized originating Desk/Library/Profile context back through the native provider flow. CardForge does not own a parallel session or sign-in lifecycle.
 
 ## Supabase — shared platform state
 
@@ -95,7 +95,7 @@ Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` t
 
 `list_connected_projects`, `checkout_project`, and `commit_project` expose only provider files the linked account explicitly authorized. Checkout creates a temporary private Studio document; commit requires exact provider, CardForge project, and working-document revisions. Browser-only and local-folder projects remain invisible to the remote connector unless the user explicitly hands them into a reachable workflow.
 
-Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, capacity targets, and assistant-draft inactivity window. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved contributors and the owner retain their separately validated contributor scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
+Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. Profile owner operations are the management surface for each plan’s public name, description, feature lines, action label, visibility, capacity targets, and assistant-draft inactivity window. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved contributors and the owner retain their separately validated contributor scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
 
 Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invokes the custom-authenticated `purge-assistant-drafts` Edge Function through `pg_net`, with the project URL, publishable key, and a dedicated random maintenance secret stored in Vault. The publishable key is sent through Supabase's native `apikey` header; the function requires the private maintenance secret before using its built-in service role to expire inactive rows, claim retry-safe purge work, delete artwork through the Storage API, and finalize the row. Browser roles cannot call the retention functions, authorize maintenance, or read the private bucket.
 
@@ -131,9 +131,9 @@ The only CardForge-owned bridge is release policy: mirror the exact candidate to
 1. `src/features/project/store/workspaceStore.ts` — Zustand slices and the persisted workspace contract.
 2. `src/features/project/persistence/projectPersistenceScope.ts` — account/guest/local namespaces and corruption quarantine.
 3. `src/features/project/persistence/indexedDbStorage.ts` — the `StateStorage` adapter, recovery snapshot, save status, quota health, and local-art optimization.
-4. `src/features/project/persistence/contentAddressedBrowserAssets.ts` — SHA-256 Blob ownership plus runtime hydration for workspace and local-asset JSON.
+4. `src/features/project/persistence/contentAddressedBrowserAssets.ts` and `projectBinaryAssetResolver.ts` — SHA-256 Blob ownership, durable reference parsing, and scoped lazy object-URL acquisition.
 
-**CardForge owns:** account-scoped namespace selection, project recovery, content-addressed Blob references, asset bounds, export/import portability, the default destination preference, and the copy-before-delete transfer commitment. Base64 remains valid only at transient file/import/render boundaries; browser persistence stores one Blob per content hash and hydrates ordinary data URLs only for the existing runtime contract. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent a universal provider-sync layer; each supported provider earns a narrow native adapter and explicit capability contract. Google Drive uses native resumable upload and provider revisions; local folders use the browser File System Access lifecycle and read-back verification. Provider-to-provider transfer is offered only where those owners can be composed safely.
+**CardForge owns:** account-scoped namespace selection, explicit guest adoption before Desk/Library hydration, revisioned multi-tab writes with recoverable conflict guidance, project recovery, content-addressed Blob references, lazy mounted resolution, asset bounds, export/import portability, the default destination preference, and the copy-before-delete transfer commitment. Browser package imports verify package hashes, persist each asset once as a scoped Blob, and give the runtime durable references; mounted renderers create and revoke object URLs per consumer. Base64 remains a supported legacy/input representation and a compatibility boundary for asset-catalog editor/font consumers, never the normal workspace document format. Those are product requirements that generic Zustand persistence does not define. CardForge intentionally does not invent a universal provider-sync layer; each supported provider earns a narrow native adapter and explicit capability contract. Google Drive uses native resumable upload and provider revisions; local folders use the browser File System Access lifecycle, external-revision preflight, streaming writes, and read-back verification. Provider-to-provider transfer is offered only where those owners can be composed safely.
 
 Browser capacity is not a CardForge allowance. The UI may show device usage in the storage/account lens, but normal local creation is not proactively gated by an estimated browser quota. Actual rejected writes, corrupt reads, and unsafe individual files remain explicit failures.
 
@@ -142,8 +142,8 @@ Browser capacity is not a CardForge allowance. The UI may show device usage in t
 When reading a workflow, start at the route/surface and follow the named owner rather than searching the whole repository:
 
 - **Sign in / account access:** `app/sign-in` -> Clerk -> `features/account` -> Domain entitlement policy.
-- **Studio local project:** `app/studio` -> `features/app-shell` -> `features/project` -> Template Editor / Generator.
-- **Agent-created Template:** `app/mcp` -> `features/studio-documents` -> canonical Project document -> Studio install -> normal Template library.
+- **Contextual creator tool:** Desk/Library -> `features/app-shell` tool host -> Template Editor / Generator / Output / Pipeline -> `features/project` working context.
+- **Agent-created Template:** `app/mcp` -> `features/studio-documents` -> exact compatibility `/studio` document ingress -> normal Desk/Library contextual tool and Template library.
 - **Shared Template publication:** Template Editor -> `contributor-assets` / Forge Review -> `cardforge_asset_registry` -> Studio catalog.
 - **Creator Pass:** billing checkout route -> Stripe -> signed webhook -> billing purpose -> Clerk private metadata -> account entitlement.
 - **Business Solutions:** owner-authored plan invitation -> business contact request -> Resend -> Owner Inbox. No enterprise entitlement or self-serve checkout is created.

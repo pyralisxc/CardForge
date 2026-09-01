@@ -4,7 +4,6 @@ import {
   canTransitionCampaign,
   normalizeCampaignInput,
 } from '@/features/marketing-content/model';
-import { normalizeSiteProposalInput } from '@/features/site-proposals/model';
 
 const marketingContext = {
   marketingCampaignId: '33333333-3333-4333-8333-333333333333',
@@ -32,34 +31,29 @@ describe('Contributor access', () => {
       isOwner: false,
       profileStatus: 'active',
       canDraftCampaigns: false,
-      canProposeSiteContent: false,
     })).toEqual(['assets.submit', 'assets.review', 'library.submit']);
 
     expect(resolveContributorScopes({
       isOwner: false,
       profileStatus: 'active',
       canDraftCampaigns: true,
-      canProposeSiteContent: true,
     })).toEqual([
       'assets.submit',
       'assets.review',
       'library.submit',
       'campaigns.draft',
-      'site.propose',
     ]);
 
     expect(resolveContributorScopes({
       isOwner: false,
       profileStatus: 'suspended',
       canDraftCampaigns: true,
-      canProposeSiteContent: true,
     })).toEqual([]);
 
     expect(resolveContributorScopes({
       isOwner: true,
       profileStatus: null,
       canDraftCampaigns: false,
-      canProposeSiteContent: false,
     })).toContain('campaigns.publish');
   });
 
@@ -178,19 +172,13 @@ describe('Contributor access', () => {
     });
   });
 
-  it('rejects incomplete campaign and site proposal inputs', () => {
+  it('rejects incomplete campaign inputs', () => {
     expect(normalizeCampaignInput({
       ...marketingContext,
       title: 'No channel copy',
       objective: 'Test',
         variants: [],
     })).toEqual({ ok: false, message: 'Add at least one channel variant.' });
-
-    expect(normalizeSiteProposalInput({
-      slug: 'unknown.block',
-      proposedBody: 'Copy',
-      rationale: 'Reason',
-    })).toEqual({ ok: false, message: 'Choose a supported public-site copy block.' });
 
     expect(normalizeCampaignInput({
       ...marketingContext,

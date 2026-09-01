@@ -210,7 +210,7 @@ export function CampaignQueue({
               {canPublish && providerReady ? (
               <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Approved for distribution</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Choose an owned account or community in Owner Console → Marketing → Distribution. Delivery never begins from the review action itself.</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Choose an owned account or community in Profile → Owner operations → Marketing → Distribution. Delivery never begins from the review action itself.</p>
               </div>
               ) : null}
             </details>

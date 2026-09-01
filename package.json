@@ -50,6 +50,7 @@
     "@tiptap/extension-underline": "^3.23.4",
     "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
+    "@zip.js/zip.js": "^2.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "html-to-image": "^1.11.13",

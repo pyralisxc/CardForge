@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import type { McpAllowance, McpUsagePlanKey } from '@/features/mcp-usage/lib/mcpUsage';
 
 const defaultPlanHref = (planKey: McpUsagePlanKey): string => {
-  if (planKey === 'free') return '/studio';
+  if (planKey === 'free') return '/account';
   if (planKey === 'creator') return '/sign-up?redirect_url=%2Faccount%3Fintent%3Dcreator%23account-and-billing';
   if (planKey === 'designer') return '/sign-up?redirect_url=%2Faccount%3Fintent%3Ddesigner%23account-and-billing';
   return '/contact?kind=business';

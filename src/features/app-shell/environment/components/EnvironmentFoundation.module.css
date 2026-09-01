@@ -390,6 +390,15 @@
   padding: 1rem;
 }
 
+.toolFailure {
+  margin: 1rem;
+  border: 1px solid var(--cf-danger-border, var(--cf-border-strong));
+  border-radius: 0.75rem;
+  padding: 1rem;
+  color: var(--cf-text);
+  background: var(--cf-surface-inset);
+}
+
 .detailVisual {
   display: grid;
   min-height: 9rem;

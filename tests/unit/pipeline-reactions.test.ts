@@ -5,7 +5,11 @@ import { describe, expect, it } from 'vitest';
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Pipeline reactions', () => {
-  const library = source('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const library = [
+    source('src/features/storage-management/components/UnifiedAccountLibrary.tsx'),
+    source('src/features/storage-management/components/LibraryCollection.tsx'),
+    source('src/features/storage-management/components/LibraryObjectPresentation.tsx'),
+  ].join('\n');
   const libraryStyles = source('src/features/storage-management/components/UnifiedAccountLibrary.module.css');
   const route = source('src/app/api/pipeline/hearts/route.ts');
   const migration = source('supabase/migrations/20260829052228_pipeline_lineages_hearts_and_durable_votes.sql');
@@ -14,7 +18,7 @@ describe('Pipeline reactions', () => {
   it('exposes hearts on every visible shared object and contributor votes on every exact revision', () => {
     expect(library).toContain('pipelineLineageFor(item)');
     expect(library).toContain('Heart this Pipeline object');
-    expect(library).toContain('pipelineItem && experience.contributor.canReview');
+    expect(library).toContain('pipelineItem && canReview');
     expect(library).toContain('onVoteRevision(revision.id');
     expect(library).toContain('Vote up on this exact revision');
     expect(library).toContain('activeFailure && !scopeItems.length ? null');
@@ -24,7 +28,7 @@ describe('Pipeline reactions', () => {
 
   it('keeps new submission in Published and contextual Set actions instead of the review collection', () => {
     expect(library).toContain('className={styles.contributeButton}');
-    expect(library).toContain("experience.contributor.canSubmit && activeScope === 'published'");
+    expect(library).toContain("canSubmit && activeScope === 'published'");
     expect(library).toContain("id: 'library.send-pipeline'");
     expect(library).not.toContain('id="library-contribute-trigger" type="button" className={styles.locationsButton}');
     expect(library).not.toContain("activeScope === 'pipeline' || activeScope === 'published'");

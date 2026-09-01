@@ -52,13 +52,10 @@ describe('critical-path provider ownership', () => {
     expect(identityCache).toContain('using the compiled CardForge identity');
   });
 
-  it('uses the shell-only provider for account and protected workspaces', () => {
-    for (const path of [
-      'src/app/account/page.tsx',
-      'src/app/owner/page.tsx',
-    ]) {
-      expect(readSource(path)).toContain('<CardForgeAppProviders scope="shell">');
-    }
+  it('uses the shell-only provider for the account workspace and keeps Owner as compatibility ingress', () => {
+    expect(readSource('src/app/account/page.tsx')).toContain('<CardForgeAppProviders scope="shell">');
+    expect(readSource('src/app/owner/page.tsx')).not.toContain('<CardForgeAppProviders');
+    expect(readSource('src/app/owner/page.tsx')).toContain('redirect(target)');
     expect(readSource('src/app/account/page.tsx')).toContain('<AccountProfileEnvironment');
   });
 

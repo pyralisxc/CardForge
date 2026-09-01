@@ -12,40 +12,29 @@ import {
   hasContributionScope,
   type ContributorAccessProjection,
 } from '@/features/contributor-access/client';
-import {
-  SiteProposalPanel,
-  loadSiteProposalWorkspace,
-  type SiteProposalWorkspace,
-} from '@/features/site-proposals/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function ContributorProfilePanel({ access }: { access: ContributorAccessProjection }) {
   const router = useRouter();
   const [summary, setSummary] = useState<PipelineContributorSummary | null>(null);
-  const [site, setSite] = useState<SiteProposalWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canProposeSite = hasContributionScope(access.scopes, 'site.propose');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryResponse, siteWorkspace] = await Promise.all([
-        fetch('/api/pipeline/contributor-summary', { cache: 'no-store' }).then(async (response) => {
-          if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
-          return response.json() as Promise<{ summary: PipelineContributorSummary }>;
-        }),
-        canProposeSite ? loadSiteProposalWorkspace() : Promise.resolve(null),
-      ]);
+      const summaryResponse = await fetch('/api/pipeline/contributor-summary', { cache: 'no-store' }).then(async (response) => {
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
+        return response.json() as Promise<{ summary: PipelineContributorSummary }>;
+      });
       setSummary(summaryResponse.summary);
-      setSite(siteWorkspace);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Contributor details are unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [canProposeSite]);
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -70,7 +59,6 @@ export function ContributorProfilePanel({ access }: { access: ContributorAccessP
       </details>
       <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=pipeline')}>Open Pipeline <ExternalLink className="ml-2 h-3.5 w-3.5" /></Button><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=published')}>Your published work</Button>{hasContributionScope(access.scopes, 'campaigns.draft') ? <Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=campaigns')}>Campaigns</Button> : null}</div>
     </section>
-    {canProposeSite && site ? <section aria-labelledby="profile-site-proposals-heading"><div className="border-b border-[var(--cf-border)] pb-3"><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Granted contribution lane</p><h2 id="profile-site-proposals-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Site proposals</h2><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Your drafts and review status follow your contributor identity. Final publication remains owner-controlled.</p></div><div className="mt-3"><SiteProposalPanel workspace={site} onChange={setSite} /></div></section> : null}
   </div>;
 }
 

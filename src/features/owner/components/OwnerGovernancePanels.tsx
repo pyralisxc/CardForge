@@ -24,7 +24,7 @@ const authorityRows = [
   ],
   [
     "Contributor",
-    "Submit/review assets plus explicitly granted campaign drafting and site proposals.",
+    "Submit/review assets plus explicitly granted campaign drafting. Public-site editing remains owner-only.",
     "Clerk contributor entitlement + active CardForge profile",
   ],
   [
