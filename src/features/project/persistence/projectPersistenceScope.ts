@@ -19,6 +19,7 @@ const DISABLED_SCOPE = 'unscoped-disabled';
 const MAX_WORKSPACE_JSON_LENGTH = 8 * 1024 * 1024;
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
 const workspaceRevisions = new Map<string, number>();
+const workspaceWriteQueues = new Map<string, Promise<void>>();
 const workspaceWriterId = typeof globalThis.crypto?.randomUUID === 'function'
   ? globalThis.crypto.randomUUID()
   : `writer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -27,6 +28,21 @@ let workspaceRevisionChannel: BroadcastChannel | null = null;
 export const BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT = 'cardforge:workspace-remote-change';
 
 const getWorkspaceRevisionKey = (namespace: string, key: string) => `${namespace}:${key}`;
+
+const enqueueWorkspaceWrite = async <Result>(
+  revisionKey: string,
+  write: () => Promise<Result>,
+): Promise<Result> => {
+  const previous = workspaceWriteQueues.get(revisionKey) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(write);
+  const tail = current.then(() => undefined, () => undefined);
+  workspaceWriteQueues.set(revisionKey, tail);
+  try {
+    return await current;
+  } finally {
+    if (workspaceWriteQueues.get(revisionKey) === tail) workspaceWriteQueues.delete(revisionKey);
+  }
+};
 
 const getWorkspaceRevisionChannel = () => {
   if (typeof BroadcastChannel === 'undefined') return null;
@@ -135,18 +151,20 @@ export const createScopedProjectStorage = (
       return;
     }
     const revisionKey = getWorkspaceRevisionKey(namespace, key);
-    const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
     try {
-      const revision = await compareAndSetBrowserWorkspaceValue({
-        namespace,
-        key,
-        value: externalized.storedValue,
-        expectedRevision,
-        writerId: workspaceWriterId,
-        keepRecoverySnapshot: options.keepRecoverySnapshot,
+      await enqueueWorkspaceWrite(revisionKey, async () => {
+        const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
+        const revision = await compareAndSetBrowserWorkspaceValue({
+          namespace,
+          key,
+          value: externalized.storedValue,
+          expectedRevision,
+          writerId: workspaceWriterId,
+          keepRecoverySnapshot: options.keepRecoverySnapshot,
+        });
+        workspaceRevisions.set(revisionKey, revision);
+        getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
       });
-      workspaceRevisions.set(revisionKey, revision);
-      getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
     } catch (error) {
       if (!options.suppressWriteErrors) throw error;
       if (typeof window !== 'undefined' && !(error instanceof BrowserWorkspaceConflictError)) {

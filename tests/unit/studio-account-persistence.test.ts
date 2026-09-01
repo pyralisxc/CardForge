@@ -59,6 +59,20 @@ describe('Studio account-scoped persistence', () => {
       .resolves.toContain('"marker":"b"');
   });
 
+  it('serializes rapid same-tab workspace saves through the revision boundary', async () => {
+    setProjectPersistenceScope('account:same-tab-writes');
+    const workspace = createScopedProjectStorage('project-workspace');
+    await expect(workspace.getItem('workspace')).resolves.toBeNull();
+
+    await expect(Promise.all([
+      workspace.setItem('workspace', JSON.stringify({ state: { marker: 'first' }, version: 3 })),
+      workspace.setItem('workspace', JSON.stringify({ state: { marker: 'second' }, version: 3 })),
+      workspace.setItem('workspace', JSON.stringify({ state: { marker: 'final' }, version: 3 })),
+    ])).resolves.toEqual([undefined, undefined, undefined]);
+
+    await expect(workspace.getItem('workspace')).resolves.toContain('"marker":"final"');
+  });
+
   it('persists repeated browser artwork once by content hash and keeps workspace hydration lazy', async () => {
     const artwork = 'data:image/png;base64,AAECAwQ=';
     setProjectPersistenceScope('account:user-assets');
