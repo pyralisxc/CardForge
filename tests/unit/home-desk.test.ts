@@ -27,6 +27,7 @@ describe('Home spatial desk', () => {
   const homeHistory = readSource('src/features/home/model/homeCreatorHistory.ts');
   const homeStatuses = readSource('src/features/home/model/homeAccountStatuses.ts');
   const artifactSurface = readSource('src/features/home/components/FocusedSetArtifactSurface.tsx');
+  const artifactNavigator = readSource('src/features/home/components/FocusedArtifactNavigator.tsx');
   const focusedWorkSurface = readSource('src/features/home/components/FocusedWorkSurface.tsx');
   const overviewSurface = readSource('src/features/home/components/DeskOverviewSurface.tsx');
   const deskWorkObject = readSource('src/features/home/components/DeskWorkObject.tsx');
@@ -75,12 +76,48 @@ describe('Home spatial desk', () => {
   it('keeps the complete focused Set reachable while mounting only the visible 2D projection', () => {
     expect(homeSurface).not.toContain('.slice(0, 24)');
     expect(artifactSurface).toContain('projectVisibleArtifacts');
-    expect(artifactSurface).toContain('Ordered Artifact navigator');
-    expect(artifactSurface).toContain('layout.entries.map');
+    expect(artifactNavigator).toContain('Ordered Artifact navigator');
+    expect(artifactNavigator).toContain('groups.map');
     expect(artifactSurface).not.toContain('draggable=');
     expect(artifactSurface).not.toContain('onDragEnd');
     expect(artifactSurface).toContain('onPointerDown');
     expect(artifactSurface).toContain("prefers-reduced-motion: reduce");
+  });
+
+  it('enters exclusive Artifact focus through history while preserving the shared spatial object', () => {
+    expect(accountPage).toContain('initialFocusedArtifactId');
+    expect(accountPage).toContain("initialFocusedWorkId?.startsWith('set:')");
+    expect(homeNavigation).toContain('createHomeCreatorInitialSession(initialFocusedWorkId, initialFocusedArtifactId)');
+    expect(homeNavigation).toContain('readHomeCreatorHistorySnapshot(window.history.state)');
+    expect(homeNavigation).toContain('createHomeCreatorHref(restored) === currentHref');
+    expect(homeNavigation).toContain('session: createHomeCreatorInitialSession(initial.focusedWorkId)');
+    expect(homeNavigation).toContain('focusArtifactContext');
+    expect(homeNavigation).toContain('replaceSnapshot(current)');
+    expect(homeNavigation).toContain('pushSnapshot(next)');
+    expect(artifactSurface).toContain('const projectedEntries = focusedEntry ? [focusedEntry] : visibleEntries');
+    expect(artifactSurface).toContain('data-artifact-focus-exclusive={Boolean(focusedEntry)}');
+    expect(artifactSurface).toContain('viewportSize.width * 0.62 / entry.width');
+    expect(artifactSurface).toContain('viewportSize.height * 0.72 / entry.height');
+    expect(focusedWorkSurface).toContain('{!artifactFocused ? <header');
+    expect(artifactSurface).toContain('projectedEntries.map((entry)');
+    expect(artifactSurface).toContain("behavior: 'auto'");
+    expect(artifactSurface).toContain('pendingSpatialFocusIdRef');
+    expect(artifactSurface).toContain('navigatorReturnArtifactIdRef');
+    expect(artifactSurface).toContain('document.getElementById(`spatial-artifact-${artifactId}`)?.focus()');
+    expect(artifactSurface).toContain('document.getElementById(`ordered-artifact-${previousArtifactFocusId}`)?.focus()');
+    expect(artifactSurface).toContain('hidden={Boolean(focusedEntry)}');
+    expect(artifactSurface).toContain('current.camera.x === 0');
+    expect(focusedWorkSurface).toContain("artifactFocused ? 'Back to Set' : 'Back to Desk'");
+  });
+
+  it('provides a grouped, ordered non-visual navigator for the complete Set', () => {
+    expect(artifactNavigator).toContain('role="listbox"');
+    expect(artifactNavigator).toContain('role="group"');
+    expect(artifactNavigator).toContain('role="option"');
+    expect(artifactNavigator).toContain("event.key === 'PageUp'");
+    expect(artifactNavigator).toContain("event.key === 'PageDown'");
+    expect(artifactNavigator).toContain('aria-posinset={index + 1}');
+    expect(artifactNavigator).toContain('aria-setsize={entries.length}');
   });
 
   it('transforms the shared Set surface without an enter animation and honors reduced motion', () => {
@@ -198,7 +235,7 @@ describe('Home spatial desk', () => {
 
   it('restores the focused Set after Studio closes', () => {
     expect(accountPage).toContain('initialFocusedWorkId={initialFocusedWorkId}');
-    expect(accountPage).toContain("key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}");
+    expect(accountPage).toContain("key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}");
     expect(homeRuntime).toContain('initialFocusedWorkId?: string | null;');
     expect(homeNavigation).toContain('useState<string | null>(initialFocusedWorkId ?? null)');
     expect(homeRuntime).toContain('createDeskStudioReturnTo(item.id)');

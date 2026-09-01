@@ -138,12 +138,12 @@ describe('public header authentication controls', () => {
     expect(accountPageSource).toContain('<UnifiedAccountLibrary');
   });
 
-  it('lets optional contributor projection fail soft without blocking Studio boot', () => {
+  it('keeps Studio compatibility ingress free of contributor boot ownership', () => {
     const studioPageSource = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
 
-    expect(studioPageSource).toContain('EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE');
-    expect(studioPageSource).toContain('getCurrentContributorAccessSessionState().catch');
-    expect(studioPageSource).toContain('Unable to load optional Studio contributor access');
+    expect(studioPageSource).toContain('createContextualStudioHref');
+    expect(studioPageSource).not.toContain('getCurrentContributorAccessSessionState');
+    expect(studioPageSource).not.toContain('StudioRuntimeLoader');
   });
 
   it('lets the broad proxy matcher establish Clerk context without a second route allowlist', () => {
@@ -168,18 +168,17 @@ describe('public header authentication controls', () => {
     expect(clerkConfig.getSafeLocalReturnPath(undefined)).toBe('/account');
   });
 
-  it('protects Studio document deep links on the server while leaving plain Studio independently loadable', () => {
+  it('protects Studio document deep links before translating them into the contextual Desk tool', () => {
     const studioPageSource = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
 
     expect(studioPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
     expect(studioPageSource).toContain('const authConfigured = isClerkServerConfigPresent()');
     expect(studioPageSource).toContain('if (authConfigured)');
-    expect(studioPageSource).toContain('if (documentId && !isAuthenticated)');
+    expect(studioPageSource).toContain('if (!isAuthenticated)');
     expect(studioPageSource).toContain('redirectToSignIn');
-    expect(studioPageSource).toContain('returnBackUrl: createStudioHref({ documentId, revision: params.revision, returnTo: requestedReturnTo })');
-    expect(studioPageSource).toContain('accountUserId = userId');
-    expect(studioPageSource).toContain('createProjectPersistenceScope({');
-    expect(studioPageSource).not.toContain('if (!isAuthenticated)' + " return redirectToSignIn()" );
+    expect(studioPageSource).toContain('returnBackUrl: contextualHref');
+    expect(studioPageSource).toContain('redirect(contextualHref)');
+    expect(studioPageSource).not.toContain('createProjectPersistenceScope');
   });
 
   it('removes the superseded app-shell public header', () => {

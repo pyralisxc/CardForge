@@ -1,5 +1,6 @@
 export {
   createDeskReturnHref,
+  createContextualStudioHref,
   createLibraryReturnHref,
   createStudioHref,
   normalizeStudioReturnTo,

@@ -36,6 +36,7 @@ interface HomeDeskControllerOptions {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
   initialFocusedWorkId?: string | null;
+  initialFocusedArtifactId?: string | null;
   initialTool?: 'design' | 'generate' | 'output' | 'pipeline' | null;
   initialReturnContextKey?: string | null;
   homeAccessStatus?: HomeAccountStatus;
@@ -46,6 +47,7 @@ export function useHomeDeskController({
   persistenceScope,
   experience,
   initialFocusedWorkId,
+  initialFocusedArtifactId,
   initialTool = null,
   initialReturnContextKey,
   homeAccessStatus,
@@ -70,6 +72,7 @@ export function useHomeDeskController({
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
+    focusArtifactContext,
     focusWorkContext,
     focusedWorkId,
     inspectorWorkId,
@@ -82,7 +85,7 @@ export function useHomeDeskController({
     setDirtyCloseRequested,
     setInspectorWorkId,
     setInteractionSession,
-  } = useHomeCreatorNavigation({ initialFocusedWorkId });
+  } = useHomeCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId });
   const selectedCardIds = interactionSession.selection;
   const setSelectedCardIds = (next: SetStateAction<string[]>) => {
     setInteractionSession((current) => selectCreatorArtifacts(
@@ -396,6 +399,7 @@ export function useHomeDeskController({
     effectiveMoveTargetId,
     endDeskDrag,
     focusWork,
+    focusArtifactContext,
     focusedCards,
     focusedContentsLabel,
     focusedItem,

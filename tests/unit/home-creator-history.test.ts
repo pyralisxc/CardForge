@@ -11,12 +11,24 @@ import {
 import {
   createHomeCreatorHistoryState,
   createHomeCreatorHref,
+  createHomeCreatorInitialSession,
   createHomeCreatorTool,
   readHomeCreatorHistorySnapshot,
   type HomeCreatorHistorySnapshot,
 } from '@/features/home/model/homeCreatorHistory';
 
 describe('Home creator history', () => {
+  it('hydrates an Artifact deep link into the focused Set interaction session', () => {
+    expect(createHomeCreatorInitialSession('set:set-1', 'card-2')).toMatchObject({
+      focusPath: { setId: 'set-1', artifactId: 'card-2' },
+      selection: ['card-2'],
+    });
+    expect(createHomeCreatorInitialSession('working-draft:one', 'card-2')).toMatchObject({
+      focusPath: { setId: null, artifactId: null },
+      selection: [],
+    });
+  });
+
   it('round-trips the complete Set and tool context through a serializable history entry', () => {
     let session = focusCreatorSet(createCreatorInteractionSession(), 'set-1');
     session = selectCreatorArtifacts(session, ['card-1', 'card-2']);

@@ -17,7 +17,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 const referenceProjectAssets = (
   value: unknown,
   descriptors: ReadonlyMap<string, ProjectPackageAssetDescriptor>,
-  assets: ReadonlyMap<string, Uint8Array>,
+  assets: CardForgeProjectPackageSnapshot['assets'],
   getRuntimeReference: (descriptor: ProjectPackageAssetDescriptor) => string,
   depth = 0,
 ): unknown => {

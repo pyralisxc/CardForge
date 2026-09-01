@@ -14,6 +14,7 @@ import {
   EnvironmentStatus,
   EnvironmentToolLayer,
 } from '@/features/app-shell/client/environment';
+import type { StudioBusinessIdentity } from '@/features/app-shell/client/studio';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -52,9 +53,11 @@ const DeskDesignWorkspace = dynamic(() => import(
 export type { HomeAccountStatus } from '../model/homeDesk';
 
 export interface HomeDeskProps {
+  businessIdentity: StudioBusinessIdentity;
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
   initialFocusedWorkId?: string | null;
+  initialFocusedArtifactId?: string | null;
   initialTool?: 'design' | 'generate' | 'output' | 'pipeline' | null;
   initialContributorAccess: ContributorAccessSessionState;
   initialReturnContextKey?: string | null;
@@ -75,9 +78,11 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
 };
 
 export function HomeDesk({
+  businessIdentity,
   persistenceScope,
   experience,
   initialFocusedWorkId,
+  initialFocusedArtifactId,
   initialTool = null,
   initialContributorAccess,
   initialReturnContextKey,
@@ -114,6 +119,7 @@ export function HomeDesk({
     effectiveMoveTargetId,
     endDeskDrag,
     focusWork,
+    focusArtifactContext,
     focusedCards,
     focusedContentsLabel,
     focusedItem,
@@ -216,6 +222,7 @@ export function HomeDesk({
     persistenceScope,
     experience,
     initialFocusedWorkId,
+    initialFocusedArtifactId,
     initialTool,
     initialReturnContextKey,
     homeAccessStatus,
@@ -306,6 +313,7 @@ export function HomeDesk({
               session={interactionSession}
               setSession={setInteractionSession}
               stageRef={cardStageRef}
+              onFocusArtifact={focusArtifactContext}
               onBack={() => { setRenaming(false); requestHistoryBack(); }}
               onRenameDraftChange={setRenameDraft}
               onCommitRename={commitRename}
@@ -413,7 +421,7 @@ export function HomeDesk({
         >
           <DeskDesignWorkspace
             embedded
-            businessIdentity={{ brandName: 'CardForge', copyrightHolder: 'CardForge' }}
+            businessIdentity={businessIdentity}
             initialContributorAccess={initialContributorAccess}
             onDirtyChange={studioTool.tool === 'design' ? setActiveToolDirty : undefined}
           />

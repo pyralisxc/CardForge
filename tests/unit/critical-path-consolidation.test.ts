@@ -39,13 +39,17 @@ describe('critical-path provider ownership', () => {
     expect(providers).toContain('<PublicShareSettingsProvider settings={shareSettings}>');
   });
 
-  it('keeps Studio on the reduced provider scope and a fail-soft public identity read', () => {
+  it('keeps Studio as a compatibility translator and the contextual Desk tool on a fail-soft public identity read', () => {
     const studio = readSource('src/app/studio/page.tsx');
+    const account = readSource('src/app/account/page.tsx');
     const identityCache = readSource('src/features/business-identity/server/publicIdentityCache.ts');
 
-    expect(studio).toContain('getCachedBusinessIdentity');
+    expect(studio).toContain('createContextualStudioHref');
+    expect(studio).toContain('redirect(contextualHref)');
+    expect(studio).not.toContain('CardForgeAppProviders');
+    expect(account).toContain('getCachedBusinessIdentity');
+    expect(account).toContain('<CardForgeAppProviders scope="shell">');
     expect(studio).not.toContain('getBusinessIdentity');
-    expect(studio).toContain('<CardForgeAppProviders scope="studio">');
     expect(identityCache).toContain('readCachedBusinessIdentity');
     expect(identityCache).toContain('try {');
     expect(identityCache).toContain('DEFAULT_BUSINESS_IDENTITY');

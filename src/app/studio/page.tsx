@@ -1,15 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 
-import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
-import { CardForgeAppProviders } from '@/features/app-shell/server';
-import { createStudioHref, normalizeStudioReturnTo } from '@/features/app-shell/client/navigation';
-import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import {
-  EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
-  getCurrentContributorAccessSessionState,
-} from '@/features/contributor-access/server';
-import { createProjectPersistenceScope } from '@/features/project/server';
+import { createContextualStudioHref, normalizeStudioReturnTo } from '@/features/app-shell/client/navigation';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -29,37 +21,21 @@ export default async function StudioPage({
   const documentId = params.document;
   if (!documentId) redirect('/account?tool=design');
   const requestedReturnTo = normalizeStudioReturnTo(params.returnTo);
+  const contextualHref = createContextualStudioHref({
+    documentId,
+    revision: params.revision,
+    returnTo: requestedReturnTo,
+  });
   const authConfigured = isClerkServerConfigPresent();
-  let accountUserId: string | null = null;
 
   if (authConfigured) {
-    const { isAuthenticated, redirectToSignIn, userId } = await auth();
-    if (documentId && !isAuthenticated) {
+    const { isAuthenticated, redirectToSignIn } = await auth();
+    if (!isAuthenticated) {
       return redirectToSignIn({
-        returnBackUrl: createStudioHref({ documentId, revision: params.revision, returnTo: requestedReturnTo }),
+        returnBackUrl: contextualHref,
       });
     }
-    accountUserId = userId;
   }
 
-  const persistenceScope = createProjectPersistenceScope({
-    authConfigured,
-    accountUserId,
-  });
-  const [businessIdentity, initialContributorAccess] = await Promise.all([
-    getCachedBusinessIdentity(),
-    getCurrentContributorAccessSessionState().catch((error) => {
-      console.error('Unable to load optional Studio contributor access:', error);
-      return EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE;
-    }),
-  ]);
-
-  return (
-    <CardForgeAppProviders scope="studio">
-      <StudioRuntimeLoader businessIdentity={{
-        brandName: businessIdentity.brandName,
-        copyrightHolder: businessIdentity.copyrightHolder,
-      }} initialContributorAccess={initialContributorAccess} persistenceScope={persistenceScope} />
-    </CardForgeAppProviders>
-  );
+  redirect(contextualHref);
 }

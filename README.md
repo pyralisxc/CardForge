@@ -1,13 +1,13 @@
 # CardForge
 
-CardForge is a live local-first card production studio for creating reusable front/back layouts, generating complete card sets, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. User project work remains browser-local or in downloaded project files for the current launch; shared product state and reviewed library content live in Supabase.
+CardForge is a live local-first card production studio for creating reusable front/back layouts, generating complete card sets, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
 
 CardForge Studio is created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Desk: `/account`; Design, Generate, Output, Pipeline, and location controls open as contextual tools over Desk or Library. `/studio` remains compatibility ingress for exact temporary Studio-document handoffs.
+- Desk: `/account`; Set focus replaces the surrounding Desk, and Artifact focus replaces the Set field with one zoomed-in Artifact. Design, Generate, Output, Pipeline, and location controls open as contextual tools over Desk or Library. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
@@ -98,7 +98,7 @@ CardForge has three deliberate storage lanes:
 - **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, contributor profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
-`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. Package v2 writes one bounded streaming archive for large Sets while the compatibility reader still accepts v1. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. Package v2 has one bounded archive writer: authorized device-file saves stream directly, while browser downloads and complete-body provider boundaries use a size-bounded Blob; the compatibility reader still accepts v1. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
 
 ## Agent authoring
 

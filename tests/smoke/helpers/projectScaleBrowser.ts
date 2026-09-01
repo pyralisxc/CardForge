@@ -10,10 +10,17 @@ const GUEST_WORKSPACE_KEY = 'project-workspace:guest:workspace';
 
 const workspaceStateFor = (cardCount: ProjectScale) => {
   const fixture = createProjectScaleFixture(cardCount);
+  const storedCards = fixture.storedCards.map((card, index) => ({
+    ...card,
+    data: {
+      ...card.data,
+      artwork: `cardforge-browser-asset://${(index + 1).toString(16).padStart(64, '0')}`,
+    },
+  }));
   return {
     userTemplates: fixture.userTemplates,
     appearanceStyles: fixture.appearanceStyles,
-    storedCards: fixture.storedCards,
+    storedCards,
     cardSets: fixture.cardSets,
     activeCardSet: fixture.cardSets[0] ?? null,
     studioView: 'template',
@@ -83,7 +90,15 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     });
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(objectStoreName, 'readwrite');
-      transaction.objectStore(objectStoreName).put(record, storageKey);
+      const store = transaction.objectStore(objectStoreName);
+      store.put(record, storageKey);
+      stateValue.storedCards.forEach((card, index) => {
+        const reference = typeof card.data.artwork === 'string' ? card.data.artwork : '';
+        const assetId = reference.replace('cardforge-browser-asset://', '');
+        const marks = Array.from({ length: 36 }, (_, mark) => `<circle cx="${(mark * 83 + index * 17) % 512}" cy="${(mark * 137 + index * 29) % 720}" r="${12 + (mark % 22)}" fill="#4f7dc8" fill-opacity="0.42"/>`).join('');
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="720"><rect width="512" height="720" fill="#101723"/>${marks}<text x="24" y="680" fill="white" font-size="42">Artifact ${index + 1}</text></svg>`;
+        store.put(new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:guest:${assetId}`);
+      });
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);

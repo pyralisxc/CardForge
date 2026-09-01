@@ -1,7 +1,13 @@
 import type { ProjectDocumentV1 } from '@/features/project/client';
 
 const uniqueSvgDataUri = (index: number) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#${index.toString(16).padStart(6, '0').slice(-6)}"/><text x="2" y="18">${index}</text></svg>`;
+  const color = index.toString(16).padStart(6, '0').slice(-6);
+  const marks = Array.from({ length: 36 }, (_, mark) => {
+    const x = (mark * 83 + index * 17) % 512;
+    const y = (mark * 137 + index * 29) % 720;
+    return `<circle cx="${x}" cy="${y}" r="${12 + (mark % 22)}" fill="#${color}" fill-opacity="${(0.18 + (mark % 7) * 0.08).toFixed(2)}"/>`;
+  }).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="720" viewBox="0 0 512 720"><rect width="512" height="720" fill="#101723"/>${marks}<text x="24" y="680" fill="white" font-size="42">Artifact ${index}</text></svg>`;
   return `data:image/svg+xml;base64,${globalThis.btoa(svg)}`;
 };
 

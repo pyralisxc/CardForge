@@ -63,11 +63,16 @@ describe('account profile environment', () => {
     const homeBoundary = readSource('src/features/account/components/AccountHomeBoundary.tsx');
     const environment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');
     const providerSurface = readSource('src/features/account/components/ProfileManagementPage.tsx');
+    const actionOwner = readSource('src/features/account/lib/accountProfileActions.ts');
 
     expect(accountPage).toContain("activeSection === 'profile'");
     expect(accountPage).toContain('<AccountProfileEnvironment');
     expect(homeBoundary).not.toContain('<AccountProfileEnvironment');
     expect(environment).toContain('<EnvironmentShell');
+    expect(environment).toContain('createActionRuntime(actionDefinitions)');
+    expect(environment).not.toContain("if (action.id === 'profile.");
+    expect(actionOwner).toContain('descriptor: closeUtilityAction');
+    expect(actionOwner).toContain('descriptor: manageAccountAction');
     expect(environment).toContain('activeZone="profile"');
     expect(environment).toContain('<CompactSettingRow');
     expect(environment).toContain("activeUtility === 'billing'");

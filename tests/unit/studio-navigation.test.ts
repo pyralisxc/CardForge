@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createContextualStudioHref,
   createDeskReturnHref,
   createLibraryReturnHref,
   createStudioHref,
@@ -8,6 +9,14 @@ import {
 } from '@/features/app-shell/client/navigation';
 
 describe('Studio navigation contract', () => {
+  it('keeps /studio as compatibility ingress while opening documents in the contextual Desk tool', () => {
+    expect(createContextualStudioHref({
+      documentId: 'document-1',
+      revision: 4,
+      returnTo: '/account?section=library&scope=personal',
+    })).toBe('/account?tool=design&document=document-1&revision=4&returnTo=%2Faccount%3Fsection%3Dlibrary%26scope%3Dpersonal');
+  });
+
   it('round-trips a focused Desk Set through Studio', () => {
     const returnTo = createDeskReturnHref('set:playing-cards', 'desk-context');
 

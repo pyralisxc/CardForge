@@ -124,19 +124,29 @@ describe('business identity runtime cutover', () => {
     expect(homepage).not.toContain('d/b/a');
   });
 
-  it('passes a minimal fail-soft runtime identity from the Studio route into the client shell', async () => {
+  it('passes a minimal fail-soft runtime identity from Account into the contextual Studio tool', async () => {
     const studioPage = await readFile(rootPath('src/app/studio/page.tsx'), 'utf8');
+    const accountPage = await readFile(rootPath('src/app/account/page.tsx'), 'utf8');
+    const homeDesk = await readFile(rootPath('src/features/home/components/HomeDesk.tsx'), 'utf8');
+    const library = await readFile(rootPath('src/features/storage-management/components/UnifiedAccountLibrary.tsx'), 'utf8');
     const studioClient = await readFile(rootPath('src/features/app-shell/client/studio.ts'), 'utf8');
     const studioShell = await readFile(
       rootPath('src/features/app-shell/components/CardForgeStudioShell.tsx'),
       'utf8',
     );
 
-    expect(studioPage).toContain("import { getCachedBusinessIdentity } from '@/features/business-identity/server';");
     expect(studioPage).toContain('export default async function StudioPage({');
-    expect(studioPage).toContain('getCachedBusinessIdentity()');
-    expect(studioPage).toContain('brandName: businessIdentity.brandName');
-    expect(studioPage).toContain('copyrightHolder: businessIdentity.copyrightHolder');
+    expect(studioPage).toContain('redirect(contextualHref)');
+    expect(studioPage).not.toContain('StudioRuntimeLoader');
+    expect(accountPage).toContain("getCachedBusinessIdentity } from '@/features/business-identity/server';");
+    expect(accountPage).toContain('getCachedBusinessIdentity()');
+    expect(accountPage).toContain('brandName: businessIdentity.brandName');
+    expect(accountPage).toContain('copyrightHolder: businessIdentity.copyrightHolder');
+    expect(homeDesk).toContain('businessIdentity={businessIdentity}');
+    expect(accountPage).toContain("activeSection === 'home' || activeSection === 'library'");
+    expect(library).toContain('businessIdentity: StudioBusinessIdentity');
+    expect(library).toContain('businessIdentity={businessIdentity}');
+    expect(library).not.toContain("brandName: 'CardForge', copyrightHolder: 'CardForge'");
     expect(studioClient).toContain('type StudioBusinessIdentity');
     expect(studioShell).toContain('businessIdentity.brandName');
     expect(studioShell).toContain('businessIdentity.copyrightHolder');

@@ -24,6 +24,7 @@ import {
 } from '../client/accountProjectWorkspace';
 import type { GuestWorkspaceAdoptionChoice } from '../persistence/workspaceRevision';
 import type { GuestWorkspaceAdoptionOffer } from '../persistence/guestWorkspaceAdoption';
+import { BrowserStoragePersistencePrompt } from './BrowserStoragePersistencePrompt';
 
 export function AccountProjectWorkspaceBoundary({
   children,
@@ -121,6 +122,7 @@ export function AccountProjectWorkspaceBoundary({
 
   return (
     <>
+      <BrowserStoragePersistencePrompt />
       {children}
       {issue ? (
         <aside

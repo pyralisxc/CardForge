@@ -112,7 +112,7 @@ describe('Studio account-scoped persistence', () => {
     const raw = createIndexedDbStorage(getScopedProjectStorageNamespace('project-assets'));
     expect(await raw.getItem('images')).toMatch(/cardforge-browser-asset:\/\/[a-f0-9]{64}/);
     await expect(readTypedProjectAssetListFromStorage<{ url: string }>(storage, 'images'))
-      .resolves.toEqual([expect.objectContaining({ url: artwork })]);
+      .resolves.toEqual([expect.objectContaining({ url: expect.stringMatching(/^cardforge-browser-asset:\/\/[a-f0-9]{64}$/u) })]);
   });
 
   it('never hydrates the legacy browser-global workspace into an account', async () => {

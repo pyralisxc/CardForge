@@ -9,9 +9,11 @@ import {
   PROJECT_FONT_LIBRARY_CHANGE_EVENT,
   readProjectFonts,
 } from '@/features/project/client';
+import { useProjectBinaryAssetValue } from '@/features/project/client/binary-assets';
 
 export function StudioFontFaces() {
   const [css, setCss] = useState('');
+  const resolvedCss = useProjectBinaryAssetValue(css);
 
   useEffect(() => {
     let mounted = true;
@@ -36,5 +38,5 @@ export function StudioFontFaces() {
     };
   }, []);
 
-  return css ? <style data-cardforge-project-fonts>{css}</style> : null;
+  return resolvedCss ? <style data-cardforge-project-fonts>{resolvedCss}</style> : null;
 }

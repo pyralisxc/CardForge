@@ -79,6 +79,7 @@ export interface BuildCreatorSupportCheckoutSessionParamsInput {
 export interface BuildBillingPortalSessionParamsInput {
   appUrl: string;
   customerId: string;
+  returnTo?: string;
 }
 
 export interface BuildStripePaidAccessMetadataInput {
@@ -378,12 +379,14 @@ export const buildCreatorSupportCheckoutSessionParams = ({
 export const buildBillingPortalSessionParams = ({
   appUrl,
   customerId,
+  returnTo,
 }: BuildBillingPortalSessionParamsInput): Stripe.BillingPortal.SessionCreateParams => {
   const normalizedAppUrl = appUrl.replace(/\/+$/, '');
+  const safeReturnTo = getSafeLocalReturnPath(returnTo, '/account?section=profile&utility=billing');
 
   return {
     customer: customerId,
-    return_url: `${normalizedAppUrl}/account`,
+    return_url: new URL(safeReturnTo, `${normalizedAppUrl}/`).toString(),
   };
 };
 

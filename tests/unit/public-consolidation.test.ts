@@ -73,7 +73,7 @@ describe('consolidated public routes and account navigation', () => {
     }
   });
 
-  it('keeps public account controls lightweight and lets contributor access stay optional to Studio', () => {
+  it('keeps public account controls lightweight and Studio compatibility ingress contextual', () => {
     const slot = readSource('src/features/contributor-access/server/ContributorPublicAuthSlot.tsx');
     const controls = readSource('src/features/contributor-access/components/ContributorPublicAuthControls.tsx');
     const studioPage = readSource('src/app/studio/page.tsx');
@@ -89,9 +89,9 @@ describe('consolidated public routes and account navigation', () => {
     expect(contributorAccess).toContain('getContributorCapabilities(account)');
     expect(contributorAccess).not.toContain('resolveOwnerAccessForServerUser');
     expect(contributorAccess).not.toContain('session_profile');
-    expect(studioPage).toContain('getCurrentContributorAccessSessionState().catch');
-    expect(studioPage).toContain('EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE');
-    expect(studioPage).toContain('initialContributorAccess={initialContributorAccess}');
+    expect(studioPage).toContain('createContextualStudioHref');
+    expect(studioPage).toContain('redirect(contextualHref)');
+    expect(studioPage).not.toContain('StudioRuntimeLoader');
   });
 
   it('keeps Clerk ownership separate while exposing account state inside mobile navigation', () => {

@@ -9,6 +9,7 @@ import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import {
   chooseGoogleDriveProjectFolder,
   deleteGoogleDriveProjectFromLibrary,
@@ -43,6 +44,7 @@ export function GoogleDriveProjectStoragePanel({
   persistenceScope: ProjectPersistenceScope;
 }) {
   const router = useRouter();
+  const returnTo = useSafeCurrentReturnPath('/account?section=library&tool=locations');
   const { toast } = useToast();
   const activeSetName = useProjectStore((state) => state.activeCardSet?.name ?? 'No Set selected');
   const [ready, setReady] = useState(false);
@@ -158,7 +160,7 @@ export function GoogleDriveProjectStoragePanel({
             className="mt-3"
             size="sm"
             disabled={!canUseProjectFiles}
-            onClick={() => router.push('/api/project-sources/google-drive/connect')}
+            onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}
           >
             <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
           </Button>

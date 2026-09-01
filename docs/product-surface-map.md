@@ -58,7 +58,7 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 - Desk uses the shared Environment shell through the dedicated internal `home` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
-- Focusing local work reveals its contained cards in place with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal; Pull back restores the Desk.
+- Focusing local work exclusively reveals its contained cards with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact then leaves only a camera-fitted Artifact field; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
 - Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
 
@@ -72,7 +72,7 @@ Required behavior:
 - do not manufacture an `Untitled Set` or assign a starting Template before the user creates or imports work;
 - allow constrained spatial grouping/stacks/saved views rather than a filesystem folder metaphor;
 - preserve selection/position/context;
-- opening a Set reveals its contained objects and pulling back restores the prior arrangement;
+- opening a Set reveals its contained objects and pulling back restores the prior arrangement; opening one Artifact hides its siblings and Set controls until the user returns to the Set;
 - expose object-scoped Open, Edit/Test, Rename, Duplicate, Delete/remove, Save/Move, Generate, Export/share where supported;
 - show compact Pipeline/contribution state on Contributor-owned objects;
 - expose Send to Pipeline / Submit Revision / review actions only when valid;
@@ -158,7 +158,7 @@ CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 - Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
 - one tool-host contract owns focus restoration, Back/Escape/close unwind, crash isolation, and dirty-close rejection;
 - legacy tab navigation, tab IDs, Set Library component, duplicate Studio Set Desk, and duplicate inline output surface are removed;
-- `/studio` without an exact temporary document redirects to Desk Design; exact document handoffs remain compatibility ingress and install into the normal creator context;
+- `/studio` is a lightweight compatibility translator into Desk Design; exact document/revision handoffs install through the same contextual creator runtime rather than booting a second application;
 - persisted legacy `desk`/`sets` destinations normalize without preserving a retired runtime surface.
 
 ### Current placement

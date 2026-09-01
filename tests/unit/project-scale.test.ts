@@ -4,6 +4,7 @@ import { createProjectScaleFixture } from '../fixtures/projectScale';
 import {
   CARDFORGE_PROJECT_PACKAGE_VERSION,
   buildCardForgeProjectSnapshot,
+  createCardForgeProjectPackageBlob,
   decodeCardForgeProjectPackage,
   hydrateCardForgeProjectSnapshot,
   parseProjectDocumentValue,
@@ -23,34 +24,34 @@ describe('Project scale fixtures', () => {
     expect(parsed.document.storedCards.at(-1)?.data.cardName).toBe(`Scale Card ${String(cardCount).padStart(4, '0')}`);
   });
 
-  it('round-trips 1,000 unique illustrated Artifacts through the streaming package writer', async () => {
-    const fixture = createProjectScaleFixture(1000, { uniqueArtwork: true });
+  it.each([100, 500, 1000] as const)('round-trips %i unique illustrated Artifacts and streams output without retaining archive chunks', async (cardCount) => {
+    const fixture = createProjectScaleFixture(cardCount, { uniqueArtwork: true });
 
     const snapshot = await buildCardForgeProjectSnapshot({
       document: fixture,
-      name: '1,000 Illustrated Artifacts',
+      name: `${cardCount} Illustrated Artifacts`,
       savedAt: '2026-08-31T12:00:00.000Z',
     });
     expect(snapshot.manifest.cardforgeProject).toBe(CARDFORGE_PROJECT_PACKAGE_VERSION);
-    expect(snapshot.manifest.assets).toHaveLength(1000);
+    expect(snapshot.manifest.assets).toHaveLength(cardCount);
 
-    const chunks: ArrayBuffer[] = [];
+    let chunkCount = 0;
+    let encodedBytes = 0;
+    let largestChunkBytes = 0;
     await writeCardForgeProjectPackage(snapshot, new WritableStream<Uint8Array>({
       write: (chunk) => {
-        const copy = new Uint8Array(chunk.byteLength);
-        copy.set(chunk);
-        chunks.push(copy.buffer);
+        chunkCount += 1;
+        encodedBytes += chunk.byteLength;
+        largestChunkBytes = Math.max(largestChunkBytes, chunk.byteLength);
       },
     }));
-    const encodedBytes = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-    const largestChunkBytes = Math.max(...chunks.map((chunk) => chunk.byteLength));
-    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunkCount).toBeGreaterThan(1);
     expect(largestChunkBytes).toBeLessThan(encodedBytes);
-    const decoded = await decodeCardForgeProjectPackage(new Blob(chunks));
+    const decoded = await decodeCardForgeProjectPackage(await createCardForgeProjectPackageBlob(snapshot));
     const hydrated = hydrateCardForgeProjectSnapshot(decoded);
 
-    expect(hydrated.storedCards).toHaveLength(1000);
-    expect(hydrated.storedCards[999]?.data.artwork).toBe(fixture.storedCards[999]?.data.artwork);
+    expect(hydrated.storedCards).toHaveLength(cardCount);
+    expect(hydrated.storedCards[cardCount - 1]?.data.artwork).toBe(fixture.storedCards[cardCount - 1]?.data.artwork);
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
   }, 60_000);
 });

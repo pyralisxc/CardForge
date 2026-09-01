@@ -2,6 +2,7 @@ import {
   readStructuredBrowserValue,
   writeStructuredBrowserValue,
 } from './structuredBrowserStorage';
+import type { ResolvedProjectPackageAssetReference } from '../model/projectPackage';
 
 export const BROWSER_PROJECT_ASSET_REFERENCE_PREFIX = 'cardforge-browser-asset://';
 
@@ -17,15 +18,6 @@ const isSupportedContentType = (value: string): boolean => (
   || value === 'application/x-font-ttf'
   || value === 'application/x-font-opentype'
 );
-
-const bytesToBase64 = (bytes: Uint8Array): string => {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(bytes.length, offset + chunkSize)));
-  }
-  return globalThis.btoa(binary);
-};
 
 const base64ToBytes = (value: string): Uint8Array => {
   const binary = globalThis.atob(value.replace(/\s+/gu, ''));
@@ -98,6 +90,47 @@ const getReferenceId = (value: string): string | null => {
   if (!value.startsWith(BROWSER_PROJECT_ASSET_REFERENCE_PREFIX)) return null;
   const assetId = value.slice(BROWSER_PROJECT_ASSET_REFERENCE_PREFIX.length);
   return CONTENT_ASSET_ID_PATTERN.test(assetId) ? assetId : null;
+};
+
+export const readBrowserProjectAssetReference = async (
+  reference: string,
+  scope: string,
+): Promise<{ mimeType: string; bytes: Uint8Array } | null> => {
+  const assetId = getReferenceId(reference);
+  if (!assetId) return null;
+  const blob = await readStructuredBrowserValue<Blob>(getStorageKey(scope, assetId));
+  if (!(blob instanceof Blob)) {
+    throw new Error(`Browser artwork ${assetId.slice(0, 12)}… is unavailable. Restore the project recovery copy or import a backup.`);
+  }
+  return {
+    mimeType: blob.type || 'application/octet-stream',
+    bytes: new Uint8Array(await blob.arrayBuffer()),
+  };
+};
+
+export const readBrowserProjectAssetSource = async (
+  reference: string,
+  scope: string,
+): Promise<ResolvedProjectPackageAssetReference | null> => {
+  const assetId = getReferenceId(reference);
+  if (!assetId) return null;
+  const storageKey = getStorageKey(scope, assetId);
+  const readBlob = async () => {
+    const stored = await readStructuredBrowserValue<Blob>(storageKey);
+    if (!(stored instanceof Blob)) {
+      throw new Error(`Browser artwork ${assetId.slice(0, 12)}… is unavailable. Restore the project recovery copy or import a backup.`);
+    }
+    return stored;
+  };
+  const blob = await readBlob();
+  return {
+    mimeType: blob.type || 'application/octet-stream',
+    source: {
+      kind: 'lazy',
+      size: blob.size,
+      load: async () => new Uint8Array(await (await readBlob()).arrayBuffer()),
+    },
+  };
 };
 
 const getStorageKey = (scope: string, assetId: string): string => (
@@ -173,31 +206,4 @@ export const externalizeBrowserProjectAssetJson = async (
     return reference;
   });
   return { storedValue: changed ? JSON.stringify(stored) : value, changed };
-};
-
-export const hydrateBrowserProjectAssetJson = async (
-  value: string,
-  scope: string,
-): Promise<string> => {
-  if (!value.includes(BROWSER_PROJECT_ASSET_REFERENCE_PREFIX)) return value;
-  const parsed = JSON.parse(value) as unknown;
-  const pending = new Map<string, Promise<string>>();
-  const hydrated = await visitValue(parsed, async (entry) => {
-    const assetId = getReferenceId(entry);
-    if (!assetId) return entry;
-    let dataUri = pending.get(assetId);
-    if (!dataUri) {
-      dataUri = (async () => {
-        const blob = await readStructuredBrowserValue<Blob>(getStorageKey(scope, assetId));
-        if (!(blob instanceof Blob)) {
-          throw new Error(`Browser artwork ${assetId.slice(0, 12)}… is unavailable. Restore the project recovery copy or import a backup.`);
-        }
-        const bytes = new Uint8Array(await blob.arrayBuffer());
-        return `data:${blob.type || 'application/octet-stream'};base64,${bytesToBase64(bytes)}`;
-      })();
-      pending.set(assetId, dataUri);
-    }
-    return dataUri;
-  });
-  return JSON.stringify(hydrated);
 };

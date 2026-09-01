@@ -52,6 +52,8 @@ describe('architecture boundary CLI', () => {
     });
     const result = await runArchitectureCheck(root);
     expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Dependency gravity: gallery fan-in 0, fan-out 0, public exports 1.');
+    expect(result.stdout).toContain('Public-interface breadth: src/features/gallery/client.ts exposes 1 export.');
     expect(result.stdout).toContain('Architecture check passed (0 violations');
   });
 

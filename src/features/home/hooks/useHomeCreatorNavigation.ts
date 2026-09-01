@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   closeCreatorContext,
   createCreatorInteractionSession,
+  focusCreatorArtifact,
   focusCreatorSet,
   openCreatorTool,
   setCreatorToolDirty,
@@ -14,6 +15,7 @@ import {
 import {
   createHomeCreatorHistoryState,
   createHomeCreatorHref,
+  createHomeCreatorInitialSession,
   createHomeCreatorTool,
   readHomeCreatorHistorySnapshot,
   type HomeContextualToolId,
@@ -22,19 +24,15 @@ import {
 
 interface HomeCreatorNavigationOptions {
   initialFocusedWorkId?: string | null;
+  initialFocusedArtifactId?: string | null;
 }
 
-const initialSession = (focusedWorkId?: string | null): CreatorInteractionSession => {
-  const session = createCreatorInteractionSession();
-  return focusedWorkId?.startsWith('set:')
-    ? focusCreatorSet(session, focusedWorkId.slice(4))
-    : session;
-};
-
-export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNavigationOptions) {
+export function useHomeCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId }: HomeCreatorNavigationOptions) {
   const [focusedWorkId, setFocusedWorkId] = useState<string | null>(initialFocusedWorkId ?? null);
   const [inspectorWorkId, setInspectorWorkId] = useState<string | null>(null);
-  const [interactionSession, setInteractionSession] = useState<CreatorInteractionSession>(() => initialSession(initialFocusedWorkId));
+  const [interactionSession, setInteractionSession] = useState<CreatorInteractionSession>(() => (
+    createHomeCreatorInitialSession(initialFocusedWorkId, initialFocusedArtifactId)
+  ));
   const [dirtyCloseRequested, setDirtyCloseRequested] = useState(false);
   const initializedRef = useRef(false);
   const bypassDirtyCloseRef = useRef(false);
@@ -43,7 +41,7 @@ export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNa
     version: 1,
     focusedWorkId: initialFocusedWorkId ?? null,
     inspectorWorkId: null,
-    session: initialSession(initialFocusedWorkId),
+    session: interactionSession,
   });
   currentRef.current = { version: 1, focusedWorkId, inspectorWorkId, session: interactionSession };
 
@@ -75,6 +73,13 @@ export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNa
     if (initializedRef.current) return;
     initializedRef.current = true;
     const initial = currentRef.current;
+    const restored = readHomeCreatorHistorySnapshot(window.history.state);
+    const currentHref = `${window.location.pathname}${window.location.search}`;
+    if (restored && createHomeCreatorHref(restored) === currentHref) {
+      applySnapshot(restored);
+      replaceSnapshot(restored);
+      return;
+    }
     if (initial.focusedWorkId) {
       const desk: HomeCreatorHistorySnapshot = {
         version: 1,
@@ -83,11 +88,17 @@ export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNa
         session: createCreatorInteractionSession(),
       };
       replaceSnapshot(desk);
+      if (initial.session.focusPath.artifactId) {
+        pushSnapshot({
+          ...initial,
+          session: createHomeCreatorInitialSession(initial.focusedWorkId),
+        });
+      }
       pushSnapshot(initial);
       return;
     }
     replaceSnapshot(initial);
-  }, [pushSnapshot, replaceSnapshot]);
+  }, [applySnapshot, pushSnapshot, replaceSnapshot]);
 
   useEffect(() => {
     if (!initializedRef.current) return;
@@ -160,6 +171,20 @@ export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNa
       focusedWorkId: workId,
       inspectorWorkId: null,
       session: setId ? focusCreatorSet(current.session, setId) : createCreatorInteractionSession(),
+    };
+    replaceSnapshot(current);
+    pushSnapshot(next);
+    applySnapshot(next);
+  }, [applySnapshot, pushSnapshot, replaceSnapshot]);
+
+  const focusArtifactContext = useCallback((nextSession: CreatorInteractionSession) => {
+    const current = currentRef.current;
+    const artifactId = nextSession.focusPath.artifactId;
+    if (!artifactId || !current.session.focusPath.setId || nextSession.focusPath.setId !== current.session.focusPath.setId) return;
+    const next: HomeCreatorHistorySnapshot = {
+      ...current,
+      inspectorWorkId: null,
+      session: focusCreatorArtifact(nextSession, artifactId),
     };
     replaceSnapshot(current);
     pushSnapshot(next);
@@ -240,6 +265,7 @@ export function useHomeCreatorNavigation({ initialFocusedWorkId }: HomeCreatorNa
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
+    focusArtifactContext,
     focusWorkContext,
     focusedWorkId,
     inspectorWorkId,

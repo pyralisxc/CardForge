@@ -76,4 +76,36 @@ describe('Project binary asset resolver', () => {
       imageSource: reference,
     }, {}, 'Artwork')).toBe(reference);
   });
+
+  it.each([100, 500, 1000] as const)('releases every object URL across repeated %i-image resolver cycles', async (assetCount) => {
+    let activeUrls = 0;
+    let peakUrls = 0;
+    const resolver = createProjectBinaryAssetResolver({
+      loadBlob: async (assetId) => new Blob([assetId], { type: 'image/svg+xml' }),
+      urlApi: {
+        createObjectURL: () => {
+          activeUrls += 1;
+          peakUrls = Math.max(peakUrls, activeUrls);
+          return `blob:cardforge/${activeUrls}`;
+        },
+        revokeObjectURL: () => {
+          activeUrls -= 1;
+        },
+      },
+    });
+    const references = Array.from({ length: assetCount }, (_, index) => (
+      `${BROWSER_PROJECT_ASSET_REFERENCE_PREFIX}${index.toString(16).padStart(64, '0')}`
+    ));
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      const handles = await Promise.all(references.map((reference) => resolver.acquire(reference)));
+      expect(activeUrls).toBe(assetCount);
+      handles.forEach((handle) => handle.release());
+      expect(activeUrls).toBe(0);
+    }
+
+    expect(peakUrls).toBe(assetCount);
+    resolver.dispose();
+    expect(activeUrls).toBe(0);
+  }, 30_000);
 });

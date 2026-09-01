@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Focus, Minus, Pencil, Plus, Redo2, Undo2 } from 'lucide-react';
+import { Minus, Pencil, Plus, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
@@ -22,6 +22,7 @@ import {
   type FocusedArtifactLayoutEntry,
 } from '../model/focusedArtifactLayout';
 import { getCardTitle } from '../model/homeDesk';
+import { FocusedArtifactNavigator } from './FocusedArtifactNavigator';
 import styles from './HomeDesk.module.css';
 
 interface FocusedSetArtifactSurfaceProps {
@@ -35,6 +36,7 @@ interface FocusedSetArtifactSurfaceProps {
   snapToGrid: boolean;
   showGrid: boolean;
   stageRef: MutableRefObject<HTMLDivElement | null>;
+  onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
   onEditArtifact: (artifactId: string) => void;
   onMoveArtifacts: (positions: Record<string, ArtifactPosition>) => void;
 }
@@ -73,6 +75,7 @@ export function FocusedSetArtifactSurface({
   snapToGrid,
   showGrid,
   stageRef,
+  onFocusArtifact,
   onEditArtifact,
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
@@ -80,6 +83,9 @@ export function FocusedSetArtifactSurface({
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
+  const navigatorReturnArtifactIdRef = useRef<string | null>(null);
+  const pendingSpatialFocusIdRef = useRef<string | null>(null);
+  const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
   const undoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const redoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
@@ -112,7 +118,19 @@ export function FocusedSetArtifactSurface({
     width: viewportSize.width / session.camera.zoom,
     height: viewportSize.height / session.camera.zoom,
   }), [layout, session.camera, viewportSize]);
-  const useDetailedPreview = session.camera.zoom >= 0.55 && visibleEntries.length <= 160;
+  const artifactFocusId = session.focusPath.artifactId;
+  const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
+  const projectedEntries = focusedEntry ? [focusedEntry] : visibleEntries;
+  const useDetailedPreview = session.camera.zoom >= 0.55 && projectedEntries.length <= 160;
+  const orderedGroups = useMemo(() => {
+    const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
+    for (const entry of layout.entries) {
+      const entries = entriesByGroup.get(entry.groupLabel) ?? [];
+      entries.push(entry);
+      entriesByGroup.set(entry.groupLabel, entries);
+    }
+    return layout.groups.map((group) => ({ ...group, entries: entriesByGroup.get(group.label) ?? [] }));
+  }, [layout.entries, layout.groups]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -136,6 +154,54 @@ export function FocusedSetArtifactSurface({
     setHistoryRevision((current) => current + 1);
   }, [setId]);
 
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({
+      left: session.camera.x * session.camera.zoom,
+      top: session.camera.y * session.camera.zoom,
+      behavior: 'auto',
+    });
+  }, [artifactFocusId, session.camera.x, session.camera.y, session.camera.zoom]);
+
+  useEffect(() => {
+    if (!focusedEntry || session.camera.x !== 0 || session.camera.y !== 0 || session.camera.zoom !== 1) return;
+    const zoom = Math.max(
+      1,
+      Math.min(
+        2,
+        viewportSize.width * 0.62 / focusedEntry.width,
+        viewportSize.height * 0.72 / focusedEntry.height,
+      ),
+    );
+    const x = Math.max(0, focusedEntry.position.x - viewportSize.width / zoom / 2 + focusedEntry.width / 2);
+    const y = Math.max(0, focusedEntry.position.y - viewportSize.height / zoom / 2 + focusedEntry.height / 2);
+    if (x === 0 && y === 0 && zoom === 1) return;
+    setSession((current) => (
+      current.focusPath.artifactId === focusedEntry.identity.artifactId
+      && current.camera.x === 0
+      && current.camera.y === 0
+      && current.camera.zoom === 1
+        ? setCreatorCamera(current, { x, y, zoom })
+        : current
+    ));
+  }, [focusedEntry, session.camera.x, session.camera.y, session.camera.zoom, setSession, viewportSize.height, viewportSize.width]);
+
+  useEffect(() => {
+    const previousArtifactFocusId = previousArtifactFocusIdRef.current;
+    previousArtifactFocusIdRef.current = artifactFocusId;
+    if (focusedEntry && pendingSpatialFocusIdRef.current === focusedEntry.identity.artifactId) {
+      const artifactId = focusedEntry.identity.artifactId;
+      pendingSpatialFocusIdRef.current = null;
+      requestAnimationFrame(() => document.getElementById(`spatial-artifact-${artifactId}`)?.focus());
+      return;
+    }
+    if (!artifactFocusId && previousArtifactFocusId && navigatorReturnArtifactIdRef.current === previousArtifactFocusId) {
+      navigatorReturnArtifactIdRef.current = null;
+      requestAnimationFrame(() => document.getElementById(`ordered-artifact-${previousArtifactFocusId}`)?.focus());
+    }
+  }, [artifactFocusId, focusedEntry]);
+
   const updateSelection = (ids: readonly string[]) => {
     setSession((current) => selectCreatorArtifacts(current, ids));
   };
@@ -157,22 +223,26 @@ export function FocusedSetArtifactSurface({
       : additive ? [...session.selection, artifactId] : [...session.selection, artifactId]);
   };
 
-  const focusArtifact = (artifactId: string) => {
+  const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' = 'spatial') => {
     const entry = entryById.get(artifactId);
     if (!entry) return;
-    const zoom = Math.max(0.75, session.camera.zoom);
+    const fitZoom = Math.min(
+      2,
+      viewportSize.width * 0.62 / entry.width,
+      viewportSize.height * 0.72 / entry.height,
+    );
+    const zoom = Math.min(2, Math.max(session.camera.zoom, fitZoom));
     const x = Math.max(0, entry.position.x - viewportSize.width / zoom / 2 + entry.width / 2);
     const y = Math.max(0, entry.position.y - viewportSize.height / zoom / 2 + entry.height / 2);
-    setSession((current) => setCreatorCamera(focusCreatorArtifact(current, artifactId), { x, y, zoom }));
+    const selectedSession = session.selection.includes(artifactId)
+      ? session
+      : selectCreatorArtifacts(session, [artifactId]);
+    if (source === 'navigator') {
+      navigatorReturnArtifactIdRef.current = artifactId;
+      pendingSpatialFocusIdRef.current = artifactId;
+    }
+    onFocusArtifact(setCreatorCamera(focusCreatorArtifact(selectedSession, artifactId), { x, y, zoom }));
     setNavigatorFocusId(artifactId);
-    requestAnimationFrame(() => {
-      const viewport = viewportRef.current;
-      if (viewport) viewport.scrollTo({
-        left: x * zoom,
-        top: y * zoom,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-      });
-    });
   };
 
   const commitSpatialMove = (after: Record<string, ArtifactPosition>, artifactIds: readonly string[]) => {
@@ -219,7 +289,6 @@ export function FocusedSetArtifactSurface({
     if (organization.arrangement !== 'manual' || event.button !== 0) return;
     const artifactId = entry.identity.artifactId;
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
-    if (!session.selection.includes(artifactId)) updateSelection(selectedIds);
     dragRef.current = {
       pointerId: event.pointerId,
       artifactId,
@@ -240,6 +309,7 @@ export function FocusedSetArtifactSurface({
       y: (event.clientY - drag.startY) / session.camera.zoom,
     };
     if (!drag.moved && Math.hypot(delta.x, delta.y) < 5) return;
+    if (!drag.moved && !session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
     drag.moved = true;
     const nextPositions = moveFocusedArtifactSelection({
       entries: layout.entries,
@@ -295,7 +365,15 @@ export function FocusedSetArtifactSurface({
     requestAnimationFrame(() => document.getElementById(`ordered-artifact-${nextId}`)?.focus());
   };
 
-  const activeNavigatorEntry = entryById.get(navigatorFocusId ?? '') ?? null;
+  const moveNavigatorGroup = (artifactId: string, direction: -1 | 1) => {
+    const currentGroupIndex = orderedGroups.findIndex((group) => group.entries.some((entry) => entry.identity.artifactId === artifactId));
+    const nextGroup = orderedGroups[Math.max(0, Math.min(orderedGroups.length - 1, currentGroupIndex + direction))];
+    const nextId = nextGroup?.entries[0]?.identity.artifactId;
+    if (!nextId) return;
+    setNavigatorFocusId(nextId);
+    requestAnimationFrame(() => document.getElementById(`ordered-artifact-${nextId}`)?.focus());
+  };
+
   const setZoom = (zoom: number) => {
     const normalized = Math.max(0.2, Math.min(2, zoom));
     setSession((current) => setCreatorCamera(current, { ...current.camera, zoom: normalized }));
@@ -318,8 +396,12 @@ export function FocusedSetArtifactSurface({
         }}>Reset view</Button>
         <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
         <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
-        <span>{visibleEntries.length} of {layout.entries.length} visuals mounted</span>
+        <span>{projectedEntries.length} of {layout.entries.length} visuals mounted</span>
       </div>
+      {focusedEntry ? <div className={styles.artifactFocusBar} role="status">
+        <span><strong>{focusedEntry.title}</strong> · Exclusive Artifact focus</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => onEditArtifact(focusedEntry.identity.artifactId)}><Pencil className="mr-1.5 h-4 w-4" />Edit Artifact</Button>
+      </div> : null}
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -327,6 +409,7 @@ export function FocusedSetArtifactSurface({
         data-home-artifact-stage
         data-arrangement={organization.arrangement}
         data-grid={showGrid && organization.arrangement === 'manual'}
+        data-artifact-focus-exclusive={Boolean(focusedEntry)}
         aria-label={`${setName} spatial Artifact field`}
         aria-describedby={`artifact-field-instructions-${setId}`}
         data-spatial-history-revision={historyRevision}
@@ -346,10 +429,10 @@ export function FocusedSetArtifactSurface({
       >
         <div className={styles.artifactWorldSizer} style={{ width: layout.width * session.camera.zoom, height: layout.height * session.camera.zoom }}>
           <div className={styles.artifactWorld} style={{ width: layout.width, height: layout.height, transform: `scale(${session.camera.zoom})` }}>
-            {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
+            {!focusedEntry && organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
               <div key={group.label} className={styles.artifactGroupLabel} style={{ top: group.y }}><strong>{group.label}</strong><span>{group.count}</span></div>
             )) : null}
-            {visibleEntries.map((entry) => {
+            {projectedEntries.map((entry) => {
               const artifactId = entry.identity.artifactId;
               const card = cardById.get(artifactId);
               const position = dragPreview[artifactId] ?? entry.position;
@@ -373,13 +456,15 @@ export function FocusedSetArtifactSurface({
                   onPointerCancel={cancelArtifactMove}
                   onLostPointerCapture={cancelArtifactMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
-                  onDoubleClick={() => onEditArtifact(artifactId)}
+                  onDoubleClick={() => focusedEntry ? onEditArtifact(artifactId) : focusArtifact(artifactId)}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
-                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+                    if (event.shiftKey || event.metaKey || event.ctrlKey) {
+                      toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+                    } else if (!focusedEntry) focusArtifact(artifactId);
                   }}
                 >
-                  {useDetailedPreview ? <CardPreview card={card} targetWidthPx={132} /> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
+                  {useDetailedPreview ? <CardPreview card={card} targetWidthPx={focusedEntry ? 320 : 132} /> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
                   <strong>{entry.title}</strong>
                   <span>{entry.subtitle}</span>
                   {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
@@ -389,46 +474,21 @@ export function FocusedSetArtifactSurface({
           </div>
         </div>
       </div>
-      <details className={styles.orderedNavigator}>
-        <summary>Ordered Artifact navigator · {layout.entries.length}</summary>
-        <p>Use Arrow keys to move through the complete Set. Press Space to select and Enter to focus the Artifact on the board.</p>
-        <div className={styles.orderedNavigatorControls}>
-          <Button type="button" size="sm" variant="outline" disabled={!activeNavigatorEntry} onClick={() => activeNavigatorEntry && focusArtifact(activeNavigatorEntry.identity.artifactId)}><Focus className="mr-1.5 h-4 w-4" />Focus on board</Button>
-          <Button type="button" size="sm" variant="outline" disabled={!activeNavigatorEntry} onClick={() => activeNavigatorEntry && onEditArtifact(activeNavigatorEntry.identity.artifactId)}><Pencil className="mr-1.5 h-4 w-4" />Edit</Button>
-          {organization.arrangement === 'manual' && activeNavigatorEntry ? <>
-            <Button type="button" size="icon" variant="ghost" onClick={() => nudgeSelection(activeNavigatorEntry.identity.artifactId, { x: -24, y: 0 })} aria-label="Move selected Artifacts left"><ArrowLeft aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => nudgeSelection(activeNavigatorEntry.identity.artifactId, { x: 0, y: -24 })} aria-label="Move selected Artifacts up"><ArrowUp aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => nudgeSelection(activeNavigatorEntry.identity.artifactId, { x: 0, y: 24 })} aria-label="Move selected Artifacts down"><ArrowDown aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => nudgeSelection(activeNavigatorEntry.identity.artifactId, { x: 24, y: 0 })} aria-label="Move selected Artifacts right"><ArrowRight aria-hidden="true" /></Button>
-          </> : null}
-        </div>
-        <div className={styles.orderedArtifactList} role="listbox" aria-label={`Ordered Artifacts in ${setName}`} aria-multiselectable="true">
-          {layout.entries.map((entry, index) => {
-            const artifactId = entry.identity.artifactId;
-            return <button
-              id={`ordered-artifact-${artifactId}`}
-              key={artifactId}
-              type="button"
-              role="option"
-              tabIndex={navigatorFocusId === artifactId ? 0 : -1}
-              aria-selected={session.selection.includes(artifactId)}
-              aria-posinset={index + 1}
-              aria-setsize={layout.entries.length}
-              onFocus={() => setNavigatorFocusId(artifactId)}
-              onClick={() => toggleArtifact(artifactId, false, true)}
-              onDoubleClick={() => focusArtifact(artifactId)}
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowDown') { event.preventDefault(); moveNavigatorFocus(artifactId, 1); }
-                else if (event.key === 'ArrowUp') { event.preventDefault(); moveNavigatorFocus(artifactId, -1); }
-                else if (event.key === 'Home') { event.preventDefault(); moveNavigatorFocus(artifactId, 'first'); }
-                else if (event.key === 'End') { event.preventDefault(); moveNavigatorFocus(artifactId, 'last'); }
-                else if (event.key === 'Enter') { event.preventDefault(); focusArtifact(artifactId); }
-                else if (event.key === ' ') { event.preventDefault(); toggleArtifact(artifactId, event.shiftKey, true); }
-              }}
-            ><span>{index + 1}</span><strong>{entry.title}</strong><small>{entry.groupLabel} · {entry.subtitle}</small></button>;
-          })}
-        </div>
-      </details>
+      <FocusedArtifactNavigator
+        setName={setName}
+        entries={layout.entries}
+        groups={orderedGroups}
+        arrangement={organization.arrangement}
+        selection={session.selection}
+        navigatorFocusId={navigatorFocusId}
+        hidden={Boolean(focusedEntry)}
+        onFocusArtifact={(artifactId) => focusArtifact(artifactId, 'navigator')}
+        onMoveFocus={moveNavigatorFocus}
+        onMoveGroup={moveNavigatorGroup}
+        onNudge={nudgeSelection}
+        onSetNavigatorFocus={setNavigatorFocusId}
+        onToggleArtifact={toggleArtifact}
+      />
     </>
   );
 }

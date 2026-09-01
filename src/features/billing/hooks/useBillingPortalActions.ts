@@ -10,11 +10,13 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseBillingPortalActionsInput {
   isSignedIn: boolean;
+  returnTo: string;
   toast: ToastFn;
 }
 
 export function useBillingPortalActions({
   isSignedIn,
+  returnTo,
   toast,
 }: UseBillingPortalActionsInput) {
   const [isBillingPortalOpening, setIsBillingPortalOpening] = useState(false);
@@ -35,6 +37,8 @@ export function useBillingPortalActions({
     try {
       const response = await fetch('/api/billing/portal', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ returnTo }),
       });
       if (!response.ok) throw await readApiError(response, 'Unable to open billing management.');
       const payload = await response.json() as { url?: string };

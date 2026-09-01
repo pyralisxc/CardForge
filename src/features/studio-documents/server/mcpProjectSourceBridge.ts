@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import type { StudioAgentAccess } from './studioAgentAccess';
 import {
   buildCardForgeProjectSnapshot,
-  encodeCardForgeProjectPackage,
+  createCardForgeProjectPackageBlob,
   getGoogleDriveProject,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   updateGoogleDriveProjectFromServer,
@@ -187,12 +187,12 @@ export const commitAgentWorkingProjectToSource = async ({
     document: hydratedDocument,
     name: sourceProject.projectName,
   });
-  const bytes = await encodeCardForgeProjectPackage(snapshot);
+  const blob = await createCardForgeProjectPackageBlob(snapshot);
   const updated = await updateGoogleDriveProjectFromServer({
     ownerUserId: accountUserId,
     fileId: projectId,
     name: sourceProject.projectName,
-    bytes,
+    blob,
     projectRevision: snapshot.manifest.projectRevision,
     expectedProviderRevision,
     expectedProjectRevision,

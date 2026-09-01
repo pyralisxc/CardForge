@@ -10,6 +10,7 @@ import {
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
+import { DEFAULT_BUSINESS_IDENTITY, getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
   getCurrentContributorAccessSessionState,
@@ -45,11 +46,14 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; section?: string; utility?: string; ownerWorkspace?: string; pipelineStatus?: string; meta?: string; tool?: string }>;
+  searchParams: Promise<{ artifact?: string; checkout?: string; document?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; returnTo?: string; revision?: string; section?: string; utility?: string; ownerWorkspace?: string; pipelineStatus?: string; meta?: string; tool?: string }>;
 }) {
   const params = await searchParams;
   const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
     ? params.focus
+    : null;
+  const initialFocusedArtifactId = initialFocusedWorkId?.startsWith('set:') && typeof params.artifact === 'string' && params.artifact.length <= 256
+    ? params.artifact
     : null;
   const initialReturnContextKey = typeof params.returnContext === 'string' && params.returnContext.length <= 128
     ? params.returnContext
@@ -73,7 +77,8 @@ export default async function AccountPage({
   });
   const needsPlans = activeSection === 'profile';
   const needsAccountContent = activeSection === 'library';
-  const [entitlementResult, plans, accountContentBlocks] = await Promise.all([
+  const needsBusinessIdentity = activeSection === 'home' || activeSection === 'library';
+  const [entitlementResult, plans, accountContentBlocks, businessIdentity] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
       return {
@@ -83,6 +88,7 @@ export default async function AccountPage({
     }),
     needsPlans ? getMcpAllowances() : Promise.resolve([]),
     needsAccountContent ? getCachedSiteContentBlocks('account') : Promise.resolve([]),
+    needsBusinessIdentity ? getCachedBusinessIdentity() : Promise.resolve(DEFAULT_BUSINESS_IDENTITY),
   ]);
   const { entitlement, unavailable: entitlementUnavailable } = entitlementResult;
   const authConfigured = entitlement.authConfigured;
@@ -171,6 +177,10 @@ export default async function AccountPage({
           <UnifiedAccountLibrary
             persistenceScope={persistenceScope}
             experience={experience}
+            businessIdentity={{
+              brandName: businessIdentity.brandName,
+              copyrightHolder: businessIdentity.copyrightHolder,
+            }}
             initialReturnContextKey={initialReturnContextKey}
             initialTool={params.tool === 'locations' || storageStatus !== null || params.section === 'storage' ? 'locations' : null}
             storageConnections={storageConnections}
@@ -201,11 +211,16 @@ export default async function AccountPage({
       ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope}>
           <AccountHomeBoundary initialAuthConfigured={authConfigured}>
             <HomeDesk
-              key={initialFocusedWorkId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
+              key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
               persistenceScope={persistenceScope}
               experience={experience}
+              businessIdentity={{
+                brandName: businessIdentity.brandName,
+                copyrightHolder: businessIdentity.copyrightHolder,
+              }}
               initialContributorAccess={contributorAccess}
               initialFocusedWorkId={initialFocusedWorkId}
+              initialFocusedArtifactId={initialFocusedArtifactId}
               initialTool={initialDeskTool}
               initialReturnContextKey={initialReturnContextKey}
               homeAccessStatus={homeAccessStatus}

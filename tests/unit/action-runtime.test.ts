@@ -10,6 +10,7 @@ import {
   createSendToPipelineActionDefinition,
   createSendToPipelineActionDescriptor,
 } from '@/features/pipeline/client';
+import { createAccountLibraryActionDefinitions, type AccountLibraryActionCommands } from '@/features/storage-management/lib/accountLibraryActions';
 
 const descriptor: ActionDescriptor = {
   id: 'project.rename-work',
@@ -80,5 +81,24 @@ describe('action runtime', () => {
     await expect(createActionRuntime([library]).execute('library.send-pipeline', { targetIds: ['set-1'] }))
       .resolves.toEqual({ kind: 'mutation', changedIds: ['set-1'] });
     expect(openLibraryTool).toHaveBeenCalledOnce();
+  });
+
+  it('binds Library metadata to feature-owned operations without surface dispatch', async () => {
+    const open = vi.fn(() => '/account?focus=set%3Aset-1');
+    const unavailable = vi.fn();
+    const commands: AccountLibraryActionCommands = {
+      closeLocations: unavailable, closeTool: unavailable, continuePersonal: unavailable,
+      openPersonal: open, sendPipeline: unavailable, saveMove: unavailable, duplicate: unavailable,
+      deleteCopy: unavailable, viewSource: unavailable, manageLocation: unavailable,
+      usePublished: unavailable, copyPublishedTemplate: unavailable, editPipeline: unavailable,
+      testPipeline: unavailable, refresh: unavailable,
+    };
+    const openDescriptor = { ...descriptor, id: 'library.open' as const, result: 'navigation' as const };
+    const runtime = createActionRuntime(createAccountLibraryActionDefinitions([openDescriptor], commands));
+    await expect(runtime.execute('library.open', { targetIds: ['set-1'] })).resolves.toEqual({
+      kind: 'navigation', href: '/account?focus=set%3Aset-1',
+    });
+    expect(open).toHaveBeenCalledOnce();
+    expect(unavailable).not.toHaveBeenCalled();
   });
 });

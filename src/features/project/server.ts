@@ -75,6 +75,7 @@ export type {
 } from './model/googleDriveProject';
 export {
   buildCardForgeProjectSnapshot,
+  createCardForgeProjectPackageBlob,
   decodeCardForgeProjectPackage,
   decodeProjectFile,
   encodeCardForgeProjectPackage,

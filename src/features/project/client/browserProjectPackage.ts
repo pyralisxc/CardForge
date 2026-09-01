@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  buildCardForgeProjectSnapshot,
   decodeCardForgeProjectPackage,
   decodeProjectFile,
   type DecodedProjectFile,
@@ -9,6 +10,7 @@ import { referenceCardForgeProjectSnapshotAssets } from '../lib/projectPackageAs
 import { CARDFORGE_PROJECT_FILE_EXTENSION } from '../model/projectPackage';
 import {
   getBrowserProjectAssetReference,
+  readBrowserProjectAssetSource,
   storeBrowserProjectAssetBytes,
 } from '../persistence/contentAddressedBrowserAssets';
 import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
@@ -21,8 +23,9 @@ export const materializeBrowserProjectSnapshot = async (
     throw new Error('CardForge cannot import project artwork before the browser workspace owner is known.');
   }
   for (const descriptor of snapshot.manifest.assets) {
-    const bytes = snapshot.assets.get(descriptor.id);
-    if (!bytes) throw new Error(`This project is missing required asset ${descriptor.id.slice(0, 12)}….`);
+    const source = snapshot.assets.get(descriptor.id);
+    if (!source) throw new Error(`This project is missing required asset ${descriptor.id.slice(0, 12)}….`);
+    const bytes = source instanceof Uint8Array ? source : await source.load();
     await storeBrowserProjectAssetBytes({
       scope,
       assetId: descriptor.id,
@@ -47,4 +50,17 @@ export const decodeBrowserProjectFile = async (file: File): Promise<DecodedProje
     sourceRevision: snapshot.manifest.projectRevision,
     format: 'cardforge-package',
   };
+};
+
+export const buildBrowserCardForgeProjectSnapshot = async (
+  options: Omit<Parameters<typeof buildCardForgeProjectSnapshot>[0], 'resolveAssetReference'>,
+) => {
+  const scope = getProjectPersistenceScope();
+  if (scope === 'unscoped-disabled') {
+    throw new Error('CardForge cannot package browser artwork before the workspace owner is known.');
+  }
+  return buildCardForgeProjectSnapshot({
+    ...options,
+    resolveAssetReference: (reference) => readBrowserProjectAssetSource(reference, scope),
+  });
 };

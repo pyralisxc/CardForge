@@ -132,7 +132,10 @@ describe('CardForge Studio plugin', () => {
     expect(route).not.toContain('/sign-in?redirect_url=');
     expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id)');
     expect(studioPage).toContain('redirectToSignIn');
-    expect(studioPage).toContain('returnBackUrl: createStudioHref({ documentId, revision: params.revision, returnTo: requestedReturnTo })');
+    expect(studioPage).toContain('createContextualStudioHref');
+    expect(studioPage).toContain('returnBackUrl: contextualHref');
+    expect(studioPage).toContain('redirect(contextualHref)');
+    expect(studioPage).not.toContain('StudioRuntimeLoader');
     expect(handoff).not.toContain('signInPromptedDocumentIdRef');
     expect(handoff).not.toContain('Sign in to open this draft');
     expect(handoff).toContain('inFlightRevisionKeyRef');

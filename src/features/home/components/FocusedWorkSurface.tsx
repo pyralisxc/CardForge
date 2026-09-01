@@ -49,6 +49,7 @@ export interface FocusedWorkSurfaceProps {
   session: CreatorInteractionSession;
   setSession: Dispatch<SetStateAction<CreatorInteractionSession>>;
   stageRef: MutableRefObject<HTMLDivElement | null>;
+  onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
   onBack: () => void;
   onRenameDraftChange: (value: string) => void;
   onCommitRename: () => void;
@@ -82,10 +83,11 @@ export interface FocusedWorkSurfaceProps {
 }
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
+  const artifactFocused = Boolean(props.session.focusPath.artifactId);
   return <div className={styles.focusSurface} data-home-desk="focused" data-focus-transition="set-to-artifacts">
-    <button type="button" className={styles.backButton} onClick={props.onBack}><ArrowLeft size={16} aria-hidden="true" /> Back to Desk</button>
+    <button type="button" className={styles.backButton} onClick={props.onBack}><ArrowLeft size={16} aria-hidden="true" /> {artifactFocused ? 'Back to Set' : 'Back to Desk'}</button>
     <section className={styles.focusWorkspace} data-home-set-board aria-label={props.item.name}>
-      <header className={styles.focusHeader}>
+      {!artifactFocused ? <header className={styles.focusHeader}>
         <div className={styles.focusIdentity}>
           {props.renaming && props.localSetId ? <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input id="home-work-name" value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Work name" /><Button type="submit" size="sm">Save</Button></form> : <h1>{props.item.name}</h1>}
           <p>{props.contentsLabel} · {workSourceLabel(props.item)}</p>
@@ -104,9 +106,9 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             {props.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent></DropdownMenu>
         </div>
-      </header>
+      </header> : null}
       {props.localSetId ? <>
-        <div className={styles.contentHeading}><div><h2>Inside this Set</h2><p>Select one or more cards to arrange, move, duplicate, or remove them.</p></div><span className="text-xs text-[var(--cf-text-subtle)]">{props.visibleCards.length} shown</span></div>
+        {!artifactFocused ? <><div className={styles.contentHeading}><div><h2>Inside this Set</h2><p>Select one or more cards to arrange, move, duplicate, or remove them.</p></div><span className="text-xs text-[var(--cf-text-subtle)]">{props.visibleCards.length} shown</span></div>
         <div className={styles.contentToolbar}>
           <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
           <div className={styles.organizationToolbar} aria-label="Set organization">
@@ -126,13 +128,12 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             {props.selectedCard ? <><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex <= 0} onClick={() => props.onReorderSelected('earlier')} aria-label="Move selected card earlier"><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex < 0 || props.selectedCardIndex >= props.focusedCards.length - 1} onClick={() => props.onReorderSelected('later')} aria-label="Move selected card later"><ArrowDown className="h-4 w-4" /></Button></> : null}
             {props.otherSets.length ? <Select value={props.moveTargetId} onValueChange={props.onMoveTargetChange}><SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {props.otherSets.find((set) => set.id === props.moveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{props.otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
             {props.otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={props.onMoveSelected}>Move</Button> : null}
-            {props.selectedCard ? <Button type="button" size="sm" variant="outline" onClick={() => props.onEditSelected()}>Edit in Studio</Button> : null}
             <Button type="button" size="sm" variant="outline" onClick={props.onDuplicateSelected}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button><Button type="button" size="sm" variant="ghost" onClick={props.onDeleteSelected}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
             <div className={styles.tagTools}>{props.organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Tags</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{props.organization.tags.map((tag) => { const applied = props.selectedCards.every((card) => card.tagIds?.includes(tag.id)); return <DropdownMenuItem key={tag.id} onSelect={() => props.onSetCardsTag(props.selectedCards.map((card) => card.uniqueId), tag.id, !applied)}>{applied ? 'Remove' : 'Add'} {tag.label}</DropdownMenuItem>; })}</DropdownMenuContent></DropdownMenu> : null}<Input value={props.tagDraft} onChange={(event) => props.onTagDraftChange(event.target.value)} placeholder="New tag" aria-label="New tag name" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); props.onApplyNewTag(); } }} /><Button type="button" size="sm" variant="outline" disabled={!props.tagDraft.trim()} onClick={props.onApplyNewTag}>Add tag</Button></div>
           </div> : null}
         </div>
-        {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}
-        {props.sortedCards.length ? <FocusedSetArtifactSurface setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} showGrid={props.showGrid} stageRef={props.stageRef} onEditArtifact={props.onEditSelected} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first Artifact'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the Artifacts back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
+        {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}</> : null}
+        {props.sortedCards.length ? <FocusedSetArtifactSurface setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} showGrid={props.showGrid} stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onEditArtifact={props.onEditSelected} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first Artifact'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the Artifacts back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
       </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>This work stays owned by {workSourceLabel(props.item)}. Open it to load its exact contents into the CardForge workbench.</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}
     </section>
   </div>;

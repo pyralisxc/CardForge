@@ -2,11 +2,10 @@
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
 import {
-  buildCardForgeProjectSnapshot,
-  encodeCardForgeProjectPackage,
+  createCardForgeProjectPackageBlob,
   ProjectPackageError,
 } from '../lib/projectPackageCodec';
-import { decodeBrowserProjectFile } from './browserProjectPackage';
+import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from './browserProjectPackage';
 import {
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
@@ -88,11 +87,9 @@ export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjec
 
 const createProjectPackage = async (name: string, workId?: string) => {
   const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
-  const snapshot = await buildCardForgeProjectSnapshot({ document, name });
-  const encoded = await encodeCardForgeProjectPackage(snapshot);
-  const bytes = new Uint8Array(encoded.byteLength);
-  bytes.set(encoded);
-  return { snapshot, bytes };
+  const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name });
+  const blob = await createCardForgeProjectPackageBlob(snapshot);
+  return { snapshot, blob };
 };
 
 const prepareUpload = async ({
@@ -127,16 +124,14 @@ const prepareUpload = async ({
 
 const uploadPackage = async (
   plan: GoogleDriveUploadPrepareResult,
-  bytes: Uint8Array,
+  blob: Blob,
 ): Promise<GoogleDriveUploadCompletion> => {
-  const uploadBytes = new Uint8Array(bytes.byteLength);
-  uploadBytes.set(bytes);
   let response: Response;
   try {
     response = await fetch(plan.uploadSessionUrl, {
       method: 'PUT',
       headers: { 'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE },
-      body: uploadBytes.buffer,
+      body: blob,
     });
   } catch {
     throw new ProjectPackageError('Google Drive project upload is unavailable. Your browser project was left unchanged; retry when Drive is reachable.');
@@ -182,15 +177,15 @@ export const saveCurrentProjectToGoogleDrive = async ({
   asNew?: boolean;
 }): Promise<GoogleDriveProjectBinding> => {
   const existing = asNew ? null : await getGoogleDriveProjectBinding();
-  const { snapshot, bytes } = await createProjectPackage(name);
+  const { snapshot, blob } = await createProjectPackage(name);
   const plan = await prepareUpload({
     name: snapshot.manifest.name,
-    size: bytes.byteLength,
+    size: blob.size,
     projectRevision: snapshot.manifest.projectRevision,
     binding: existing,
     workId: null,
   });
-  const completed = await uploadPackage(plan, bytes);
+  const completed = await uploadPackage(plan, blob);
   const binding = toBinding({
     completed,
     projectRevision: snapshot.manifest.projectRevision,
@@ -211,15 +206,15 @@ export const saveCardSetToGoogleDrive = async ({
   asNew?: boolean;
 }): Promise<GoogleDriveProjectBinding> => {
   const existing = asNew ? null : await getGoogleDriveWorkBinding(setId);
-  const { snapshot, bytes } = await createProjectPackage(name, setId);
+  const { snapshot, blob } = await createProjectPackage(name, setId);
   const plan = await prepareUpload({
     name: snapshot.manifest.name,
-    size: bytes.byteLength,
+    size: blob.size,
     projectRevision: snapshot.manifest.projectRevision,
     binding: existing,
     workId: setId,
   });
-  const completed = await uploadPackage(plan, bytes);
+  const completed = await uploadPackage(plan, blob);
   const binding = toBinding({
     completed,
     projectRevision: snapshot.manifest.projectRevision,

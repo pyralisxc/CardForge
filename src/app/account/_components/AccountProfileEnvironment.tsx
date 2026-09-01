@@ -15,6 +15,8 @@ import {
   EnvironmentSurfaceHeader,
   EnvironmentToolLayer,
   ENVIRONMENT_ZONES,
+  createActionDefinition,
+  createActionRuntime,
   getVisibleEnvironmentZones,
   type ActionDescriptor,
   type EnvironmentSettingRecord,
@@ -28,6 +30,7 @@ import {
   AccountPlanBillingUtility,
   ProfileManagementPage,
   buildAccountProfileUtilityGroups,
+  createAccountProfileOperations,
   type AccountProfileUtility,
   type AccountProfileUtilityTarget,
 } from '@/features/account/client/profile';
@@ -78,38 +81,6 @@ const toRecord = (item: AccountProfileUtility): EnvironmentSettingRecord => ({
   }],
   meta: item.meta,
 });
-
-const defaultAction: ActionDescriptor = {
-  id: 'profile.manage-account',
-  label: 'Manage identity',
-  ownerFeature: 'account',
-  supportedObjectKinds: [],
-  supportedSources: [],
-  revisionPolicy: 'none',
-  requiredPermission: 'guest',
-  scope: 'zone',
-  hierarchy: 'primary',
-  availability: { kind: 'available' },
-  commitment: 'none',
-  automation: { kind: 'human-only', owner: 'provider' },
-  result: 'provider-handoff',
-};
-
-const closeUtilityAction: ActionDescriptor = {
-  id: 'profile.close-utility',
-  label: 'Profile overview',
-  ownerFeature: 'account',
-  supportedObjectKinds: [],
-  supportedSources: [],
-  revisionPolicy: 'none',
-  requiredPermission: 'guest',
-  scope: 'zone',
-  hierarchy: 'primary',
-  availability: { kind: 'available' },
-  commitment: 'none',
-  automation: { kind: 'human-only', owner: 'cardforge' },
-  result: 'navigation',
-};
 
 export function AccountProfileEnvironment({
   checkoutStatus = null,
@@ -178,7 +149,6 @@ export function AccountProfileEnvironment({
     isSignedIn,
     planLabel,
   }), [accountEmail, entitlement.authConfigured, entitlement.isLoadingEntitlement, entitlementUnavailable, isContributor, isOwner, isSignedIn, planLabel]);
-  const actions = activeUtility ? [closeUtilityAction] : [defaultAction];
 
   useEffect(() => {
     if (initialUtility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null) {
@@ -230,16 +200,11 @@ export function AccountProfileEnvironment({
     }
   };
 
-  const runAction = (action: ActionDescriptor) => {
-    if (action.id === 'profile.close-utility') {
-      closeUtility();
-      return;
-    }
-    if (action.id === 'profile.manage-account') {
-      openIdentity();
-      return;
-    }
-  };
+  const actionDefinitions = createAccountProfileOperations({ utilityOpen: Boolean(activeUtility), closeUtility, openIdentity })
+    .map(({ descriptor, execute }) => createActionDefinition(descriptor, execute));
+  const actions = actionDefinitions.map((definition) => definition.descriptor);
+  const actionRuntime = createActionRuntime(actionDefinitions);
+  const runAction = (action: ActionDescriptor) => { void actionRuntime.execute(action.id, { targetIds: [] }); };
 
   return (
     <EnvironmentShell

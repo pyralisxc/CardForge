@@ -16,6 +16,10 @@ import {
   validateLocalAssetFile,
   writeProjectPreference,
 } from '@/features/project/client';
+import {
+  getBrowserStoragePersistenceState,
+  requestBrowserStoragePersistence,
+} from '@/features/project/persistence/browserStoragePersistence';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -141,6 +145,30 @@ describe('browser IndexedDB storage', () => {
     expect(healthy.level).toBe('healthy');
     expect(pressured.level).toBe('critical');
     expect(pressured.remainingBytes).toBe(500);
+  });
+
+  it('distinguishes unsupported, best-effort, and granted persistent browser storage', async () => {
+    expect(await getBrowserStoragePersistenceState(null)).toBe('unsupported');
+
+    const denied = { persisted: vi.fn(async () => false), persist: vi.fn(async () => false) };
+    expect(await getBrowserStoragePersistenceState(denied)).toBe('best-effort');
+    expect(await requestBrowserStoragePersistence(denied)).toBe('best-effort');
+    expect(denied.persist).toHaveBeenCalledOnce();
+
+    const granted = { persisted: vi.fn(async () => false), persist: vi.fn(async () => true) };
+    expect(await requestBrowserStoragePersistence(granted)).toBe('persistent');
+    expect(granted.persist).toHaveBeenCalledOnce();
+  });
+
+  it('reports StorageManager failures as unavailable without treating work as deleted', async () => {
+    const unavailable = {
+      persisted: vi.fn(async () => { throw new Error('Browser rejected the query'); }),
+      persist: vi.fn(async () => true),
+    };
+
+    expect(await getBrowserStoragePersistenceState(unavailable)).toBe('unavailable');
+    expect(await requestBrowserStoragePersistence(unavailable)).toBe('unavailable');
+    expect(unavailable.persist).not.toHaveBeenCalled();
   });
 });
 

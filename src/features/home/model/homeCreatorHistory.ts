@@ -1,4 +1,11 @@
-import type { CreatorInteractionSession, CreatorToolSession } from '@/features/app-shell/client/environment';
+import {
+  createCreatorInteractionSession,
+  focusCreatorArtifact,
+  focusCreatorSet,
+  selectCreatorArtifacts,
+  type CreatorInteractionSession,
+  type CreatorToolSession,
+} from '@/features/app-shell/client/environment';
 
 export type HomeContextualToolId = 'design' | 'generate' | 'output' | 'pipeline';
 
@@ -10,6 +17,20 @@ export interface HomeCreatorHistorySnapshot {
 }
 
 export const HOME_CREATOR_HISTORY_KEY = 'cardforgeCreatorContext';
+
+export const createHomeCreatorInitialSession = (
+  focusedWorkId?: string | null,
+  focusedArtifactId?: string | null,
+): CreatorInteractionSession => {
+  const session = createCreatorInteractionSession();
+  if (!focusedWorkId?.startsWith('set:')) return session;
+  const focusedSet = focusCreatorSet(session, focusedWorkId.slice(4));
+  if (!focusedArtifactId) return focusedSet;
+  return focusCreatorArtifact(
+    selectCreatorArtifacts(focusedSet, [focusedArtifactId]),
+    focusedArtifactId,
+  );
+};
 
 const isStringArray = (value: unknown): value is string[] => (
   Array.isArray(value) && value.every((entry) => typeof entry === 'string')

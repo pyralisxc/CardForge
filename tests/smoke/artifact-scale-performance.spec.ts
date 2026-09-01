@@ -78,7 +78,12 @@ test.describe('large Artifact browser evidence', () => {
       await page.getByText(`Ordered Artifact navigator · ${cardCount}`, { exact: true }).click();
       const orderedOptions = page.getByRole('option');
       await expect(orderedOptions).toHaveCount(cardCount);
+      await expect(page.locator('[role="listbox"] [role="group"]')).toHaveCount(10);
       await orderedOptions.first().focus();
+      await page.keyboard.press('PageDown');
+      await expect(page.getByRole('group', { name: new RegExp('Group 2') }).getByRole('option').first()).toBeFocused();
+      await page.keyboard.press('Home');
+      await expect(orderedOptions.first()).toBeFocused();
       const selectionMs = await elapsed(async () => {
         await page.keyboard.press('Space');
         await expect(orderedOptions.first()).toHaveAttribute('aria-selected', 'true');
@@ -88,7 +93,14 @@ test.describe('large Artifact browser evidence', () => {
         await expect(orderedOptions.last()).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeVisible();
+        await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeFocused();
+        await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+        await expect(visualArtifacts).toHaveCount(1);
       });
+      await page.evaluate(() => window.history.back());
+      await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+      await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+      await expect(orderedOptions.last()).toBeFocused();
       const closeMs = await closeScaleSet(page);
       const browserEvidence = await readBrowserPerformanceEvidence(page);
 
@@ -110,6 +122,97 @@ test.describe('large Artifact browser evidence', () => {
       });
     });
   }
+
+  test('Artifact focus preserves object identity and exact Set context through Back and Escape', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await prepareScalePage(page, 100);
+    await openScaleSet(page, 100);
+    const focusedSetId = new URL(page.url()).searchParams.get('focus');
+    expect(focusedSetId).toBeTruthy();
+
+    const stage = page.locator('[data-home-artifact-stage]');
+    const visibleArtifacts = stage.locator('[data-artifact-id]');
+    const first = visibleArtifacts.first();
+    const second = visibleArtifacts.nth(1);
+    const firstId = await first.getAttribute('data-artifact-id');
+    expect(firstId).toBeTruthy();
+    await first.evaluate((node) => { node.setAttribute('data-identity-probe', 'preserved'); });
+    await first.click({ modifiers: ['Control'] });
+    await second.click({ modifiers: ['Control'] });
+    const before = await stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }));
+    const selectedBefore = await stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')));
+
+    await first.click();
+    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(visibleArtifacts).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
+    await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toHaveAttribute('data-identity-probe', 'preserved');
+    await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
+    await expect.poll(async () => page.locator(`[data-artifact-id="${firstId}"]`).evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
+    const focusedArtifactBox = await page.locator(`[data-artifact-id="${firstId}"]`).boundingBox();
+    const focusedStageBox = await stage.boundingBox();
+    expect(focusedArtifactBox).not.toBeNull();
+    expect(focusedStageBox).not.toBeNull();
+    expect(focusedArtifactBox!.height).toBeGreaterThan(focusedStageBox!.height * 0.55);
+
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(page.locator('[data-home-artifact-stage] [data-artifact-id]')).toHaveCount(1);
+    await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
+
+    await page.evaluate(() => window.history.back());
+    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+    await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    const restored = await stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }));
+    expect(restored.left).toBeCloseTo(before.left, 0);
+    expect(restored.top).toBeCloseTo(before.top, 0);
+    await expect.poll(async () => stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')))).toEqual(selectedBefore);
+
+    await page.locator(`[data-artifact-id="${firstId}"]`).click();
+    await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-home-desk="overview"]')).toBeVisible();
+
+    await page.goto(`/account?focus=${encodeURIComponent(focusedSetId!)}&artifact=${encodeURIComponent(firstId!)}`, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
+    await page.evaluate(() => window.history.back());
+    await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await page.evaluate(() => window.history.back());
+    await expect(page.locator('[data-home-desk="overview"]')).toBeVisible();
+  });
+
+  test('ordered navigator restores keyboard focus through Back, Escape, and browser Back', async ({ page }) => {
+    await prepareScalePage(page, 100);
+    await openScaleSet(page, 100);
+    await page.getByText('Ordered Artifact navigator · 100', { exact: true }).click();
+    const option = page.getByRole('option').nth(12);
+    const artifactId = await option.getAttribute('id').then((id) => id?.replace('ordered-artifact-', ''));
+    expect(artifactId).toBeTruthy();
+
+    const openFromNavigator = async () => {
+      await option.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`[data-artifact-id="${artifactId}"]`)).toBeFocused();
+      await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    };
+
+    await openFromNavigator();
+    await page.getByRole('button', { name: 'Back to Set' }).click();
+    await expect(option).toBeFocused();
+
+    await openFromNavigator();
+    await page.keyboard.press('Escape');
+    await expect(option).toBeFocused();
+
+    await openFromNavigator();
+    await page.evaluate(() => window.history.back());
+    await expect(option).toBeFocused();
+  });
 
   test('repeated focus and Design cycles keep post-warmup heap and transient UI growth bounded', async ({ page, context }, testInfo) => {
     test.setTimeout(300_000);

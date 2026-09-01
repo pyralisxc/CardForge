@@ -40,6 +40,27 @@ export interface ProjectPackageAssetDescriptor {
   path: string;
 }
 
+/**
+ * A reusable package asset source whose bytes are loaded only for the current
+ * ZIP entry. Browser-backed snapshots use this instead of retaining every
+ * IndexedDB Blob as a Uint8Array for the lifetime of the package build.
+ */
+export interface ProjectPackageLazyAssetSource {
+  kind: 'lazy';
+  size: number;
+  load: () => Promise<Uint8Array>;
+}
+
+export type ProjectPackageAssetSource = Uint8Array | ProjectPackageLazyAssetSource;
+
+export type ResolvedProjectPackageAssetReference = {
+  mimeType: string;
+  bytes: Uint8Array;
+} | {
+  mimeType: string;
+  source: ProjectPackageLazyAssetSource;
+};
+
 export interface CardForgeProjectManifestV1 {
   cardforgeProject: typeof LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
   name: string;
@@ -72,7 +93,7 @@ export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgePro
 
 export interface CardForgeProjectPackageSnapshot {
   manifest: CardForgeProjectManifest;
-  assets: ReadonlyMap<string, Uint8Array>;
+  assets: ReadonlyMap<string, ProjectPackageAssetSource>;
 }
 
 export interface CardForgeProjectPackageSnapshotV2 extends CardForgeProjectPackageSnapshot {

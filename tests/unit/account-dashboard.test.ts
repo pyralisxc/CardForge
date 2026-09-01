@@ -17,6 +17,8 @@ describe('unified account environment', () => {
   const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const accountLibraryActions = readSource('src/features/storage-management/hooks/useAccountLibraryActions.ts');
+  const accountLibraryActionRuntime = readSource('src/features/storage-management/lib/accountLibraryActions.ts');
   const libraryCollection = readSource('src/features/storage-management/components/LibraryCollection.tsx');
   const libraryPresentation = readSource('src/features/storage-management/components/LibraryObjectPresentation.tsx');
   const libraryScopes = readSource('src/features/storage-management/model/libraryScopes.ts');
@@ -86,12 +88,15 @@ describe('unified account environment', () => {
     expect(libraryScopes).toContain("id: 'published'");
     expect(libraryScopes).toContain("id: 'pipeline'");
     expect(libraryCollection).toContain('<LibraryVisual');
-    expect(accountLibrary).toContain('getAccountLibraryEnvironmentActions');
+    expect(accountLibraryActions).toContain('getAccountLibraryEnvironmentActions');
     expect(libraryPresentation).toContain("id: 'library.copy-published-template'");
     expect(accountLibrary).toContain('setTemplateEditorSelectedTemplateId(templateId)');
-    expect(accountLibrary).toContain('openDesignTool(selectedTemplateId');
-    expect(accountLibrary).toContain("actionId === 'library.view-source'");
-    expect(accountLibrary).toContain("actionId === 'library.manage-location'");
+    expect(accountLibraryActions).toContain('openDesignTool(selectedTemplateId');
+    expect(accountLibraryActions).toContain('viewSource: () => {');
+    expect(accountLibraryActions).toContain('manageLocation: openLocations');
+    expect(accountLibraryActions).toContain('createAccountLibraryActionDefinitions(descriptors, commandsFor(target))');
+    expect(accountLibraryActionRuntime).toContain("'library.manage-location': commands.manageLocation");
+    expect(accountLibraryActions).not.toContain("actionId === 'library.");
     expect(libraryPresentation).toContain('getAccountLibraryMcpWorkflow');
     expect(accountLibrary).toContain("activeTool === 'locations'");
     expect(accountLibrary).not.toContain('<AccountLibraryItemRow');

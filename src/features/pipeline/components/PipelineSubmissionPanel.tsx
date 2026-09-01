@@ -35,6 +35,7 @@ import {
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
 
 interface PipelineUploadPlanResponse {
   upload: PipelineUploadPlan;
@@ -349,7 +350,7 @@ export function PipelineSubmissionPanel({
                     >
                       <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-surface)]">
                         {item.previewUrl && !item.previewUrl.startsWith('/api/templates') ? (
-                          <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
+                          <ProjectBinaryAssetImage source={item.previewUrl} alt="" className="h-full w-full object-contain" />
                         ) : (
                           <FileUp className="h-4 w-4 text-[var(--cf-accent)]" />
                         )}

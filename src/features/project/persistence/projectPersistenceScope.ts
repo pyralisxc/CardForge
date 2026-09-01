@@ -1,10 +1,7 @@
 import type { StateStorage } from 'zustand/middleware';
 
 import type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
-import {
-  externalizeBrowserProjectAssetJson,
-  hydrateBrowserProjectAssetJson,
-} from './contentAddressedBrowserAssets';
+import { externalizeBrowserProjectAssetJson } from './contentAddressedBrowserAssets';
 import {
   BROWSER_STORAGE_FAILURE_EVENT,
   compareAndSetBrowserWorkspaceValue,
@@ -129,7 +126,7 @@ export const createScopedProjectStorage = (
         return externalized.storedValue;
       }
       if (baseNamespace === 'project-assets') {
-        return hydrateBrowserProjectAssetJson(externalized.storedValue, scope);
+        return externalized.storedValue;
       }
     } catch {
       // The recovery copy below is authoritative when structured artwork or JSON

@@ -12,6 +12,8 @@ import {
   decryptProjectStorageToken,
   encryptProjectStorageToken,
 } from '@/features/project/server/projectStorageTokenCrypto';
+import { hasGoogleDriveProjectRevisionConflict } from '@/features/project/model/googleDriveProject';
+import { createLibraryLocationsHref } from '@/features/storage-management/lib/accountLibraryActions';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -23,6 +25,19 @@ describe('Google Drive project storage', () => {
     const store = read('src/features/project/server/googleDriveProjectStore.ts');
     expect(store).toContain('GOOGLE_DRIVE_FILE_SCOPE');
     expect(store).not.toContain("'https://www.googleapis.com/auth/drive'");
+  });
+
+  it('carries an exact sanitized Library return through the native OAuth state lifecycle', () => {
+    const connect = read('src/app/api/project-sources/google-drive/connect/route.ts');
+    const callback = read('src/app/api/project-sources/google-drive/callback/route.ts');
+    const accountPanel = read('src/features/storage-management/components/GoogleDriveProjectStoragePanel.tsx');
+    expect(connect).toContain("getSafeLocalReturnPath(");
+    expect(connect).toContain("cookieStore.set('cardforge_google_drive_return_to', returnTo");
+    expect(callback).toContain("getSafeLocalReturnPath(returnTo, '/account?section=library&tool=locations')");
+    expect(callback).toContain("response.cookies.set('cardforge_google_drive_return_to', ''");
+    expect(accountPanel).toContain('returnTo=${encodeURIComponent(returnTo)}');
+    expect(createLibraryLocationsHref('published')).toBe('/account?section=library&scope=published&tool=locations');
+    expect(createLibraryLocationsHref('pipeline')).toBe('/account?section=library&scope=pipeline&tool=locations');
   });
 
   it('encrypts refresh credentials independently of provider code', () => {
@@ -49,6 +64,33 @@ describe('Google Drive project storage', () => {
     expect(serverStore).toContain('effectiveWorkId = effectiveWorkId ?? currentSummary.workId');
     expect(serverStore).toContain('[GOOGLE_DRIVE_WORK_ID_PROPERTY]: effectiveWorkId');
     expect(serverStore).toContain('workId: effectiveWorkId');
+  });
+
+  it('executes exact provider and package revision conflict semantics before Drive updates', () => {
+    expect(hasGoogleDriveProjectRevisionConflict({
+      currentProviderRevision: '7',
+      currentProjectRevision: 'a'.repeat(64),
+      expectedProviderRevision: '7',
+      expectedProjectRevision: 'a'.repeat(64),
+    })).toBe(false);
+    expect(hasGoogleDriveProjectRevisionConflict({
+      currentProviderRevision: '8',
+      currentProjectRevision: 'a'.repeat(64),
+      expectedProviderRevision: '7',
+      expectedProjectRevision: 'a'.repeat(64),
+    })).toBe(true);
+    expect(hasGoogleDriveProjectRevisionConflict({
+      currentProviderRevision: '7',
+      currentProjectRevision: 'b'.repeat(64),
+      expectedProviderRevision: '7',
+      expectedProjectRevision: 'a'.repeat(64),
+    })).toBe(true);
+    expect(hasGoogleDriveProjectRevisionConflict({
+      currentProviderRevision: '7',
+      currentProjectRevision: 'a'.repeat(64),
+      expectedProviderRevision: null,
+      expectedProjectRevision: null,
+    })).toBe(true);
   });
 
   it('stores encrypted provider connections and exact project-source lineage server-side', () => {

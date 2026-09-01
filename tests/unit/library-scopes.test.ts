@@ -11,7 +11,7 @@ import {
 } from '@/features/storage-management/model/libraryScopes';
 
 describe('Library scopes', () => {
-  const library = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/UnifiedAccountLibrary.tsx'), 'utf8');
+  const actionHook = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useAccountLibraryActions.ts'), 'utf8');
   const libraryPresentation = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/LibraryObjectPresentation.tsx'), 'utf8');
   const libraryActions = readFileSync(resolve(process.cwd(), 'src/features/storage-management/model/accountLibraryEnvironment.ts'), 'utf8');
   const sharedProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useLibrarySharedProjection.ts'), 'utf8');
@@ -74,7 +74,7 @@ describe('Library scopes', () => {
 
   it('opens Set containers on Desk instead of dropping them into an unrelated Studio Template', () => {
     expect(libraryActions).toContain("item.references.localSetId ? 'Open on Desk'");
-    expect(library).toContain("createDeskReturnHref(`set:${item.references.localSetId}`)");
+    expect(actionHook).toContain("createDeskReturnHref(`set:${item.references.localSetId}`)");
     expect(accountProjection).toContain("router.push(createDeskReturnHref(`set:${item.references.localSetId}`))");
     expect(accountProjection).toContain("tool: 'design', artifact: item.references.localTemplateId");
     expect(accountProjection.match(/createStudioHref\(/g)).toHaveLength(1);

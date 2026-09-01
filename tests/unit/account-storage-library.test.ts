@@ -10,6 +10,7 @@ describe('account storage library', () => {
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
   const unifiedLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
+  const unifiedLibraryActions = readSource('src/features/storage-management/hooks/useAccountLibraryActions.ts');
   const libraryPresentation = readSource('src/features/storage-management/components/LibraryObjectPresentation.tsx');
   const pipelineSubmissionEditor = readSource('src/features/pipeline/components/PipelineSubmissionEditPanel.tsx');
   const pipelineSubmissionRoute = readSource('src/app/api/pipeline/[submissionId]/route.ts');
@@ -87,7 +88,7 @@ describe('account storage library', () => {
   it('keeps contributor submission editing with the owned Pipeline object instead of the retired cockpit', () => {
     expect(libraryPresentation).toContain("id: 'library.edit-pipeline'");
     expect(libraryPresentation).toContain("item.pipeline.ownership === 'mine'");
-    expect(unifiedLibrary).toContain("setActiveTool('edit-contribution')");
+    expect(unifiedLibraryActions).toContain("setActiveTool('edit-contribution')");
     expect(unifiedLibrary).toContain('<PipelineSubmissionEditPanel');
     expect(pipelineSubmissionEditor).toContain("method: submitDraft ? 'POST' : 'PATCH'");
     expect(pipelineSubmissionEditor).toContain('<EditSubmissionForm');

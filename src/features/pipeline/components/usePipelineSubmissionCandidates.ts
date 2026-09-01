@@ -16,19 +16,31 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  buildCardForgeProjectSnapshot,
   captureCardSetProjectDocument,
-  encodeCardForgeProjectPackage,
+  createCardForgeProjectPackageBlob,
   getProjectAssetStorage,
+  getProjectPersistenceScope,
+  isProjectBinaryAssetReference,
   readTypedProjectAssetListFromStorage,
   useProjectStore,
 } from '@/features/project/client';
+import { readBrowserProjectAssetReference } from '@/features/project/client/binary-assets';
+import { buildBrowserCardForgeProjectSnapshot } from '@/features/project/client/project-packages';
 
 const emptyPersonalAssets = {
   textures: [] as CardAssetOption[],
   dividers: [] as CardAssetOption[],
   icons: [] as CardAssetOption[],
   imageAssets: [] as CardAssetOption[],
+};
+
+const createStoredAssetFile = async (asset: CardAssetOption, fileNameStem: string): Promise<File> => {
+  if (!isProjectBinaryAssetReference(asset.url)) return createAssetFile(asset, fileNameStem);
+  const resolved = await readBrowserProjectAssetReference(asset.url, getProjectPersistenceScope());
+  if (!resolved) throw new Error(`Unable to read ${asset.name}.`);
+  const extension = getExtensionForAssetUrl(`data:${resolved.mimeType};base64,`);
+  const bytes = Uint8Array.from(resolved.bytes);
+  return new File([bytes.buffer], `${fileNameStem}.${extension}`, { type: resolved.mimeType });
 };
 
 /** One projection of personal objects that can cross the Forge Review boundary. */
@@ -70,7 +82,7 @@ export function usePipelineSubmissionCandidates() {
         fileName: `${fileNameStem}.${getExtensionForAssetUrl(asset.url)}`,
         helperText: asset.packName ? `Library asset from ${asset.packName}.` : 'Saved device art from CardForge.',
         previewUrl: asset.url,
-        createFile: async () => createAssetFile(asset, fileNameStem),
+        createFile: async () => createStoredAssetFile(asset, fileNameStem),
       };
     }));
 
@@ -85,11 +97,9 @@ export function usePipelineSubmissionCandidates() {
         helperText: 'A complete portable Set package with cards, Templates, settings, and embedded assets.',
         createFile: async () => {
           const document = await captureCardSetProjectDocument(set.id);
-          const snapshot = await buildCardForgeProjectSnapshot({ document, name: set.name });
-          const encoded = await encodeCardForgeProjectPackage(snapshot);
-          const copy = new Uint8Array(encoded.byteLength);
-          copy.set(encoded);
-          return new File([copy.buffer], `${fileNameStem}.cardforge`, { type: 'application/vnd.cardforge.project+zip' });
+          const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: set.name });
+          const blob = await createCardForgeProjectPackageBlob(snapshot);
+          return new File([blob], `${fileNameStem}.cardforge`, { type: 'application/vnd.cardforge.project+zip' });
         },
       };
     });

@@ -93,7 +93,8 @@ Use clearly named `QA Preview` fixtures and prove only the boundaries affected b
 4. Preview MCP completes one revision-safe temporary-document or connected-project journey through Clerk OAuth, including one invalid or stale request when that boundary changed.
 5. Stripe sandbox webhook delivery returns HTTP 200 and produces one idempotent staging ledger result when billing changed.
 6. Supabase migrations, grants/RLS, and relevant advisors pass in the staging project when persistence changed.
-7. Google Drive connects through the dedicated Preview OAuth client, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
+7. Google Drive connects through the dedicated Preview OAuth client, returns to the exact initiating Library scope on success/cancel/error with OAuth cookies cleared, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
+8. Stripe Billing Portal returns to the exact initiating Profile utility/query/hash after provider exit; an unsafe external return value falls back to Profile billing.
 
 Reset through the owning product/provider path:
 
@@ -217,7 +218,7 @@ When OpenAI supplies a domain challenge, set `OPENAI_APPS_CHALLENGE_TOKEN` in th
 
 Stripe remains authoritative. `product_access` and voluntary `creator_support` are separate purposes; support must never grant product entitlement.
 
-Configure Stripe's Billing Portal to allow an existing Creator or Designer subscriber to switch between the two approved recurring products. Free accounts start hosted Checkout with a server-selected Price; existing subscribers use the Portal so CardForge never creates parallel active subscriptions as an upgrade mechanism.
+Configure Stripe's Billing Portal to allow an existing Creator or Designer subscriber to switch between the two approved recurring products. Free accounts start hosted Checkout with a server-selected Price; existing subscribers use the Portal so CardForge never creates parallel active subscriptions as an upgrade mechanism. The Portal API route supplies the exact server-sanitized local Profile return to Stripe; never add a client-trusted absolute return URL.
 
 From Owner billing tools, reconcile current subscription state and record `checked`, `repaired`, `unchanged`, `missingClerkUser`, `ledgerCreated`, and `missingLedger`. Require `missingLedger` to be zero and investigate missing Clerk users before manually changing entitlement.
 

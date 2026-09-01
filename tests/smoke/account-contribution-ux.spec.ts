@@ -47,7 +47,9 @@ test.describe('account contribution surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Manage access, billing, and usage' })).toBeVisible();
 
     await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    await expect(page).toHaveURL(/\/account\?tool=design$/);
+    await expect(page).toHaveURL(/\/account$/);
+    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await expect(page.locator('[data-studio-ready]')).toHaveCount(0);
   });
 
   test('keeps contribution work inside the responsive Library environment', async ({ page }) => {

@@ -11,7 +11,7 @@ import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     if (!isClerkAuthConfigured()) {
       return createApiErrorResponse(
@@ -52,9 +52,20 @@ export async function POST() {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const rawBody = await request.text();
+    let returnTo: string | undefined;
+    if (rawBody.trim()) {
+      try {
+        const body = JSON.parse(rawBody) as { returnTo?: unknown };
+        returnTo = typeof body.returnTo === 'string' && body.returnTo.length <= 2048 ? body.returnTo : undefined;
+      } catch {
+        return createApiErrorResponse(400, 'billing_portal_failed', 'Choose a valid billing return destination.');
+      }
+    }
     const session = await stripe.billingPortal.sessions.create(buildBillingPortalSessionParams({
       appUrl: getPublicAppUrl(),
       customerId,
+      returnTo,
     }));
 
     if (!session.url) {

@@ -14,21 +14,21 @@ import type { AccountExperienceProjection } from '@/features/account/client/expe
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
   ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
-  closeEnvironmentDetail, createActionRuntime, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
-  type ActionDescriptor, type EnvironmentViewer, type SelectionSession,
+  closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
+  type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
+import type { StudioBusinessIdentity } from '@/features/app-shell/client/studio';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
-import { createSendToPipelineActionDefinition, createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
-import { createPublishedSetCopy, deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
+import type { PipelineSubmission } from '@/features/pipeline/client';
+import { deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
+import { useAccountLibraryActions } from '../hooks/useAccountLibraryActions';
 import { useLibrarySharedProjection } from '../hooks/useLibrarySharedProjection';
 import { useLibraryReturnContext } from '../hooks/useLibraryReturnContext';
 import { useUnifiedLibraryView } from '../hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '../model/accountLibrary';
-import { getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
 import {
   getLibraryScopeDefinitions, resolveLibraryScopeForViewer,
   type LibraryDensity, type LibraryScope,
@@ -38,8 +38,6 @@ import {
   LibraryVisual,
   PipelineDetailContent,
   createLibraryDetailRecord as detailRecord,
-  createLibraryZoneAction as zoneAction,
-  getSharedLibraryActions as sharedActions,
   pipelineLineageFor,
   type LibraryViewItem,
 } from './LibraryObjectPresentation';
@@ -59,12 +57,13 @@ const LibraryDesignWorkspace = dynamic(() => import(
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
+  businessIdentity: StudioBusinessIdentity;
   initialReturnContextKey?: string | null;
   initialTool?: 'locations' | null;
   storageConnections?: ReactNode;
 }
 
-export function UnifiedAccountLibrary({ persistenceScope, experience, initialReturnContextKey = null, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
+export function UnifiedAccountLibrary({ persistenceScope, experience, businessIdentity, initialReturnContextKey = null, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
   const isSignedIn = experience.signedIn;
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
@@ -241,127 +240,32 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     } finally { setVotingId(null); }
   };
 
-  const personalActions = (item: AccountLibraryItem): ActionDescriptor[] => [
-    ...getAccountLibraryEnvironmentActions(item, {
-      disabledReason: projection.busyItemId !== null ? 'Finish the current Library action first.' : undefined,
-      canUseProjectFiles: experience.capabilities.canUseProjectFiles,
-    }),
-    ...(experience.contributor.canSubmit && item.references.localSetId ? [createSendToPipelineActionDescriptor({
-      id: 'library.send-pipeline', objectKind: 'set', sources: ['browser-local'],
-    })] : []),
-  ];
-
-  const openDesignTool = (templateId: string, focusReturnId: string) => {
-    const store = useProjectStore.getState();
-    store.setTemplateEditorSelectedTemplateId(templateId);
-    store.setStudioView('template');
-    setDesignReturnFocusId(focusReturnId);
-    setActiveTool('design');
-    closeDetail();
-    const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'design', artifact: templateId });
-    projection.router.replace(`/account?${params.toString()}`);
-  };
-
-  const actions: ActionDescriptor[] = activeTool
-    ? [zoneAction(activeTool === 'locations' ? 'library.close-locations' : 'library.close-tool', activeTool === 'locations' ? 'Close locations' : activeTool === 'edit-contribution' ? 'Close submission editor' : activeTool === 'design' ? 'Close Design' : 'Close contribution tool')]
-    : currentItem?.scope === 'personal'
-      ? personalActions(currentItem.personal)
-      : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
-        : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
-
-  const runPersonalAction = (actionId: string, item: AccountLibraryItem) => {
-    if ((actionId === 'library.open' || actionId === 'library.continue') && item.references.localSetId) {
-      projection.router.push(createDeskReturnHref(`set:${item.references.localSetId}`));
-    } else if ((actionId === 'library.open' || actionId === 'library.continue') && item.references.localTemplateId) {
-      openDesignTool(item.references.localTemplateId, `library-object-${item.id}`);
-    } else if (actionId === 'library.open' || actionId === 'library.continue') {
-      void projection.openItem(item, createLibraryCompatibilityReturnTo());
-    }
-    else if (actionId === 'library.send-pipeline' && item.references.localSetId) {
-      const definition = createSendToPipelineActionDefinition({
-        id: 'library.send-pipeline',
-        objectKind: 'set',
-        sources: ['browser-local'],
-        execute: () => openContributionTool({ setId: item.references.localSetId }),
-      });
-      void createActionRuntime([definition]).execute(definition.descriptor.id, { targetIds: [item.references.localSetId] });
-    }
-    else if (actionId === 'library.save-move') setLocationItem(item);
-    else if (actionId === 'library.duplicate' && (item.references.localSetId || item.references.localTemplateId)) {
-      const duplicateId = item.references.localSetId
-        ? useProjectStore.getState().duplicateCardSet(item.references.localSetId)
-        : useProjectStore.getState().cloneTemplate(item.references.localTemplateId!);
-      if (duplicateId) {
-        toast({ title: `${item.kind === 'template' ? 'Template' : 'Set'} duplicated`, description: `${item.name} now has an independent device copy.` });
-        projection.refresh();
-      }
-    } else if (actionId === 'library.delete-copy') setPendingDeleteItem(item);
-    else if (actionId === 'library.view-source' && item.webViewLink) window.open(item.webViewLink, '_blank', 'noopener,noreferrer');
-    else if (actionId === 'library.manage-location') { closeDetail(); setActiveTool('locations'); projection.router.replace('/account?section=library&tool=locations'); }
-  };
-
-  const runPublishedAction = async (actionId: string, item: Extract<LibraryViewItem, { scope: 'published' }>) => {
-    if (item.published.kind === 'set' && item.published.packageUrl) {
-      try {
-        const result = await createPublishedSetCopy({ packageUrl: item.published.packageUrl, expectedName: item.name });
-        toast({ title: 'Set created', description: `${result.setName} is now independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
-        projection.refresh();
-        projection.router.push(createDeskReturnHref(`set:${result.setId}`));
-      } catch (error) {
-        toast({ title: 'Set was not created', description: error instanceof Error ? error.message : 'The published Set package is unavailable.', variant: 'destructive' });
-      }
-      return;
-    }
-    const template = item.published.template;
-    if (!template) {
-      toast({ title: 'Published object could not be opened', description: 'This object does not provide a contextual editor or a Set package.', variant: 'destructive' });
-      return;
-    }
-    const store = useProjectStore.getState();
-    const publishedTemplateId = store.addOrUpdateTemplate(template, 'default');
-    const selectedTemplateId = actionId === 'library.copy-published-template'
-      ? store.cloneTemplate(publishedTemplateId)
-      : publishedTemplateId;
-    if (!selectedTemplateId) {
-      toast({ title: 'Template was not opened', description: 'CardForge could not prepare this Template for Design.', variant: 'destructive' });
-      return;
-    }
-    if (actionId === 'library.copy-published-template') {
-      toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
-    }
-    openDesignTool(selectedTemplateId, `library-object-${item.id}`);
-  };
-
-  const runAction = (action: ActionDescriptor) => {
-    if (action.id === 'library.close-locations' || action.id === 'library.close-tool') {
-      const focusId = action.id === 'library.close-locations'
-        ? 'library-locations-trigger'
-        : activeTool === 'edit-contribution' && editingSubmission
-          ? `library-object-pipeline:${editingSubmission.targetRegistryAssetId ?? editingSubmission.registryAssetId ?? editingSubmission.id}`
-          : activeTool === 'design'
-            ? designReturnFocusId
-            : 'library-contribute-trigger';
-      setActiveTool(null); setEditingSubmission(null); setDesignReturnFocusId(null); projection.router.replace(`/account?section=library&scope=${activeScope}`);
-      requestAnimationFrame(() => { if (focusId) document.getElementById(focusId)?.focus(); });
-    } else if (currentItem?.scope === 'personal' && action.id.startsWith('library.')) runPersonalAction(action.id, currentItem.personal);
-    else if ((action.id === 'library.use-published' || action.id === 'library.copy-published-template') && currentItem?.scope === 'published') void runPublishedAction(action.id, currentItem);
-    else if (action.id === 'library.edit-pipeline' && currentItem?.scope === 'pipeline') {
-      setEditingSubmission(currentItem.pipeline.submission);
-      setActiveTool('edit-contribution');
-      closeDetail();
-    }
-    else if (action.id === 'library.test-pipeline' && currentItem?.scope === 'pipeline' && currentItem.pipeline.template) {
-      const store = useProjectStore.getState();
-      const templateId = store.addOrUpdateTemplate(currentItem.pipeline.template, 'user');
-      if (!templateId) {
-        toast({ title: 'Pipeline revision was not opened', description: 'CardForge could not prepare this exact revision for Design.', variant: 'destructive' });
-        return;
-      }
-      toast({ title: 'Exact Pipeline revision prepared', description: `${currentItem.name} is open as a local test copy. The shared revision is unchanged.` });
-      openDesignTool(templateId, `library-object-${currentItem.id}`);
-    }
-    else if (action.id === 'library.refresh') refresh();
-  };
+  const {
+    actions,
+    openLocations,
+    personalActions,
+    runAction,
+    runPersonalAction,
+    runPublishedRowAction,
+  } = useAccountLibraryActions({
+    activeLoading,
+    activeScope,
+    activeTool,
+    closeDetail,
+    createCompatibilityReturnTo: createLibraryCompatibilityReturnTo,
+    currentItem,
+    designReturnFocusId,
+    editingSubmission,
+    experience,
+    openContributionTool,
+    projection,
+    refresh,
+    setActiveTool,
+    setDesignReturnFocusId,
+    setEditingSubmission,
+    setLocationItem,
+    setPendingDeleteItem,
+  });
 
   const confirmDeleteCopy = async () => {
     const item = pendingDeleteItem;
@@ -416,7 +320,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
     <div className={styles.library} data-density={density} data-tool-open={Boolean(activeTool)}>
       <header className={styles.libraryHeader}>
         <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
-        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={() => { setActiveTool('locations'); closeDetail(); projection.router.replace('/account?section=library&tool=locations'); }}><HardDrive size={16} aria-hidden="true" />Locations</button>
+        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={openLocations}><HardDrive size={16} aria-hidden="true" />Locations</button>
       </header>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
@@ -438,7 +342,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
         onOpenContribution={() => openContributionTool()}
         onOpenDetail={openDetail}
         onPersonalAction={runPersonalAction}
-        onPublishedAction={(actionId, item) => void runPublishedAction(actionId, item)}
+        onPublishedAction={runPublishedRowAction}
         onRefresh={refresh}
         onSharedTypeChange={setSharedType}
         onToggleHeart={(item) => void toggleHeart(item)}
@@ -510,7 +414,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, initialRet
         >
           <LibraryDesignWorkspace
             embedded
-            businessIdentity={{ brandName: 'CardForge', copyrightHolder: 'CardForge' }}
+            businessIdentity={businessIdentity}
             initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
           />
         </EnvironmentToolLayer>

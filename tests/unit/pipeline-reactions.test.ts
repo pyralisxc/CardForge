@@ -9,6 +9,7 @@ describe('Pipeline reactions', () => {
     source('src/features/storage-management/components/UnifiedAccountLibrary.tsx'),
     source('src/features/storage-management/components/LibraryCollection.tsx'),
     source('src/features/storage-management/components/LibraryObjectPresentation.tsx'),
+    source('src/features/storage-management/hooks/useAccountLibraryActions.ts'),
   ].join('\n');
   const libraryStyles = source('src/features/storage-management/components/UnifiedAccountLibrary.module.css');
   const route = source('src/app/api/pipeline/hearts/route.ts');

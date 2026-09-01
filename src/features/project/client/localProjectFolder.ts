@@ -1,12 +1,11 @@
 "use client";
 
 import {
-  buildCardForgeProjectSnapshot,
   decodeProjectFile,
   ProjectPackageError,
   writeCardForgeProjectPackage,
 } from '../lib/projectPackageCodec';
-import { decodeBrowserProjectFile } from './browserProjectPackage';
+import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from './browserProjectPackage';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, type ProjectSourceDescriptor } from '../model/projectPackage';
 import { getProjectSourceConflict } from '../model/projectSourceConflict';
 import { getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
@@ -122,7 +121,7 @@ const writeSnapshotToDirectory = async (
 ): Promise<LocalProjectFolderBinding> => {
   await requireWritePermission(directory);
   const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
-  const snapshot = await buildCardForgeProjectSnapshot({ document, name: directory.name });
+  const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: directory.name });
   if (existingBinding) {
     await assertLocalProjectFolderRevisionCurrent(directory, existingBinding);
   }

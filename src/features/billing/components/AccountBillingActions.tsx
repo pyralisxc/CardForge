@@ -35,6 +35,7 @@ export function AccountBillingActions({
   });
   const { handleOpenBillingPortal, isBillingPortalOpening } = useBillingPortalActions({
     isSignedIn: effectiveSignedIn,
+    returnTo,
     toast,
   });
 

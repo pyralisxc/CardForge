@@ -300,14 +300,18 @@ describe('billing', () => {
     })).toBe(false);
   });
 
-  it('builds a customer billing portal session that returns to account settings', () => {
+  it('builds a customer billing portal session that returns to the exact safe Profile context', () => {
     expect(buildBillingPortalSessionParams({
       appUrl: 'https://cardforge.example/',
       customerId: 'cus_123',
+      returnTo: '/account?section=profile&utility=billing&focus=set%3Aalpha#account-and-billing',
     })).toEqual({
       customer: 'cus_123',
-      return_url: 'https://cardforge.example/account',
+      return_url: 'https://cardforge.example/account?section=profile&utility=billing&focus=set%3Aalpha#account-and-billing',
     });
+    expect(buildBillingPortalSessionParams({
+      appUrl: 'https://cardforge.example/', customerId: 'cus_123', returnTo: 'https://attacker.example/',
+    }).return_url).toBe('https://cardforge.example/account?section=profile&utility=billing');
   });
 
   it('reads a Stripe customer id only from trusted private metadata', () => {

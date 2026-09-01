@@ -11,6 +11,8 @@ type StudioHrefOptions = {
   tool?: 'output' | null;
 };
 
+type ContextualStudioHrefOptions = Pick<StudioHrefOptions, 'documentId' | 'revision' | 'returnTo'>;
+
 const MAX_RETURN_PATH_LENGTH = 600;
 
 export const normalizeStudioReturnTo = (value: string | null | undefined): string | null => {
@@ -45,6 +47,19 @@ export const createStudioHref = ({ documentId, revision, returnTo, tool }: Studi
   if (safeReturnTo) params.set('returnTo', safeReturnTo);
   const query = params.toString();
   return query ? `/studio?${query}` : '/studio';
+};
+
+export const createContextualStudioHref = ({
+  documentId,
+  revision,
+  returnTo,
+}: ContextualStudioHrefOptions = {}): string => {
+  const params = new URLSearchParams({ tool: 'design' });
+  if (documentId) params.set('document', documentId);
+  if (revision !== null && revision !== undefined && String(revision)) params.set('revision', String(revision));
+  const safeReturnTo = normalizeStudioReturnTo(returnTo);
+  if (safeReturnTo) params.set('returnTo', safeReturnTo);
+  return `/account?${params.toString()}`;
 };
 
 export const resolveStudioReturnTarget = ({

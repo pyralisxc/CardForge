@@ -9,11 +9,8 @@ import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering'
 import type { useToast } from '@/components/ui/use-toast';
 import { trackExportCompleted, trackExportStarted } from '@/features/analytics/client/tracking';
 import { withNextStep } from '@/shared/userFacingErrors';
-import {
-  buildCardForgeProjectSnapshot,
-  encodeCardForgeProjectPackage,
-} from '../lib/projectPackageCodec';
-import { decodeBrowserProjectFile } from '../client/browserProjectPackage';
+import { buildBrowserCardForgeProjectSnapshot, decodeBrowserProjectFile } from '../client/browserProjectPackage';
+import { saveCardForgeProjectPackageToDevice } from '../client/projectPackageDeviceSave';
 import { CARDFORGE_PROJECT_FILE_EXTENSION, normalizeProjectFileName } from '../model/projectPackage';
 import { applyProjectDocumentToState, type ProjectDocumentStatePatch, type ProjectDocumentV1 } from '../model/projectDocument';
 import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '../client/projectWorkspaceDocument';
@@ -68,20 +65,6 @@ interface PendingProjectImport {
   patch: ProjectDocumentStatePatch;
   preview: ProjectImportPreview;
 }
-
-const downloadProjectFile = (fileName: string, bytes: Uint8Array) => {
-  const copy = new Uint8Array(bytes.length);
-  copy.set(bytes);
-  const blob = new Blob([copy.buffer], { type: 'application/vnd.cardforge.project+zip' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
 
 export const buildProjectImportSummary = ({
   importedTemplateCount,
@@ -191,10 +174,12 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
         ?? document.cardSets[0]?.name
         ?? 'CardForge Project';
       const projectName = normalizeProjectFileName(activeSetName);
-      const snapshot = await buildCardForgeProjectSnapshot({ document, name: projectName });
-      const bytes = await encodeCardForgeProjectPackage(snapshot);
+      const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: projectName });
       trackExportStarted('project', storedCards.length);
-      downloadProjectFile(`${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`, bytes);
+      await saveCardForgeProjectPackageToDevice({
+        fileName: `${projectName}${CARDFORGE_PROJECT_FILE_EXTENSION}`,
+        snapshot,
+      });
       trackExportCompleted('project', storedCards.length);
       toast({
         title: 'Project exported',

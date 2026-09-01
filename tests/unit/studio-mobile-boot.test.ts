@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-describe('Studio mobile boot', () => {
-  it('keeps the heavy Studio runtime and workspace hydration out of the initial route module', () => {
+describe('Studio contextual boot', () => {
+  it('keeps /studio as a lightweight compatibility translator into the Desk tool', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
     const publicStudioClient = readFileSync(
       resolve(process.cwd(), 'src/features/app-shell/client/studio.ts'),
@@ -15,7 +15,9 @@ describe('Studio mobile boot', () => {
       'utf8',
     );
 
-    expect(page).toContain("import { StudioRuntimeLoader } from '@/features/app-shell/client/studio'");
+    expect(page).toContain('createContextualStudioHref');
+    expect(page).toContain('redirect(contextualHref)');
+    expect(page).not.toContain('StudioRuntimeLoader');
     expect(page).not.toContain('CardForgeStudioShell');
     expect(page).not.toContain('useProjectStore');
     expect(publicStudioClient).toContain('StudioRuntimeLoader');
