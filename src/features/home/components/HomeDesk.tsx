@@ -40,7 +40,7 @@ const CampaignDeskShelf = dynamic(() => import(
   '@/features/marketing-content/client'
 ).then((module) => module.CampaignDeskShelf));
 const PipelineContributionPanel = dynamic(() => import(
-  '@/features/pipeline/client'
+  '@/features/pipeline/client/contribution-panel'
 ).then((module) => module.PipelineContributionPanel));
 const DeskGenerationWorkspace = dynamic(() => import(
   '@/features/card-generator/client/generation-workspace'

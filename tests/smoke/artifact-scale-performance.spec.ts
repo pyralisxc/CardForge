@@ -123,8 +123,9 @@ test.describe('large Artifact browser evidence', () => {
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: 'Design', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toBeVisible();
-      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Close Studio tool' }).click();
       await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
       await closeScaleSet(page);
     };
 

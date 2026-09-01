@@ -95,5 +95,6 @@ describe('Studio focused workbench architecture', () => {
     expect(deskOwnership).toContain('moveGeneratedCardsToSet');
     expect(lazy).toContain('export const StudioOutputPanel = dynamic(');
     expect(lazy).toContain("import('@/features/card-generator/client/export-controls-panel')");
+    expect(lazy).toContain("import('@/features/pipeline/client/contribution-panel')");
   });
 });

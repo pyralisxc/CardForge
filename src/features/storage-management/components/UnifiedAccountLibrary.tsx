@@ -47,10 +47,10 @@ import { DefaultWorkLocationControl, WorkLocationDialog } from './WorkLocationDi
 import styles from './UnifiedAccountLibrary.module.css';
 
 const PipelineContributionPanel = dynamic(() => import(
-  '@/features/pipeline/client'
+  '@/features/pipeline/client/contribution-panel'
 ).then((module) => module.PipelineContributionPanel));
 const PipelineSubmissionEditPanel = dynamic(() => import(
-  '@/features/pipeline/client'
+  '@/features/pipeline/client/submission-edit-panel'
 ).then((module) => module.PipelineSubmissionEditPanel));
 const LibraryDesignWorkspace = dynamic(() => import(
   '@/features/app-shell/client/studio'

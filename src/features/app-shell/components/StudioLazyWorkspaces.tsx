@@ -54,7 +54,7 @@ export const StudioOutputPanel = dynamic(
 );
 
 export const StudioPipelineSubmission = dynamic(
-  () => import('@/features/pipeline/client')
+  () => import('@/features/pipeline/client/contribution-panel')
     .then((module) => module.PipelineContributionPanel),
   { ssr: false, loading: WorkspaceLoadingState },
 );

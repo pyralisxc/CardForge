@@ -10,5 +10,3 @@ export type {
 } from './lib/pipelineProgram';
 export type { CardForgeCatalogManifest } from './lib/catalogManifest';
 export { loadCardForgeStudioBootstrap } from './client/catalog';
-export { PipelineContributionPanel } from './components/PipelineContributionPanel';
-export { PipelineSubmissionEditPanel } from './components/PipelineSubmissionEditPanel';
