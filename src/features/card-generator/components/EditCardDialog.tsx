@@ -239,6 +239,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
             <Button type="button" size="icon" variant="ghost" onClick={() => artifactViewport.changeZoom(artifactViewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
             <Button type="button" size="sm" variant="ghost" onClick={artifactViewport.fit}>Fit</Button>
           </div>
+          <span className="hidden text-[0.68rem] text-[var(--cf-text-subtle)] xl:inline">Pinch or scroll to zoom</span>
           <Button type="button" size="sm" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="button" size="sm" variant="secondary" onClick={handleDuplicateThisCard}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
           <Button type="button" size="sm" onClick={handleSaveChanges}><Save className="mr-1.5 h-4 w-4" />Save</Button>
