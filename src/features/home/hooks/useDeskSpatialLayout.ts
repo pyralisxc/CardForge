@@ -6,6 +6,12 @@ import { readProjectPreference, writeProjectPreference } from '@/features/projec
 
 export type DeskPosition = { x: number; y: number };
 
+const DESK_TOOLBAR_CLEARANCE = 72;
+
+function keepBelowDeskToolbar(position: DeskPosition): DeskPosition {
+  return { x: Math.max(0, position.x), y: Math.max(DESK_TOOLBAR_CLEARANCE, position.y) };
+}
+
 type DeskDragState = {
   itemId: string;
   pointerId: number;
@@ -29,7 +35,7 @@ export function useDeskSpatialLayout({ positionKey, snapToGrid }: { positionKey:
       const restored = Object.fromEntries(Object.entries(value).flatMap(([id, entry]) => {
         if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
         const { x, y } = entry as Partial<DeskPosition>;
-        return Number.isFinite(x) && Number.isFinite(y) ? [[id, { x: Number(x), y: Number(y) }]] : [];
+        return Number.isFinite(x) && Number.isFinite(y) ? [[id, keepBelowDeskToolbar({ x: Number(x), y: Number(y) })]] : [];
       }));
       setPositions(restored);
     });
@@ -43,10 +49,10 @@ export function useDeskSpatialLayout({ positionKey, snapToGrid }: { positionKey:
     if (!grid || !tile) return;
     const gridBounds = grid.getBoundingClientRect();
     const tileBounds = tile.getBoundingClientRect();
-    const origin = positions[itemId] ?? {
+    const origin = keepBelowDeskToolbar(positions[itemId] ?? {
       x: tileBounds.left - gridBounds.left,
       y: tileBounds.top - gridBounds.top,
-    };
+    });
     dragRef.current = {
       itemId,
       pointerId: event.pointerId,
@@ -71,7 +77,7 @@ export function useDeskSpatialLayout({ positionKey, snapToGrid }: { positionKey:
     const place = (value: number) => snapToGrid ? Math.round(value / 24) * 24 : Math.round(value);
     drag.latest = {
       x: Math.max(0, Math.min(grid.clientWidth - tile.offsetWidth, place(drag.origin.x + dx))),
-      y: Math.max(0, Math.min(grid.clientHeight - tile.offsetHeight, place(drag.origin.y + dy))),
+      y: Math.max(DESK_TOOLBAR_CLEARANCE, Math.min(grid.clientHeight - tile.offsetHeight, place(drag.origin.y + dy))),
     };
     setPositions((current) => ({ ...current, [drag.itemId]: drag.latest }));
   }, [snapToGrid]);

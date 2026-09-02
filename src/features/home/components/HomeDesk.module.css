@@ -5,6 +5,23 @@
   background: var(--cf-canvas);
 }
 
+.spatialPlane[data-artifact-focused="true"],
+.spatialPlane[data-artifact-focused="true"] .desk,
+.spatialPlane[data-artifact-focused="true"] .workSurface,
+.spatialPlane[data-artifact-focused="true"] .workGrid,
+.spatialPlane[data-artifact-focused="true"] .workTile[data-presentation="focused"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .desk {
+  gap: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  flex: 1 1 auto;
+}
+
 .desk {
   display: flex;
   width: 100%;
@@ -12,6 +29,32 @@
   min-height: 100%;
   flex-direction: column;
   gap: 0.55rem;
+}
+
+.desk[data-focused="true"] > :not(.workSurface) {
+  display: none;
+}
+
+.desk[data-focused="true"] .workSurfaceHeader,
+.desk[data-focused="true"] .deskToolbar {
+  visibility: hidden;
+}
+
+.desk[data-focused="true"] .workSurface,
+.desk[data-focused="true"] .workGrid {
+  min-height: 100%;
+}
+
+.desk[data-focused="true"] .workSurface {
+  overflow: visible;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  overflow: clip;
+}
+
+.desk[data-focused="true"] .workGrid {
+  padding: 0;
 }
 
 .deskIntro {
@@ -172,7 +215,7 @@
   grid-template-rows: repeat(7, minmax(2.6rem, 1fr));
   gap: 0.25rem 0.8rem;
   align-items: center;
-  padding: 2.75rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
+  padding: 4.5rem clamp(1.2rem, 3.5vw, 3rem) 4.25rem;
 }
 
 @media (min-width: 768px) {
@@ -201,6 +244,34 @@
   grid-row: 2 / span 4;
   align-self: center;
   transition: filter 160ms ease, transform 180ms ease;
+}
+
+.workTile[aria-hidden="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workTile[data-presentation="focused"] {
+  z-index: 20;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: 100%;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"]:hover,
+.workTile[data-presentation="focused"]:focus-within {
+  filter: none;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"] .workTileMain {
+  display: none;
 }
 
 .workTile[data-featured="true"] {
@@ -340,6 +411,29 @@
   transition: opacity 150ms ease;
 }
 
+.deskTileFlip {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.deskTileFlip:hover,
+.deskTileFlip:focus-visible {
+  border-color: var(--cf-border-strong);
+  opacity: 1;
+}
+
 .workTile:hover .tileActions,
 .workTile:focus-within .tileActions,
 .workTile[data-pinned="true"] .tileActions {
@@ -467,8 +561,15 @@
   min-width: 0;
   min-height: 100%;
   place-items: center;
-  padding: 3.5rem clamp(5rem, 10vw, 9rem) 2rem;
+  padding: 3.5rem clamp(1rem, 3vw, 3rem) 2rem;
   overflow: hidden;
+}
+
+.focusSurface[data-artifact-focused="true"] {
+  height: 100%;
+  min-height: 0;
+  place-items: stretch;
+  padding: 0;
 }
 
 .backButton {
@@ -479,119 +580,29 @@
   padding: 0.4rem 0.6rem;
 }
 
-.focusOrbit {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
-}
-
-.nearbyObject {
-  position: absolute;
-  display: grid;
-  width: 7.5rem;
-  min-width: 0;
-  justify-items: center;
-  gap: 0.3rem;
-  border: 0;
-  background: transparent;
-  padding: 0.3rem;
-  color: var(--cf-text-muted);
-  text-align: center;
-  cursor: pointer;
-  opacity: 0.52;
-  pointer-events: auto;
-  transform: scale(0.88);
-  transition: opacity 160ms ease, transform 180ms ease;
-}
-
-.nearbyObject[data-slot="0"] {
-  top: 18%;
-  left: 0.5rem;
-}
-
-.nearbyObject[data-slot="1"] {
-  right: 0.3rem;
-  bottom: 18%;
-}
-
-.nearbyObject[data-slot="2"] {
-  left: 1rem;
-  bottom: 8%;
-}
-
-.nearbyObject[data-slot="3"] {
-  top: 10%;
-  right: 0.5rem;
-}
-
-.nearbyObject[data-slot="4"] {
-  top: 4%;
-  left: 12%;
-}
-
-.nearbyObject:hover,
-.nearbyObject:focus-visible {
-  color: var(--cf-text-strong);
-  opacity: 1;
-  transform: scale(1);
-}
-
-.nearbyVisual {
-  display: grid;
-  min-height: 4.8rem;
-  place-items: center;
-  color: var(--cf-accent-strong);
-  filter: drop-shadow(0 0.7rem 0.8rem rgb(0 0 0 / 28%));
-}
-
-.nearbyVisual svg {
-  width: 2rem;
-  height: 2rem;
-}
-
-.nearbyObject strong,
-.nearbyObject small {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nearbyObject strong {
-  color: currentColor;
-  font-size: 0.66rem;
-}
-
-.nearbyObject small {
-  margin-top: 0.08rem;
-  font-size: 0.56rem;
-}
-
 .focusWorkspace {
   position: relative;
   z-index: 5;
-  width: min(64rem, 100%);
+  width: min(76rem, 100%);
   min-width: 0;
   min-height: 34rem;
   padding: 1rem 1.15rem 1.2rem;
   border: 1px solid var(--cf-border-strong);
   background: var(--cf-surface-inset);
   box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%), inset 0 0 0 1px color-mix(in srgb, var(--cf-accent-strong) 10%, transparent);
-  animation: focus-workspace-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes focus-workspace-enter {
-  from {
-    opacity: 0.72;
-    transform: translateY(0.55rem) scale(0.985);
-  }
+.focusWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.focusSurface[data-artifact-focused="true"] .backButton {
+  top: 0.55rem;
+  left: 0.55rem;
 }
 
 .focusHeader,
@@ -609,6 +620,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding-left: 8rem;
   padding-bottom: 0.75rem;
 }
 
@@ -718,11 +730,13 @@
 
 .contentStage {
   position: relative;
-  min-height: 23rem;
+  height: min(58dvh, 38rem);
+  min-height: 24rem;
   margin-top: 0.7rem;
-  padding: 1rem;
   background: var(--cf-canvas);
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .contentStage[data-grid="true"] {
@@ -732,66 +746,46 @@
   background-size: 24px 24px;
 }
 
-.cardGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
-  gap: 0.75rem 1rem;
-  align-items: start;
-}
-
-.groupPlane {
-  display: grid;
-  gap: 1.1rem;
-}
-
-.cardGroup {
-  min-width: 0;
-}
-
-.cardGroup > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.45rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--cf-border-subtle);
-  color: var(--cf-text-muted);
-  font-size: 0.66rem;
-}
-
-.groupPlane[data-arrangement="manual"][data-grouped="false"],
-.groupPlane[data-arrangement="manual"][data-grouped="false"] .cardGroup,
-.cardGrid[data-arrangement="manual"] {
-  min-height: 30rem;
-}
-
-.cardGrid[data-arrangement="manual"] {
+.artifactWorldSizer,
+.artifactWorld {
   position: relative;
-  display: block;
 }
 
-.cardGrid[data-arrangement="manual"] .cardButton {
+.artifactWorld {
   position: absolute;
-  width: 8.5rem;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+.artifactWorld .artifactTile {
+  position: absolute;
   touch-action: none;
 }
 
-.cardGrid[data-arrangement="stack"] {
+.artifactWorld .cardButton {
+  position: relative;
+  width: 100%;
+  touch-action: none;
+}
+
+.artifactWorld .cardButton img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.artifactGroupLabel {
+  position: absolute;
+  z-index: 2;
   display: flex;
-  min-height: 14rem;
-  align-items: flex-start;
-  padding-left: 1rem;
-}
-
-.cardGrid[data-arrangement="stack"] .cardButton {
-  width: 8.5rem;
-  margin-left: -5.4rem;
-  background: var(--cf-canvas);
-  box-shadow: 0.45rem 0.35rem 1rem rgb(0 0 0 / 22%);
-}
-
-.cardGrid[data-arrangement="stack"] .cardButton:first-child {
-  margin-left: 0;
+  right: 1rem;
+  left: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  pointer-events: none;
 }
 
 .cardButton {
@@ -807,10 +801,6 @@
   transition: transform 160ms ease, background-color 160ms ease;
 }
 
-.cardButton:nth-child(3n + 2) {
-  transform: translateY(0.65rem);
-}
-
 .cardButton:hover,
 .cardButton[aria-pressed="true"] {
   border-color: var(--cf-border-strong);
@@ -820,6 +810,11 @@
 
 .cardButton[aria-pressed="true"] {
   box-shadow: 0 0 0 1px var(--cf-accent-strong);
+}
+
+.cardButton[data-focused="true"] {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 2px;
 }
 
 .cardButton strong {
@@ -832,6 +827,277 @@
   margin-top: 0.1rem;
   color: var(--cf-text-subtle);
   font-size: 0.6rem;
+}
+
+.artifactTileFlip,
+.artifactFlipButton {
+  position: absolute;
+  z-index: 4;
+  display: inline-flex;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.artifactTileFlip {
+  top: 0.7rem;
+  right: 0.7rem;
+  opacity: 0.82;
+  transition: opacity 140ms ease;
+}
+
+.artifactTile:hover .artifactTileFlip,
+.artifactTile:focus-within .artifactTileFlip {
+  opacity: 1;
+}
+
+.artifactTileFlip svg,
+.artifactFlipButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.setArtifactWorkspace {
+  min-width: 0;
+}
+
+.setArtifactWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.artifactWorkspace {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--cf-canvas);
+  overflow: hidden;
+}
+
+.artifactWorkspaceControls {
+  position: absolute;
+  z-index: 12;
+  top: 0.55rem;
+  right: 0.55rem;
+  left: 7.5rem;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.artifactWorkspaceControls > * {
+  pointer-events: auto;
+}
+
+.artifactWorkspaceIdentity {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+  padding: 0.4rem 0.55rem;
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+}
+
+.artifactWorkspaceIdentity strong,
+.artifactWorkspaceIdentity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifactWorkspaceIdentity strong {
+  color: var(--cf-text-strong);
+  font-size: 0.75rem;
+}
+
+.artifactWorkspaceIdentity small,
+.artifactZoomValue {
+  color: var(--cf-text-muted);
+  font-size: 0.65rem;
+}
+
+.artifactZoomValue {
+  min-width: 2.8rem;
+  text-align: center;
+}
+
+.contentStage[data-artifact-focus-exclusive="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  scrollbar-gutter: auto;
+}
+
+.focusedArtifactWorld {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.focusedArtifactFrame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1.5rem 2rem rgb(0 0 0 / 38%));
+}
+
+.focusedArtifactButton {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: default;
+}
+
+.focusedArtifactButton:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 4px;
+}
+
+.artifactFlipButton {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  padding-inline: 0.65rem;
+}
+
+.artifactLodPreview {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2.5 / 3.5;
+  place-items: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-accent-soft) 34%, var(--cf-surface-inset));
+  color: var(--cf-text-muted);
+  font-size: 1rem;
+}
+
+.cameraControls {
+  display: flex;
+  min-height: 2.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  color: var(--cf-text-muted);
+  font-size: 0.68rem;
+}
+
+.cameraControls > :last-child {
+  margin-left: auto;
+}
+
+.orderedNavigator {
+  margin-top: 0.7rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+}
+
+.artifactFocusBar {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-accent-soft);
+  padding: 0.55rem 0.75rem;
+  color: var(--cf-text-strong);
+}
+
+.orderedNavigator > summary {
+  min-height: 2.75rem;
+  padding: 0.75rem;
+  color: var(--cf-text-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.orderedNavigator > p {
+  margin: 0;
+  padding: 0 0.75rem 0.65rem;
+  color: var(--cf-text-muted);
+  font-size: 0.68rem;
+}
+
+.orderedNavigatorControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-block: 1px solid var(--cf-border-subtle);
+}
+
+.orderedArtifactList {
+  display: grid;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.orderedArtifactGroup > button {
+  display: grid;
+  min-height: 2.7rem;
+  grid-template-columns: 2.5rem minmax(8rem, 0.65fr) minmax(10rem, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: transparent;
+  padding: 0.45rem 0.75rem;
+  color: var(--cf-text-muted);
+  text-align: left;
+}
+
+.orderedArtifactGroup > button[aria-selected="true"] {
+  background: var(--cf-accent-soft);
+  color: var(--cf-text-strong);
+}
+
+.orderedArtifactGroup > button:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: -2px;
+}
+
+.orderedArtifactGroup {
+  display: grid;
+}
+
+.orderedArtifactGroupHeading {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface);
+  padding: 0.35rem 0.75rem;
+  color: var(--cf-text-strong);
+  font-size: 0.7rem;
+}
+
+.orderedArtifactList strong,
+.orderedArtifactList small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .remoteFocus {
@@ -931,9 +1197,14 @@
     padding-left: 6rem;
   }
 
-  .focusSurface[data-has-orbit="false"] {
-    padding-top: 4.75rem;
+  .focusSurface[data-artifact-focused="true"] {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
   }
+
 }
 
 @media (max-width: 767px) {
@@ -1033,6 +1304,11 @@
     min-height: 10.5rem;
   }
 
+  .workTile[data-presentation="focused"] {
+    width: 100%;
+    min-width: 0;
+  }
+
   .tileActions {
     opacity: 1;
   }
@@ -1060,54 +1336,43 @@
     left: 0.1rem;
   }
 
-  .focusOrbit {
-    z-index: 8;
-    top: 4rem;
-    right: 0.25rem;
-    bottom: auto;
-    left: 7rem;
-    display: flex;
-    gap: 0.25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .focusOrbit::-webkit-scrollbar {
-    display: none;
-  }
-
-  .nearbyObject,
-  .nearbyObject[data-slot] {
-    position: relative;
-    inset: auto;
-    width: 5.5rem;
-    min-width: 5.5rem;
-    grid-template-columns: auto minmax(0, 1fr);
-    justify-items: start;
-    gap: 0.3rem;
-    padding: 0.2rem;
-    text-align: left;
-    opacity: 0.75;
-    transform: none;
-  }
-
-  .nearbyVisual {
-    display: none;
-  }
-
-  .nearbyObject small {
-    display: none;
-  }
-
   .focusWorkspace {
     width: 100%;
     min-height: 36rem;
     padding: 0.8rem 0.6rem 1rem;
   }
 
+  .focusWorkspace[data-artifact-focused="true"] {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .artifactWorkspaceControls {
+    left: 6.5rem;
+    flex-wrap: wrap;
+  }
+
+  .artifactWorkspaceIdentity {
+    display: none;
+  }
+
+  .contentStage[data-artifact-focus-exclusive="true"] {
+    min-height: 0;
+  }
+
+  .artifactTileFlip {
+    opacity: 1;
+  }
+
   .focusHeader,
   .contentHeading {
     display: grid;
+  }
+
+  .focusHeader {
+    min-height: 6.4rem;
+    padding-left: 6rem;
   }
 
   .focusActions {
@@ -1156,21 +1421,6 @@
 
   .contentStage {
     min-height: 24rem;
-    padding: 0.6rem;
-  }
-
-  .cardGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
-  }
-
-  .cardGrid[data-arrangement="manual"] {
-    min-height: 34rem;
-  }
-
-  .cardGrid[data-arrangement="manual"] .cardButton {
-    position: static;
-    width: auto;
   }
 
   .cardButton:nth-child(3n + 2) {
@@ -1205,20 +1455,21 @@
 
 @media (prefers-reduced-motion: reduce) {
   .workTile,
-  .nearbyObject,
-  .cardButton {
+  .workTileMain,
+  .workVisual,
+  .cardButton,
+  .focusWorkspace {
     transition: none;
   }
 
-  .focusWorkspace {
+  .artifactWorld {
     animation: none;
   }
-}
-.focusPreview {
-  width: clamp(5.25rem, 8vw, 7rem);
-  flex: 0 0 auto;
-}
 
+  .contentStage {
+    scroll-behavior: auto;
+  }
+}
 .resultFilter {
   display: flex;
   min-height: 2.5rem;

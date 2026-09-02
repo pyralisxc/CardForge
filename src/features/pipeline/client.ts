@@ -1,6 +1,7 @@
 export * from './lib/cardAssets';
 export * from './lib/pipelineAssetTaxonomy';
 export * from './lib/pipelineLibrary';
+export * from './lib/pipelineActions';
 export { isRepositoryStyle, isRepositoryTemplate } from './lib/registryContentValidation';
 export type {
   PipelineProgramView,
@@ -9,5 +10,3 @@ export type {
 } from './lib/pipelineProgram';
 export type { CardForgeCatalogManifest } from './lib/catalogManifest';
 export { loadCardForgeStudioBootstrap } from './client/catalog';
-export { PipelineContributionPanel } from './components/PipelineContributionPanel';
-export { PipelineSubmissionEditPanel } from './components/PipelineSubmissionEditPanel';

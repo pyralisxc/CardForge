@@ -1,6 +1,6 @@
 import type { BoundaryFailureKind, BoundaryLimit } from '@/shared/boundaryFailure';
 
-export const ENVIRONMENT_ZONE_IDS = ['home', 'library', 'profile', 'owner'] as const;
+export const ENVIRONMENT_ZONE_IDS = ['home', 'library', 'profile'] as const;
 
 export type NavigationZoneId = typeof ENVIRONMENT_ZONE_IDS[number];
 export type ZoneId = NavigationZoneId | 'studio';
@@ -21,7 +21,6 @@ export const ENVIRONMENT_ZONES = [
   { id: 'home', href: '/account', label: 'Desk', shortLabel: 'Desk', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
   { id: 'profile', href: '/account?section=profile', label: 'Profile', shortLabel: 'Profile', minimumAccess: 'guest', showInPrivateRail: true, viewportPolicy: 'flow' },
-  { id: 'owner', href: '/owner', label: 'Owner', shortLabel: 'Owner', minimumAccess: 'owner', showInPrivateRail: true, viewportPolicy: 'flow' },
 ] as const satisfies readonly ZoneDefinition[];
 
 export interface EnvironmentViewer {
@@ -63,7 +62,6 @@ export type FeatureOwnerId =
   | 'card-generator'
   | 'contributor-access'
   | 'pipeline'
-  | 'site-proposals'
   | 'experience-settings'
   | 'legal'
   | 'owner'

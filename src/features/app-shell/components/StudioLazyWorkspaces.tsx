@@ -42,21 +42,19 @@ export const CardTemplateMaker = dynamic(
 );
 
 export const GenerationWorkspace = dynamic(
-  () => import('@/features/card-generator/client')
-    .then((module) => module.loadGenerationWorkspace())
+  () => import('@/features/card-generator/client/generation-workspace')
     .then((module) => module.GenerationWorkspace),
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
 export const StudioOutputPanel = dynamic(
-  () => import('@/features/card-generator/client')
-    .then((module) => module.loadExportControlsPanel())
+  () => import('@/features/card-generator/client/export-controls-panel')
     .then((module) => module.ExportControlsPanel),
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
 export const StudioPipelineSubmission = dynamic(
-  () => import('@/features/pipeline/client')
+  () => import('@/features/pipeline/client/contribution-panel')
     .then((module) => module.PipelineContributionPanel),
   { ssr: false, loading: WorkspaceLoadingState },
 );
@@ -68,8 +66,7 @@ export const StudioSaveMoveDialog = dynamic(
 );
 
 export const EditCardDialog = dynamic(
-  () => import('@/features/card-generator/client')
-    .then((module) => module.loadEditCardDialog())
+  () => import('@/features/card-generator/client/edit-card-dialog')
     .then((module) => module.EditCardDialog),
   { ssr: false },
 );

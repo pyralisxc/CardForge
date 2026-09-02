@@ -306,7 +306,7 @@ export function OwnerAssetLibraryPanel({
             ) : null}
             {submission.assetType === 'templates' && (submission.registryAssetId || (submission.baseRevisionNumber ?? 0) > 0) ? (
               <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
-                <a href={`/studio?editTemplate=${encodeURIComponent(submission.registryAssetId ?? submission.targetRegistryAssetId!)}`}>
+                <a href="/account?section=library&scope=pipeline">
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template
                 </a>
               </Button>

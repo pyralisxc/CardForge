@@ -19,12 +19,14 @@ interface BillingStatusPayload {
 interface UseCheckoutActionsInput {
   authConfigured: boolean;
   isSignedIn: boolean;
+  returnTo: string;
   toast: ToastFn;
 }
 
 export function useCheckoutActions({
   authConfigured,
   isSignedIn,
+  returnTo,
   toast,
 }: UseCheckoutActionsInput) {
   const [checkoutOffering, setCheckoutOffering] = useState<ProductAccessOffering | null>(null);
@@ -82,7 +84,7 @@ export function useCheckoutActions({
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ offering }),
+        body: JSON.stringify({ offering, returnTo }),
       });
       if (!response.ok) throw await readApiError(response, 'Unable to start checkout.');
       const payload = await response.json() as { url?: string };

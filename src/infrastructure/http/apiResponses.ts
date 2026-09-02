@@ -52,6 +52,7 @@ export type ApiErrorCode =
   | 'payload_too_large'
   | 'rate_limited'
   | 'site_proposal_invalid'
+  | 'site_proposal_retired'
   | 'site_proposal_unavailable'
   | 'owner_access_required'
   | 'owner_console_conflict'

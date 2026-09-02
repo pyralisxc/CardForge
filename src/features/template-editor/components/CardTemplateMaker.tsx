@@ -67,6 +67,7 @@ interface CardTemplateMakerProps {
   projectFileGateMessage?: string | null;
   requestedBackFormat?: { key: number; formatSource: TemplateCardFormatSource } | null;
   onRequestedBackFormatConsumed?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 export function CardTemplateMaker({
   canUseProjectFiles,
@@ -97,6 +98,7 @@ export function CardTemplateMaker({
   projectFileGateMessage,
   requestedBackFormat,
   onRequestedBackFormatConsumed,
+  onDirtyChange,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -113,6 +115,9 @@ export function CardTemplateMaker({
     selectedTemplateId: selectedTemplateIdForEditing,
     templates,
   });
+  useEffect(() => {
+    if (isActive) onDirtyChange?.(isDirty);
+  }, [isActive, isDirty, onDirtyChange]);
   const {
     canvas,
     currentTemplate,
@@ -163,6 +168,7 @@ export function CardTemplateMaker({
     duplicateSelected,
   } = elements;
   const {
+    autoFitCanvas,
     clearDepthSelection,
     centerCanvasViewport,
     fitCanvasToViewport,
@@ -504,6 +510,7 @@ export function CardTemplateMaker({
             onClose={() => setMobilePanel('canvas')}
           />
           <TemplateCanvasStage
+            autoFitCanvas={autoFitCanvas}
             canvas={canvas}
             canvasFrameStyle={canvasFrameStyle}
             canvasRef={canvasRef}

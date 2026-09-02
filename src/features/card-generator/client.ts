@@ -10,7 +10,3 @@ export {
   createPublicShareSettings,
   type PublicShareSettings,
 } from './model/publicShareSettings';
-
-export const loadEditCardDialog = () => import('./components/EditCardDialog');
-export const loadGenerationWorkspace = () => import('./components/GenerationWorkspace');
-export const loadExportControlsPanel = () => import('./components/ExportControlsPanel');

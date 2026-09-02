@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 26, 2026
+Last updated: September 1, 2026
 
 This is the current runbook for `https://cardforges.com`. It contains only procedures that remain operationally useful. Completed rollout/cutover instructions belong in Git/provider history.
 
@@ -15,7 +15,7 @@ This is the current runbook for `https://cardforges.com`. It contains only proce
 - GA4, PostHog, and Search Console own analytics/search records.
 - Meta owns Facebook/Instagram authorization and provider posts; CardForge owns marketing approval/scheduling/delivery history.
 
-Secrets stay in Vercel or their owning provider. The Owner Console may report readiness/identifiers but never raw credentials.
+Secrets stay in Vercel or their owning provider. Profile owner operations may report readiness/identifiers but never raw credentials.
 
 ## Required environment groups
 
@@ -57,8 +57,8 @@ Preview test identities are durable environment fixtures, not production users:
 | Free | `qa+clerk_test_free@cardforges.com` | Free access and the Free temporary-working-document retention policy |
 | Creator | `qa+clerk_test_creator@cardforges.com` | Active Creator Pass from Stripe sandbox |
 | Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
-| Contributor | `qa+clerk_test_contributor@cardforges.com` | Active contributor with asset, campaign, site-proposal, and private MCP scopes |
-| Owner | `qa+clerk_test_owner@cardforges.com` | Owner Console and owner review scopes through the branch-only owner allowlist |
+| Contributor | `qa+clerk_test_contributor@cardforges.com` | Active contributor with asset, campaign, and private MCP scopes |
+| Owner | `qa+clerk_test_owner@cardforges.com` | Profile owner operations and owner review scopes through the branch-only owner allowlist |
 | Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; contribution tools denied |
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
@@ -89,15 +89,16 @@ Use clearly named `QA Preview` fixtures and prove only the boundaries affected b
 
 1. Signed-out protected routes and MCP fail closed.
 2. Free, Creator, and Designer accounts resolve the expected plan and temporary-work/MCP boundary.
-3. The active contributor creates and submits one representative asset, campaign package, or site proposal; the owner reviews it through the owning workflow.
+3. The active contributor creates and submits one representative asset or campaign package; the owner reviews it through the owning workflow.
 4. Preview MCP completes one revision-safe temporary-document or connected-project journey through Clerk OAuth, including one invalid or stale request when that boundary changed.
 5. Stripe sandbox webhook delivery returns HTTP 200 and produces one idempotent staging ledger result when billing changed.
 6. Supabase migrations, grants/RLS, and relevant advisors pass in the staging project when persistence changed.
-7. Google Drive connects through the dedicated Preview OAuth client, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
+7. Google Drive connects through the dedicated Preview OAuth client, returns to the exact initiating Library scope on success/cancel/error with OAuth cookies cleared, creates and reopens one `QA Preview` project, rejects one stale revision, and disconnects without deleting the Drive file when connected storage changed.
+8. Stripe Billing Portal returns to the exact initiating Profile utility/query/hash after provider exit; an unsafe external return value falls back to Profile billing.
 
 Reset through the owning product/provider path:
 
-- Cancel, reject, or archive contributor fixtures through their owning Library/Profile workflow or Owner Console so audit history remains truthful; never delete campaign, proposal, vote, billing, or owner-activity rows with ad hoc SQL.
+- Cancel, reject, or archive active contributor fixtures through their owning Library/Profile workflow or Profile owner operations so audit history remains truthful; never delete retained proposal history, campaign, vote, billing, or owner-activity rows with ad hoc SQL.
 - Remove temporary assistant drafts through Account Library. Browser-local Sets and provider-owned projects remain independent.
 - Cancel or change test subscriptions only in Stripe sandbox/Portal; retain CardForge billing ledgers as idempotency evidence.
 - Remove temporary assistant drafts through their revision-safe MCP tools or allow the staging retention lifecycle to expire them.
@@ -128,13 +129,13 @@ The runtime and Pipeline importer prefer `SUPABASE_SECRET_KEY` and use server-on
 
 Changing the operator is a legal/operational migration, not a display edit. Require explicit transfer confirmation and inventory every provider-owned identity/contract before changing it.
 
-## Owner Console
+## Owner operations
 
-Use `/owner` through six workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
+Use Profile > Owner operations through six protected groups: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. `/owner` only translates historical links and provider callbacks into that Profile tool. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
 
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
-- Site Controls: constrained public copy/navigation/SEO/media/experience settings.
+- Site Controls: constrained navigation/SEO/experience settings in Profile; canonical public copy and relevant media publish contextually on the native public pages for a server-confirmed Owner.
 - Studio Library: complete shared registry, Forge Review, and Studio destination map.
 - Governance: append-only owner history and legal/versioned operations.
 
@@ -193,11 +194,11 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 ## ChatGPT development beta
 
-The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Owner Console content; the plugin must not introduce a parallel tier catalog or access toggle.
+The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Profile owner-operation content; the plugin must not introduce a parallel tier catalog or access toggle.
 
 `plugins/cardforge-studio/SUBMISSION.md` is the reusable portal listing and review-case source. Keep it aligned with the packaged manifest, live MCP annotations, exact CSP, and current production behavior. Reviewer credentials and the OpenAI challenge token must never be committed.
 
-Assistant draft retention is also controlled by the plan records in Owner Console. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/contributor 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
+Assistant draft retention is also controlled by the plan records in Profile owner operations. Defaults are Free 12 hours, Creator 24 hours, and Designer/owner/contributor 48 hours. A document open or update refreshes activity; Account listing does not. Expiration and manual deletion use a 24-hour recoverable trash window.
 
 Production cleanup is owned by Supabase Cron and the `purge-assistant-drafts` Edge Function. Vault must contain `project_url` and an active `publishable_key`; the retention migration generates a separate random `assistant_draft_retention_cron_secret`. Never place the service-role key in Cron SQL. Schedule the function every 15 minutes with `pg_cron` + `pg_net` following Supabase's scheduled-functions pattern. Supabase's `apikey` header identifies the project, while the dedicated `X-CardForge-Cron-Secret` is the function's custom authorization and must be validated before maintenance begins. Verify one scheduled invocation reports `expired`, `claimed`, `purged`, and `failed`, then confirm the Cron job exists by name and the function remains custom-authenticated. Storage objects must be removed through the Storage API before the corresponding row is finalized.
 
@@ -217,7 +218,7 @@ When OpenAI supplies a domain challenge, set `OPENAI_APPS_CHALLENGE_TOKEN` in th
 
 Stripe remains authoritative. `product_access` and voluntary `creator_support` are separate purposes; support must never grant product entitlement.
 
-Configure Stripe's Billing Portal to allow an existing Creator or Designer subscriber to switch between the two approved recurring products. Free accounts start hosted Checkout with a server-selected Price; existing subscribers use the Portal so CardForge never creates parallel active subscriptions as an upgrade mechanism.
+Configure Stripe's Billing Portal to allow an existing Creator or Designer subscriber to switch between the two approved recurring products. Free accounts start hosted Checkout with a server-selected Price; existing subscribers use the Portal so CardForge never creates parallel active subscriptions as an upgrade mechanism. The Portal API route supplies the exact server-sanitized local Profile return to Stripe; never add a client-trusted absolute return URL.
 
 From Owner billing tools, reconcile current subscription state and record `checked`, `repaired`, `unchanged`, `missingClerkUser`, `ledgerCreated`, and `missingLedger`. Require `missingLedger` to be zero and investigate missing Clerk users before manually changing entitlement.
 

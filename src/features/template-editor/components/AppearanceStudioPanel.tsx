@@ -14,6 +14,7 @@ import { cn } from '@/shared/classNames';
 import { appearanceToStyle } from '@/features/card-rendering/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
+import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 
@@ -281,13 +282,7 @@ export function AppearanceStudioPanel({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] hover:border-[#d5ad54]"
-                    style={{
-                      backgroundImage: `url(${asset.url})`,
-                      backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',
-                      backgroundRepeat: asset.tileMode === 'repeat' ? 'repeat' : 'no-repeat',
-                      backgroundPosition: 'center',
-                    }}
+                    className="relative h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] hover:border-[#d5ad54]"
                     aria-label={asset.name}
                     onClick={() => onUpdateAppearance((appearance) => ({
                       ...appearance,
@@ -312,7 +307,13 @@ export function AppearanceStudioPanel({
                         },
                       },
                     }))}
-                  />
+                  >
+                    <ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0" style={{
+                      backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',
+                      backgroundRepeat: asset.tileMode === 'repeat' ? 'repeat' : 'no-repeat',
+                      backgroundPosition: 'center',
+                    }} />
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>
@@ -343,8 +344,7 @@ export function AppearanceStudioPanel({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="h-14 rounded-[4px] border border-[#2d3340] bg-[#080b10] bg-contain bg-center bg-no-repeat hover:border-[#d5ad54]"
-                    style={{ backgroundImage: `url(${asset.url})` }}
+                    className="relative h-14 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[#080b10] hover:border-[#d5ad54]"
                     aria-label={asset.name}
                     onClick={() => onUpdateAppearance((appearance) => ({
                       ...appearance,
@@ -357,7 +357,7 @@ export function AppearanceStudioPanel({
                       material: { ...appearance.material, baseColor: 'transparent', texture: { kind: 'none' } },
                       border: { ...appearance.border, kind: 'none', width: 0 },
                     }))}
-                  />
+                  ><ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0 bg-contain bg-center bg-no-repeat" /></button>
                 </TooltipTrigger>
                 <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>

@@ -31,9 +31,16 @@
 .objectTile[data-selected="true"] { box-shadow: inset 0 0 0 1px var(--cf-accent); }
 .objectButton { display: grid; width: 100%; min-width: 0; border: 0; background: transparent; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .objectMenu { position: absolute; z-index: 4; top: .45rem; right: .45rem; display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border: 1px solid var(--cf-border-subtle); background: color-mix(in srgb, var(--cf-canvas) 90%, transparent); color: var(--cf-text-muted); opacity: 0; cursor: pointer; transition: opacity .16s ease, border-color .16s ease, color .16s ease; }
+.objectFlip { position: absolute; z-index: 4; top: .45rem; left: .45rem; display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border: 1px solid var(--cf-border-subtle); background: color-mix(in srgb, var(--cf-canvas) 90%, transparent); color: var(--cf-accent-text); opacity: .82; cursor: pointer; transition: opacity .16s ease, border-color .16s ease, color .16s ease; }
 .objectTile:hover .objectMenu, .objectTile:focus-within .objectMenu { opacity: 1; }
+.objectTile:hover .objectFlip, .objectTile:focus-within .objectFlip { opacity: 1; }
 .objectMenu:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
-.objectMenu svg { width: 1rem; height: 1rem; }
+.objectFlip:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
+.objectMenu svg, .objectFlip svg { width: 1rem; height: 1rem; }
+.detailVisual { display: grid; justify-items: center; gap: .65rem; }
+.detailFlip { display: inline-flex; min-height: 2.5rem; align-items: center; gap: .4rem; border: 1px solid var(--cf-border-subtle); background: var(--cf-surface-raised); padding: .4rem .65rem; color: var(--cf-text-muted); font: inherit; font-size: .7rem; cursor: pointer; }
+.detailFlip:hover { border-color: var(--cf-border-strong); color: var(--cf-accent-text); }
+.detailFlip svg { width: .95rem; height: .95rem; }
 .visualSlot { position: relative; display: grid; min-height: 8.2rem; place-items: center; border-bottom: 1px solid var(--cf-border-subtle); background: color-mix(in srgb, var(--cf-surface-inset) 88%, var(--cf-canvas)); overflow: hidden; }
 .objectImage { width: 100%; height: 100%; max-height: 13rem; object-fit: contain; }
 .stylePreview { width: min(72%, 9rem); aspect-ratio: 4 / 3; border: 1px solid color-mix(in srgb, var(--cf-border-strong) 75%, transparent); box-shadow: 0 14px 34px rgb(0 0 0 / 24%); }
@@ -92,6 +99,7 @@
   .locationsButton svg { flex: 0 0 auto; }
   .contributeButton { min-width: 0; padding-inline: .45rem; font-size: .68rem; white-space: nowrap; }
   .objectMenu { opacity: 1; }
+  .objectFlip { opacity: 1; }
   .scopeTabs button { align-items: center; padding-inline: .35rem; }
   .scopeTabs small { display: none; }
   .collection { margin-top: .45rem; overflow: visible; }

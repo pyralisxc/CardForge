@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
+import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
 
 interface ImageInspectorPanelProps {
@@ -81,7 +82,7 @@ export function ImageInspectorPanel({
                       imageObjectFit: asset.tileMode === 'contain' ? 'contain' : element.imageObjectFit || 'cover',
                     })}
                   >
-                    <span className="block h-10 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
+                    <ProjectBinaryAssetBackground source={asset.url} className="block h-10 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" />
                     <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
                     <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>

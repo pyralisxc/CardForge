@@ -1,16 +1,16 @@
 # CardForge
 
-CardForge is a live local-first card production studio for creating reusable front/back layouts, generating complete card sets, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. User project work remains browser-local or in downloaded project files for the current launch; shared product state and reviewed library content live in Supabase.
+CardForge is a live local-first card production studio for creating reusable front/back layouts, generating complete card sets, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
 
 CardForge Studio is created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Studio: `/studio`.
+- Desk: `/account`; Set focus replaces the surrounding Desk, and Artifact focus replaces the Set field with one zoomed-in Artifact. Design opens as an exclusive full-viewport contextual workspace with one close path; Fit keeps the complete canvas visible and only the canvas scrolls after deliberate zoom. Generate, Output, Pipeline, and location controls reuse contextual tools over Desk or Library. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
-- Contributor work is capability-gated inside Desk, Library, and Profile; owner review and publication remain in `/owner`.
-- Owner console: `/owner`.
+- Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
+- Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.
 
 Production runs at [cardforges.com](https://cardforges.com).
@@ -55,16 +55,19 @@ Maintained operational commands:
 ```bash
 npm run health:production
 npm run smoke:ui
+npm run smoke:scale
 npm run pipeline:sync-defaults
 npm run brand:export
 ```
 
+`smoke:ui` includes generated 100/500/1,000-Artifact browser fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
+
 ## Source map
 
 - `src/app/`: Next.js routes and HTTP composition.
-- `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
-- `src/features/app-shell/`: the focused Studio workbench shell, contextual-tool composition, and workspace bootstrap.
-- `src/features/home/`: the internal owner for the two-scale user-facing Desk over authored work and its contained cards; it composes project and Library projections without owning either registry.
+- `src/domain/`: pure Artifact, Card, Template, Rendering, and Entitlements policy.
+- `src/features/app-shell/`: reusable contextual-tool composition, interaction/action runtime, compatibility Studio ingress, and workspace bootstrap.
+- `src/features/home/`: the spatial Desk owner over Sets and their generalized Artifact projection; cards remain the first shipped specialized Artifact type.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: single/bulk card creation, generated-card editing, validation, and output tools consumed by Studio and Desk.
 - `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
@@ -82,8 +85,9 @@ npm run brand:export
 - `supabase/migrations/`: immutable, forward-only shared-state migrations.
 - `data/pipeline-bootstrap/`: importer input only; never a runtime Studio catalog.
 - `public/site-fallbacks/`: safe public-page fallback art only.
-- `tests/unit/`: durable contract/security/regression tests.
-- `tests/smoke/`: focused browser regression coverage; not a substitute for real signed-in provider checks.
+- `tests/product/unit/`: durable product behavior and data-contract tests.
+- `tests/product/workflows/`: focused browser workflow coverage; not a substitute for real signed-in provider checks.
+- `tests/infrastructure/`: small, generic repository, architecture, migration, and security guardrails.
 
 Retired root ownership lanes `src/lib/`, `src/store/`, and `src/types/` must not return.
 
@@ -95,7 +99,7 @@ CardForge has three deliberate storage lanes:
 - **Supabase shared state:** owner settings, roadmap/votes, legal/public content, billing ledgers, contributor profiles/submissions/votes, campaign content/media/delivery history, and the shared asset registry.
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
-`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+`cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. Package v2 has one bounded archive writer: authorized device-file saves stream directly, while browser downloads and complete-body provider boundaries use a size-bounded Blob; the compatibility reader still accepts v1. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
 
 ## Agent authoring
 

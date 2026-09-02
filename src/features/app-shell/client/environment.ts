@@ -13,6 +13,19 @@ export {
   openEnvironmentDetail,
   selectEnvironmentObject,
 } from '../environment/model';
+export {
+  closeCreatorContext,
+  createCreatorInteractionSession,
+  focusCreatorArtifact,
+  focusCreatorSet,
+  inspectCreatorArtifact,
+  openCreatorTool,
+  selectCreatorArtifacts,
+  setCreatorCamera,
+  setCreatorLens,
+  setCreatorToolDirty,
+} from '../environment/interactionSession';
+export { createActionDefinition, createActionRuntime } from '../environment/actionRuntime';
 export { projectApiClientErrorBoundary } from '../environment/environmentBoundary';
 export { EnvironmentCommandBand } from '../environment/components/EnvironmentCommandBand';
 export { EnvironmentDesktopInspector, EnvironmentMobileSheet } from '../environment/components/EnvironmentDetail';
@@ -45,4 +58,20 @@ export type {
   ZoneId,
   ZoneViewportPolicy,
 } from '../environment/model';
+export type {
+  CreatorCamera,
+  CreatorContextClosed,
+  CreatorFocusPath,
+  CreatorInteractionSession,
+  CreatorLens,
+  CreatorToolPresentation,
+  CreatorToolSession,
+} from '../environment/interactionSession';
+export type {
+  ActionDefinition,
+  ActionOperation,
+  ActionOperationInput,
+  ActionOperationResult,
+  ActionRuntime,
+} from '../environment/actionRuntime';
 export type { EnvironmentCollectionRecord, EnvironmentDetailRecord, EnvironmentSettingRecord, EnvironmentStatusTone } from '../environment/presentation';

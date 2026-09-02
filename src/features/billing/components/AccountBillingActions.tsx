@@ -4,6 +4,7 @@ import { CreditCard, ReceiptText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import { useBillingPortalActions } from '@/features/billing/hooks/useBillingPortalActions';
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
 
@@ -25,13 +26,16 @@ export function AccountBillingActions({
   showCheckout: boolean;
 }) {
   const { toast } = useToast();
+  const returnTo = useSafeCurrentReturnPath('/account?section=profile&utility=billing');
   const { checkoutOffering, handleStartCheckout, isCheckoutStarting } = useCheckoutActions({
     authConfigured,
     isSignedIn: effectiveSignedIn,
+    returnTo,
     toast,
   });
   const { handleOpenBillingPortal, isBillingPortalOpening } = useBillingPortalActions({
     isSignedIn: effectiveSignedIn,
+    returnTo,
     toast,
   });
 

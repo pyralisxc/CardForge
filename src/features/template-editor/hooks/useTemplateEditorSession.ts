@@ -19,6 +19,7 @@ import {
   PROJECT_FONT_LIBRARY_CHANGE_EVENT,
   readProjectFonts,
 } from '@/features/project/client';
+import { useProjectBinaryAssetValue } from '@/features/project/client/binary-assets';
 
 interface UseTemplateEditorSessionInput {
   isActive: boolean;
@@ -84,6 +85,7 @@ export function useTemplateEditorSession({
   initialTemplateRef.current = initialTemplate;
 
   const controller = useTemplateEditorController(initialTemplate);
+  const contributorFontFaceCss = useProjectBinaryAssetValue(createPipelineFontFaceCss(fontOptions));
 
   useEffect(() => {
     setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplateRef.current)));
@@ -104,7 +106,7 @@ export function useTemplateEditorSession({
     availableFonts: cardFontOptionsToSelectOptions(fontOptions),
     beginDraft,
     controller,
-    contributorFontFaceCss: createPipelineFontFaceCss(fontOptions),
+    contributorFontFaceCss,
     isDirty: savedTemplateJson !== null && savedTemplateJson !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
     isHydrated: true,
   };

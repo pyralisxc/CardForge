@@ -1,7 +1,10 @@
+import type { AuthoredArtifact } from '@/domain/artifacts';
+
 import type { ProjectDocumentV1 } from './projectDocument';
 export type { ProjectDocumentV1 } from './projectDocument';
 
-export const CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
+export const CARDFORGE_PROJECT_PACKAGE_VERSION = 2 as const;
+export const LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION = 1 as const;
 export const CARDFORGE_PROJECT_FILE_EXTENSION = '.cardforge';
 export const CARDFORGE_PROJECT_MANIFEST_FILE = 'cardforge-project.json';
 export const CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX = 'cardforge-project-asset://';
@@ -11,7 +14,7 @@ export const CARDFORGE_PROJECT_ASSET_REFERENCE_PREFIX = 'cardforge-project-asset
 export const MAX_PROJECT_PACKAGE_BYTES = 256 * 1024 * 1024;
 export const MAX_PROJECT_PACKAGE_METADATA_BYTES = 8 * 1024 * 1024;
 export const MAX_PROJECT_PACKAGE_ASSET_BYTES = 32 * 1024 * 1024;
-export const MAX_PROJECT_PACKAGE_ASSETS = 512;
+export const MAX_PROJECT_PACKAGE_ASSETS = 4096;
 
 export const PROJECT_PACKAGE_ASSET_MIME_TYPES = [
   'image/gif',
@@ -37,8 +40,29 @@ export interface ProjectPackageAssetDescriptor {
   path: string;
 }
 
+/**
+ * A reusable package asset source whose bytes are loaded only for the current
+ * ZIP entry. Browser-backed snapshots use this instead of retaining every
+ * IndexedDB Blob as a Uint8Array for the lifetime of the package build.
+ */
+export interface ProjectPackageLazyAssetSource {
+  kind: 'lazy';
+  size: number;
+  load: () => Promise<Uint8Array>;
+}
+
+export type ProjectPackageAssetSource = Uint8Array | ProjectPackageLazyAssetSource;
+
+export type ResolvedProjectPackageAssetReference = {
+  mimeType: string;
+  bytes: Uint8Array;
+} | {
+  mimeType: string;
+  source: ProjectPackageLazyAssetSource;
+};
+
 export interface CardForgeProjectManifestV1 {
-  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  cardforgeProject: typeof LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION;
   name: string;
   projectRevision: string;
   savedAt: string;
@@ -46,9 +70,34 @@ export interface CardForgeProjectManifestV1 {
   assets: ProjectPackageAssetDescriptor[];
 }
 
+/**
+ * The portable v2 document makes authored objects explicit. ProjectDocumentV1
+ * remains the runtime compatibility boundary while Cards are the only shipped
+ * Artifact type.
+ */
+export interface PortableProjectDocumentV2 extends Omit<ProjectDocumentV1, 'version' | 'storedCards'> {
+  version: 2;
+  artifacts: AuthoredArtifact[];
+}
+
+export interface CardForgeProjectManifestV2 {
+  cardforgeProject: typeof CARDFORGE_PROJECT_PACKAGE_VERSION;
+  name: string;
+  projectRevision: string;
+  savedAt: string;
+  project: PortableProjectDocumentV2;
+  assets: ProjectPackageAssetDescriptor[];
+}
+
+export type CardForgeProjectManifest = CardForgeProjectManifestV1 | CardForgeProjectManifestV2;
+
 export interface CardForgeProjectPackageSnapshot {
-  manifest: CardForgeProjectManifestV1;
-  assets: ReadonlyMap<string, Uint8Array>;
+  manifest: CardForgeProjectManifest;
+  assets: ReadonlyMap<string, ProjectPackageAssetSource>;
+}
+
+export interface CardForgeProjectPackageSnapshotV2 extends CardForgeProjectPackageSnapshot {
+  manifest: CardForgeProjectManifestV2;
 }
 
 export type ProjectSourceProvider = 'browser' | 'local-folder' | 'google-drive';

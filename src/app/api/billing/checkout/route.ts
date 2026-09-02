@@ -30,9 +30,12 @@ export async function POST(request: Request) {
 
     const rawBody = await request.text();
     let requestedOffering: unknown = 'creator_pass';
+    let requestedReturnTo: unknown;
     if (rawBody.trim()) {
       try {
-        requestedOffering = (JSON.parse(rawBody) as { offering?: unknown }).offering ?? 'creator_pass';
+        const body = JSON.parse(rawBody) as { offering?: unknown; returnTo?: unknown };
+        requestedOffering = body.offering ?? 'creator_pass';
+        requestedReturnTo = body.returnTo;
       } catch {
         return createApiErrorResponse(400, 'billing_checkout_failed', 'Choose a valid CardForge plan.');
       }
@@ -65,6 +68,9 @@ export async function POST(request: Request) {
       email: primaryEmail,
       offering,
       priceId,
+      returnTo: typeof requestedReturnTo === 'string' && requestedReturnTo.length <= 2048
+        ? requestedReturnTo
+        : undefined,
       userId: user.id,
     }));
 

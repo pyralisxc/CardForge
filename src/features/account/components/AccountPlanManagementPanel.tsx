@@ -54,14 +54,14 @@ export function AccountPlanManagementPanel({
       ? plans.find((plan) => plan.planKey === 'creator')?.displayName ?? 'Creator Pass'
       : null;
   const accountSignUpReturnPath = initialPlanIntent
-    ? `/account?section=billing&intent=${initialPlanIntent}#account-and-billing`
-    : '/account?section=billing#account-and-billing';
+    ? `/account?section=profile&utility=billing&intent=${initialPlanIntent}#account-and-billing`
+    : '/account?section=profile&utility=billing#account-and-billing';
   const creatorHref = effectiveSignedIn
     ? '#account-actions'
-    : createAuthRouteHref('/sign-up', '/account?section=billing&intent=creator#account-and-billing');
+    : createAuthRouteHref('/sign-up', '/account?section=profile&utility=billing&intent=creator#account-and-billing');
   const designerHref = effectiveSignedIn
     ? '#account-actions'
-    : createAuthRouteHref('/sign-up', '/account?section=billing&intent=designer#account-and-billing');
+    : createAuthRouteHref('/sign-up', '/account?section=profile&utility=billing&intent=designer#account-and-billing');
 
   return (
     <>

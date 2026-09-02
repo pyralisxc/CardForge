@@ -1,4 +1,4 @@
-export const ACCOUNT_SECTIONS = ['home', 'library', 'storage', 'billing', 'profile'] as const;
+export const ACCOUNT_SECTIONS = ['home', 'library', 'profile'] as const;
 
 export type AccountSection = typeof ACCOUNT_SECTIONS[number];
 
@@ -13,11 +13,15 @@ export const resolveAccountSection = ({
   hasStorageResult = false,
   hasBillingIntent = false,
 }: ResolveAccountSectionInput): AccountSection => {
+  // Compatibility-only translators for links issued before locations and billing
+  // became contextual tools of Library and Profile.
+  if (requestedSection === 'storage') return 'library';
+  if (requestedSection === 'billing') return 'profile';
   if (ACCOUNT_SECTIONS.some((section) => section === requestedSection)) {
     return requestedSection as AccountSection;
   }
-  if (hasStorageResult) return 'storage';
-  if (hasBillingIntent) return 'billing';
+  if (hasStorageResult) return 'library';
+  if (hasBillingIntent) return 'profile';
   return 'home';
 };
 

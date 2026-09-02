@@ -77,3 +77,20 @@ export const isGoogleDriveWorkId = (value: string): boolean => {
   const normalized = value.trim();
   return normalized.length > 0 && normalized.length <= 128 && !/[\u0000-\u001f]/u.test(normalized);
 };
+
+export const hasGoogleDriveProjectRevisionConflict = ({
+  currentProviderRevision,
+  currentProjectRevision,
+  expectedProviderRevision,
+  expectedProjectRevision,
+}: {
+  currentProviderRevision: string;
+  currentProjectRevision: string | null;
+  expectedProviderRevision: string | null;
+  expectedProjectRevision: string | null;
+}): boolean => (
+  !expectedProviderRevision
+  || !expectedProjectRevision
+  || currentProviderRevision !== expectedProviderRevision
+  || currentProjectRevision !== expectedProjectRevision
+);

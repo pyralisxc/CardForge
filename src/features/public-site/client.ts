@@ -19,6 +19,7 @@ export {
 export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';
+export { PublicSiteOwnerLiveControls } from './components/PublicSiteOwnerLiveControls';
 export { LiveExampleGallery } from './components/LiveExampleGallery';
 export { OutcomeHero } from './components/OutcomeHero';
 export { StudioProductProof } from './components/StudioProductProof';

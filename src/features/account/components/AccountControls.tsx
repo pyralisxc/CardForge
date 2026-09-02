@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { resolveAccountControlsState } from '@/features/account/lib/accountControlsState';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
@@ -67,6 +68,7 @@ function ClerkAccountControls({
   const { isLoaded, isSignedIn, user } = useUser();
   const effectiveSignedIn = isLoaded ? Boolean(isSignedIn) : fallbackSignedIn;
   const previousSignedInRef = useRef<boolean | null>(null);
+  const returnTo = useSafeCurrentReturnPath();
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -88,12 +90,12 @@ function ClerkAccountControls({
       {!effectiveSignedIn ? (
         <>
           <Button asChild type="button" size="sm" className="gap-2 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
-            <Link href={createAuthRouteHref('/sign-in', '/studio')} prefetch={false}>
+            <Link href={createAuthRouteHref('/sign-in', returnTo)} prefetch={false}>
               <LogIn className="h-4 w-4" /> Sign in
             </Link>
           </Button>
           <Button asChild type="button" variant="outline" size="sm" onClick={markSignUpIntent} className="hidden gap-2 border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)] sm:inline-flex">
-            <Link href={createAuthRouteHref('/sign-up', '/studio')} prefetch={false}>
+            <Link href={createAuthRouteHref('/sign-up', returnTo)} prefetch={false}>
               <UserPlus className="h-4 w-4" /> Create account
             </Link>
           </Button>

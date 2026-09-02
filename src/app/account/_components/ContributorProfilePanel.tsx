@@ -12,44 +12,62 @@ import {
   hasContributionScope,
   type ContributorAccessProjection,
 } from '@/features/contributor-access/client';
-import {
-  SiteProposalPanel,
-  loadSiteProposalWorkspace,
-  type SiteProposalWorkspace,
-} from '@/features/site-proposals/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function ContributorProfilePanel({ access }: { access: ContributorAccessProjection }) {
+export function ContributorProfilePanel({
+  access,
+  presentation = 'detail',
+  onOpenDetails,
+}: {
+  access: ContributorAccessProjection;
+  presentation?: 'detail' | 'summary';
+  onOpenDetails?: () => void;
+}) {
   const router = useRouter();
   const [summary, setSummary] = useState<PipelineContributorSummary | null>(null);
-  const [site, setSite] = useState<SiteProposalWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canProposeSite = hasContributionScope(access.scopes, 'site.propose');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryResponse, siteWorkspace] = await Promise.all([
-        fetch('/api/pipeline/contributor-summary', { cache: 'no-store' }).then(async (response) => {
-          if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
-          return response.json() as Promise<{ summary: PipelineContributorSummary }>;
-        }),
-        canProposeSite ? loadSiteProposalWorkspace() : Promise.resolve(null),
-      ]);
+      const summaryResponse = await fetch('/api/pipeline/contributor-summary', { cache: 'no-store' }).then(async (response) => {
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Contributor statistics are unavailable.'));
+        return response.json() as Promise<{ summary: PipelineContributorSummary }>;
+      });
       setSummary(summaryResponse.summary);
-      setSite(siteWorkspace);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Contributor details are unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [canProposeSite]);
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
 
-  if (loading && !summary) return <div className="grid min-h-40 place-items-center text-sm text-[var(--cf-text-muted)]"><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
+  if (loading && !summary) return <div className={`grid place-items-center text-sm text-[var(--cf-text-muted)] ${presentation === 'summary' ? 'min-h-28 border border-[var(--cf-border)] bg-[var(--cf-surface)]' : 'min-h-40'}`}><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
+
+  if (presentation === 'summary') {
+    return (
+      <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4" aria-labelledby="contributor-summary-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--cf-border-subtle)] pb-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Contributor activity</p>
+            <h2 id="contributor-summary-heading" className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">Your contribution progress</h2>
+          </div>
+          {onOpenDetails ? <Button type="button" size="sm" variant="outline" onClick={onOpenDetails}>Contribution details</Button> : null}
+        </div>
+        {error ? <div className="mt-3"><EnvironmentBoundaryNotice title="Contributor statistics are unavailable" message={`${error} Your granted access has not been relabeled or removed.`} actionLabel="Retry" onAction={() => void load()} /></div> : null}
+        {summary ? <dl className="mt-3 grid grid-cols-2 border border-[var(--cf-border)] sm:grid-cols-4">
+          <CompactStat label="Submitted this month" value={summary.submittedThisMonth} />
+          <CompactStat label="Published this month" value={summary.publishedThisMonth} />
+          <CompactStat label="Monthly target" value={summary.monthlyPublishedRequirement} />
+          <CompactStat label="Submissions left" value={summary.remainingSubmissions} />
+        </dl> : null}
+      </section>
+    );
+  }
 
   return <div className="space-y-5">
     {error ? <EnvironmentBoundaryNotice title="Contributor details are unavailable" message={`${error} Your granted access has not been relabeled or removed.`} actionLabel="Retry" onAction={() => void load()} /> : null}
@@ -70,7 +88,6 @@ export function ContributorProfilePanel({ access }: { access: ContributorAccessP
       </details>
       <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=pipeline')}>Open Pipeline <ExternalLink className="ml-2 h-3.5 w-3.5" /></Button><Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=published')}>Your published work</Button>{hasContributionScope(access.scopes, 'campaigns.draft') ? <Button type="button" size="sm" variant="outline" onClick={() => router.push('/account?section=library&scope=campaigns')}>Campaigns</Button> : null}</div>
     </section>
-    {canProposeSite && site ? <section aria-labelledby="profile-site-proposals-heading"><div className="border-b border-[var(--cf-border)] pb-3"><p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Granted contribution lane</p><h2 id="profile-site-proposals-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Site proposals</h2><p className="mt-1 text-sm text-[var(--cf-text-muted)]">Your drafts and review status follow your contributor identity. Final publication remains owner-controlled.</p></div><div className="mt-3"><SiteProposalPanel workspace={site} onChange={setSite} /></div></section> : null}
   </div>;
 }
 

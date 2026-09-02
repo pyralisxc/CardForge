@@ -1,6 +1,7 @@
 "use client";
 
 import type { DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
 import { Boxes } from 'lucide-react';
@@ -15,6 +16,7 @@ export interface AuthoredObjectPreviewProps {
   size?: 'compact' | 'standard' | 'large';
   className?: string;
   emptyLabel?: string;
+  face?: CardFace;
 }
 
 const widthBySize = {
@@ -43,6 +45,7 @@ export function AuthoredObjectPreview({
   size = 'standard',
   className,
   emptyLabel,
+  face = 'front',
 }: AuthoredObjectPreviewProps) {
   const renderedCards = cards.slice(0, 3);
   const explicitlyEmpty = renderedCards.length === 0 && Boolean(emptyLabel);
@@ -64,7 +67,7 @@ export function AuthoredObjectPreview({
     <span className={cn(styles.stack, className)} data-size={size} aria-label={`${label} preview`}>
       {visualCards.map((card, index) => (
         <span key={card.uniqueId} className={styles.card} data-card-position={index} aria-hidden="true">
-          <CardPreview card={card} targetWidthPx={widthBySize[size]} isEditorPreview />
+          <CardPreview card={card} face={face} targetWidthPx={widthBySize[size]} isEditorPreview />
         </span>
       ))}
     </span>

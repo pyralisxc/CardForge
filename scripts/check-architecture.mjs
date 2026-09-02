@@ -123,6 +123,29 @@ const createViolation = (code, source, target, message) => ({
   key: `${code}|${source}|${target}`,
 });
 
+const countPublicExports = (sourceContent, filePath) => {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceContent,
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  let exportCount = 0;
+  for (const statement of sourceFile.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      exportCount += statement.exportClause && ts.isNamedExports(statement.exportClause)
+        ? statement.exportClause.elements.length
+        : 1;
+      continue;
+    }
+    const exported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    if (!exported) continue;
+    exportCount += ts.isVariableStatement(statement) ? statement.declarationList.declarations.length : 1;
+  }
+  return exportCount;
+};
+
 const analyzeDependency = ({ source, target, sourceContent }) => {
   const violations = [];
   const sourceLabel = `src/${source.modulePath}`;
@@ -257,6 +280,8 @@ const analyzeRepository = async (root) => {
   const violations = new Map();
   const sizeWarnings = [];
   const featureGraph = new Map();
+  const allFeatureNames = new Set();
+  const publicInterfaces = [];
 
   for (const filePath of sourceFiles) {
     const relativePath = toPosixPath(path.relative(sourceRoot, filePath));
@@ -264,9 +289,17 @@ const analyzeRepository = async (root) => {
     const sourceContent = await readFile(filePath, 'utf8');
     const sourceLabel = `src/${sourceClassification.modulePath}`;
     const lineCount = sourceContent.split(/\r?\n/u).length;
+    if (sourceClassification.kind === 'feature') allFeatureNames.add(sourceClassification.featureName);
 
     if (lineCount > FILE_SIZE_REVIEW_THRESHOLD) {
       sizeWarnings.push({ path: `src/${relativePath}`, lineCount });
+    }
+    if (sourceClassification.kind === 'feature' && sourceClassification.publicEntry) {
+      publicInterfaces.push({
+        path: `src/${relativePath}`,
+        featureName: sourceClassification.featureName,
+        exportCount: countPublicExports(sourceContent, filePath),
+      });
     }
     if (sourceClassification.kind === 'legacy') {
       const violation = createViolation(
@@ -329,7 +362,33 @@ const analyzeRepository = async (root) => {
     }
   }
 
+  const featureNames = new Set(allFeatureNames);
+  for (const targets of featureGraph.values()) {
+    for (const target of targets) featureNames.add(target);
+  }
+  const featureGravity = [...featureNames].map((featureName) => {
+    let fanIn = 0;
+    for (const targets of featureGraph.values()) {
+      if (targets.has(featureName)) fanIn += 1;
+    }
+    return {
+      featureName,
+      fanIn,
+      fanOut: featureGraph.get(featureName)?.size ?? 0,
+      publicExports: publicInterfaces
+        .filter((entry) => entry.featureName === featureName)
+        .reduce((total, entry) => total + entry.exportCount, 0),
+    };
+  }).sort((left, right) => (
+    (right.fanIn * 2 + right.fanOut + right.publicExports / 10)
+    - (left.fanIn * 2 + left.fanOut + left.publicExports / 10)
+  ) || left.featureName.localeCompare(right.featureName));
+
   return {
+    featureGravity,
+    publicInterfaces: publicInterfaces.sort((left, right) => (
+      right.exportCount - left.exportCount || left.path.localeCompare(right.path)
+    )),
     violations: [...violations.values()].sort((left, right) => left.key.localeCompare(right.key)),
     sizeWarnings: sizeWarnings.sort((left, right) => left.path.localeCompare(right.path)),
   };
@@ -338,6 +397,12 @@ const analyzeRepository = async (root) => {
 const run = async () => {
   const args = parseArguments(process.argv.slice(2));
   const analysis = await analyzeRepository(args.root);
+  for (const hotspot of analysis.featureGravity.slice(0, 10)) {
+    console.log(`Dependency gravity: ${hotspot.featureName} fan-in ${hotspot.fanIn}, fan-out ${hotspot.fanOut}, public exports ${hotspot.publicExports}.`);
+  }
+  for (const publicInterface of analysis.publicInterfaces.filter((entry) => entry.exportCount > 0).slice(0, 10)) {
+    console.log(`Public-interface breadth: ${publicInterface.path} exposes ${publicInterface.exportCount} export${publicInterface.exportCount === 1 ? '' : 's'}.`);
+  }
   for (const warning of analysis.sizeWarnings) {
     console.log(`File-size review warning: ${warning.path} has ${warning.lineCount} lines (threshold ${FILE_SIZE_REVIEW_THRESHOLD}).`);
   }

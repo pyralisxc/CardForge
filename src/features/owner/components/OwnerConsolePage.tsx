@@ -22,10 +22,7 @@ const OwnerPeoplePanel = dynamic(() => import('./OwnerPeoplePanel').then((module
 const OwnerInboxPanel = dynamic(() => import('./OwnerInboxPanel').then((module) => module.OwnerInboxPanel), { loading: panelFallback });
 const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurationPanel').then((module) => module.OwnerSiteConfigurationPanel), { loading: panelFallback });
 const OwnerMarketingPanel = dynamic(() => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel), { loading: panelFallback });
-const OwnerSiteProposalReviewPanel = dynamic(() => import('./OwnerSiteProposalReviewPanel').then((module) => module.OwnerSiteProposalReviewPanel), { loading: panelFallback });
-const OwnerPublicContentPanel = dynamic(() => import('./OwnerPublicContentPanel').then((module) => module.OwnerPublicContentPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
-const OwnerSiteMediaPanel = dynamic(() => import('./OwnerSiteMediaPanel').then((module) => module.OwnerSiteMediaPanel), { loading: panelFallback });
 const OwnerLegalPanel = dynamic(() => import('./OwnerLegalPanel').then((module) => module.OwnerLegalPanel), { loading: panelFallback });
 const OwnerContributorProgramPanel = dynamic(() => import('@/features/pipeline/client/owner').then((module) => module.OwnerContributorProgramPanel), { loading: panelFallback });
 const OwnerAnalyticsPanel = dynamic(() => import('@/features/analytics/client/owner').then((module) => module.OwnerAnalyticsPanel), { loading: panelFallback });
@@ -36,9 +33,9 @@ const OwnerRolesPanel = dynamic(() => import('./OwnerGovernancePanels').then((mo
 const OwnerActivityPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerActivityPanel), { loading: panelFallback });
 const OwnerRetentionPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerRetentionPanel), { loading: panelFallback });
 
-type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
+export type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
 
-interface OwnerConsolePageProps {
+interface OwnerProfileOperationsProps {
   initialWorkspace?: OwnerWorkspace;
   initialPipelineStatus?: 'all' | 'submitted';
   initialMarketingNotice?: { kind: 'success' | 'error'; message: string };
@@ -59,8 +56,8 @@ const subtabListClassName = 'flex h-auto flex-wrap justify-start rounded-none bo
 const siteControlOwnership = [
   ['Launch experience', 'Owner controlled', 'Portable project access, analytics consent presentation, presentation profile, announcements, and offer visibility change without a deployment.'],
   ['Pages and navigation', 'Owner controlled', 'Approved navigation labels, visibility, order, homepage sections, primary action, and homepage search/share metadata publish here.'],
-  ['Public messaging', 'Owner controlled', 'Shared shell, homepage, About, founder, Contributor Program, roadmap, search, and sharing copy publish from the grouped content catalog.'],
-  ['Brand and site media', 'Owner controlled', 'Brand mark, favicon, watermark, default social image, homepage imagery, Studio screenshots, live-example artwork, and founder portrait share one media catalog with restore history.'],
+  ['Public messaging', 'Owner controlled', 'Copy publishes from contextual Owner controls on each native public page; Profile no longer hosts a detached copy editor.'],
+  ['Brand and site media', 'Owner controlled', 'Relevant media publishes and restores in context on the homepage or founder surface while retaining the canonical media catalog.'],
   ['Founder and roadmap', 'Owner controlled', 'Founder presence, social destinations, roadmap economics, voting rules, and current checkpoint status live here.'],
   ['Legal publications', 'Owner controlled', 'Versioned policies can be drafted, published, and rolled back here while immutable publication history remains intact.'],
   ['Product behavior', 'Code owned', 'Allowed routes and components, functional and accessibility labels, Studio behavior, validation, permissions, and capability claims remain reviewed code.'],
@@ -102,7 +99,7 @@ function SiteWorkspaceState({ loading, error, retry }: { loading: boolean; error
   );
 }
 
-export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelineStatus = 'all', initialMarketingNotice }: OwnerConsolePageProps) {
+export function OwnerProfileOperations({ initialWorkspace = 'overview', initialPipelineStatus = 'all', initialMarketingNotice }: OwnerProfileOperationsProps) {
   const {
     isLoading,
     isLoadingSite,
@@ -126,36 +123,36 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
 
   if (!payload && isLoading) {
     return (
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section>
           <CardForgeSurface className="border-[var(--cf-border-strong)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Owner console</p>
-                <h1 className="font-serif text-2xl text-[var(--cf-text-strong)]">Loading Owner Console</h1>
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Profile utility</p>
+                <h1 className="font-serif text-2xl text-[var(--cf-text-strong)]">Loading owner operations</h1>
               </div>
               <div className="h-2 w-32 animate-pulse bg-[var(--cf-border-subtle)]" />
             </div>
             {isSlow ? <p className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] p-3 text-sm leading-6 text-[var(--cf-warning)]">This is taking longer than expected. The console should recover automatically.</p> : null}
           </CardForgeSurface>
         </section>
-      </main>
+      </div>
     );
   }
 
   if (!payload) {
     return (
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section>
           <CardForgeWorkspaceState
             state="error"
             message={loadError ?? 'Owner access is required. Sign in with the owner account or set trusted owner metadata.'}
             onRetry={() => void load()}
-            retryLabel="Retry owner console"
+            retryLabel="Retry owner operations"
             className="min-h-0 p-6"
           />
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -164,8 +161,8 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
 
   return (
     <TooltipProvider>
-      <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
-        <section className="mx-auto max-w-7xl space-y-4 px-5 py-6 md:px-8">
+      <div className="text-[var(--cf-text)]">
+        <section className="space-y-4">
           <OwnerConsoleSummary payload={payload} />
           <Tabs value={workspace} onValueChange={(value) => setWorkspace(value as OwnerWorkspace)} className="space-y-4">
             <CardForgeWorkspaceNavigation
@@ -213,26 +210,20 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
             </TabsContent>
 
             <TabsContent value="site" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Public experience" title="Change the safe live values of the public site" body="Code allowlists routes, sections, validation, and security. Within that boundary, the owner controls live identity, pages, metadata, copy, media, access presentation, presentation profile, offers, and roadmap behavior." />
+              <CardForgeSectionIntro eyebrow="Public experience" title="Change protected site policy and identity" body="Code allowlists routes, sections, validation, and security. Profile retains identity, page policy, access presentation, offers, legal publication, and provider-aware operations; copy, media, and roadmap rules now edit in context on their native public surfaces." />
               <OwnerSiteControlMap />
               {siteWorkspaceContent ? (
                 <Tabs value={siteWorkspace} onValueChange={setSiteWorkspace} className="space-y-4">
                   <TabsList className={subtabListClassName}>
                     <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                     <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
-                    <TabsTrigger value="copy" className={subtabClassName}>Copy</TabsTrigger>
-                    <TabsTrigger value="proposals" className={subtabClassName}>Proposals</TabsTrigger>
-                    <TabsTrigger value="media" className={subtabClassName}>Media</TabsTrigger>
                     <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
                     <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap</TabsTrigger>
                   </TabsList>
                   <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerFounderProfilePanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                   <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteWorkspaceContent.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteWorkspaceContent, siteConfiguration })} /></TabsContent>
                   <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteWorkspaceContent.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteWorkspaceContent, experienceSettings })} /></TabsContent>
-                  <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
-                  <TabsContent value="proposals" className="mt-0"><OwnerSiteProposalReviewPanel /></TabsContent>
-                  <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
-                  <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerPublicContentPanel consolePayload={siteWorkspaceContent} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
+                  <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                 </Tabs>
               ) : <SiteWorkspaceState loading={isLoadingSite} error={siteLoadError} retry={ensureSite} />}
             </TabsContent>
@@ -261,7 +252,7 @@ export function OwnerConsolePage({ initialWorkspace = 'overview', initialPipelin
             </TabsContent>
           </Tabs>
         </section>
-      </main>
+      </div>
     </TooltipProvider>
   );
 }

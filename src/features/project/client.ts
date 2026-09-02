@@ -1,4 +1,5 @@
 export { BrowserStorageAlerts } from './components/BrowserStorageAlerts';
+export { AccountProjectWorkspaceBoundary } from './components/AccountProjectWorkspaceBoundary';
 export {
   DefaultWorkLocationControl,
   ProjectWorkLocationDialog,
@@ -61,6 +62,7 @@ export {
   CARDFORGE_PROJECT_FILE_EXTENSION,
   CARDFORGE_PROJECT_MANIFEST_FILE,
   CARDFORGE_PROJECT_PACKAGE_VERSION,
+  LEGACY_CARDFORGE_PROJECT_PACKAGE_VERSION,
   getProjectPackageAssetExtension,
   getProjectPackageAssetIdFromReference,
   getProjectPackageAssetReference,
@@ -74,8 +76,12 @@ export {
   PROJECT_PACKAGE_ASSET_MIME_TYPES,
 } from './model/projectPackage';
 export type {
+  CardForgeProjectManifest,
   CardForgeProjectManifestV1,
+  CardForgeProjectManifestV2,
   CardForgeProjectPackageSnapshot,
+  CardForgeProjectPackageSnapshotV2,
+  PortableProjectDocumentV2,
   ProjectPackageAssetDescriptor,
   ProjectPackageAssetMimeType,
   ProjectSourceDescriptor,
@@ -103,13 +109,17 @@ export type {
 } from './model/googleDriveProject';
 export {
   buildCardForgeProjectSnapshot,
+  createCardForgeProjectPackageBlob,
   decodeCardForgeProjectPackage,
   decodeProjectFile,
   encodeCardForgeProjectPackage,
   hydrateCardForgeProjectSnapshot,
+  writeCardForgeProjectPackage,
   ProjectPackageError,
 } from './lib/projectPackageCodec';
+export { referenceCardForgeProjectSnapshotAssets } from './lib/projectPackageAssetReferences';
 export type { DecodedProjectFile } from './lib/projectPackageCodec';
+export { decodeBrowserProjectFile, materializeBrowserProjectSnapshot } from './client/browserProjectPackage';
 export {
   applyProjectDocumentToWorkspace,
   captureCurrentProjectDocument,
@@ -168,6 +178,8 @@ export {
   BROWSER_STORAGE_DATABASE,
   BROWSER_STORAGE_FAILURE_EVENT,
   BROWSER_STORAGE_SAVE_STATUS_EVENT,
+  BROWSER_WORKSPACE_CONFLICT_EVENT,
+  compareAndSetBrowserWorkspaceValue,
   createBrowserKeyValueStorage,
   createIndexedDbStorage,
   getBrowserRecoverySnapshot,
@@ -180,14 +192,45 @@ export {
   subscribeToBrowserWorkspaceSaveStatus,
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
+export {
+  BROWSER_WORKSPACE_RECORD_VERSION,
+  BrowserWorkspaceConflictError,
+  parseBrowserWorkspaceRecord,
+  resolveGuestWorkspaceAdoption,
+  serializeBrowserWorkspaceRecord,
+} from './persistence/workspaceRevision';
+export type {
+  BrowserWorkspaceRecord,
+  GuestWorkspaceAdoptionChoice,
+  ParsedBrowserWorkspaceRecord,
+} from './persistence/workspaceRevision';
 export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
-export { BROWSER_PROJECT_ASSET_REFERENCE_PREFIX } from './persistence/contentAddressedBrowserAssets';
+export {
+  BROWSER_PROJECT_ASSET_REFERENCE_PREFIX,
+  copyBrowserProjectAssets,
+  getBrowserProjectAssetIds,
+} from './persistence/contentAddressedBrowserAssets';
+export {
+  applyGuestWorkspaceAdoption,
+  inspectGuestWorkspaceAdoption,
+} from './persistence/guestWorkspaceAdoption';
+export type { GuestWorkspaceAdoptionOffer } from './persistence/guestWorkspaceAdoption';
+export {
+  createProjectBinaryAssetResolver,
+  createScopedProjectBinaryAssetResolver,
+  isProjectBinaryAssetReference,
+} from './persistence/projectBinaryAssetResolver';
+export type {
+  ProjectBinaryAssetHandle,
+  ProjectBinaryAssetResolver,
+} from './persistence/projectBinaryAssetResolver';
 export {
   readStructuredBrowserValue,
   removeStructuredBrowserValue,
   writeStructuredBrowserValue,
 } from './persistence/structuredBrowserStorage';
 export {
+  BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT,
   createProjectPersistenceScope,
   createScopedProjectStorage,
   getProjectPersistenceScope,

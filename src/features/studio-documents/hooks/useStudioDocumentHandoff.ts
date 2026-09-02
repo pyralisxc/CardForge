@@ -48,6 +48,7 @@ interface StudioDocumentHandoffOptions {
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   mergeUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
   toast: (input: ToastInput) => void;
+  onInstalled?: (result: { activeSetId: string | null; destination: 'sets' | 'generator' | 'template-maker' }) => void;
 }
 
 const parseRequestedRevision = (value: string | null): number | null => {
@@ -73,6 +74,7 @@ export function useStudioDocumentHandoff({
   setTemplateEditorSelectedTemplateId,
   mergeUserTemplates,
   toast,
+  onInstalled,
 }: StudioDocumentHandoffOptions) {
   const handledRevisionKeyRef = useRef<string | null>(null);
   const inFlightRevisionKeyRef = useRef<string | null>(null);
@@ -224,6 +226,7 @@ export function useStudioDocumentHandoff({
               description: `CardForge applied${revisionLabel} to this device.`,
             });
           }
+          onInstalled?.({ activeSetId: installSummary.activeSetId, destination: installSummary.destination });
           return;
         }
 
@@ -273,6 +276,7 @@ export function useStudioDocumentHandoff({
             ? 'The project is ready in Studio. Your current tier keeps the CardForge watermark on previews and finished downloads.'
             : 'The project is ready in Studio with clean-output access from your current tier.',
         });
+        onInstalled?.({ activeSetId, destination: 'template-maker' });
       } catch (error) {
         if (!cancelled) {
           toast({
@@ -298,6 +302,7 @@ export function useStudioDocumentHandoff({
     mergeAppearanceStyles,
     mergeStoredCards,
     mergeUserTemplates,
+    onInstalled,
     setStudioView,
     setExportDpi,
     setExportMode,

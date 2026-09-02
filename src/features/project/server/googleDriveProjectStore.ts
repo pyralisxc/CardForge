@@ -15,6 +15,7 @@ import {
   isGoogleDriveFileId,
   isGoogleDriveProviderRevision,
   isGoogleDriveWorkId,
+  hasGoogleDriveProjectRevisionConflict,
   type GoogleDriveProjectConnectionSummary,
   type GoogleDriveProjectDownload,
   type GoogleDriveProjectListResult,
@@ -572,12 +573,16 @@ export const prepareGoogleDriveProjectUpload = async ({
     const current = await getDriveFileMetadata({ accessToken, fileId });
     const currentSummary = assertOwnedCardForgeProject(current, row.root_folder_id);
     effectiveWorkId = effectiveWorkId ?? currentSummary.workId;
-    if (!expectedProviderRevision || !expectedProjectRevision) {
-      throw new ProjectStorageProviderError('Updating a Google Drive project requires the exact provider and CardForge revisions previously read.', 409, { kind: 'conflict' });
-    }
-    if (currentSummary.providerRevision !== expectedProviderRevision || currentSummary.projectRevision !== expectedProjectRevision) {
+    if (hasGoogleDriveProjectRevisionConflict({
+      currentProviderRevision: currentSummary.providerRevision,
+      currentProjectRevision: currentSummary.projectRevision,
+      expectedProviderRevision,
+      expectedProjectRevision,
+    })) {
       throw new ProjectStorageProviderError(
-        `The Google Drive project changed after revision ${expectedProviderRevision}. Reload it before saving so CardForge does not overwrite newer work.`,
+        expectedProviderRevision && expectedProjectRevision
+          ? `The Google Drive project changed after revision ${expectedProviderRevision}. Reload it before saving so CardForge does not overwrite newer work.`
+          : 'Updating a Google Drive project requires the exact provider and CardForge revisions previously read.',
         409,
         { kind: 'conflict' },
       );
@@ -638,20 +643,18 @@ export const prepareGoogleDriveProjectUpload = async ({
 
 const completeServerUpload = async ({
   uploadSessionUrl,
-  bytes,
+  blob,
 }: {
   uploadSessionUrl: string;
-  bytes: Uint8Array;
+  blob: Blob;
 }): Promise<GoogleDriveUploadCompletion> => {
-  const bodyBytes = new Uint8Array(bytes.byteLength);
-  bodyBytes.set(bytes);
   const response = await fetch(uploadSessionUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
-      'Content-Length': String(bytes.byteLength),
+      'Content-Length': String(blob.size),
     },
-    body: bodyBytes.buffer,
+    body: blob,
     cache: 'no-store',
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
@@ -666,7 +669,7 @@ export const updateGoogleDriveProjectFromServer = async ({
   ownerUserId,
   fileId,
   name,
-  bytes,
+  blob,
   projectRevision,
   expectedProviderRevision,
   expectedProjectRevision,
@@ -674,7 +677,7 @@ export const updateGoogleDriveProjectFromServer = async ({
   ownerUserId: string;
   fileId: string;
   name: string;
-  bytes: Uint8Array;
+  blob: Blob;
   projectRevision: string;
   expectedProviderRevision: string;
   expectedProjectRevision: string;
@@ -682,20 +685,20 @@ export const updateGoogleDriveProjectFromServer = async ({
   const plan = await prepareGoogleDriveProjectUpload({
     ownerUserId,
     name,
-    size: bytes.byteLength,
+    size: blob.size,
     projectRevision,
     fileId,
     expectedProviderRevision,
     expectedProjectRevision,
   });
-  const completed = await completeServerUpload({ uploadSessionUrl: plan.uploadSessionUrl, bytes });
+  const completed = await completeServerUpload({ uploadSessionUrl: plan.uploadSessionUrl, blob });
   const summary = toProjectSummary({
     id: completed.id,
     name: completed.name,
     mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE,
     version: completed.version,
     modifiedTime: completed.modifiedTime ?? new Date().toISOString(),
-    size: completed.size ?? String(bytes.byteLength),
+    size: completed.size ?? String(blob.size),
     webViewLink: completed.webViewLink,
     appProperties: completed.appProperties ?? {
       [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,

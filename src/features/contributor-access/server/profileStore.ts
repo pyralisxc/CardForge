@@ -15,7 +15,6 @@ export interface ContributorProfileRow {
   monthly_published_requirement_override?: number | null;
   owner_note?: string | null;
   can_draft_campaigns?: boolean | null;
-  can_propose_site_content?: boolean | null;
 }
 
 export interface ContributorProfileIdentity {
@@ -32,7 +31,6 @@ export interface ContributorProfileReference {
 export interface ContributorProfileCapabilities {
   status: ContributorProfileStatus;
   canDraftCampaigns: boolean;
-  canProposeSiteContent: boolean;
 }
 
 export class ContributorAccessStoreError extends Error {
@@ -42,7 +40,7 @@ export class ContributorAccessStoreError extends Error {
 }
 
 const PROFILE_COLUMNS =
-  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,owner_note,can_draft_campaigns,can_propose_site_content';
+  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,owner_note,can_draft_campaigns';
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
 
@@ -174,7 +172,6 @@ export const getContributorProfileCapabilities = async (
   const failClosed: ContributorProfileCapabilities = {
     status: 'inactive',
     canDraftCampaigns: false,
-    canProposeSiteContent: false,
   };
   if (!contributorId) return failClosed;
   if (!supabase) {
@@ -183,7 +180,7 @@ export const getContributorProfileCapabilities = async (
 
   const { data, error } = await supabase
     .from('cardforge_contributor_profiles')
-    .select('status,can_draft_campaigns,can_propose_site_content')
+    .select('status,can_draft_campaigns')
     .eq('clerk_user_id', contributorId)
     .limit(1);
   if (error) {
@@ -194,7 +191,6 @@ export const getContributorProfileCapabilities = async (
   return {
     status: normalizeStatus(row?.status),
     canDraftCampaigns: Boolean(row?.can_draft_campaigns),
-    canProposeSiteContent: Boolean(row?.can_propose_site_content),
   };
 };
 
@@ -211,7 +207,6 @@ export const listContributorAccessProfiles = async (
       displayName: name || row.email,
       status: normalizeStatus(row.status),
       canDraftCampaigns: Boolean(row.can_draft_campaigns),
-      canProposeSiteContent: Boolean(row.can_propose_site_content),
     };
   });
 };
@@ -241,33 +236,6 @@ export const upsertContributorProfile = async ({
   if (error) {
     console.error('Failed to upsert Contributor profile:', error);
   }
-};
-
-export const updateContributorScopes = async ({
-  contributorId,
-  canDraftCampaigns,
-  canProposeSiteContent,
-}: {
-  contributorId: unknown;
-  canDraftCampaigns: unknown;
-  canProposeSiteContent: unknown;
-}): Promise<void> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new ContributorAccessStoreError('Contributor access database is not configured yet.', 503);
-  const normalizedId = normalizeShortText(contributorId, 160);
-  if (!normalizedId) throw new ContributorAccessStoreError('Choose a Contributor profile.', 400);
-
-  const { data, error } = await supabase
-    .from('cardforge_contributor_profiles')
-    .update({
-      can_draft_campaigns: canDraftCampaigns === true,
-      can_propose_site_content: canProposeSiteContent === true,
-    })
-    .eq('clerk_user_id', normalizedId)
-    .select('clerk_user_id')
-    .limit(1);
-  if (error) throw new ContributorAccessStoreError('Unable to update Contributor scopes.');
-  if (!data?.[0]) throw new ContributorAccessStoreError('Contributor profile not found.', 404);
 };
 
 export const updateContributorPipelineRules = async ({
@@ -301,7 +269,6 @@ export const updateContributorProfileControl = async ({
   contributorId,
   status,
   canDraftCampaigns,
-  canProposeSiteContent,
   monthlySubmissionLimitOverride,
   monthlyPublishedRequirementOverride,
   ownerNote,
@@ -309,7 +276,6 @@ export const updateContributorProfileControl = async ({
   contributorId: string;
   status: ContributorProfileStatus;
   canDraftCampaigns: boolean;
-  canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
   ownerNote: string;
@@ -326,7 +292,6 @@ export const updateContributorProfileControl = async ({
     .update({
       status,
       can_draft_campaigns: status === 'active' && canDraftCampaigns,
-      can_propose_site_content: status === 'active' && canProposeSiteContent,
       monthly_submission_limit_override: normalizeOverride(monthlySubmissionLimitOverride, 1, 250),
       monthly_published_requirement_override: normalizeOverride(monthlyPublishedRequirementOverride, 0, 100),
       owner_note: normalizeShortText(ownerNote, 500),

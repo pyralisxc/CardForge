@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FolderInput, FolderOpen, HardDriveDownload, Link2Off, Loader2, RefreshCw, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -152,7 +152,7 @@ export function LocalProjectFolderPanel({
               onClick={() => void run('open', async () => {
                 const next = await openProjectFromFolder();
                 toast({ title: 'Project folder opened', description: `Loaded “${next.folderName}” into the local CardForge workspace.` });
-                router.push(createStudioHref({ returnTo: '/account?section=storage' }));
+                router.push(next.workId ? createDeskReturnHref(`set:${next.workId}`) : '/account');
               })}
             >
               {busyAction === 'open' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderInput className="mr-2 h-4 w-4" />}

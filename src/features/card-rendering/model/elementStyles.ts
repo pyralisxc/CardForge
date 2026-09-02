@@ -52,6 +52,7 @@ const isRenderableImageSource = (value?: string): value is string =>
     value.startsWith('http')
     || value.startsWith('data:')
     || value.startsWith('blob:')
+    || value.startsWith('cardforge-browser-asset://')
     || value.startsWith('/')
   );
 

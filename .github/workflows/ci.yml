@@ -27,7 +27,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run architecture:check
-      - run: npm run migrations:check
-      - run: npm run test
+      - run: npm run test:product
+      - run: npm run test:infrastructure
       - run: npm run build

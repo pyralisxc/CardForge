@@ -57,7 +57,7 @@ export default async function SignInPage({
           signUpFallbackRedirectUrl={fallbackRedirectUrl}
           signUpUrl={createAuthRouteHref('/sign-up', fallbackRedirectUrl)}
         />
-        <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-border-strong)] px-5 font-bold text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)]">Open Studio without signing in</Link>
+        <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center border border-[var(--cf-border-strong)] px-5 font-bold text-[var(--cf-accent-text)] hover:border-[var(--cf-accent)]">Open Desk without signing in</Link>
       </div>
     </main>
   );

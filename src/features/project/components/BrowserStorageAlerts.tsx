@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import { BROWSER_STORAGE_FAILURE_EVENT, createIndexedDbStorage } from '../persistence/indexedDbStorage';
+import { BrowserStoragePersistencePrompt } from './BrowserStoragePersistencePrompt';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -57,5 +58,5 @@ export function BrowserStorageAlerts({ canUseProjectFiles }: { canUseProjectFile
     };
   }, [canUseProjectFiles, toast]);
 
-  return null;
+  return <BrowserStoragePersistencePrompt />;
 }

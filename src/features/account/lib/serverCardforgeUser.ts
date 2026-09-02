@@ -1,4 +1,5 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server';
+import { unstable_rethrow } from 'next/navigation';
 
 import {
   isClerkAuthConfigured,
@@ -153,6 +154,7 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
       CLERK_USER_READ_TIMEOUT_MS,
     );
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Unable to resolve current CardForge account identity:', error);
     throw new AccountIdentityUnavailableError();
   }

@@ -13,6 +13,7 @@ import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
+import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
@@ -111,7 +112,7 @@ export function IconInspectorPanel({
                     className="group min-h-[72px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[var(--cf-editor-control)]"
                     onClick={() => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
                   >
-                    <span className="block h-9 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
+                    <ProjectBinaryAssetBackground source={asset.url} className="block h-9 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" />
                     <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
                     <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>

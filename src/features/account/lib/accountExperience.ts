@@ -10,7 +10,6 @@ export interface AccountContributionExperience {
   canReview: boolean;
   canPublish: boolean;
   canDraftCampaigns: boolean;
-  canProposeSite: boolean;
 }
 
 export interface AccountExperienceProjection {
@@ -27,7 +26,6 @@ const EMPTY_CONTRIBUTION: AccountContributionExperience = {
   canReview: false,
   canPublish: false,
   canDraftCampaigns: false,
-  canProposeSite: false,
 };
 
 export const projectAccountExperience = ({

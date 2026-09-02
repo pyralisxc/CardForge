@@ -375,7 +375,7 @@
     border-left: 0;
     border-radius: 0;
     background: var(--cf-editor-shell);
-    padding: 0.125rem !important;
+    padding: 0.125rem var(--cf-workspace-close-reserve, 0.125rem) 0.125rem 0.125rem !important;
     box-shadow: none;
     backdrop-filter: none;
   }
@@ -428,27 +428,11 @@
 }
 
 @media (min-width: 1024px) {
-  .cardforge-application-viewport {
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-    background: var(--cf-canvas);
-  }
-
-  .cardforge-application-viewport > div {
-    display: flex;
-    height: 100%;
-    min-height: 0 !important;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .cardforge-application-viewport .cardforge-studio-workspace-nav,
-  .cardforge-application-viewport > div > footer {
+  .cardforge-studio-workspace > div > footer {
     flex: 0 0 auto;
   }
 
-  .cardforge-application-viewport .cardforge-studio-main {
+  .cardforge-studio-workspace .cardforge-studio-main {
     display: flex;
     min-height: 0;
     flex: 1 1 auto;
@@ -458,11 +442,11 @@
     padding-bottom: 1rem;
   }
 
-  .cardforge-application-viewport .cardforge-studio-context {
+  .cardforge-studio-workspace .cardforge-studio-context {
     flex: 0 0 auto;
   }
 
-  .cardforge-application-viewport [data-testid="layout-studio-panel"][data-state="active"] {
+  .cardforge-studio-workspace [data-testid="layout-studio-panel"][data-state="active"] {
     display: flex;
     min-height: 0;
     flex: 1 1 auto;
@@ -470,7 +454,7 @@
     overflow: hidden;
   }
 
-  .cardforge-application-viewport [data-testid="generator-panel"]:not([hidden]) {
+  .cardforge-studio-workspace [data-testid="generator-panel"]:not([hidden]) {
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;
@@ -478,7 +462,7 @@
     padding-right: 0.25rem;
   }
 
-  .cardforge-application-viewport .cardforge-maker-shell {
+  .cardforge-studio-workspace .cardforge-maker-shell {
     display: flex;
     height: 100% !important;
     min-height: 0 !important;
@@ -487,43 +471,43 @@
     overflow: hidden;
   }
 
-  .cardforge-application-viewport .cardforge-maker-grid {
+  .cardforge-studio-workspace .cardforge-maker-grid {
     min-height: 0 !important;
     flex: 1 1 auto;
     overflow: hidden;
   }
 
-  .cardforge-application-viewport .cardforge-maker-side,
-  .cardforge-application-viewport .cardforge-canvas-stage {
+  .cardforge-studio-workspace .cardforge-maker-side,
+  .cardforge-studio-workspace .cardforge-canvas-stage {
     min-height: 0 !important;
     height: 100%;
     overflow: hidden;
   }
 
-  .cardforge-application-viewport .cardforge-maker-scroll {
+  .cardforge-studio-workspace .cardforge-maker-scroll {
     height: 100% !important;
     min-height: 0 !important;
     max-height: none !important;
   }
 
-  .cardforge-application-viewport .cardforge-maker-scroll [data-radix-scroll-area-viewport] {
+  .cardforge-studio-workspace .cardforge-maker-scroll [data-radix-scroll-area-viewport] {
     height: 100% !important;
     min-height: 0 !important;
     overflow-y: auto !important;
   }
 
-  .cardforge-application-viewport .cardforge-canvas-stage {
+  .cardforge-studio-workspace .cardforge-canvas-stage {
     display: flex;
     flex-direction: column;
   }
 
-  .cardforge-application-viewport .cardforge-canvas-scroll {
+  .cardforge-studio-workspace .cardforge-canvas-scroll {
     height: auto !important;
     min-height: 0 !important;
     flex: 1 1 auto;
   }
 
-  .cardforge-application-viewport [data-testid="generated-gallery-scroll"] {
+  .cardforge-studio-workspace [data-testid="generated-gallery-scroll"] {
     height: clamp(24rem, 62dvh, 48rem) !important;
     min-height: 0;
   }

@@ -3,6 +3,7 @@ import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { ContributorProgramPage } from '@/features/contributor-program/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
 
@@ -20,7 +21,7 @@ export default async function ContributorsPage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/contributors">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/contributors" ownerControls={<OwnerPublicSiteControlsSlot currentPath="/contributors" />}>
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Contributors', path: '/contributors' },

@@ -15,6 +15,7 @@ import {
   type CardMeasurementUnit,
 } from '@/domain/card-formats';
 import type { CardAssetOption, FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
+import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import { cn } from '@/shared/classNames';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { ColorField } from '@/features/template-editor/components/ColorField';
@@ -273,10 +274,9 @@ export function TemplateSettingsPanel({
                 )}
                 onClick={() => onUpdateTemplate({ cardBackgroundImageUrl: asset.url })}
               >
-                <span
+                <ProjectBinaryAssetBackground
+                  source={asset.url}
                   className="h-20 w-full rounded-[3px] border border-[#3a2e17] bg-[#17120d] bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url(${asset.url})` }}
-                  aria-hidden="true"
                 />
                 <span className="block w-full truncate text-[10px] text-[#f1dfb4]">{asset.name}</span>
               </Button>
@@ -311,10 +311,9 @@ export function TemplateSettingsPanel({
                 )}
                 onClick={() => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
               >
-                <span
+                <ProjectBinaryAssetBackground
+                  source={asset.url}
                   className="h-20 w-full rounded-[3px] border border-[#3a2e17] bg-[#17120d] bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url(${asset.url})` }}
-                  aria-hidden="true"
                 />
                 <span className="block w-full truncate text-[10px] text-[#f1dfb4]">{asset.name}</span>
               </Button>

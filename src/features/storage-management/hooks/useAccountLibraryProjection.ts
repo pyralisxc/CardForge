@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
-import { createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import type { CardAssetOption } from '@/domain/templates';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import {
@@ -333,20 +333,20 @@ export function useAccountLibraryProjection({
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
-        useProjectStore.getState().setStudioView('generate');
-        router.push(createStudioHref({ returnTo }));
+        router.push(createDeskReturnHref(`set:${item.references.localSetId}`));
         return;
       }
       if (item.references.localTemplateId) {
         const store = useProjectStore.getState();
         store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
         store.setStudioView('template');
-        router.push(createStudioHref({ returnTo }));
+        const params = new URLSearchParams({ section: 'library', scope: 'personal', tool: 'design', artifact: item.references.localTemplateId });
+        router.push(`/account?${params.toString()}`);
         return;
       }
       if (item.references.driveFileId) {
-        await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
-        router.push(createStudioHref({ returnTo }));
+        const binding = await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
+        router.push(binding.workId ? createDeskReturnHref(`set:${binding.workId}`) : '/account');
       }
     } catch (error) {
       toast({

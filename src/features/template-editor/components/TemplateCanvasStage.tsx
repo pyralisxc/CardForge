@@ -71,6 +71,7 @@ const buildRulerLabels = ({
 };
 
 interface TemplateCanvasStageProps {
+  autoFitCanvas: boolean;
   canvas: FreeformCanvas;
   canvasFrameStyle: CSSProperties;
   canvasRef: { current: HTMLDivElement | null };
@@ -98,6 +99,7 @@ interface TemplateCanvasStageProps {
 }
 
 export function TemplateCanvasStage({
+  autoFitCanvas,
   canvas,
   canvasFrameStyle,
   canvasRef,
@@ -138,7 +140,8 @@ export function TemplateCanvasStage({
           stageRef.current = stage;
         }}
         data-cardforge-stage="true"
-        className="cardforge-canvas-scroll relative flex min-h-0 flex-1 touch-none justify-center overflow-auto bg-[#05080c] p-4 md:p-8"
+        data-auto-fit={autoFitCanvas ? 'true' : 'false'}
+        className={`cardforge-canvas-scroll relative flex min-h-0 flex-1 touch-none bg-[#05080c] p-4 md:p-8 ${autoFitCanvas ? 'overflow-hidden' : 'overflow-auto'}`}
         onPointerDownCapture={onStagePointerDownCapture}
         onPointerMoveCapture={onStagePointerMoveCapture}
         onPointerUpCapture={onStagePointerUpCapture}
@@ -151,7 +154,7 @@ export function TemplateCanvasStage({
         onDrop={onDrop}
       >
         <div
-          className="relative"
+          className="relative m-auto shrink-0"
           style={{
             paddingLeft: CANVAS_RULER_WIDTH + CANVAS_GUTTER,
             paddingTop: CANVAS_RULER_WIDTH + CANVAS_GUTTER,

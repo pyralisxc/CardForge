@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: August 28, 2026
+Last updated: September 1, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for the current application, while [product-surface-map.md](product-surface-map.md) records shipped-versus-direction placement and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -31,7 +31,7 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 **Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
-**Owner remains a separate protected operating environment** because the Owner's recurring job is operating CardForge itself: publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues.
+**Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
 
 The public site remains CardForge's entrance and explanation surface, not another private workspace.
 
@@ -110,6 +110,8 @@ Opening a work container changes focus rather than changing the mental model:
 
 Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, and freeform card positions travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
 
+Artifact focus is another exclusive lens, not an inspector over a still-visible Set. Once a creator chooses an Artifact to work on, that Artifact fills the camera-fitted work field and sibling Artifacts plus Set-level organization controls leave the visual surface. Back/Escape restores the exact Set camera and selection before the next unwind returns to Desk.
+
 ### Studio: the focused authoring and production workbench
 
 Studio does not open another Set browser. It receives the active Set plus the selected artifact, Template, record, revision, or requested tool from Desk, Library, a public creation entry, or agent handoff.
@@ -119,6 +121,8 @@ The focus path is:
 > selected work → artifact/Template/record → element-level editing or production tool
 
 Selecting Edit, Generate, Test, Validate, or advanced Output opens the smallest useful Studio tool. Returning restores exact prior Desk or Library context.
+
+Design is the exclusive full-viewport precision workspace while it is open. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
 
 The focused Studio workbench supports:
 
@@ -231,7 +235,7 @@ A standard active Contributor may receive capabilities equivalent to:
 - review/vote on Pipeline assets;
 - submit shared-library revisions;
 - create temporary private Studio drafts with AI;
-- campaign drafting or site proposals only when separately granted/release-enabled.
+- campaign drafting only when separately granted/release-enabled.
 
 Normal Contributor access does not imply live publication authority.
 
@@ -394,11 +398,13 @@ Profile centers the person, not an account record.
 
 Clerk remains the native identity/security owner. Stripe remains the native checkout/billing owner. Provider connection lifecycle remains with the provider integration, with Profile showing a compact summary and Library owning detailed location management.
 
+The Profile overview leads with current identity, access, workspace, authority, assisted-work allowance, and Contributor progress where applicable. Deeper utilities explain or manage those values without forcing users to navigate just to discover their current state.
+
 Profile may hold durable personal defaults only when ownership is truly personal: presentation, default Specialty/Kit, accessibility choices, output preference, and Contributor configuration. Work-specific settings stay with the selected work container.
 
-## Owner Environment
+## Owner Operations
 
-Owner remains a protected operational environment because its recurring object is CardForge itself.
+Owner operations reveal as protected tools at their native recurring object. Profile composes account-, provider-, governance-, and service-oriented operations. Public copy/media and roadmap-rule controls reveal contextually on server-confirmed Owner views of the native public pages, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
 
 Owner responsibilities include:
 
@@ -414,9 +420,9 @@ Owner responsibilities include:
 
 Owner may reuse the same object renderers, Library projections, and review surfaces, but authority remains explicit and auditable.
 
-## Campaign and Site Contribution
+## Campaign Contribution
 
-Existing campaign package and site-proposal capabilities remain valid and must not be lost while Contributor stops being a separate zone.
+Campaign package capability remains valid while Contributor stops being a separate zone. Contributor site-proposal capability is retired; historical proposal data and schema columns remain retained only for audit, are not projected into current profiles, and cannot be granted by Owner controls.
 
 First integration rule:
 
@@ -424,14 +430,14 @@ First integration rule:
 - Desk surfaces a compact visual shelf for active campaign packages owned by or available to the current Contributor.
 - Library adds a Campaigns scope only for Owners and Contributors granted `campaigns.draft`; normal accounts do not receive campaign packages or reusable campaign media through Pipeline entitlement.
 - Contributors draft, revise, attach approved media, and submit campaign packages in Library. Owner retains strategy, approval, destination credentials, scheduling, publication, and delivery history.
-- Profile owns personal Contributor access, limits, scopes, and the current user's site-proposal drafts/status. Owner reviews and publishes site proposals from Owner.
-- Campaign and site tools reveal within their owning surface and return to the originating context; they do not create a replacement Contributor destination.
+- Profile owns personal Contributor access, limits, and scopes. Owner operations compose inside Profile.
+- Campaign tools reveal within their owning surface and return to the originating context; they do not create a replacement Contributor destination.
 
 Do not create permanent geography merely because a permission exists. A future campaign/production environment earns a separate zone only if it develops a durable recurring object/queue users intentionally revisit outside normal editing.
 
 ## Studio Entry and Specialties
 
-The public site's primary action can remain **Enter the Studio**. A launcher may guide users through:
+The public site's primary action enters **Desk**. A future launcher may guide users through:
 
 1. choose a Specialty or Fully Custom;
 2. choose a Kit or no Kit;
@@ -637,7 +643,7 @@ The prior six alpha concept images remain historical hierarchy references, but t
 - Library: Personal / Published / Pipeline collection with object inspectors;
 - Studio: focused Design/Generate/Validate/Output workbench over the selected object;
 - Profile: person-centered configuration;
-- Owner: separate operational environment.
+- Owner: protected operations composed inside Profile.
 
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
@@ -649,7 +655,7 @@ The old Developer-zone concept is superseded by Contributor enhancements across 
 4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
 5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the shared surface/workbench grammar while keeping explicit authority and parity with their current owners.
 6. **Source/MCP parity** — shared source capability projection, provider reachability clarity, connected personal assets, broader agent contribution where appropriate.
-7. **Campaign/site integration** — campaign work is integrated into Desk/Library and site proposals into Profile/Owner; continue refining the shared object/tool grammar without restoring a separate Contributor destination.
+7. **Campaign integration** — campaign work is integrated into Desk/Library; continue refining the shared object/tool grammar without restoring a separate Contributor destination.
 8. **Studio focus and Pipeline in context** — remove the duplicate Set Desk and Templates/Make Cards/Sets destination model while preserving their native capability owners; then refine object-specific Design/Generate/Validate/Output, exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
 9. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
 

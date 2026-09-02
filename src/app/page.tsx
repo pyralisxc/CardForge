@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { Fragment } from 'react';
+import { Fragment, Suspense } from 'react';
 
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
@@ -24,6 +24,7 @@ import {
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
+import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
   const siteConfiguration = await getCachedPublicSiteConfiguration();
@@ -91,6 +92,9 @@ export default async function LandingPage() {
         {siteConfiguration.homepageSections.filter((section) => section.visible).map((section) => (
           <Fragment key={section.id}>{homepageSections[section.id]}</Fragment>
         ))}
+        <Suspense fallback={null}>
+          <OwnerPublicSiteControlsSlot currentPath="/" />
+        </Suspense>
       </PublicSiteShell>
     </CardForgeAppProviders>
   );

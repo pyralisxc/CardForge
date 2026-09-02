@@ -1,5 +1,6 @@
 export { CardForgeRichTextEditor } from './components/CardForgeRichTextEditor';
 export { CardPreview } from './components/CardPreview';
+export { useArtifactViewport } from './hooks/useArtifactViewport';
 export { AuthoredObjectPreview } from './components/AuthoredObjectPreview';
 export {
   applyContractRichTextStyle,

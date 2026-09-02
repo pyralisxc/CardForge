@@ -1,11 +1,11 @@
 "use client";
 
 import { UserButton, useUser } from '@clerk/nextjs';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LoaderCircle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import {
   createAuthRouteHref,
   getPublicAuthControlState,
@@ -23,7 +23,7 @@ export function PublicAuthControls({
 }
 
 function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: ReactNode }) {
-  const pathname = usePathname();
+  const returnTo = useSafeCurrentReturnPath();
   const { isLoaded, isSignedIn } = useUser();
 
   const state = getPublicAuthControlState({
@@ -58,7 +58,7 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
 
   return (
     <Button asChild type="button" size="sm" className="gap-2 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
-      <Link href={createAuthRouteHref('/sign-in', pathname)} prefetch={false}>
+      <Link href={createAuthRouteHref('/sign-in', returnTo)} prefetch={false}>
         <LogIn className="h-4 w-4" /> Sign in
       </Link>
     </Button>

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createStudioHref } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
+import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import {
   chooseGoogleDriveProjectFolder,
   deleteGoogleDriveProjectFromLibrary,
@@ -43,6 +44,7 @@ export function GoogleDriveProjectStoragePanel({
   persistenceScope: ProjectPersistenceScope;
 }) {
   const router = useRouter();
+  const returnTo = useSafeCurrentReturnPath('/account?section=library&tool=locations');
   const { toast } = useToast();
   const activeSetName = useProjectStore((state) => state.activeCardSet?.name ?? 'No Set selected');
   const [ready, setReady] = useState(false);
@@ -139,7 +141,7 @@ export function GoogleDriveProjectStoragePanel({
         <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
           <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
           <Button asChild className="mt-3" size="sm">
-            <Link href={createAuthRouteHref('/sign-in', '/account?section=storage')} prefetch={false}>
+            <Link href={createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')} prefetch={false}>
               <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
             </Link>
           </Button>
@@ -158,7 +160,7 @@ export function GoogleDriveProjectStoragePanel({
             className="mt-3"
             size="sm"
             disabled={!canUseProjectFiles}
-            onClick={() => router.push('/api/project-sources/google-drive/connect')}
+            onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}
           >
             <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
           </Button>
@@ -259,7 +261,7 @@ export function GoogleDriveProjectStoragePanel({
                     onOpen={() => void run(`open:${project.fileId}`, async () => {
                       const opened = await openGoogleDriveProject(project);
                       toast({ title: 'Google Drive project opened', description: `Loaded “${opened.name}” into this browser workspace.` });
-                      router.push(createStudioHref({ returnTo: '/account?section=storage' }));
+                      router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
                     })}
                     onDelete={() => void run(`delete:${project.fileId}`, async () => {
                       await deleteGoogleDriveProjectFromLibrary(project);

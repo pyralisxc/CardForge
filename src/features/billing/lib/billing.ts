@@ -1,6 +1,7 @@
 import type Stripe from 'stripe';
 
 import type { PaidPlan } from '@/domain/entitlements';
+import { getSafeLocalReturnPath } from '@/infrastructure/auth/clerk';
 import { getConfiguredPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export type BillingEnvironment = Partial<Record<
@@ -37,6 +38,7 @@ export interface BuildProductAccessCheckoutSessionParamsInput {
   email?: string | null;
   offering?: ProductAccessOffering;
   priceId: string;
+  returnTo?: string;
   userId: string;
 }
 
@@ -77,6 +79,7 @@ export interface BuildCreatorSupportCheckoutSessionParamsInput {
 export interface BuildBillingPortalSessionParamsInput {
   appUrl: string;
   customerId: string;
+  returnTo?: string;
 }
 
 export interface BuildStripePaidAccessMetadataInput {
@@ -281,13 +284,21 @@ export const buildProductAccessCheckoutSessionParams = ({
   email,
   offering = 'creator_pass',
   priceId,
+  returnTo,
   userId,
 }: BuildProductAccessCheckoutSessionParamsInput): Stripe.Checkout.SessionCreateParams => {
   const normalizedAppUrl = appUrl.replace(/\/+$/, '');
+  const safeReturnTo = getSafeLocalReturnPath(returnTo, '/account?section=profile&utility=billing');
+  const createReturnUrl = (checkout: 'cancelled' | 'success') => {
+    const target = new URL(safeReturnTo, `${normalizedAppUrl}/`);
+    target.searchParams.set('checkout', checkout);
+    return target.toString();
+  };
   const metadata = {
     clerkUserId: userId,
     billingPurpose: 'product_access',
     billingOffering: offering,
+    checkoutReturnTo: safeReturnTo.slice(0, 500),
   };
 
   return {
@@ -295,8 +306,8 @@ export const buildProductAccessCheckoutSessionParams = ({
     customer_email: email || undefined,
     client_reference_id: userId,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${normalizedAppUrl}/account?checkout=success#account-and-billing`,
-    cancel_url: `${normalizedAppUrl}/account?checkout=cancelled#account-and-billing`,
+    success_url: createReturnUrl('success'),
+    cancel_url: createReturnUrl('cancelled'),
     allow_promotion_codes: true,
     metadata: {
       ...metadata,
@@ -368,12 +379,14 @@ export const buildCreatorSupportCheckoutSessionParams = ({
 export const buildBillingPortalSessionParams = ({
   appUrl,
   customerId,
+  returnTo,
 }: BuildBillingPortalSessionParamsInput): Stripe.BillingPortal.SessionCreateParams => {
   const normalizedAppUrl = appUrl.replace(/\/+$/, '');
+  const safeReturnTo = getSafeLocalReturnPath(returnTo, '/account?section=profile&utility=billing');
 
   return {
     customer: customerId,
-    return_url: `${normalizedAppUrl}/account`,
+    return_url: new URL(safeReturnTo, `${normalizedAppUrl}/`).toString(),
   };
 };
 

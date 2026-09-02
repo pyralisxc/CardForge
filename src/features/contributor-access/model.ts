@@ -15,8 +15,6 @@ export const CONTRIBUTOR_SCOPES = [
   'campaigns.draft',
   'campaigns.approve',
   'campaigns.publish',
-  'site.propose',
-  'site.publish',
   'scopes.manage',
 ] as const;
 
@@ -30,8 +28,6 @@ export const CONTRIBUTOR_SCOPE_LABELS: Record<ContributorScope, string> = {
   'campaigns.draft': 'Draft campaign packages',
   'campaigns.approve': 'Approve campaign packages',
   'campaigns.publish': 'Publish approved campaigns',
-  'site.propose': 'Propose site improvements',
-  'site.publish': 'Publish approved site copy',
   'scopes.manage': 'Manage contributor access',
 };
 
@@ -41,7 +37,6 @@ export interface ContributorAccessProfile {
   displayName: string | null;
   status: ContributorProfileStatus;
   canDraftCampaigns: boolean;
-  canProposeSiteContent: boolean;
 }
 
 export interface ContributorAccessProjection {
@@ -105,12 +100,10 @@ export const resolveContributorScopes = ({
   isOwner,
   profileStatus,
   canDraftCampaigns,
-  canProposeSiteContent,
 }: {
   isOwner: boolean;
   profileStatus: ContributorProfileStatus | null;
   canDraftCampaigns: boolean;
-  canProposeSiteContent: boolean;
 }): ContributorScope[] => {
   if (isOwner) return [...CONTRIBUTOR_SCOPES];
   if (profileStatus !== 'active') return [];
@@ -120,7 +113,6 @@ export const resolveContributorScopes = ({
     'assets.review',
     'library.submit',
     ...(canDraftCampaigns ? ['campaigns.draft' as const] : []),
-    ...(canProposeSiteContent ? ['site.propose' as const] : []),
   ];
 };
 

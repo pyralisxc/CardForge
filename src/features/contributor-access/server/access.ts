@@ -37,7 +37,6 @@ export const getContributorCapabilities = async (
         isOwner: true,
         profileStatus: null,
         canDraftCampaigns: false,
-        canProposeSiteContent: false,
       }),
     };
   }
@@ -64,7 +63,6 @@ export const getContributorCapabilities = async (
       isOwner: false,
       profileStatus: capabilities.status,
       canDraftCampaigns: capabilities.canDraftCampaigns && extendedContributionsEnabled,
-      canProposeSiteContent: capabilities.canProposeSiteContent && extendedContributionsEnabled,
     }),
   };
 };

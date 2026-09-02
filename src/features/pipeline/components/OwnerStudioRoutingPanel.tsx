@@ -308,7 +308,7 @@ function StudioRoutingCard({
         <div className="flex flex-wrap gap-2">
           {item.assetType === 'template' ? (
             <Button asChild type="button" variant="outline" size="sm" className="rounded-none border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
-              <a href={`/studio?editTemplate=${encodeURIComponent(item.assetId)}`}>Edit Template <ExternalLink className="ml-1 h-3.5 w-3.5" /></a>
+              <a href="/account?section=library&scope=published">Open in Library <ExternalLink className="ml-1 h-3.5 w-3.5" /></a>
             </Button>
           ) : null}
           <Button type="button" size="sm" disabled={isSaving || !Number.isInteger(draft.sortOrder) || draft.sortOrder < 0 || draft.sortOrder > 100000} onClick={() => onSave(draft)} className="rounded-none bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]">
