@@ -5,6 +5,23 @@
   background: var(--cf-canvas);
 }
 
+.spatialPlane[data-artifact-focused="true"],
+.spatialPlane[data-artifact-focused="true"] .desk,
+.spatialPlane[data-artifact-focused="true"] .workSurface,
+.spatialPlane[data-artifact-focused="true"] .workGrid,
+.spatialPlane[data-artifact-focused="true"] .workTile[data-presentation="focused"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .desk {
+  gap: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  flex: 1 1 auto;
+}
+
 .desk {
   display: flex;
   width: 100%;
@@ -26,6 +43,14 @@
 .desk[data-focused="true"] .workSurface,
 .desk[data-focused="true"] .workGrid {
   min-height: 100%;
+}
+
+.desk[data-focused="true"] .workSurface {
+  overflow: visible;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  overflow: clip;
 }
 
 .desk[data-focused="true"] .workGrid {
@@ -228,6 +253,11 @@
 
 .workTile[data-presentation="focused"] {
   z-index: 20;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: 100%;
   grid-column: 1 / -1;
   grid-row: 1 / -1;
   align-self: stretch;

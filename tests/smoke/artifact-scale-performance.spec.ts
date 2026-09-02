@@ -144,8 +144,20 @@ test.describe('large Artifact browser evidence', () => {
     await first.click();
     const focusedStage = page.locator('[data-focused-artifact-workspace] [data-home-artifact-stage]');
     const primarySurface = page.locator('main[data-scroll="contained"]');
+    const workSurface = page.locator('section[aria-labelledby="home-open-work-heading"]');
     await expect(focusedStage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
     await expect.poll(() => primarySurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
+    await expect.poll(() => workSurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
+    await expect.poll(async () => {
+      const stageBox = await focusedStage.boundingBox();
+      const surfaceBox = await primarySurface.boundingBox();
+      if (!stageBox || !surfaceBox) return false;
+      return stageBox.x >= surfaceBox.x
+        && stageBox.y >= surfaceBox.y
+        && stageBox.x + stageBox.width <= surfaceBox.x + surfaceBox.width
+        && stageBox.y + stageBox.height <= surfaceBox.y + surfaceBox.height
+        && stageBox.width / surfaceBox.width > 0.8;
+    }).toBe(true);
     await expect(visibleArtifacts).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);

@@ -53,8 +53,8 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-home-work-object
     data-home-set-object-id={props.item.id}
     data-presentation={props.focused ? 'focused' : 'overview'}
-    data-featured={props.featured}
-    data-slot={props.index % 6}
+    data-featured={props.featured && !props.focused}
+    data-slot={props.focused ? undefined : props.index % 6}
     data-active={props.active}
     data-pinned={props.pinned}
     aria-hidden={props.obscured || undefined}

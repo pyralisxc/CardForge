@@ -262,7 +262,7 @@ export function HomeDesk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)}>
+        <div className={styles.spatialPlane} data-home-desk-plane data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
