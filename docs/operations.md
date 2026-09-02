@@ -121,6 +121,8 @@ For a new migration:
 5. Run Supabase security/performance advisors and address relevant warnings/errors.
 6. Record provider-applied version/evidence in the PR/release record. Never rewrite historical migration files merely to align provider timestamps.
 
+If Supabase Preview reports a remote migration version that is absent from the repository, first verify that its stored name and statements exactly match the immutable repository migration. Repair only the staging migration-ledger version to the repository filename, then let the GitHub integration apply the remaining chain. Do not rerun the already-applied SQL or rename the committed migration.
+
 The runtime and Pipeline importer prefer `SUPABASE_SECRET_KEY` and use server-only auth settings (`persistSession: false`, `autoRefreshToken: false`, `detectSessionInUrl: false`).
 
 ## Operator identity
