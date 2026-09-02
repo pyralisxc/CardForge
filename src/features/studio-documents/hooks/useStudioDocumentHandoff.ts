@@ -5,19 +5,9 @@ import { useEffect, useRef } from 'react';
 import type { TCGCardTemplate, AppearanceStylePreset } from '@/domain/templates';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import {
-  applyProjectDocumentToState,
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getProjectAssetStorage,
-  mergeProjectAssetListToStorage,
-  normalizeStudioView,
-  type StudioView,
-  useProjectStore,
-  writeProjectAssetListToStorage,
-} from '@/features/project/client';
+import { applyProjectDocumentToState, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { getProjectAssetStorage, mergeProjectAssetListToStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
   normalizeStudioDocumentPayload,
   type StudioDocumentAssetDownload,

@@ -46,11 +46,11 @@ export default async function SignInPage({
     <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
       <div className="grid max-w-md justify-items-center gap-6 text-center">
         <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[var(--cf-text)]">
-          CardForge Studio
+          CardForge
         </Link>
         <div>
           <h1 className="font-[var(--font-cardforge-spectral)] text-3xl font-semibold text-[var(--cf-text-strong)]">Return to your account</h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Sign in to view your plan, billing, assistant access, and online usage. Studio remains available without signing in.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--cf-text-muted)]">Sign in to view your plan, billing, assistant access, and online usage. Your local Desk remains available without signing in.</p>
         </div>
         <SignIn
           fallbackRedirectUrl={fallbackRedirectUrl}

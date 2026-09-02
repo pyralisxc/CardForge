@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FilePenLine, ImageUp, Settings2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,8 @@ export function PublicSiteOwnerLiveControls({
   roadmapRulesEditor?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [inlineMode, setInlineMode] = useState(false);
+  const [focusedSlug, setFocusedSlug] = useState<SiteContentBlock['slug'] | null>(null);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [media, setMedia] = useState(initialMedia);
   const [siteConfiguration, setSiteConfiguration] = useState(initialSiteConfiguration);
@@ -50,9 +52,31 @@ export function PublicSiteOwnerLiveControls({
   const hasMedia = contextualMedia.length > 0;
   const defaultTab = contextualBlocks.length ? 'copy' : hasMedia ? 'media' : 'mechanics';
 
+  useEffect(() => {
+    if (!inlineMode) return;
+    const selectField = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const field = target.closest<HTMLElement>('[data-site-content-slug]');
+      const slug = field?.dataset.siteContentSlug as SiteContentBlock['slug'] | undefined;
+      if (!slug || !contextualBlocks.some((block) => block.slug === slug)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setFocusedSlug(slug);
+      setOpen(true);
+    };
+    document.documentElement.dataset.siteInlineEditing = 'true';
+    document.addEventListener('click', selectField, true);
+    return () => {
+      delete document.documentElement.dataset.siteInlineEditing;
+      document.removeEventListener('click', selectField, true);
+    };
+  }, [contextualBlocks, inlineMode]);
+
   return <>
     <div className="fixed bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">Owner preview</span>
+      {contextualBlocks.length ? <Button type="button" size="sm" variant={inlineMode ? 'default' : 'outline'} onClick={() => setInlineMode((value) => !value)}>{inlineMode ? 'Click highlighted copy' : 'Edit rendered copy'}</Button> : null}
       <Button type="button" size="sm" onClick={() => setOpen(true)}><FilePenLine className="mr-2 h-4 w-4" />Edit {context.label}</Button>
     </div>
     <Dialog open={open} onOpenChange={setOpen}>
@@ -67,7 +91,7 @@ export function PublicSiteOwnerLiveControls({
             {hasMedia ? <TabsTrigger value="media"><ImageUp className="mr-2 h-4 w-4" />Media</TabsTrigger> : null}
             {roadmapRulesEditor ? <TabsTrigger value="mechanics"><Settings2 className="mr-2 h-4 w-4" />Rules</TabsTrigger> : null}
           </TabsList>
-          {contextualBlocks.length ? <TabsContent value="copy"><PublicSiteCopyLiveEditor initialBlocks={contextualBlocks} onBlocksChange={setBlocks} /></TabsContent> : null}
+          {contextualBlocks.length ? <TabsContent value="copy"><PublicSiteCopyLiveEditor initialBlocks={contextualBlocks} focusSlug={focusedSlug} onBlocksChange={setBlocks} /></TabsContent> : null}
           {hasMedia ? <TabsContent value="media"><PublicSiteMediaLiveEditor initialAssets={contextualMedia} initialSiteConfiguration={siteConfiguration} onAssetsChange={setMedia} onSiteConfigurationChange={setSiteConfiguration} showWatermarkPresentation={context.mediaGroups.includes('brand')} /></TabsContent> : null}
           {roadmapRulesEditor ? <TabsContent value="mechanics">{roadmapRulesEditor}</TabsContent> : null}
         </Tabs>

@@ -11,22 +11,12 @@ export interface PublicNavigationGroup {
 const NAVIGATION_LINKS = {
   home: { href: '/', label: 'Home' },
   about: { href: '/about', label: 'How it works' },
-  studio: { href: '/account', label: 'Desk' },
   plans: { href: '/plans', label: 'Plans' },
   roadmap: { href: '/roadmap', label: 'Roadmap' },
   contributor: { href: '/contributors', label: 'Contributors' },
   account: { href: '/account', label: 'Desk' },
   founder: { href: '/cameron', label: 'Meet Cameron' },
 } as const satisfies Record<string, PublicNavigationLink>;
-
-export const STUDIO_NAVIGATION = [
-  NAVIGATION_LINKS.home,
-  NAVIGATION_LINKS.about,
-  NAVIGATION_LINKS.studio,
-  NAVIGATION_LINKS.roadmap,
-  NAVIGATION_LINKS.contributor,
-  NAVIGATION_LINKS.account,
-] as const satisfies ReadonlyArray<PublicNavigationLink>;
 
 export const PUBLIC_NAVIGATION = {
   primary: [
@@ -35,13 +25,11 @@ export const PUBLIC_NAVIGATION = {
     NAVIGATION_LINKS.roadmap,
     NAVIGATION_LINKS.account,
   ],
-  studio: { ...NAVIGATION_LINKS.studio, label: 'Try the Studio' },
   founder: NAVIGATION_LINKS.founder,
   footerGroups: [
     {
       label: 'Product',
       links: [
-        NAVIGATION_LINKS.studio,
         NAVIGATION_LINKS.plans,
         NAVIGATION_LINKS.account,
         NAVIGATION_LINKS.roadmap,
@@ -76,7 +64,6 @@ export const PUBLIC_NAVIGATION = {
   ],
 } as const satisfies {
   primary: ReadonlyArray<PublicNavigationLink>;
-  studio: PublicNavigationLink;
   founder: PublicNavigationLink;
   footerGroups: ReadonlyArray<PublicNavigationGroup>;
 };

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  MAX_PROJECT_FONT_BYTES,
-  getProjectFontValue,
-  isProjectFontMimeType,
-  upsertProjectFont,
-  type ProjectFontAsset,
-} from '@/features/project/client';
+import { MAX_PROJECT_FONT_BYTES, getProjectFontValue, isProjectFontMimeType, upsertProjectFont, type ProjectFontAsset } from '@/features/project/client/assets';
 import { materializePersonalLibraryItemContent } from './personalLibraryClient';
 import type { PersonalLibraryItem } from '../model';
 

@@ -6,6 +6,7 @@ import {
   createUploadedPipelineSubmission,
   preparePipelineUpload,
   removePendingPipelineUpload,
+  validateUploadedAssetBytes,
   validatePipelineUploadDescriptor,
 } from '@/features/pipeline/lib/pipelineUploadSubmission';
 
@@ -25,7 +26,10 @@ const taxonomy = {
   useCaseTags: ['tcg'],
 };
 
-const setupStorage = (storedSize = 128, submittedUpload = false) => {
+const VALID_PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLJ4QAAAABJRU5ErkJggg==', 'base64');
+const validPng = () => new Blob([VALID_PNG_BYTES], { type: 'image/png' });
+
+const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload = false) => {
   const createSignedUploadUrl = vi.fn().mockResolvedValue({
     data: { signedUrl: 'https://storage.example/upload/token' },
     error: null,
@@ -35,8 +39,9 @@ const setupStorage = (storedSize = 128, submittedUpload = false) => {
     error: null,
   }));
   const remove = vi.fn().mockResolvedValue({ error: null });
-  const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example/gold-divider.svg' } });
-  const from = vi.fn().mockReturnValue({ createSignedUploadUrl, list, remove, getPublicUrl });
+  const download = vi.fn().mockResolvedValue({ data: validPng(), error: null });
+  const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example/gold-divider.png' } });
+  const from = vi.fn().mockReturnValue({ createSignedUploadUrl, list, remove, download, getPublicUrl });
   const databaseQuery = {
     select: vi.fn(),
     eq: vi.fn(),
@@ -50,10 +55,10 @@ const setupStorage = (storedSize = 128, submittedUpload = false) => {
 };
 
 const uploadedFile = {
-  storagePath: 'contributor-1/dividers/123-gold-divider-token.svg',
-  fileName: 'gold-divider.svg',
-  fileSizeBytes: 128,
-  mimeType: 'image/svg+xml',
+  storagePath: 'contributor-1/dividers/123-gold-divider-token.png',
+  fileName: 'gold-divider.png',
+  fileSizeBytes: VALID_PNG_BYTES.byteLength,
+  mimeType: 'image/png',
 };
 
 describe('contributor asset upload submission', () => {
@@ -70,9 +75,9 @@ describe('contributor asset upload submission', () => {
       maxFileSizeMb: 25,
       assetType: 'dividers',
       studioDestination: 'element.divider',
-      fileName: 'gold-divider.svg',
+      fileName: 'gold-divider.webp',
       fileSizeBytes: 20 * 1024 * 1024,
-      mimeType: 'image/svg+xml',
+      mimeType: 'image/webp',
     });
 
     expect(plan).toMatchObject({
@@ -110,7 +115,7 @@ describe('contributor asset upload submission', () => {
         studioDestination: 'element.divider',
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
-        sourceUrl: 'https://cdn.example/gold-divider.svg',
+        sourceUrl: 'https://cdn.example/gold-divider.png',
         sourceStorageBucket: 'cardforge-contributor-assets',
         sourceStoragePath: uploadedFile.storagePath,
       }),
@@ -158,7 +163,37 @@ describe('contributor asset upload submission', () => {
       fileSizeBytes: 256,
       mimeType: 'image/jpeg',
       maxFileSizeMb: 25,
-    })).toThrow('SVG, PNG, or WEBP');
+    })).toThrow('PNG or WEBP');
+  });
+
+  it('rejects direct SVG uploads before any active content reaches shared storage', () => {
+    setupStorage();
+
+    expect(() => validatePipelineUploadDescriptor({
+      assetType: 'icons',
+      studioDestination: 'element.icon',
+      fileName: 'active-icon.svg',
+      fileSizeBytes: 256,
+      mimeType: 'image/svg+xml',
+      maxFileSizeMb: 25,
+    })).toThrow('Direct SVG uploads are not accepted');
+  });
+
+  it('binds declared MIME to the extension and rejects malformed raster bytes', async () => {
+    expect(() => validatePipelineUploadDescriptor({
+      assetType: 'imageAssets',
+      studioDestination: 'image.picture',
+      fileName: 'mislabeled.png',
+      fileSizeBytes: 256,
+      mimeType: 'image/jpeg',
+      maxFileSizeMb: 25,
+    })).toThrow('declared file type');
+
+    await expect(validateUploadedAssetBytes({
+      assetType: 'imageAssets',
+      extension: 'png',
+      mimeType: 'image/png',
+    }, new Blob([Buffer.from('not-an-image')], { type: 'image/png' }))).rejects.toThrow('do not match');
   });
 
   it('removes the uploaded object when submission persistence fails', async () => {

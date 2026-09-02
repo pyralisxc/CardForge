@@ -66,7 +66,7 @@ export function AuthoredObjectPreview({
   return (
     <span className={cn(styles.stack, className)} data-size={size} aria-label={`${label} preview`}>
       {visualCards.map((card, index) => (
-        <span key={card.uniqueId} className={styles.card} data-card-position={index} aria-hidden="true">
+        <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
           <CardPreview card={card} face={face} targetWidthPx={widthBySize[size]} isEditorPreview />
         </span>
       ))}

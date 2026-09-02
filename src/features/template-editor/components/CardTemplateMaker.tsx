@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/shared/classNames';
-import { useProjectStore } from '@/features/project/client';
+import { useProjectStore } from '@/features/project/client/workspace';
 import { useToast } from '@/components/ui/use-toast';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';

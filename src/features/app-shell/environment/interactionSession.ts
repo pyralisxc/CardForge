@@ -29,6 +29,9 @@ export interface CreatorToolSession {
 
 export interface CreatorInteractionSession {
   focusPath: CreatorFocusPath;
+  /** Desk Set selection is intentionally separate from focused-Set Artifact selection. */
+  deskSelection: string[];
+  deskSelectionAnchorId: string | null;
   selection: string[];
   inspectionTargetId: string | null;
   camera: CreatorCamera;
@@ -42,6 +45,8 @@ const DEFAULT_CAMERA: CreatorCamera = { x: 0, y: 0, zoom: 1 };
 
 export const createCreatorInteractionSession = (): CreatorInteractionSession => ({
   focusPath: { setId: null, artifactId: null },
+  deskSelection: [],
+  deskSelectionAnchorId: null,
   selection: [],
   inspectionTargetId: null,
   camera: { ...DEFAULT_CAMERA },
@@ -60,6 +65,16 @@ export const focusCreatorSet = (
   camera: { ...DEFAULT_CAMERA },
   lens: { query: '', filterIds: [] },
   toolStack: [],
+});
+
+export const selectCreatorDeskSets = (
+  session: CreatorInteractionSession,
+  setIds: readonly string[],
+  anchorId: string | null = setIds.at(-1) ?? null,
+): CreatorInteractionSession => ({
+  ...session,
+  deskSelection: Array.from(new Set(setIds.filter(Boolean))),
+  deskSelectionAnchorId: anchorId && setIds.includes(anchorId) ? anchorId : setIds.at(-1) ?? null,
 });
 
 export const focusCreatorArtifact = (
@@ -141,7 +156,14 @@ export const closeCreatorContext = (
     return { session: { ...session, focusPath: { ...session.focusPath, artifactId: null } }, closed: 'artifact-focus' };
   }
   if (session.focusPath.setId) {
-    return { session: createCreatorInteractionSession(), closed: 'set-focus' };
+    return {
+      session: {
+        ...createCreatorInteractionSession(),
+        deskSelection: [...session.deskSelection],
+        deskSelectionAnchorId: session.deskSelectionAnchorId,
+      },
+      closed: 'set-focus',
+    };
   }
   return { session, closed: 'none' };
 };

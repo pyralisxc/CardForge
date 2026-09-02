@@ -9,6 +9,7 @@ import {
   type CardForgeAnalyticsEventName,
 } from '../model';
 import { captureProductAnalyticsEvent } from './posthog';
+import { inferBoundaryFailureKind } from '@/shared/boundaryFailure';
 
 declare global {
   interface Window {
@@ -44,6 +45,15 @@ export const trackCardForgeEvent = (
   trackGoogleCardForgeEvent(eventName, parameters);
   trackProductCardForgeEvent(eventName, parameters);
 };
+
+export const trackProviderBoundaryOutcome = (
+  scope: 'google_drive' | 'pipeline',
+  response: Pick<Response, 'ok' | 'status'>,
+) => trackCardForgeEvent('provider_boundary_outcome', {
+  scope,
+  outcome: response.ok ? 'success' : 'failure',
+  boundary_kind: response.ok ? 'none' : inferBoundaryFailureKind(response.status),
+});
 
 export const trackGoogleCardForgeEvent = (
   eventName: CardForgeAnalyticsEventName,

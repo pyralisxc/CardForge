@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useProjectStore } from '@/features/project/client';
+import { useProjectStore } from '@/features/project/client/workspace';
 
 describe('neutral Set workspace lifecycle', () => {
   beforeEach(() => {

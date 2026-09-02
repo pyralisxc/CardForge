@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseProjectDocumentFile } from '@/features/project/client';
+import { parseProjectDocumentFile } from '@/features/project/client/package-document';
 
 describe('native Studio document validation', () => {
   it('rejects a project file containing an element type CardForge cannot render', () => {

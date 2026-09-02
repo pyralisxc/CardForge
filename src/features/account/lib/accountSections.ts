@@ -1,4 +1,4 @@
-export const ACCOUNT_SECTIONS = ['home', 'library', 'profile'] as const;
+export const ACCOUNT_SECTIONS = ['desk', 'library', 'profile'] as const;
 
 export type AccountSection = typeof ACCOUNT_SECTIONS[number];
 
@@ -17,14 +17,15 @@ export const resolveAccountSection = ({
   // became contextual tools of Library and Profile.
   if (requestedSection === 'storage') return 'library';
   if (requestedSection === 'billing') return 'profile';
+  if (requestedSection === 'home') return 'desk';
   if (ACCOUNT_SECTIONS.some((section) => section === requestedSection)) {
     return requestedSection as AccountSection;
   }
   if (hasStorageResult) return 'library';
   if (hasBillingIntent) return 'profile';
-  return 'home';
+  return 'desk';
 };
 
 export const getAccountSectionHref = (section: AccountSection): string => (
-  section === 'home' ? '/account' : `/account?section=${section}`
+  section === 'desk' ? '/account' : `/account?section=${section}`
 );

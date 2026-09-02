@@ -8,6 +8,7 @@ interface BulkGenerateActionBarProps {
   isLoading: boolean;
   disabled: boolean;
   helperText?: string;
+  label?: string;
   onGenerate: () => void;
 }
 
@@ -15,6 +16,7 @@ export function BulkGenerateActionBar({
   isLoading,
   disabled,
   helperText,
+  label = 'Add Cards to Set',
   onGenerate,
 }: BulkGenerateActionBarProps) {
   return (
@@ -25,7 +27,7 @@ export function BulkGenerateActionBar({
       <div className="flex justify-end">
         <Button type="button" size="lg" className="min-h-11 w-full sm:w-auto" onClick={onGenerate} disabled={disabled}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Add Cards to Set
+          {label}
         </Button>
       </div>
     </div>

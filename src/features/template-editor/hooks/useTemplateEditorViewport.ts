@@ -24,7 +24,7 @@ import {
   CANVAS_ZOOM,
 } from '@/features/template-editor/lib/canvasViewportConfig';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
-import { useSpatialWorkspacePreferences } from '@/features/project/client';
+import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 
 export type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
 

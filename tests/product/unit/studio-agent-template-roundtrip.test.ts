@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TCGCardTemplate } from '@/domain/templates';
-import { BROWSER_STORAGE_DATABASE } from '@/features/project/client';
+import { BROWSER_STORAGE_DATABASE } from '@/features/project/client/persistence-storage';
 import {
   getAgentTemplateLink,
   rememberAgentTemplateLink,

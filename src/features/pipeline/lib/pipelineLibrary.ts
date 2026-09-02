@@ -7,6 +7,8 @@ export type PipelineReviewState = 'available' | 'already-voted' | 'self' | 'clos
 export interface PipelineLibraryItem {
   id: string;
   submission: PipelineSubmission;
+  editableSubmission: PipelineSubmission | null;
+  retirableSubmission: PipelineSubmission | null;
   revisions: PipelineSubmission[];
   currentPublishedSubmission: PipelineSubmission | null;
   ownership: PipelineOwnership;
@@ -99,7 +101,17 @@ export const projectPipelineLibrary = (
       .toSorted(compareNewestRevision)[0] ?? null;
     const submission = currentPublishedSubmission
       ?? revisions.toSorted(compareStrongestCandidate)[0];
-    const ownership: PipelineOwnership = contributorIds.has(submission.contributorId) ? 'mine' : 'other';
+    const editableSubmission = revisions.find((revision) => (
+      contributorIds.has(revision.contributorId)
+      && (revision.status === 'draft'
+        || revision.status === 'submitted'
+        || revision.status === 'voting'
+        || revision.status === 'publish_candidate')
+    )) ?? null;
+    const retirableSubmission = revisions.find((revision) => (
+      contributorIds.has(revision.contributorId) && revision.status === 'published'
+    )) ?? null;
+    const ownership: PipelineOwnership = revisions.some((revision) => contributorIds.has(revision.contributorId)) ? 'mine' : 'other';
     const reviewState: PipelineReviewState = !isContributorPipelineReviewable(submission)
       ? 'closed'
       : ownership === 'mine' && !program.settings.allowContributorSelfVoting
@@ -111,6 +123,8 @@ export const projectPipelineLibrary = (
     return {
       id: lineageId,
       submission,
+      editableSubmission,
+      retirableSubmission,
       revisions,
       currentPublishedSubmission,
       ownership,

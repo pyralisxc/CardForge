@@ -8,21 +8,22 @@ import {
 import type { RegistryViewerAccess } from '@/features/pipeline/lib/registryContentAssets';
 
 export const CARDFORGE_CATALOG_TAG = 'public:cardforge-catalog';
+const CARDFORGE_CATALOG_CACHE_VERSION = 'registry-model-v3';
 
 const cachedCatalogs: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeCatalogManifest>> = {
   free: unstable_cache(
     () => getCardForgeCatalogManifest('free'),
-    ['cardforge-catalog', 'free'],
+    ['cardforge-catalog', CARDFORGE_CATALOG_CACHE_VERSION, 'free'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   paid: unstable_cache(
     () => getCardForgeCatalogManifest('paid'),
-    ['cardforge-catalog', 'paid'],
+    ['cardforge-catalog', CARDFORGE_CATALOG_CACHE_VERSION, 'paid'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   contributor: unstable_cache(
     () => getCardForgeCatalogManifest('contributor'),
-    ['cardforge-catalog', 'contributor'],
+    ['cardforge-catalog', CARDFORGE_CATALOG_CACHE_VERSION, 'contributor'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
 };
@@ -30,17 +31,17 @@ const cachedCatalogs: Record<RegistryViewerAccess, () => ReturnType<typeof getCa
 const cachedStudioBootstraps: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeStudioBootstrapManifest>> = {
   free: unstable_cache(
     () => getCardForgeStudioBootstrapManifest('free'),
-    ['cardforge-studio-bootstrap', 'free'],
+    ['cardforge-studio-bootstrap', CARDFORGE_CATALOG_CACHE_VERSION, 'free'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   paid: unstable_cache(
     () => getCardForgeStudioBootstrapManifest('paid'),
-    ['cardforge-studio-bootstrap', 'paid'],
+    ['cardforge-studio-bootstrap', CARDFORGE_CATALOG_CACHE_VERSION, 'paid'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   contributor: unstable_cache(
     () => getCardForgeStudioBootstrapManifest('contributor'),
-    ['cardforge-studio-bootstrap', 'contributor'],
+    ['cardforge-studio-bootstrap', CARDFORGE_CATALOG_CACHE_VERSION, 'contributor'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
 };
@@ -48,17 +49,17 @@ const cachedStudioBootstraps: Record<RegistryViewerAccess, () => ReturnType<type
 const cachedStudioAssets: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeStudioAssetManifest>> = {
   free: unstable_cache(
     () => getCardForgeStudioAssetManifest('free'),
-    ['cardforge-studio-assets', 'free'],
+    ['cardforge-studio-assets', CARDFORGE_CATALOG_CACHE_VERSION, 'free'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   paid: unstable_cache(
     () => getCardForgeStudioAssetManifest('paid'),
-    ['cardforge-studio-assets', 'paid'],
+    ['cardforge-studio-assets', CARDFORGE_CATALOG_CACHE_VERSION, 'paid'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
   contributor: unstable_cache(
     () => getCardForgeStudioAssetManifest('contributor'),
-    ['cardforge-studio-assets', 'contributor'],
+    ['cardforge-studio-assets', CARDFORGE_CATALOG_CACHE_VERSION, 'contributor'],
     { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
   ),
 };

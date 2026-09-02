@@ -16,7 +16,7 @@ import {
   getCurrentContributorAccessSessionState,
   hasContributionScope,
 } from '@/features/contributor-access/server';
-import { HomeDesk } from '@/features/home/client';
+import { Desk } from '@/features/desk/client';
 import { getMcpAllowances } from '@/features/mcp-usage/server';
 import { AccountProjectWorkspaceBoundary } from '@/features/project/client';
 import { createProjectPersistenceScope } from '@/features/project/server';
@@ -77,7 +77,7 @@ export default async function AccountPage({
   });
   const needsPlans = activeSection === 'profile';
   const needsAccountContent = activeSection === 'library';
-  const needsBusinessIdentity = activeSection === 'home' || activeSection === 'library';
+  const needsBusinessIdentity = activeSection === 'desk' || activeSection === 'library';
   const [entitlementResult, plans, accountContentBlocks, businessIdentity] = await Promise.all([
     getCurrentCardforgeEntitlement().then((entitlement) => ({ entitlement, unavailable: false })).catch((error) => {
       console.error('Unable to verify account access during page render:', error);
@@ -173,7 +173,7 @@ export default async function AccountPage({
   if (activeSection === 'library') {
     return (
       <CardForgeAppProviders scope="shell">
-        <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope}>
+        <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
           <UnifiedAccountLibrary
             persistenceScope={persistenceScope}
             experience={experience}
@@ -208,10 +208,10 @@ export default async function AccountPage({
               : undefined}
           plans={plans}
         />
-      ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope}>
+      ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
           <AccountHomeBoundary initialAuthConfigured={authConfigured}>
-            <HomeDesk
-              key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `home-desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'home-desk'}
+            <Desk
+              key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'desk'}
               persistenceScope={persistenceScope}
               experience={experience}
               businessIdentity={{

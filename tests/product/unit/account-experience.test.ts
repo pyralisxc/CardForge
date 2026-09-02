@@ -21,10 +21,10 @@ describe('account experience projection', () => {
   it('keeps plan, contribution, and owner authority as independent axes', () => {
     const free = projectAccountExperience({ entitlement: entitlement() });
     const creator = projectAccountExperience({
-      entitlement: entitlement({ cardforgeAccess: 'paid', cardforgePaidPlan: 'creator' }),
+      entitlement: entitlement({ cardforgeAccess: 'paid', cardforgeCommercialPlan: 'creator', cardforgePaidPlan: 'creator' }),
     });
     const designer = projectAccountExperience({
-      entitlement: entitlement({ cardforgeAccess: 'paid', cardforgePaidPlan: 'designer' }),
+      entitlement: entitlement({ cardforgeAccess: 'paid', cardforgeCommercialPlan: 'designer', cardforgePaidPlan: 'designer' }),
     });
     const contributor = projectAccountExperience({
       entitlement: entitlement({ cardforgeAccess: 'contributor' }),
@@ -50,15 +50,15 @@ describe('account experience projection', () => {
     expect(free).toMatchObject({ plan: 'free', contributor: { active: false }, owner: false });
     expect(creator).toMatchObject({ plan: 'creator', contributor: { active: false }, owner: false });
     expect(designer).toMatchObject({ plan: 'designer', contributor: { active: false }, owner: false });
-    expect(contributor).toMatchObject({ plan: 'creator', contributor: { active: true, canPublish: false }, owner: false });
-    expect(owner).toMatchObject({ plan: 'creator', contributor: { active: true, canPublish: true }, owner: true });
+    expect(contributor).toMatchObject({ plan: 'free', contributor: { active: true, canPublish: false }, owner: false });
+    expect(owner).toMatchObject({ plan: 'free', contributor: { active: true, canPublish: true }, owner: true });
   });
 
   it('does not infer contributor access from Contributor entitlement without an active scoped profile', () => {
     expect(projectAccountExperience({
       entitlement: entitlement({ cardforgeAccess: 'contributor' }),
     })).toMatchObject({
-      plan: 'creator',
+      plan: 'free',
       contributor: {
         active: false,
         canSubmit: false,

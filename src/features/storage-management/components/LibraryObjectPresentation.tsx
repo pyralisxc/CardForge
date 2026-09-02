@@ -9,7 +9,7 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
-import type { selectAllTemplates } from '@/features/project/client';
+import type { selectAllTemplates } from '@/features/project/client/workspace';
 
 import type { PipelineLibraryObject, PublishedLibraryObject } from '../hooks/useLibrarySharedProjection';
 import { getAccountLibraryActionSources } from '../model/accountLibraryEnvironment';
@@ -150,7 +150,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
       return <li key={revision.id}>
-        <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{getPipelineStatusLabel(revision.status)}</span></div>
+        <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{revision.contributorLifecycleState === 'withdrawn' ? 'Withdrawn' : revision.contributorLifecycleState === 'retired' ? 'Retired' : getPipelineStatusLabel(revision.status)}</span></div>
         {canReview ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
@@ -169,8 +169,8 @@ export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-l
 
 export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
   if (item.scope === 'pipeline') return [
-    ...(item.pipeline.ownership === 'mine' && item.pipeline.submission.status !== 'published' && item.pipeline.submission.status !== 'rejected' ? [{
-      id: 'library.edit-pipeline' as const, label: 'Edit submission details', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+    ...(item.pipeline.editableSubmission ? [{
+      id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : []),
@@ -178,6 +178,16 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       id: 'library.test-pipeline' as const, label: 'Test exact revision in Design', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
       availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
+    ...(item.pipeline.editableSubmission ? [{
+      id: 'library.withdraw-pipeline' as const, label: `Withdraw revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'overflow' as const,
+      availability: { kind: 'available' as const }, commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+    }] : []),
+    ...(item.pipeline.retirableSubmission ? [{
+      id: 'library.retire-pipeline' as const, label: `Retire published revision ${item.pipeline.retirableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'overflow' as const,
+      availability: { kind: 'available' as const }, commitment: 'publication' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : []),
   ];
   const actions: ActionDescriptor[] = [{

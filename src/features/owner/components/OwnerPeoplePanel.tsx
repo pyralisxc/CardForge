@@ -15,7 +15,8 @@ import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 type PeopleFilter = 'all' | 'contributors' | 'active' | 'needs_attention';
 
 type PersonDraft = {
-  access: OwnerPerson['access'];
+  commercialPlan: OwnerPerson['commercialPlan'];
+  contributorAuthority: boolean;
   owner: boolean;
   accountNote: string;
   profileStatus: NonNullable<OwnerPerson['profileStatus']>;
@@ -28,7 +29,8 @@ type PersonDraft = {
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 
 const createDraft = (person: OwnerPerson): PersonDraft => ({
-  access: person.access,
+  commercialPlan: person.commercialPlan,
+  contributorAuthority: person.contributorAuthority,
   owner: person.isOwner,
   accountNote: person.accountNote,
   profileStatus: person.profileStatus ?? 'active',
@@ -110,7 +112,7 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
     void mutate('PATCH', {
       action: 'update',
       userId: selected.id,
-      account: { access: draft.access, owner: draft.owner, note: draft.accountNote },
+      account: { commercialPlan: draft.commercialPlan, contributor: draft.contributorAuthority, owner: draft.owner, note: draft.accountNote },
       contributor: {
         status: draft.profileStatus,
         canDraftCampaigns: draft.canDraftCampaigns,
@@ -143,9 +145,9 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
         <div className="space-y-2">
           {people?.items.map((person) => {
-            const attention = person.identityState === 'history_only' || (person.profileStatus === 'active' && person.access !== 'contributor' && !person.isOwner) || (person.access === 'contributor' && person.profileStatus === null);
+            const attention = person.identityState === 'history_only' || (person.profileStatus === 'active' && !person.contributorAuthority && !person.isOwner) || (person.contributorAuthority && person.profileStatus === null);
             return <button key={person.id} type="button" onClick={() => setSelected(person)} className={`w-full border p-4 text-left transition-colors ${selected?.id === person.id ? 'border-[var(--cf-accent)] bg-[var(--cf-surface-hover)]' : 'border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] hover:border-[var(--cf-warning-border)]'}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[var(--cf-accent-text)]">{person.name}</p><p className="mt-1 text-xs text-[var(--cf-text-subtle)]">{person.email ?? person.id}</p></div><div className="flex flex-wrap gap-2"><span className={`border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${attention ? 'border-[var(--cf-warning-border)] text-[var(--cf-warning)]' : 'border-[#497352] text-[#a8e7b8]'}`}>{identityLabel(person)}</span><span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">{person.isOwner ? 'Owner' : person.access}</span>{person.profileStatus ? <span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">{person.profileStatus}</span> : null}</div></div>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[var(--cf-accent-text)]">{person.name}</p><p className="mt-1 text-xs text-[var(--cf-text-subtle)]">{person.email ?? person.id}</p></div><div className="flex flex-wrap gap-2"><span className={`border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${attention ? 'border-[var(--cf-warning-border)] text-[var(--cf-warning)]' : 'border-[#497352] text-[#a8e7b8]'}`}>{identityLabel(person)}</span><span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">{person.commercialPlan}</span>{person.contributorAuthority ? <span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">Contributor</span> : null}{person.isOwner ? <span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">Owner</span> : null}{person.profileStatus ? <span className="border border-[var(--cf-border)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--cf-text-muted)]">{person.profileStatus}</span> : null}</div></div>
               <p className="mt-3 text-xs text-[var(--cf-text-muted)]">{person.submissions.total} submissions · {person.submissions.published} published · {person.submissions.inReview} in review · Last sign-in {formatOwnerDateTime(person.lastSignInAt)}</p>
             </button>;
           })}
@@ -160,12 +162,13 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
             {selected.identityState === 'history_only' ? <div className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm leading-6 text-[var(--cf-warning)]"><AlertTriangle className="mr-2 inline h-4 w-4" />This Clerk account no longer exists. Contribution history remains intentionally attributed to this profile.</div> : null}
 
             {selected.identityState !== 'history_only' ? <div className="mt-4 grid gap-3">
-              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account access<select className={inputClassName} value={draft.access} onChange={(event) => setDraft((current) => current ? { ...current, access: event.target.value as PersonDraft['access'] } : current)}><option value="free">Free</option><option value="paid">Creator Pass</option><option value="contributor">Contributor</option></select></label>
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Commercial plan<select className={inputClassName} value={draft.commercialPlan} onChange={(event) => setDraft((current) => current ? { ...current, commercialPlan: event.target.value as PersonDraft['commercialPlan'] } : current)}><option value="free">Free</option><option value="creator">Creator Pass</option><option value="designer">Designer Pass</option></select></label>
+              <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"><span>Contributor authority<span className="mt-1 block text-[11px] text-[var(--cf-text-subtle)]">Independent from the account's commercial plan.</span></span><input type="checkbox" checked={draft.contributorAuthority} onChange={(event) => setDraft((current) => current ? { ...current, contributorAuthority: event.target.checked } : current)} /></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"><span>Owner authority<span className="mt-1 block text-[11px] text-[var(--cf-text-subtle)]">{selected.ownerSource === 'environment' ? 'Owned by the Vercel owner-email allowlist.' : 'Owned by Clerk private metadata.'}</span></span><input type="checkbox" checked={draft.owner} disabled={selected.id === currentOwnerId || selected.ownerSource === 'environment'} onChange={(event) => setDraft((current) => current ? { ...current, owner: event.target.checked } : current)} /></label>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.accountNote} onChange={(event) => setDraft((current) => current ? { ...current, accountNote: event.target.value } : current)} /></label>
             </div> : null}
 
-            {(selected.profileStatus !== null || draft.access === 'contributor' || draft.owner || selected.identityState === 'history_only') ? <div className="mt-4 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-4">
+            {(selected.profileStatus !== null || draft.contributorAuthority || draft.owner || selected.identityState === 'history_only') ? <div className="mt-4 grid gap-3 border-t border-[var(--cf-border-subtle)] pt-4">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)]">Contributor controls</p>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Profile status<select className={inputClassName} value={draft.profileStatus} onChange={(event) => setDraft((current) => current ? { ...current, profileStatus: event.target.value as PersonDraft['profileStatus'] } : current)}><option value="active">Active</option><option value="invited">Invited</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Draft campaign packages<input type="checkbox" checked={draft.canDraftCampaigns} onChange={(event) => setDraft((current) => current ? { ...current, canDraftCampaigns: event.target.checked } : current)} /></label>

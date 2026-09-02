@@ -32,12 +32,17 @@ import { BulkGenerateActionBar } from '@/features/card-generator/components/Bulk
 import { BulkDataResolutionDialog } from '@/features/card-generator/components/BulkDataResolutionDialog';
 import { useBulkExampleDownloads } from '@/features/card-generator/hooks/useBulkExampleDownloads';
 import type { DisplayCard } from '@/domain/rendering';
+import { buildBulkRevisionPlan, type BulkRevisionMatch, type BulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
+import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
   backingTemplate?: TCGCardTemplate | null;
   activeCardSet: CardSet;
   onCardsGenerated: (cards: DisplayCard[]) => void;
+  currentCards: DisplayCard[];
+  onCardsRevised: (cards: DisplayCard[]) => number;
+  onUndoRevision: () => number;
   onViewGeneratedCards: (cards: DisplayCard[]) => void;
   selectedTemplateIdProp: string | null;
 }
@@ -49,6 +54,9 @@ export function BulkGenerator({
   backingTemplate,
   activeCardSet,
   onCardsGenerated,
+  currentCards,
+  onCardsRevised,
+  onUndoRevision,
   onViewGeneratedCards,
   selectedTemplateIdProp,
 }: BulkGeneratorProps) {
@@ -63,8 +71,19 @@ export function BulkGenerator({
   const [dataReviewOpen, setDataReviewOpen] = useState(false);
   const [dataReviewIssues, setDataReviewIssues] = useState<string[]>([]);
   const [lastGeneratedCards, setLastGeneratedCards] = useState<DisplayCard[]>([]);
+  const [operation, setOperation] = useState<'generate' | 'revise'>('generate');
+  const [revisionMatchKey, setRevisionMatchKey] = useState<string>('unique-id');
+  const [pendingRevision, setPendingRevision] = useState<BulkRevisionPlan | null>(null);
+  const [lastRevisionCount, setLastRevisionCount] = useState(0);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const revisionPreviewRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!pendingRevision) return;
+    const frame = requestAnimationFrame(() => revisionPreviewRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [pendingRevision]);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateIdProp),
@@ -318,7 +337,29 @@ export function BulkGenerator({
         rows,
         columnMapping,
         previewOverrides: {},
+        createId: operation === 'revise' && revisionMatchKey === 'unique-id'
+          ? (rowNumber) => {
+              const idColumn = normalizeCsvHeaders(rows[0]).findIndex((header) => /^(cardforge[ _-]?id|unique[ _-]?id)$/iu.test(header));
+              return idColumn >= 0 ? String(rows[rowNumber - 1]?.[idColumn] ?? '').trim() : '';
+            }
+          : undefined,
       });
+
+      if (operation === 'revise') {
+        const match: BulkRevisionMatch = revisionMatchKey === 'unique-id'
+          ? { kind: 'unique-id' }
+          : { kind: 'field', key: revisionMatchKey, label: fieldDefinitions.find((field) => field.key === revisionMatchKey)?.label ?? revisionMatchKey };
+        const plan = buildBulkRevisionPlan({ existing: currentCards, incoming: generatedCards, match });
+        trackCardForgeEvent('revision_started', {
+          object_kind: 'card',
+          input_method: match.kind,
+          count_bucket: plan.matchedCount === 0 ? '0' : plan.matchedCount <= 5 ? '1_5' : plan.matchedCount <= 20 ? '6_20' : '21_plus',
+          outcome: plan.ambiguousRows.length > 0 ? 'ambiguous' : 'previewed',
+        });
+        setPendingRevision(plan);
+        setIsLoading(false);
+        return;
+      }
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
@@ -346,6 +387,7 @@ export function BulkGenerator({
   const handleDataInputChange = (value: string) => {
     setBulkDataInput(value);
     if (lastGeneratedCards.length > 0) setLastGeneratedCards([]);
+    setPendingRevision(null);
   };
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -420,6 +462,19 @@ export function BulkGenerator({
         </DropdownMenu>
       </header>
 
+      <div className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-end">
+        <div className="inline-flex rounded-md border border-[var(--cf-border)] p-1" role="group" aria-label="Bulk operation">
+          <Button type="button" size="sm" aria-pressed={operation === 'generate'} variant={operation === 'generate' ? 'default' : 'ghost'} onClick={() => { setOperation('generate'); setPendingRevision(null); }}>Generate</Button>
+          <Button type="button" size="sm" aria-pressed={operation === 'revise'} variant={operation === 'revise' ? 'default' : 'ghost'} disabled={currentCards.length === 0} onClick={() => { setOperation('revise'); setPendingRevision(null); }}>Revise existing</Button>
+        </div>
+        {operation === 'revise' ? <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Match every imported row to one existing card
+          <select className="min-h-10 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-sm text-[var(--cf-text-strong)]" value={revisionMatchKey} onChange={(event) => { setRevisionMatchKey(event.target.value); setPendingRevision(null); }}>
+            <option value="unique-id">CardForge ID column (safest)</option>
+            {fieldDefinitions.filter((field) => !field.isStaticBaseText && !field.isImage).map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+          </select>
+        </label> : <p className="text-sm text-[var(--cf-text-muted)]">Generate appends new cards. Revise preserves existing CardForge identities and the final Set count.</p>}
+      </div>
+
         <BulkCsvInputPanel
           selectedTemplateId={selectedTemplateIdProp}
           selectedTemplate={selectedTemplate}
@@ -435,7 +490,7 @@ export function BulkGenerator({
 
         {bulkDataInput.trim() ? (
           <div className={`flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm ${reviewIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}`}>
-            <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} thing${reviewIssues.length === 1 ? '' : 's'} to fix.` : `CardForge is ready to make ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'}.`}</span>
+            <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} thing${reviewIssues.length === 1 ? '' : 's'} to fix.` : `CardForge is ready to ${operation === 'revise' ? 'match' : 'make'} ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'}.`}</span>
             {reviewIssues.length > 0 ? <button type="button" className="font-medium underline" onClick={() => openDataReview()}>Review data</button> : null}
           </div>
         ) : null}
@@ -468,18 +523,29 @@ export function BulkGenerator({
         ) : null}
 
       {lastGeneratedCards.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border border-emerald-500/35 bg-emerald-500/10 p-4" role="status" tabIndex={-1}>
-          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" /><div><p className="font-semibold text-foreground">{lastGeneratedCards.length} card{lastGeneratedCards.length === 1 ? '' : 's'} added to {activeCardSet.name}</p><p className="mt-1 text-sm text-muted-foreground">Return to the Set to arrange, tag, edit, or export the new cards.</p></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-emerald-500/35 bg-emerald-500/10 p-4">
+          <div className="flex items-start gap-3" role="status"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" /><div><p className="font-semibold text-foreground">{lastGeneratedCards.length} card{lastGeneratedCards.length === 1 ? '' : 's'} added to {activeCardSet.name}</p><p className="mt-1 text-sm text-muted-foreground">Return to the Set to arrange, tag, edit, or export the new cards.</p></div></div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => { setBulkDataInput(''); setLastGeneratedCards([]); }}><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Add another batch</Button>
             <Button type="button" onClick={() => onViewGeneratedCards(lastGeneratedCards)}>View cards on Desk</Button>
           </div>
         </div>
+      ) : pendingRevision ? (
+        <section ref={revisionPreviewRef} className="space-y-3 border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)] p-4" aria-labelledby="revision-preview-heading" aria-live="polite" tabIndex={-1}>
+          <div><h4 id="revision-preview-heading" className="font-semibold text-[var(--cf-text-strong)]">Review revision before commit</h4><p className="mt-1 text-sm text-[var(--cf-text-muted)]">{pendingRevision.matchedCount} matched · {pendingRevision.unmatchedRows.length} unmatched · {pendingRevision.ambiguousRows.length} ambiguous · final count {pendingRevision.finalArtifactCount}</p></div>
+          <dl className="grid gap-2 text-xs sm:grid-cols-2"><div><dt className="font-semibold">Fields that change</dt><dd className="mt-1 text-[var(--cf-text-muted)]">{pendingRevision.changedFields.join(', ') || 'No values differ'}</dd></div><div><dt className="font-semibold">Fields preserved</dt><dd className="mt-1 text-[var(--cf-text-muted)]">{pendingRevision.preservedFields.join(', ') || 'Every existing field is supplied'}</dd></div></dl>
+          {pendingRevision.unmatchedRows.length ? <p className="text-xs text-[var(--cf-warning)]">Unmatched input rows: {pendingRevision.unmatchedRows.join(', ')}. They will not be appended.</p> : null}
+          {pendingRevision.ambiguousRows.length ? <p className="text-xs text-[var(--cf-danger)]">Ambiguous input rows: {pendingRevision.ambiguousRows.join(', ')}. Choose a unique match field before committing.</p> : null}
+          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPendingRevision(null)}>Back</Button><Button type="button" disabled={!pendingRevision.matchedCount || pendingRevision.ambiguousRows.length > 0} onClick={() => { const count = onCardsRevised(pendingRevision.revisions); trackCardForgeEvent('revision_completed', { object_kind: 'card', outcome: count > 0 ? 'completed' : 'unchanged', count_bucket: count === 0 ? '0' : count <= 5 ? '1_5' : count <= 20 ? '6_20' : '21_plus' }); setLastRevisionCount(count); setPendingRevision(null); setBulkDataInput(''); toast({ title: `${count} card${count === 1 ? '' : 's'} revised`, description: 'Stable identities and unspecified fields were preserved. You can undo this revision until the next bulk revision.' }); }}>Commit revision</Button></div>
+        </section>
+      ) : lastRevisionCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-emerald-500/35 bg-emerald-500/10 p-4"><span role="status">{lastRevisionCount} card{lastRevisionCount === 1 ? '' : 's'} revised without changing the Set count.</span><Button type="button" variant="outline" onClick={() => { const count = onUndoRevision(); setLastRevisionCount(0); toast({ title: `${count} revision${count === 1 ? '' : 's'} undone`, description: 'The previous card values are restored.' }); }}>Undo revision</Button></div>
       ) : (
         <BulkGenerateActionBar
           isLoading={isLoading}
           disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim() || reviewIssues.length > 0}
           helperText={reviewIssues[0]}
+          label={operation === 'revise' ? 'Preview Revision' : 'Add Cards to Set'}
           onGenerate={handleGenerate}
         />
       )}

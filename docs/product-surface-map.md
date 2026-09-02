@@ -55,7 +55,7 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 
 ### Shipped foundation
 
-- Desk uses the shared Environment shell through the dedicated internal `home` feature owner.
+- Desk uses the shared Environment shell through the dedicated `desk` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
 - Focusing local work exclusively reveals its contained cards with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact then leaves only a camera-fitted Artifact field; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
@@ -309,7 +309,7 @@ A future shared source-capability projection should expose human/agent reachabil
 
 ## Owner operations
 
-Owner remains protected and auditable, but composes inside Profile rather than a separate navigation environment. `/owner` is compatibility ingress for older deep links and provider callbacks.
+Owner remains protected and auditable, but composes as authority on native objects rather than a separate navigation environment. Cross-product operations remain in Profile; Pipeline operations live in Library → Pipeline; public copy and media controls live on their modeled public fields. `/owner` is compatibility ingress for older deep links and provider callbacks.
 
 Current capability families remain preserved:
 
@@ -317,7 +317,7 @@ Current capability families remain preserved:
 - marketing strategy/campaigns/distribution/results;
 - growth/people/Contributor access/analytics/billing/contact;
 - site/public-content controls;
-- shared Studio Library review/publication/routing/removal;
+- shared Library → Pipeline review/publication/routing/removal;
 - governance/legal/activity/retention.
 
 Owner may reuse shared object renderers and Library review projections, but it must not become a second persistence owner or provider dashboard.

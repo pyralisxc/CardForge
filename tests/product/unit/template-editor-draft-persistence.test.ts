@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createDefaultFreeformCanvas, type TCGCardTemplate } from '@/domain/templates';
-import { BROWSER_STORAGE_DATABASE } from '@/features/project/client';
+import { BROWSER_STORAGE_DATABASE } from '@/features/project/client/persistence-storage';
 import {
   clearTemplateEditorDraft,
   readTemplateEditorDraft,

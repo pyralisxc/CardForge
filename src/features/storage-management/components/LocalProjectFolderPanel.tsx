@@ -7,18 +7,9 @@ import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  disconnectLocalProjectFolder,
-  getLocalProjectFileName,
-  getLocalProjectFolderStatus,
-  hydrateProjectWorkspaceForScope,
-  openProjectFromFolder,
-  reconnectAttachedProjectFolder,
-  saveCurrentProjectToNewFolder,
-  saveProjectToAttachedFolder,
-  type LocalProjectFolderStatus,
-  type ProjectPersistenceScope,
-} from '@/features/project/client';
+import { disconnectLocalProjectFolder, getLocalProjectFileName, getLocalProjectFolderStatus, openProjectFromFolder, reconnectAttachedProjectFolder, saveCurrentProjectToNewFolder, saveProjectToAttachedFolder, type LocalProjectFolderStatus } from '@/features/project/client/provider-local-folder';
+import { hydrateProjectWorkspaceForScope } from '@/features/project/client/workspace';
+import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 export function LocalProjectFolderPanel({
   canUseProjectFiles,

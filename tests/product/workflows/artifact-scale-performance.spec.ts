@@ -30,7 +30,7 @@ const prepareScalePage = async (page: Page, cardCount: ProjectScale) => {
   await seedGuestScaleWorkspace(page, cardCount);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
-  await expect(page.getByRole('button', { name: `Focus ${cardCount} Card Scale Set` })).toBeVisible();
+  await expect(page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) })).toBeVisible();
 };
 
 const elapsed = async (action: () => Promise<void>) => {
@@ -47,9 +47,9 @@ test.describe('large Artifact browser evidence', () => {
       await prepareScalePage(page, cardCount);
       await resetLongTasks(page);
 
-      const openMs = await openScaleSet(page, cardCount);
-      const visualArtifacts = page.locator('[data-home-artifact-stage] [data-artifact-id]');
-      const expensivePreviews = page.locator('[data-home-artifact-stage] [id^="card-preview-"]');
+      const openMs = await openScaleSet(page, cardCount, { expectOpeningMotion: true });
+      const visualArtifacts = page.locator('[data-desk-artifact-stage] [data-artifact-id]');
+      const expensivePreviews = page.locator('[data-desk-artifact-stage] [id^="card-preview-"]');
       const mountedVisuals = await visualArtifacts.count();
       const mountedExpensivePreviews = await expensivePreviews.count();
       expect(mountedVisuals).toBeGreaterThan(0);
@@ -57,7 +57,7 @@ test.describe('large Artifact browser evidence', () => {
       expect(mountedExpensivePreviews).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
 
       const panMs = await elapsed(async () => {
-        await page.locator('[data-home-artifact-stage]').evaluate((stage) => {
+        await page.locator('[data-desk-artifact-stage]').evaluate((stage) => {
           stage.scrollTo({ left: stage.scrollWidth, top: stage.scrollHeight });
         });
         await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeVisible();
@@ -94,12 +94,12 @@ test.describe('large Artifact browser evidence', () => {
         await page.keyboard.press('Enter');
         await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeVisible();
         await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeFocused();
-        await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+        await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
         await expect(visualArtifacts).toHaveCount(1);
       });
       await page.evaluate(() => window.history.back());
       await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
-      await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+      await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
       await expect(orderedOptions.last()).toBeFocused();
       const closeMs = await closeScaleSet(page);
       const browserEvidence = await readBrowserPerformanceEvidence(page);
@@ -123,6 +123,81 @@ test.describe('large Artifact browser evidence', () => {
     });
   }
 
+  test('Desk spatial controls move a real Set and restore its saved position', async ({ page }) => {
+    await prepareScalePage(page, 100);
+    const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
+
+    await setButton.click();
+    await page.getByRole('button', { name: 'Move selected Sets right' }).click();
+    await expect(setObject).toHaveAttribute('data-positioned', 'true');
+    const savedX = await setObject.evaluate((node) => node.getAttribute('style')?.match(/--desk-x:\s*([^;]+)/)?.[1] ?? '');
+    expect(savedX).not.toBe('');
+
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.locator('[data-desk-set-object-id="set:scale-set-100"]')).toHaveAttribute('data-positioned', 'true');
+    await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => node.getAttribute('style')?.match(/--desk-x:\s*([^;]+)/)?.[1] ?? '')).toBe(savedX);
+  });
+
+  test('mobile Desk stays one navigable world when Move is toggled', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareScalePage(page, 100);
+    const viewport = page.locator('[data-desk-viewport]');
+    const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
+
+    await expect(viewport).toBeVisible();
+    await expect(viewport).toHaveAttribute('aria-label', /Swipe or scroll to explore/);
+    await expect(page.getByText('Swipe the Desk to look around')).toBeVisible();
+    const initialZoom = Number(await viewport.getAttribute('data-zoom'));
+    expect(initialZoom).toBeGreaterThan(0.6);
+    await expect.poll(() => viewport.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+    await expect.poll(() => page.locator('[class*="deskToolbar"]').evaluate((toolbar) => {
+      const bounds = toolbar.getBoundingClientRect();
+      return Array.from(toolbar.children).every((child) => {
+        const rect = child.getBoundingClientRect();
+        return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+      });
+    })).toBe(true);
+    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('pan-x pan-y');
+
+    await setButton.click();
+    const beforeMoveMode = await setObject.boundingBox();
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(viewport).toHaveAttribute('data-arrange-mode', 'true');
+    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('none');
+    const afterMoveMode = await setObject.boundingBox();
+    expect(beforeMoveMode).not.toBeNull();
+    expect(afterMoveMode).not.toBeNull();
+    expect(Math.abs(afterMoveMode!.x - beforeMoveMode!.x)).toBeLessThan(1);
+    expect(Math.abs(afterMoveMode!.y - beforeMoveMode!.y)).toBeLessThan(1);
+
+    const cameraBeforeFocus = await viewport.evaluate((node) => ({
+      left: node.scrollLeft,
+      top: node.scrollTop,
+      zoom: node.getAttribute('data-zoom'),
+    }));
+    await page.getByRole('button', { name: 'Open', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to Desk' }).click();
+    await expect(viewport).toBeVisible();
+    await expect.poll(() => viewport.evaluate((node) => ({
+      left: node.scrollLeft,
+      top: node.scrollTop,
+      zoom: node.getAttribute('data-zoom'),
+    }))).toEqual(cameraBeforeFocus);
+
+    await page.getByRole('button', { name: 'Fit the whole Desk in view' }).click();
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeLessThan(initialZoom);
+    await expect.poll(() => viewport.evaluate((node) => node.scrollWidth <= node.clientWidth + 2)).toBe(true);
+    await expect.poll(() => viewport.evaluate((node) => {
+      const world = node.querySelector<HTMLElement>('[data-grid]');
+      if (!world) return false;
+      const worldRect = world.getBoundingClientRect();
+      return worldRect.width <= node.clientWidth + 2 && worldRect.height <= node.clientHeight + 2;
+    })).toBe(true);
+  });
+
   test('Artifact focus preserves exact Set context through Back and Escape', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await prepareScalePage(page, 100);
@@ -130,7 +205,7 @@ test.describe('large Artifact browser evidence', () => {
     const focusedSetId = new URL(page.url()).searchParams.get('focus');
     expect(focusedSetId).toBeTruthy();
 
-    const stage = page.locator('[data-home-artifact-stage]:visible');
+    const stage = page.locator('[data-desk-artifact-stage]:visible');
     const visibleArtifacts = stage.locator('[data-artifact-id]');
     const first = visibleArtifacts.first();
     const second = visibleArtifacts.nth(1);
@@ -142,9 +217,9 @@ test.describe('large Artifact browser evidence', () => {
     const selectedBefore = await stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')));
 
     await first.click();
-    const focusedStage = page.locator('[data-focused-artifact-workspace] [data-home-artifact-stage]');
+    const focusedStage = page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]');
     const primarySurface = page.locator('main[data-scroll="contained"]');
-    const workSurface = page.locator('section[aria-labelledby="home-open-work-heading"]');
+    const workSurface = page.locator('section[aria-labelledby="desk-open-work-heading"]');
     await expect(focusedStage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
     await expect.poll(() => primarySurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
     await expect.poll(() => workSurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
@@ -171,8 +246,8 @@ test.describe('large Artifact browser evidence', () => {
     }).toBeGreaterThan(0.55);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
-    await expect(page.locator('[data-home-artifact-stage] [data-artifact-id]')).toHaveCount(1);
+    await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(1);
     await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
     await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
 
@@ -187,15 +262,15 @@ test.describe('large Artifact browser evidence', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('[data-home-desk="overview"]')).toBeVisible();
+    await expect(page.locator('[data-desk="overview"]')).toBeVisible();
 
     await page.goto(`/account?focus=${encodeURIComponent(focusedSetId!)}&artifact=${encodeURIComponent(firstId!)}`, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
     await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
     await page.evaluate(() => window.history.back());
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
     await page.evaluate(() => window.history.back());
-    await expect(page.locator('[data-home-desk="overview"]')).toBeVisible();
+    await expect(page.locator('[data-desk="overview"]')).toBeVisible();
   });
 
   test('ordered navigator restores keyboard focus through Back, Escape, and browser Back', async ({ page }) => {
@@ -210,7 +285,7 @@ test.describe('large Artifact browser evidence', () => {
       await option.focus();
       await page.keyboard.press('Enter');
       await expect(page.locator(`[data-artifact-id="${artifactId}"]`)).toBeFocused();
-      await expect(page.locator('[data-home-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+      await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
     };
 
     await openFromNavigator();

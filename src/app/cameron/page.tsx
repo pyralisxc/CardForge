@@ -95,9 +95,9 @@ export default async function CameronPage() {
             <h1 className="mt-2 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-ivory)] md:text-5xl">{profile.heroHeadline}</h1>
             <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.introduction}</p>
             <div className="mt-6 flex flex-wrap gap-5">
-              <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">{siteContent['founder.hero.road-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-              <Link href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.contact-action']}</Link>
-              {siteConfiguration.supportOfferVisible ? <Link href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.support-action']}</Link> : null}
+              <Link data-site-content-slug="founder.hero.road-action" href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">{siteContent['founder.hero.road-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link data-site-content-slug="founder.hero.contact-action" href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.contact-action']}</Link>
+              {siteConfiguration.supportOfferVisible ? <Link data-site-content-slug="founder.hero.support-action" href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.support-action']}</Link> : null}
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default async function CameronPage() {
             <Sparkles className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
             <h2 className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{profile.currentHeading}</h2>
             <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">{profile.currentBody}</p>
-            <h3 className="mt-6 text-lg font-bold text-[var(--public-ivory)]">{siteContent['founder.current.priorities-heading']}</h3>
+            <h3 data-site-content-slug="founder.current.priorities-heading" className="mt-6 text-lg font-bold text-[var(--public-ivory)]">{siteContent['founder.current.priorities-heading']}</h3>
             <ul className="mt-3 space-y-2 text-base leading-7 text-[var(--public-muted-text)]">
               {profile.priorities.map((priority) => <li key={priority}>• {priority}</li>)}
             </ul>
@@ -126,7 +126,7 @@ export default async function CameronPage() {
       <section id="support" className="scroll-mt-6 border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_80%_15%,#30200f_0%,var(--cf-canvas)_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
           <HeartHandshake className="h-7 w-7 text-[var(--public-brass)]" aria-hidden="true" />
-          <p className="mt-3 text-base font-semibold text-[var(--public-brass)]">{siteContent['founder.support.eyebrow']}</p>
+          <p data-site-content-slug="founder.support.eyebrow" className="mt-3 text-base font-semibold text-[var(--public-brass)]">{siteContent['founder.support.eyebrow']}</p>
           <h2 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)]">{profile.supportHeading}</h2>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.supportIntroduction}</p>
 
@@ -153,8 +153,8 @@ export default async function CameronPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.support-uses.heading']}</h2>
-          <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['founder.support-uses.body']} {profile.supportUseSummary}</p>
+          <h2 data-site-content-slug="founder.support-uses.heading" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.support-uses.heading']}</h2>
+          <p data-site-content-slug="founder.support-uses.body" className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['founder.support-uses.body']} {profile.supportUseSummary}</p>
           <div className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2">
             {supportUses.map(([title, copy, Icon]) => (
               <article key={title} className="bg-[var(--public-surface)] p-5">

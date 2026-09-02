@@ -18,7 +18,7 @@ import type { ContributorProfileRow } from '@/features/contributor-access/server
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { hydratePipelineTemplateAssetReferences } from './pipelineTemplateAssets';
 
-const SUBMISSION_COLUMNS = 'id,lineage_id,contributor_id,contributor_email,asset_type,requested_studio_destination,specialty_tags,use_case_tags,source_notes,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
+const SUBMISSION_COLUMNS = 'id,lineage_id,contributor_id,contributor_email,asset_type,requested_studio_destination,specialty_tags,use_case_tags,source_notes,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,contributor_lifecycle_state,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
 
 export type PipelineListScope = 'all' | 'own' | 'review';
 

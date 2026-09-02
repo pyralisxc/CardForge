@@ -41,7 +41,7 @@ export const getContributorCapabilities = async (
     };
   }
 
-  if (account.entitlement.accessMode !== 'contributor') {
+  if (!account.entitlement.authorities.contributor) {
     return { active: false, scopes: [] };
   }
 

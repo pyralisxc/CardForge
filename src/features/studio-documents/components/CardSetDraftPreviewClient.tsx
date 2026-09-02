@@ -9,11 +9,7 @@ import {
   type TCGCardTemplate,
 } from '@/domain/templates';
 import { renderCardToPngBlob } from '@/features/card-generator/client';
-import {
-  mapProjectFontsToCardFontOptions,
-  normalizeProjectFontAssets,
-  type ProjectFontAsset,
-} from '@/features/project/client';
+import { mapProjectFontsToCardFontOptions, normalizeProjectFontAssets, type ProjectFontAsset } from '@/features/project/client/assets';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { StudioDocumentAssetDownload } from '../assetReferences';
 import { hydrateStudioDocumentAssetValue } from '../client/studioDocumentAssetHydration';

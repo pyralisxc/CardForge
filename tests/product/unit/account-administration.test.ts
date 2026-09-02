@@ -9,21 +9,23 @@ import {
 describe('account administration', () => {
   it('normalizes owner account role changes to supported private metadata values', () => {
     expect(normalizeOwnerAccountRoleInput({
-      access: 'contributor',
+      commercialPlan: 'designer',
+      contributor: true,
       owner: true,
       note: '  trusted collaborator ',
     })).toEqual({
       ok: true,
       value: {
-        access: 'contributor',
+        commercialPlan: 'designer',
+        contributor: true,
         owner: true,
         note: 'trusted collaborator',
       },
     });
 
-    expect(normalizeOwnerAccountRoleInput({ access: 'admin' })).toEqual({
+    expect(normalizeOwnerAccountRoleInput({ commercialPlan: 'enterprise' })).toEqual({
       ok: false,
-      message: 'Choose a supported access level.',
+      message: 'Choose a supported commercial plan.',
     });
   });
 
@@ -35,9 +37,11 @@ describe('account administration', () => {
         cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
         cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
       },
-      input: { access: 'contributor', owner: true, note: 'Lead tester' },
+      input: { commercialPlan: 'designer', contributor: true, owner: true, note: 'Lead tester' },
     })).toMatchObject({
       cardforgeAccess: 'contributor',
+      cardforgeCommercialPlan: 'designer',
+      cardforgeAuthorityRoles: ['contributor'],
       cardforgeRole: 'owner',
       cardforgeOwnerNote: 'Lead tester',
       cardforgeStripeCustomerId: 'cus_123',
@@ -48,7 +52,7 @@ describe('account administration', () => {
         cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
         cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
       },
-      input: { access: 'contributor', owner: false, note: '' },
+      input: { commercialPlan: 'free', contributor: true, owner: false, note: '' },
     });
     expect(patch).not.toHaveProperty('cardforgeAccessExpiresAt');
     expect(patch).not.toHaveProperty('cardforgeFounderBetaClaimedAt');
@@ -57,7 +61,7 @@ describe('account administration', () => {
   it('clears owner role with an empty private metadata value Clerk will persist', () => {
     expect(buildOwnerAccountMetadataPatch({
       existingMetadata: { cardforgeRole: 'owner' },
-      input: { access: 'free', owner: false, note: '' },
+      input: { commercialPlan: 'free', contributor: false, owner: false, note: '' },
     })).toMatchObject({
       cardforgeAccess: 'free',
       cardforgeRole: '',
@@ -83,6 +87,8 @@ describe('account administration', () => {
       email: 'ada@example.test',
       name: 'Ada Lovelace',
       access: 'paid',
+      commercialPlan: 'creator',
+      contributorAuthority: false,
       isOwner: true,
       createdAt: '2026-01-09T23:06:40.000Z',
       lastSignInAt: null,

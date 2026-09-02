@@ -198,6 +198,79 @@
   gap: 0.5rem;
 }
 
+.commandDialog {
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.commandSearch {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.8rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--cf-border);
+  background: var(--cf-canvas);
+  color: var(--cf-text-subtle);
+}
+
+.commandSearch input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--cf-text-strong);
+  font: inherit;
+}
+
+.commandResults {
+  display: grid;
+  max-height: min(26rem, 60vh);
+  gap: 0.4rem;
+  overflow-y: auto;
+}
+
+.commandResults > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  color: var(--cf-accent-text);
+  text-align: left;
+}
+
+.commandResults > button:not(:disabled):hover,
+.commandResults > button:not(:disabled):focus-visible {
+  border-color: var(--cf-accent);
+  background: var(--cf-surface-hover);
+}
+
+.commandResults > button:disabled {
+  opacity: 0.55;
+}
+
+.commandResults > button span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.commandResults small,
+.commandResults > p {
+  color: var(--cf-text-subtle);
+  font-size: 0.7rem;
+}
+
+.commandResults > p {
+  padding: 1rem;
+  border: 1px dashed var(--cf-border);
+}
+
 .searchWrap {
   position: relative;
   display: block;

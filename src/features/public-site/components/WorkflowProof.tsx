@@ -14,8 +14,8 @@ export function WorkflowProof() {
   return (
     <section aria-labelledby="workflow-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
-        <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.workflow.eyebrow']}</p>
-        <h2 id="workflow-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+        <p data-site-content-slug="landing.workflow.eyebrow" className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.workflow.eyebrow']}</p>
+        <h2 data-site-content-slug="landing.workflow.headline" id="workflow-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
           {siteContent['landing.workflow.headline']}
         </h2>
         <ol className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2 xl:grid-cols-4">

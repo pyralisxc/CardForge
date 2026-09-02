@@ -6,7 +6,7 @@ import {
   getArtifactSelectionScope,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
-} from '@/features/home/model/focusedArtifactLayout';
+} from '@/features/desk/model/focusedArtifactLayout';
 
 const identity = (index: number): ArtifactIdentity => ({
   artifactId: `card-${index}`,

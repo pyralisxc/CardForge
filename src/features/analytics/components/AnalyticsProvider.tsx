@@ -1,7 +1,7 @@
 "use client";
 
 import Script from 'next/script';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -30,11 +30,25 @@ import {
 
 const NON_TRACKABLE_PATH_PREFIXES = [
   '/owner',
-  '/account',
   '/sign-in',
   '/sign-up',
   '/mcp-template-preview',
 ] as const;
+
+const getProductZone = (pathname: string, searchParams: URLSearchParams): string | null => {
+  if (pathname === '/studio') return 'template_studio';
+  if (pathname !== '/account') return null;
+  const tool = searchParams.get('tool');
+  if (tool === 'design') return 'template_studio';
+  if (tool === 'generate') return 'card_generation';
+  if (tool === 'output') return 'export';
+  if (tool === 'pipeline') return 'pipeline';
+  const section = searchParams.get('section');
+  if (section === 'library' || section === 'profile') return section;
+  if (searchParams.has('artifact')) return 'artifact';
+  if (searchParams.has('focus')) return 'set';
+  return 'desk';
+};
 
 const deleteAnalyticsCookies = () => {
   const names = document.cookie.split(';').map((entry) => entry.split('=')[0]?.trim()).filter(Boolean);
@@ -63,6 +77,9 @@ export function AnalyticsProvider({
   presentation: AnalyticsConsentPresentation;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
+  const productZone = getProductZone(pathname, new URLSearchParams(searchKey));
   const measurementId = process.env.NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID ?? '';
   const posthogKey = process.env.NEXT_PUBLIC_CARDFORGE_POSTHOG_KEY ?? '';
   const posthogHost = process.env.NEXT_PUBLIC_CARDFORGE_POSTHOG_HOST ?? '';
@@ -81,22 +98,28 @@ export function AnalyticsProvider({
   const [productAnalyticsAttempted, setProductAnalyticsAttempted] = useState(!productAnalyticsEnabled);
   const lastGoogleLocation = useRef<string | null>(null);
   const lastProductPath = useRef<string | null>(null);
+  const lastGoogleZone = useRef<string | null>(null);
+  const lastProductZone = useRef<string | null>(null);
   const acceptButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
 
   const trackCurrentGooglePage = useCallback(() => {
     const location = trackAnalyticsPageView(lastGoogleLocation.current);
-    if (!location) return;
-    lastGoogleLocation.current = location;
-    if (pathname === '/studio') trackGoogleCardForgeEvent('open_studio', { placement: 'route_entry' });
-  }, [pathname]);
+    if (location) lastGoogleLocation.current = location;
+    if (productZone && lastGoogleZone.current !== productZone) {
+      lastGoogleZone.current = productZone;
+      trackGoogleCardForgeEvent('zone_entered', { zone: productZone, input_method: 'route' });
+    }
+  }, [productZone]);
 
   const trackCurrentProductPage = useCallback(() => {
     const path = trackProductAnalyticsPageView(lastProductPath.current);
-    if (!path) return;
-    lastProductPath.current = path;
-    if (pathname === '/studio') trackProductCardForgeEvent('open_studio', { placement: 'route_entry' });
-  }, [pathname]);
+    if (path) lastProductPath.current = path;
+    if (productZone && lastProductZone.current !== productZone) {
+      lastProductZone.current = productZone;
+      trackProductCardForgeEvent('zone_entered', { zone: productZone, input_method: 'route' });
+    }
+  }, [productZone]);
 
   useEffect(() => {
     if (enabled && trackablePath) setPreference(getAnalyticsConsentPreference());
@@ -223,6 +246,8 @@ export function AnalyticsProvider({
       window.gtag?.('consent', 'update', { analytics_storage: 'denied' });
       lastGoogleLocation.current = null;
       lastProductPath.current = null;
+      lastGoogleZone.current = null;
+      lastProductZone.current = null;
       setTagReady(false);
       deleteAnalyticsCookies();
       disableProductAnalytics();

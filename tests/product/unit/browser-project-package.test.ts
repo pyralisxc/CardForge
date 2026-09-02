@@ -2,17 +2,11 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ProjectDocumentV1 } from '@/features/project/client';
-import {
-  buildCardForgeProjectSnapshot,
-  createCardForgeProjectPackageBlob,
-  createPublishedSetCopy,
-  decodeCardForgeProjectPackage,
-  materializeBrowserProjectSnapshot,
-  setProjectPersistenceScope,
-  useProjectStore,
-  writeCardForgeProjectPackage,
-} from '@/features/project/client';
+import type { ProjectDocumentV1 } from '@/features/project/client/package-document';
+import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob, decodeCardForgeProjectPackage, materializeBrowserProjectSnapshot, writeCardForgeProjectPackage } from '@/features/project/client/package-core';
+import { createPublishedSetCopy } from '@/features/project/client/published-sets';
+import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { useProjectStore } from '@/features/project/client/workspace';
 import { buildBrowserCardForgeProjectSnapshot } from '@/features/project/client/project-packages';
 import { readStructuredBrowserValue } from '@/features/project/persistence/structuredBrowserStorage';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';

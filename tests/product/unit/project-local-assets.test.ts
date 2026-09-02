@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  canUploadCustomLocalAssets,
-  readRequiredProjectAssetListFromStorage,
-  readProjectAssetListFromStorage,
-  writeProjectAssetListToStorage,
-} from '@/features/project/client';
+import { canUploadCustomLocalAssets, readRequiredProjectAssetListFromStorage, readProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
 
 const createStorage = (initial: Record<string, string | null> = {}) => {
   const values = new Map(Object.entries(initial).filter((entry): entry is [string, string] => entry[1] !== null));

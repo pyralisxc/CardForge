@@ -8,22 +8,12 @@ import { Database, HardDrive, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { CardAssetOption } from '@/domain/templates';
-import {
-  createCardSetTransfer,
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getBrowserStorageHealth,
-  getProjectAssetStorage,
-  hydrateProjectWorkspaceForScope,
-  readTypedProjectAssetListFromStorage,
-  selectAllTemplates,
-  useProjectStore,
-  type BrowserStorageHealth,
-  type ProjectDocumentCustomAssets,
-  type ProjectPersistenceScope,
-} from '@/features/project/client';
+import { createCardSetTransfer } from '@/features/project/client/package-transfer';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, type ProjectDocumentCustomAssets } from '@/features/project/client/package-document';
+import { getBrowserStorageHealth, type BrowserStorageHealth } from '@/features/project/client/persistence-storage';
+import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
+import { hydrateProjectWorkspaceForScope, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
 import { AssistantDraftLibrary } from './AssistantDraftLibrary';
 
 interface AccountStorageLibraryProps {

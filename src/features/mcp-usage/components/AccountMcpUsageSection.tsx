@@ -72,7 +72,7 @@ export function AccountMcpUsageSection({
             <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 font-semibold text-[var(--cf-accent-text)]"><Cloud className="h-4 w-4" />Private ChatGPT plugin workspace</span><span className="text-sm text-[var(--cf-text-muted)]">{formatBytes(usage.documentBytes)} / {formatBytes(usage.allowance.onlineStorageLimitBytes)}</span></div>
               <UsageBar label="Private ChatGPT plugin workspace used" value={usage.documentBytes} limit={usage.allowance.onlineStorageLimitBytes} />
-              <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{usage.documentCount} private ChatGPT plugin working document{usage.documentCount === 1 ? '' : 's'}. Normal Studio projects still remain in this browser.</p>
+              <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{usage.documentCount} private ChatGPT working document{usage.documentCount === 1 ? '' : 's'}. Your normal Sets still remain in this browser.</p>
             </div>
           </div>
           {presentation === 'summary' && onOpenDetails ? (

@@ -1,13 +1,17 @@
 export type OwnerManagedAccess = 'free' | 'paid' | 'contributor';
+export type OwnerManagedCommercialPlan = 'free' | 'creator' | 'designer';
 
 export interface OwnerAccountRoleInput {
+  commercialPlan?: unknown;
+  contributor?: unknown;
   access?: unknown;
   owner?: unknown;
   note?: unknown;
 }
 
 export interface NormalizedOwnerAccountRole {
-  access: OwnerManagedAccess;
+  commercialPlan: OwnerManagedCommercialPlan;
+  contributor: boolean;
   owner: boolean;
   note: string;
 }
@@ -21,6 +25,8 @@ export interface OwnerAccountSummary {
   email: string | null;
   name: string;
   access: OwnerManagedAccess;
+  commercialPlan: OwnerManagedCommercialPlan;
+  contributorAuthority: boolean;
   isOwner: boolean;
   createdAt: string | null;
   lastSignInAt: string | null;
@@ -35,6 +41,9 @@ const normalizeNote = (value: unknown): string =>
 const normalizeAccess = (value: unknown): OwnerManagedAccess | null =>
   value === 'free' || value === 'paid' || value === 'contributor' ? value : null;
 
+const normalizeCommercialPlan = (value: unknown): OwnerManagedCommercialPlan | null =>
+  value === 'free' || value === 'creator' || value === 'designer' ? value : null;
+
 const getString = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null;
 
@@ -42,13 +51,16 @@ const toIsoFromMs = (value: unknown): string | null =>
   typeof value === 'number' && Number.isFinite(value) ? new Date(value).toISOString() : null;
 
 export const normalizeOwnerAccountRoleInput = (input: OwnerAccountRoleInput): OwnerAccountRoleInputResult => {
-  const access = normalizeAccess(input.access);
-  if (!access) return { ok: false, message: 'Choose a supported access level.' };
+  const legacyAccess = normalizeAccess(input.access);
+  const commercialPlan = normalizeCommercialPlan(input.commercialPlan)
+    ?? (legacyAccess === 'paid' ? 'creator' : legacyAccess ? 'free' : null);
+  if (!commercialPlan) return { ok: false, message: 'Choose a supported commercial plan.' };
 
   return {
     ok: true,
     value: {
-      access,
+      commercialPlan,
+      contributor: input.contributor === true || legacyAccess === 'contributor',
       owner: input.owner === true,
       note: normalizeNote(input.note),
     },
@@ -63,11 +75,19 @@ export const buildOwnerAccountMetadataPatch = ({
   input: NormalizedOwnerAccountRole;
 }): Record<string, unknown> => {
   const nextMetadata = { ...existingMetadata };
+  const existingRoles = Array.isArray(existingMetadata.cardforgeAuthorityRoles)
+    ? existingMetadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string' && role !== 'contributor')
+    : [];
+  const authorityRoles = input.contributor ? [...existingRoles, 'contributor'] : existingRoles;
   delete nextMetadata.cardforgeAccessExpiresAt;
   delete nextMetadata.cardforgeFounderBetaClaimedAt;
   return {
     ...nextMetadata,
-    cardforgeAccess: input.access,
+    cardforgeAccess: input.owner || input.contributor
+      ? 'contributor'
+      : input.commercialPlan === 'free' ? 'free' : 'paid',
+    cardforgeCommercialPlan: input.commercialPlan,
+    cardforgeAuthorityRoles: authorityRoles,
     cardforgeRole: input.owner ? 'owner' : '',
     cardforgeOwnerNote: input.note,
     cardforgeOwnerUpdatedAt: new Date().toISOString(),
@@ -86,6 +106,12 @@ export const mapOwnerAccountSummary = (user: {
 }): OwnerAccountSummary => {
   const metadata = user.privateMetadata ?? {};
   const access = normalizeAccess(metadata.cardforgeAccess) ?? 'free';
+  const commercialPlan = normalizeCommercialPlan(metadata.cardforgeCommercialPlan)
+    ?? (access === 'paid' && getString(metadata.cardforgeStripeCustomerId)
+      ? (metadata.cardforgePaidPlan === 'designer' ? 'designer' : 'creator')
+      : 'free');
+  const contributorAuthority = (Array.isArray(metadata.cardforgeAuthorityRoles)
+    && metadata.cardforgeAuthorityRoles.includes('contributor')) || access === 'contributor';
   const firstName = getString(user.firstName) ?? '';
   const lastName = getString(user.lastName) ?? '';
   const name = `${firstName} ${lastName}`.trim();
@@ -95,6 +121,8 @@ export const mapOwnerAccountSummary = (user: {
     email: user.emailAddresses?.[0]?.emailAddress ?? null,
     name,
     access,
+    commercialPlan,
+    contributorAuthority,
     isOwner: metadata.cardforgeRole === 'owner',
     createdAt: toIsoFromMs(user.createdAt),
     lastSignInAt: toIsoFromMs(user.lastSignInAt),

@@ -2,17 +2,9 @@
 
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { normalizeLocalLibraryAsset } from '@/features/pipeline/client/assets';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getProjectAssetStorage,
-  optimizeLocalAssetFile,
-  readTypedProjectAssetListFromStorage,
-  validateLocalAssetFile,
-  writeProjectAssetListToStorage,
-} from '@/features/project/client';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import type { StudioAssetDestination } from '@/domain/templates';
 import { materializePersonalLibraryItemContent } from './personalLibraryClient';
 import type { PersonalLibraryItem, PersonalLibraryRole } from '../model';

@@ -7,12 +7,12 @@ export {
   getWorkLocationCapabilities,
   normalizeDefaultWorkLocation,
   WORK_LOCATION_IDS,
-} from '@/features/project/client';
+} from '@/features/project/client/locations';
 export type {
   WorkLocationCapability,
   WorkLocationContext,
   WorkLocationId,
-} from '@/features/project/client';
+} from '@/features/project/client/locations';
 
 export const accountSourceToWorkLocation = (source: AccountLibrarySource) => {
   if (source === 'device' || source === 'google-drive' || source === 'local-folder') return source;

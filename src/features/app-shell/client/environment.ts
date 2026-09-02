@@ -21,6 +21,7 @@ export {
   inspectCreatorArtifact,
   openCreatorTool,
   selectCreatorArtifacts,
+  selectCreatorDeskSets,
   setCreatorCamera,
   setCreatorLens,
   setCreatorToolDirty,

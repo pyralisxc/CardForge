@@ -36,6 +36,7 @@ import {
   sortRoadmapFeatures,
   type RoadmapPayload,
   type RoadmapSortMode,
+  type RoadmapStatus,
   type RoadmapVoteValue,
 } from '@/features/roadmap/model/roadmap';
 
@@ -152,6 +153,27 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
         description: error instanceof Error ? error.message : 'Unable to save vote.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateRoadmapStatus = async (itemId: string, status: RoadmapStatus) => {
+    if (!isOwner) return;
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/owner/console', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'roadmapStatus', roadmapItem: { itemId, status } }),
+      });
+      if (!response.ok) {
+        throw new Error(await readApiErrorMessage(response, 'Unable to update roadmap status.'));
+      }
+      await loadRoadmap();
+      toast({ title: status === 'shipped' ? 'Roadmap item completed' : 'Roadmap status updated', description: 'The public Roadmap now reflects this owner decision.' });
+    } catch (error) {
+      toast({ title: 'Roadmap status not updated', description: error instanceof Error ? error.message : 'Unable to update roadmap status.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -396,7 +418,9 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
                   rank={index + 1}
                   isSignedIn={isSignedIn}
                   isSaving={isSaving}
+                  isOwner={isOwner}
                   onVote={saveVote}
+                  onStatusChange={updateRoadmapStatus}
                 />
               ))}
               {!isLoading && featureItems.length === 0 ? (
@@ -469,10 +493,12 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
               items={timelineCheckpoints}
               isLoading={isLoading}
               isContributor={isContributor}
+              isOwner={isOwner}
               isSignedIn={isSignedIn}
               isSaving={isSaving}
               onDelete={deleteItem}
               onVote={saveVote}
+              onStatusChange={updateRoadmapStatus}
             />
           </div>
         </div>

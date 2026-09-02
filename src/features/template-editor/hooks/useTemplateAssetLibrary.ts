@@ -18,17 +18,9 @@ import {
   loadPersonalLibrary,
   type PersonalLibraryItem,
 } from '@/features/personal-library/client';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getProjectAssetStorage,
-  optimizeLocalAssetFile,
-  readTypedProjectAssetListFromStorage,
-  validateLocalAssetFile,
-  writeProjectAssetListToStorage,
-} from '@/features/project/client';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 

@@ -54,6 +54,39 @@ export const formatMonthlyCurrency = (cents: number | null) => {
 
 export const voteTotal = (item: RoadmapItem) => item.upVotes + item.downVotes;
 
+const ownerStatuses: Array<{ value: RoadmapStatus; label: string }> = [
+  { value: 'planned', label: 'Plan' },
+  { value: 'in_progress', label: 'Start' },
+  { value: 'testing', label: 'Test' },
+  { value: 'shipped', label: 'Complete' },
+];
+
+function OwnerStatusControls({
+  item,
+  isSaving,
+  onStatusChange,
+}: {
+  item: RoadmapItem;
+  isSaving: boolean;
+  onStatusChange: (itemId: string, status: RoadmapStatus) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[var(--cf-border)] pt-3" aria-label={`Owner status for ${item.title}`}>
+      {ownerStatuses.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          className={`min-h-8 border px-2 text-[10px] font-semibold uppercase tracking-[0.1em] transition ${item.status === value ? 'border-[var(--cf-accent)] bg-[#2b1d0e] text-[var(--cf-accent-text)]' : 'border-[var(--cf-border)] text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]'}`}
+          disabled={isSaving || item.status === value}
+          onClick={() => onStatusChange(item.id, value)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const getTimelinePath = (points: Array<{ x: number; y: number }>) => {
   if (points.length === 0) return '';
   return points.slice(1).reduce((path, point, index) => {
@@ -101,13 +134,17 @@ export function FeatureCard({
   rank,
   isSignedIn,
   isSaving,
+  isOwner,
   onVote,
+  onStatusChange,
 }: {
   item: RoadmapItem;
   rank: number;
   isSignedIn: boolean;
   isSaving: boolean;
+  isOwner: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
+  onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
   return (
     <article className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 transition hover:border-[#8f6b39]">
@@ -141,6 +178,7 @@ export function FeatureCard({
           />
         </div>
       </div>
+      {isOwner ? <OwnerStatusControls item={item} isSaving={isSaving} onStatusChange={onStatusChange} /> : null}
     </article>
   );
 }
@@ -153,8 +191,10 @@ function TimelineNodeCard({
   isSignedIn,
   isSaving,
   isContributor,
+  isOwner,
   onVote,
   onDelete,
+  onStatusChange,
 }: {
   item: RoadmapItem;
   index: number;
@@ -163,8 +203,10 @@ function TimelineNodeCard({
   isSignedIn: boolean;
   isSaving: boolean;
   isContributor: boolean;
+  isOwner: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
   onDelete: (itemId: string) => void;
+  onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
   const target = cumulativeMonthlyCostCents > 0
     ? formatMonthlyCurrency(requiredRoadmapIncomeCents)
@@ -260,6 +302,7 @@ function TimelineNodeCard({
             ) : null}
           </div>
         </div>
+        {isOwner ? <OwnerStatusControls item={item} isSaving={isSaving} onStatusChange={onStatusChange} /> : null}
       </div>
     </article>
   );
@@ -269,18 +312,22 @@ export function HorizontalTimeline({
   items,
   isLoading,
   isContributor,
+  isOwner,
   isSignedIn,
   isSaving,
   onDelete,
   onVote,
+  onStatusChange,
 }: {
   items: Array<RoadmapTimelineCheckpoint<RoadmapItem>>;
   isLoading: boolean;
   isContributor: boolean;
+  isOwner: boolean;
   isSignedIn: boolean;
   isSaving: boolean;
   onDelete: (itemId: string) => void;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
+  onStatusChange: (itemId: string, status: RoadmapStatus) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -323,10 +370,12 @@ export function HorizontalTimeline({
                 cumulativeMonthlyCostCents={checkpoint.cumulativeMonthlyCostCents}
                 requiredRoadmapIncomeCents={checkpoint.requiredRoadmapIncomeCents}
                 isContributor={isContributor}
+                isOwner={isOwner}
                 isSignedIn={isSignedIn}
                 isSaving={isSaving}
                 onDelete={onDelete}
                 onVote={onVote}
+                onStatusChange={onStatusChange}
               />
             </div>
           ))}

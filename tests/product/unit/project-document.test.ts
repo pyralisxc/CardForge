@@ -4,14 +4,7 @@ import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates'
 import type { PaperSize } from '@/domain/rendering';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import {
-  createProjectDocumentFromState,
-  applyProjectDocumentToState,
-  instantiateProjectDocumentCopy,
-  isolateProjectDocumentToSet,
-  parseProjectDocumentFile,
-  type ProjectDocumentV1,
-} from '@/features/project/client';
+import { createProjectDocumentFromState, applyProjectDocumentToState, instantiateProjectDocumentCopy, isolateProjectDocumentToSet, parseProjectDocumentFile, type ProjectDocumentV1 } from '@/features/project/client/package-document';
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',

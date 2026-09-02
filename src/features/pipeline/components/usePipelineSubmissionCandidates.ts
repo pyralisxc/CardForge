@@ -11,19 +11,12 @@ import {
   type PersonalLibraryFilter,
   type PersonalLibraryItem,
 } from '@/features/pipeline/components/PipelineContributionModel';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  captureCardSetProjectDocument,
-  createCardForgeProjectPackageBlob,
-  getProjectAssetStorage,
-  getProjectPersistenceScope,
-  isProjectBinaryAssetReference,
-  readTypedProjectAssetListFromStorage,
-  useProjectStore,
-} from '@/features/project/client';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { createCardForgeProjectPackageBlob } from '@/features/project/client/package-core';
+import { captureCardSetProjectDocument, useProjectStore } from '@/features/project/client/workspace';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
+import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { isProjectBinaryAssetReference } from '@/features/project/client/persistence-binaries';
 import { readBrowserProjectAssetReference } from '@/features/project/client/binary-assets';
 import { buildBrowserCardForgeProjectSnapshot } from '@/features/project/client/project-packages';
 

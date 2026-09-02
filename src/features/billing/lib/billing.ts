@@ -415,25 +415,40 @@ export const buildStripePaidAccessMetadata = ({
   stripeCustomerId,
   stripeSubscriptionId,
   stripeCheckoutSessionId,
-}: BuildStripePaidAccessMetadataInput): Record<string, unknown> => ({
-  ...existingMetadata,
-  cardforgeAccess: 'paid',
-  cardforgePaidPlan: paidPlan
-    ?? (existingMetadata.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'),
-  cardforgeAccessExpiresAt: null,
-  cardforgeStripeCustomerId: stripeCustomerId ?? existingMetadata.cardforgeStripeCustomerId ?? null,
-  cardforgeStripeSubscriptionId: stripeSubscriptionId ?? existingMetadata.cardforgeStripeSubscriptionId ?? null,
-  cardforgeStripeCheckoutSessionId: stripeCheckoutSessionId ?? existingMetadata.cardforgeStripeCheckoutSessionId ?? null,
-  cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
-});
+}: BuildStripePaidAccessMetadataInput): Record<string, unknown> => {
+  const legacyContributor = existingMetadata.cardforgeAccess === 'contributor';
+  const roles = new Set(Array.isArray(existingMetadata.cardforgeAuthorityRoles)
+    ? existingMetadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string')
+    : []);
+  if (legacyContributor) roles.add('contributor');
+  const commercialPlan = paidPlan
+    ?? (existingMetadata.cardforgeCommercialPlan === 'designer' || existingMetadata.cardforgePaidPlan === 'designer' ? 'designer' : 'creator');
+  return {
+    ...existingMetadata,
+    // Keep the legacy projection readable while no longer allowing a Stripe
+    // event to erase Contributor authority.
+    cardforgeAccess: legacyContributor ? 'contributor' : 'paid',
+    cardforgeAuthorityRoles: [...roles],
+    cardforgeCommercialPlan: commercialPlan,
+    cardforgePaidPlan: commercialPlan,
+    cardforgeAccessExpiresAt: null,
+    cardforgeStripeCustomerId: stripeCustomerId ?? existingMetadata.cardforgeStripeCustomerId ?? null,
+    cardforgeStripeSubscriptionId: stripeSubscriptionId ?? existingMetadata.cardforgeStripeSubscriptionId ?? null,
+    cardforgeStripeCheckoutSessionId: stripeCheckoutSessionId ?? existingMetadata.cardforgeStripeCheckoutSessionId ?? null,
+    cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
+  };
+};
 
 export const buildStripeRevokedAccessMetadata = (
   existingMetadata: Record<string, unknown> = {}
 ): Record<string, unknown> => {
   const nextMetadata = {
     ...existingMetadata,
-    cardforgeAccess: existingMetadata.cardforgeAccess === 'paid' ? 'free' : existingMetadata.cardforgeAccess,
+    cardforgeAccess: existingMetadata.cardforgeAccess === 'paid'
+      ? (Array.isArray(existingMetadata.cardforgeAuthorityRoles) && existingMetadata.cardforgeAuthorityRoles.includes('contributor') ? 'contributor' : 'free')
+      : existingMetadata.cardforgeAccess,
     cardforgeAccessExpiresAt: null,
+    cardforgeCommercialPlan: null,
     cardforgePaidPlan: null,
     cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
   };

@@ -2,6 +2,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import { revalidateCardForgeCatalog } from '@/features/pipeline/server/catalogCache';
 import {
   PipelineStoreError,
+  changeOwnedPipelineSubmissionLifecycle,
   finalizeContributorTemplatePipelineDraft,
   getCurrentPipelineRequestAccess,
   permanentlyDeletePipelineSubmission,
@@ -76,9 +77,9 @@ export async function POST(
 ) {
   try {
     const access = await getCurrentPipelineRequestAccess();
-    requirePipelineRequestScope(access, 'library.submit');
     const { submissionId } = await params;
     const body = await request.json() as {
+      action?: unknown;
       name?: unknown;
       description?: unknown;
       previewUrl?: unknown;
@@ -87,6 +88,17 @@ export async function POST(
       useCaseTags?: unknown;
       requestedStudioDestination?: unknown;
     };
+    if (body.action === 'withdraw' || body.action === 'retire') {
+      requirePipelineRequestScope(access, 'assets.submit');
+      const lifecycle = await changeOwnedPipelineSubmissionLifecycle({
+        submissionId,
+        contributorId: access.user.id,
+        action: body.action,
+      });
+      revalidateCardForgeCatalog();
+      return createNoStoreJsonResponse({ lifecycle });
+    }
+    requirePipelineRequestScope(access, 'library.submit');
     await finalizeContributorTemplatePipelineDraft({
       submissionId,
       contributorId: access.user.id,

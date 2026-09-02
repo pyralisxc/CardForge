@@ -1,0 +1,1620 @@
+.spatialPlane {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  background: var(--cf-canvas);
+}
+
+.spatialPlane[data-artifact-focused="true"],
+.spatialPlane[data-artifact-focused="true"] .desk,
+.spatialPlane[data-artifact-focused="true"] .workSurface,
+.spatialPlane[data-artifact-focused="true"] .workGrid,
+.spatialPlane[data-artifact-focused="true"] .workTile[data-presentation="focused"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .desk {
+  gap: 0;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  flex: 1 1 auto;
+}
+
+.desk {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.desk[data-focused="true"] > :not(.workSurface) {
+  display: none;
+}
+
+.desk[data-focused="true"] .workSurfaceHeader,
+.desk[data-focused="true"] .deskToolbar {
+  visibility: hidden;
+}
+
+.desk[data-focused="true"] .workSurface,
+.desk[data-focused="true"] .workGrid {
+  min-height: 100%;
+}
+
+.desk[data-focused="true"] .workSurface {
+  overflow: visible;
+}
+
+.spatialPlane[data-artifact-focused="true"] .workSurface {
+  overflow: clip;
+}
+
+.desk[data-focused="true"] .workGrid {
+  padding: 0;
+}
+
+.deskIntro {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0.25rem 0.45rem;
+}
+
+.deskIntro p,
+.deskIntro h1,
+.deskIntro span {
+  margin: 0;
+}
+
+.deskIntro p {
+  color: var(--cf-accent-strong);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deskIntro h1 {
+  margin-top: 0.1rem;
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-size: clamp(1.4rem, 2.3vw, 1.9rem);
+  font-weight: 600;
+}
+
+.deskIntro span {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+}
+
+.deskIntro > strong {
+  flex: 0 0 auto;
+  color: var(--cf-text-subtle);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.workSurface {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 25rem;
+  flex: 1 0 25rem;
+  border-top: 1px solid var(--cf-border-subtle);
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  overflow: hidden;
+}
+
+.workSurfaceHeader {
+  position: absolute;
+  z-index: 6;
+  top: 0.85rem;
+  left: 1rem;
+  pointer-events: none;
+}
+
+.workSurfaceHeader h2,
+.focusIdentity h1,
+.contentHeading h2 {
+  margin: 0;
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-weight: 600;
+}
+
+.workSurfaceHeader h2 {
+  font-size: 0.86rem;
+}
+
+.workSurfaceHeader span {
+  display: block;
+  margin-top: 0.08rem;
+  color: var(--cf-text-subtle);
+  font-size: 0.6rem;
+}
+
+.deskToolbar {
+  position: absolute;
+  z-index: 12;
+  top: 0.65rem;
+  right: 0.8rem;
+  display: flex;
+  max-width: calc(100% - 1.6rem);
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 94%, transparent);
+  box-shadow: var(--cf-panel-shadow);
+}
+
+.searchField {
+  position: relative;
+  width: min(15rem, 100%);
+}
+
+.searchField svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0.7rem;
+  width: 0.92rem;
+  height: 0.92rem;
+  transform: translateY(-50%);
+  color: var(--cf-text-subtle);
+  pointer-events: none;
+}
+
+.searchField input {
+  height: 2.2rem;
+  padding-left: 2rem;
+}
+
+.sourceSelect,
+.arrangeSelect {
+  height: 2.2rem;
+}
+
+.sourceSelect {
+  width: 7.75rem;
+}
+
+.arrangeSelect {
+  width: 8.75rem;
+}
+
+.spatialControls {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.desktopSpatialControls {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.deskSelectionBar {
+  position: absolute;
+  z-index: 34;
+  top: 3.9rem;
+  left: 50%;
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-surface) 94%, transparent);
+  padding: 0.25rem 0.4rem 0.25rem 0.7rem;
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 24%);
+  transform: translateX(-50%);
+}
+
+.deskSelectionBar strong {
+  color: var(--cf-accent-text);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.deskNudgeControls {
+  display: flex;
+  align-items: center;
+}
+
+.deskNudgeControls button,
+.deskSelectionBar > button:last-child {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.workGrid {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--cf-border-strong) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-x pan-y;
+}
+
+.workGrid:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: -2px;
+}
+
+.deskWorldSizer {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.deskWorld {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1200px;
+  height: 720px;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 1.5%);
+  transform-origin: top left;
+}
+
+.deskWorld[data-grid="true"] {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 3%) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.deskWorldSizer[data-focused="true"],
+.deskWorld[data-focused="true"] {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+}
+
+.deskWorld[data-focused="true"] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none !important;
+}
+
+.deskCameraControls {
+  position: absolute;
+  z-index: 32;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  min-height: 2.65rem;
+  align-items: center;
+  gap: 0.1rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-canvas) 94%, transparent);
+  padding: 0.2rem;
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 24%);
+}
+
+.deskCameraControls > span {
+  min-width: 2.9rem;
+  color: var(--cf-accent-text);
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.deskViewportHint {
+  position: absolute;
+  z-index: 31;
+  right: 0.75rem;
+  bottom: 0.9rem;
+  margin: 0;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  padding: 0.5rem 0.65rem;
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+}
+
+.deskMarquee {
+  position: absolute;
+  z-index: 30;
+  border: 1px solid var(--cf-accent-strong);
+  background: color-mix(in srgb, var(--cf-accent-strong) 16%, transparent);
+  pointer-events: none;
+}
+
+.workTile[data-positioned="true"] {
+  position: absolute;
+  top: var(--desk-y);
+  left: var(--desk-x);
+  width: 14.5rem;
+  z-index: var(--desk-z);
+  transform: none;
+}
+
+.workTile[data-positioned="true"]:hover,
+.workTile[data-positioned="true"]:focus-within {
+  transform: translateY(-0.2rem);
+}
+
+.workTile {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  align-self: center;
+  transition: filter 160ms ease, transform 180ms ease;
+}
+
+.workTile[data-selected="true"] {
+  z-index: 12;
+  filter: brightness(1.08);
+}
+
+.workTile[data-selected="true"] .workTileMain {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 0.35rem;
+}
+
+.workTile[aria-hidden="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workTile[data-presentation="focused"] {
+  z-index: 20;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: 100%;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"]:hover,
+.workTile[data-presentation="focused"]:focus-within {
+  filter: none;
+  transform: none;
+}
+
+.workTile[data-presentation="focused"] .workTileMain {
+  position: absolute;
+  z-index: 60;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workTile[data-presentation="focused"][data-opening-motion="true"] .focusSurface {
+  animation: desk-set-open-resolve 420ms ease both;
+}
+
+@keyframes desk-set-open-resolve {
+  from { opacity: 0; }
+  55% { opacity: 0.22; }
+  to { opacity: 1; }
+}
+
+.workTile[data-featured="true"] {
+  z-index: 4;
+}
+
+.workTile:hover,
+.workTile:focus-within {
+  z-index: 10;
+  filter: brightness(1.08);
+  transform: translateY(-0.45rem) rotate(0deg);
+}
+
+.workTileMain {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  justify-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  touch-action: pan-x pan-y;
+}
+
+.workGrid[data-arrange-mode="true"] .workTileMain {
+  touch-action: none;
+}
+
+.workVisual {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 8rem;
+  place-items: center;
+  overflow: visible;
+}
+
+.workTile[data-featured="true"] .workVisual {
+  min-height: 14rem;
+}
+
+.sourceFallback {
+  display: grid;
+  width: 6.8rem;
+  min-height: 8.4rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface);
+  box-shadow: 0.45rem 0.55rem 0 -0.15rem var(--cf-canvas), 0.5rem 0.6rem 0 var(--cf-border-subtle), var(--cf-panel-shadow);
+  color: var(--cf-accent-strong);
+}
+
+.workTile[data-featured="true"] .sourceFallback {
+  width: 10rem;
+  min-height: 12rem;
+}
+
+.sourceFallback svg {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.sourceFallback span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+}
+
+.workMeta {
+  display: grid;
+  max-width: 17rem;
+  justify-items: center;
+  gap: 0.1rem;
+  margin-top: 0.55rem;
+  padding: 0.25rem 0.55rem;
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+}
+
+.workMeta strong,
+.workMeta span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workMeta strong {
+  color: var(--cf-text-strong);
+  font-size: 0.8rem;
+}
+
+.workMeta span {
+  color: var(--cf-text-muted);
+  font-size: 0.62rem;
+}
+
+.tileActions {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.deskTileFlip {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.deskTileFlip:hover,
+.deskTileFlip:focus-visible {
+  border-color: var(--cf-border-strong);
+  opacity: 1;
+}
+
+.workTile:hover .tileActions,
+.workTile:focus-within .tileActions,
+.workTile[data-pinned="true"] .tileActions {
+  opacity: 1;
+}
+
+.iconButton,
+.backButton,
+.quietAction {
+  display: inline-flex;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  background: var(--cf-canvas);
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible,
+.iconButton[data-active="true"],
+.backButton:hover,
+.backButton:focus-visible,
+.quietAction:hover,
+.quietAction:focus-visible {
+  border-color: var(--cf-border-strong);
+  color: var(--cf-accent-text);
+}
+
+.emptyDesk {
+  display: grid;
+  min-height: 20rem;
+  place-items: center;
+  text-align: center;
+}
+
+.emptyDeskInner {
+  display: grid;
+  max-width: 24rem;
+  justify-items: center;
+  gap: 0.7rem;
+}
+
+.emptyDeskInner svg {
+  width: 2.7rem;
+  height: 2.7rem;
+  color: var(--cf-accent-strong);
+}
+
+.emptyCopy {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.utilityStrip {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.utilityButton {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-right: 1px solid var(--cf-border-subtle);
+  background: transparent;
+  padding: 0.45rem 0.65rem;
+  color: var(--cf-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.utilityButton:last-child {
+  border-right: 0;
+}
+
+.utilityButton:hover,
+.utilityButton:focus-visible {
+  background: var(--cf-surface-inset);
+}
+
+.utilityButton > svg {
+  color: var(--cf-accent-strong);
+}
+
+.utilityText,
+.utilityText strong,
+.utilityText span {
+  min-width: 0;
+}
+
+.utilityText strong,
+.utilityText span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utilityText strong {
+  color: var(--cf-text-strong);
+  font-size: 0.67rem;
+}
+
+.utilityText span {
+  margin-top: 0.08rem;
+  font-size: 0.61rem;
+}
+
+.focusSurface {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  place-items: center;
+  padding: 3.5rem clamp(1rem, 3vw, 3rem) 2rem;
+  overflow: hidden;
+}
+
+.focusSurface[data-artifact-focused="true"] {
+  height: 100%;
+  min-height: 0;
+  place-items: stretch;
+  padding: 0;
+}
+
+.backButton {
+  position: absolute;
+  z-index: 20;
+  top: 4.1rem;
+  left: 0.25rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.focusWorkspace {
+  position: relative;
+  z-index: 5;
+  width: min(76rem, 100%);
+  min-width: 0;
+  min-height: 34rem;
+  padding: 1rem 1.15rem 1.2rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface-inset);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 28%), inset 0 0 0 1px color-mix(in srgb, var(--cf-accent-strong) 10%, transparent);
+}
+
+.focusWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.focusSurface[data-artifact-focused="true"] .backButton {
+  top: 0.55rem;
+  left: 0.55rem;
+}
+
+.focusHeader,
+.contentHeading,
+.contentToolbar,
+.focusActions,
+.selectionBar,
+.renameRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.focusHeader {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-left: 8rem;
+  padding-bottom: 0.75rem;
+}
+
+.focusIdentity {
+  min-width: 0;
+}
+
+.focusIdentity h1 {
+  overflow: hidden;
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focusIdentity p,
+.contentHeading p {
+  margin: 0.15rem 0 0;
+  color: var(--cf-text-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.focusActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.15rem;
+}
+
+.quietAction {
+  background: transparent;
+  padding: 0.35rem 0.5rem;
+}
+
+.renameRow {
+  gap: 0.45rem;
+}
+
+.renameRow input {
+  min-width: 15rem;
+}
+
+.contentHeading {
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--cf-border-subtle);
+}
+
+.contentHeading h2 {
+  font-size: 1rem;
+}
+
+.contentToolbar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.organizationToolbar {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.compactSelect {
+  width: auto;
+  min-width: 8.5rem;
+  max-width: 13rem;
+}
+
+.compactSelect svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.selectionBar {
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.selectionBar > span {
+  color: var(--cf-accent-text);
+  font-size: 0.68rem;
+}
+
+.tagTools {
+  display: flex;
+  min-width: min(100%, 17rem);
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tagTools input {
+  min-width: 7rem;
+  height: 2.25rem;
+}
+
+.moveSelect {
+  width: min(14rem, 100%);
+}
+
+.contentStage {
+  position: relative;
+  height: min(58dvh, 38rem);
+  min-height: 24rem;
+  margin-top: 0.7rem;
+  background: var(--cf-canvas);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.contentStage[data-grid="true"] {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.artifactWorldSizer,
+.artifactWorld {
+  position: relative;
+}
+
+.artifactWorld {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+.artifactWorld .artifactTile {
+  position: absolute;
+  touch-action: none;
+}
+
+.artifactWorld .cardButton {
+  position: relative;
+  width: 100%;
+  touch-action: none;
+}
+
+.artifactWorld .cardButton img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.artifactGroupLabel {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  right: 1rem;
+  left: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  pointer-events: none;
+}
+
+.cardButton {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.5rem;
+  color: var(--cf-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.cardButton:hover,
+.cardButton[aria-pressed="true"] {
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+  transform: translateY(-0.25rem);
+}
+
+.cardButton[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--cf-accent-strong);
+}
+
+.cardButton[data-focused="true"] {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 2px;
+}
+
+.cardButton strong {
+  margin-top: 0.45rem;
+  color: var(--cf-text-strong);
+  font-size: 0.7rem;
+}
+
+.cardButton span {
+  margin-top: 0.1rem;
+  color: var(--cf-text-subtle);
+  font-size: 0.6rem;
+}
+
+.artifactTileFlip,
+.artifactFlipButton {
+  position: absolute;
+  z-index: 4;
+  display: inline-flex;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  color: var(--cf-accent-text);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.artifactTileFlip {
+  top: 0.7rem;
+  right: 0.7rem;
+  opacity: 0.82;
+  transition: opacity 140ms ease;
+}
+
+.artifactTile:hover .artifactTileFlip,
+.artifactTile:focus-within .artifactTileFlip {
+  opacity: 1;
+}
+
+.artifactTileFlip svg,
+.artifactFlipButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.setArtifactWorkspace {
+  min-width: 0;
+}
+
+.setArtifactWorkspace[data-artifact-focused="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.artifactWorkspace {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--cf-canvas);
+  overflow: hidden;
+}
+
+.artifactWorkspaceControls {
+  position: absolute;
+  z-index: 12;
+  top: 0.55rem;
+  right: 0.55rem;
+  left: 7.5rem;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.artifactWorkspaceControls > * {
+  pointer-events: auto;
+}
+
+.artifactWorkspaceIdentity {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+  padding: 0.4rem 0.55rem;
+  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+}
+
+.artifactWorkspaceIdentity strong,
+.artifactWorkspaceIdentity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifactWorkspaceIdentity strong {
+  color: var(--cf-text-strong);
+  font-size: 0.75rem;
+}
+
+.artifactWorkspaceIdentity small,
+.artifactZoomValue {
+  color: var(--cf-text-muted);
+  font-size: 0.65rem;
+}
+
+.artifactZoomValue {
+  min-width: 2.8rem;
+  text-align: center;
+}
+
+.contentStage[data-artifact-focus-exclusive="true"] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  scrollbar-gutter: auto;
+}
+
+.focusedArtifactWorld {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.focusedArtifactFrame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1.5rem 2rem rgb(0 0 0 / 38%));
+}
+
+.focusedArtifactButton {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: default;
+}
+
+.focusedArtifactButton:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: 4px;
+}
+
+.artifactFlipButton {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  padding-inline: 0.65rem;
+}
+
+.artifactLodPreview {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2.5 / 3.5;
+  place-items: center;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-accent-soft) 34%, var(--cf-surface-inset));
+  color: var(--cf-text-muted);
+  font-size: 1rem;
+}
+
+.cameraControls {
+  display: flex;
+  min-height: 2.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  color: var(--cf-text-muted);
+  font-size: 0.68rem;
+}
+
+.cameraControls > :last-child {
+  margin-left: auto;
+}
+
+.orderedNavigator {
+  margin-top: 0.7rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+}
+
+.artifactFocusBar {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-accent-soft);
+  padding: 0.55rem 0.75rem;
+  color: var(--cf-text-strong);
+}
+
+.orderedNavigator > summary {
+  min-height: 2.75rem;
+  padding: 0.75rem;
+  color: var(--cf-text-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.orderedNavigator > p {
+  margin: 0;
+  padding: 0 0.75rem 0.65rem;
+  color: var(--cf-text-muted);
+  font-size: 0.68rem;
+}
+
+.orderedNavigatorControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-block: 1px solid var(--cf-border-subtle);
+}
+
+.orderedArtifactList {
+  display: grid;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.orderedArtifactGroup > button {
+  display: grid;
+  min-height: 2.7rem;
+  grid-template-columns: 2.5rem minmax(8rem, 0.65fr) minmax(10rem, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: transparent;
+  padding: 0.45rem 0.75rem;
+  color: var(--cf-text-muted);
+  text-align: left;
+}
+
+.orderedArtifactGroup > button[aria-selected="true"] {
+  background: var(--cf-accent-soft);
+  color: var(--cf-text-strong);
+}
+
+.orderedArtifactGroup > button:focus-visible {
+  outline: 2px solid var(--cf-accent-strong);
+  outline-offset: -2px;
+}
+
+.orderedArtifactGroup {
+  display: grid;
+}
+
+.orderedArtifactGroupHeading {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface);
+  padding: 0.35rem 0.75rem;
+  color: var(--cf-text-strong);
+  font-size: 0.7rem;
+}
+
+.orderedArtifactList strong,
+.orderedArtifactList small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remoteFocus {
+  display: grid;
+  min-height: 24rem;
+  margin-top: 0.7rem;
+  place-items: center;
+  background: var(--cf-canvas);
+  text-align: center;
+}
+
+.remoteFocusInner {
+  display: grid;
+  max-width: 26rem;
+  justify-items: center;
+  gap: 0.7rem;
+}
+
+.remoteFocusInner > svg {
+  width: 3rem;
+  height: 3rem;
+  color: var(--cf-accent-strong);
+}
+
+.createDialog {
+  width: min(94vw, 42rem);
+  max-width: 42rem;
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.createChoices {
+  display: grid;
+  max-height: min(64dvh, 34rem);
+  gap: 0.45rem;
+  overflow-y: auto;
+}
+
+.createChoice {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 4.3rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface-inset);
+  padding: 0.65rem;
+  color: var(--cf-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.createChoice:hover,
+.createChoice:focus-visible {
+  border-color: var(--cf-border-strong);
+  background: var(--cf-surface-raised);
+}
+
+.createChoice:disabled { cursor: wait; opacity: 0.68; }
+
+.createChoiceVisual {
+  display: grid;
+  width: 4.3rem;
+  height: 4.3rem;
+  place-items: center;
+  overflow: hidden;
+  background: var(--cf-canvas);
+  color: var(--cf-accent-strong);
+}
+
+.createChoiceVisual img { width: 100%; height: 100%; object-fit: cover; }
+.createChoiceVisual svg { width: 1.7rem; height: 1.7rem; }
+.createChoice strong,
+.createChoice small { display: block; }
+.createChoice strong { color: var(--cf-text-strong); font-size: 0.82rem; }
+.createChoice small { margin-top: 0.18rem; color: var(--cf-text-muted); font-size: 0.66rem; line-height: 1.4; }
+.createStatus { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.65rem; color: var(--cf-text-muted); font-size: 0.72rem; }
+.createStatus svg { width: 1rem; height: 1rem; }
+
+@media (max-width: 1040px) {
+  .focusSurface {
+    padding-right: 6rem;
+    padding-left: 6rem;
+  }
+
+  .focusSurface[data-artifact-focused="true"] {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+}
+
+@media (max-width: 767px) {
+  .spatialPlane,
+  .desk {
+    height: 100%;
+    min-height: 0;
+    gap: 0.45rem;
+  }
+
+  .deskIntro {
+    align-items: center;
+    padding: 0 0.15rem 0.25rem;
+  }
+
+  .deskIntro h1 {
+    font-size: 1.12rem;
+  }
+
+  .deskIntro span {
+    display: none;
+  }
+
+  .workSurface {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .workSurfaceHeader {
+    position: static;
+    flex: 0 0 auto;
+    padding: 0.55rem 0.6rem 0.35rem;
+  }
+
+  .deskToolbar {
+    position: static;
+    display: grid;
+    max-width: none;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) 7rem 5.8rem;
+    padding: 0.35rem 0.5rem 0.5rem;
+    border-right: 0;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .deskSelectionBar {
+    top: auto;
+    bottom: 4.1rem;
+    width: calc(100% - 1.2rem);
+    justify-content: center;
+  }
+
+  .deskSelectionBar strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .deskNudgeControls {
+    display: none;
+  }
+
+  .searchField {
+    grid-column: 1 / -1;
+  }
+
+  .sourceSelect {
+    grid-column: 1;
+    gap: 0.25rem;
+    padding-inline: 0.4rem;
+  }
+
+  .arrangeSelect {
+    grid-column: 2;
+  }
+
+  .spatialControls {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+
+  .desktopSpatialControls {
+    display: none;
+  }
+
+  .searchField,
+  .sourceSelect,
+  .arrangeSelect {
+    width: 100%;
+  }
+
+  .workGrid {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    scrollbar-width: none;
+  }
+
+  .workGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workVisual,
+  .workTile[data-featured="true"] .workVisual {
+    min-height: 12.5rem;
+  }
+
+  .workTile[data-featured="true"] .sourceFallback,
+  .sourceFallback {
+    width: 8.75rem;
+    min-height: 10.5rem;
+  }
+
+  .workTile[data-presentation="focused"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tileActions {
+    opacity: 1;
+  }
+
+  .utilityStrip {
+    display: none;
+  }
+
+  .deskViewportHint {
+    right: 0.5rem;
+    bottom: 3.7rem;
+    max-width: calc(100% - 1rem);
+    padding: 0.4rem 0.5rem;
+    text-align: right;
+  }
+
+  .deskCameraControls {
+    bottom: 0.5rem;
+    left: 0.5rem;
+  }
+
+  .desk[data-focused="true"] .workSurfaceHeader,
+  .desk[data-focused="true"] .deskToolbar {
+    display: none;
+  }
+
+  .utilityButton:nth-child(2) {
+    border-right: 0;
+  }
+
+  .utilityButton:nth-child(n + 3) {
+    border-top: 1px solid var(--cf-border-subtle);
+  }
+
+  .focusSurface {
+    display: block;
+    min-height: 100%;
+    padding: 7rem 0.25rem 0.5rem;
+    overflow: visible;
+  }
+
+  .backButton {
+    left: 0.1rem;
+  }
+
+  .focusWorkspace {
+    width: 100%;
+    min-height: 36rem;
+    padding: 0.8rem 0.6rem 1rem;
+  }
+
+  .focusWorkspace[data-artifact-focused="true"] {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .artifactWorkspaceControls {
+    left: 6.5rem;
+    flex-wrap: wrap;
+  }
+
+  .artifactWorkspaceIdentity {
+    display: none;
+  }
+
+  .contentStage[data-artifact-focus-exclusive="true"] {
+    min-height: 0;
+  }
+
+  .artifactTileFlip {
+    opacity: 1;
+  }
+
+  .focusHeader,
+  .contentHeading {
+    display: grid;
+  }
+
+  .focusHeader {
+    min-height: 6.4rem;
+    padding-left: 6rem;
+  }
+
+  .focusActions {
+    justify-content: flex-start;
+    margin-top: 0.45rem;
+  }
+
+  .quietAction {
+    padding-right: 0.35rem;
+    padding-left: 0.35rem;
+  }
+
+  .renameRow input {
+    min-width: 0;
+  }
+
+  .contentToolbar {
+    align-items: stretch;
+  }
+
+  .selectionBar {
+    display: grid;
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
+
+  .organizationToolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compactSelect {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tagTools {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-width: 0;
+  }
+
+  .moveSelect {
+    width: 100%;
+  }
+
+  .contentStage {
+    min-height: 24rem;
+  }
+
+  .cardButton:nth-child(3n + 2) {
+    transform: none;
+  }
+}
+
+@media (max-width: 390px) {
+  .deskToolbar {
+    grid-template-columns: minmax(0, 1fr) 6.25rem;
+  }
+
+  .workGrid {
+    padding-top: 7rem;
+  }
+
+  .deskIntro > strong {
+    display: none;
+  }
+
+  .focusActions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quietAction {
+    min-width: 0;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workTile,
+  .workTileMain,
+  .workVisual,
+  .cardButton,
+  .focusWorkspace {
+    transition: none;
+  }
+
+  .artifactWorld {
+    animation: none;
+  }
+
+  .contentStage {
+    scroll-behavior: auto;
+  }
+}
+.resultFilter {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  border-block: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-accent-soft) 38%, var(--cf-surface-inset));
+  color: var(--cf-text-muted);
+  font-size: 0.78rem;
+}
+
+.resultFilter > :last-child {
+  margin-left: auto;
+}

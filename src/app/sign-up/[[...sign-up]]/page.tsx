@@ -84,7 +84,7 @@ export default async function SignUpPage({
         <section aria-labelledby="signup-plans-heading" className="mt-12 border-t border-[var(--cf-border)] pt-10">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent)]">Plans</p>
           <h2 id="signup-plans-heading" className="mt-2 font-[var(--font-cardforge-spectral)] text-3xl font-semibold text-[var(--cf-text-strong)] md:text-4xl">See exactly what each plan gives you</h2>
-          <p className="mt-3 mb-6 max-w-3xl text-base leading-7 text-[var(--cf-text-muted)]">Compare finished Studio exports and portable CardForge project files with monthly ChatGPT plugin actions and private plugin workspace.</p>
+          <p className="mt-3 mb-6 max-w-3xl text-base leading-7 text-[var(--cf-text-muted)]">Compare clean finished exports and portable CardForge project files with monthly ChatGPT actions and private working space.</p>
           <PlanChoiceGrid
             plans={plans}
             creatorHref="/sign-up?redirect_url=%2Faccount%3Fintent%3Dcreator%23account-and-billing#create-account"

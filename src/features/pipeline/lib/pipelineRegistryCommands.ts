@@ -92,6 +92,15 @@ export interface PurgePipelineSubmissionInput {
   confirmationName: string;
 }
 
+export type ContributorPipelineLifecycleAction = 'withdraw' | 'retire';
+
+export interface ContributorPipelineLifecycleResult {
+  submissionId: string;
+  lineageId: string | null;
+  lifecycleState: 'withdrawn' | 'retired';
+  existingInstalledCopiesRemainUsable: true;
+}
+
 export interface UpdatePipelineAssetStudioRoutingInput {
   assetId: string;
   mode: StudioAssetRoutingMode;
@@ -173,6 +182,22 @@ const throwPipelinePurgeError = (errorMessage?: string): never => {
     );
   }
   throw new PipelineRegistryCommandError('Unable to permanently delete this Pipeline.', 500);
+};
+
+const throwContributorLifecycleError = (errorMessage?: string): never => {
+  if (errorMessage?.includes('contributor_asset_not_found')) {
+    throw new PipelineRegistryCommandError('Pipeline revision was not found.', 404);
+  }
+  if (errorMessage?.includes('contributor_asset_owner_required')) {
+    throw new PipelineRegistryCommandError('Only the Contributor who owns this revision can change its lifecycle.', 403);
+  }
+  if (errorMessage?.includes('contributor_asset_not_withdrawable')) {
+    throw new PipelineRegistryCommandError('Only an active unpublished candidate can be withdrawn.', 409);
+  }
+  if (errorMessage?.includes('contributor_asset_not_retirable')) {
+    throw new PipelineRegistryCommandError('Only the exact published revision can be retired.', 409);
+  }
+  throw new PipelineRegistryCommandError('Unable to change this Pipeline revision lifecycle.', 500);
 };
 
 const loadTemplatePipelineResult = async (
@@ -489,6 +514,34 @@ export const purgePipelineSubmission = async ({
       503,
     );
   }
+};
+
+export const setContributorPipelineLifecycle = async ({
+  submissionId,
+  contributorId,
+  action,
+}: {
+  submissionId: string;
+  contributorId: string;
+  action: ContributorPipelineLifecycleAction;
+}): Promise<ContributorPipelineLifecycleResult> => {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('cardforge_set_contributor_asset_lifecycle', {
+    p_submission_id: submissionId,
+    p_contributor_id: contributorId,
+    p_action: action,
+  });
+  if (error) throwContributorLifecycleError(error.message);
+  const result = data as Partial<ContributorPipelineLifecycleResult> | null;
+  if (!result?.submissionId || (result.lifecycleState !== 'withdrawn' && result.lifecycleState !== 'retired')) {
+    throw new PipelineRegistryCommandError('The Pipeline lifecycle changed, but its result could not be confirmed. Refresh the Library.', 503);
+  }
+  return {
+    submissionId: result.submissionId,
+    lineageId: typeof result.lineageId === 'string' ? result.lineageId : null,
+    lifecycleState: result.lifecycleState,
+    existingInstalledCopiesRemainUsable: true,
+  };
 };
 
 export const upsertPipelineRegistryAsset = async ({

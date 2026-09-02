@@ -12,10 +12,10 @@ type SiteContentDefinition = {
 };
 
 export const SITE_CONTENT_DEFINITIONS = [
-  { slug: 'shell.mobile.description', group: 'shell', section: 'Mobile menu', label: 'Menu introduction', body: 'Explore CardForge Studio and its public resources.', kind: 'short', maxLength: 180 },
-  { slug: 'shell.mobile.developer.heading', group: 'shell', section: 'Mobile menu', label: 'Founder link heading', body: 'Meet the developer', kind: 'short', maxLength: 80 },
-  { slug: 'shell.mobile.developer.body', group: 'shell', section: 'Mobile menu', label: 'Founder link description', body: 'Meet Cameron Locke, the independent developer building CardForge Studio.', kind: 'long', maxLength: 300 },
-  { slug: 'shell.footer.independent', group: 'shell', section: 'Footer', label: 'Copyright closing line', body: 'CardForge Studio is an independent product built with care.', kind: 'short', maxLength: 180 },
+  { slug: 'shell.mobile.description', group: 'shell', section: 'Mobile menu', label: 'Menu introduction', body: 'Explore CardForge, open your Desk, and browse public resources.', kind: 'short', maxLength: 180 },
+  { slug: 'shell.mobile.developer.heading', group: 'shell', section: 'Mobile menu', label: 'Founder link heading', body: 'Meet the founder', kind: 'short', maxLength: 80 },
+  { slug: 'shell.mobile.developer.body', group: 'shell', section: 'Mobile menu', label: 'Founder link description', body: 'Meet Cameron Locke, the independent developer building CardForge.', kind: 'long', maxLength: 300 },
+  { slug: 'shell.footer.independent', group: 'shell', section: 'Footer', label: 'Copyright closing line', body: 'CardForge is an independent product built with care.', kind: 'short', maxLength: 180 },
 
   { slug: 'landing.hero.headline', group: 'landing', section: 'Hero', label: 'Headline', body: 'Design one card. Add your list. CardForge builds the set.', kind: 'short', maxLength: 160 },
   { slug: 'landing.hero.body', group: 'landing', section: 'Hero', label: 'Introduction', body: 'Make the look once, add the words and pictures for each card, and watch the whole set come together. Try it in your browser and keep your work on your device.', kind: 'long', maxLength: 500 },
@@ -23,7 +23,7 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.hero.secondary-action', group: 'landing', section: 'Hero', label: 'Secondary action', body: 'See what it makes', kind: 'short', maxLength: 80 },
   { slug: 'landing.showcase.eyebrow', group: 'landing', section: 'Studio showcase', label: 'Eyebrow', body: 'Look inside CardForge', kind: 'short', maxLength: 100 },
   { slug: 'landing.showcase.headline', group: 'landing', section: 'Studio showcase', label: 'Headline', body: 'Design the look, build the set, and see every finished card.', kind: 'short', maxLength: 180 },
-  { slug: 'landing.showcase.body', group: 'landing', section: 'Studio showcase', label: 'Introduction', body: "This walkthrough uses CardForge's real templates, sample rows, and card renderer. Choose any step or set inside the Studio frame.", kind: 'long', maxLength: 500 },
+  { slug: 'landing.showcase.body', group: 'landing', section: 'Product showcase', label: 'Introduction', body: "This walkthrough uses CardForge's real Templates, sample rows, and card renderer. See how a Set moves from design through generation and review on the Desk.", kind: 'long', maxLength: 500 },
   { slug: 'landing.showcase.stage.templates', group: 'landing', section: 'Studio showcase controls', label: 'Templates stage label', body: 'Templates', kind: 'short', maxLength: 60 },
   { slug: 'landing.showcase.stage.make', group: 'landing', section: 'Studio showcase controls', label: 'Make cards stage label', body: 'Make cards', kind: 'short', maxLength: 60 },
   { slug: 'landing.showcase.stage.review', group: 'landing', section: 'Studio showcase controls', label: 'Review stage label', body: 'Review the set', kind: 'short', maxLength: 60 },
@@ -46,20 +46,20 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.workflow.step4.title', group: 'landing', section: 'Workflow steps', label: 'Step 4 title', body: 'Check and download', kind: 'short', maxLength: 100 },
   { slug: 'landing.workflow.step4.body', group: 'landing', section: 'Workflow steps', label: 'Step 4 description', body: 'Look through every card, fix anything odd, and save the finished files.', kind: 'long', maxLength: 300 },
   { slug: 'landing.access.eyebrow', group: 'landing', section: 'Access', label: 'Eyebrow', body: 'CardForge for ChatGPT', kind: 'short', maxLength: 100 },
-  { slug: 'landing.access.headline', group: 'landing', section: 'Access', label: 'Headline', body: 'Start in the full Studio. Bring ChatGPT into the workflow when it helps.', kind: 'short', maxLength: 180 },
+  { slug: 'landing.access.headline', group: 'landing', section: 'Access', label: 'Headline', body: 'Start with your work on the Desk. Bring ChatGPT into the workflow when it helps.', kind: 'short', maxLength: 180 },
   { slug: 'landing.access.developer-note', group: 'landing', section: 'Access', label: 'Development beta note', body: 'CardForge for ChatGPT is open for development beta testing through ChatGPT Developer Mode. Availability depends on ChatGPT access while the integration completes review.', kind: 'long', maxLength: 300 },
   { slug: 'landing.founder.eyebrow', group: 'landing', section: 'Founder introduction', label: 'Eyebrow', body: 'A real person is building this', kind: 'short', maxLength: 100 },
   { slug: 'landing.founder.headline', group: 'landing', section: 'Founder introduction', label: 'Headline', body: 'Built independently by Cameron Locke', kind: 'short', maxLength: 160 },
   { slug: 'landing.founder.body', group: 'landing', section: 'Founder introduction', label: 'Introduction', body: "I'm building CardForge in Oregon with a lot of curiosity, modern tools, and the belief that making a whole deck should feel just as creative as making the first card.", kind: 'long', maxLength: 500 },
   { slug: 'landing.founder.action', group: 'landing', section: 'Founder introduction', label: 'Link text', body: 'Come say hello', kind: 'short', maxLength: 80 },
   { slug: 'landing.final.headline', group: 'landing', section: 'Final action', label: 'Headline', body: 'Build your first set.', kind: 'short', maxLength: 140 },
-  { slug: 'landing.final.body', group: 'landing', section: 'Final action', label: 'Introduction', body: 'Open the Studio, choose a starting point, and make something that feels like yours.', kind: 'long', maxLength: 350 },
+  { slug: 'landing.final.body', group: 'landing', section: 'Final action', label: 'Introduction', body: 'Open your Desk, choose a Set or starting point, and make something that feels like yours.', kind: 'long', maxLength: 350 },
 
   { slug: 'plans.meta.title', group: 'plans', section: 'Search & sharing', label: 'Page title', body: 'CardForge Plans', kind: 'short', maxLength: 100 },
-  { slug: 'plans.meta.description', group: 'plans', section: 'Search & sharing', label: 'Page description', body: 'Compare CardForge Studio plans, ChatGPT plugin capacity, private workspace storage, and subscription options.', kind: 'long', maxLength: 200 },
+  { slug: 'plans.meta.description', group: 'plans', section: 'Search & sharing', label: 'Page description', body: 'Compare CardForge plans, finished-export access, portable project files, ChatGPT capacity, and subscription options.', kind: 'long', maxLength: 200 },
   { slug: 'plans.hero.eyebrow', group: 'plans', section: 'Hero', label: 'Eyebrow', body: 'CardForge plans', kind: 'short', maxLength: 100 },
   { slug: 'plans.hero.headline', group: 'plans', section: 'Hero', label: 'Headline', body: 'Choose the plan that fits how you create.', kind: 'short', maxLength: 180 },
-  { slug: 'plans.hero.body', group: 'plans', section: 'Hero', label: 'Introduction', body: 'Start in the full browser Studio, then add finished exports, portable project files, and more CardForge for ChatGPT capacity when your workflow needs them.', kind: 'long', maxLength: 500 },
+  { slug: 'plans.hero.body', group: 'plans', section: 'Hero', label: 'Introduction', body: 'Start free on your local-first Desk, then add clean finished exports, portable project files, and more CardForge for ChatGPT capacity when your workflow needs them.', kind: 'long', maxLength: 500 },
   { slug: 'plans.compare.heading', group: 'plans', section: 'Plan comparison', label: 'Heading', body: 'See what every plan includes', kind: 'short', maxLength: 160 },
   { slug: 'plans.compare.body', group: 'plans', section: 'Plan comparison', label: 'Introduction', body: 'Prices, plan names, included features, ChatGPT plugin actions, storage allowances, visibility, and actions are controlled from protected owner operations in Profile.', kind: 'long', maxLength: 400 },
   { slug: 'plans.process.heading', group: 'plans', section: 'Subscription process', label: 'Heading', body: 'A straightforward subscription journey', kind: 'short', maxLength: 160 },
@@ -73,12 +73,12 @@ export const SITE_CONTENT_DEFINITIONS = [
 
   { slug: 'account.storage.working-drafts.retention', group: 'account', section: 'Storage & Library', label: 'Working-draft retention explanation', body: 'These are temporary private collaboration documents. Opening or updating one restarts its {retention} active window; visiting this page does not. Expired drafts remain recoverable for 24 hours.', kind: 'long', maxLength: 420 },
 
-  { slug: 'about.hero.eyebrow', group: 'about', section: 'Hero', label: 'Eyebrow', body: 'About CardForge Studio', kind: 'short', maxLength: 100 },
+  { slug: 'about.hero.eyebrow', group: 'about', section: 'Hero', label: 'Eyebrow', body: 'About CardForge', kind: 'short', maxLength: 100 },
   { slug: 'about.meta.title', group: 'about', section: 'Search & sharing', label: 'Page title', body: 'About CardForge', kind: 'short', maxLength: 100 },
-  { slug: 'about.meta.description', group: 'about', section: 'Search & sharing', label: 'Page description', body: 'See how CardForge Studio helps creators build customized card sets and how contributors support its shared library and marketing drafts.', kind: 'long', maxLength: 200 },
+  { slug: 'about.meta.description', group: 'about', section: 'Search & sharing', label: 'Page description', body: 'See how CardForge helps creators build customized card Sets and how contributors support its shared Library.', kind: 'long', maxLength: 200 },
   { slug: 'about.hero.headline', group: 'about', section: 'Hero', label: 'Headline', body: 'Give everyday creators room to make it their own.', kind: 'short', maxLength: 180 },
-  { slug: 'about.hero.body', group: 'about', section: 'Hero', label: 'Introduction', body: 'CardForge Studio turns a reusable design and structured content into a consistent set without taking the creative decisions away from you. It is built for people who want deep customization without rebuilding every item by hand.', kind: 'long', maxLength: 600 },
-  { slug: 'about.hero.secondary-action', group: 'about', section: 'Hero', label: 'Founder action', body: 'Meet the developer', kind: 'short', maxLength: 80 },
+  { slug: 'about.hero.body', group: 'about', section: 'Hero', label: 'Introduction', body: 'CardForge turns a reusable design and structured content into a consistent Set without taking the creative decisions away from you. Your work stays central on a local-first Desk instead of being scattered across separate apps.', kind: 'long', maxLength: 600 },
+  { slug: 'about.hero.secondary-action', group: 'about', section: 'Hero', label: 'Founder action', body: 'Meet the founder', kind: 'short', maxLength: 80 },
   { slug: 'about.principles.headline', group: 'about', section: 'Principles', label: 'Headline', body: 'Customization without repetitive work', kind: 'short', maxLength: 180 },
   { slug: 'about.principles.body', group: 'about', section: 'Principles', label: 'Introduction', body: 'The goal is a practical middle ground: enough structure to keep a large set coherent, and enough control for the finished work to belong unmistakably to its creator.', kind: 'long', maxLength: 500 },
   { slug: 'about.principle1.title', group: 'about', section: 'Principle cards', label: 'Principle 1 title', body: 'Design the system once', kind: 'short', maxLength: 100 },
@@ -104,7 +104,7 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'about.contributors.roadmap-action', group: 'about', section: 'Contributor actions', label: 'Roadmap action', body: 'Public roadmap', kind: 'short', maxLength: 80 },
   { slug: 'about.contributors.founder-action', group: 'about', section: 'Contributor actions', label: 'Founder action', body: 'About Cameron', kind: 'short', maxLength: 80 },
   { slug: 'about.beta.headline', group: 'about', section: 'Public beta', label: 'Headline', body: 'An honest public beta', kind: 'short', maxLength: 160 },
-  { slug: 'about.beta.body', group: 'about', section: 'Public beta', label: 'Introduction', body: 'CardForge Studio is independently built and actively improving. The public roadmap separates what works now from what is still planned.', kind: 'long', maxLength: 400 },
+  { slug: 'about.beta.body', group: 'about', section: 'Public beta', label: 'Introduction', body: 'CardForge is independently built and actively improving. The public roadmap separates what works now from what is still planned.', kind: 'long', maxLength: 400 },
   { slug: 'about.beta.showcase-action', group: 'about', section: 'Public beta', label: 'Showcase action', body: 'See CardForge in action', kind: 'short', maxLength: 80 },
   { slug: 'about.beta.roadmap-action', group: 'about', section: 'Public beta', label: 'Roadmap action', body: 'View roadmap', kind: 'short', maxLength: 80 },
 
@@ -141,12 +141,12 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'contributor.rules.heading', group: 'contributor', section: 'Contribution rules', label: 'Heading', body: 'Contribution rules', kind: 'short', maxLength: 120 },
 
   { slug: 'roadmap.meta.title', group: 'roadmap', section: 'Search & sharing', label: 'Page title', body: 'CardForge Roadmap', kind: 'short', maxLength: 100 },
-  { slug: 'roadmap.meta.description', group: 'roadmap', section: 'Search & sharing', label: 'Page description', body: 'Vote on CardForge feature priorities and follow planned service upgrades for the shared card-system studio.', kind: 'long', maxLength: 200 },
+  { slug: 'roadmap.meta.description', group: 'roadmap', section: 'Search & sharing', label: 'Page description', body: 'Vote on CardForge feature priorities and follow planned service upgrades for the shared card-creation workspace.', kind: 'long', maxLength: 200 },
   { slug: 'roadmap.hero.eyebrow', group: 'roadmap', section: 'Hero', label: 'Eyebrow', body: 'Product roadmap', kind: 'short', maxLength: 100 },
   { slug: 'roadmap.hero.headline', group: 'roadmap', section: 'Hero', label: 'Headline', body: 'Vote for the CardForge tools you want next.', kind: 'short', maxLength: 180 },
   { slug: 'roadmap.hero.body', group: 'roadmap', section: 'Hero', label: 'Introduction', body: 'Add compact ideas, vote on what matters, and follow the next milestones without digging through your account page. Suggestions and votes are shared public beta signals, not private project notes.', kind: 'long', maxLength: 500 },
 
-  { slug: 'sharing.message', group: 'sharing', section: 'Social sharing', label: 'Default share message', body: 'Check out CardForge Studio—a friendly way to design one card and build the whole set.', kind: 'long', maxLength: 500 },
+  { slug: 'sharing.message', group: 'sharing', section: 'Social sharing', label: 'Default share message', body: 'Check out CardForge—a local-first way to design one card and build the whole Set from your Desk.', kind: 'long', maxLength: 500 },
 ] as const satisfies readonly SiteContentDefinition[];
 
 export type SiteContentBlockSlug = typeof SITE_CONTENT_DEFINITIONS[number]['slug'];

@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  BROWSER_PROJECT_ASSET_REFERENCE_PREFIX,
-  createProjectBinaryAssetResolver,
-} from '@/features/project/client';
+import { BROWSER_PROJECT_ASSET_REFERENCE_PREFIX } from '@/features/project/client/assets';
+import { createProjectBinaryAssetResolver } from '@/features/project/client/persistence-binaries';
 import { resolveFreeformImageUrl } from '@/features/card-rendering/model/elementStyles';
 
 describe('Project binary asset resolver', () => {
@@ -30,7 +28,7 @@ describe('Project binary asset resolver', () => {
   });
 
   it('loads a scoped browser Blob without exposing Base64 to the consumer', async () => {
-    const { createScopedProjectBinaryAssetResolver } = await import('@/features/project/client');
+    const { createScopedProjectBinaryAssetResolver } = await import('@/features/project/client/persistence-binaries');
     const readBlob = vi.fn(async () => new Blob(['scoped-bytes'], { type: 'image/webp' }));
     const createObjectURL = vi.fn(() => 'blob:cardforge/scoped');
     const resolver = createScopedProjectBinaryAssetResolver(

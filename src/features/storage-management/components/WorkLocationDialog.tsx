@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  DefaultWorkLocationControl,
-  ProjectWorkLocationDialog,
-  type ProjectWorkLocationTarget,
-} from '@/features/project/client';
+import { DefaultWorkLocationControl, ProjectWorkLocationDialog, type ProjectWorkLocationTarget } from '@/features/project/client/locations';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
 import { accountSourceToWorkLocation } from '../model/workLocations';

@@ -16,7 +16,7 @@ const descriptor: ActionDescriptor = {
   id: 'project.rename-work',
   label: 'Rename',
   ownerFeature: 'project',
-  supportedObjectKinds: ['home-work'],
+  supportedObjectKinds: ['set'],
   supportedSources: ['browser-local'],
   revisionPolicy: 'none',
   requiredPermission: 'guest',
@@ -69,7 +69,7 @@ describe('action runtime', () => {
 
   it('keeps Desk and Library Pipeline actions on one publication/mutation contract', async () => {
     const desk = createSendToPipelineActionDescriptor({
-      id: 'home.send-pipeline', objectKind: 'home-work', sources: ['browser-local'],
+      id: 'desk.send-pipeline', objectKind: 'set', sources: ['browser-local'],
     });
     const openLibraryTool = vi.fn();
     const library = createSendToPipelineActionDefinition({
@@ -91,7 +91,7 @@ describe('action runtime', () => {
       openPersonal: open, sendPipeline: unavailable, saveMove: unavailable, duplicate: unavailable,
       deleteCopy: unavailable, viewSource: unavailable, manageLocation: unavailable,
       usePublished: unavailable, copyPublishedTemplate: unavailable, editPipeline: unavailable,
-      testPipeline: unavailable, refresh: unavailable,
+      testPipeline: unavailable, withdrawPipeline: unavailable, retirePipeline: unavailable, refresh: unavailable,
     };
     const openDescriptor = { ...descriptor, id: 'library.open' as const, result: 'navigation' as const };
     const runtime = createActionRuntime(createAccountLibraryActionDefinitions([openDescriptor], commands));

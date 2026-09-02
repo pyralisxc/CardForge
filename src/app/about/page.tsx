@@ -56,18 +56,18 @@ export default async function AboutPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
-          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['about.hero.eyebrow']}</p>
-          <h1 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
+          <p data-site-content-slug="about.hero.eyebrow" className="text-base font-semibold text-[var(--public-brass)]">{siteContent['about.hero.eyebrow']}</p>
+          <h1 data-site-content-slug="about.hero.headline" className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
             {siteContent['about.hero.headline']}
           </h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p data-site-content-slug="about.hero.body" className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['about.hero.body']}
           </p>
           <div className="mt-6 flex flex-wrap gap-5">
             <Link href={siteConfiguration.primaryCtaHref} prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">
               {siteConfiguration.primaryCtaLabel} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">
+            <Link data-site-content-slug="about.hero.secondary-action" href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">
               {siteContent['about.hero.secondary-action']}
             </Link>
           </div>
@@ -76,10 +76,10 @@ export default async function AboutPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+          <h2 data-site-content-slug="about.principles.headline" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
             {siteContent['about.principles.headline']}
           </h2>
-          <p className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p data-site-content-slug="about.principles.body" className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['about.principles.body']}
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -96,10 +96,10 @@ export default async function AboutPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-surface)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+          <h2 data-site-content-slug="about.direction.headline" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
             {siteContent['about.direction.headline']}
           </h2>
-          <p className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p data-site-content-slug="about.direction.body" className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['about.direction.body']}
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -124,13 +124,13 @@ export default async function AboutPage() {
       <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[1.3fr_0.7fr] md:items-start">
           <div>
-            <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+            <h2 data-site-content-slug="about.contributors.headline" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
               {siteContent['about.contributors.headline']}
             </h2>
-            <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
+            <p data-site-content-slug="about.contributors.body" className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
               {siteContent['about.contributors.body']}
             </p>
-            <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
+            <p data-site-content-slug="about.contributors.ownership" className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
               {siteContent['about.contributors.ownership']}
             </p>
           </div>
@@ -151,8 +151,8 @@ export default async function AboutPage() {
       <section className="bg-[var(--public-surface)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
         <div className="mx-auto flex max-w-5xl flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-[var(--public-font-display)] text-3xl font-semibold">{siteContent['about.beta.headline']}</h2>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">
+            <h2 data-site-content-slug="about.beta.headline" className="font-[var(--public-font-display)] text-3xl font-semibold">{siteContent['about.beta.headline']}</h2>
+            <p data-site-content-slug="about.beta.body" className="mt-3 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">
               {siteContent['about.beta.body']}
             </p>
           </div>

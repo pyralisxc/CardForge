@@ -32,7 +32,18 @@ export type CardForgeAnalyticsEventName =
   | 'card_created'
   | 'export_started'
   | 'export_failed'
-  | 'export_completed';
+  | 'export_completed'
+  | 'zone_entered'
+  | 'set_selected'
+  | 'set_opened'
+  | 'artifact_focused'
+  | 'tool_opened'
+  | 'library_picker_opened'
+  | 'revision_started'
+  | 'revision_completed'
+  | 'recovery_offered'
+  | 'recovery_restored'
+  | 'provider_boundary_outcome';
 
 export type ProductAnalyticsEventName = CardForgeAnalyticsEventName | 'page_viewed';
 
@@ -51,6 +62,17 @@ export const PRODUCT_ANALYTICS_EVENT_NAMES: ProductAnalyticsEventName[] = [
   'export_started',
   'export_failed',
   'export_completed',
+  'zone_entered',
+  'set_selected',
+  'set_opened',
+  'artifact_focused',
+  'tool_opened',
+  'library_picker_opened',
+  'revision_started',
+  'revision_completed',
+  'recovery_offered',
+  'recovery_restored',
+  'provider_boundary_outcome',
 ];
 
 export type AnalyticsEventParameter = string | number | boolean;
@@ -73,6 +95,15 @@ const ALLOWED_EVENT_PARAMETERS = new Set([
   'export_kind',
   'card_count',
   'success',
+  'zone',
+  'scope',
+  'object_kind',
+  'input_method',
+  'outcome',
+  'boundary_kind',
+  'count_bucket',
+  'selection_mode',
+  'recovery_source',
 ]);
 
 export const sanitizeAnalyticsEventParameters = (

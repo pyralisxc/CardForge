@@ -33,7 +33,7 @@ import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { trackCardForgeEvent } from '@/features/analytics/client';
-import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 
 interface UseTemplateEditorCommandsInput {
   acceptTemplate: (template: TCGCardTemplate) => void;

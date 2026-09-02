@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
-import { useProjectStore } from '@/features/project/client';
+import { useProjectStore } from '@/features/project/client/workspace';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import {
@@ -21,7 +21,7 @@ import {
   initializeCardDataFromTemplate,
 } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/domain/templates';
-import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface SingleCardGeneratorProps {

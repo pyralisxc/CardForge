@@ -36,6 +36,7 @@ export interface AccountProjectWorkspaceIssue {
 export interface AccountProjectWorkspaceBoundaryProps {
   children: ReactNode;
   persistenceScope: ProjectPersistenceScope;
+  canUseProjectFiles: boolean;
 }
 
 export const prepareAccountProjectWorkspace = async (

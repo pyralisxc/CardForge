@@ -1,6 +1,6 @@
 # CardForge Integration Ownership
 
-Last reviewed: September 1, 2026
+Last reviewed: September 2, 2026
 
 This is the human trace map for CardForge's external integrations. It answers two questions: **which system owns this lifecycle?** and **where do I start reading the CardForge code?**
 
@@ -89,7 +89,11 @@ Forge Review source files and private Studio-document media use server-issued, s
 
 **CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. `preview_template_draft` shows the native exported Template PNG in chat and keeps the exact revision-bound Studio URL as a separate handoff. MCP does not get a second renderer, template format, asset store, or publication authority.
 
-Every published tool declares an explicit output schema matching its `structuredContent`. The MCP skills extension exposes the two packaged `SKILL.md` files directly from `plugins/cardforge-studio`; their UTF-8 content and SHA-256 digests are the submission-time source of truth rather than a copied server prompt.
+Every published tool declares an explicit output schema matching its `structuredContent`. Human Generate and Revise use the same stable Artifact identity rules as MCP upserts: revisions match exact stable IDs or an explicitly chosen unique field and never append unmatched rows silently. The MCP skills extension exposes the two packaged `SKILL.md` files directly from `plugins/cardforge-studio`; their UTF-8 content and SHA-256 digests are the submission-time source of truth rather than a copied server prompt.
+
+Google Drive preserves its last known Library projection only when marked stale and distinguishes authentication, permission, quota/limit, conflict, not-found, and transient unavailability. Only an OAuth `invalid_grant` persists reconnect-required state; transient token refresh and revoke failures leave the existing connection recoverable.
+
+Connected storage has four explicit roles: the scoped browser workspace is the fast working and recovery copy; a versioned `.cardforge` package is the portable project; Google Drive or a chosen local folder may durably own project packages; and the personal Library indexes explicitly authorized reusable files while their provider retains the bytes. Account → Storage & Library owns provider setup and discovery. Google Picker grants individual files or a destination folder through `drive.file`; a selected folder is not treated as recursive permission to every pre-existing child. Personal Library rows retain stable provider ids, exact revisions, MIME type, semantic role, size, content hash after reading, and verification timestamps. Generic images require an explicit role because their bytes cannot reliably distinguish artwork, icons, textures, dividers, or frames. CardForge materializes a provider asset only for preview, editing, export, packaging, or an agent checkout, and never exposes provider credentials to MCP tools.
 
 Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` transaction. Artwork uses an exact image field from the current generation contract and arrives as either a generated/uploaded public HTTPS source or bounded raw base64. CardForge pins each validated public DNS result for the HTTPS request, caps one write at 64 artwork files and 32 MB of aggregate input, and processes normalization without unbounded fan-out. It stores a private content-addressed WebP in the Studio-document asset bucket and leaves only a stable reference in the document JSON; failed uploads and revision conflicts reconcile newly created objects against the persisted document so they do not become billable orphans. The Studio document API issues short-lived signed URLs and the browser rehydrates those references before applying the normal local project import. `preview_card_set` reports private resolution, renderable references, unresolved values, Template fallback, and placeholders separately.
 

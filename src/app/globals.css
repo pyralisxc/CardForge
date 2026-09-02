@@ -563,3 +563,13 @@ body {
     display: none !important;
   }
 }
+html[data-site-inline-editing="true"] [data-site-content-slug] {
+  outline: 2px dashed var(--public-brass, #d7a849);
+  outline-offset: 4px;
+  cursor: pointer;
+}
+
+html[data-site-inline-editing="true"] [data-site-content-slug]:hover {
+  outline-style: solid;
+  background-color: color-mix(in srgb, var(--public-brass, #d7a849) 12%, transparent);
+}

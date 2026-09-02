@@ -58,6 +58,7 @@ export interface PipelineSubmission {
   sourceStoragePath: string | null;
   registryAssetId: string | null;
   status: PipelineStatus;
+  contributorLifecycleState?: 'withdrawn' | 'retired' | null;
   automatedStatus: Extract<PipelineStatus, 'voting' | 'publish_candidate' | 'published' | 'archived'>;
   ownerStatusOverride: PipelineStatus | null;
   calculatedAccessTier: PipelineAccessTier;
@@ -173,6 +174,7 @@ export interface PipelineSubmissionRow {
   source_storage_path: string | null;
   registry_asset_id: string | null;
   status: unknown;
+  contributor_lifecycle_state?: unknown;
   automated_status: unknown;
   owner_status_override: unknown;
   calculated_access_tier: unknown;
@@ -407,6 +409,9 @@ export const mapPipelineSubmissionRow = (
   sourceStoragePath: row.source_storage_path,
   registryAssetId: row.registry_asset_id,
   status: isContributorAssetStatus(row.status) ? row.status : 'submitted',
+  contributorLifecycleState: row.contributor_lifecycle_state === 'withdrawn' || row.contributor_lifecycle_state === 'retired'
+    ? row.contributor_lifecycle_state
+    : null,
   automatedStatus: row.automated_status === 'publish_candidate'
     || row.automated_status === 'published'
     || row.automated_status === 'archived'

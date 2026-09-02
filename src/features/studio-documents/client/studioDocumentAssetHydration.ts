@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectDocumentV1 } from '@/features/project/client';
+import type { ProjectDocumentV1 } from '@/features/project/client/package-document';
 import {
   replaceStudioDocumentAssetReferences,
   type StudioDocumentAssetDownload,

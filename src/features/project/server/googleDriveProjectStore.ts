@@ -32,6 +32,7 @@ import {
   type ProjectDocumentV1,
 } from '../model/projectPackage';
 import { decryptProjectStorageToken, encryptProjectStorageToken } from './projectStorageTokenCrypto';
+import { classifyGoogleProviderFailure, readGoogleProviderFailure } from './googleDriveBoundary';
 
 const GOOGLE_AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -150,18 +151,11 @@ const requireStore = () => {
   return database;
 };
 
-const parseGoogleError = async (response: Response, fallback: string): Promise<ProjectStorageProviderError> => {
-  const payload = await response.json().catch(() => ({})) as {
-    error?: { message?: string; status?: string } | string;
-    error_description?: string;
-  };
-  const providerMessage = typeof payload.error === 'object'
-    ? payload.error?.message
-    : payload.error_description ?? (typeof payload.error === 'string' ? payload.error : undefined);
-  const status = response.status === 401 || response.status === 403 ? 401 : response.status === 404 ? 404 : response.status === 409 ? 409 : 503;
-  return new ProjectStorageProviderError(providerMessage ? `${fallback} ${providerMessage}` : fallback, status, {
-    kind: status === 401 ? 'authentication' : status === 404 ? 'not_found' : status === 409 ? 'conflict' : 'unavailable',
-    nextAction: status === 401 ? 'Reconnect Google Drive in Account → Storage & Library.' : undefined,
+export const parseGoogleError = async (response: Response, fallback: string): Promise<ProjectStorageProviderError> => {
+  const failure = await readGoogleProviderFailure(response);
+  return new ProjectStorageProviderError(failure.providerMessage ? `${fallback} ${failure.providerMessage}` : fallback, failure.status, {
+    kind: failure.kind,
+    nextAction: failure.nextAction,
   });
 };
 
@@ -375,7 +369,8 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
     cache: 'no-store',
   });
   const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
-  if (!response.ok || !payload.access_token) {
+  const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
+  if (!response.ok && failure.reconnectRequired) {
     await requireStore()
       .from('cardforge_project_storage_connections')
       .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
@@ -383,6 +378,15 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
     throw new ProjectStorageProviderError('Google Drive authorization expired or was revoked.', 401, {
       kind: 'authentication',
       nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+    });
+  }
+  if (!response.ok || !payload.access_token) {
+    const message = payload.error_description
+      ? `Google Drive could not refresh this connection. ${payload.error_description}`
+      : 'Google Drive could not refresh this connection.';
+    throw new ProjectStorageProviderError(message, failure.status, {
+      kind: failure.kind,
+      nextAction: failure.nextAction,
     });
   }
   await requireStore()
@@ -739,20 +743,43 @@ export const deleteGoogleDriveProject = async ({
 export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): Promise<void> => {
   const row = await getConnectionRow(ownerUserId);
   if (!row) return;
+  let refreshToken: string;
   try {
-    const refreshToken = decryptProjectStorageToken({
+    refreshToken = decryptProjectStorageToken({
       ciphertext: row.refresh_token_ciphertext,
       iv: row.refresh_token_iv,
       authTag: row.refresh_token_auth_tag,
     });
-    await fetch(GOOGLE_REVOKE_ENDPOINT, {
+  } catch (error) {
+    console.error('Unable to decrypt Google Drive project token for revocation:', error);
+    throw new ProjectStorageProviderError('CardForge could not safely revoke Google Drive access. The connection was kept so you can retry.', 503, {
+      kind: 'unavailable',
+      nextAction: 'Retry disconnecting Google Drive. If this continues, contact CardForge support.',
+    });
+  }
+  let response: Response;
+  try {
+    response = await fetch(GOOGLE_REVOKE_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ token: refreshToken }),
       cache: 'no-store',
     });
   } catch (error) {
-    console.warn('Unable to revoke Google Drive project token before disconnecting:', error);
+    console.error('Unable to revoke Google Drive project token before disconnecting:', error);
+    throw new ProjectStorageProviderError('Google Drive could not be reached to revoke access. The connection was kept so you can retry.', 503, {
+      kind: 'unavailable',
+      nextAction: 'Retry disconnecting Google Drive later.',
+    });
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    if (payload.error !== 'invalid_token') {
+      throw new ProjectStorageProviderError('Google Drive did not confirm access revocation. The connection was kept so you can retry.', 503, {
+        kind: 'unavailable',
+        nextAction: 'Retry disconnecting Google Drive later.',
+      });
+    }
   }
   const { error } = await requireStore()
     .from('cardforge_project_storage_connections')

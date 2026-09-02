@@ -13,7 +13,7 @@ const ANALYTICS_API_ROOT = 'https://analyticsdata.googleapis.com/v1beta';
 const SEARCH_CONSOLE_API_ROOT = 'https://searchconsole.googleapis.com/webmasters/v3';
 const REPORT_RANGE_DAYS = 28;
 const JOURNEY_EVENTS: Array<{ eventName: CardForgeAnalyticsEventName; label: string }> = [
-  { eventName: 'open_studio', label: 'Opened Studio' },
+  { eventName: 'zone_entered', label: 'Entered a work zone' },
   { eventName: 'sign_up', label: 'Created account' },
   { eventName: 'card_created', label: 'Created cards' },
   { eventName: 'export_completed', label: 'Completed export' },

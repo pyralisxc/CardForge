@@ -1,12 +1,12 @@
 # CardForge Risk Register
 
-Last updated: September 1, 2026
+Last updated: September 2, 2026
 
 Only unresolved or explicitly accepted risks belong here. Closed work belongs in Git/provider history and current operating instructions belong in `docs/operations.md`.
 
 | Area | Risk | Priority | Status / next proof |
 | --- | --- | --- | --- |
-| Migration provenance | Older provider migration timestamps do not consistently match repository filenames, so an edited historical migration could be skipped. | P1 | Controlled. CI enforces immutable, forward-only migrations. Keep every future change additive, compare the production tail before rollout, and never rewrite provider history. |
+| Migration provenance | Older production provider migration timestamps do not consistently match repository filenames, so an edited historical migration could be skipped. | P1 | Controlled. CI enforces immutable, forward-only migrations, and the staging ledger is aligned to the repository chain so Preview migrations remain automatic. Keep every future change additive, compare the production tail before rollout, and never rewrite provider history. |
 | Social publishing | A credential, wrong destination, scheduler retry, or partial approval could expose media or publish an unapproved post. | P1 | Open; hard-disabled. Keep extended-contribution/native Meta gates off until protected media, scoped contributors, encrypted tokens, exact destinations, idempotent claim/retry, harmless publication, and durable delivery postflight in `docs/operations.md` pass. Communities remain manual-only. |
 | Large local projects | Long artwork sessions can exceed browser quota or degrade recovery despite IndexedDB, persistence requests, actual-write failure reporting, snapshots, and project export/import. Complete-body download/provider boundaries also materialize one size-bounded package Blob, while authorized device-file saves stream. | P1 | Accepted. Browser capacity is not a CardForge allowance and persistence is not a backup. Revisit after a real quota/recovery report or when a provider supports a practical streaming upload contract. |
 | Print prepress | Browser export does not provide CMYK, PDF/X, or printer-specific duplex certification. | P1 | Accepted. CardForge does not claim those capabilities; revisit with a dedicated print-production release. |

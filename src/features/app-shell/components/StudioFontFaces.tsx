@@ -4,11 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { createPipelineFontFaceCss, mergeCardFontOptions } from '@/domain/rendering';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client/catalog';
-import {
-  mapProjectFontsToCardFontOptions,
-  PROJECT_FONT_LIBRARY_CHANGE_EVENT,
-  readProjectFonts,
-} from '@/features/project/client';
+import { mapProjectFontsToCardFontOptions, PROJECT_FONT_LIBRARY_CHANGE_EVENT, readProjectFonts } from '@/features/project/client/assets';
 import { useProjectBinaryAssetValue } from '@/features/project/client/binary-assets';
 
 export function StudioFontFaces() {

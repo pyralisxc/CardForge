@@ -3,8 +3,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import { useProjectStore } from '@/features/project/client';
-import { selectAllTemplates } from '@/features/project/client';
+import { useProjectStore } from '@/features/project/client/workspace';
+import { selectAllTemplates } from '@/features/project/client/workspace';
 import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';

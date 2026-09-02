@@ -18,7 +18,7 @@ import { ScrollableDialogBody, ScrollableDialogContent } from '@/components/ui/s
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers, Minus, Plus, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useProjectStore } from '@/features/project/client';
+import { useProjectStore } from '@/features/project/client/workspace';
 import { CardPreview, useArtifactViewport } from '@/features/card-rendering/client';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import {
@@ -26,7 +26,7 @@ import {
   getMissingRequiredFieldLabels,
   initializeCardDataFromTemplate,
 } from '@/features/card-generator/lib/cardDataDefaults';
-import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
+import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 
 interface EditCardDialogProps {
