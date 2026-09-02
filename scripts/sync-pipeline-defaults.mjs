@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
 
 const configuredOwnerEmail = (value) => {
@@ -95,6 +96,22 @@ const walkFiles = async (directory, baseDirectory = directory) => {
 const readJson = async (filePath) => {
   const contents = await fs.readFile(filePath, 'utf8');
   return JSON.parse(contents);
+};
+
+export const buildDeterministicStarterSetPackage = async (manifest) => {
+  const archiveDate = new Date(manifest.savedAt);
+  if (Number.isNaN(archiveDate.getTime())) throw new Error('Starter Set savedAt must be a valid timestamp.');
+  const zip = new JSZip();
+  zip.file('cardforge-project.json', JSON.stringify(manifest), {
+    compression: 'STORE',
+    date: archiveDate,
+  });
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 9 },
+    platform: 'UNIX',
+  });
 };
 
 const resolveBootstrapAccessTier = (value) => (
@@ -615,9 +632,7 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
       project,
       assets,
     };
-    const zip = new JSZip();
-    zip.file('cardforge-project.json', JSON.stringify(manifest), { compression: 'STORE' });
-    const body = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    const body = await buildDeterministicStarterSetPackage(manifest);
     const packageSha256 = createHash('sha256').update(body).digest('hex');
     const storagePath = `owner-defaults/sets/${definition.id}-v${definition.version}.cardforge`;
     const { error } = await supabase.storage.from(ASSET_BUCKET).upload(storagePath, body, {
@@ -789,7 +804,12 @@ const main = async () => {
   );
 };
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isDirectExecution = process.argv[1]
+  && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isDirectExecution) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

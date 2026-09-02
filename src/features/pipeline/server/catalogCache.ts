@@ -8,7 +8,7 @@ import {
 import type { RegistryViewerAccess } from '@/features/pipeline/lib/registryContentAssets';
 
 export const CARDFORGE_CATALOG_TAG = 'public:cardforge-catalog';
-const CARDFORGE_CATALOG_CACHE_VERSION = 'registry-model-v2';
+const CARDFORGE_CATALOG_CACHE_VERSION = 'registry-model-v3';
 
 const cachedCatalogs: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeCatalogManifest>> = {
   free: unstable_cache(
