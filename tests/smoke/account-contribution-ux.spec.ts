@@ -197,6 +197,14 @@ test.describe('account contribution surfaces', () => {
     expect(artifactEditOverflow).toBe('hidden');
     await expect(artifactEditor.getByRole('complementary', { name: 'Artifact fields' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await artifactEditor.getByRole('button', { name: 'Fit', exact: true }).click();
+    await expect.poll(() => artifactEditStage.evaluate((node) => ({
+      horizontal: node.scrollWidth - node.clientWidth,
+      vertical: node.scrollHeight - node.clientHeight,
+    }))).toEqual({ horizontal: 0, vertical: 0 });
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
     await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
