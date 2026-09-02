@@ -7,7 +7,7 @@ import {
   normalizeTemplatePanelSectionMemory,
   touchRecentTemplatePanelContext,
 } from '@/features/template-editor/hooks/useTemplatePanelSectionMemory';
-import { resolveCompactWorkspaceSwipe } from '@/features/template-editor/hooks/useTemplateEditorViewport';
+import { resolveCanvasFitZoom, resolveCompactWorkspaceSwipe } from '@/features/template-editor/hooks/useTemplateEditorViewport';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -42,6 +42,14 @@ describe('Template panel workspaces', () => {
     expect(resolveCompactWorkspaceSwipe({ activePanel: 'library', deltaX: -90, deltaY: 10, durationMs: 220 })).toBe('canvas');
     expect(resolveCompactWorkspaceSwipe({ activePanel: 'canvas', deltaX: 35, deltaY: 4, durationMs: 220 })).toBeNull();
     expect(resolveCompactWorkspaceSwipe({ activePanel: 'canvas', deltaX: 90, deltaY: 85, durationMs: 220 })).toBeNull();
+  });
+
+  it('fits the complete canvas inside both desktop and compact viewports before enabling internal scroll', () => {
+    const desktopFit = resolveCanvasFitZoom({ stageWidth: 960, stageHeight: 720, stagePaddingX: 64, stagePaddingY: 64, canvasWidth: 630, canvasHeight: 880 });
+    const compactFit = resolveCanvasFitZoom({ stageWidth: 390, stageHeight: 540, stagePaddingX: 16, stagePaddingY: 16, canvasWidth: 630, canvasHeight: 880 });
+
+    expect(desktopFit).toBeLessThanOrEqual((720 - 64 - 98) / 880);
+    expect(compactFit).toBeLessThanOrEqual((540 - 16 - 98) / 880);
   });
 
   it('uses one shared focused navigator with subtle pinning, resize snaps, and recent position memory', () => {
@@ -82,6 +90,10 @@ describe('Template panel workspaces', () => {
     expect(styles).not.toContain('cardforge-mobile-inspector-close');
     expect(viewport).toContain('resolveCompactWorkspaceSwipe');
     expect(viewport).toContain("!target.closest?.('[data-cardforge-canvas=\"true\"]')");
+    expect(viewport).toContain('touchPointersRef.current.size >= 2');
+    expect(viewport).toContain('getTouchDistance(first, second)');
+    expect(viewport).toContain('calculateZoomAroundClientPoint');
+    expect(viewport).toContain('setAutoFitCanvas(false)');
   });
 
   it('routes Template settings to Library Setup and retires the old Inspector tab/overlay owners', () => {
@@ -102,7 +114,7 @@ describe('Template panel workspaces', () => {
 
     expect(presentation).toContain('.cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"])');
     expect(presentation).toContain('height: 100dvh');
-    expect(presentation).toContain('.cardforge-studio-workspace-nav');
+    expect(presentation).not.toContain('.cardforge-application-viewport');
     expect(presentation).toContain('padding: 0 !important;');
     expect(presentation).toContain('> div > footer');
     expect(presentation).toContain('display: none !important;');

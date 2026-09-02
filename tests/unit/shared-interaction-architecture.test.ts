@@ -7,7 +7,7 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 
 describe('shared CardForge interaction architecture', () => {
   it('gives the Studio one canonical desktop viewport owner instead of per-pane viewport arithmetic', () => {
-    const scopedStudio = readSource('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx');
+    const studioShell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
     const presentationCss = readSource('src/app/cardforgePresentation.css');
     const globals = readSource('src/app/globals.css');
     const templateMaker = readSource('src/features/template-editor/components/CardTemplateMaker.tsx');
@@ -15,13 +15,13 @@ describe('shared CardForge interaction architecture', () => {
     const templateLibrary = readSource('src/features/template-editor/components/TemplateEditorLibrarySidebar.tsx');
     const templateInspector = readSource('src/features/template-editor/components/TemplateEditorInspectorSidebar.tsx');
 
-    expect(scopedStudio).toContain('cardforge-application-viewport');
-    expect(scopedStudio).toContain('cardforge-studio-workspace');
-    expect(presentationCss).toContain('.cardforge-application-viewport');
+    expect(studioShell).toContain('cardforge-studio-workspace');
+    expect(studioShell).toContain('data-studio-presentation="contextual-tool"');
+    expect(presentationCss).not.toContain('.cardforge-application-viewport');
     expect(presentationCss).toContain('height: 100dvh;');
-    expect(presentationCss).toContain('.cardforge-application-viewport .cardforge-maker-scroll');
+    expect(presentationCss).toContain('.cardforge-studio-workspace .cardforge-maker-scroll');
     expect(presentationCss).toContain('height: 100% !important;');
-    expect(presentationCss).toContain('.cardforge-application-viewport .cardforge-canvas-scroll');
+    expect(presentationCss).toContain('.cardforge-studio-workspace .cardforge-canvas-scroll');
     expect(presentationCss).toContain('flex: 1 1 auto;');
     expect(presentationCss).not.toMatch(/calc\(100vh\s*-/u);
     expect(globals).not.toMatch(/calc\(100vh\s*-/u);
@@ -106,7 +106,7 @@ describe('shared CardForge interaction architecture', () => {
     const primitives = readSource('src/components/ui/cardforge-presentation.tsx');
     const owner = readSource('src/features/owner/components/OwnerConsolePage.tsx');
     const backWorkflow = readSource('src/features/app-shell/components/GeneratorBackWorkflowBanner.tsx');
-    const scopedStudio = readSource('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx');
+    const studioShell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
 
     expect(primitives).toContain('CardForgeSurface');
     expect(primitives).toContain('CardForgeSectionIntro');
@@ -117,6 +117,6 @@ describe('shared CardForge interaction architecture', () => {
     expect(owner).toContain('CardForgeWorkspaceState');
     expect(owner).not.toContain('function LazyWorkspace');
     expect(backWorkflow).toContain('CardForgeSurface');
-    expect(scopedStudio).toContain('CardForgeWorkspaceState');
+    expect(studioShell).toContain('BrowserStorageAlerts');
   });
 });

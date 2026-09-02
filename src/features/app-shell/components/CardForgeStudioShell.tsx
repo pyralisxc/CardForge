@@ -15,7 +15,6 @@ import {
   EditCardDialog,
   GenerationWorkspace,
 } from '@/features/app-shell/components/StudioLazyWorkspaces';
-import { StudioCommandBar } from '@/features/app-shell/components/StudioCommandBar';
 import { createDeskReturnHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { resolveStudioReturnTarget } from '@/features/app-shell/lib/studioNavigation';
 import { StudioContextTools, type StudioContextTool } from '@/features/app-shell/components/StudioContextTools';
@@ -25,7 +24,6 @@ import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardFo
 import { useTemplateStudioHandoffs } from '@/features/app-shell/hooks/useTemplateStudioHandoffs';
 import {
   BrowserStorageAlerts,
-  useBrowserWorkspaceSaveStatus,
   useProjectFileActions,
 } from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
@@ -49,14 +47,12 @@ export type StudioBusinessIdentity = {
 export interface CardForgeStudioShellProps {
   businessIdentity: StudioBusinessIdentity;
   initialContributorAccess: ContributorAccessSessionState;
-  embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
 export function CardForgeStudioShell({
   businessIdentity,
   initialContributorAccess,
-  embedded = false,
   onDirtyChange,
 }: CardForgeStudioShellProps) {
   const searchParams = useSearchParams();
@@ -73,7 +69,6 @@ export function CardForgeStudioShell({
   const canSubmitTemplateRevisions = hasContributionScope(contributorAccess.scopes, 'library.submit');
   const canPublishSharedLibrary = hasContributionScope(contributorAccess.scopes, 'library.publish');
   const projectCapabilities = accountEntitlement.capabilities;
-  const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = accountEntitlement.copy.gateMessage;
@@ -306,7 +301,6 @@ export function CardForgeStudioShell({
         panel.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
       }
       target.focus({ preventScroll: true });
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
   }, []);
 
@@ -384,11 +378,7 @@ export function CardForgeStudioShell({
     else if (requestedTool === 'pipeline' && canSubmitTemplateRevisions) setOpenStudioSheet('pipeline');
     else if (requestedTool === 'save') setSaveMoveOpen(true);
     requestedToolHandledRef.current = true;
-    if (!embedded) {
-      url.searchParams.delete('tool');
-      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-    }
-  }, [canSubmitTemplateRevisions, embedded]);
+  }, [canSubmitTemplateRevisions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,16 +393,6 @@ export function CardForgeStudioShell({
   }, []);
 
   const isStudioReady = !isLoadingTemplates;
-  const handleDocumentInstalled = useCallback(({ activeSetId, destination }: {
-    activeSetId: string | null;
-    destination: 'sets' | 'generator' | 'template-maker';
-  }) => {
-    if (embedded) return;
-    const params = new URLSearchParams();
-    if (activeSetId) params.set('focus', `set:${activeSetId}`);
-    params.set('tool', destination === 'template-maker' ? 'design' : 'generate');
-    router.replace(`/account?${params.toString()}`);
-  }, [embedded, router]);
   useStudioDocumentHandoff({
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
@@ -428,7 +408,6 @@ export function CardForgeStudioShell({
     setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
-    onInstalled: handleDocumentInstalled,
   });
 
   const showTemplateTool = useCallback(() => {
@@ -437,15 +416,9 @@ export function CardForgeStudioShell({
     focusStudioRegion('[data-testid="layout-studio-panel"]');
   }, [focusStudioRegion, handleStudioViewChange]);
 
-  const showGenerateTool = useCallback(() => {
-    handleStudioViewChange('generate');
-    setOpenStudioSheet(null);
-    focusStudioRegion('[data-workflow-step="setup"]');
-  }, [focusStudioRegion, handleStudioViewChange]);
-
   if (!activeCardSet) {
     return (
-      <div className={`${embedded ? 'min-h-[65vh]' : 'min-h-dvh'} flex items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]`}>
+      <div className="flex min-h-full items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]">
         <section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p>
           <h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1>
@@ -462,7 +435,7 @@ export function CardForgeStudioShell({
   }
 
   return (
-    <div className={`flex max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)] ${embedded ? 'h-[min(82vh,900px)] min-h-[65vh]' : 'h-dvh'}`} data-studio-presentation={embedded ? 'contextual-tool' : 'compatibility-ingress'}>
+    <div className="cardforge-studio-workspace flex h-full min-h-0 max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]" data-studio-presentation="contextual-tool">
       {accountEntitlement.entitlementError ? (
         <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
           Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
@@ -470,33 +443,14 @@ export function CardForgeStudioShell({
       ) : null}
 
       <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-        <StudioCommandBar
-          activeSetName={activeCardSet.name}
-          returnTarget={returnTarget}
-          studioView={studioView}
-          cardCount={generatedDisplayCards.length}
-          canSubmitToPipeline={canSubmitTemplateRevisions}
-          authConfigured={accountEntitlement.authConfigured}
-          isLoadingAccount={accountEntitlement.isLoadingEntitlement}
-          isSignedIn={accountEntitlement.isSignedIn}
-          modeLabel={exportEntitlementLabel}
-          saveStatus={workspaceSaveStatus}
-          onRefreshEntitlement={accountEntitlement.refreshEntitlement}
-          onShowTemplate={showTemplateTool}
-          onShowGenerate={showGenerateTool}
-          onOpenSave={() => setSaveMoveOpen(true)}
-          onOpenOutput={() => setOpenStudioSheet('output')}
-          onOpenPipeline={() => setOpenStudioSheet('pipeline')}
-        />
-
-        <main className="cardforge-studio-main container mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-3 md:p-5 lg:p-6">
+        <main className="cardforge-studio-main flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-0">
           {isStudioReady ? (
             <div data-testid="studio-ready" className="sr-only">Studio ready</div>
           ) : (
             <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
           )}
           {templateLibraryFailed || styleLibraryFailed ? (
-            <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
+            <div className="flex shrink-0 flex-col gap-2 border-b border-amber-500/45 bg-amber-500/10 py-2 pl-3 pr-16 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
               <div>
                 <p className="font-semibold">Some Studio library content did not load</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">

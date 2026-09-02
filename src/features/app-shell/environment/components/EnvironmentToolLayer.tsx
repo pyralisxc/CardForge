@@ -17,6 +17,7 @@ interface EnvironmentToolLayerProps {
   onDirtyCloseRequest?: () => void;
   onCrash?: (error: Error) => void;
   manageHistory?: boolean;
+  presentation?: 'panel' | 'workspace';
 }
 
 const activeToolLayers: string[] = [];
@@ -61,6 +62,7 @@ export function EnvironmentToolLayer({
   onDirtyCloseRequest,
   onCrash,
   manageHistory = true,
+  presentation = 'panel',
 }: EnvironmentToolLayerProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -154,10 +156,10 @@ export function EnvironmentToolLayer({
   }, [closeFromControl, id, manageHistory, requestClose]);
 
   return (
-    <div className={styles.toolLayer} role="dialog" aria-modal="true" aria-labelledby={id}>
+    <div className={`${styles.toolLayer} ${presentation === 'workspace' ? styles.toolLayerWorkspace : ''}`} role="dialog" aria-modal="true" aria-labelledby={id}>
       <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} />
-      <section ref={panelRef} className={styles.toolPanel}>
-        <header className={styles.toolHeader}>
+      <section ref={panelRef} className={`${styles.toolPanel} ${presentation === 'workspace' ? styles.toolPanelWorkspace : ''}`}>
+        <header className={`${styles.toolHeader} ${presentation === 'workspace' ? styles.toolHeaderWorkspace : ''}`}>
           <div>
             <p className={styles.toolEyebrow}>{eyebrow}</p>
             <h2 id={id} className={styles.toolTitle}>{title}</h2>
@@ -167,7 +169,7 @@ export function EnvironmentToolLayer({
             <X aria-hidden="true" />
           </button>
         </header>
-        <div className={styles.toolContent}>
+        <div className={`${styles.toolContent} ${presentation === 'workspace' ? styles.toolContentWorkspace : ''}`}>
           <ToolLayerErrorBoundary onCrash={onCrash}>{children}</ToolLayerErrorBoundary>
         </div>
       </section>

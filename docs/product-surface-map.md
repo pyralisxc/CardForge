@@ -153,6 +153,8 @@ CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
 ### Shipped contextual-tool consolidation
 
 - Desk and Library retain the active Set/object context while Design, Generate, Output, Pipeline, and location controls layer over the current environment;
+- Design exclusively owns the full viewport while active, exposes one close path, and does not retain page-level navigation or account chrome inside the tool;
+- Design Fit centers the complete Template canvas without document scrolling; wheel/button/pinch zoom may then create scroll only inside the canvas viewport;
 - Design and Generate remain the two focused authoring modes and preserve the active Set when switching;
 - Generate progressively separates Template/back setup from card-data entry and validation, then returns the new card selection to its originating Desk context;
 - Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
@@ -218,6 +220,8 @@ Never conflate these actions.
 - temporary AI usage/allowance presentation;
 - compact protected-access entry;
 - Environment shell/focused utilities.
+- current account/access/workspace/authority snapshot before utility navigation;
+- current assisted-work allowance and Contributor progress summaries when authorized, with explanations and controls in their focused utilities.
 
 ### Direction
 
@@ -229,6 +233,7 @@ Profile remains person-centered and quiet:
 - temporary AI capacity/retention status;
 - Contributor access/scopes/meaningful personal limits when authorized;
 - account/data lifecycle paths through the service that owns each datum.
+- current personal statistics stay visible in the overview; settings, policy explanation, and provider-owned management stay in focused utilities.
 
 Do not put work inventory or Pipeline queue here.
 

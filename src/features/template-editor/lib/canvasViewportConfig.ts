@@ -1,6 +1,5 @@
 export const CANVAS_RULER_WIDTH = 28;
 export const CANVAS_GUTTER = 32;
-export const CANVAS_SCROLL_PADDING = 24;
 
 export const CANVAS_ZOOM = {
   min: 0.16,

@@ -168,6 +168,7 @@ export function CardTemplateMaker({
     duplicateSelected,
   } = elements;
   const {
+    autoFitCanvas,
     clearDepthSelection,
     centerCanvasViewport,
     fitCanvasToViewport,
@@ -509,6 +510,7 @@ export function CardTemplateMaker({
             onClose={() => setMobilePanel('canvas')}
           />
           <TemplateCanvasStage
+            autoFitCanvas={autoFitCanvas}
             canvas={canvas}
             canvasFrameStyle={canvasFrameStyle}
             canvasRef={canvasRef}

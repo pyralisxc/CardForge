@@ -204,24 +204,20 @@ describe('Studio account-scoped persistence', () => {
     await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe(oversized);
   });
 
-  it('hydrates the selected account before mounting the heavyweight Studio shell', async () => {
-    const loader = await readFile(
-      rootPath('src/features/app-shell/components/StudioRuntimeLoader.tsx'),
-      'utf8',
-    );
-    const scopedShell = await readFile(
-      rootPath('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx'),
-      'utf8',
-    );
+  it('mounts the Studio only through the already-scoped Account environment', async () => {
+    const accountPage = await readFile(rootPath('src/app/account/page.tsx'), 'utf8');
+    const homeDesk = await readFile(rootPath('src/features/home/components/HomeDesk.tsx'), 'utf8');
+    const studioClient = await readFile(rootPath('src/features/app-shell/client/studio.ts'), 'utf8');
     const workspaceStore = await readFile(
       rootPath('src/features/project/store/workspaceStore.ts'),
       'utf8',
     );
 
-    expect(loader).toContain("import('./ScopedCardForgeStudioShell')");
-    expect(loader).toContain('persistenceScope={persistenceScope}');
-    expect(scopedShell).toContain('hydrateProjectWorkspaceForScope(persistenceScope)');
-    expect(scopedShell).toContain('<CardForgeStudioShell');
+    expect(accountPage).toContain('<AccountHomeBoundary');
+    expect(accountPage).toContain('<HomeDesk');
+    expect(homeDesk).toContain("'@/features/app-shell/client/studio'");
+    expect(homeDesk).toContain('presentation="workspace"');
+    expect(studioClient).not.toContain('StudioRuntimeLoader');
     expect(workspaceStore).toContain('skipHydration: true');
     expect(workspaceStore).toContain('useProjectStore.setState(useProjectStore.getInitialState())');
   });

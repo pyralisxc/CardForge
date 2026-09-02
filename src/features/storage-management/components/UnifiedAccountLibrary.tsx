@@ -411,9 +411,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="The selected Template remains in Library while the reusable Design tool edits its local working copy."
           closeLabel="Close Design"
           onClose={() => runAction(actions[0]!)}
+          presentation="workspace"
         >
           <LibraryDesignWorkspace
-            embedded
             businessIdentity={businessIdentity}
             initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
           />

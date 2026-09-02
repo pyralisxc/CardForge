@@ -139,16 +139,18 @@ test.describe('account contribution surfaces', () => {
     const flippedTile = page.locator(`[data-card-face]:has([data-artifact-id="${artifactId}"])`);
     await expect(flippedTile).toHaveAttribute('data-card-face', 'back');
     await flippedTile.locator('[data-artifact-id]').click();
-    const stage = page.locator('[data-home-artifact-stage]');
+    const stage = page.locator('[data-home-artifact-stage]:visible');
     await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
-    await expect(page.locator('[data-artifact-id]')).toHaveCount(1);
-    const centered = await page.locator('[data-artifact-id]').evaluate((node) => {
+    await expect(stage.locator('[data-artifact-id]')).toHaveCount(1);
+    const readCenterOffset = () => stage.locator('[data-artifact-id]').evaluate((node) => {
       const box = node.getBoundingClientRect();
       const viewport = node.closest('[data-home-artifact-stage]')!.getBoundingClientRect();
-      return { x: Math.abs((box.left + box.width / 2) - (viewport.left + viewport.width / 2)), y: Math.abs((box.top + box.height / 2) - (viewport.top + viewport.height / 2)) };
+      return Math.max(
+        Math.abs((box.left + box.width / 2) - (viewport.left + viewport.width / 2)),
+        Math.abs((box.top + box.height / 2) - (viewport.top + viewport.height / 2)),
+      );
     });
-    expect(centered.x).toBeLessThan(3);
-    expect(centered.y).toBeLessThan(3);
+    await expect.poll(readCenterOffset).toBeLessThan(3);
     expect(await stage.evaluate((node) => ({ horizontal: node.scrollWidth - node.clientWidth, vertical: node.scrollHeight - node.clientHeight }))).toEqual({ horizontal: 0, vertical: 0 });
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.getByRole('button', { name: 'Zoom in' }).click();
@@ -163,18 +165,34 @@ test.describe('account contribution surfaces', () => {
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
     await expect.poll(() => stage.evaluate((node) => ({ horizontal: node.scrollWidth - node.clientWidth, vertical: node.scrollHeight - node.clientHeight }))).toEqual({ horizontal: 0, vertical: 0 });
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
-    const mobileCentered = await page.locator('[data-artifact-id]').evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      const viewport = node.closest('[data-home-artifact-stage]')!.getBoundingClientRect();
-      return { x: Math.abs((box.left + box.width / 2) - (viewport.left + viewport.width / 2)), y: Math.abs((box.top + box.height / 2) - (viewport.top + viewport.height / 2)) };
-    });
-    expect(mobileCentered.x).toBeLessThan(3);
-    expect(mobileCentered.y).toBeLessThan(3);
+    await expect.poll(readCenterOffset).toBeLessThan(3);
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
 
     await page.getByRole('button', { name: 'Edit Artifact' }).click();
-    await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toBeVisible();
+    const studioDialog = page.getByRole('dialog', { name: 'Design Artifacts' });
+    await expect(studioDialog).toBeVisible();
+    await expect(studioDialog.getByRole('button', { name: 'Close Studio tool' })).toHaveCount(1);
+    await expect(studioDialog.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
+    await expect(studioDialog.getByRole('link', { name: 'Create account' })).toHaveCount(0);
+    await expect(studioDialog.getByRole('button', { name: /Back to/ })).toHaveCount(0);
+    const studioBounds = await studioDialog.evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+    });
+    expect(studioBounds.x).toBeLessThan(2);
+    expect(studioBounds.y).toBeLessThan(2);
+    expect(Math.abs(studioBounds.width - 1280)).toBeLessThan(2);
+    expect(Math.abs(studioBounds.height - 720)).toBeLessThan(2);
+    const templateStage = studioDialog.locator('[data-cardforge-stage="true"]');
+    await expect(templateStage).toHaveAttribute('data-auto-fit', 'true');
+    await expect.poll(() => templateStage.evaluate((node) => ({
+      horizontal: node.scrollWidth - node.clientWidth,
+      vertical: node.scrollHeight - node.clientHeight,
+    }))).toEqual({ horizontal: 0, vertical: 0 });
+    const templateOverflow = await templateStage.evaluate((node) => window.getComputedStyle(node).overflow);
+    expect(templateOverflow).toBe('hidden');
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
     await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');

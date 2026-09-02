@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -156,7 +156,7 @@ export function FocusedSetArtifactSurface({
     setHistoryRevision((current) => current + 1);
   }, [setId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || artifactFocusId) return;
     viewport.scrollTo({
@@ -212,7 +212,15 @@ export function FocusedSetArtifactSurface({
       navigatorReturnArtifactIdRef.current = artifactId;
       pendingSpatialFocusIdRef.current = artifactId;
     }
-    onFocusArtifact(setCreatorCamera(focusCreatorArtifact(selectedSession, artifactId), { x: 0, y: 0, zoom: 1 }));
+    const viewport = viewportRef.current;
+    const sessionAtCurrentCamera = viewport
+      ? setCreatorCamera(selectedSession, {
+        ...selectedSession.camera,
+        x: viewport.scrollLeft / selectedSession.camera.zoom,
+        y: viewport.scrollTop / selectedSession.camera.zoom,
+      })
+      : selectedSession;
+    onFocusArtifact(focusCreatorArtifact(sessionAtCurrentCamera, artifactId));
     setNavigatorFocusId(artifactId);
   };
 
@@ -361,9 +369,7 @@ export function FocusedSetArtifactSurface({
         stageRef={stageRef}
         title={focusedEntry.title}
         subtitle={focusedEntry.subtitle}
-        zoom={session.camera.zoom}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
-        onZoomChange={setZoom}
       /> : <>
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Use Tab to reach visible Artifacts. In Freeform view, use Arrow keys to move the selected Artifacts and hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div className={styles.cameraControls} aria-label="Artifact view controls">

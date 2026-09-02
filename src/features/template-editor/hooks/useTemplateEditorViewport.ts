@@ -7,7 +7,7 @@ import type {
   RefObject,
   WheelEvent as ReactWheelEvent,
 } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import type { FreeformCardElement } from '@/domain/templates';
 import { useCanvasPointerInteractions } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
@@ -21,7 +21,6 @@ import {
 import {
   CANVAS_GUTTER,
   CANVAS_RULER_WIDTH,
-  CANVAS_SCROLL_PADDING,
   CANVAS_ZOOM,
 } from '@/features/template-editor/lib/canvasViewportConfig';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
@@ -47,6 +46,29 @@ interface CompactWorkspaceSwipeState {
 
 const WORKSPACE_SWIPE_DISTANCE = 72;
 const WORKSPACE_SWIPE_MAX_DURATION_MS = 700;
+
+export function resolveCanvasFitZoom({
+  stageWidth,
+  stageHeight,
+  stagePaddingX = 0,
+  stagePaddingY = 0,
+  canvasWidth,
+  canvasHeight,
+}: {
+  stageWidth: number;
+  stageHeight: number;
+  stagePaddingX?: number;
+  stagePaddingY?: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}) {
+  const frameChrome = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2;
+  const overflowBuffer = 6;
+  const widthFit = Math.max(1, stageWidth - stagePaddingX - frameChrome - overflowBuffer) / canvasWidth;
+  const heightFit = Math.max(1, stageHeight - stagePaddingY - frameChrome - overflowBuffer) / canvasHeight;
+  const fitted = Math.min(widthFit, heightFit, CANVAS_ZOOM.autoFitMax);
+  return clamp(Math.floor(fitted * CANVAS_ZOOM.precision) / CANVAS_ZOOM.precision, CANVAS_ZOOM.min, CANVAS_ZOOM.autoFitMax);
+}
 
 export function resolveCompactWorkspaceSwipe({
   activePanel,
@@ -119,13 +141,17 @@ export function useTemplateEditorViewport({
     const width = stage.clientWidth;
     const height = stage.clientHeight;
     if (!width || !height) return null;
-    const chrome = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2 + CANVAS_SCROLL_PADDING;
-    const widthFit = Math.max(1, width - chrome) / canvas.width;
-    const heightFit = Math.max(1, height - chrome) / canvas.height;
-    const fitted = width < 1024
-      ? Math.min(widthFit, CANVAS_ZOOM.autoFitMax)
-      : Math.min(widthFit, heightFit, CANVAS_ZOOM.autoFitMax);
-    return clamp(Math.round(fitted * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.autoFitMax);
+    const style = window.getComputedStyle(stage);
+    const stagePaddingX = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+    const stagePaddingY = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+    return resolveCanvasFitZoom({
+      stageWidth: width,
+      stageHeight: height,
+      stagePaddingX,
+      stagePaddingY,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+    });
   }, [canvas.height, canvas.width]);
 
   const fitCanvasNow = useCallback(() => {
@@ -148,7 +174,7 @@ export function useTemplateEditorViewport({
     });
   }, [centerCanvasViewport]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!autoFitCanvas || !stage) return;
     const updateFit = () => {

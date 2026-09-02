@@ -28,6 +28,7 @@ import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { getAccountAccessLabel, getAccountDisplayName } from '@/features/account/client/identity';
 import {
   AccountPlanBillingUtility,
+  AccountProfileSnapshot,
   ProfileManagementPage,
   buildAccountProfileUtilityGroups,
   createAccountProfileOperations,
@@ -35,6 +36,7 @@ import {
   type AccountProfileUtilityTarget,
 } from '@/features/account/client/profile';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
+import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import type { McpAllowance } from '@/features/mcp-usage/client/plans';
 
 import { ContributorProfilePanel } from './ContributorProfilePanel';
@@ -241,6 +243,13 @@ export function AccountProfileEnvironment({
           title={isSignedIn ? accountName : 'Your CardForge profile'}
           body="Identity, security, access, and account utilities stay compact around you. Provider-sensitive controls remain with the provider that owns them."
         />
+        <AccountProfileSnapshot
+          accountLabel={isSignedIn ? accountEmail : 'Guest creator'}
+          identityLabel={isSignedIn ? 'Clerk identity connected' : 'Guest workspace'}
+          planLabel={planLabel}
+          workspaceLabel="Local-first browser workspace"
+          authorityLabel={isOwner ? 'Owner' : isContributor ? 'Contributor' : isSignedIn ? 'Creator' : 'Guest'}
+        />
         {entitlementUnavailable ? (
           <EnvironmentBoundaryNotice
             title="Account access is unavailable"
@@ -248,6 +257,16 @@ export function AccountProfileEnvironment({
             actionLabel="Retry"
             onAction={() => { void entitlement.refreshEntitlement({ force: true }); }}
           />
+        ) : null}
+        {!activeUtility && isSignedIn ? (
+          <div className="mt-4">
+            <AccountMcpUsageSection presentation="summary" onOpenDetails={openBilling} />
+          </div>
+        ) : null}
+        {!activeUtility && isContributor ? (
+          <div className="mt-4">
+            <ContributorProfilePanel access={contributorAccess} presentation="summary" onOpenDetails={() => openUtility('contributor')} />
+          </div>
         ) : null}
         {groups.map((group) => (
           <section key={group.id} className="mt-5" aria-labelledby={`profile-${group.id}-heading`}>

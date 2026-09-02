@@ -14,7 +14,15 @@ import {
 } from '@/features/contributor-access/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function ContributorProfilePanel({ access }: { access: ContributorAccessProjection }) {
+export function ContributorProfilePanel({
+  access,
+  presentation = 'detail',
+  onOpenDetails,
+}: {
+  access: ContributorAccessProjection;
+  presentation?: 'detail' | 'summary';
+  onOpenDetails?: () => void;
+}) {
   const router = useRouter();
   const [summary, setSummary] = useState<PipelineContributorSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +46,28 @@ export function ContributorProfilePanel({ access }: { access: ContributorAccessP
 
   useEffect(() => { void load(); }, [load]);
 
-  if (loading && !summary) return <div className="grid min-h-40 place-items-center text-sm text-[var(--cf-text-muted)]"><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
+  if (loading && !summary) return <div className={`grid place-items-center text-sm text-[var(--cf-text-muted)] ${presentation === 'summary' ? 'min-h-28 border border-[var(--cf-border)] bg-[var(--cf-surface)]' : 'min-h-40'}`}><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Preparing contributor profile</span></div>;
+
+  if (presentation === 'summary') {
+    return (
+      <section className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4" aria-labelledby="contributor-summary-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--cf-border-subtle)] pb-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Contributor activity</p>
+            <h2 id="contributor-summary-heading" className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">Your contribution progress</h2>
+          </div>
+          {onOpenDetails ? <Button type="button" size="sm" variant="outline" onClick={onOpenDetails}>Contribution details</Button> : null}
+        </div>
+        {error ? <div className="mt-3"><EnvironmentBoundaryNotice title="Contributor statistics are unavailable" message={`${error} Your granted access has not been relabeled or removed.`} actionLabel="Retry" onAction={() => void load()} /></div> : null}
+        {summary ? <dl className="mt-3 grid grid-cols-2 border border-[var(--cf-border)] sm:grid-cols-4">
+          <CompactStat label="Submitted this month" value={summary.submittedThisMonth} />
+          <CompactStat label="Published this month" value={summary.publishedThisMonth} />
+          <CompactStat label="Monthly target" value={summary.monthlyPublishedRequirement} />
+          <CompactStat label="Submissions left" value={summary.remainingSubmissions} />
+        </dl> : null}
+      </section>
+    );
+  }
 
   return <div className="space-y-5">
     {error ? <EnvironmentBoundaryNotice title="Contributor details are unavailable" message={`${error} Your granted access has not been relabeled or removed.`} actionLabel="Retry" onAction={() => void load()} /> : null}

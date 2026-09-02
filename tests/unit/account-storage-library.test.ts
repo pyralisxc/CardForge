@@ -77,7 +77,8 @@ describe('account storage library', () => {
     expect(unifiedLibrary).toContain('<EnvironmentToolLayer');
     expect(unifiedLibrary).not.toContain('className={styles.toolLayer}');
     expect(environmentToolLayer).toContain('role="dialog"');
-    expect(environmentToolLayer).toContain('className={styles.toolContent}');
+    expect(environmentToolLayer).toContain('styles.toolContent');
+    expect(environmentToolLayer).toContain('styles.toolContentWorkspace');
     expect(unifiedLibrary).toContain("status === 'google-drive-connected'");
     expect(unifiedLibrary).toContain("status === 'google-drive-error'");
     expect(storageLibrary).toContain("focus = 'overview'");

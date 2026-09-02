@@ -421,9 +421,9 @@ export function HomeDesk({
           manageHistory={false}
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
+          presentation="workspace"
         >
           <DeskDesignWorkspace
-            embedded
             businessIdentity={businessIdentity}
             initialContributorAccess={initialContributorAccess}
             onDirtyChange={studioTool.tool === 'design' ? setActiveToolDirty : undefined}

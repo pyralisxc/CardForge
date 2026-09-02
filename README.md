@@ -7,7 +7,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Desk: `/account`; Set focus replaces the surrounding Desk, and Artifact focus replaces the Set field with one zoomed-in Artifact. Design, Generate, Output, Pipeline, and location controls open as contextual tools over Desk or Library. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
+- Desk: `/account`; Set focus replaces the surrounding Desk, and Artifact focus replaces the Set field with one zoomed-in Artifact. Design opens as an exclusive full-viewport contextual workspace with one close path; Fit keeps the complete canvas visible and only the canvas scrolls after deliberate zoom. Generate, Output, Pipeline, and location controls reuse contextual tools over Desk or Library. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.

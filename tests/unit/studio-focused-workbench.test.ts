@@ -10,7 +10,8 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('Studio focused workbench architecture', () => {
   it('migrates retired destinations into focused authoring tools', () => {
     const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
-    const commands = readSource('src/features/app-shell/components/StudioCommandBar.tsx');
+    const desk = readSource('src/features/home/components/HomeDesk.tsx');
+    const toolLayer = readSource('src/features/app-shell/environment/components/EnvironmentToolLayer.tsx');
 
     expect(normalizeStudioView('sets')).toBe('generate');
     expect(normalizeStudioView('desk')).toBe('generate');
@@ -21,12 +22,11 @@ describe('Studio focused workbench architecture', () => {
     expect(shell).not.toContain('StudioSetDesk');
     expect(shell).toContain('useSearchParams()');
     expect(shell).toContain("searchParams.get('returnTo')");
-    expect(commands).toContain('returnTarget.ariaLabel');
-    expect(commands).toContain('returnTarget.href');
-    expect(commands).toContain('Studio tools');
-    expect(commands).toContain('aria-label="Design"');
-    expect(commands).toContain('aria-label="Generate"');
-    expect(commands).toContain('Configure output');
+    expect(desk).toContain('presentation="workspace"');
+    expect(toolLayer).toContain("presentation?: 'panel' | 'workspace'");
+    expect(shell).toContain('data-studio-presentation="contextual-tool"');
+    expect(shell).not.toContain('StudioCommandBar');
+    expect(shell).not.toContain('AccountControls');
     expect(shell).not.toContain('StudioHeader');
   });
 
@@ -38,7 +38,7 @@ describe('Studio focused workbench architecture', () => {
     expect(shell).toContain("data-state={studioView === 'template' ? 'active' : 'inactive'}");
     expect(shell).not.toContain("hidden={studioView !== 'desk'}");
     expect(shell).toContain("target.closest<HTMLElement>('[data-testid=\"generator-panel\"]')");
-    expect(shell).toContain("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })");
+    expect(shell).not.toContain('window.scrollTo');
     expect(shell).not.toContain('target?.scrollIntoView');
   });
 

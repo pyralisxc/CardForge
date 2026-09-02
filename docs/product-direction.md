@@ -122,6 +122,8 @@ The focus path is:
 
 Selecting Edit, Generate, Test, Validate, or advanced Output opens the smallest useful Studio tool. Returning restores exact prior Desk or Library context.
 
+Design is the exclusive full-viewport precision workspace while it is open. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
+
 The focused Studio workbench supports:
 
 - multiple Templates/masters and artifact types;
@@ -395,6 +397,8 @@ General media/font Pipeline contribution can become more agent-native later, but
 Profile centers the person, not an account record.
 
 Clerk remains the native identity/security owner. Stripe remains the native checkout/billing owner. Provider connection lifecycle remains with the provider integration, with Profile showing a compact summary and Library owning detailed location management.
+
+The Profile overview leads with current identity, access, workspace, authority, assisted-work allowance, and Contributor progress where applicable. Deeper utilities explain or manage those values without forcing users to navigate just to discover their current state.
 
 Profile may hold durable personal defaults only when ownership is truly personal: presentation, default Specialty/Kit, accessibility choices, output preference, and Contributor configuration. Work-specific settings stay with the selected work container.
 

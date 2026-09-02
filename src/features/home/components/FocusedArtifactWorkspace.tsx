@@ -17,9 +17,7 @@ interface FocusedArtifactWorkspaceProps {
   stageRef: MutableRefObject<HTMLDivElement | null>;
   title: string;
   subtitle: string;
-  zoom: number;
   onEdit: () => void;
-  onZoomChange: (zoom: number) => void;
 }
 
 const readAspectRatio = (value: string | undefined) => {
@@ -34,13 +32,12 @@ export function FocusedArtifactWorkspace({
   stageRef,
   title,
   subtitle,
-  zoom,
   onEdit,
-  onZoomChange,
 }: FocusedArtifactWorkspaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 900, height: 620 });
   const [face, setFace] = useState<CardFace>('front');
+  const [zoom, setZoom] = useState(1);
   const aspect = readAspectRatio((face === 'back' ? card.backingTemplate : card.template)?.aspectRatio);
   const fitWidth = useMemo(() => {
     const horizontalRoom = Math.max(160, viewport.width - 112);
@@ -51,22 +48,27 @@ export function FocusedArtifactWorkspace({
   const visualHeight = getCardHeightForWidth(fitWidth, `${aspect.width}:${aspect.height}`) * zoom;
   const worldWidth = Math.max(viewport.width, visualWidth + 96);
   const worldHeight = Math.max(viewport.height, visualHeight + 96);
+  const changeZoom = (nextZoom: number) => setZoom(Math.max(0.2, Math.min(2, nextZoom)));
 
   useLayoutEffect(() => {
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
+    let measurementFrame = 0;
     const measure = () => {
-      const bounds = viewportNode.getBoundingClientRect();
-      setViewport({ width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+      cancelAnimationFrame(measurementFrame);
+      measurementFrame = requestAnimationFrame(() => {
+        const bounds = viewportNode.getBoundingClientRect();
+        setViewport({ width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+      });
     };
     measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      setViewport({ width: Math.max(1, entry.contentRect.width), height: Math.max(1, entry.contentRect.height) });
-    });
+    if (typeof ResizeObserver === 'undefined') return () => cancelAnimationFrame(measurementFrame);
+    const observer = new ResizeObserver(measure);
     observer.observe(viewportNode);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(measurementFrame);
+      observer.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -82,10 +84,10 @@ export function FocusedArtifactWorkspace({
   return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={zoom.toFixed(2)}>
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact controls">
       <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>{subtitle}</small></span>
-      <Button type="button" size="icon" variant="ghost" onClick={() => onZoomChange(zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
+      <Button type="button" size="icon" variant="ghost" onClick={() => changeZoom(zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
       <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(zoom * 100)}%</span>
-      <Button type="button" size="icon" variant="ghost" onClick={() => onZoomChange(zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
-      <Button type="button" size="sm" variant="ghost" onClick={() => onZoomChange(1)}>Fit</Button>
+      <Button type="button" size="icon" variant="ghost" onClick={() => changeZoom(zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => changeZoom(1)}>Fit</Button>
       <Button type="button" size="sm" variant="outline" onClick={onEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit Artifact</Button>
     </div>
     <div

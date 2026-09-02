@@ -14,6 +14,9 @@ describe('unified account environment', () => {
   const planBillingUtility = readSource('src/features/account/components/AccountPlanBillingUtility.tsx');
   const planChoiceGrid = readSource('src/features/mcp-usage/components/PlanChoiceGrid.tsx');
   const profileEnvironment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');
+  const profileSnapshot = readSource('src/features/account/components/AccountProfileSnapshot.tsx');
+  const contributorProfile = readSource('src/app/account/_components/ContributorProfilePanel.tsx');
+  const accountUsage = readSource('src/features/mcp-usage/components/AccountMcpUsageSection.tsx');
   const profileManagement = readSource('src/features/account/components/ProfileManagementPage.tsx');
   const storageWorkspace = readSource('src/features/storage-management/components/AccountStorageWorkspace.tsx');
   const accountLibrary = readSource('src/features/storage-management/components/UnifiedAccountLibrary.tsx');
@@ -150,6 +153,18 @@ describe('unified account environment', () => {
     expect(profileEnvironment).toContain('<ProfileManagementPage authConfigured={entitlement.authConfigured} />');
     expect(profileManagement).toContain('<UserProfile');
     expect(profileManagement).not.toContain('elements:');
+  });
+
+  it('leads Profile with live status and keeps explanations and settings in deeper utilities', () => {
+    expect(profileEnvironment).toContain('<AccountProfileSnapshot');
+    expect(profileEnvironment.indexOf('<AccountProfileSnapshot')).toBeLessThan(profileEnvironment.indexOf('{groups.map'));
+    expect(profileEnvironment).toContain('<AccountMcpUsageSection presentation="summary"');
+    expect(profileEnvironment).toContain('presentation="summary"');
+    expect(profileSnapshot).toContain('Your CardForge account at a glance');
+    expect(profileSnapshot).toContain("['Authority', authorityLabel]");
+    expect(accountUsage).toContain('role="progressbar"');
+    expect(accountUsage).toContain('onOpenDetails');
+    expect(contributorProfile).toContain("presentation === 'summary'");
   });
 
   it('routes protected account entries to their real zones', () => {
