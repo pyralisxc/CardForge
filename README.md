@@ -85,8 +85,9 @@ npm run brand:export
 - `supabase/migrations/`: immutable, forward-only shared-state migrations.
 - `data/pipeline-bootstrap/`: importer input only; never a runtime Studio catalog.
 - `public/site-fallbacks/`: safe public-page fallback art only.
-- `tests/unit/`: durable contract/security/regression tests.
-- `tests/smoke/`: focused browser regression coverage; not a substitute for real signed-in provider checks.
+- `tests/product/unit/`: durable product behavior and data-contract tests.
+- `tests/product/workflows/`: focused browser workflow coverage; not a substitute for real signed-in provider checks.
+- `tests/infrastructure/`: small, generic repository, architecture, migration, and security guardrails.
 
 Retired root ownership lanes `src/lib/`, `src/store/`, and `src/types/` must not return.
 

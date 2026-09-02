@@ -4,7 +4,7 @@ const baseURL = process.env.CARDFORGE_E2E_BASE_URL || 'http://localhost:9002';
 const chromiumExecutablePath = process.env.CARDFORGE_E2E_CHROMIUM_EXECUTABLE_PATH?.trim();
 
 export default defineConfig({
-  testDir: './tests/smoke',
+  testDir: './tests/product/workflows',
   reporter: process.env.CI
     ? [['line'], ['html', { open: 'never' }]]
     : 'list',
