@@ -271,21 +271,6 @@
 }
 
 .workTile[data-presentation="focused"] .workTileMain {
-  position: absolute;
-  z-index: 12;
-  top: 4.5rem;
-  left: max(1.15rem, calc(50% - 36.85rem));
-  width: clamp(5.25rem, 8vw, 7rem);
-  opacity: 1;
-  pointer-events: none;
-}
-
-.workTile[data-presentation="focused"] .workVisual,
-.workTile[data-presentation="focused"] .sourceFallback {
-  min-height: 6.8rem;
-}
-
-.workTile[data-presentation="focused"] .workMeta {
   display: none;
 }
 
@@ -1322,17 +1307,6 @@
   .workTile[data-presentation="focused"] {
     width: 100%;
     min-width: 0;
-  }
-
-  .workTile[data-presentation="focused"] .workTileMain {
-    top: 8rem;
-    left: 0.85rem;
-    width: 5.25rem;
-  }
-
-  .workTile[data-presentation="focused"] .workVisual,
-  .workTile[data-presentation="focused"] .sourceFallback {
-    min-height: 6.2rem;
   }
 
   .tileActions {

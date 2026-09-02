@@ -107,6 +107,7 @@ test.describe('account contribution surfaces', () => {
     await page.getByRole('button', { name: 'Create your first Set' }).click();
     await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
     await expect(page.locator('[data-home-work-object][data-presentation="focused"]')).toBeVisible();
+    await expect(page.locator('[data-home-work-object][data-presentation="focused"] > button[aria-hidden="true"]')).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
     await page.getByLabel('Work name').fill('Mixed Template Review Set');
     await page.getByRole('button', { name: 'Save', exact: true }).click();

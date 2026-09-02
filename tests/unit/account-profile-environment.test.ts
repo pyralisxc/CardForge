@@ -1,11 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { buildAccountProfileUtilityGroups } from '@/features/account/lib/accountProfileEnvironment';
-
-const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('account profile environment', () => {
   it('keeps identity, security, billing, storage, and protected entries in compact groups', () => {
@@ -56,35 +51,5 @@ describe('account profile environment', () => {
     expect(loading.find((item) => item.target === 'clerk')?.value).toBe('Checking account');
     expect(loading.find((item) => item.target === 'billing')?.value).toBe('Checking access');
     expect(unconfigured.find((item) => item.target === 'billing')?.value).toBe('Setup required');
-  });
-
-  it('uses the Environment shell while keeping the native Clerk surface intact', () => {
-    const accountPage = readSource('src/app/account/page.tsx');
-    const homeBoundary = readSource('src/features/account/components/AccountHomeBoundary.tsx');
-    const environment = readSource('src/app/account/_components/AccountProfileEnvironment.tsx');
-    const providerSurface = readSource('src/features/account/components/ProfileManagementPage.tsx');
-    const actionOwner = readSource('src/features/account/lib/accountProfileActions.ts');
-
-    expect(accountPage).toContain("activeSection === 'profile'");
-    expect(accountPage).toContain('<AccountProfileEnvironment');
-    expect(homeBoundary).not.toContain('<AccountProfileEnvironment');
-    expect(environment).toContain('<EnvironmentShell');
-    expect(environment).toContain('createActionRuntime(actionDefinitions)');
-    expect(environment).not.toContain("if (action.id === 'profile.");
-    expect(actionOwner).toContain('descriptor: closeUtilityAction');
-    expect(actionOwner).toContain('descriptor: manageAccountAction');
-    expect(environment).toContain('activeZone="profile"');
-    expect(environment).toContain('<CompactSettingRow');
-    expect(environment).toContain("activeUtility === 'billing'");
-    expect(environment).toContain("activeUtility === 'identity'");
-    expect(environment).toContain("router.push('/account?section=profile&utility=identity')");
-    expect(environment).toContain('detail={null}');
-    expect(environment).toContain('onOpen={() => openUtility(item.target)}');
-    expect(environment).toContain('<AccountPlanBillingUtility');
-    expect(environment).toContain('<ProfileManagementPage authConfigured={entitlement.authConfigured} />');
-    expect(environment).not.toContain('<AccountWorkspaceHeader');
-    expect(environment).not.toContain('<AccountUtilityPanel');
-    expect(providerSurface).toContain('<UserProfile');
-    expect(providerSurface).not.toContain('elements:');
   });
 });

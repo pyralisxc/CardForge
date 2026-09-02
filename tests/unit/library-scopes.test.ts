@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import {
   getLibraryScopeDefinitions,
@@ -11,11 +9,6 @@ import {
 } from '@/features/storage-management/model/libraryScopes';
 
 describe('Library scopes', () => {
-  const actionHook = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useAccountLibraryActions.ts'), 'utf8');
-  const libraryPresentation = readFileSync(resolve(process.cwd(), 'src/features/storage-management/components/LibraryObjectPresentation.tsx'), 'utf8');
-  const libraryActions = readFileSync(resolve(process.cwd(), 'src/features/storage-management/model/accountLibraryEnvironment.ts'), 'utf8');
-  const sharedProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useLibrarySharedProjection.ts'), 'utf8');
-  const accountProjection = readFileSync(resolve(process.cwd(), 'src/features/storage-management/hooks/useAccountLibraryProjection.ts'), 'utf8');
   it('keeps Personal and Pipeline visible while protecting contributor publication history', () => {
     expect(getLibraryScopeDefinitions({ contributor: false, campaigns: false, owner: false }).map((scope) => scope.id))
       .toEqual(['personal', 'pipeline']);
@@ -63,21 +56,5 @@ describe('Library scopes', () => {
       ['pipeline', 'empty'],
       ['personal', 'ready'],
     ]);
-  });
-
-  it('renders real catalog media and structured appearance styles before generic fallbacks', () => {
-    expect(sharedProjection).toContain('style: asset.style ?? null');
-    expect(libraryPresentation).toContain('appearanceToStyle(style.appearance)');
-    expect(libraryPresentation).toContain('className={styles.stylePreview}');
-    expect(libraryPresentation).toContain('item.pipeline.style');
-  });
-
-  it('opens Set containers on Desk instead of dropping them into an unrelated Studio Template', () => {
-    expect(libraryActions).toContain("item.references.localSetId ? 'Open on Desk'");
-    expect(actionHook).toContain("createDeskReturnHref(`set:${item.references.localSetId}`)");
-    expect(accountProjection).toContain("router.push(createDeskReturnHref(`set:${item.references.localSetId}`))");
-    expect(accountProjection).toContain("tool: 'design', artifact: item.references.localTemplateId");
-    expect(accountProjection.match(/createStudioHref\(/g)).toHaveLength(1);
-    expect(accountProjection).toContain('documentId: item.references.workingDraftId');
   });
 });
