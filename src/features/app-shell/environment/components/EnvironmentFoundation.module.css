@@ -415,6 +415,8 @@
 }
 
 .toolPanelWorkspace {
+  --cf-workspace-close-reserve: 4rem;
+
   position: relative;
   display: flex;
   min-width: 0;
@@ -472,7 +474,7 @@
 
 .toolPanelWorkspace :global(.cardforge-editor-topbar),
 .toolPanelWorkspace :global(.cardforge-maker-mobile-switcher) {
-  padding-right: 4rem !important;
+  padding-right: var(--cf-workspace-close-reserve) !important;
 }
 
 .toolFailure {

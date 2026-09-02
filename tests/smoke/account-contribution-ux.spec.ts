@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import axe from 'axe-core';
 
 const READY_TIMEOUT = 120_000;
@@ -82,6 +82,13 @@ async function expectNoWcagViolations(page: Page) {
   expect(violations).toEqual([]);
 }
 
+async function expectControlClearOfClose(control: Locator, close: Locator) {
+  const [controlBox, closeBox] = await Promise.all([control.boundingBox(), close.boundingBox()]);
+  expect(controlBox).not.toBeNull();
+  expect(closeBox).not.toBeNull();
+  expect(controlBox!.x + controlBox!.width).toBeLessThan(closeBox!.x);
+}
+
 test.describe('account contribution surfaces', () => {
   test.describe.configure({ timeout: 180_000 });
   test.beforeEach(async ({ page }) => {
@@ -103,6 +110,24 @@ test.describe('account contribution surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
     await page.getByLabel('Work name').fill('Mixed Template Review Set');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const closeStorageNotice = page.getByRole('button', { name: 'Close notification' });
+    const storageNoticeVisible = await closeStorageNotice.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false);
+    if (storageNoticeVisible) await closeStorageNotice.click();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
+    const templateStudioDialog = page.getByRole('dialog', { name: 'Design Artifacts' });
+    await expect(templateStudioDialog).toBeVisible();
+    const mobileCanvasToolbar = templateStudioDialog.getByRole('toolbar', { name: 'Canvas controls' });
+    const closeStudioButton = templateStudioDialog.getByRole('button', { name: 'Close Studio tool' });
+    const saveTemplateButton = mobileCanvasToolbar.getByRole('button').last();
+    await expect(mobileCanvasToolbar).toBeVisible();
+    await expect(closeStudioButton).toBeVisible();
+    await expect(saveTemplateButton).toBeVisible();
+    await expectControlClearOfClose(saveTemplateButton, closeStudioButton);
+    await closeStudioButton.click();
+    await expect(templateStudioDialog).toHaveCount(0);
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     const generateBatch = async (templateName: string, prefix: string) => {
       await page.locator('#generation-step-setup').click();
@@ -199,6 +224,10 @@ test.describe('account contribution surfaces', () => {
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.setViewportSize({ width: 390, height: 844 });
     await artifactEditor.getByRole('button', { name: 'Fit', exact: true }).click();
+    await expectControlClearOfClose(
+      artifactEditor.getByRole('button', { name: 'Save', exact: true }),
+      studioDialog.getByRole('button', { name: 'Close Studio tool' }),
+    );
     await expect.poll(() => artifactEditStage.evaluate((node) => ({
       horizontal: node.scrollWidth - node.clientWidth,
       vertical: node.scrollHeight - node.clientHeight,
