@@ -184,14 +184,18 @@ test.describe('account contribution surfaces', () => {
     expect(studioBounds.y).toBeLessThan(2);
     expect(Math.abs(studioBounds.width - 1280)).toBeLessThan(2);
     expect(Math.abs(studioBounds.height - 720)).toBeLessThan(2);
-    const templateStage = studioDialog.locator('[data-cardforge-stage="true"]');
-    await expect(templateStage).toHaveAttribute('data-auto-fit', 'true');
-    await expect.poll(() => templateStage.evaluate((node) => ({
+    const artifactEditor = studioDialog.locator('[data-artifact-edit-workspace]');
+    await expect(artifactEditor).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /^Edit:/ })).toHaveCount(0);
+    const artifactEditStage = artifactEditor.locator('[data-artifact-edit-stage]');
+    await expect(artifactEditStage).toHaveAttribute('data-auto-fit', 'true');
+    await expect.poll(() => artifactEditStage.evaluate((node) => ({
       horizontal: node.scrollWidth - node.clientWidth,
       vertical: node.scrollHeight - node.clientHeight,
     }))).toEqual({ horizontal: 0, vertical: 0 });
-    const templateOverflow = await templateStage.evaluate((node) => window.getComputedStyle(node).overflow);
-    expect(templateOverflow).toBe('hidden');
+    const artifactEditOverflow = await artifactEditStage.evaluate((node) => window.getComputedStyle(node).overflow);
+    expect(artifactEditOverflow).toBe('hidden');
+    await expect(artifactEditor.getByRole('complementary', { name: 'Artifact fields' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);

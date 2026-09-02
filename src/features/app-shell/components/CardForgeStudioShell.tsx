@@ -442,6 +442,17 @@ export function CardForgeStudioShell({
         </div>
       ) : null}
 
+      {isEditDialogOpen && editingCardFromStore ? (
+        <EditCardDialog
+          isOpen={isEditDialogOpen}
+          card={editingCardFromStore}
+          onSave={handleSaveEditedCard}
+          onDuplicate={handleDuplicateCard}
+          onClose={handleCloseEditDialog}
+          presentation="workspace"
+        />
+      ) : (
+        <>
       <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
         <main className="cardforge-studio-main flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-0">
           {isStudioReady ? (
@@ -580,14 +591,7 @@ export function CardForgeStudioShell({
       />
 
       <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canUseProjectFiles} />
-      {isEditDialogOpen && editingCardFromStore && (
-        <EditCardDialog
-          isOpen={isEditDialogOpen}
-          card={editingCardFromStore}
-          onSave={handleSaveEditedCard}
-          onDuplicate={handleDuplicateCard}
-          onClose={handleCloseEditDialog}
-        />
+        </>
       )}
       <StudioConfirmationDialogs
         templatePendingDeleteId={templatePendingDeleteId}
