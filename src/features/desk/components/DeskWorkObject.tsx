@@ -28,7 +28,7 @@ interface DeskWorkObjectProps {
   preview: (face: CardFace) => ReactNode;
   canFlip: boolean;
   focusedSurface: ReactNode;
-  beginDrag: (itemId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
+  beginDrag: (itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options?: { additive?: boolean }) => void;
   moveDrag: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   endDrag: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   shouldSuppressActivation: (itemId: string) => boolean;
@@ -149,7 +149,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-desk-set-object-id={props.item.id}
     data-presentation={props.focused ? 'focused' : 'overview'}
     data-featured={props.featured && !props.focused}
-    data-slot={props.focused ? undefined : props.index % 6}
     data-active={props.active}
     data-selected={props.selected}
     data-pinned={props.pinned}
@@ -169,11 +168,13 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         lastPointerTypeRef.current = event.pointerType;
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
         const touchArrangeSelection = event.pointerType === 'touch' && props.arrangeMode && !props.selected && !modified;
-        if (!props.selected && !modified) {
+        if (!props.selected && !modified && !touchArrangeSelection) {
           props.onSelect(props.item, { additive: touchArrangeSelection });
-          suppressTouchSelectionClickRef.current = touchArrangeSelection;
         }
-        if (!modified && (event.pointerType !== 'touch' || (props.arrangeMode && props.selected))) props.beginDrag(props.item.id, event);
+        if (touchArrangeSelection) suppressTouchSelectionClickRef.current = true;
+        if (!modified && (event.pointerType !== 'touch' || props.arrangeMode)) {
+          props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
+        }
       }}
       onPointerMove={props.moveDrag}
       onPointerUp={props.endDrag}

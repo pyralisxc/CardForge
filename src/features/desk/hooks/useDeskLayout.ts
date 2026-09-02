@@ -24,6 +24,7 @@ interface DeskLayoutOptions {
   query: string;
   sourceFilter: HomeSourceFilter;
   sort: HomeSort;
+  focused: boolean;
   snapToGrid: boolean;
   selectedIds: readonly string[];
   onSelectionChange: (ids: string[], anchorId: string | null) => void;
@@ -35,6 +36,7 @@ export function useDeskLayout({
   query,
   sourceFilter,
   sort,
+  focused,
   snapToGrid,
   selectedIds,
   onSelectionChange,
@@ -43,25 +45,6 @@ export function useDeskLayout({
   const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
   const pinKey = `${DESK_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${DESK_ORDER_KEY}:${persistenceScope}`;
-  const {
-    beginDrag,
-    beginMarquee,
-    endDrag,
-    endMarquee,
-    marquee,
-    moveDrag,
-    moveMarquee,
-    nudgeSelection,
-    positions,
-    shouldSuppressActivation,
-    workGridRef,
-  } = useDeskSpatialLayout({
-    positionKey: `${DESK_ORDER_KEY}:positions:${persistenceScope}`,
-    snapToGrid,
-    selectedIds,
-    onSelectionChange,
-  });
-
   useEffect(() => {
     let cancelled = false;
     void readProjectPreference<unknown>(pinKey).then((value) => {
@@ -100,6 +83,29 @@ export function useDeskLayout({
     });
   }, [normalizedDeskOrder, query, sort, sourceFilter, workItems]);
 
+  const {
+    beginDrag,
+    beginMarquee,
+    camera,
+    endDrag,
+    endMarquee,
+    marquee,
+    moveDrag,
+    moveMarquee,
+    nudgeSelection,
+    positions,
+    shouldSuppressActivation,
+    workGridRef,
+    workWorldRef,
+  } = useDeskSpatialLayout({
+    positionKey: `${DESK_ORDER_KEY}:positions:${persistenceScope}`,
+    itemIds: visibleWork.map((item) => item.id),
+    focused,
+    snapToGrid,
+    selectedIds,
+    onSelectionChange,
+  });
+
   const togglePin = (itemId: string) => {
     const wasPinned = pinnedIds.includes(itemId);
     setPinnedIds((current) => {
@@ -128,6 +134,7 @@ export function useDeskLayout({
   return {
     beginDrag,
     beginMarquee,
+    camera,
     endDrag,
     endMarquee,
     marquee,
@@ -141,5 +148,6 @@ export function useDeskLayout({
     togglePin,
     visibleWork,
     workGridRef,
+    workWorldRef,
   };
 }

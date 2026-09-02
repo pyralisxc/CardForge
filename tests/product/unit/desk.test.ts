@@ -4,6 +4,8 @@ import { normalizeCardSet } from '@/domain/cards';
 import { getDeskWorkKeyboardIntent, getWorkActions, normalizeDeskOrder, reorderDeskItem } from '@/features/desk/model/desk';
 import {
   collectDeskWorldItems,
+  getDefaultDeskWorldPosition,
+  getDeskCameraGeometry,
   getDeskWorldProjection,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
@@ -65,6 +67,27 @@ describe('Desk model', () => {
       positions: { 'set:one': { x: 120, y: 160, z: 0 } },
     });
     expect(projectDeskWorldPosition(geometry.positions['set:one']!, { width: 600, height: 360 })).toEqual({ x: 60, y: 80, z: 0 });
+  });
+
+  it('keeps a bounded Desk readable on mobile while Fit shows the whole world', () => {
+    const mobileCamera = getDeskCameraGeometry({ width: 390, height: 420 }, 0.68);
+    expect(mobileCamera).toMatchObject({
+      zoom: 0.68,
+      fitZoom: 0.325,
+      offsetX: 0,
+    });
+    expect(mobileCamera.surfaceWidth).toBeCloseTo(816);
+    expect(getDeskCameraGeometry({ width: 1200, height: 720 }, 1)).toMatchObject({
+      zoom: 1,
+      fitZoom: 1,
+      offsetX: 0,
+      offsetY: 0,
+    });
+  });
+
+  it('gives unplaced Sets stable bounded-world anchors instead of device-sized slots', () => {
+    expect(getDefaultDeskWorldPosition(0)).toEqual({ x: 484, y: 168, z: 0 });
+    expect(getDefaultDeskWorldPosition(8)).toEqual({ x: 502, y: 184, z: 8 });
   });
 
   it('moves a Desk selection together, preserving offsets and world bounds', () => {

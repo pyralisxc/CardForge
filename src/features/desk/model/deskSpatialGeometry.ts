@@ -1,6 +1,9 @@
 export const DESK_WORLD_WIDTH = 1200;
 export const DESK_WORLD_HEIGHT = 720;
 export const DESK_WORLD_TOOLBAR_CLEARANCE = 86;
+export const DESK_MIN_ZOOM = 0.25;
+export const DESK_MAX_ZOOM = 1.25;
+export const DESK_MOBILE_EXPLORATION_ZOOM = 0.68;
 
 export interface DeskWorldPosition {
   x: number;
@@ -75,6 +78,49 @@ export const getDeskWorldProjection = (viewport: DeskViewport) => {
   const offsetX = Math.max(0, (width - DESK_WORLD_WIDTH * scale) / 2);
   const offsetY = Math.max(0, (height - DESK_WORLD_HEIGHT * scale) / 2);
   return { scale, offsetX, offsetY };
+};
+
+export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: number) => {
+  const width = Math.max(1, viewport.width);
+  const height = Math.max(1, viewport.height);
+  const zoom = clamp(requestedZoom, DESK_MIN_ZOOM, DESK_MAX_ZOOM);
+  const worldWidth = DESK_WORLD_WIDTH * zoom;
+  const worldHeight = DESK_WORLD_HEIGHT * zoom;
+  return {
+    zoom,
+    fitZoom: clamp(getDeskWorldProjection(viewport).scale, DESK_MIN_ZOOM, DESK_MAX_ZOOM),
+    offsetX: Math.max(0, (width - worldWidth) / 2),
+    offsetY: Math.max(0, (height - worldHeight) / 2),
+    surfaceWidth: Math.max(width, worldWidth),
+    surfaceHeight: Math.max(height, worldHeight),
+  };
+};
+
+const DEFAULT_DESK_SLOTS = [
+  { x: 484, y: 168 },
+  { x: 116, y: 142 },
+  { x: 842, y: 202 },
+  { x: 242, y: 418 },
+  { x: 664, y: 420 },
+  { x: 916, y: 104 },
+  { x: 36, y: 406 },
+  { x: 478, y: 96 },
+] as const;
+
+/**
+ * New Sets receive a stable place in the bounded world instead of inheriting
+ * the dimensions of whichever device first opened the Desk. Additional Sets
+ * form small piles over these anchors rather than expanding an infinite plane.
+ */
+export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition => {
+  const safeIndex = Math.max(0, Math.floor(index));
+  const slot = DEFAULT_DESK_SLOTS[safeIndex % DEFAULT_DESK_SLOTS.length]!;
+  const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
+  return {
+    x: clamp(slot.x + pile * 18, 0, DESK_WORLD_WIDTH),
+    y: clamp(slot.y + pile * 16, DESK_WORLD_TOOLBAR_CLEARANCE, DESK_WORLD_HEIGHT),
+    z: safeIndex,
+  };
 };
 
 export const projectDeskWorldPosition = (position: DeskWorldPosition, viewport: DeskViewport) => {

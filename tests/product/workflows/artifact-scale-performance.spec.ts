@@ -139,6 +139,65 @@ test.describe('large Artifact browser evidence', () => {
     await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => node.getAttribute('style')?.match(/--desk-x:\s*([^;]+)/)?.[1] ?? '')).toBe(savedX);
   });
 
+  test('mobile Desk stays one navigable world when Move is toggled', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareScalePage(page, 100);
+    const viewport = page.locator('[data-desk-viewport]');
+    const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
+
+    await expect(viewport).toBeVisible();
+    await expect(viewport).toHaveAttribute('aria-label', /Swipe or scroll to explore/);
+    await expect(page.getByText('Swipe the Desk to look around')).toBeVisible();
+    const initialZoom = Number(await viewport.getAttribute('data-zoom'));
+    expect(initialZoom).toBeGreaterThan(0.6);
+    await expect.poll(() => viewport.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+    await expect.poll(() => page.locator('[class*="deskToolbar"]').evaluate((toolbar) => {
+      const bounds = toolbar.getBoundingClientRect();
+      return Array.from(toolbar.children).every((child) => {
+        const rect = child.getBoundingClientRect();
+        return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+      });
+    })).toBe(true);
+    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('pan-x pan-y');
+
+    await setButton.click();
+    const beforeMoveMode = await setObject.boundingBox();
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(viewport).toHaveAttribute('data-arrange-mode', 'true');
+    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('none');
+    const afterMoveMode = await setObject.boundingBox();
+    expect(beforeMoveMode).not.toBeNull();
+    expect(afterMoveMode).not.toBeNull();
+    expect(Math.abs(afterMoveMode!.x - beforeMoveMode!.x)).toBeLessThan(1);
+    expect(Math.abs(afterMoveMode!.y - beforeMoveMode!.y)).toBeLessThan(1);
+
+    const cameraBeforeFocus = await viewport.evaluate((node) => ({
+      left: node.scrollLeft,
+      top: node.scrollTop,
+      zoom: node.getAttribute('data-zoom'),
+    }));
+    await page.getByRole('button', { name: 'Open', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to Desk' }).click();
+    await expect(viewport).toBeVisible();
+    await expect.poll(() => viewport.evaluate((node) => ({
+      left: node.scrollLeft,
+      top: node.scrollTop,
+      zoom: node.getAttribute('data-zoom'),
+    }))).toEqual(cameraBeforeFocus);
+
+    await page.getByRole('button', { name: 'Fit the whole Desk in view' }).click();
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeLessThan(initialZoom);
+    await expect.poll(() => viewport.evaluate((node) => node.scrollWidth <= node.clientWidth + 2)).toBe(true);
+    await expect.poll(() => viewport.evaluate((node) => {
+      const world = node.querySelector<HTMLElement>('[data-grid]');
+      if (!world) return false;
+      const worldRect = world.getBoundingClientRect();
+      return worldRect.width <= node.clientWidth + 2 && worldRect.height <= node.clientHeight + 2;
+    })).toBe(true);
+  });
+
   test('Artifact focus preserves exact Set context through Back and Escape', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await prepareScalePage(page, 100);

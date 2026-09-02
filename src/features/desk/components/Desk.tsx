@@ -114,6 +114,7 @@ export function Desk({
     creatingPublishedSetId,
     deleteCardSet,
     deskPositions,
+    deskCamera,
     deskMarquee,
     detail,
     dirtyCloseRequested,
@@ -226,6 +227,7 @@ export function Desk({
     visibleWork,
     workCards,
     workGridRef,
+    workWorldRef,
     workItems,
     workTemplate,
     zones,
@@ -291,6 +293,8 @@ export function Desk({
             sort={sort}
             searchRef={searchRef}
             workGridRef={workGridRef}
+            workWorldRef={workWorldRef}
+            camera={deskCamera}
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
