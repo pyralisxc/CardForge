@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import {
@@ -24,7 +25,6 @@ const OwnerSiteConfigurationPanel = dynamic(() => import('./OwnerSiteConfigurati
 const OwnerMarketingPanel = dynamic(() => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel), { loading: panelFallback });
 const OwnerFounderProfilePanel = dynamic(() => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel), { loading: panelFallback });
 const OwnerLegalPanel = dynamic(() => import('./OwnerLegalPanel').then((module) => module.OwnerLegalPanel), { loading: panelFallback });
-const OwnerContributorProgramPanel = dynamic(() => import('@/features/pipeline/client/owner').then((module) => module.OwnerContributorProgramPanel), { loading: panelFallback });
 const OwnerAnalyticsPanel = dynamic(() => import('@/features/analytics/client/owner').then((module) => module.OwnerAnalyticsPanel), { loading: panelFallback });
 const OwnerExperienceControlsPanel = dynamic(() => import('@/features/experience-settings/client/owner').then((module) => module.OwnerExperienceControlsPanel), { loading: panelFallback });
 const OwnerBillingPanel = dynamic(() => import('@/features/billing/client/owner').then((module) => module.OwnerBillingPanel), { loading: panelFallback });
@@ -33,10 +33,10 @@ const OwnerRolesPanel = dynamic(() => import('./OwnerGovernancePanels').then((mo
 const OwnerActivityPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerActivityPanel), { loading: panelFallback });
 const OwnerRetentionPanel = dynamic(() => import('./OwnerGovernancePanels').then((module) => module.OwnerRetentionPanel), { loading: panelFallback });
 
-export type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
+export type OwnerWorkspace = 'overview' | 'marketing' | 'audience' | 'site' | 'governance';
 
 interface OwnerProfileOperationsProps {
-  initialWorkspace?: OwnerWorkspace;
+  initialWorkspace?: OwnerWorkspace | 'library';
   initialPipelineStatus?: 'all' | 'submitted';
   initialMarketingNotice?: { kind: 'success' | 'error'; message: string };
 }
@@ -46,7 +46,6 @@ const ownerWorkspaces = [
   { value: 'marketing', label: 'Marketing' },
   { value: 'audience', label: 'Growth & People' },
   { value: 'site', label: 'Site Controls' },
-  { value: 'library', label: 'Studio Library' },
   { value: 'governance', label: 'Governance' },
 ] as const;
 
@@ -58,7 +57,7 @@ const siteControlOwnership = [
   ['Pages and navigation', 'Owner controlled', 'Approved navigation labels, visibility, order, homepage sections, primary action, and homepage search/share metadata publish here.'],
   ['Public messaging', 'Owner controlled', 'Copy publishes from contextual Owner controls on each native public page; Profile no longer hosts a detached copy editor.'],
   ['Brand and site media', 'Owner controlled', 'Relevant media publishes and restores in context on the homepage or founder surface while retaining the canonical media catalog.'],
-  ['Founder and roadmap', 'Owner controlled', 'Founder presence, social destinations, roadmap economics, voting rules, and current checkpoint status live here.'],
+  ['Founder and roadmap', 'Context controlled', 'Founder presence and social destinations live here. Roadmap economics, voting rules, and checkpoint status live on the public Roadmap itself.'],
   ['Legal publications', 'Owner controlled', 'Versioned policies can be drafted, published, and rolled back here while immutable publication history remains intact.'],
   ['Product behavior', 'Code owned', 'Allowed routes and components, functional and accessibility labels, Studio behavior, validation, permissions, and capability claims remain reviewed code.'],
   ['Providers and secrets', 'Provider owned', 'Clerk, Supabase, Stripe, Resend, Vercel, Google, and PostHog keep their credentials and service configuration in their own dashboards.'],
@@ -99,7 +98,8 @@ function SiteWorkspaceState({ loading, error, retry }: { loading: boolean; error
   );
 }
 
-export function OwnerProfileOperations({ initialWorkspace = 'overview', initialPipelineStatus = 'all', initialMarketingNotice }: OwnerProfileOperationsProps) {
+export function OwnerProfileOperations({ initialWorkspace = 'overview', initialMarketingNotice }: OwnerProfileOperationsProps) {
+  const router = useRouter();
   const {
     isLoading,
     isLoadingSite,
@@ -112,7 +112,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview', initialP
     loadSite,
     updateConsole,
   } = useOwnerConsole();
-  const [workspace, setWorkspace] = useState<OwnerWorkspace>(initialWorkspace);
+  const [workspace, setWorkspace] = useState<OwnerWorkspace>(initialWorkspace === 'library' ? 'overview' : initialWorkspace);
   const [siteWorkspace, setSiteWorkspace] = useState('identity');
 
   useEffect(() => {
@@ -180,7 +180,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview', initialP
                   <TabsTrigger value="integrations" className={subtabClassName}>Integrations</TabsTrigger>
                   <TabsTrigger value="health" className={subtabClassName}>System health</TabsTrigger>
                 </TabsList>
-                <TabsContent value="actions" className="mt-0"><OwnerReadinessPanel view="roadmap" compactRoadmap consolePayload={payload.overview} onConsoleChange={updateConsole} onOpenRoadmap={() => { setWorkspace('site'); setSiteWorkspace('roadmap'); }} /></TabsContent>
+                <TabsContent value="actions" className="mt-0"><OwnerReadinessPanel view="roadmap" compactRoadmap consolePayload={payload.overview} onConsoleChange={updateConsole} onOpenRoadmap={() => router.push('/roadmap')} /></TabsContent>
                 <TabsContent value="integrations" className="mt-0"><OwnerConnectedServicesPanel services={payload.integrationStatus.connectedServices} /></TabsContent>
                 <TabsContent value="health" className="mt-0"><OwnerReadinessPanel view="health" consolePayload={payload.overview} onConsoleChange={updateConsole} /></TabsContent>
               </Tabs>
@@ -210,7 +210,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview', initialP
             </TabsContent>
 
             <TabsContent value="site" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Public experience" title="Change protected site policy and identity" body="Code allowlists routes, sections, validation, and security. Profile retains identity, page policy, access presentation, offers, legal publication, and provider-aware operations; copy, media, and roadmap rules now edit in context on their native public surfaces." />
+              <CardForgeSectionIntro eyebrow="Public experience" title="Change protected site policy and identity" body="Code allowlists routes, sections, validation, and security. Profile retains identity, page policy, access presentation, offers, legal publication, and provider-aware operations; copy, media, and roadmap controls edit in context on their native public surfaces." />
               <OwnerSiteControlMap />
               {siteWorkspaceContent ? (
                 <Tabs value={siteWorkspace} onValueChange={setSiteWorkspace} className="space-y-4">
@@ -218,19 +218,12 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview', initialP
                     <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                     <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
                     <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
-                    <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap</TabsTrigger>
                   </TabsList>
                   <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /><OwnerFounderProfilePanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                   <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteWorkspaceContent.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteWorkspaceContent, siteConfiguration })} /></TabsContent>
                   <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteWorkspaceContent.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteWorkspaceContent, experienceSettings })} /></TabsContent>
-                  <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
                 </Tabs>
               ) : <SiteWorkspaceState loading={isLoadingSite} error={siteLoadError} retry={ensureSite} />}
-            </TabsContent>
-
-            <TabsContent value="library" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Reusable Studio resources" title="Operate the asset pipeline" body="The asset pipeline owns reusable Studio library content, review, voting, revisions, and publication. Marketing submissions and their media now live in the dedicated Marketing workspace." />
-              <OwnerContributorProgramPanel initialStatusFilter={initialPipelineStatus} />
             </TabsContent>
 
             <TabsContent value="governance" className="mt-0 space-y-4">

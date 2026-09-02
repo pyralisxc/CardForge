@@ -76,8 +76,8 @@ const loadClerkUsersByIds = async (userIds: string[]): Promise<ClerkUser[]> => {
 
 const needsAttention = (person: OwnerPerson): boolean => (
   person.identityState === 'history_only'
-  || (person.access === 'contributor' && person.profileStatus === null)
-  || (person.profileStatus === 'active' && person.access !== 'contributor' && !person.isOwner)
+  || (person.contributorAuthority && person.profileStatus === null)
+  || (person.profileStatus === 'active' && !person.contributorAuthority && !person.isOwner)
 );
 
 const mapPerson = (
@@ -94,19 +94,21 @@ const mapPerson = (
     publicMetadata: user.publicMetadata,
     privateMetadata: user.privateMetadata,
   });
-  const effectiveAccess = resolveAccountEntitlement({
+  const entitlement = resolveAccountEntitlement({
     authConfigured: true,
     isSignedIn: true,
     emailAddresses,
     privateMetadata: user.privateMetadata,
     ownerAccess,
-  }).accessMode;
+  });
   return {
     id: user.id,
     email: account.email,
     name: account.name || profile?.email || account.email || user.id,
     identityState: profile ? 'connected' : 'account_only',
-    access: effectiveAccess,
+    access: entitlement.accessMode,
+    commercialPlan: entitlement.commercialPlan,
+    contributorAuthority: entitlement.authorities.contributor,
     isOwner: ownerAccess.isOwner,
     ownerSource: ownerAccess.source,
     createdAt: account.createdAt,
@@ -132,6 +134,8 @@ const mapHistoryPerson = (
   name: profileName(profile),
   identityState: 'history_only',
   access: 'free',
+  commercialPlan: 'free',
+  contributorAuthority: true,
   isOwner: false,
   ownerSource: 'none',
   createdAt: null,
@@ -178,7 +182,7 @@ export const getOwnerPeople = async ({
   const accountSummaryPage = await client.users.getUserList({ limit: 1 });
   const summary = {
     accounts: accountSummaryPage.totalCount,
-    activeContributors: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.access === 'contributor' || person.isOwner)).length,
+    activeContributors: summaryPeople.filter((person) => person.profileStatus === 'active' && (person.contributorAuthority || person.isOwner)).length,
     historyOnly: historyPeople.length,
     needsAttention: summaryPeople.filter(needsAttention).length,
   };

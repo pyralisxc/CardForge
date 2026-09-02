@@ -30,7 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/shared/classNames';
 import type { FreeformCardElement } from '@/domain/templates';
-import { readProjectPreference, writeProjectPreference } from '@/features/project/client';
+import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import type { TemplateEditorAction } from '@/features/template-editor/lib/templateEditorActions';
 
 type PaletteAction = {

@@ -11,6 +11,8 @@ CardForge keeps two permanent test structures:
 
 Use `npm run test:product`, `npm run test:infrastructure`, or `npm run test:inventory` to run or inspect these lanes independently. The inventory groups product coverage by domain so test growth is visible instead of disappearing into one suite total.
 
+The durable browser lane covers select-first Desk interaction, exact focus restoration, 100/500/1,000 Artifact scale, reduced-motion continuity, lifecycle cleanup, recovery/conflict, and representative compact-screen behavior. `npm run health:production` is a separate non-mutating operational lane with independently runnable route, product, and provider categories; it is not a substitute for signed-in provider acceptance.
+
 ## Prefer behavior and public contracts
 
 Tests should normally exercise exported functions, stores, parsers, policies, API contracts, persistence behavior, security behavior, or rendered outcomes. A refactor that preserves the same observable behavior should usually keep the same tests green.

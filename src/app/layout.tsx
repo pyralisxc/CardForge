@@ -1,5 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import './cardforgePresentation.css';
 
@@ -58,7 +59,7 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased">
         <div id="cardforge-app-content">{app}</div>
-        <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />
+        <Suspense fallback={null}><AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} /></Suspense>
       </body>
     </html>
   );

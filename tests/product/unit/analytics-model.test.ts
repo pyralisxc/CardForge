@@ -37,6 +37,8 @@ describe('organic analytics model', () => {
       format_id: 'tarot',
       resize_strategy: 'fit',
       path: '/studio',
+      zone: 'desk',
+      count_bucket: '6_20',
       email: 'visitor@example.test',
       card_title: 'Secret card title',
       oversized: 'x'.repeat(101),
@@ -47,6 +49,8 @@ describe('organic analytics model', () => {
       format_id: 'tarot',
       resize_strategy: 'fit',
       path: '/studio',
+      zone: 'desk',
+      count_bucket: '6_20',
     });
   });
 });

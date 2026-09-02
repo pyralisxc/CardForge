@@ -1,0 +1,33 @@
+{
+  "id": "standard-playing-card-deck",
+  "name": "Standard 52-card deck",
+  "version": 1,
+  "savedAt": "2026-09-02T00:00:00.000Z",
+  "templatePath": "default-playing-card-theme.json",
+  "description": "A complete editable 52-card playing deck with every rank and suit, ready to restyle, revise, arrange, and export as independent CardForge work.",
+  "previewUrl": "site-fallback://showcase/playing-cards/ace-of-spades.webp",
+  "specialtyTags": ["games"],
+  "useCaseTags": ["playing-cards"],
+  "sourceNotes": "Official CardForge starter generated from the repository-owned Arcane Playing Card Template. The package contains structured rank and suit data for all 52 standard cards and no third-party artwork.",
+  "suits": [
+    { "name": "Spades", "symbol": "♠", "tag": "spades" },
+    { "name": "Hearts", "symbol": "♥", "tag": "hearts" },
+    { "name": "Diamonds", "symbol": "♦", "tag": "diamonds" },
+    { "name": "Clubs", "symbol": "♣", "tag": "clubs" }
+  ],
+  "ranks": [
+    { "name": "Ace", "symbol": "A" },
+    { "name": "Two", "symbol": "2" },
+    { "name": "Three", "symbol": "3" },
+    { "name": "Four", "symbol": "4" },
+    { "name": "Five", "symbol": "5" },
+    { "name": "Six", "symbol": "6" },
+    { "name": "Seven", "symbol": "7" },
+    { "name": "Eight", "symbol": "8" },
+    { "name": "Nine", "symbol": "9" },
+    { "name": "Ten", "symbol": "10" },
+    { "name": "Jack", "symbol": "J" },
+    { "name": "Queen", "symbol": "Q" },
+    { "name": "King", "symbol": "K" }
+  ]
+}

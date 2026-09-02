@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link, { useLinkStatus } from 'next/link';
-import { Home, LibraryBig, LoaderCircle, Menu, UserCircle2, WandSparkles, type LucideIcon } from 'lucide-react';
+import { Home, LibraryBig, LoaderCircle, Menu, UserCircle2, type LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -13,9 +13,8 @@ import type { ZoneDefinition, ZoneId } from '../model';
 import styles from './EnvironmentFoundation.module.css';
 
 export const ZONE_ICONS: Record<ZoneId, LucideIcon> = {
-  home: Home,
+  desk: Home,
   library: LibraryBig,
-  studio: WandSparkles,
   profile: UserCircle2,
 };
 

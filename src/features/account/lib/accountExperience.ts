@@ -36,9 +36,9 @@ export const projectAccountExperience = ({
   contribution?: AccountContributionExperience;
 }): AccountExperienceProjection => ({
   signedIn: entitlement.isSignedIn,
-  plan: entitlement.paidPlan === 'designer'
+  plan: entitlement.commercialPlan === 'designer'
     ? 'designer'
-    : entitlement.canExportClean
+    : entitlement.commercialPlan === 'creator'
       ? 'creator'
       : 'free',
   capabilities: entitlement.capabilities,

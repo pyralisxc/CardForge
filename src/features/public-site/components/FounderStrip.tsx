@@ -23,11 +23,11 @@ export function FounderStrip({ founderName }: { founderName: string }) {
           <div className="h-px flex-1 bg-[var(--public-border)]" />
         </div>
         <div>
-          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.founder.eyebrow']}</p>
-          <h2 id="founder-heading" className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+          <p data-site-content-slug="landing.founder.eyebrow" className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.founder.eyebrow']}</p>
+          <h2 data-site-content-slug="landing.founder.headline" id="founder-heading" className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
             {siteContent['landing.founder.headline']}
           </h2>
-          <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p data-site-content-slug="landing.founder.body" className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['landing.founder.body']}
           </p>
           <div className="mt-6">

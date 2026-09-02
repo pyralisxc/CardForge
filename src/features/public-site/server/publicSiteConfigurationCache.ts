@@ -7,7 +7,9 @@ export const PUBLIC_SITE_CONFIGURATION_TAG = 'public:site-configuration';
 
 const readCachedPublicSiteConfiguration = unstable_cache(
   getPublicSiteConfiguration,
-  ['public-site-configuration'],
+  // Keep provider-migrated launch settings from inheriting an older deploy's
+  // persistent Data Cache entry.
+  ['public-site-configuration', 'desk-model-v2'],
   { tags: [PUBLIC_SITE_CONFIGURATION_TAG], revalidate: 3600 },
 );
 

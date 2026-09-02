@@ -1,12 +1,8 @@
 "use client";
 
 import type { TCGCardTemplate } from '@/domain/templates';
-import {
-  getProjectPersistenceScope,
-  readProjectPreference,
-  removeProjectPreference,
-  writeProjectPreference,
-} from '@/features/project/client';
+import { getProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '../model';
 

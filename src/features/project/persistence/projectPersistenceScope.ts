@@ -5,6 +5,7 @@ import { externalizeBrowserProjectAssetJson } from './contentAddressedBrowserAss
 import {
   BROWSER_STORAGE_FAILURE_EVENT,
   compareAndSetBrowserWorkspaceValue,
+  createBrowserKeyValueStorage,
   createIndexedDbStorage,
 } from './indexedDbStorage';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from './workspaceRevision';
@@ -71,6 +72,52 @@ export const getScopedProjectStorageNamespace = (
   baseNamespace: 'project-workspace' | 'project-assets',
   scope: ProjectPersistenceScope | typeof DISABLED_SCOPE = activeProjectPersistenceScope,
 ) => `${baseNamespace}:${scope}`;
+
+export type BrowserWorkspaceRecoverySource = 'previous' | 'quarantine';
+
+export interface BrowserWorkspaceRecoveryState {
+  currentAvailable: boolean;
+  previousAvailable: boolean;
+  quarantinedAvailable: boolean;
+}
+
+const WORKSPACE_STORAGE_KEY = 'workspace';
+const workspaceRecoveryKey = (source: BrowserWorkspaceRecoverySource) => (
+  source === 'previous' ? `__recovery__:${WORKSPACE_STORAGE_KEY}` : `__quarantine__:${WORKSPACE_STORAGE_KEY}`
+);
+
+export const getBrowserWorkspaceRecoveryState = async (): Promise<BrowserWorkspaceRecoveryState> => {
+  const namespace = getScopedProjectStorageNamespace('project-workspace');
+  const storage = createBrowserKeyValueStorage(namespace);
+  const [current, previous, quarantine] = await Promise.all([
+    storage.getItem(WORKSPACE_STORAGE_KEY),
+    storage.getItem(workspaceRecoveryKey('previous')),
+    storage.getItem(workspaceRecoveryKey('quarantine')),
+  ]);
+  return {
+    currentAvailable: typeof current === 'string',
+    previousAvailable: typeof previous === 'string',
+    quarantinedAvailable: typeof quarantine === 'string',
+  };
+};
+
+export const restoreBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRecoverySource): Promise<boolean> => {
+  const namespace = getScopedProjectStorageNamespace('project-workspace');
+  const storage = createBrowserKeyValueStorage(namespace);
+  const recoveryValue = await storage.getItem(workspaceRecoveryKey(source));
+  if (typeof recoveryValue !== 'string') return false;
+  // The canonical current value becomes the new previous snapshot, so restore
+  // remains reversible after the required reload.
+  await createBrowserKeyValueStorage(namespace, { keepRecoverySnapshot: true })
+    .setItem(WORKSPACE_STORAGE_KEY, recoveryValue);
+  if (source === 'quarantine') await storage.removeItem(workspaceRecoveryKey(source));
+  return true;
+};
+
+export const discardBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRecoverySource): Promise<void> => {
+  const namespace = getScopedProjectStorageNamespace('project-workspace');
+  await createBrowserKeyValueStorage(namespace).removeItem(workspaceRecoveryKey(source));
+};
 
 const isValidWorkspacePayload = (value: string) => {
   if (value.length > MAX_WORKSPACE_JSON_LENGTH) return false;

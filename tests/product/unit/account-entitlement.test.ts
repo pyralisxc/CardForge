@@ -75,11 +75,14 @@ describe('accountEntitlement', () => {
       privateMetadata: {
         cardforgeAccess: 'paid',
         cardforgePaidPlan: 'designer',
+        cardforgeStripeCustomerId: 'cus_designer',
       },
       env: {},
     })).toMatchObject({
       accessMode: 'paid',
       paidPlan: 'designer',
+      commercialPlan: 'designer',
+      authorities: { contributor: false, owner: false },
       canExportClean: true,
     });
   });
@@ -236,14 +239,19 @@ describe('accountEntitlement', () => {
     expect(entitlement.copy.projectFileGateMessage).toBeNull();
   });
 
-  it('does not expose billing management for non-Stripe paid grants', () => {
+  it('separates billing-customer presence from plan and authority', () => {
     expect(resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: true,
       emailAddresses: ['founder@example.com'],
       privateMetadata: { cardforgeAccess: 'paid' },
       env: {},
-    }).hasStripeCustomer).toBe(false);
+    })).toMatchObject({
+      hasStripeCustomer: false,
+      commercialPlan: 'free',
+      authorities: { contributor: false, owner: false },
+      grants: [{ kind: 'creator-capabilities', source: 'temporary' }],
+    });
 
     expect(resolveAccountEntitlement({
       authConfigured: true,
@@ -254,7 +262,7 @@ describe('accountEntitlement', () => {
         cardforgeStripeCustomerId: 'cus_123',
       },
       env: {},
-    }).hasStripeCustomer).toBe(false);
+    })).toMatchObject({ hasStripeCustomer: true, commercialPlan: 'free', authorities: { contributor: true } });
   });
 
   it('elevates trusted owner access to contributor-grade export and tool capabilities', () => {
@@ -272,6 +280,8 @@ describe('accountEntitlement', () => {
 
     expect(entitlement).toMatchObject({
       accessMode: 'contributor',
+      commercialPlan: 'free',
+      authorities: { contributor: true, owner: true },
       canExportClean: true,
       ownerAccess: {
         isOwner: true,

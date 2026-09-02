@@ -11,6 +11,7 @@ import {
   getGoogleDriveProjectStorageConfiguration,
   ProjectStorageProviderError,
 } from './googleDriveProjectStore';
+import { classifyGoogleProviderFailure, readGoogleProviderFailure } from './googleDriveBoundary';
 
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -99,16 +100,19 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
   });
   const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
   if (!response.ok || !payload.access_token) {
-    await requireStore()
-      .from('cardforge_project_storage_connections')
-      .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
-      .eq('id', row.id);
+    const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
+    if (failure.reconnectRequired) {
+      await requireStore()
+        .from('cardforge_project_storage_connections')
+        .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
+        .eq('id', row.id);
+    }
     throw new ProjectStorageProviderError(
-      payload.error_description || 'Google Drive authorization expired or was revoked.',
-      401,
+      payload.error_description || (failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'),
+      failure.status,
       {
-        kind: 'authentication',
-        nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+        kind: failure.kind,
+        nextAction: failure.nextAction,
       },
     );
   }
@@ -169,16 +173,12 @@ export const selectGoogleDriveProjectFolder = async ({
     cache: 'no-store',
   });
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new ProjectStorageProviderError('CardForge is not authorized to use that Google Drive folder.', 401, {
-        kind: 'authentication',
-        nextAction: 'Choose the folder again in the Google Drive Picker.',
-      });
-    }
-    if (response.status === 404) {
-      throw new ProjectStorageProviderError('The selected Google Drive folder is no longer available.', 404, { kind: 'not_found' });
-    }
-    throw new ProjectStorageProviderError('Google Drive could not verify the selected project folder.', 503, { kind: 'unavailable' });
+    const failure = await readGoogleProviderFailure(response);
+    throw new ProjectStorageProviderError(
+      failure.providerMessage ? `Google Drive could not verify the selected project folder. ${failure.providerMessage}` : 'Google Drive could not verify the selected project folder.',
+      failure.status,
+      { kind: failure.kind, nextAction: failure.nextAction },
+    );
   }
   const folder = await response.json() as GoogleDriveFolderMetadata;
   const verifiedId = folder.id ?? '';

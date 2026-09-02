@@ -27,7 +27,6 @@ export interface PipelineUploadedFile {
 }
 
 export const PIPELINE_UPLOAD_ALLOWED_MIME_TYPES = [
-  'image/svg+xml',
   'image/png',
   'image/jpeg',
   'image/webp',

@@ -106,7 +106,7 @@ export async function PATCH(request: Request) {
         return createApiErrorResponse(400, 'owner_person_protected', 'Keep owner access enabled for the signed-in owner.');
       }
       const normalizedAccount = action === 'revoke'
-        ? { access: 'free' as const, owner: false, note: currentAccount.note }
+        ? { commercialPlan: 'free' as const, contributor: false, owner: false, note: currentAccount.note }
         : normalizeOwnerAccountRoleInput(body.account ?? {});
       if ('ok' in normalizedAccount && !normalizedAccount.ok) {
         return createApiErrorResponse(400, 'owner_person_invalid', normalizedAccount.message);
@@ -119,7 +119,7 @@ export async function PATCH(request: Request) {
       await client.users.updateUserMetadata(userId, { privateMetadata });
       account = mapOwnerAccountSummary(await client.users.getUser(userId));
 
-      if (profile || accountValue.access === 'contributor' || accountValue.owner) {
+      if (profile || accountValue.contributor || accountValue.owner) {
         if (!profile) {
           await upsertContributorProfile({
             contributorId: userId,
@@ -129,7 +129,7 @@ export async function PATCH(request: Request) {
           });
         }
         const requestedStatus = body.contributor?.status;
-        const status: ContributorProfileStatus = action === 'revoke' || (accountValue.access !== 'contributor' && !accountValue.owner)
+        const status: ContributorProfileStatus = action === 'revoke' || (!accountValue.contributor && !accountValue.owner)
           ? 'inactive'
           : typeof requestedStatus === 'string' && CONTRIBUTOR_PROFILE_STATUSES.includes(requestedStatus as ContributorProfileStatus)
             ? requestedStatus as ContributorProfileStatus

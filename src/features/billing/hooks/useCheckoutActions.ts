@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { useToast } from '@/components/ui/use-toast';
 import type { ProductAccessOffering } from '@/features/billing/lib/billing';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
+import {
+  CHECKOUT_RESUME_KEY,
+  readCheckoutResumeIntent,
+  serializeCheckoutResumeIntent,
+} from '@/features/billing/lib/checkoutResume';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -31,7 +37,7 @@ export function useCheckoutActions({
 }: UseCheckoutActionsInput) {
   const [checkoutOffering, setCheckoutOffering] = useState<ProductAccessOffering | null>(null);
 
-  const handleStartCheckout = async (offering: ProductAccessOffering = 'creator_pass') => {
+  const handleStartCheckout = useCallback(async (offering: ProductAccessOffering = 'creator_pass') => {
     if (!authConfigured) {
       toast({
         title: 'Checkout not configured',
@@ -45,14 +51,8 @@ export function useCheckoutActions({
     }
 
     if (!isSignedIn) {
-      toast({
-        title: 'Sign in required',
-        description: withNextStep(
-          'Paid export is tied to your account entitlement.',
-          'Sign in with Google, Apple, Microsoft, GitHub, or email, then start checkout again.'
-        ),
-        variant: 'default',
-      });
+      window.sessionStorage.setItem(CHECKOUT_RESUME_KEY, serializeCheckoutResumeIntent({ offering, returnTo }));
+      window.location.assign(createAuthRouteHref('/sign-in', returnTo));
       return;
     }
 
@@ -103,7 +103,22 @@ export function useCheckoutActions({
     } finally {
       setCheckoutOffering(null);
     }
-  };
+  }, [authConfigured, isSignedIn, returnTo, toast]);
+
+  useEffect(() => {
+    if (!authConfigured || !isSignedIn) return;
+    const raw = window.sessionStorage.getItem(CHECKOUT_RESUME_KEY);
+    if (!raw) return;
+    try {
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const intent = readCheckoutResumeIntent(raw, current);
+      if (!intent) return;
+      window.sessionStorage.removeItem(CHECKOUT_RESUME_KEY);
+      void handleStartCheckout(intent.offering);
+    } catch {
+      window.sessionStorage.removeItem(CHECKOUT_RESUME_KEY);
+    }
+  }, [authConfigured, handleStartCheckout, isSignedIn]);
 
   return {
     handleStartCheckout,

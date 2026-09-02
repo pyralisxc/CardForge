@@ -106,8 +106,8 @@ test.describe('account contribution surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
     await page.getByRole('button', { name: 'Create your first Set' }).click();
     await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
-    await expect(page.locator('[data-home-work-object][data-presentation="focused"]')).toBeVisible();
-    await expect(page.locator('[data-home-work-object][data-presentation="focused"] > button[aria-hidden="true"]')).toBeHidden();
+    await expect(page.locator('[data-set-object][data-presentation="focused"]')).toBeVisible();
+    await expect(page.locator('[data-set-object][data-presentation="focused"] > button[aria-hidden="true"]')).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
     await page.getByLabel('Work name').fill('Mixed Template Review Set');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -165,12 +165,12 @@ test.describe('account contribution surfaces', () => {
     const flippedTile = page.locator(`[data-card-face]:has([data-artifact-id="${artifactId}"])`);
     await expect(flippedTile).toHaveAttribute('data-card-face', 'back');
     await flippedTile.locator('[data-artifact-id]').click();
-    const stage = page.locator('[data-home-artifact-stage]:visible');
+    const stage = page.locator('[data-desk-artifact-stage]:visible');
     await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
     await expect(stage.locator('[data-artifact-id]')).toHaveCount(1);
     const readCenterOffset = () => stage.locator('[data-artifact-id]').evaluate((node) => {
       const box = node.getBoundingClientRect();
-      const viewport = node.closest('[data-home-artifact-stage]')!.getBoundingClientRect();
+      const viewport = node.closest('[data-desk-artifact-stage]')!.getBoundingClientRect();
       return Math.max(
         Math.abs((box.left + box.width / 2) - (viewport.left + viewport.width / 2)),
         Math.abs((box.top + box.height / 2) - (viewport.top + viewport.height / 2)),
@@ -243,7 +243,7 @@ test.describe('account contribution surfaces', () => {
     await page.getByRole('button', { name: 'Back to Desk' }).click();
     await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
     await page.getByRole('button', { name: 'Show back of Mixed Template Review Set' }).click();
-    await expect(page.locator('[data-home-set-stack][data-card-face="back"]')).toBeVisible();
+    await expect(page.locator('[data-desk-set-stack][data-card-face="back"]')).toBeVisible();
     await page.getByRole('link', { name: 'Library' }).first().click();
     await page.getByRole('button', { name: 'Show back of Mixed Template Review Set' }).click();
     await expect(page.locator('[data-card-face="back"]')).toBeVisible();

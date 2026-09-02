@@ -55,6 +55,8 @@ export interface OwnerPerson {
   name: string;
   identityState: OwnerPersonIdentityState;
   access: 'free' | 'paid' | 'contributor';
+  commercialPlan: 'free' | 'creator' | 'designer';
+  contributorAuthority: boolean;
   isOwner: boolean;
   ownerSource: 'clerk_private_metadata' | 'environment' | 'none';
   createdAt: string | null;

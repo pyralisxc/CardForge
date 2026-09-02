@@ -17,6 +17,7 @@ import {
   castPipelineVote,
   PipelineRegistryCommandError,
   purgePipelineSubmission,
+  setContributorPipelineLifecycle,
   savePipelineProgramSettings,
   setPipelineOwnerOverride,
   submitTemplatePipelineDraft,
@@ -44,9 +45,9 @@ import {
 
 export { PipelineStoreError } from './pipelineStoreError';
 
-const runRegistryCommand = async (command: () => Promise<void>): Promise<void> => {
+const runRegistryCommand = async <T>(command: () => Promise<T>): Promise<T> => {
   try {
-    await command();
+    return await command();
   } catch (error) {
     if (error instanceof PipelineRegistryCommandError) {
       throw new PipelineStoreError(error.message, error.status, {
@@ -545,6 +546,16 @@ export const updatePipelineSubmissionStatus = async ({
 
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
+
+export const changeOwnedPipelineSubmissionLifecycle = async ({
+  submissionId,
+  contributorId,
+  action,
+}: {
+  submissionId: string;
+  contributorId: string;
+  action: 'withdraw' | 'retire';
+}) => runRegistryCommand(() => setContributorPipelineLifecycle({ submissionId, contributorId, action }));
 
 export const permanentlyDeletePipelineSubmission = async ({
   submissionId,

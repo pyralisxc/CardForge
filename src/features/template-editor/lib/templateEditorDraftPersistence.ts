@@ -1,10 +1,6 @@
 import type { TCGCardTemplate } from '@/domain/templates';
 import { reconstructMinimalTemplate } from '@/domain/templates';
-import {
-  readProjectPreference,
-  removeProjectPreference,
-  writeProjectPreference,
-} from '@/features/project/client';
+import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 
 export const TEMPLATE_EDITOR_DRAFT_STORAGE_KEY = 'cardforge-template-editor-draft-v1';
 

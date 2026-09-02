@@ -6,7 +6,7 @@ export {
   type SiteContentBlockSlug,
   type SiteContentMap,
 } from './model/siteContent';
-export { PUBLIC_NAVIGATION, STUDIO_NAVIGATION } from './model/publicNavigation';
+export { PUBLIC_NAVIGATION } from './model/publicNavigation';
 export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   HOMEPAGE_SECTION_IDS,

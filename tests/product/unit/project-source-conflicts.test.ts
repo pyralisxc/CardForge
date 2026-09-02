@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  buildCardForgeProjectSnapshot,
-  encodeCardForgeProjectPackage,
-  type ProjectDocumentV1,
-} from '@/features/project/client';
+import { buildCardForgeProjectSnapshot, encodeCardForgeProjectPackage } from '@/features/project/client/package-core';
+import { type ProjectDocumentV1 } from '@/features/project/client/package-document';
 import { assertLocalProjectFolderRevisionCurrent } from '@/features/project/client/localProjectFolder';
 import { getProjectSourceConflict } from '@/features/project/model/projectSourceConflict';
 

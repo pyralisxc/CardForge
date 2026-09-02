@@ -28,12 +28,16 @@ export const toGoogleDriveProjectErrorResponse = (error: unknown, fallback: stri
   if (error instanceof ProjectStorageProviderError) {
     const code = error.status === 401
       ? 'google_drive_auth_required'
+      : error.status === 403
+        ? error.kind === 'limit' ? 'google_drive_limit' : 'google_drive_not_permitted'
       : error.status === 404
         ? 'google_drive_project_not_found'
         : error.status === 409
           ? 'google_drive_project_conflict'
           : error.status === 413
             ? 'google_drive_project_too_large'
+            : error.status === 429
+              ? 'rate_limited'
             : error.status >= 500
               ? 'google_drive_unavailable'
               : 'google_drive_project_invalid';

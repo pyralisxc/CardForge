@@ -144,7 +144,7 @@ describe('CardForge Studio plugin', () => {
 
   it('keeps MCP server dependencies out of the Studio browser surface', () => {
     const studioPage = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
-    const studioShell = readFileSync(resolve(process.cwd(), 'src/features/app-shell/components/CardForgeStudioShell.tsx'), 'utf8');
+    const studioShell = readFileSync(resolve(process.cwd(), 'src/features/creator-workbench/components/CreatorWorkbench.tsx'), 'utf8');
 
     expect(studioPage).not.toContain('@modelcontextprotocol');
     expect(studioPage).not.toContain('@clerk/mcp-tools');

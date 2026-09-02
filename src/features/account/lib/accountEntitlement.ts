@@ -42,6 +42,10 @@ export interface ResolveAccountEntitlementInput extends Partial<ResolveAccountAc
 export interface AccountEntitlement {
   accessMode: AccessMode;
   accessExpiresAt: string | null;
+  authorities: {
+    contributor: boolean;
+    owner: boolean;
+  };
   accountEmail: string | null;
   accountUserId: string | null;
   authConfigured: boolean;
@@ -51,6 +55,12 @@ export interface AccountEntitlement {
   hasStripeCustomer: boolean;
   isSignedIn: boolean;
   ownerAccess: OwnerAccess;
+  commercialPlan: 'free' | PaidPlan;
+  grants: readonly {
+    kind: 'creator-capabilities';
+    source: 'contributor' | 'owner' | 'temporary' | 'environment';
+    expiresAt: string | null;
+  }[];
   paidPlan: PaidPlan | null;
   source: 'clerk' | 'environment';
 }
@@ -87,8 +97,29 @@ const readMetadataAccessMode = (metadata: AccountMetadata | undefined): AccessMo
 };
 
 const readMetadataPaidPlan = (metadata: AccountMetadata | undefined): PaidPlan => (
-  metadata?.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'
+  metadata?.cardforgeCommercialPlan === 'designer' || metadata?.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'
 );
+
+const readAuthorityRoles = (metadata: AccountMetadata | undefined): Set<string> => {
+  const roles = Array.isArray(metadata?.cardforgeAuthorityRoles)
+    ? metadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string')
+    : [];
+  if (metadata?.cardforgeAccess === 'contributor') roles.push('contributor');
+  return new Set(roles);
+};
+
+const readCommercialPlan = (
+  metadata: AccountMetadata | undefined,
+  activeMode: AccessMode,
+): 'free' | PaidPlan => {
+  if (metadata?.cardforgeCommercialPlan === 'creator' || metadata?.cardforgeCommercialPlan === 'designer') {
+    return metadata.cardforgeCommercialPlan;
+  }
+  // Backward-compatible read for Stripe-backed accounts written before the
+  // commercial-plan and authority axes were separated.
+  if (activeMode === 'paid' && getStripeCustomerIdFromMetadata(metadata)) return readMetadataPaidPlan(metadata);
+  return 'free';
+};
 
 const toValidDate = (value: unknown): Date | null => {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
@@ -170,28 +201,51 @@ export const resolveAccountEntitlement = ({
     env,
     now,
   });
-  const accessMode = ownerAccess.isOwner ? 'contributor' : baseAccessMode;
+  const roles = readAuthorityRoles(privateMetadata);
+  const contributor = roles.has('contributor') || baseAccessMode === 'contributor' || ownerAccess.isOwner;
+  const commercialPlan = configured && isSignedIn
+    ? readCommercialPlan(privateMetadata, baseAccessMode)
+    : 'free';
+  const hasCreatorGrant = contributor || baseAccessMode === 'paid';
+  const accessMode: AccessMode = contributor ? 'contributor' : hasCreatorGrant || commercialPlan !== 'free' ? 'paid' : 'free';
   const capabilities = getProjectCapabilities(accessMode, projectFileAccess);
   const copy = getExportEntitlementCopy(accessMode, projectFileAccess);
+  const accessExpiresAt = configured && isSignedIn
+    ? readActiveMetadataAccessExpiresAt(privateMetadata, now)
+    : null;
+  const grants: AccountEntitlement['grants'] = !hasCreatorGrant || commercialPlan !== 'free'
+    ? []
+    : [{
+        kind: 'creator-capabilities',
+        source: ownerAccess.isOwner ? 'owner' : contributor ? 'contributor' : configured ? 'temporary' : 'environment',
+        expiresAt: accessExpiresAt,
+      }];
+  const stripeCustomerId = configured && isSignedIn
+    ? getStripeCustomerIdFromMetadata(privateMetadata)
+    : null;
 
   return {
     accessMode,
-    accessExpiresAt: configured && isSignedIn
-      ? readActiveMetadataAccessExpiresAt(privateMetadata, now)
-      : null,
+    accessExpiresAt,
+    authorities: { contributor, owner: ownerAccess.isOwner },
     accountEmail: emailAddresses[0] || null,
     accountUserId,
     authConfigured: configured,
     canExportClean: capabilities.canExportClean,
     capabilities,
     copy,
-    hasStripeCustomer: configured
-      && isSignedIn
-      && accessMode === 'paid'
-      && Boolean(getStripeCustomerIdFromMetadata(privateMetadata)),
+    hasStripeCustomer: Boolean(stripeCustomerId),
     isSignedIn,
     ownerAccess,
-    paidPlan: accessMode === 'paid' ? readMetadataPaidPlan(privateMetadata) : null,
+    commercialPlan,
+    grants,
+    // Compatibility projection for consumers that need the effective paid
+    // tier while they migrate to commercialPlan + grants.
+    paidPlan: commercialPlan !== 'free'
+      ? commercialPlan
+      : baseAccessMode === 'paid'
+        ? readMetadataPaidPlan(privateMetadata)
+        : null,
     source: configured ? 'clerk' : 'environment',
   };
 };

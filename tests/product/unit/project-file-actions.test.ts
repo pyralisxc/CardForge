@@ -1,15 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildProjectImportPreview,
-  buildProjectImportSummary,
-} from '@/features/project/client';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/client';
+import { buildProjectImportPreview, buildProjectImportSummary } from '@/features/project/client/ui';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
 
 describe('project file actions', () => {
   it('summarizes template-only imports without implying nothing happened', () => {

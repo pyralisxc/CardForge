@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
-import {
-  CARDFORGE_PROJECT_PACKAGE_VERSION,
-  buildCardForgeProjectSnapshot,
-  createCardForgeProjectPackageBlob,
-  decodeCardForgeProjectPackage,
-  hydrateCardForgeProjectSnapshot,
-  parseProjectDocumentValue,
-  writeCardForgeProjectPackage,
-} from '@/features/project/client';
+import { CARDFORGE_PROJECT_PACKAGE_VERSION, buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob, decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot, writeCardForgeProjectPackage } from '@/features/project/client/package-core';
+import { parseProjectDocumentValue } from '@/features/project/client/package-document';
 
 describe('Project scale fixtures', () => {
   it.each([100, 500, 1000] as const)('keeps all %i authored cards and positions through document parsing', (cardCount) => {

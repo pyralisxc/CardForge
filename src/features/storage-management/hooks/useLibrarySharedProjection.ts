@@ -38,6 +38,8 @@ export interface PublishedLibraryObject {
 
 export interface PipelineLibraryObject {
   submission: PipelineSubmission;
+  editableSubmission: PipelineSubmission | null;
+  retirableSubmission: PipelineSubmission | null;
   revisions: PipelineSubmission[];
   currentPublishedSubmission: PipelineSubmission | null;
   kindLabel: string;
@@ -211,6 +213,8 @@ export const projectPipelineLibraryObjects = (
       ?? EMPTY_CATALOG_VISUAL;
     return {
       submission: item.submission,
+      editableSubmission: item.editableSubmission,
+      retirableSubmission: item.retirableSubmission,
       revisions: item.revisions,
       currentPublishedSubmission: item.currentPublishedSubmission,
       kindLabel: getPipelineTypeLabel(item.submission.assetType, { plural: false }),
@@ -291,6 +295,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
   useEffect(() => { void refresh(); }, [refresh]);
 
   return {
+    catalog,
     publishedItems: useMemo(() => catalog ? publishedAssets(catalog) : [], [catalog]),
     pipelineItems: useMemo(() => pipelineEnabled && program ? projectPipelineLibraryObjects(program, catalog) : [], [catalog, pipelineEnabled, program]),
     program: pipelineEnabled ? program : null,

@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { createHash } from 'node:crypto';
+import JSZip from 'jszip';
 
 const configuredOwnerEmail = (value) => {
   const emails = [...new Set((value || '')
@@ -532,6 +534,113 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
   return items;
 };
 
+const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
+  const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'sets');
+  const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
+  const items = [];
+  for (const file of files) {
+    const definition = await readJson(path.join(directory, file));
+    if (!definition?.id || !definition?.name || !definition?.templatePath) continue;
+    const template = rewritePipelineAssetUrls(
+      await readJson(path.join(projectRoot, BOOTSTRAP_ROOT, 'templates', definition.templatePath)),
+      publicUrlByLocalPath,
+    );
+    const setId = `starter-${definition.id}`;
+    const templateId = `${definition.id}-template`;
+    const userTemplate = {
+      ...template,
+      id: templateId,
+      name: `${definition.name} Template`,
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateRegistryStatus: undefined,
+    };
+    const tags = definition.suits.map((suit) => ({ id: suit.tag, label: suit.name }));
+    const cards = definition.suits.flatMap((suit) => definition.ranks.map((rank) => {
+      const uniqueId = `${definition.id}-${suit.tag}-${rank.symbol.toLowerCase()}`;
+      return {
+        artifactId: uniqueId,
+        artifactType: 'card',
+        setId,
+        card: {
+          templateId,
+          setId,
+          setName: definition.name,
+          uniqueId,
+          tagIds: [suit.tag],
+          data: {
+            Rank: rank.symbol,
+            Suit: suit.symbol,
+            Artwork: '',
+            CardTitle: `${rank.name} of ${suit.name}`,
+          },
+        },
+      };
+    }));
+    if (cards.length !== 52) throw new Error(`${definition.name} must contain exactly 52 cards.`);
+    const project = {
+      version: 2,
+      userTemplates: [userTemplate],
+      cardSets: [{
+        id: setId,
+        name: definition.name,
+        organization: {
+          arrangement: 'grid',
+          groupBy: 'tag',
+          sort: 'manual',
+          tags,
+          positions: {},
+        },
+      }],
+      activeCardSetId: setId,
+      artifacts: cards,
+      appearanceStyles: [],
+      exportSettings: {},
+      customAssets: {
+        'cardforge-maker-custom-textures': [],
+        'cardforge-maker-custom-dividers': [],
+        'cardforge-maker-custom-icons': [],
+        'cardforge-maker-custom-images': [],
+      },
+    };
+    const assets = [];
+    const projectRevision = createHash('sha256')
+      .update(JSON.stringify({ project, assets }))
+      .digest('hex');
+    const manifest = {
+      cardforgeProject: 2,
+      name: definition.name,
+      projectRevision,
+      savedAt: definition.savedAt,
+      project,
+      assets,
+    };
+    const zip = new JSZip();
+    zip.file('cardforge-project.json', JSON.stringify(manifest), { compression: 'STORE' });
+    const body = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    const packageSha256 = createHash('sha256').update(body).digest('hex');
+    const storagePath = `owner-defaults/sets/${definition.id}-v${definition.version}.cardforge`;
+    const { error } = await supabase.storage.from(ASSET_BUCKET).upload(storagePath, body, {
+      // The shared bucket intentionally exposes a narrow provider allowlist.
+      // The Pipeline row carries the exact CardForge package type; Storage uses
+      // its accepted generic binary transport type for the same bytes.
+      contentType: 'application/octet-stream',
+      upsert: true,
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(storagePath);
+    items.push({
+      ...definition,
+      packageUrl: data.publicUrl,
+      previewUrl: publicUrlByLocalPath.get(definition.previewUrl) || '',
+      storagePath,
+      fileSizeBytes: body.byteLength,
+      packageSha256,
+    });
+  }
+  return items;
+};
+
 const main = async () => {
   const envFile = await parseEnvFile();
   OWNER_EMAIL = configuredOwnerEmail(
@@ -596,6 +705,7 @@ const main = async () => {
     ...await collectTemplateItems(staticCatalog.publicUrlByLocalPath),
     ...await collectStyleItems(staticCatalog.publicUrlByLocalPath),
   ];
+  const starterSets = await collectStarterSetItems(supabase, staticCatalog.publicUrlByLocalPath);
   const canonicalItemByAssetId = new Map(items.map((item) => [item.asset_id, item]));
 
   for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
@@ -653,8 +763,29 @@ const main = async () => {
     console.log(`Imported ${item.registry_asset_type}: ${item.name}`);
   }
 
+  for (const set of starterSets) {
+    const { error } = await supabase.rpc('cardforge_publish_official_starter_set', {
+      p_asset_id: set.id,
+      p_name: set.name,
+      p_description: set.description,
+      p_package_url: set.packageUrl,
+      p_preview_url: set.previewUrl,
+      p_storage_bucket: ASSET_BUCKET,
+      p_storage_path: set.storagePath,
+      p_file_size_bytes: set.fileSizeBytes,
+      p_package_sha256: set.packageSha256,
+      p_contributor_id: ownerProfile.clerk_user_id,
+      p_contributor_email: OWNER_EMAIL,
+      p_specialty_tags: set.specialtyTags,
+      p_use_case_tags: set.useCaseTags,
+      p_source_notes: set.sourceNotes,
+    });
+    if (error) throw error;
+    console.log(`Published starter Set: ${set.name}`);
+  }
+
   console.log(
-    `Imported ${newItems.length} missing starter entries; preserved ${items.length - newItems.length} existing owner decisions.`,
+    `Imported ${newItems.length} missing starter entries and synchronized ${starterSets.length} starter Set package${starterSets.length === 1 ? '' : 's'}; preserved ${items.length - newItems.length} existing owner decisions.`,
   );
 };
 

@@ -550,7 +550,7 @@ Boards, tokens, tiles, mats, dashboards, player aids, scorepads, labels, and tra
 
 A future Game component manifest should coordinate designed and externally supplied components, quantities, references, packaging copy, setup/rules descriptions, and later fulfillment preparation without pretending CardForge authors every physical part.
 
-## Existing Foundation and Missing Orchestration
+## Existing Foundation and Remaining Orchestration
 
 CardForge already has much of the lower-level engine:
 
@@ -567,14 +567,16 @@ CardForge already has much of the lower-level engine:
 - connected personal assets/fonts;
 - temporary AI documents and MCP collaboration;
 - Pipeline submissions/votes/publication/archive/attribution.
+- a select-first constrained spatial Desk with persistent grouping, shared-object Set opening, reflective organization, and equivalent pointer/touch/keyboard paths;
+- one semantic action runtime presented through Desk, focused work, and the command palette;
+- Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
+- one source-agnostic Library Picker contract used by resource-selecting tools;
+- visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
+- a complete 52-card Published Set starter on the same immutable portable-package contract;
+- contextual Owner editing and Roadmap controls on their native public surfaces.
 
-The missing product layer is orchestration around those owners:
+The remaining product direction is orchestration that builds on those shipped owners:
 
-- the three-surface navigation model plus focused Studio workbench applied consistently;
-- Desk as the spatial authored-work surface;
-- Studio as object-focused authoring/production rather than another Set browser or competing workspace set;
-- scope-aware action resolution;
-- Library Personal/Published/Pipeline projections;
 - generalized revision lineage beyond Templates;
 - exact candidate pinning/materialization;
 - shared source-capability projection;
@@ -637,7 +639,7 @@ Avoid:
 
 Desk should be **more spatial than Library**. Library should intentionally remain the denser structured collection. Studio should be the most precise and tool-dense surface because it is entered for a specific change. Profile is the quietest structured utility surface.
 
-The prior six alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
+The prior alpha concept images remain historical hierarchy references, but the canonical visual direction is now:
 
 - Desk: spatial authored-work organization over the current Set/project object;
 - Library: Personal / Published / Pipeline collection with object inspectors;
@@ -647,17 +649,14 @@ The prior six alpha concept images remain historical hierarchy references, but t
 
 The old Developer-zone concept is superseded by Contributor enhancements across the three navigation surfaces and focused Studio tools.
 
-## Delivery Sequence
+## Next Delivery Sequence
 
-1. **Surface/workbench contract and visual grammar** — keep Desk, Library, and Profile as permanent navigation; define Studio as the focused workbench entered from selected work.
-2. **Desk** — meaningful owned-work projection, object thumbnails/spatial grouping, focused-work contents, scope actions, real Set duplicate/delete, return-state preservation.
-3. **Library scopes** — Personal/Published/Pipeline, lineage grouping, gallery/list/expanded review, current filters/votes, revision inspector, Studio test handoff.
-4. **Profile refinement** — finish the compact personal-control surface, native account/service controls, and concise cross-service status without turning Profile into another dashboard.
-5. **Contributor, Owner, and public alignment** — move protected contribution and operational workflows into the shared surface/workbench grammar while keeping explicit authority and parity with their current owners.
-6. **Source/MCP parity** — shared source capability projection, provider reachability clarity, connected personal assets, broader agent contribution where appropriate.
-7. **Campaign integration** — campaign work is integrated into Desk/Library; continue refining the shared object/tool grammar without restoring a separate Contributor destination.
-8. **Studio focus and Pipeline in context** — remove the duplicate Set Desk and Templates/Make Cards/Sets destination model while preserving their native capability owners; then refine object-specific Design/Generate/Validate/Output, exact candidate pinning, contextual voting, revision comparison, generalized media/font revisions, Send to Pipeline, withdraw, and retire.
-9. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
+The three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, and starter Set are shipped foundations rather than future milestones.
+
+1. **Source/MCP parity** — finish shared source capability projection, provider reachability clarity, connected personal assets, and broader agent contribution where appropriate.
+2. **Campaign integration** — integrate campaign work into Desk/Library and continue refining the shared object/tool grammar without restoring a separate Contributor destination.
+3. **Generalized revisions** — extend exact lineage, comparison, pinning, and materialization from Templates/Sets to revisionable media, fonts, and component recipes.
+4. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
 
 ## Product Constraints
 
@@ -679,13 +678,12 @@ Do not:
 
 The next product decisions should focus on implementation details rather than reopening the three-surface navigation plus focused-workbench model:
 
-1. Exact constrained Desk grouping and how much arrangement persists per device/work container.
-2. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
-3. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
-4. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
-5. Exact stable lineage/schema for revisionable fonts/media/component recipes.
-6. Retention policy for heavyweight old revision payloads while preserving lightweight audit history.
-7. Which personal Studio defaults belong in Profile versus the active work container.
-8. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
+1. Exact focused Studio geometry for Template, record, generation, validation, and output tools across desktop/tablet/mobile.
+2. Final public naming for the one authored-work container currently called Set in CardForge and Project by some provider/package paths.
+3. Which object types receive direct Generate/Export from Desk versus opening the focused Studio tool.
+4. Exact stable lineage/schema for revisionable fonts/media/component recipes.
+5. Retention policy for heavyweight old revision payloads while preserving lightweight audit history.
+6. Which personal Studio defaults belong in Profile versus the active work container.
+7. When a future Production/Orders lifecycle becomes durable enough to earn a separate zone.
 
 The three-surface navigation model, focused Studio workbench, Contributor capability layer, spatial Desk ownership, and provider-owned durable storage direction are considered approved product direction.

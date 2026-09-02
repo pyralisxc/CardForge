@@ -10,21 +10,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
-import {
-  chooseGoogleDriveProjectFolder,
-  deleteGoogleDriveProjectFromLibrary,
-  disconnectGoogleDriveStorage,
-  getGoogleDriveProjectBinding,
-  hydrateProjectWorkspaceForScope,
-  loadGoogleDriveProjectLibrary,
-  openGoogleDriveProject,
-  saveCurrentProjectToGoogleDrive,
-  useProjectStore,
-  type GoogleDriveProjectBinding,
-  type GoogleDriveProjectListResult,
-  type GoogleDriveProjectSummary,
-  type ProjectPersistenceScope,
-} from '@/features/project/client';
+import { chooseGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
+import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
+import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${Math.max(0, Math.round(bytes))} B`;

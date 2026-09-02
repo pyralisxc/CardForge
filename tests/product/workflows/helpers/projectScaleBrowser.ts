@@ -112,18 +112,25 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   });
 };
 
-export const openScaleSet = async (page: Page, cardCount: ProjectScale) => {
+export const openScaleSet = async (page: Page, cardCount: ProjectScale, options: { expectOpeningMotion?: boolean } = {}) => {
   const startedAt = Date.now();
-  await page.getByRole('button', { name: `Focus ${cardCount} Card Scale Set` }).click();
+  const setButton = page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) });
+  await setButton.click();
+  await expect(setButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-desk="overview"]')).toBeVisible();
+  await setButton.press('Enter');
+  if (options.expectOpeningMotion) {
+    await expect(page.locator('[data-set-object][data-opening-motion="true"]')).toBeVisible();
+  }
   await expect(page.locator('[data-focus-transition="set-to-artifacts"]')).toBeVisible();
-  await expect(page.locator('[data-home-artifact-stage]')).toBeVisible();
+  await expect(page.locator('[data-desk-artifact-stage]')).toBeVisible();
   return Date.now() - startedAt;
 };
 
 export const closeScaleSet = async (page: Page) => {
   const startedAt = Date.now();
   await page.getByRole('button', { name: 'Back to Desk' }).click();
-  await expect(page.locator('[data-home-desk="overview"]')).toBeVisible();
+  await expect(page.locator('[data-desk="overview"]')).toBeVisible();
   return Date.now() - startedAt;
 };
 

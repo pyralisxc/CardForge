@@ -83,7 +83,7 @@ describe('contributor asset program rules', () => {
       expect(guidance.checklist).toHaveLength(3);
     }
 
-    expect(pipelineSubmissionGuidance.icons.accept).toContain('image/svg+xml');
+    expect(pipelineSubmissionGuidance.icons.accept).not.toContain('image/svg+xml');
     expect(pipelineSubmissionGuidance.fonts.accept).toContain('font/woff2');
     expect(pipelineSubmissionGuidance.sets.accept).toContain('.cardforge');
   });

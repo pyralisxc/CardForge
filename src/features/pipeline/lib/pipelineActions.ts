@@ -7,8 +7,8 @@ export interface PipelineActionOperationInput {
 }
 
 export interface SendToPipelineActionInput {
-  id: 'home.send-pipeline' | 'library.send-pipeline';
-  objectKind: 'home-work' | 'set';
+  id: 'desk.send-pipeline' | 'library.send-pipeline';
+  objectKind: 'set' | 'set';
   sources: readonly PipelineActionSource[];
 }
 

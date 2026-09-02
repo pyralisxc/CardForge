@@ -12,8 +12,8 @@ export function AccessComparison({ plans }: { plans: McpAllowance[] }) {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.access.eyebrow']}</p>
-            <h2 id="access-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">
+            <p data-site-content-slug="landing.access.eyebrow" className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.access.eyebrow']}</p>
+            <h2 data-site-content-slug="landing.access.headline" id="access-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">
               {siteContent['landing.access.headline']}
             </h2>
           </div>
@@ -22,7 +22,7 @@ export function AccessComparison({ plans }: { plans: McpAllowance[] }) {
           </Link>
         </div>
         <div className="mt-7"><PlanChoiceGrid plans={plans} /></div>
-        <p className="mt-4 text-sm leading-6 text-[var(--public-muted-text)]">
+        <p data-site-content-slug="landing.access.developer-note" className="mt-4 text-sm leading-6 text-[var(--public-muted-text)]">
           {siteContent['landing.access.developer-note']}
         </p>
       </div>

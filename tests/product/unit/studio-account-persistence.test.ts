@@ -5,19 +5,9 @@ import path from 'node:path';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  applyGuestWorkspaceAdoption,
-  BROWSER_STORAGE_DATABASE,
-  createIndexedDbStorage,
-  createProjectPersistenceScope,
-  createScopedProjectStorage,
-  getProjectAssetStorage,
-  getScopedProjectStorageNamespace,
-  inspectGuestWorkspaceAdoption,
-  readTypedProjectAssetListFromStorage,
-  setProjectPersistenceScope,
-  writeProjectAssetListToStorage,
-} from '@/features/project/client';
+import { applyGuestWorkspaceAdoption, createProjectPersistenceScope, createScopedProjectStorage, getScopedProjectStorageNamespace, inspectGuestWorkspaceAdoption, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { BROWSER_STORAGE_DATABASE, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
 
 const rootPath = (...parts: string[]) => path.join(process.cwd(), ...parts);
 
@@ -202,24 +192,6 @@ describe('Studio account-scoped persistence', () => {
     await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
     await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
     await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe(oversized);
-  });
-
-  it('mounts the Studio only through the already-scoped Account environment', async () => {
-    const accountPage = await readFile(rootPath('src/app/account/page.tsx'), 'utf8');
-    const homeDesk = await readFile(rootPath('src/features/home/components/HomeDesk.tsx'), 'utf8');
-    const studioClient = await readFile(rootPath('src/features/app-shell/client/studio.ts'), 'utf8');
-    const workspaceStore = await readFile(
-      rootPath('src/features/project/store/workspaceStore.ts'),
-      'utf8',
-    );
-
-    expect(accountPage).toContain('<AccountHomeBoundary');
-    expect(accountPage).toContain('<HomeDesk');
-    expect(homeDesk).toContain("'@/features/app-shell/client/studio'");
-    expect(homeDesk).toContain('presentation="workspace"');
-    expect(studioClient).not.toContain('StudioRuntimeLoader');
-    expect(workspaceStore).toContain('skipHydration: true');
-    expect(workspaceStore).toContain('useProjectStore.setState(useProjectStore.getInitialState())');
   });
 
   it('keeps non-agent external Studio documents as active-project opens instead of accumulating them', async () => {

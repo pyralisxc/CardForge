@@ -1,6 +1,7 @@
 "use client";
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import { trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
 import {
   createCardForgeProjectPackageBlob,
   ProjectPackageError,
@@ -81,6 +82,7 @@ export const getGoogleDriveProjectSourceDescriptor = async (): Promise<ProjectSo
 
 export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => {
   const response = await fetch('/api/project-sources/google-drive', { cache: 'no-store' });
+  trackProviderBoundaryOutcome('google_drive', response);
   if (!response.ok) throw await readApiError(response, 'Unable to load Google Drive projects.');
   return await response.json() as GoogleDriveProjectListResult;
 };
@@ -118,6 +120,7 @@ const prepareUpload = async ({
       workId: workId ?? null,
     }),
   });
+  trackProviderBoundaryOutcome('google_drive', response);
   if (!response.ok) throw await readApiError(response, 'Unable to prepare the Google Drive project save.');
   return await response.json() as GoogleDriveUploadPrepareResult;
 };
@@ -133,6 +136,7 @@ const uploadPackage = async (
       headers: { 'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE },
       body: blob,
     });
+    trackProviderBoundaryOutcome('google_drive', response);
   } catch {
     throw new ProjectPackageError('Google Drive project upload is unavailable. Your browser project was left unchanged; retry when Drive is reachable.');
   }
@@ -229,6 +233,7 @@ const downloadGoogleDriveProject = async (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name'>,
 ) => {
   const response = await fetch(`/api/project-sources/google-drive/${encodeURIComponent(summary.fileId)}`, { cache: 'no-store' });
+  trackProviderBoundaryOutcome('google_drive', response);
   if (!response.ok) throw await readApiError(response, 'Unable to download the Google Drive project.');
   const providerRevision = response.headers.get('X-CardForge-Provider-Revision') ?? '';
   const projectRevision = response.headers.get('X-CardForge-Project-Revision') ?? '';
@@ -323,6 +328,7 @@ const deleteGoogleDriveProjectRevision = async ({
       expectedProjectRevision: projectRevision,
     }),
   });
+  trackProviderBoundaryOutcome('google_drive', response);
   if (!response.ok) throw await readApiError(response, fallback);
 };
 
@@ -354,6 +360,7 @@ export const deleteGoogleDriveProjectCopy = async ({
 
 export const disconnectGoogleDriveStorage = async (): Promise<void> => {
   const response = await fetch('/api/project-sources/google-drive', { method: 'DELETE' });
+  trackProviderBoundaryOutcome('google_drive', response);
   if (!response.ok) throw await readApiError(response, 'Unable to disconnect Google Drive.');
   await disconnectGoogleDriveProjectBinding();
 };

@@ -1,4 +1,4 @@
-import type { ProjectDocumentV1 } from '@/features/project/client';
+import type { ProjectDocumentV1 } from '@/features/project/client/package-document';
 
 const uniqueSvgDataUri = (index: number) => {
   const color = index.toString(16).padStart(6, '0').slice(-6);

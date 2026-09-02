@@ -75,9 +75,49 @@ describe('Pipeline Library projection', () => {
 
     expect(projected).toHaveLength(1);
     expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].editableSubmission).toBeNull();
     expect(projected[0].currentPublishedSubmission?.id).toBe('published-r2');
     expect(projected[0].revisions.map((item) => item.id)).toEqual(['candidate-r3', 'published-r2']);
     expect(projected[0].reviewState).toBe('closed');
+  });
+
+  it('projects the exact owned candidate revision as editable behind a published primary', () => {
+    const published = submission('published-r2', {
+      status: 'published', revisionNumber: 2, publishedAt: '2026-08-22T12:00:00.000Z',
+    });
+    const candidate = submission('candidate-r3', {
+      contributorId: 'contributor-current', status: 'publish_candidate', revisionNumber: 3, updatedAt: '2026-08-24T12:00:00.000Z',
+    });
+
+    const projected = projectPipelineLibrary(program([candidate, published]));
+
+    expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].editableSubmission?.id).toBe('candidate-r3');
+    expect(projected[0].ownership).toBe('mine');
+  });
+
+  it('keeps contributor lifecycle actions pinned to the exact eligible revision', () => {
+    const published = submission('published-r2', {
+      contributorId: 'contributor-current', status: 'published', revisionNumber: 2,
+    });
+    const withdrawn = submission('withdrawn-r3', {
+      contributorId: 'contributor-current', status: 'archived', revisionNumber: 3,
+      contributorLifecycleState: 'withdrawn',
+    });
+    const activeCandidate = submission('candidate-r4', {
+      contributorId: 'contributor-current', status: 'publish_candidate', revisionNumber: 4,
+    });
+
+    const projected = projectPipelineLibrary(program([withdrawn, published, activeCandidate]));
+
+    expect(projected[0].currentPublishedSubmission?.id).toBe('published-r2');
+    expect(projected[0].editableSubmission?.id).toBe('candidate-r4');
+    expect(projected[0].retirableSubmission?.id).toBe('published-r2');
+    expect(projected[0].revisions.map((item) => item.id)).toEqual([
+      'candidate-r4',
+      'withdrawn-r3',
+      'published-r2',
+    ]);
   });
 
   it('uses the strongest active candidate when a lineage has no published revision', () => {

@@ -39,12 +39,12 @@ export function RoadmapPage({
         <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
             <History className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['roadmap.hero.eyebrow']}</span>
+            <span data-site-content-slug="roadmap.hero.eyebrow" className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['roadmap.hero.eyebrow']}</span>
           </div>
-          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
+          <h1 data-site-content-slug="roadmap.hero.headline" className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
             {siteContent['roadmap.hero.headline']}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
+          <p data-site-content-slug="roadmap.hero.body" className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
             {siteContent['roadmap.hero.body']}
           </p>
         </div>

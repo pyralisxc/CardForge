@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { isGoogleDriveFileId } from '@/features/project/server';
 import { decryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
+import { classifyGoogleProviderFailure, readGoogleProviderFailure } from '@/features/project/server/googleDriveBoundary';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 import {
@@ -96,21 +97,11 @@ const toItem = (row: LibraryRow): PersonalLibraryItem => ({
   updatedAt: row.updated_at,
 });
 
-const parseGoogleError = async (response: Response, fallback: string): Promise<PersonalLibraryStoreError> => {
-  const payload = await response.json().catch(() => ({})) as { error?: { message?: string } | string; error_description?: string };
-  const providerMessage = typeof payload.error === 'object'
-    ? payload.error?.message
-    : payload.error_description ?? (typeof payload.error === 'string' ? payload.error : undefined);
-  const status = response.status === 401 || response.status === 403
-    ? 401
-    : response.status === 404
-      ? 404
-      : response.status === 429
-        ? 429
-        : 503;
-  return new PersonalLibraryStoreError(providerMessage ? `${fallback} ${providerMessage}` : fallback, status, {
-    kind: status === 401 ? 'authentication' : status === 404 ? 'not_found' : status === 429 ? 'limit' : 'unavailable',
-    nextAction: status === 401 ? 'Reconnect Google Drive in Account → Storage & Library.' : undefined,
+export const parsePersonalLibraryGoogleError = async (response: Response, fallback: string): Promise<PersonalLibraryStoreError> => {
+  const failure = await readGoogleProviderFailure(response);
+  return new PersonalLibraryStoreError(failure.providerMessage ? `${fallback} ${failure.providerMessage}` : fallback, failure.status, {
+    kind: failure.kind,
+    nextAction: failure.nextAction,
   });
 };
 
@@ -162,11 +153,12 @@ const getGoogleDriveAccessToken = async (ownerUserId: string): Promise<string> =
     }),
     cache: 'no-store',
   });
-  const payload = await response.json().catch(() => ({})) as { access_token?: string; error_description?: string };
+  const payload = await response.json().catch(() => ({})) as { access_token?: string; error?: string; error_description?: string };
   if (!response.ok || !payload.access_token) {
-    throw new PersonalLibraryStoreError(payload.error_description || 'Google Drive authorization expired or was revoked.', 401, {
-      kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+    const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
+    throw new PersonalLibraryStoreError(payload.error_description || (failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'), failure.status, {
+      kind: failure.kind,
+      nextAction: failure.nextAction,
     });
   }
   return payload.access_token;
@@ -180,7 +172,7 @@ const getDriveFile = async (accessToken: string, fileId: string): Promise<DriveF
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   });
-  if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read that Google Drive file.');
+  if (!response.ok) throw await parsePersonalLibraryGoogleError(response, 'CardForge could not read that Google Drive file.');
   return await response.json() as DriveFile;
 };
 
@@ -327,7 +319,7 @@ export const materializePersonalLibraryItem = async (
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   });
-  if (!response.ok) throw await parseGoogleError(response, 'CardForge could not download that personal-library file.');
+  if (!response.ok) throw await parsePersonalLibraryGoogleError(response, 'CardForge could not download that personal-library file.');
   const contentLength = Number(response.headers.get('content-length')) || 0;
   if (contentLength > MAX_PERSONAL_LIBRARY_ITEM_BYTES) {
     throw new PersonalLibraryStoreError('That personal-library file is larger than the supported materialization limit.', 413, { kind: 'limit' });

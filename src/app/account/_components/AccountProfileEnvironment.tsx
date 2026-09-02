@@ -140,7 +140,7 @@ export function AccountProfileEnvironment({
   const availableZones = getVisibleEnvironmentZones(viewer);
   const zones = availableZones.some((zone) => zone.id === 'profile')
     ? availableZones
-    : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'home' || zone.id === 'library' || zone.id === 'profile');
+    : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'desk' || zone.id === 'library' || zone.id === 'profile');
   const groups = useMemo(() => buildAccountProfileUtilityGroups({
     accountEmail,
     authConfigured: entitlement.authConfigured,

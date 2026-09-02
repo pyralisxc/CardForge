@@ -96,7 +96,7 @@ export function OwnerRetentionPanel() {
         <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--cf-text-muted)]">
           <li>
             <strong className="text-[var(--cf-accent-text)]">Library assets:</strong>{" "}
-            permanently deletable from Studio Library with exact-name
+            permanently deletable from Library → Pipeline with exact-name
             confirmation; managed storage, revisions, votes, and registry
             lineage are purged.
           </li>

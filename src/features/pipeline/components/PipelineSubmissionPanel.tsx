@@ -35,6 +35,7 @@ import {
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import { trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
 import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
 
 interface PipelineUploadPlanResponse {
@@ -158,6 +159,7 @@ export function PipelineSubmissionPanel({
           mimeType: selectedFile.type || 'application/octet-stream',
         }),
       });
+      trackProviderBoundaryOutcome('pipeline', planResponse);
       if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
       pendingUpload = (await planResponse.json() as PipelineUploadPlanResponse).upload;
 
@@ -169,6 +171,7 @@ export function PipelineSubmissionPanel({
         headers: { 'x-upsert': 'false' },
         body: uploadForm,
       });
+      trackProviderBoundaryOutcome('pipeline', uploadResponse);
       if (!uploadResponse.ok) {
         throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
       }
@@ -192,6 +195,7 @@ export function PipelineSubmissionPanel({
           },
         }),
       });
+      trackProviderBoundaryOutcome('pipeline', response);
       if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
       await response.json();
       submitted = true;

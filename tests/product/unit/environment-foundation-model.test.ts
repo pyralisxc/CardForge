@@ -19,14 +19,14 @@ import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 describe('Environment Foundation model', () => {
   it('keeps zone availability separate from private-rail visibility', () => {
-    expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
+    expect(ENVIRONMENT_ZONES.map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
 
     const signedOut = { signedIn: false, contributor: false, owner: false };
-    expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: true, owner: false }).map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
-    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: true }).map((zone) => zone.id)).toEqual(['home', 'library', 'profile']);
+    expect(getAvailableEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
+    expect(getVisibleEnvironmentZones(signedOut).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: false }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: true, owner: false }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
+    expect(getVisibleEnvironmentZones({ signedIn: true, contributor: false, owner: true }).map((zone) => zone.id)).toEqual(['desk', 'library', 'profile']);
   });
 
   it('makes disabled reasons and published MCP tools explicit and enforces object applicability', () => {

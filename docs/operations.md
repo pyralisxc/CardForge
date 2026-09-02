@@ -131,12 +131,13 @@ Changing the operator is a legal/operational migration, not a display edit. Requ
 
 ## Owner operations
 
-Use Profile > Owner operations through six protected groups: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. `/owner` only translates historical links and provider callbacks into that Profile tool. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
+Use Profile > Owner operations for cross-product work through five protected groups: Overview, Marketing, Growth & People, Site Controls, and Governance. `/owner` only translates historical links and provider callbacks into that Profile tool. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
 
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
 - Site Controls: constrained navigation/SEO/experience settings in Profile; canonical public copy and relevant media publish contextually on the native public pages for a server-confirmed Owner.
-- Studio Library: complete shared registry, Forge Review, and Studio destination map.
+- Roadmap: rules and exact item status changes publish from owner-only controls on `/roadmap`; Profile's action center links there instead of rehosting the Roadmap workspace.
+- Library → Pipeline: complete shared registry, exact revisions, Contributor withdrawal/retirement, Owner publication/purge authority, Content Health, Forge Review, and Design destination map.
 - Governance: append-only owner history and legal/versioned operations.
 
 Deleted provider identities are history, not active users. Retired aliases remain only to display historical attribution accurately.
@@ -228,7 +229,7 @@ Safe support rollback disables/removes support checkout configuration while reta
 
 ## Maintained commands
 
-- `npm run health:production`: canonical production health.
+- `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `product`, or `provider` to isolate a lane. Product health downloads and validates the official 52-card starter package; provider health verifies Supabase catalog, Stripe/Clerk readiness, and truthful anonymous Drive authentication classification.
 - `npm run smoke:ui`: focused mocked browser/accessibility regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.
 - `npm run brand:export`: synchronize canonical brand sources and regenerate ignored derivatives.

@@ -24,11 +24,12 @@ import {
 } from '../client/accountProjectWorkspace';
 import type { GuestWorkspaceAdoptionChoice } from '../persistence/workspaceRevision';
 import type { GuestWorkspaceAdoptionOffer } from '../persistence/guestWorkspaceAdoption';
-import { BrowserStoragePersistencePrompt } from './BrowserStoragePersistencePrompt';
+import { BrowserStorageAlerts } from './BrowserStorageAlerts';
 
 export function AccountProjectWorkspaceBoundary({
   children,
   persistenceScope,
+  canUseProjectFiles,
 }: AccountProjectWorkspaceBoundaryProps) {
   const [isReady, setIsReady] = useState(false);
   const [adoptionOffer, setAdoptionOffer] = useState<GuestWorkspaceAdoptionOffer | null>(null);
@@ -122,7 +123,7 @@ export function AccountProjectWorkspaceBoundary({
 
   return (
     <>
-      <BrowserStoragePersistencePrompt />
+      <BrowserStorageAlerts canUseProjectFiles={canUseProjectFiles} />
       {children}
       {issue ? (
         <aside

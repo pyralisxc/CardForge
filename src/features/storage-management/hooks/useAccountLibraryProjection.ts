@@ -1,34 +1,19 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import type { CardAssetOption } from '@/domain/templates';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
-import {
-  createCardSetTransfer,
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getGoogleDriveProjectBinding,
-  getLocalProjectFolderStatus,
-  listLocalProjectWorkBindings,
-  getProjectAssetStorage,
-  hydrateProjectWorkspaceForScope,
-  loadGoogleDriveProjectLibrary,
-  openGoogleDriveProject,
-  readTypedProjectAssetListFromStorage,
-  selectAllTemplates,
-  useProjectStore,
-  type GoogleDriveProjectListResult,
-  type LocalProjectFolderStatus,
-  type LocalProjectWorkBindingStatus,
-  type ProjectDocumentCustomAssets,
-  type ProjectPersistenceScope,
-} from '@/features/project/client';
+import { createCardSetTransfer } from '@/features/project/client/package-transfer';
+import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, type ProjectDocumentCustomAssets } from '@/features/project/client/package-document';
+import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
+import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
+import { hydrateProjectWorkspaceForScope, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
   getPersonalLibraryRoleLabel,
   loadPersonalLibrary,
@@ -72,6 +57,25 @@ export interface AccountLibrarySourceFailure {
   nextAction?: string;
   correlationId: string | null;
 }
+
+export const retainLastKnownLibrarySource = <Value,>(
+  current: Value | null,
+  refreshed: Value | null | undefined,
+): Value | null => refreshed === undefined ? current : refreshed;
+
+interface ScopedLibrarySource<Value> {
+  scope: ProjectPersistenceScope;
+  value: Value | null;
+}
+
+export const retainScopedLastKnownLibrarySource = <Value,>(
+  current: ScopedLibrarySource<Value> | null,
+  scope: ProjectPersistenceScope,
+  refreshed: Value | null | undefined,
+): ScopedLibrarySource<Value> => ({
+  scope,
+  value: retainLastKnownLibrarySource(current?.scope === scope ? current.value : null, refreshed),
+});
 
 interface UseAccountLibraryProjectionOptions {
   persistenceScope: ProjectPersistenceScope;
@@ -131,8 +135,8 @@ export function useAccountLibraryProjection({
   const [hydrationFailure, setHydrationFailure] = useState<AccountLibrarySourceFailure | null>(null);
   const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
   const [portableSetBytes, setPortableSetBytes] = useState<Record<string, number>>({});
-  const [driveLibrary, setDriveLibrary] = useState<GoogleDriveProjectListResult | null>(null);
-  const [driveBindingFileId, setDriveBindingFileId] = useState<string | null>(null);
+  const [driveLibrarySource, setDriveLibrarySource] = useState<ScopedLibrarySource<GoogleDriveProjectListResult> | null>(null);
+  const [driveBindingSource, setDriveBindingSource] = useState<ScopedLibrarySource<string> | null>(null);
   const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
   const [localWorkFolders, setLocalWorkFolders] = useState<LocalProjectWorkBindingStatus[]>([]);
   const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
@@ -145,6 +149,9 @@ export function useAccountLibraryProjection({
   const [source, setSource] = useState<AccountLibrarySource | 'all'>('all');
   const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
   const deferredQuery = useDeferredValue(query);
+  const refreshGeneration = useRef(0);
+  const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
+  const driveBindingFileId = driveBindingSource?.scope === persistenceScope ? driveBindingSource.value : null;
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
@@ -166,6 +173,8 @@ export function useAccountLibraryProjection({
   }, [persistenceScope]);
 
   const refreshLibrarySources = useCallback(async () => {
+    const generation = refreshGeneration.current + 1;
+    refreshGeneration.current = generation;
     setLoadingSources(true);
     const failures: AccountLibrarySourceFailure[] = [];
     const assetStorage = getProjectAssetStorage();
@@ -194,11 +203,11 @@ export function useAccountLibraryProjection({
       ? Promise.all([
           loadGoogleDriveProjectLibrary().catch((error) => {
             failures.push(sourceFailure('google-drive', error, 'Google Drive projects are unavailable.'));
-            return null;
+            return undefined;
           }),
           getGoogleDriveProjectBinding().catch((error) => {
             failures.push(sourceFailure('google-drive', error, 'Google Drive project attachment is unavailable.'));
-            return null;
+            return undefined;
           }),
           loadPersonalLibrary().catch((error) => {
             failures.push(sourceFailure('personal-library', error, 'Connected assets are unavailable.'));
@@ -223,6 +232,7 @@ export function useAccountLibraryProjection({
       studioBootstrapPromise,
       signedInSourcesPromise,
     ]);
+    if (generation !== refreshGeneration.current) return;
     setCustomAssets({
       [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
       [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
@@ -237,13 +247,17 @@ export function useAccountLibraryProjection({
         bootstrapResult.studioDefaults.defaultTemplateId,
       );
     }
-    setDriveLibrary(driveResult);
-    setDriveBindingFileId(bindingResult?.fileId ?? null);
+    setDriveLibrarySource((current) => retainScopedLastKnownLibrarySource(current, persistenceScope, driveResult));
+    setDriveBindingSource((current) => retainScopedLastKnownLibrarySource(
+      current,
+      persistenceScope,
+      bindingResult === undefined ? undefined : bindingResult?.fileId ?? null,
+    ));
     setPersonalLibrary(assetsResult);
     setWorkingDrafts(Array.isArray(draftsResult?.documents) ? draftsResult.documents : []);
     setSourceFailures(failures);
     setLoadingSources(false);
-  }, [isSignedIn, setDefaultTemplatesFromFiles]);
+  }, [isSignedIn, persistenceScope, setDefaultTemplatesFromFiles]);
 
   useEffect(() => {
     if (!hydrated) return;

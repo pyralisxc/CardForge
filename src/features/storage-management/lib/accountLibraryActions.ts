@@ -29,6 +29,8 @@ export interface AccountLibraryActionCommands {
   copyPublishedTemplate: LibraryCommand;
   editPipeline: LibraryCommand;
   testPipeline: LibraryCommand;
+  withdrawPipeline: LibraryCommand;
+  retirePipeline: LibraryCommand;
   refresh: LibraryCommand;
 }
 
@@ -48,6 +50,8 @@ const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCo
     'library.copy-published-template': commands.copyPublishedTemplate,
     'library.edit-pipeline': commands.editPipeline,
     'library.test-pipeline': commands.testPipeline,
+    'library.withdraw-pipeline': commands.withdrawPipeline,
+    'library.retire-pipeline': commands.retirePipeline,
     'library.refresh': commands.refresh,
   };
   return commandMap[id] ?? null;

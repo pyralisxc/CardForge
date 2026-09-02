@@ -31,6 +31,8 @@ export type ApiErrorCode =
   | 'experience_controls_invalid'
   | 'experience_controls_unavailable'
   | 'google_drive_auth_required'
+  | 'google_drive_limit'
+  | 'google_drive_not_permitted'
   | 'google_drive_project_conflict'
   | 'google_drive_project_invalid'
   | 'google_drive_project_not_found'

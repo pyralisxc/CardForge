@@ -8,6 +8,7 @@ import {
   inspectCreatorArtifact,
   openCreatorTool,
   selectCreatorArtifacts,
+  selectCreatorDeskSets,
   setCreatorToolDirty,
 } from '@/features/app-shell/client/environment';
 
@@ -57,5 +58,20 @@ describe('creator interaction kernel', () => {
     expect(result.closed).toBe('artifact-focus');
     result = closeCreatorContext(result.session);
     expect(result.closed).toBe('set-focus');
+  });
+
+  it('keeps Desk Set selection separate from child Artifact selection', () => {
+    let session = selectCreatorDeskSets(createCreatorInteractionSession(), ['set:one', 'set:two'], 'set:two');
+    session = focusCreatorSet(session, 'one');
+    session = selectCreatorArtifacts(session, ['card:one']);
+
+    expect(session.deskSelection).toEqual(['set:one', 'set:two']);
+    expect(session.selection).toEqual(['card:one']);
+
+    const closed = closeCreatorContext(session);
+    expect(closed.closed).toBe('set-focus');
+    expect(closed.session.deskSelection).toEqual(['set:one', 'set:two']);
+    expect(closed.session.deskSelectionAnchorId).toBe('set:two');
+    expect(closed.session.selection).toEqual([]);
   });
 });

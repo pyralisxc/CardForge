@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import sharp from 'sharp';
 
 import {
   isContributorUploadAssetType,
@@ -29,8 +30,8 @@ import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
 
 const ALLOWED_MIME_TYPES = new Set<string>(PIPELINE_UPLOAD_ALLOWED_MIME_TYPES);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
-const IMAGE_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp']);
-const BORDER_OVERLAY_EXTENSIONS = new Set(['svg', 'png', 'webp']);
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
+const BORDER_OVERLAY_EXTENSIONS = new Set(['png', 'webp']);
 const SET_EXTENSIONS = new Set(['cardforge']);
 
 const sanitizePathSegment = (value: string, fallback: string, maxLength = 100): string => (
@@ -50,7 +51,6 @@ const sanitizeFileStem = (value: string): string => sanitizePathSegment(
 const getFileExtension = (fileName: string, mimeType: string): string => {
   const nameExtension = fileName.match(/\.([a-z0-9]+)$/iu)?.[1]?.toLowerCase();
   if (nameExtension) return nameExtension === 'jpeg' ? 'jpg' : nameExtension;
-  if (mimeType === 'image/svg+xml') return 'svg';
   if (mimeType === 'image/png') return 'png';
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/webp') return 'webp';
@@ -65,7 +65,7 @@ const getFileExtension = (fileName: string, mimeType: string): string => {
 const isBorderOverlayDestination = (destination: StudioAssetDestination): boolean =>
   destination === 'image.border.front' || destination === 'image.border.back';
 
-interface ValidatedUploadDescriptor {
+export interface ValidatedUploadDescriptor {
   assetType: ContributorUploadAssetType;
   studioDestination: StudioAssetDestination | null;
   fileName: string;
@@ -74,6 +74,17 @@ interface ValidatedUploadDescriptor {
   extension: string;
   maxFileSizeBytes: number;
 }
+
+const MIME_TYPES_BY_EXTENSION: Readonly<Record<string, ReadonlySet<string>>> = {
+  png: new Set(['image/png']),
+  jpg: new Set(['image/jpeg']),
+  webp: new Set(['image/webp']),
+  woff2: new Set(['font/woff2', 'application/octet-stream']),
+  woff: new Set(['font/woff', 'application/font-woff', 'application/octet-stream']),
+  ttf: new Set(['font/ttf', 'application/x-font-ttf', 'application/octet-stream']),
+  otf: new Set(['font/otf', 'application/x-font-otf', 'application/octet-stream']),
+  cardforge: new Set(['application/vnd.cardforge.project+zip', 'application/octet-stream']),
+};
 
 export const validatePipelineUploadDescriptor = ({
   assetType,
@@ -141,19 +152,23 @@ export const validatePipelineUploadDescriptor = ({
     : isFontUpload
       ? FONT_EXTENSIONS.has(extension)
       : IMAGE_EXTENSIONS.has(extension);
+  const mimeMatchesExtension = MIME_TYPES_BY_EXTENSION[extension]?.has(normalizedMimeType) ?? false;
+  if (extensionAllowed && ALLOWED_MIME_TYPES.has(normalizedMimeType) && !mimeMatchesExtension) {
+    throw new PipelineStoreError('The declared file type does not match the file extension.', 400, { kind: 'invalid' });
+  }
   if (!extensionAllowed || !ALLOWED_MIME_TYPES.has(normalizedMimeType)) {
     throw new PipelineStoreError(
       isSetUpload
         ? 'Upload a portable .cardforge Set package.'
         : isFontUpload
         ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
-        : 'Upload SVG, PNG, JPG, or WEBP artwork.',
+        : 'Upload PNG, JPG, or WEBP artwork. Direct SVG uploads are not accepted because active SVG content cannot be safely published unchanged.',
       400,
     );
   }
   if (normalizedDestination && isBorderOverlayDestination(normalizedDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
     throw new PipelineStoreError(
-      'Professional border overlays must use SVG, PNG, or WEBP so transparency can be preserved.',
+      'Professional border overlays must use PNG or WEBP so transparency can be preserved.',
       400,
     );
   }
@@ -272,11 +287,53 @@ const assertUploadedObjectComplete = async (
   }
 };
 
-const assertUploadedSetPackage = async (storagePath: string): Promise<void> => {
-  const { data, error } = await requireStorage().download(storagePath);
-  if (error || !data) {
-    throw new PipelineStoreError('The uploaded Set package could not be read for validation.', 503);
+const startsWithBytes = (bytes: Uint8Array, signature: readonly number[]): boolean => (
+  signature.every((value, index) => bytes[index] === value)
+);
+
+export const validateUploadedAssetBytes = async (
+  descriptor: Pick<ValidatedUploadDescriptor, 'assetType' | 'extension' | 'mimeType'>,
+  data: Blob,
+): Promise<void> => {
+  if (descriptor.assetType === 'sets') return;
+  const buffer = Buffer.from(await data.arrayBuffer());
+  const bytes = new Uint8Array(buffer);
+  const magicMatches = descriptor.extension === 'png'
+    ? startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    : descriptor.extension === 'jpg'
+      ? startsWithBytes(bytes, [0xff, 0xd8, 0xff])
+      : descriptor.extension === 'webp'
+        ? Buffer.from(bytes.slice(0, 4)).toString('ascii') === 'RIFF' && Buffer.from(bytes.slice(8, 12)).toString('ascii') === 'WEBP'
+        : descriptor.extension === 'woff2'
+          ? Buffer.from(bytes.slice(0, 4)).toString('ascii') === 'wOF2'
+          : descriptor.extension === 'woff'
+            ? Buffer.from(bytes.slice(0, 4)).toString('ascii') === 'wOFF'
+            : descriptor.extension === 'otf'
+              ? Buffer.from(bytes.slice(0, 4)).toString('ascii') === 'OTTO'
+              : descriptor.extension === 'ttf'
+                ? startsWithBytes(bytes, [0x00, 0x01, 0x00, 0x00]) || Buffer.from(bytes.slice(0, 4)).toString('ascii') === 'true'
+                : false;
+  if (!magicMatches) {
+    throw new PipelineStoreError('The uploaded file contents do not match its declared file type.', 400, { kind: 'invalid' });
   }
+  if (descriptor.assetType !== 'fonts') {
+    try {
+      const metadata = await sharp(buffer, { failOn: 'error' }).metadata();
+      const expectedFormat = descriptor.extension === 'jpg' ? 'jpeg' : descriptor.extension;
+      if (metadata.format !== expectedFormat || !metadata.width || !metadata.height) throw new Error('Unexpected image metadata.');
+    } catch {
+      throw new PipelineStoreError('The uploaded image is malformed or cannot be decoded safely.', 400, { kind: 'invalid' });
+    }
+  }
+};
+
+const downloadUploadedObject = async (storagePath: string): Promise<Blob> => {
+  const { data, error } = await requireStorage().download(storagePath);
+  if (error || !data) throw new PipelineStoreError('The uploaded Forge Review source could not be read for validation.', 503);
+  return data;
+};
+
+const assertUploadedSetPackage = async (data: Blob): Promise<void> => {
   try {
     const snapshot = await decodeCardForgeProjectPackage(data);
     const document = hydrateCardForgeProjectSnapshot(snapshot);
@@ -365,7 +422,12 @@ export const createUploadedPipelineSubmission = async ({
 
   try {
     await assertUploadedObjectComplete(uploadedFile.storagePath, descriptor.fileSizeBytes);
-    if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedFile.storagePath);
+    const uploadedBytes = await downloadUploadedObject(uploadedFile.storagePath);
+    if (uploadedBytes.size !== descriptor.fileSizeBytes) {
+      throw new PipelineStoreError('The uploaded file bytes changed during validation. Upload the file again.', 409);
+    }
+    if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
+    else await validateUploadedAssetBytes(descriptor, uploadedBytes);
     const { data } = storage.getPublicUrl(uploadedFile.storagePath);
     await createPipelineSubmission({
       contributorId,

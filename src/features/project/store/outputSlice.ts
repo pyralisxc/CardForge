@@ -6,6 +6,18 @@ import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 import { selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
 
+const toStoredCard = (updatedCard: import('@/domain/rendering').DisplayCard, previous?: StoredDisplayCard): StoredDisplayCard => ({
+  uniqueId: updatedCard.uniqueId,
+  templateId: updatedCard.template.id!,
+  backingTemplateId: updatedCard.backingTemplateId ?? updatedCard.backingTemplate?.id ?? previous?.backingTemplateId ?? null,
+  backingData: updatedCard.backingData,
+  setId: updatedCard.setId ?? previous?.setId,
+  setName: updatedCard.setName ?? previous?.setName,
+  data: updatedCard.data,
+  tagIds: updatedCard.tagIds ?? previous?.tagIds,
+  updatedAt: new Date().toISOString(),
+});
+
 const ensureImportSet = (getState: () => ProjectState): NonNullable<ProjectState['activeCardSet']> => {
   const state = getState();
   if (state.activeCardSet) return state.activeCardSet;
@@ -18,6 +30,7 @@ const ensureImportSet = (getState: () => ProjectState): NonNullable<ProjectState
 
 export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> = (set, get) => ({
   storedCards: [],
+  bulkRevisionUndo: null,
   editingCardUniqueId: null,
   isEditDialogOpen: false,
 
@@ -102,22 +115,29 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
   },
   updateGeneratedCard: (updatedCard) => set((state) => ({
     storedCards: state.storedCards.map((card) => card.uniqueId === updatedCard.uniqueId
-      ? {
-          uniqueId: updatedCard.uniqueId,
-          templateId: updatedCard.template.id!,
-          backingTemplateId: updatedCard.backingTemplateId
-            ?? updatedCard.backingTemplate?.id
-            ?? card.backingTemplateId
-            ?? null,
-          backingData: updatedCard.backingData,
-          setId: updatedCard.setId ?? card.setId,
-          setName: updatedCard.setName ?? card.setName,
-          data: updatedCard.data,
-          tagIds: updatedCard.tagIds ?? card.tagIds,
-          updatedAt: new Date().toISOString(),
-        }
+      ? toStoredCard(updatedCard, card)
       : card),
   })),
+  reviseGeneratedCards: (updatedCards) => {
+    const byId = new Map(updatedCards.map((card) => [card.uniqueId, card]));
+    const previous = get().storedCards.filter((card) => byId.has(card.uniqueId));
+    if (!previous.length || previous.length !== byId.size) return 0;
+    set((state) => ({
+      bulkRevisionUndo: previous.map((card) => structuredClone(card)),
+      storedCards: state.storedCards.map((card) => {
+        const update = byId.get(card.uniqueId);
+        return update ? toStoredCard(update, card) : card;
+      }),
+    }));
+    return previous.length;
+  },
+  undoLastBulkRevision: () => {
+    const previous = get().bulkRevisionUndo;
+    if (!previous?.length) return 0;
+    const byId = new Map(previous.map((card) => [card.uniqueId, card]));
+    set((state) => ({ bulkRevisionUndo: null, storedCards: state.storedCards.map((card) => byId.get(card.uniqueId) ?? card) }));
+    return previous.length;
+  },
   retargetGeneratedCardsTemplate: (fromTemplateId, toTemplateId) => set((state) => {
     if (!fromTemplateId || !toTemplateId || fromTemplateId === toTemplateId) return state;
     let changed = false;

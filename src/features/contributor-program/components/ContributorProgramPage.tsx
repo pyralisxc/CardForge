@@ -63,12 +63,12 @@ export function ContributorProgramPage({
           <div className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-5 md:p-7">
             <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
               <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['contributor.hero.eyebrow']}</span>
+              <span data-site-content-slug="contributor.hero.eyebrow" className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['contributor.hero.eyebrow']}</span>
             </div>
-            <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-5xl">
+            <h1 data-site-content-slug="contributor.hero.headline" className="mt-4 font-serif text-4xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-5xl">
               {siteContent['contributor.hero.headline']}
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
+            <p data-site-content-slug="contributor.hero.body" className="mt-4 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
               {siteContent['contributor.hero.body']}
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -133,7 +133,7 @@ export function ContributorProgramPage({
         </div>
 
         <section className="mt-5 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-5">
-          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">{siteContent['contributor.rules.heading']}</h2>
+          <h2 data-site-content-slug="contributor.rules.heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">{siteContent['contributor.rules.heading']}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {standards.map((standard) => (
               <div key={standard} className="flex gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">

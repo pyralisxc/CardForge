@@ -4,7 +4,7 @@ import { FileJson } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useCardTransferActions } from '@/features/project/client';
+import { useCardTransferActions } from '@/features/project/client/locations';
 
 export function ExportCardTransferButton({ cardUniqueId, ariaLabel }: { cardUniqueId: string; ariaLabel?: string }) {
   const { toast } = useToast();

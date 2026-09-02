@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplateObject } from '@/domain/templates';
-import {
-  selectAllTemplates,
-  selectGeneratedDisplayCards,
-  useProjectStore,
-} from '@/features/project/client';
+import { selectAllTemplates, selectGeneratedDisplayCards, useProjectStore } from '@/features/project/client/workspace';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 

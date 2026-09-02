@@ -25,7 +25,7 @@ export function OutcomeHero({
   media = getDefaultSiteMedia('landing.hero'),
   support,
   primaryActionHref = '/account',
-  primaryActionLabel = 'Try the Studio',
+  primaryActionLabel = 'Open your Desk',
   secondaryActionLabel = 'See what it makes',
 }: {
   body: string;
@@ -52,13 +52,13 @@ export function OutcomeHero({
       />
       <div className="relative mx-auto flex w-full max-w-7xl items-center">
         <div className="max-w-3xl">
-          <p className="text-base font-semibold text-[var(--public-brass)]">
+          <p data-site-content-slug="landing.hero.support" className="text-base font-semibold text-[var(--public-brass)]">
             {support}
           </p>
-          <h1 className="mt-4 font-[var(--public-font-display)] text-4xl font-semibold leading-[1.05] text-[var(--public-ivory)] drop-shadow-[0_3px_16px_rgba(0,0,0,0.75)] md:text-6xl">
+          <h1 data-site-content-slug="landing.hero.headline" className="mt-4 font-[var(--public-font-display)] text-4xl font-semibold leading-[1.05] text-[var(--public-ivory)] drop-shadow-[0_3px_16px_rgba(0,0,0,0.75)] md:text-6xl">
             {headline}
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#ddd2c2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+          <p data-site-content-slug="landing.hero.body" className="mt-5 max-w-2xl text-lg leading-8 text-[#ddd2c2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
             {body}
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -74,7 +74,7 @@ export function OutcomeHero({
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center rounded-[var(--public-radius)] border border-[#8b6631] bg-[rgba(18,14,10,0.82)] px-6 text-base font-bold text-[var(--public-ivory)] backdrop-blur-sm hover:border-[var(--public-brass)]"
             >
-              {secondaryActionLabel}
+              <span data-site-content-slug="landing.hero.secondary-action">{secondaryActionLabel}</span>
             </Link>
           </div>
         </div>

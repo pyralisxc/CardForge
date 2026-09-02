@@ -10,7 +10,8 @@ import {
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
-import { createPublishedSetCopy, useProjectStore } from '@/features/project/client';
+import { createPublishedSetCopy } from '@/features/project/client/published-sets';
+import { useProjectStore } from '@/features/project/client/workspace';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
 import { getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
@@ -167,6 +168,31 @@ export function useAccountLibraryActions({
     return href;
   };
 
+  const runPipelineLifecycle = async (
+    submission: PipelineSubmission,
+    action: 'withdraw' | 'retire',
+  ) => {
+    const consequence = action === 'withdraw'
+      ? `Withdraw revision ${submission.revisionNumber ?? 1} from active review? Its immutable history remains visible, and it will not be published automatically.`
+      : `Retire published revision ${submission.revisionNumber ?? 1}? It will leave new Library discovery, while existing downloaded or installed copies remain usable.`;
+    if (!window.confirm(consequence)) return;
+    const response = await fetch(`/api/pipeline/${encodeURIComponent(submission.id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+    if (!response.ok) throw new Error(payload?.error?.message || `Unable to ${action} this Pipeline revision.`);
+    toast({
+      title: action === 'withdraw' ? 'Revision withdrawn' : 'Published revision retired',
+      description: action === 'withdraw'
+        ? 'The exact candidate is archived and cannot be republished by automatic voting.'
+        : 'The exact revision is no longer discoverable. Existing installed copies remain usable.',
+    });
+    closeDetail();
+    refresh();
+  };
+
   const commandsFor = (target: CommandTarget): AccountLibraryActionCommands => {
     const personal = target?.scope === 'personal' ? target.personal : null;
     const published = target?.scope === 'published' ? target : null;
@@ -198,7 +224,8 @@ export function useAccountLibraryActions({
       copyPublishedTemplate: () => runPublishedAction(requirePublished(), true),
       editPipeline: () => {
         const item = requirePipeline();
-        setEditingSubmission(item.pipeline.submission);
+        if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no editable revision.');
+        setEditingSubmission(item.pipeline.editableSubmission);
         setActiveTool('edit-contribution');
         closeDetail();
       },
@@ -209,6 +236,16 @@ export function useAccountLibraryActions({
         if (!templateId) throw new Error('CardForge could not prepare this exact revision for Design.');
         toast({ title: 'Exact Pipeline revision prepared', description: `${item.name} is open as a local test copy. The shared revision is unchanged.` });
         return openDesignTool(templateId, `library-object-${item.id}`);
+      },
+      withdrawPipeline: async () => {
+        const item = requirePipeline();
+        if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no active unpublished candidate to withdraw.');
+        await runPipelineLifecycle(item.pipeline.editableSubmission, 'withdraw');
+      },
+      retirePipeline: async () => {
+        const item = requirePipeline();
+        if (!item.pipeline.retirableSubmission) throw new Error('This Pipeline lineage has no owned published revision to retire.');
+        await runPipelineLifecycle(item.pipeline.retirableSubmission, 'retire');
       },
       refresh: () => { refresh(); },
     };

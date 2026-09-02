@@ -65,7 +65,7 @@ const defaultHomepageSection = (id: HomepageSectionId): HomepageSectionSetting =
 export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
   announcementEnabled: false,
   announcementMessage: '',
-  primaryCtaLabel: 'Try the Studio',
+  primaryCtaLabel: 'Open your Desk',
   primaryCtaHref: '/account',
   supportOfferVisible: true,
   homepageTitle: 'Build Complete Card Sets',
@@ -78,7 +78,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
     'custom card set creator',
     'bulk card generator',
     'fantasy card template editor',
-    'local-first card design studio',
+    'local-first card design desk',
   ],
   watermarkPreviewOpacity: 24,
   watermarkShareOpacity: 28,

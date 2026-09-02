@@ -17,10 +17,12 @@ import {
   closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
   type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
-import type { StudioBusinessIdentity } from '@/features/app-shell/client/studio';
+import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
-import type { PipelineSubmission } from '@/features/pipeline/client';
-import { deleteGoogleDriveProjectCopy, selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectPersistenceScope } from '@/features/project/client';
+import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
+import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
+import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 import { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
@@ -50,14 +52,17 @@ const PipelineContributionPanel = dynamic(() => import(
 const PipelineSubmissionEditPanel = dynamic(() => import(
   '@/features/pipeline/client/submission-edit-panel'
 ).then((module) => module.PipelineSubmissionEditPanel));
+const OwnerContributorProgramPanel = dynamic(() => import(
+  '@/features/pipeline/client/owner'
+).then((module) => module.OwnerContributorProgramPanel));
 const LibraryDesignWorkspace = dynamic(() => import(
-  '@/features/app-shell/client/studio'
-).then((module) => module.CardForgeStudioShell), { ssr: false });
+  '@/features/creator-workbench/client'
+).then((module) => module.CreatorWorkbench), { ssr: false });
 
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
-  businessIdentity: StudioBusinessIdentity;
+  businessIdentity: WorkbenchBusinessIdentity;
   initialReturnContextKey?: string | null;
   initialTool?: 'locations' | null;
   storageConnections?: ReactNode;
@@ -135,6 +140,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     sharedType,
   });
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
+  const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const cardsBySetId = useMemo(() => {
     const bySet = new Map<string, DisplayCard[]>();
@@ -325,6 +331,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
+      {activeScope === 'pipeline' && experience.owner ? <details className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]" open>
+        <summary className="cursor-pointer px-4 py-3 font-serif text-lg text-[var(--cf-text-strong)]">Owner Pipeline operations <span className="ml-2 font-sans text-xs text-[var(--cf-text-subtle)]">publication, quotas, routing, revisions</span></summary>
+        <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel /></div>
+      </details> : null}
+      {activeScope === 'pipeline' ? <PipelineContentHealthPanel health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       <LibraryCollection
         activeFailure={activeFailure}

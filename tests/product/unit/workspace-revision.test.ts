@@ -2,14 +2,8 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  BROWSER_STORAGE_DATABASE,
-  BrowserWorkspaceConflictError,
-  compareAndSetBrowserWorkspaceValue,
-  createIndexedDbStorage,
-  parseBrowserWorkspaceRecord,
-  resolveGuestWorkspaceAdoption,
-} from '@/features/project/client';
+import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
+import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord, resolveGuestWorkspaceAdoption } from '@/features/project/client/persistence-workspace';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);

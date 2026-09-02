@@ -30,11 +30,11 @@ export function PlansPageContent({ plans }: { plans: McpAllowance[] }) {
     <>
       <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_top_left,#352310_0%,var(--cf-canvas)_58%)] px-5 py-12 text-[var(--public-ivory)] md:px-8 md:py-16">
         <div className="mx-auto max-w-7xl">
-          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['plans.hero.eyebrow']}</p>
-          <h1 className="mt-3 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight md:text-6xl">
+          <p data-site-content-slug="plans.hero.eyebrow" className="text-base font-semibold text-[var(--public-brass)]">{siteContent['plans.hero.eyebrow']}</p>
+          <h1 data-site-content-slug="plans.hero.headline" className="mt-3 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight md:text-6xl">
             {siteContent['plans.hero.headline']}
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p data-site-content-slug="plans.hero.body" className="mt-5 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
             {siteContent['plans.hero.body']}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -42,7 +42,7 @@ export function PlansPageContent({ plans }: { plans: McpAllowance[] }) {
               View your plan <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center justify-center border border-[var(--public-border)] px-5 font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)]">
-              Open Studio free
+              Open Desk free
             </Link>
           </div>
         </div>
@@ -50,16 +50,16 @@ export function PlansPageContent({ plans }: { plans: McpAllowance[] }) {
 
       <section aria-labelledby="plans-comparison-heading" className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-11 text-[var(--public-ivory)] md:px-8 md:py-14">
         <div className="mx-auto max-w-7xl">
-          <h2 id="plans-comparison-heading" className="font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">{siteContent['plans.compare.heading']}</h2>
-          <p className="mt-3 mb-7 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">{siteContent['plans.compare.body']}</p>
+          <h2 data-site-content-slug="plans.compare.heading" id="plans-comparison-heading" className="font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">{siteContent['plans.compare.heading']}</h2>
+          <p data-site-content-slug="plans.compare.body" className="mt-3 mb-7 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">{siteContent['plans.compare.body']}</p>
           <PlanChoiceGrid plans={plans} />
-          <p className="mt-5 max-w-4xl border-l-2 border-[var(--public-brass)] pl-4 text-sm leading-6 text-[var(--public-muted-text)]">{siteContent['plans.beta.note']}</p>
+          <p data-site-content-slug="plans.beta.note" className="mt-5 max-w-4xl border-l-2 border-[var(--public-brass)] pl-4 text-sm leading-6 text-[var(--public-muted-text)]">{siteContent['plans.beta.note']}</p>
         </div>
       </section>
 
       <section aria-labelledby="subscription-process-heading" className="bg-[var(--public-surface)] px-5 py-11 text-[var(--public-ivory)] md:px-8 md:py-14">
         <div className="mx-auto max-w-7xl">
-          <h2 id="subscription-process-heading" className="font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">{siteContent['plans.process.heading']}</h2>
+          <h2 data-site-content-slug="plans.process.heading" id="subscription-process-heading" className="font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">{siteContent['plans.process.heading']}</h2>
           <ol className="mt-7 grid gap-4 md:grid-cols-3">
             {steps.map((step, index) => (
               <li key={step.title} className="border border-[var(--public-border)] bg-[var(--public-obsidian)] p-5">

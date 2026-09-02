@@ -1,6 +1,6 @@
 # CardForge
 
-CardForge is a live local-first card production studio for creating reusable front/back layouts, generating complete card sets, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
+CardForge is a live local-first creative environment for building reusable front/back layouts, generating and revising complete card Sets, arranging them on a spatial Desk, and exporting PNG, ZIP, PDF, or Tabletop Simulator output. The browser workspace is the normal working copy; durable user-owned copies can live in downloaded project files, authorized local folders, or connected Google Drive, while shared product state and reviewed Library content live in Supabase.
 
 CardForge Studio is created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
@@ -67,11 +67,12 @@ npm run brand:export
 - `src/app/`: Next.js routes and HTTP composition.
 - `src/domain/`: pure Artifact, Card, Template, Rendering, and Entitlements policy.
 - `src/features/app-shell/`: reusable contextual-tool composition, interaction/action runtime, compatibility Studio ingress, and workspace bootstrap.
-- `src/features/home/`: the spatial Desk owner over Sets and their generalized Artifact projection; cards remain the first shipped specialized Artifact type.
+- `src/features/creator-workbench/`: focused Design/Generate/Output composition over the native Template, generation, Pipeline, billing, and project owners.
+- `src/features/desk/`: the spatial Desk owner over Sets and their generalized Artifact projection; cards remain the first shipped specialized Artifact type.
 - `src/features/template-editor/`: Template Studio editing, layers, inspector, and template-library commands.
 - `src/features/card-generator/`: single/bulk card creation, generated-card editing, validation, and output tools consumed by Studio and Desk.
 - `src/features/card-rendering/`: shared card rendering, authored-object previews, and rich-text/vector presentation.
-- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, published-package installation, and provider/local-folder adapters.
+- `src/features/project/`: local workspace state, IndexedDB persistence, recovery, assets, canonical one-Set packages, published-package installation, and provider/local-folder adapters. Client consumers use focused workspace, persistence, package, asset, provider, location, and UI interfaces rather than one aggregate barrel.
 - `src/features/storage-management/`: the Library collection surface over personal work, the published catalog, protected Forge Review projections, and source-owned location/default/transfer tools; it does not own those underlying stores.
 - `src/features/account/` and `src/features/billing/`: Clerk-backed account access and Stripe-backed product/support billing.
 - `src/features/contributor-access/` and `src/features/pipeline/`: Contributor identity/scopes plus Forge Review, voting, publication, attribution, and the shared Library.
@@ -100,6 +101,8 @@ CardForge has three deliberate storage lanes:
 - **Repository bootstrap/fallback material:** import seeds and public fallback art only.
 
 `cardforge_asset_registry` is the single runtime shared catalog index. Template Studio publishes one immutable structured revision owned by the linked Forge Review submission, with content-addressed WebP media stored once. Published Sets reuse the same Pipeline and registry, pointing at the validated immutable `.cardforge` submission package that also serves import/export and provider transfer; installation creates independent browser identities through the normal project importer. Package v2 has one bounded archive writer: authorized device-file saves stream directly, while browser downloads and complete-body provider boundaries use a size-bounded Blob; the compatibility reader still accepts v1. The registry stores only active revision pointers and routing/discovery metadata rather than cloning authored documents. Generic binary uploads cover media, fonts, and canonical Set packages rather than introducing parallel authoring schemas. Owner deletion removes active registry/submission/vote/storage lineage and keeps a private tombstone so bootstrap cannot recreate it.
+
+The official Standard 52-card deck is the published free starter and the end-to-end hardening fixture. Contributors can withdraw an owned active candidate or retire an owned published exact revision; both preserve immutable history, retirement leaves already installed copies usable, and permanent lineage purge remains Owner-only.
 
 ## Agent authoring
 

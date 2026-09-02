@@ -34,6 +34,8 @@ interface GenerationWorkspaceProps {
   onEditSelectedBack: (templateId: string) => void;
   onManageCardBacks: () => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
+  onBulkCardsRevised: (cards: DisplayCard[]) => number;
+  onUndoBulkRevision: () => number;
   onViewGeneratedCards: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
   onBackingTemplateSelectionChange: (templateId: string | null) => void;
@@ -55,6 +57,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     onEditSelectedBack,
     onManageCardBacks,
     onBulkCardsGenerated,
+    onBulkCardsRevised,
+    onUndoBulkRevision,
     onViewGeneratedCards,
     onTemplateSelectionChange,
     onBackingTemplateSelectionChange,
@@ -288,6 +292,9 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           backingTemplate={selectedBackingTemplate}
           activeCardSet={activeCardSet}
           onCardsGenerated={handleBulkCardsGenerated}
+          currentCards={generatedDisplayCards}
+          onCardsRevised={onBulkCardsRevised}
+          onUndoRevision={onUndoBulkRevision}
           onViewGeneratedCards={onViewGeneratedCards}
           selectedTemplateIdProp={generatorSelectedTemplateId}
         />

@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import type { CardFace } from '@/domain/cards';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
+import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 import { EnvironmentBoundaryNotice, type ActionDescriptor, type SelectionSession } from '@/features/app-shell/client/environment';
 
 import type { useAccountLibraryProjection } from '../hooks/useAccountLibraryProjection';
@@ -29,8 +30,22 @@ const CampaignLibraryWorkspace = dynamic(() => import(
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 
+export interface LibraryBoundaryFailure {
+  id?: string;
+  message: string;
+  nextAction?: string | null;
+  retryable: boolean;
+  kind?: BoundaryFailureKind;
+  code?: string;
+  correlationId?: string | null;
+}
+
+export const describeLibraryBoundaryFailure = (failure: LibraryBoundaryFailure): string => (
+  `${failure.message}${failure.nextAction ? ` ${failure.nextAction}` : ''}${failure.id === 'google-drive' ? ' Previously loaded Google Drive items remain visible.' : ' Other Library scopes remain unchanged.'}${failure.code ? ` Error code: ${failure.code}.` : ''}${failure.correlationId ? ` Reference: ${failure.correlationId}.` : ''}`
+);
+
 interface LibraryCollectionProps {
-  activeFailure: { message: string; nextAction?: string | null; retryable: boolean } | null;
+  activeFailure: LibraryBoundaryFailure | null;
   activeLoading: boolean;
   activeScope: LibraryScope;
   campaignTargetId: string | null;
@@ -83,7 +98,12 @@ export function LibraryCollection({
         <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => onDensityChange('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => onDensityChange('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => onDensityChange('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
         {canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={onOpenContribution}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
       </div>
-      {activeFailure ? <EnvironmentBoundaryNotice title={`${scopeDefinition.label} is unavailable`} message={`${activeFailure.message}${activeFailure.nextAction ? ` ${activeFailure.nextAction}` : ''} Other Library scopes remain unchanged.`} actionLabel={activeFailure.retryable ? 'Retry' : undefined} onAction={activeFailure.retryable ? onRefresh : undefined} /> : null}
+      {activeFailure ? <EnvironmentBoundaryNotice
+        title={`${scopeDefinition.label} is unavailable`}
+        message={describeLibraryBoundaryFailure(activeFailure)}
+        actionLabel={activeFailure.retryable ? 'Retry' : undefined}
+        onAction={activeFailure.retryable ? onRefresh : undefined}
+      /> : null}
       {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
         {viewItems.map((item) => {
           const pipelineItem = item.scope === 'pipeline' ? item : null;

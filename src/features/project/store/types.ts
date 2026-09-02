@@ -22,8 +22,9 @@ export interface AppearanceSlice {
   deleteAppearanceStyle: (styleId: string) => void;
 }
 
-export interface OutputSlice {
-  storedCards: StoredDisplayCard[];
+  export interface OutputSlice {
+    storedCards: StoredDisplayCard[];
+    bulkRevisionUndo: StoredDisplayCard[] | null;
   editingCardUniqueId: string | null;
   isEditDialogOpen: boolean;
   addGeneratedCards: (newCards: DisplayCard[]) => void;
@@ -33,7 +34,9 @@ export interface OutputSlice {
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
   reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;
-  updateGeneratedCard: (updatedCard: DisplayCard) => void;
+    updateGeneratedCard: (updatedCard: DisplayCard) => void;
+    reviseGeneratedCards: (updatedCards: DisplayCard[]) => number;
+    undoLastBulkRevision: () => number;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
