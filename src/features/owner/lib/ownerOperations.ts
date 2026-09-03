@@ -1,4 +1,3 @@
-import type { ContactRequest } from '@/features/contact/client';
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
 import type { ExperienceSettings } from '@/features/experience-settings/client';
@@ -31,7 +30,7 @@ export interface OwnerConnectedService {
   dashboardUrl: string;
 }
 
-export interface OwnerConsoleOverviewPayload {
+export interface OwnerOperationsOverviewPayload {
   configured: boolean;
   businessIdentity: BusinessIdentity;
   roadmapItems: RoadmapAdminItem[];
@@ -50,18 +49,16 @@ export interface OwnerSiteControlPayload {
   roadmapItems: RoadmapAdminItem[];
 }
 
-export interface OwnerConsolePayload extends OwnerSiteControlPayload {
+export interface OwnerOperationsPayload extends OwnerSiteControlPayload {
   configured: boolean;
   databaseMetrics: OwnerDatabaseMetrics | null;
-  contactRequests: ContactRequest[];
 }
 
-export const combineOwnerConsolePayload = (
-  overview: OwnerConsoleOverviewPayload,
+export const combineOwnerOperationsPayload = (
+  overview: OwnerOperationsOverviewPayload,
   site: OwnerSiteControlPayload,
-): OwnerConsolePayload => ({
+): OwnerOperationsPayload => ({
   ...site,
   configured: overview.configured,
   databaseMetrics: overview.databaseMetrics,
-  contactRequests: [],
 });

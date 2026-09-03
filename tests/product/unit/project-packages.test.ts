@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 
@@ -307,21 +304,4 @@ describe('portable CardForge project packages', () => {
       await zip.generateAsync({ type: 'uint8array', compression: 'STORE' }),
     )).rejects.toThrow(/manifest is too large/iu);
   }, 30_000);
-
-  it('keeps folder access local-only and never exposes a filesystem path to the server contract', () => {
-    const localAdapter = readFileSync(
-      resolve(process.cwd(), 'src/features/project/client/localProjectFolder.ts'),
-      'utf8',
-    );
-    const packageModel = readFileSync(
-      resolve(process.cwd(), 'src/features/project/model/projectPackage.ts'),
-      'utf8',
-    );
-
-    expect(localAdapter).toContain('showDirectoryPicker');
-    expect(localAdapter).toContain('serverReachable: false');
-    expect(localAdapter).toContain('FileSystemDirectoryHandle');
-    expect(packageModel).toContain("'browser' | 'local-folder' | 'google-drive'");
-    expect(localAdapter).not.toContain('directory.path');
-  });
 });

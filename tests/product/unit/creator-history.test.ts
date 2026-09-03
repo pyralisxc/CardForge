@@ -13,11 +13,12 @@ import {
   createCreatorHref,
   createCreatorInitialSession,
   createCreatorTool,
+  preserveCreatorLaunchIntent,
   readCreatorHistorySnapshot,
   type CreatorHistorySnapshot,
 } from '@/features/desk/model/creatorHistory';
 
-describe('Home creator history', () => {
+describe('Desk creator history', () => {
   it('hydrates an Artifact deep link into the focused Set interaction session', () => {
     expect(createCreatorInitialSession('set:set-1', 'card-2')).toMatchObject({
       focusPath: { setId: 'set-1', artifactId: 'card-2' },
@@ -51,5 +52,17 @@ describe('Home creator history', () => {
 
   it('rejects malformed browser state instead of inventing an empty creator context', () => {
     expect(readCreatorHistorySnapshot({ cardforgeCreatorContext: { version: 1, session: {} } })).toBeNull();
+  });
+
+  it('preserves pending MCP and Template launch intents while Desk history initializes', () => {
+    expect(preserveCreatorLaunchIntent(
+      '/account?focus=set%3Aset-1&tool=design',
+      '/account?tool=design&document=document-1&revision=5&returnTo=%2Faccount%3Fsection%3Dlibrary',
+    )).toBe('/account?focus=set%3Aset-1&tool=design&document=document-1&revision=5&returnTo=%2Faccount%3Fsection%3Dlibrary');
+
+    expect(preserveCreatorLaunchIntent(
+      '/account?tool=design',
+      '/account?tool=design&editTemplate=template-1',
+    )).toBe('/account?tool=design&editTemplate=template-1');
   });
 });

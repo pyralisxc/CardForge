@@ -140,6 +140,19 @@ describe('Google Drive provider boundaries', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it('classifies a token-endpoint network failure as unavailable without changing the connection', async () => {
+    const from = vi.fn().mockReturnValue(selectConnectionQuery());
+    mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network unreachable')));
+
+    await expect(listGoogleDriveProjects('user-1')).rejects.toMatchObject({
+      status: 503,
+      kind: 'unavailable',
+      nextAction: expect.stringContaining('saved connection remains unchanged'),
+    });
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
   it('persists reconnect-required state only when Google returns invalid_grant', async () => {
     const selectQuery = selectConnectionQuery();
     const updateQuery = { update: vi.fn(), eq: vi.fn().mockResolvedValue({ error: null }) };

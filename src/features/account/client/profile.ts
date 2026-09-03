@@ -1,4 +1,4 @@
-export { AccountHomeBoundary } from '../components/AccountHomeBoundary';
+export { AccountDeskBoundary } from '../components/AccountDeskBoundary';
 export { AccountPlanBillingUtility } from '../components/AccountPlanBillingUtility';
 export { ProfileManagementPage, ProfileSetupFallback } from '../components/ProfileManagementPage';
 export { AccountProfileSnapshot } from '../components/AccountProfileSnapshot';

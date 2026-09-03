@@ -310,7 +310,7 @@ export const updateBusinessIdentity = async (
       'Assumed business name status requires documented external verification and a separate reviewed update.',
       400,
       {
-        assumedBusinessNameStatus: 'Assumed business name status cannot be changed in the owner console.',
+        assumedBusinessNameStatus: 'Assumed business name status cannot be changed in Owner operations.',
       },
     );
   }

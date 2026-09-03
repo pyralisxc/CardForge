@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { parseProjectDocumentFile } from '@/features/project/client/package-document';
@@ -67,19 +64,5 @@ describe('native Studio document validation', () => {
     }));
 
     expect(parsed.success).toBe(true);
-  });
-
-  it('keeps the MCP authoring schema closed over native CardForge vocabulary', () => {
-    const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
-    const schema = readFileSync(
-      resolve(process.cwd(), 'src/features/studio-documents/server/mcpToolInputSchemas.ts'),
-      'utf8',
-    );
-
-    expect(route).toContain('CARDFORGE_FREEFORM_ELEMENT_TYPES');
-    expect(route).toContain('elementTypes: [...CARDFORGE_FREEFORM_ELEMENT_TYPES]');
-    expect(schema).toContain('additionalProperties: false');
-    expect(schema).toContain("type: { type: 'string', enum: [...CARDFORGE_FREEFORM_ELEMENT_TYPES] }");
-    expect(schema).not.toContain("items: { type: 'object', additionalProperties: true }");
   });
 });

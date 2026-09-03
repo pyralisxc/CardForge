@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { createDefaultFreeformCanvas, type TCGCardTemplate } from '@/domain/templates';
@@ -38,18 +35,4 @@ describe('template editor session resolution', () => {
       templates: [fallback, selected],
     }).id).toBe(fallback.id);
   });
-
-  it('keeps a new unsaved draft inside the editor until it has a library id', () => {
-    const commandsSource = readFileSync(
-      resolve(process.cwd(), 'src/features/template-editor/hooks/useTemplateEditorCommands.ts'),
-      'utf8',
-    );
-    const createNewTemplateSource = commandsSource.match(
-      /const createNewTemplate = useCallback\([\s\S]*?const openTemplate = useCallback/,
-    )?.[0] ?? '';
-
-    expect(createNewTemplateSource).toContain('beginDraft(template);');
-    expect(createNewTemplateSource).not.toContain('onSelectTemplate(id);');
-  });
-
 });

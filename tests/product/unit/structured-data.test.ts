@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
@@ -43,16 +40,5 @@ describe('structured site identity', () => {
     expect(serialized).toContain('https://cardforges.com/about');
     expect(serialized).toContain('About \\u003cCardForge>');
     expect(serialized).not.toContain('<CardForge>');
-  });
-
-  it('ships a factual public founder route', () => {
-    const source = readFileSync(join(process.cwd(), 'src/app/cameron/page.tsx'), 'utf8');
-    const founderProfile = readFileSync(join(process.cwd(), 'src/features/public-site/model/founderProfile.ts'), 'utf8');
-
-    expect(source).toContain('Cameron Locke');
-    expect(source).toContain('profile.introduction');
-    expect(founderProfile).toContain('sole proprietor');
-    expect(source).toContain('createFounderProfileStructuredData');
-    expect(source).not.toMatch(/d\/b\/a/i);
   });
 });

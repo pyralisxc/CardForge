@@ -2,26 +2,24 @@
 
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { Search, Upload, X } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
-import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
-import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 interface IconInspectorPanelProps {
   element: FreeformCardElement;
   iconOptions: string[];
   iconAssets: CardAssetOption[];
-  assetSearch: string;
   canUploadCustomAssets: boolean;
   symbolStylePresets: ElementPresetRecipe[];
   controlClassName: string;
@@ -30,14 +28,15 @@ interface IconInspectorPanelProps {
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'icon') => void;
-  onAssetSearchChange: (value: string) => void;
+  personalItems: readonly PersonalLibraryItem[];
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function IconInspectorPanel({
   element,
   iconOptions,
   iconAssets,
-  assetSearch,
   canUploadCustomAssets,
   symbolStylePresets,
   controlClassName,
@@ -46,7 +45,9 @@ export function IconInspectorPanel({
   onUpdateElement,
   onHandleFileUpload,
   onHandleAssetUpload,
-  onAssetSearchChange,
+  personalItems,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: IconInspectorPanelProps) {
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const iconAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -54,11 +55,7 @@ export function IconInspectorPanel({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="icon-name">Built-in Icon</Label>
-      <Select value={element.iconName || 'Sparkles'} onValueChange={(value) => onUpdateElement({ iconName: value, iconImageSource: undefined })}>
-        <SelectTrigger id="icon-name"><SelectValue /></SelectTrigger>
-        <SelectContent>{iconOptions.map((icon) => <SelectItem key={icon} value={icon}>{icon}</SelectItem>)}</SelectContent>
-      </Select>
+      <p className="text-xs text-[#8f95a3]">Current icon: {element.iconImageSource ? 'Custom source' : element.iconName || 'Sparkles'}</p>
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <Input
           className={controlClassName}
@@ -88,6 +85,20 @@ export function IconInspectorPanel({
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Source Assets</Label>
+          <TemplateAssetLibraryPicker
+            assets={iconAssets}
+            kind="icon"
+            label="an icon"
+            personalItems={personalItems}
+            personalRoles={['icon']}
+            providerRole="icon"
+            target={{ kind: 'template-element', ids: [element.id] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
+            builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
+            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="h-7 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4]" onClick={() => iconAssetUploadInputRef.current?.click()}>
@@ -98,31 +109,6 @@ export function IconInspectorPanel({
           </Tooltip>
           <input ref={iconAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'icon')} />
         </div>
-        <div className="relative mb-2">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
-          <Input className={controlClassName} placeholder="Search reviewed and local icons..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
-        </div>
-        {iconAssets.length > 0 ? (
-          <div className="mb-3 grid max-h-40 grid-cols-3 gap-1.5 overflow-y-auto pr-1">
-            {iconAssets.map((asset) => (
-              <Tooltip key={asset.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="group min-h-[72px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[var(--cf-editor-control)]"
-                    onClick={() => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
-                  >
-                    <ProjectBinaryAssetBackground source={asset.url} className="block h-9 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" />
-                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
-                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        ) : null}
-
         {!hasUploadedIconSource && (
           <>
             <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Icon Styles</Label>

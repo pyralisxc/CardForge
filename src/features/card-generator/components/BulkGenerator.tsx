@@ -34,6 +34,7 @@ import { useBulkExampleDownloads } from '@/features/card-generator/hooks/useBulk
 import type { DisplayCard } from '@/domain/rendering';
 import { buildBulkRevisionPlan, type BulkRevisionMatch, type BulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
 import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
+import { BulkRevisionLibraryPicker } from '@/features/card-generator/components/BulkRevisionLibraryPicker';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
@@ -45,7 +46,10 @@ interface BulkGeneratorProps {
   onUndoRevision: () => number;
   onViewGeneratedCards: (cards: DisplayCard[]) => void;
   selectedTemplateIdProp: string | null;
+  revisionScopeIds?: readonly string[];
 }
+
+const EMPTY_REVISION_SCOPE: readonly string[] = [];
 
 type SupportedFileType = 'auto';
 
@@ -59,6 +63,7 @@ export function BulkGenerator({
   onUndoRevision,
   onViewGeneratedCards,
   selectedTemplateIdProp,
+  revisionScopeIds = EMPTY_REVISION_SCOPE,
 }: BulkGeneratorProps) {
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +76,9 @@ export function BulkGenerator({
   const [dataReviewOpen, setDataReviewOpen] = useState(false);
   const [dataReviewIssues, setDataReviewIssues] = useState<string[]>([]);
   const [lastGeneratedCards, setLastGeneratedCards] = useState<DisplayCard[]>([]);
-  const [operation, setOperation] = useState<'generate' | 'revise'>('generate');
+  const [operation, setOperation] = useState<'generate' | 'revise'>(revisionScopeIds.length ? 'revise' : 'generate');
   const [revisionMatchKey, setRevisionMatchKey] = useState<string>('unique-id');
+  const [revisionResourceFieldKey, setRevisionResourceFieldKey] = useState<string>('');
   const [pendingRevision, setPendingRevision] = useState<BulkRevisionPlan | null>(null);
   const [lastRevisionCount, setLastRevisionCount] = useState(0);
   const { toast } = useToast();
@@ -94,6 +100,30 @@ export function BulkGenerator({
     () => (selectedTemplate ? extractTemplateFieldDefinitions(selectedTemplate) : []),
     [selectedTemplate]
   );
+  const revisionImageFields = useMemo(
+    () => fieldDefinitions.filter((field) => field.isImage && !field.isStaticBaseText),
+    [fieldDefinitions],
+  );
+  const effectiveRevisionScopeIds = useMemo(() => {
+    const existingIds = new Set(currentCards.map((card) => card.uniqueId));
+    return [...new Set(revisionScopeIds)].filter((id) => existingIds.has(id));
+  }, [currentCards, revisionScopeIds]);
+  const requestedRevisionScopeCount = new Set(revisionScopeIds).size;
+  const hasRequestedRevisionScope = requestedRevisionScopeCount > 0;
+  const revisionScopeIsStale = hasRequestedRevisionScope
+    && effectiveRevisionScopeIds.length !== requestedRevisionScopeCount;
+
+  useEffect(() => {
+    if (!revisionScopeIds.length) return;
+    setOperation('revise');
+    setPendingRevision(null);
+  }, [revisionScopeIds]);
+
+  useEffect(() => {
+    setRevisionResourceFieldKey((current) => revisionImageFields.some((field) => field.key === current)
+      ? current
+      : revisionImageFields[0]?.key ?? '');
+  }, [revisionImageFields]);
 
   const backingFieldDefinitions = useMemo(
     () => (backingTemplate ? extractTemplateFieldDefinitions(backingTemplate) : []),
@@ -314,6 +344,14 @@ export function BulkGenerator({
       openDataReview();
       return;
     }
+    if (operation === 'revise' && revisionScopeIsStale) {
+      toast({
+        title: 'Selected Artifacts changed',
+        description: 'Return to the Desk and select the Artifacts again. CardForge will not widen a stale selection to the whole Set.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -349,7 +387,12 @@ export function BulkGenerator({
         const match: BulkRevisionMatch = revisionMatchKey === 'unique-id'
           ? { kind: 'unique-id' }
           : { kind: 'field', key: revisionMatchKey, label: fieldDefinitions.find((field) => field.key === revisionMatchKey)?.label ?? revisionMatchKey };
-        const plan = buildBulkRevisionPlan({ existing: currentCards, incoming: generatedCards, match });
+        const plan = buildBulkRevisionPlan({
+          existing: currentCards,
+          incoming: generatedCards,
+          match,
+          scopeIds: hasRequestedRevisionScope ? effectiveRevisionScopeIds : undefined,
+        });
         trackCardForgeEvent('revision_started', {
           object_kind: 'card',
           input_method: match.kind,
@@ -467,12 +510,26 @@ export function BulkGenerator({
           <Button type="button" size="sm" aria-pressed={operation === 'generate'} variant={operation === 'generate' ? 'default' : 'ghost'} onClick={() => { setOperation('generate'); setPendingRevision(null); }}>Generate</Button>
           <Button type="button" size="sm" aria-pressed={operation === 'revise'} variant={operation === 'revise' ? 'default' : 'ghost'} disabled={currentCards.length === 0} onClick={() => { setOperation('revise'); setPendingRevision(null); }}>Revise existing</Button>
         </div>
-        {operation === 'revise' ? <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Match every imported row to one existing card
+        {operation === 'revise' ? <div className="grid gap-2"><label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Match every imported row to one existing card
           <select className="min-h-10 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-sm text-[var(--cf-text-strong)]" value={revisionMatchKey} onChange={(event) => { setRevisionMatchKey(event.target.value); setPendingRevision(null); }}>
             <option value="unique-id">CardForge ID column (safest)</option>
             {fieldDefinitions.filter((field) => !field.isStaticBaseText && !field.isImage).map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
           </select>
-        </label> : <p className="text-sm text-[var(--cf-text-muted)]">Generate appends new cards. Revise preserves existing CardForge identities and the final Set count.</p>}
+        </label>
+        {revisionScopeIsStale ? <p className="text-xs text-[var(--cf-danger)]" role="alert">One or more selected Artifacts are no longer in this Set. Return to the Desk and select them again before revising.</p> : hasRequestedRevisionScope ? <p className="text-xs text-[var(--cf-text-muted)]" role="status">Revision scope: {effectiveRevisionScopeIds.length} selected Artifact{effectiveRevisionScopeIds.length === 1 ? '' : 's'}. Matches outside this stable-ID selection are ignored.</p> : <p className="text-xs text-[var(--cf-text-muted)]">Revision scope: all Artifacts in this Set.</p>}
+        {!revisionScopeIsStale && effectiveRevisionScopeIds.length && revisionImageFields.length ? <div className="flex flex-wrap items-end gap-2 rounded-md border border-[var(--cf-border-subtle)] p-2"><label className="grid min-w-48 flex-1 gap-1 text-xs text-[var(--cf-text-muted)]">Picture field
+          <select className="min-h-9 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-2 text-sm text-[var(--cf-text-strong)]" value={revisionResourceFieldKey} onChange={(event) => { setRevisionResourceFieldKey(event.target.value); setPendingRevision(null); }}>
+            {revisionImageFields.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+          </select>
+        </label>
+        {revisionResourceFieldKey ? <BulkRevisionLibraryPicker
+          currentCards={currentCards}
+          fieldKey={revisionResourceFieldKey}
+          fieldLabel={revisionImageFields.find((field) => field.key === revisionResourceFieldKey)?.label ?? revisionResourceFieldKey}
+          targetIds={effectiveRevisionScopeIds}
+          onPlan={setPendingRevision}
+        /> : null}</div> : null}
+        </div> : <p className="text-sm text-[var(--cf-text-muted)]">Generate appends new cards. Revise preserves existing CardForge identities and the final Set count.</p>}
       </div>
 
         <BulkCsvInputPanel

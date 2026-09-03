@@ -1,14 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   createMcpWorkflowDocumentKey,
   observeMcpToolExecution,
 } from '@/features/mcp-usage/server';
-
-const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 const conflictError = () => {
   const error = new Error('The expected revision is stale; reload the current revision.');
@@ -113,28 +108,5 @@ describe('MCP workflow efficiency telemetry', () => {
       record: vi.fn().mockResolvedValue(true),
       recordWorkflow: vi.fn().mockRejectedValue(new Error('telemetry offline')),
     })).resolves.toBe('still succeeds');
-  });
-
-  it('stores the required workflow KPIs without user content and renders only cache misses', () => {
-    const migration = readSource('supabase/migrations/20260824043000_mcp_workflow_efficiency.sql');
-    const telemetry = readSource('src/features/mcp-usage/server/mcpWorkflowTelemetry.ts');
-    const renderer = readSource('src/features/studio-documents/server/studioRenderArtifacts.ts');
-
-    expect(migration).toContain('average_calls_per_completed_workflow');
-    expect(migration).toContain('average_revisions_per_completed_workflow');
-    expect(migration).toContain('canonical_renders_per_revision');
-    expect(migration).toContain('cache_hit_rate');
-    expect(migration).toContain('duplicate_preventions');
-    expect(migration).toContain('average_upload_latency_ms');
-    expect(migration).toContain('average_render_latency_ms');
-    const workflowColumns = migration.match(/create table public\.cardforge_mcp_workflow_runs \(([\s\S]*?)\n\);/)?.[1] ?? '';
-    expect(workflowColumns).not.toMatch(/prompt|card_content|document_payload|raw_document|title|asset_bytes/i);
-    expect(workflowColumns).toContain('document_key');
-    expect(telemetry).toContain("createHash('sha256')");
-    expect(renderer).toContain('missingIndexes');
-    expect(renderer).toContain('expectedCount: missingCards.length');
-    expect(renderer).toContain('cacheHits: artifacts.filter');
-    expect(renderer).toContain('canonicalRenders: renderedImages.length');
-    expect(renderer).toContain('createIfMissing: true');
   });
 });

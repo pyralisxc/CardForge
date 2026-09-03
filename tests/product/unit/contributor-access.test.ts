@@ -11,7 +11,7 @@ const marketingContext = {
   contentPillar: 'product-proof',
   funnelStage: 'consideration',
   contentKind: 'demonstration',
-  callToAction: 'Enter the Studio',
+  callToAction: 'Open your Desk',
   creationSource: 'contributor',
   utmContent: 'founder_workflow_proof',
 } as const;

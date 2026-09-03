@@ -24,8 +24,7 @@ import { useAccountLibraryProjection, type AccountLibraryItem } from '@/features
 import {
   visibleWorkKinds,
   type DeskAccountStatus,
-  type HomeSort,
-  type HomeSourceFilter,
+  type DeskSourceFilter,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
 import { useCreatorNavigation } from './useCreatorNavigation';
@@ -42,8 +41,8 @@ interface DeskControllerOptions {
   initialFocusedArtifactId?: string | null;
   initialTool?: 'design' | 'generate' | 'output' | 'pipeline' | null;
   initialReturnContextKey?: string | null;
-  homeAccessStatus?: DeskAccountStatus;
-  homeSecurityStatus?: DeskAccountStatus;
+  accessStatus?: DeskAccountStatus;
+  securityStatus?: DeskAccountStatus;
 }
 
 export function useDeskController({
@@ -53,8 +52,8 @@ export function useDeskController({
   initialFocusedArtifactId,
   initialTool = null,
   initialReturnContextKey,
-  homeAccessStatus,
-  homeSecurityStatus,
+  accessStatus,
+  securityStatus,
 }: DeskControllerOptions) {
   const { toast } = useToast();
   const isSignedIn = experience.signedIn;
@@ -67,8 +66,7 @@ export function useDeskController({
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const zones = getVisibleEnvironmentZones(viewer);
   const [query, setQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<HomeSourceFilter>('all');
-  const [sort, setSort] = useState<HomeSort>('desk');
+  const [sourceFilter, setSourceFilter] = useState<DeskSourceFilter>('all');
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const {
@@ -128,11 +126,11 @@ export function useDeskController({
     marquee: deskMarquee,
     moveDrag: moveDeskDrag,
     moveMarquee: moveDeskMarquee,
-    moveWork: moveDeskLayoutWork,
     nudgeSelection: nudgeDeskSelection,
     pinnedIds,
     positions: deskPositions,
     shouldSuppressActivation,
+    sourceFacets,
     togglePin,
     visibleWork,
     workGridRef,
@@ -142,12 +140,15 @@ export function useDeskController({
     workItems,
     query,
     sourceFilter,
-    sort,
     focused: Boolean(focusedWorkId),
     snapToGrid,
     selectedIds: selectedDeskIds,
     onSelectionChange: (ids, anchorId) => setInteractionSession((current) => selectCreatorDeskSets(current, ids, anchorId)),
   });
+  useEffect(() => {
+    if (sourceFilter === 'all' || sourceFacets.some((facet) => facet.id === sourceFilter)) return;
+    setSourceFilter('all');
+  }, [sourceFacets, sourceFilter]);
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
@@ -180,9 +181,6 @@ export function useDeskController({
   } = projectState;
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
-  const focusedContentsLabel = focusedLocalSetId
-    ? `${focusedCards.length} card${focusedCards.length === 1 ? '' : 's'}`
-    : 'Contents load when opened';
   const focusedItemId = focusedItem?.id ?? null;
   const focusedItemName = focusedItem?.name ?? '';
   const publishedSetStarters = usePublishedSetStarters({
@@ -227,7 +225,6 @@ export function useDeskController({
     returnContextRestoredRef.current = true;
     setQuery(context.query);
     setSourceFilter(context.sourceFilter);
-    setSort(context.sort);
     const restoredSetId = context.focusedWorkId?.startsWith('set:') ? context.focusedWorkId.slice(4) : null;
     restoreFocusedContext({
       focusedWorkId: context.focusedWorkId,
@@ -242,12 +239,7 @@ export function useDeskController({
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
   }, [initialReturnContextKey, itemById, restoreFocusedContext]);
 
-  const statuses = createDeskAccountStatuses({ accessStatus: homeAccessStatus, isSignedIn, projection, securityStatus: homeSecurityStatus });
-
-  const moveDeskWork = (itemId: string, direction: 'earlier' | 'later') => {
-    setSort('desk');
-    moveDeskLayoutWork(itemId, direction);
-  };
+  const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 
   const selectDeskWork = (item: AccountLibraryItem, options: { additive?: boolean; range?: boolean } = {}) => {
     trackCardForgeEvent('set_selected', {
@@ -359,7 +351,7 @@ export function useDeskController({
       inspectorWorkId,
       query,
       sourceFilter,
-      sort,
+      sort: 'desk',
       selectedCardIds: nextSelectedCardIds,
       cardQuery,
       tagFilter,
@@ -469,7 +461,6 @@ export function useDeskController({
     focusWork,
     focusArtifactContext,
     focusedCards,
-    focusedContentsLabel,
     focusedItem,
     focusedLocalSetId,
     generationCards,
@@ -484,7 +475,6 @@ export function useDeskController({
     locationItem,
     moveDeskDrag,
     moveDeskMarquee,
-    moveDeskWork,
     nudgeDeskSelection,
     moveTargetId,
     openContextStudio,
@@ -532,7 +522,6 @@ export function useDeskController({
     setSelectedCardIds,
     setShowGrid,
     setSnapToGrid,
-    setSort,
     setSourceFilter,
     setTagDraft,
     setTagFilter,
@@ -543,7 +532,7 @@ export function useDeskController({
     showGrid,
     showTemplateTool,
     snapToGrid,
-    sort,
+    sourceFacets,
     sortedCards,
     sourceFilter,
     statuses,

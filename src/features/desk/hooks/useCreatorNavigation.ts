@@ -18,8 +18,9 @@ import {
   createCreatorHref,
   createCreatorInitialSession,
   createCreatorTool,
+  preserveCreatorLaunchIntent,
   readCreatorHistorySnapshot,
-  type HomeContextualToolId,
+  type DeskContextualToolId,
   type CreatorHistorySnapshot,
 } from '../model/creatorHistory';
 
@@ -57,7 +58,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     window.history.replaceState(
       createCreatorHistoryState(window.history.state, snapshot),
       '',
-      createCreatorHref(snapshot),
+      preserveCreatorLaunchIntent(createCreatorHref(snapshot), window.location.href),
     );
   }, []);
 
@@ -66,7 +67,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     window.history.pushState(
       createCreatorHistoryState(window.history.state, snapshot),
       '',
-      createCreatorHref(snapshot),
+      preserveCreatorLaunchIntent(createCreatorHref(snapshot), window.location.href),
     );
   }, []);
 
@@ -76,7 +77,10 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     const initial = currentRef.current;
     const restored = readCreatorHistorySnapshot(window.history.state);
     const currentHref = `${window.location.pathname}${window.location.search}`;
-    if (restored && createCreatorHref(restored) === currentHref) {
+    if (
+      restored
+      && preserveCreatorLaunchIntent(createCreatorHref(restored), currentHref) === currentHref
+    ) {
       applySnapshot(restored);
       replaceSnapshot(restored);
       return;
@@ -158,6 +162,11 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     const onKeyDown = (event: KeyboardEvent) => {
       const session = currentRef.current.session;
       if (event.key !== 'Escape' || session.toolStack.length > 0 || !session.focusPath.setId) return;
+      if (
+        event.defaultPrevented
+        || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"]'))
+          .some((element) => element.getClientRects().length > 0)
+      ) return;
       event.preventDefault();
       requestHistoryBack();
     };
@@ -206,7 +215,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     applySnapshot(next);
   }, [applySnapshot, pushSnapshot, replaceSnapshot]);
 
-  const openContextTool = useCallback((setId: string, toolId: HomeContextualToolId) => {
+  const openContextTool = useCallback((setId: string, toolId: DeskContextualToolId) => {
     const current = currentRef.current;
     let focused = current;
     if (current.focusedWorkId !== `set:${setId}` || current.session.focusPath.setId !== setId) {

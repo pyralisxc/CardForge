@@ -6,7 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { completeSignUpIntent } from '@/features/analytics/client/tracking';
 
-interface AccountHomeBoundaryProps {
+interface AccountDeskBoundaryProps {
   initialAuthConfigured?: boolean;
   children: ReactNode;
 }
@@ -17,7 +17,7 @@ interface ClerkIdentity {
   email: string | null;
 }
 
-export function AccountHomeBoundary({ initialAuthConfigured = false, children }: AccountHomeBoundaryProps) {
+export function AccountDeskBoundary({ initialAuthConfigured = false, children }: AccountDeskBoundaryProps) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [identity, setIdentity] = useState<ClerkIdentity>({
     isLoaded: false,

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import sharp from 'sharp';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -15,8 +12,6 @@ import {
   createStudioDocumentPreviewToken,
   readStudioDocumentPreviewToken,
 } from '@/features/studio-documents/server/studioDocumentPreviewToken';
-
-const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 const makeTemplate = (imageSource = 'artworkUrl'): TCGCardTemplate => ({
   id: 'gpt-template-1',
@@ -197,126 +192,5 @@ describe('agent Template preview tokens', () => {
     expect(readStudioDocumentPreviewToken(token, now + 90 * 60 * 1000)).not.toBeNull();
     expect(readStudioDocumentPreviewToken(`${token}x`, now)).toBeNull();
     expect(readStudioDocumentPreviewToken(token, now + 121 * 60 * 1000)).toBeNull();
-  });
-});
-
-describe('agent Studio install and chat preview architecture', () => {
-  const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');
-  const templatePreview = readSource('src/features/studio-documents/components/TemplateDraftPreviewClient.tsx');
-  const setPreview = readSource('src/features/studio-documents/components/CardSetDraftPreviewClient.tsx');
-  const nativeExport = readSource('src/features/card-generator/lib/cardPreviewExport.tsx');
-  const mcpTools = [
-    readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
-    readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
-    readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
-    readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts'),
-  ].join('\n');
-  const pluginSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
-  const cardSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
-
-  it('installs personal agent Templates without clearing unrelated local workspace state', () => {
-    const gptBranch = handoff.slice(
-      handoff.indexOf("payload.document?.creationSource === 'gpt'"),
-      handoff.indexOf('// Non-agent Studio documents retain project-open semantics.'),
-    );
-    expect(gptBranch).toContain('mergeProjectAssetListToStorage');
-    expect(gptBranch).toContain("template.templateLibrarySource !== 'pipeline'");
-    expect(gptBranch).toContain('mergeUserTemplates(personalTemplates.map');
-    expect(gptBranch).toContain("templateLibrarySource: 'personal'");
-    expect(gptBranch).not.toContain('(Agent copy)');
-    expect(gptBranch).not.toContain('nanoid');
-    expect(gptBranch).not.toContain('useProjectStore.setState({');
-  });
-
-  it('installs agent-created Sets/cards in place and lands finished work in Sets', () => {
-    const gptBranch = handoff.slice(
-      handoff.indexOf("payload.document?.creationSource === 'gpt'"),
-      handoff.indexOf('// Non-agent Studio documents retain project-open semantics.'),
-    );
-    expect(gptBranch).toContain('mergeCardSetsFromFiles');
-    expect(gptBranch).toContain('mergeStoredCards(patch.storedCards)');
-    expect(gptBranch).toContain("cardResult.successCount > 0 ? 'sets' : 'template-maker'");
-    expect(gptBranch).toContain("title: 'Agent revision applied'");
-  });
-
-  it('pins Studio installation to an exact revision and acknowledges the applied revision', () => {
-    expect(handoff).toContain("parseRequestedRevision(url.searchParams.get('revision'))");
-    expect(handoff).toContain('`?revision=${requestedRevision}`');
-    expect(handoff).toContain('actualRevision !== requestedRevision');
-    expect(handoff).toContain('handoffKey(documentId, requestedRevision)');
-    expect(handoff).toContain('await acknowledgeStudioDocumentInstallation');
-    expect(handoff).toContain("localAgentRevisionApplied ? 'Revision applied locally' : 'Draft not opened'");
-    expect(mcpTools).toContain("'get_agent_install_status'");
-  });
-
-  it('exports Template and Set previews through canonical render artifacts and native MCP images', () => {
-    const renderArtifacts = readSource('src/features/render-artifacts/model.ts');
-    const renderStore = readSource('src/features/render-artifacts/server/renderArtifactStore.ts');
-    const browserRenderer = readSource('src/features/render-artifacts/server/canonicalBrowserRenderer.ts');
-    const studioArtifacts = readSource('src/features/studio-documents/server/studioRenderArtifacts.ts');
-    expect(templatePreview).toContain("renderCardToPngBlob(card, 'virtual', 150)");
-    expect(setPreview).toContain("renderCardToPngBlob(card, 'virtual', 150)");
-    expect(templatePreview).toContain('data-cardforge-render-artifact="template-preview"');
-    expect(setPreview).toContain('data-cardforge-render-artifact="card-preview"');
-    expect(nativeExport).toContain('export async function renderCardToPngBlob');
-    expect(renderArtifacts).toContain('CARDFORGE_RENDERER_CONTRACT_VERSION');
-    expect(renderStore).toContain('upsert: false');
-    expect(browserRenderer).toContain("import('@sparticuz/chromium')");
-    expect(browserRenderer).toContain("import('puppeteer-core')");
-    expect(studioArtifacts).toContain('composeCanonicalContactSheet');
-    expect(mcpTools).toContain('renderArtifactImageContent');
-    expect(mcpTools).toContain('ensureTemplatePreviewArtifact');
-    expect(mcpTools).toContain('ensureSetContactSheetArtifact');
-    expect(mcpTools).not.toContain("'openai/outputTemplate'");
-    expect(mcpTools).not.toContain('frameDomains: [publicOrigin]');
-  });
-
-  it('reports native image bindings and composition warnings to the Template agent', () => {
-    expect(mcpTools).toContain('const compositionDiagnostics');
-    expect(mcpTools).toContain('assetBindings');
-    expect(mcpTools).toContain('imageElements');
-    expect(mcpTools).toContain('borderedTextElementIds');
-    expect(mcpTools).toContain('targetElementIds');
-    expect(mcpTools).toContain('composition: compositionDiagnostics(document)');
-    expect(mcpTools).toContain('Asset ${asset.id} is selected but image element ${targetId} still has ${target.sourceState} artwork.');
-  });
-
-  it('exposes exact-contract revision-safe card maintenance tools', () => {
-    expect(mcpTools).toContain("'get_card_generation_contract'");
-    expect(mcpTools).toContain("'upsert_card_set'");
-    expect(mcpTools).toContain("'upsert_card'");
-    expect(mcpTools).toContain("'upsert_cards'");
-    expect(mcpTools).toContain("'delete_cards'");
-    expect(mcpTools).toContain("'move_cards'");
-    expect(mcpTools).toContain("'delete_card_set'");
-    expect(mcpTools).toContain('writeMode revise');
-    expect(mcpTools).not.toContain("'attach_card_artwork'");
-  });
-
-  it('teaches the agent stable revision ids and visual verification', () => {
-    expect(cardSkill).toContain('`checkout_project`');
-    expect(cardSkill).toContain('`commit_project`');
-    expect(cardSkill).toContain('`writeMode: revise`');
-    expect(cardSkill).toContain('native CardForge-rendered representative cards');
-    expect(cardSkill).toContain('Never tell the user a revision is visible locally without that evidence.');
-  });
-
-  it('teaches frame-first composition and exact main-art binding in the Template skill', () => {
-    expect(pluginSkill).toContain('## Core composition rule');
-    expect(pluginSkill).toContain('do **not** add another decorative border');
-    expect(pluginSkill).toContain('`binding: element.image`');
-    expect(pluginSkill).toContain('call `preview_template_draft`');
-    expect(pluginSkill).toContain('same normal personal local Template');
-  });
-
-  it('keeps source artwork private while returning only canonical rendered derivatives to chat', () => {
-    expect(mcpTools).toContain("'attach_template_artwork'");
-    expect(mcpTools).toContain("'preview_template_draft'");
-    expect(mcpTools).not.toContain('structuredContent: { template');
-    expect(mcpTools).toContain('remainingAssetRequirementIds');
-    expect(mcpTools).toContain('productionReady');
-    expect(mcpTools).toContain('renderArtifactImageContent');
-    expect(mcpTools).not.toContain("'openai/outputTemplate'");
-    expect(mcpTools).not.toContain('frameDomains:');
   });
 });

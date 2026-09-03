@@ -65,10 +65,11 @@ interface UnifiedAccountLibraryProps {
   businessIdentity: WorkbenchBusinessIdentity;
   initialReturnContextKey?: string | null;
   initialTool?: 'locations' | null;
+  initialCampaignNotice?: { kind: 'success' | 'error'; message: string };
   storageConnections?: ReactNode;
 }
 
-export function UnifiedAccountLibrary({ persistenceScope, experience, businessIdentity, initialReturnContextKey = null, initialTool = null, storageConnections }: UnifiedAccountLibraryProps) {
+export function UnifiedAccountLibrary({ persistenceScope, experience, businessIdentity, initialReturnContextKey = null, initialTool = null, initialCampaignNotice, storageConnections }: UnifiedAccountLibraryProps) {
   const isSignedIn = experience.signedIn;
   const pipelineAccess = experience.contributor.canSubmit || experience.contributor.canReview || experience.contributor.canPublish;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
@@ -341,6 +342,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         activeFailure={activeFailure}
         activeLoading={activeLoading}
         activeScope={activeScope}
+        campaignNotice={initialCampaignNotice}
         campaignTargetId={campaignTargetId}
         canReview={experience.contributor.canReview}
         canSubmit={experience.contributor.canSubmit}
@@ -349,6 +351,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         heartMetrics={heartMetrics}
         heartingId={heartingId}
         isSignedIn={isSignedIn}
+        isOwner={experience.owner}
         onDensityChange={setDensity}
         onOpenContribution={() => openContributionTool()}
         onOpenDetail={openDetail}
@@ -422,7 +425,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="The selected Template remains in Library while the reusable Design tool edits its local working copy."
           closeLabel="Close Design"
           onClose={() => runAction(actions[0]!)}
-          presentation="workspace"
+          presentation="floating"
         >
           <LibraryDesignWorkspace
             businessIdentity={businessIdentity}

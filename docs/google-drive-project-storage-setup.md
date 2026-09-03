@@ -146,7 +146,7 @@ After deployment:
 4. Confirm CardForge can create/use its initial Drive project destination.
 5. Choose **Choose project folder** and select a different Drive folder through the native Picker.
 6. Confirm CardForge verifies the folder server-side and only changes the destination; existing files are not moved.
-7. Save a current Studio project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
+7. Save a current CardForge project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
 8. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
 9. Modify and save the attached project; verify Drive provider revision advances.
 10. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.

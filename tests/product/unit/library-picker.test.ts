@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createLibraryPickerAssignments,
   createLibraryPickerResult,
   getCompatibleLibraryPickerResources,
+  getNextLibraryPickerActiveIndex,
   type LibraryPickerRequest,
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
+import { isPersonalLibraryVisualPickerItem } from '@/features/personal-library/client';
 
 const request: LibraryPickerRequest = {
   purpose: 'template.image-source',
@@ -43,5 +46,53 @@ describe('Library Picker contract', () => {
 
   it('rejects multiple selections for a single-selection request', () => {
     expect(() => createLibraryPickerResult(request, resources, ['project:image-1', 'pipeline:image-2:r3'])).toThrow('accepts one object');
+  });
+
+  it('broadcasts one resource to every target and maps equal multi-selections in target order', () => {
+    const target = { kind: 'Artifact', ids: ['card-1', 'card-2'] };
+    expect(createLibraryPickerAssignments({
+      purpose: 'artifact.bulk-revision.image-field',
+      target,
+      selections: [resources[0]!],
+    })).toEqual([
+      { targetId: 'card-1', selection: resources[0] },
+      { targetId: 'card-2', selection: resources[0] },
+    ]);
+
+    expect(createLibraryPickerAssignments({
+      purpose: 'artifact.bulk-revision.image-field',
+      target,
+      selections: [resources[0]!, resources[1]!],
+    })).toEqual([
+      { targetId: 'card-1', selection: resources[0] },
+      { targetId: 'card-2', selection: resources[1] },
+    ]);
+  });
+
+  it('rejects partial multi-resource mappings instead of guessing', () => {
+    expect(() => createLibraryPickerAssignments({
+      purpose: 'artifact.bulk-revision.image-field',
+      target: { kind: 'Artifact', ids: ['card-1', 'card-2', 'card-3'] },
+      selections: [resources[0]!, resources[1]!],
+    })).toThrow('Choose one resource for every selected Artifact');
+  });
+
+  it('keeps keyboard listbox navigation inside the compatible option set', () => {
+    expect(getNextLibraryPickerActiveIndex({ currentIndex: 0, itemCount: 3, key: 'ArrowLeft' })).toBe(0);
+    expect(getNextLibraryPickerActiveIndex({ currentIndex: 0, itemCount: 3, key: 'ArrowRight' })).toBe(1);
+    expect(getNextLibraryPickerActiveIndex({ currentIndex: 1, itemCount: 3, key: 'End' })).toBe(2);
+    expect(getNextLibraryPickerActiveIndex({ currentIndex: 2, itemCount: 3, key: 'ArrowDown' })).toBe(2);
+    expect(getNextLibraryPickerActiveIndex({ currentIndex: 2, itemCount: 3, key: 'Home' })).toBe(0);
+  });
+
+  it('excludes reference-role fonts from visual resource requests', () => {
+    expect(isPersonalLibraryVisualPickerItem(
+      { role: 'reference', mimeType: 'font/woff2' },
+      ['artwork', 'frame', 'reference'],
+    )).toBe(false);
+    expect(isPersonalLibraryVisualPickerItem(
+      { role: 'reference', mimeType: 'image/png' },
+      ['artwork', 'frame', 'reference'],
+    )).toBe(true);
   });
 });

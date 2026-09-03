@@ -121,7 +121,7 @@ export function useStudioDocumentHandoff({
         }
 
         const storedDocument = normalizeStudioDocumentPayload(payload.document?.document);
-        if (!storedDocument) throw new Error('The account document is not a valid CardForge Studio project.');
+        if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
         const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? []);
         const patch = applyProjectDocumentToState(document);
         const assetStorage = getProjectAssetStorage();

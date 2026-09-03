@@ -2,25 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
+import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
 import {
-  combineOwnerConsolePayload,
-} from '@/features/owner/lib/ownerConsole';
+  combineOwnerOperationsPayload,
+} from '@/features/owner/lib/ownerOperations';
 import {
   loadOwnerSiteControls,
-  type OwnerConsoleResponse,
-} from '@/features/owner/model/ownerConsoleClient';
+  type OwnerOperationsResponse,
+} from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function useOwnerConsole() {
-  const [payload, setPayload] = useState<OwnerConsoleResponse | null>(null);
-  const [siteConsole, setSiteConsole] = useState<OwnerConsolePayload | null>(null);
+export function useOwnerOperations() {
+  const [payload, setPayload] = useState<OwnerOperationsResponse | null>(null);
+  const [siteOperations, setSiteOperations] = useState<OwnerOperationsPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingSite, setIsLoadingSite] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [siteLoadError, setSiteLoadError] = useState<string | null>(null);
   const [isSlow, setIsSlow] = useState(false);
-  const siteRequestRef = useRef<Promise<OwnerConsolePayload> | null>(null);
+  const siteRequestRef = useRef<Promise<OwnerOperationsPayload> | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -28,11 +28,11 @@ export function useOwnerConsole() {
     setIsSlow(false);
     const slowTimer = window.setTimeout(() => setIsSlow(true), 1_500);
     try {
-      const response = await fetch('/api/owner/console', { cache: 'no-store' });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner console.'));
-      const nextPayload = await response.json() as OwnerConsoleResponse;
+      const response = await fetch('/api/owner/operations', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner operations.'));
+      const nextPayload = await response.json() as OwnerOperationsResponse;
       setPayload(nextPayload);
-      setSiteConsole((current) => current ? {
+      setSiteOperations((current) => current ? {
         ...current,
         configured: nextPayload.overview.configured,
         databaseMetrics: nextPayload.overview.databaseMetrics,
@@ -40,7 +40,7 @@ export function useOwnerConsole() {
         roadmapItems: nextPayload.overview.roadmapItems,
       } : null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to load owner console.');
+      setLoadError(error instanceof Error ? error.message : 'Unable to load owner operations.');
     } finally {
       window.clearTimeout(slowTimer);
       setIsLoading(false);
@@ -48,8 +48,8 @@ export function useOwnerConsole() {
     }
   }, []);
 
-  const loadSite = useCallback(async (): Promise<OwnerConsolePayload> => {
-    if (siteConsole) return siteConsole;
+  const loadSite = useCallback(async (): Promise<OwnerOperationsPayload> => {
+    if (siteOperations) return siteOperations;
     if (siteRequestRef.current) return siteRequestRef.current;
     if (!payload) throw new Error('Owner overview is not loaded yet.');
 
@@ -57,8 +57,8 @@ export function useOwnerConsole() {
     setSiteLoadError(null);
     const request = loadOwnerSiteControls()
       .then((site) => {
-        const combined = combineOwnerConsolePayload(payload.overview, site);
-        setSiteConsole(combined);
+        const combined = combineOwnerOperationsPayload(payload.overview, site);
+        setSiteOperations(combined);
         return combined;
       })
       .catch((error) => {
@@ -72,10 +72,10 @@ export function useOwnerConsole() {
       });
     siteRequestRef.current = request;
     return request;
-  }, [payload, siteConsole]);
+  }, [payload, siteOperations]);
 
-  const updateConsole = useCallback((next: OwnerConsolePayload) => {
-    setSiteConsole((current) => ({
+  const updateOperations = useCallback((next: OwnerOperationsPayload) => {
+    setSiteOperations((current) => ({
       ...next,
       databaseMetrics: current?.databaseMetrics ?? payload?.overview.databaseMetrics ?? next.databaseMetrics,
     }));
@@ -95,7 +95,7 @@ export function useOwnerConsole() {
 
   return useMemo(() => ({
     payload,
-    siteConsole,
+    siteOperations,
     isLoading,
     isLoadingSite,
     isSlow,
@@ -103,10 +103,10 @@ export function useOwnerConsole() {
     siteLoadError,
     load,
     loadSite,
-    updateConsole,
+    updateOperations,
   }), [
     payload,
-    siteConsole,
+    siteOperations,
     isLoading,
     isLoadingSite,
     isSlow,
@@ -114,6 +114,6 @@ export function useOwnerConsole() {
     siteLoadError,
     load,
     loadSite,
-    updateConsole,
+    updateOperations,
   ]);
 }

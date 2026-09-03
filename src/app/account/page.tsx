@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { AccountHomeBoundary } from '@/features/account/client/profile';
+import { AccountDeskBoundary } from '@/features/account/client/profile';
 import {
   getCurrentCardforgeEntitlement,
   getAccountAccessLabel,
@@ -46,7 +46,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ artifact?: string; checkout?: string; document?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; returnTo?: string; revision?: string; section?: string; utility?: string; ownerWorkspace?: string; pipelineStatus?: string; meta?: string; tool?: string }>;
+  searchParams: Promise<{ artifact?: string; checkout?: string; document?: string; focus?: string; intent?: string; storage?: string; message?: string; returnContext?: string; returnTo?: string; revision?: string; section?: string; utility?: string; ownerWorkspace?: string; meta?: string; tool?: string }>;
 }) {
   const params = await searchParams;
   const initialFocusedWorkId = typeof params.focus === 'string' && params.focus.length <= 256
@@ -124,7 +124,7 @@ export default async function AccountPage({
     paidPlan: entitlement.paidPlan,
     canExportClean: entitlement.canExportClean,
   });
-  const homeAccessStatus = {
+  const deskAccessStatus = {
     label: 'Access',
     value: entitlementUnavailable ? 'Access unavailable' : accessLabel,
     detail: entitlementUnavailable
@@ -135,7 +135,7 @@ export default async function AccountPage({
     href: '/account?section=profile&utility=billing',
     action: 'Review',
   };
-  const homeSecurityStatus = {
+  const deskSecurityStatus = {
     label: 'Security',
     value: entitlement.isSignedIn ? 'Connected account' : 'Sign-in required',
     detail: entitlement.isSignedIn ? 'Clerk manages identity, sign-in methods, devices, and sessions.' : 'Connect an account to manage identity and sessions.',
@@ -182,6 +182,11 @@ export default async function AccountPage({
               copyrightHolder: businessIdentity.copyrightHolder,
             }}
             initialReturnContextKey={initialReturnContextKey}
+            initialCampaignNotice={params.meta === 'connected'
+              ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
+              : params.meta === 'error'
+                ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
+                : undefined}
             initialTool={params.tool === 'locations' || storageStatus !== null || params.section === 'storage' ? 'locations' : null}
             storageConnections={storageConnections}
           />
@@ -199,17 +204,11 @@ export default async function AccountPage({
           initialContributorAccess={contributorAccess}
           initialPlanIntent={initialPlanIntent}
           initialUtility={params.utility === 'billing' || checkoutStatus !== null || initialPlanIntent !== null || params.section === 'billing' ? 'billing' : params.utility === 'identity' ? 'identity' : params.utility === 'contributor' ? 'contributor' : params.utility === 'owner' && isOwner ? 'owner' : null}
-          initialOwnerWorkspace={params.ownerWorkspace === 'marketing' || params.ownerWorkspace === 'audience' || params.ownerWorkspace === 'site' || params.ownerWorkspace === 'library' || params.ownerWorkspace === 'governance' ? params.ownerWorkspace : 'overview'}
-          initialOwnerPipelineStatus={params.pipelineStatus === 'submitted' ? 'submitted' : 'all'}
-          initialOwnerMarketingNotice={params.meta === 'connected'
-            ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
-            : params.meta === 'error'
-              ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
-              : undefined}
+          initialOwnerWorkspace={params.ownerWorkspace === 'audience' || params.ownerWorkspace === 'governance' ? params.ownerWorkspace : 'overview'}
           plans={plans}
         />
       ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
-          <AccountHomeBoundary initialAuthConfigured={authConfigured}>
+          <AccountDeskBoundary initialAuthConfigured={authConfigured}>
             <Desk
               key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'desk'}
               persistenceScope={persistenceScope}
@@ -223,10 +222,10 @@ export default async function AccountPage({
               initialFocusedArtifactId={initialFocusedArtifactId}
               initialTool={initialDeskTool}
               initialReturnContextKey={initialReturnContextKey}
-              homeAccessStatus={homeAccessStatus}
-              homeSecurityStatus={homeSecurityStatus}
+              accessStatus={deskAccessStatus}
+              securityStatus={deskSecurityStatus}
             />
-          </AccountHomeBoundary>
+          </AccountDeskBoundary>
       </AccountProjectWorkspaceBoundary>}
     </CardForgeAppProviders>
   );

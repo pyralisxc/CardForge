@@ -147,6 +147,9 @@ export function TemplateEditorLibrarySidebar({
             onFileUpload={commands.handleFileUpload}
             onUpdateCanvas={updateCanvas}
             onUpdateTemplate={updateTemplate}
+            personalItems={elements.connectedLibraryItems}
+            onAddFromProvider={elements.addConnectedLibraryItems}
+            onMaterializePersonal={elements.importConnectedLibraryItem}
           />
           {currentTemplate.templateUsage !== 'back-preset' && matchingBacks.length === 0 ? (
             <div className="mt-3 space-y-2 rounded-[6px] border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   type GoogleDriveFolderSelection,
@@ -11,11 +12,11 @@ import { pickGoogleDriveItems } from './googleDrivePicker';
 const persistSelectedFolder = async (
   selected: GoogleDriveFolderSelection,
 ): Promise<GoogleDriveFolderSelection> => {
-  const response = await fetch('/api/project-sources/google-drive', {
+  const response = await observeProviderBoundaryResponse('google_drive', 'folder_select', () => fetch('/api/project-sources/google-drive', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ folderId: selected.id }),
-  });
+  }));
   if (!response.ok) throw await readApiError(response, 'Unable to use that Google Drive folder for CardForge projects.');
   return await response.json() as GoogleDriveFolderSelection;
 };

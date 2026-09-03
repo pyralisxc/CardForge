@@ -26,15 +26,21 @@ export default async function OwnerPage({
 }) {
   const params = await searchParams;
   const authConfigured = isClerkServerConfigPresent();
-  const targetParams = new URLSearchParams({ section: 'profile', utility: 'owner' });
-  const workspace = params.workspace === 'marketing' || params.workspace === 'audience' || params.workspace === 'site' || params.workspace === 'library' || params.workspace === 'governance'
+  const campaignRequested = params.workspace === 'marketing';
+  const pipelineRequested = params.workspace === 'library' || params.pipelineStatus === 'submitted';
+  const publicSiteRequested = params.workspace === 'site';
+  const targetParams = new URLSearchParams(campaignRequested
+    ? { section: 'library', scope: 'campaigns' }
+    : pipelineRequested ? { section: 'library', scope: 'pipeline' }
+    : publicSiteRequested ? {}
+      : { section: 'profile', utility: 'owner' });
+  const workspace = params.workspace === 'audience' || params.workspace === 'governance'
     ? params.workspace
     : 'overview';
-  targetParams.set('ownerWorkspace', workspace);
-  if (params.pipelineStatus === 'submitted') targetParams.set('pipelineStatus', 'submitted');
+  if (!campaignRequested && !pipelineRequested && !publicSiteRequested) targetParams.set('ownerWorkspace', workspace);
   if (params.meta === 'connected' || params.meta === 'error') targetParams.set('meta', params.meta);
   if (params.meta === 'error' && params.message) targetParams.set('message', params.message.slice(0, 240));
-  const target = `/account?${targetParams.toString()}`;
+  const target = publicSiteRequested ? '/' : `/account?${targetParams.toString()}`;
 
   if (authConfigured) {
     const { isAuthenticated } = await auth();

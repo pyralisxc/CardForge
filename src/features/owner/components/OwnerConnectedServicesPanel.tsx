@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type {
   OwnerConnectedService,
   OwnerConnectedServiceStatus,
-} from '@/features/owner/lib/ownerConsole';
+} from '@/features/owner/lib/ownerOperations';
 
 const statusClassNames: Record<OwnerConnectedServiceStatus, string> = {
   ready: 'border-[var(--cf-success-border)] bg-[#132010] text-[var(--cf-success)]',
@@ -25,7 +25,7 @@ export function OwnerConnectedServicesPanel({ services }: { services: OwnerConne
             <h2 id="connected-services-heading" className="font-serif text-2xl text-[var(--cf-text-strong)]">Connected services</h2>
           </div>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
-            This is CardForge&apos;s provider map. Open the owning dashboard to change provider state; this console reports readiness without copying credentials.
+            This is CardForge&apos;s provider map. Open the owning dashboard to change provider state; Owner operations report readiness without copying credentials.
           </p>
         </div>
         <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-4 py-3 text-sm text-[var(--cf-accent-text)]">

@@ -44,10 +44,10 @@ For an existing agent working document, prefer **read once → atomic sparse pat
 7. If that agent-linked Template is later explicitly saved in Template Studio, CardForge syncs the saved Template back to the same private working document when its revision is still current. When the user says they saved Studio changes, reload `get_editable_template` before making the next agent revision. If CardForge reports that the agent draft is newer, preserve the browser copy and reopen the latest CardForge preview instead of overwriting it.
 8. This round trip applies only to the linked agent-created Template. Arbitrary browser-local Templates and local card/Set edits remain local-first unless the user uses CardForge's existing transfer, connected-project, or explicit agent handoff workflow.
 9. If the user wants individual cards or a complete Set from the approved Template, continue with the CardForge card/Set skill rather than inventing CSV columns or card fields.
-10. Use `continue_template_in_pipeline` only when the user explicitly wants to submit a Template to Forge Review. Publication is separate from normal personal card creation and requires the relevant developer/owner contribution scope.
+10. Use `continue_template_in_pipeline` only when the user explicitly wants to submit a Template to Forge Review. Publication is separate from normal personal card creation and requires the relevant Contributor/Owner contribution scope.
 
 ## Safety invariants
 
 Efficiency never weakens CardForge's identity/revision rules. Reuse stable Template/Set/card/element ids, keep exact `expectedRevision` checks, never create replacement objects to work around a stale write, and never claim that a server revision is installed in the browser without installation evidence.
 
-All access, watermark, export, developer, and publication gates remain owned and enforced by CardForge.
+All access, watermark, export, Contributor/Owner, and publication gates remain owned and enforced by CardForge.

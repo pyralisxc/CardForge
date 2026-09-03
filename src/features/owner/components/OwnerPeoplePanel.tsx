@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import type {
   OwnerPeoplePage,
   OwnerPerson,
-} from '@/features/owner/model/ownerConsoleClient';
+} from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 

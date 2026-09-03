@@ -16,7 +16,7 @@ import { OwnerHomepageShowcasePanel } from './OwnerHomepageShowcasePanel';
 
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 const sectionLabels: Record<HomepageSectionSetting['id'], string> = {
-  showcase: 'Studio showcase',
+  showcase: 'Product showcase',
   workflow: 'How the workflow works',
   access: 'Plan choices',
   founder: 'Founder introduction',
@@ -140,7 +140,7 @@ export function OwnerSiteConfigurationPanel({
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">The Studio showcase’s demo-set selection and sample data are edited below.</p>
+          <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">The product showcase’s demo-set selection and sample data are edited below.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>

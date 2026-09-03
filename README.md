@@ -7,7 +7,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Desk: `/account`; Set focus replaces the surrounding Desk, and Artifact focus replaces the Set field with one zoomed-in Artifact. Design opens as an exclusive full-viewport contextual workspace with one close path; Fit keeps the complete canvas visible and only the canvas scrolls after deliberate zoom. Generate, Output, Pipeline, and location controls reuse contextual tools over Desk or Library. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
+- Desk: `/account`; one persistent creative scene carries the user from spatial Set stacks into an expanded Set board and then a focused Artifact. A context rail changes its identity and actions at Desk, Set, Artifact, and tool depth without discarding the objects underneath. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
@@ -49,13 +49,14 @@ Maintained operational commands:
 
 ```bash
 npm run health:production
+npm run smoke:golden
 npm run smoke:ui
 npm run smoke:scale
 npm run pipeline:sync-defaults
 npm run brand:export
 ```
 
-`smoke:ui` includes generated 100/500/1,000-Artifact browser fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
+`smoke:golden` is the compact Playwright merge lane for representative Desk mouse/touch behavior. `smoke:ui` adds generated 100/500/1,000-Artifact fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
 
 ## Source map
 
@@ -121,7 +122,7 @@ Use `.env.example` as the complete variable catalog. `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Verification posture
 
-GitHub CI is the deterministic code-health gate. Vercel Preview proves a coherent branch can deploy and supports browser-level inspection. Provider-backed auth, owner, billing, email, and protected workflows require a real signed-in production check on `cardforges.com` when affected.
+GitHub CI runs the deterministic non-browser code-health gate plus a compact golden Playwright lane. Vercel Preview proves a coherent branch can deploy and supports browser-level inspection. Provider-backed auth, owner, billing, email, and protected workflows require a real signed-in production check on `cardforges.com` when affected.
 
 Persistent tests protect durable security/access/billing/destructive-data/migration/rendering/export contracts and known regressions. Do not accumulate tests or abstractions merely to preserve development history.
 

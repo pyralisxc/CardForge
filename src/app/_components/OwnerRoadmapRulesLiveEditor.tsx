@@ -24,7 +24,7 @@ export function OwnerRoadmapRulesLiveEditor({ initialSettings }: { initialSettin
   const save = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/owner/console', {
+      const response = await fetch('/api/owner/operations', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: 'siteMechanics', siteMechanics: settings }),
       });

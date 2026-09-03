@@ -151,7 +151,7 @@ When reading a workflow, start at the route/surface and follow the named owner r
 - **Shared Template publication:** Template Editor -> `contributor-assets` / Forge Review -> `cardforge_asset_registry` -> Studio catalog.
 - **Creator Pass:** billing checkout route -> Stripe -> signed webhook -> billing purpose -> Clerk private metadata -> account entitlement.
 - **Business Solutions:** owner-authored plan invitation -> business contact request -> Resend -> Owner Inbox. No enterprise entitlement or self-serve checkout is created.
-- **Campaign publication:** Owner Marketing -> `marketing-content` approval -> `marketing-distribution` job -> stateless `social-publishing` provider adapter.
+- **Campaign publication:** Library Campaigns -> `marketing-content` approval -> `marketing-distribution` job -> stateless `social-publishing` provider adapter.
 - **Contact request:** contact route -> `contact` validation/store -> Resend API -> Owner Inbox.
 
 If one of these journeys starts requiring an unrelated owner or a new parallel lifecycle, stop and re-evaluate the native owner before extending it.

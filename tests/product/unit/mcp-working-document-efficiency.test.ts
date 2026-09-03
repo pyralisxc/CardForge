@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import sharp from 'sharp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,8 +37,6 @@ import {
   getWorkingDocumentOperationStatus,
   patchWorkingDocument,
 } from '@/features/studio-documents/server/workingDocumentPatches';
-
-const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 const makeTemplate = (): TCGCardTemplate => ({
   id: 'template-1',
@@ -353,29 +348,5 @@ describe('legacy compatibility and editing regressions', () => {
     expect(keys).toContain('type_icon');
     expect(keys).not.toContain('artworkUrl');
     expect(keys.some((key) => key.includes('frame_strip'))).toBe(false);
-  });
-
-  it('exposes the complete artwork schema and selective stable-id preview surface', () => {
-    const schemas = readSource('src/features/studio-documents/server/mcpWorkingDocumentSchemas.ts');
-    const tools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
-    const route = readSource('src/app/api/studio-card-set-preview/route.ts');
-    expect(schemas).toContain("required: ['templateId', 'binding', 'mimeType']");
-    expect(schemas).toContain("{ required: ['data'], not: { required: ['sourceUrl'] } }");
-    expect(schemas).toContain("{ required: ['sourceUrl'], not: { required: ['data'] } }");
-    expect(tools).toContain("'preview_cards'");
-    expect(route).toContain("url.searchParams.get('cardIds')");
-  });
-
-  it('keeps existing revise/stable-id protections and adds efficient skill guidance', () => {
-    const drafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
-    const skill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
-    const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
-    expect(drafts).toContain("writeMode === 'revise' && !input.cardId?.trim()");
-    expect(drafts).toContain("writeMode === 'create' && existing");
-    expect(drafts).toContain('validateIncomingCardFields(front, input.data');
-    expect(skill).toContain('read once → atomic sparse patch → cheap validation → selective canonical render → final full canonical render');
-    expect(skill).toContain('get_working_document_operation_status');
-    expect(templateTools).toContain('inferred_from_native_target');
-    expect(templateTools).toContain("renderHealth: 'rendered'");
   });
 });

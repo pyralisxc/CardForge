@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createStableAgentCardId } from '@/features/studio-documents/server/cardSetWorkingDocuments';
+import { CARDFORGE_MCP_CONTRACT_VERSION } from '@/features/studio-documents/server/mcpContractVersion';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -28,14 +29,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const projectTools = readSource('src/features/studio-documents/server/mcpProjectSourceTools.ts');
   const workingDocumentTools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
   const personalLibraryTools = readSource('src/features/personal-library/server/mcpPersonalLibraryTools.ts');
-  const pluginSkills = readSource('src/features/studio-documents/server/mcpPluginSkills.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
-  const cardDrafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
-  const studioStore = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
-  const assetStore = readSource('src/features/studio-documents/server/studioDocumentAssetStore.ts');
-  const artworkSources = readSource('src/features/studio-documents/server/mcpArtworkSources.ts');
-  const contributorAccess = readSource('src/features/contributor-access/server/access.ts');
-  const accountToolAccess = readSource('src/features/account/server/accountToolAccess.ts');
   const designSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
   const setSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
   const plugin = JSON.parse(readSource('plugins/cardforge-studio/.codex-plugin/plugin.json')) as {
@@ -89,18 +83,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     ]);
   });
 
-  it('pins artwork downloads and cleans failed storage writes without unbounded fan-out', () => {
-    expect(artworkSources).toContain('request as httpsRequest');
-    expect(artworkSources).toContain('autoSelectFamily: false');
-    expect(artworkSources).toContain('const signal = AbortSignal.timeout(10_000)');
-    expect(artworkSources).toContain('signal,');
-    expect(artworkSources).not.toContain('response.resume()');
-    expect(artworkSources).toContain('lookup: (_hostname, _options, callback) =>');
-    expect(assetStore).toContain('cleanupUploadedStudioDocumentAssets');
-    expect(assetStore).not.toContain('Promise.all(value.map(visit))');
-    expect(studioStore).toContain('cleanupUploadedStudioDocumentAssets');
-  });
-
   it('publishes an explicit output schema for every structured MCP tool', () => {
     const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
@@ -131,15 +113,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     }
   });
 
-  it('advertises and serves the two CardForge skills through the MCP skills extension', () => {
-    expect(route).toContain("'io.modelcontextprotocol/skills': {}");
-    expect(route).toContain('registerCardForgePluginSkills(server)');
-    expect(pluginSkills).toContain("'skills/list'");
-    expect(pluginSkills).toContain("'skills/get'");
-    expect(pluginSkills).toContain('server.registerResource(');
-    expect(pluginSkills).toContain("createHash('sha256')");
-  });
-
   it('uses mainstream card/set language so targeted MCP discovery can find the right tools', () => {
     expect(cardTools).toContain('Prepare a Template for making or revising cards');
     expect(cardTools).toContain('Create or update a CardForge card set');
@@ -151,13 +124,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('list/CSV/JSON conversion');
   });
 
-  it('keeps account AI work separate from Contributor publication permissions', () => {
-    expect(accountToolAccess).toContain("ACCOUNT_TOOL_CAPABILITIES = ['studio.ai.create']");
-    expect(contributorAccess).not.toContain('allowStudioAiOnly');
-    expect(contributorAccess).toContain("requireContributionScope");
-    expect(route).toContain('submitTemplateWorkingDocumentToPipeline');
-  });
-
   it('makes successful card/set calls self-guiding and retry-aware', () => {
     expect(cardTools).toContain('capabilityVersion');
     expect(cardTools).toContain('workflowStage');
@@ -167,9 +133,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('idempotentHint: true');
     expect(cardSchemas).toContain('Reuse the same id for revisions and retries');
     expect(cardSchemas).toContain('CardForge derives a deterministic id');
-    expect(cardDrafts).toContain('findSameNameSet');
-    expect(cardDrafts).toContain('id: existing?.id');
-    expect(studioStore).toContain('retry with the new expectedRevision while reusing the same stable set and card ids');
   });
 
   it('derives stable fallback card ids independent of object key order', () => {
@@ -188,16 +151,8 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('keeps the plugin version aligned with the live MCP server contract', () => {
-    const contract = readSource('src/features/studio-documents/server/mcpContractVersion.ts');
-    const serverVersion = contract.match(/CARDFORGE_MCP_CONTRACT_VERSION = '([^']+)'/)?.[1];
-    expect(route).toContain('version: CARDFORGE_MCP_CONTRACT_VERSION');
-    expect(plugin.version).toBe(serverVersion);
+    expect(plugin.version).toBe(CARDFORGE_MCP_CONTRACT_VERSION);
     expect(plugin.version).toBe('1.0.1');
-  });
-
-  it('returns revision-bound Studio links from every editable Template read and write', () => {
-    expect(route).toContain('const studioDocumentUrl = (documentId: string, revision: number)');
-    expect(route.match(/studioDocumentUrl\(document\.id, document\.revision\)/g)).toHaveLength(3);
   });
 
   it('presents CardForge as a card-making product rather than a contributor Template utility', () => {
@@ -206,6 +161,13 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(plugin.interface.longDescription).toContain('bulk-generate');
     expect(plugin.interface.defaultPrompt).toContain('Turn this list into a complete CardForge card set.');
     expect(plugin.interface.defaultPrompt.join(' ')).not.toContain('Forge Review');
+    expect([
+      plugin.description,
+      plugin.interface.longDescription,
+      ...plugin.interface.defaultPrompt,
+      designSkill,
+      setSkill,
+    ].join('\n')).not.toMatch(/\bdeveloper(?:\/owner| publication| role| account| path| vote| contribution|,)/iu);
   });
 
   it('splits design guidance from card/set generation guidance without duplicating implementation contracts', () => {

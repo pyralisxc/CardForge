@@ -22,6 +22,10 @@ describe('marketing command center contracts', () => {
     expect(DEFAULT_MARKETING_STRATEGY.enabledPillars).toEqual(
       MARKETING_CONTENT_PILLARS.map((pillar) => pillar.id),
     );
+    expect(DEFAULT_MARKETING_STRATEGY.offer).toBe(
+      'Open your Desk and build a complete Set in your browser.',
+    );
+    expect(DEFAULT_MARKETING_STRATEGY.defaultCallToAction).toBe('Open your Desk');
   });
 
   it('normalizes an owner-editable strategy without accepting unknown markets', () => {
@@ -30,7 +34,7 @@ describe('marketing command center contracts', () => {
       validationAudience: 'deck-creators',
       positioning: '  Turn one card design into a coherent, printable set.  ',
       offer: ' Founder access ',
-      defaultCallToAction: ' Enter the Studio ',
+      defaultCallToAction: ' Open your Desk ',
       enabledPillars: ['product-proof', 'creator-education'],
       approvedClaims: ['Bulk-generate a set', 'Bulk-generate a set'],
       prohibitedClaims: ['Do not promise automatic printing'],
@@ -41,7 +45,7 @@ describe('marketing command center contracts', () => {
         validationAudience: 'deck-creators',
         positioning: 'Turn one card design into a coherent, printable set.',
         offer: 'Founder access',
-        defaultCallToAction: 'Enter the Studio',
+        defaultCallToAction: 'Open your Desk',
         enabledPillars: ['product-proof', 'creator-education'],
         approvedClaims: ['Bulk-generate a set'],
         prohibitedClaims: ['Do not promise automatic printing'],
@@ -118,7 +122,7 @@ describe('marketing command center contracts', () => {
       status: 'active',
       startsOn: '2026-08-16',
       endsOn: '2026-09-30',
-      successMetric: 'Qualified Studio visits and completed exports.',
+      successMetric: 'Qualified Desk visits and completed exports.',
       utmCampaign: ' Founder Beta ',
     })).toEqual({
       ok: true,
@@ -130,7 +134,7 @@ describe('marketing command center contracts', () => {
         status: 'active',
         startsOn: '2026-08-16',
         endsOn: '2026-09-30',
-        successMetric: 'Qualified Studio visits and completed exports.',
+        successMetric: 'Qualified Desk visits and completed exports.',
         utmCampaign: 'founder_beta',
       },
     });

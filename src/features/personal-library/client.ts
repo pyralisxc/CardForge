@@ -1,5 +1,3 @@
-export { PersonalLibraryImageFieldPicker } from './components/PersonalLibraryImageFieldPicker';
-export { PersonalLibraryFontPicker } from './components/PersonalLibraryFontPicker';
 export { importPersonalLibraryItemToLocalAsset } from './client/importPersonalLibraryAsset';
 export { importPersonalLibraryFont } from './client/importPersonalLibraryFont';
 export {
@@ -15,6 +13,7 @@ export {
   isPersonalLibraryFontMimeType,
   isPersonalLibraryImageMimeType,
   isPersonalLibraryMimeTypeAllowedForRole,
+  isPersonalLibraryVisualPickerItem,
   isPersonalLibraryProvider,
   isPersonalLibraryRole,
   MAX_PERSONAL_LIBRARY_ITEM_BYTES,

@@ -43,8 +43,8 @@ export const DEFAULT_MARKETING_STRATEGY: MarketingStrategy = {
   primaryAudience: 'tabletop-designers',
   validationAudience: 'deck-creators',
   positioning: 'CardForge is the fastest way to turn one card design and a content list into a consistent, printable deck.',
-  offer: 'Enter the Studio and build a complete set in your browser.',
-  defaultCallToAction: 'Enter the Studio',
+  offer: 'Open your Desk and build a complete Set in your browser.',
+  defaultCallToAction: 'Open your Desk',
   enabledPillars: MARKETING_CONTENT_PILLARS.map((pillar) => pillar.id),
   approvedClaims: [
     'Design one card and bulk-generate a consistent set.',

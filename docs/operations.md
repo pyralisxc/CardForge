@@ -133,12 +133,13 @@ Changing the operator is a legal/operational migration, not a display edit. Requ
 
 ## Owner operations
 
-Use Profile > Owner operations for cross-product work through five protected groups: Overview, Marketing, Growth & People, Site Controls, and Governance. `/owner` only translates historical links and provider callbacks into that Profile tool. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
+Use Profile > Owner operations for cross-product work through three protected groups: Overview, Growth & People, and Governance. `/owner` only translates historical links and provider callbacks into that Profile tool. Owner composes feature-owned controls; it is not a second persistence/configuration owner.
 
 - Overview > Integrations: provider inventory/readiness without secrets.
 - Growth & People: current Clerk accounts plus retained contributor profile/scopes/history.
-- Site Controls: constrained navigation/SEO/experience settings in Profile; canonical public copy and relevant media publish contextually on the native public pages for a server-confirmed Owner.
-- Roadmap: rules and exact item status changes publish from owner-only controls on `/roadmap`; Profile's action center links there instead of rehosting the Roadmap workspace.
+- Library → Campaigns: strategy, approval, destination connection, scheduling, distribution, and results for campaign packages.
+- Public homepage: constrained navigation/SEO/experience settings, canonical public copy, and relevant media publish contextually for a server-confirmed Owner.
+- Roadmap: rules and exact item status changes publish from owner-only controls on `/roadmap`; Profile's read-only summary links there instead of rehosting the Roadmap workspace.
 - Library → Pipeline: complete shared registry, exact revisions, Contributor withdrawal/retirement, Owner publication/purge authority, Content Health, Forge Review, and Design destination map.
 - Governance: append-only owner history and legal/versioned operations.
 
@@ -182,7 +183,7 @@ Before enabling native Meta publishing:
 1. Verify the reviewed Meta Business app/Login for Business configuration and exact callback URI.
 2. Configure only required Page/Instagram publishing scopes and the intended Page/account.
 3. Store Meta/encryption/dispatcher secrets server-side with publishing disabled.
-4. Connect the intended owned account through Owner > Marketing > Distribution and verify only safe metadata reaches clients.
+4. Connect the intended owned account through Library > Campaigns and verify only safe metadata reaches clients.
 5. Configure the scheduled dispatcher secret outside browser-visible configuration.
 6. Publish one harmless approved Facebook item, then one Instagram item if used; verify exactly one delivery/provider post mapping each and retry-safe failures.
 7. Keep communities/manual destinations manual.
@@ -193,7 +194,7 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 
 The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/contributor, or protected-recovery changes, use the real signed-in owner/contributor account and verify only the affected path.
 
-`npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
+`npm run smoke:golden` is the compact merge-protected mocked browser lane. `npm run smoke:ui` is the extended browser lane, including scale and soak. Neither proves a real Clerk/Stripe/provider session.
 
 ## ChatGPT development beta
 
@@ -232,10 +233,11 @@ Safe support rollback disables/removes support checkout configuration while reta
 ## Maintained commands
 
 - `npm run verify:focused`: discover and run focused tests for the current Git diff or explicit paths; it also runs the changed-file architecture check when an ownership boundary is affected.
-- `npm run verify:full`: canonical complete repository gate for the final candidate and CI.
+- `npm run verify:full`: canonical complete non-browser repository gate for the final candidate and CI.
 - `npm run architecture:report`: on-demand dependency-gravity, public-interface, and oversized-file analysis. Normal architecture enforcement is concise.
 - `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `product`, or `provider` to isolate a lane. Product health downloads and validates the official 52-card starter package; provider health verifies Supabase catalog, Stripe/Clerk readiness, and truthful anonymous Drive authentication classification.
-- `npm run smoke:ui`: focused mocked browser/accessibility regression.
+- `npm run smoke:golden`: compact browser merge protection for representative Desk mouse/touch behavior.
+- `npm run smoke:ui`: extended mocked browser/accessibility, scale, and soak regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.
 - `npm run brand:export`: synchronize canonical brand sources and regenerate ignored derivatives.
 

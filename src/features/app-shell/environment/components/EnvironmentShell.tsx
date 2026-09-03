@@ -23,8 +23,11 @@ interface EnvironmentShellProps {
   actions: readonly ActionDescriptor[];
   focusReturnId?: string;
   primaryDisabledReason?: string;
+  showPrimaryAction?: boolean;
   search?: ReactNode;
   accountControl?: ReactNode;
+  contextBand?: ReactNode;
+  focusDepth?: 'zone' | 'set' | 'artifact' | 'tool';
   statusContent: ReactNode;
   footerContent: ReactNode;
   surfaceRef?: MutableRefObject<HTMLElement | null>;
@@ -35,7 +38,7 @@ interface EnvironmentShellProps {
   onCloseDetail: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, search, accountControl, statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
@@ -70,12 +73,17 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     sources: detail?.actionSources ?? [],
     viewer,
   }));
-  const primaryAction = visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null;
+  const primaryAction = showPrimaryAction
+    ? visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null
+    : null;
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
-      <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy}>
+      <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy} data-focus-depth={focusDepth}>
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} />
-        <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
+        <div className={styles.commandStack}>
+          <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
+          {contextBand ? <div className={styles.contextBand}>{contextBand}</div> : null}
+        </div>
         <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={styles.statusBar} aria-label="Environment status">

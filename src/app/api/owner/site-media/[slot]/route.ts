@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
-import { getOwnerSiteConsolePayload, getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
+import { getOwnerSiteOperationsPayload, getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import {
   getSiteMediaStoragePath,
   getSiteMediaContentType,
@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slo
     if (slot.startsWith('brand.')) revalidatePath('/', 'layout');
     if (slot === 'founder.portrait') revalidatePath('/cameron');
     await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email, action: 'site.media.publish', targetType: 'site_media', targetId: slot, summary: image ? 'Published a new public site image and presentation.' : 'Updated public image presentation and accessibility text.' });
-    return createNoStoreJsonResponse({ console: await getOwnerSiteConsolePayload() }, { status: image ? 201 : 200 });
+    return createNoStoreJsonResponse({ operations: await getOwnerSiteOperationsPayload() }, { status: image ? 201 : 200 });
   } catch (error) {
     if (uploadedPath && !mediaCommitted) { const supabase = getSupabaseServerClient(); if (supabase) await supabase.storage.from(SITE_MEDIA_BUCKET).remove([uploadedPath]); }
     if (error instanceof RateLimitUnavailableError) return createApiErrorResponse(503, 'site_media_unavailable', error.message);

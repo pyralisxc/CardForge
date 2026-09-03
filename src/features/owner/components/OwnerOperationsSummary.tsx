@@ -6,10 +6,10 @@ import { ExternalLink, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
-import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerOperationsResponse } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse }) {
+export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsResponse }) {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
   const sendTestEmail = async () => {
@@ -46,7 +46,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
     <CardForgeSurface as="section" className="border-[var(--cf-border-strong)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Owner control plane</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Owner operations</p>
           <h1 className="font-serif text-2xl text-[var(--cf-text-strong)] md:text-3xl">CardForge owner operations</h1>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-[var(--cf-text-muted)]">

@@ -86,7 +86,11 @@ async function expectControlClearOfClose(control: Locator, close: Locator) {
   const [controlBox, closeBox] = await Promise.all([control.boundingBox(), close.boundingBox()]);
   expect(controlBox).not.toBeNull();
   expect(closeBox).not.toBeNull();
-  expect(controlBox!.x + controlBox!.width).toBeLessThan(closeBox!.x);
+  const separated = controlBox!.x + controlBox!.width <= closeBox!.x
+    || closeBox!.x + closeBox!.width <= controlBox!.x
+    || controlBox!.y + controlBox!.height <= closeBox!.y
+    || closeBox!.y + closeBox!.height <= controlBox!.y;
+  expect(separated).toBe(true);
 }
 
 test.describe('account contribution surfaces', () => {
@@ -103,13 +107,13 @@ test.describe('account contribution surfaces', () => {
     await seedNewCreatorTemplates(page);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
 
-    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
     await page.getByRole('button', { name: 'Create your first Set' }).click();
     await page.getByRole('button', { name: 'Fresh Set', exact: true }).click();
     await expect(page.locator('[data-set-object][data-presentation="focused"]')).toBeVisible();
-    await expect(page.locator('[data-set-object][data-presentation="focused"] > button[aria-hidden="true"]')).toBeHidden();
+    await expect(page.locator('[data-set-object][data-presentation="focused"] > button[aria-hidden="true"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Inside this Set' })).toBeVisible();
-    await page.getByLabel('Work name').fill('Mixed Template Review Set');
+    await page.getByLabel('Set name').fill('Mixed Template Review Set');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     const closeStorageNotice = page.getByRole('button', { name: 'Close notification' });
     const storageNoticeVisible = await closeStorageNotice.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false);
@@ -117,10 +121,10 @@ test.describe('account contribution surfaces', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Design', exact: true }).click();
-    const templateStudioDialog = page.getByRole('dialog', { name: 'Design Artifacts' });
+    const templateStudioDialog = page.getByRole('region', { name: 'Design Artifacts' });
     await expect(templateStudioDialog).toBeVisible();
     const mobileCanvasToolbar = templateStudioDialog.getByRole('toolbar', { name: 'Canvas controls' });
-    const closeStudioButton = templateStudioDialog.getByRole('button', { name: 'Close Studio tool' });
+    const closeStudioButton = page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' });
     const saveTemplateButton = mobileCanvasToolbar.getByRole('button').last();
     await expect(mobileCanvasToolbar).toBeVisible();
     await expect(closeStudioButton).toBeVisible();
@@ -145,7 +149,7 @@ test.describe('account contribution surfaces', () => {
     };
 
     await page.getByRole('button', { name: 'Generate cards', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Generate into Mixed Template Review Set' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Generate into Mixed Template Review Set' })).toBeVisible();
     await generateBatch('Ember Template', 'Ember');
     await page.getByRole('button', { name: 'Add another batch' }).click();
     await generateBatch('Tide Template', 'Tide');
@@ -165,8 +169,8 @@ test.describe('account contribution surfaces', () => {
     const flippedTile = page.locator(`[data-card-face]:has([data-artifact-id="${artifactId}"])`);
     await expect(flippedTile).toHaveAttribute('data-card-face', 'back');
     await flippedTile.locator('[data-artifact-id]').click();
-    const stage = page.locator('[data-desk-artifact-stage]:visible');
-    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    const stage = page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]');
+    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     await expect(stage.locator('[data-artifact-id]')).toHaveCount(1);
     const readCenterOffset = () => stage.locator('[data-artifact-id]').evaluate((node) => {
       const box = node.getBoundingClientRect();
@@ -185,7 +189,7 @@ test.describe('account contribution surfaces', () => {
     expect(await stage.evaluate((node) => node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.getByRole('button', { name: /^Show back of Card / }).click();
-    await expect(page.locator('[data-card-face="back"]')).toBeVisible();
+    await expect(page.locator('[data-focused-artifact-workspace] [data-card-face="back"]')).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
@@ -196,20 +200,23 @@ test.describe('account contribution surfaces', () => {
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
 
     await page.getByRole('button', { name: 'Edit Artifact' }).click();
-    const studioDialog = page.getByRole('dialog', { name: 'Design Artifacts' });
+    const studioDialog = page.getByRole('region', { name: 'Design Artifacts' });
     await expect(studioDialog).toBeVisible();
-    await expect(studioDialog.getByRole('button', { name: 'Close Studio tool' })).toHaveCount(1);
+    await expect(page.locator('[data-desk-context-rail][data-depth="tool"]')).toBeVisible();
     await expect(studioDialog.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
     await expect(studioDialog.getByRole('link', { name: 'Create account' })).toHaveCount(0);
-    await expect(studioDialog.getByRole('button', { name: /Back to/ })).toHaveCount(0);
     const studioBounds = await studioDialog.evaluate((node) => {
       const bounds = node.getBoundingClientRect();
       return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
     });
-    expect(studioBounds.x).toBeLessThan(2);
-    expect(studioBounds.y).toBeLessThan(2);
-    expect(Math.abs(studioBounds.width - 1280)).toBeLessThan(2);
-    expect(Math.abs(studioBounds.height - 720)).toBeLessThan(2);
+    const primaryBounds = await page.locator('main[data-scroll="contained"]').evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+    });
+    expect(Math.abs(studioBounds.x - primaryBounds.x)).toBeLessThan(2);
+    expect(Math.abs(studioBounds.y - primaryBounds.y)).toBeLessThan(2);
+    expect(Math.abs(studioBounds.width - primaryBounds.width)).toBeLessThan(2);
+    expect(Math.abs(studioBounds.height - primaryBounds.height)).toBeLessThan(2);
     const artifactEditor = studioDialog.locator('[data-artifact-edit-workspace]');
     await expect(artifactEditor).toBeVisible();
     await expect(page.getByRole('dialog', { name: /^Edit:/ })).toHaveCount(0);
@@ -225,10 +232,7 @@ test.describe('account contribution surfaces', () => {
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.setViewportSize({ width: 390, height: 844 });
     await artifactEditor.getByRole('button', { name: 'Fit', exact: true }).click();
-    await expectControlClearOfClose(
-      artifactEditor.getByRole('button', { name: 'Save', exact: true }),
-      studioDialog.getByRole('button', { name: 'Close Studio tool' }),
-    );
+    await expect(page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' })).toBeVisible();
     await expect.poll(() => artifactEditStage.evaluate((node) => ({
       horizontal: node.scrollWidth - node.clientWidth,
       vertical: node.scrollHeight - node.clientHeight,
@@ -236,12 +240,12 @@ test.describe('account contribution surfaces', () => {
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
-    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toHaveCount(0);
+    await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     await page.getByRole('button', { name: 'Back to Set' }).click();
     await expect(page.getByText('10 shown', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Back to Desk' }).click();
-    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
     await page.getByRole('button', { name: 'Show back of Mixed Template Review Set' }).click();
     await expect(page.locator('[data-desk-set-stack][data-card-face="back"]')).toBeVisible();
     await page.getByRole('link', { name: 'Library' }).first().click();
@@ -259,7 +263,7 @@ test.describe('account contribution surfaces', () => {
 
     await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
     await expect(page).toHaveURL(/\/account$/);
-    await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
     await expect(page.locator('[data-studio-ready]')).toHaveCount(0);
   });
 

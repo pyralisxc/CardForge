@@ -7,8 +7,8 @@ import {
   type AccountLibrarySource,
 } from '@/features/storage-management/client';
 
-export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
-export type HomeSort = 'desk' | 'name' | 'size';
+type LegacyDeskSourceFilter = 'connected' | 'temporary';
+export type DeskSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
 export type DeskWorkKeyboardIntent = 'open' | 'select' | 'select-additive' | 'none';
 
 export const getDeskWorkKeyboardIntent = (
@@ -29,15 +29,29 @@ export interface DeskAccountStatus {
 }
 
 // Values stay unchanged so existing browser-local Desk layouts migrate without loss.
+// These persisted keys predate the Desk noun cut. Keep the strings as narrow
+// compatibility reads so existing browser work retains its pins and tab order.
 export const DESK_PINS_KEY = 'home-desk-pins';
 export const DESK_ORDER_KEY = 'home-desk-order';
 export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
-export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }> = [
-  { id: 'all', label: 'All work' },
-  { id: 'device', label: 'Device' },
-  { id: 'connected', label: 'Connected' },
-  { id: 'temporary', label: 'Temporary' },
-];
+export interface DeskSourceFacet {
+  id: AccountLibrarySource;
+  label: string;
+  count: number;
+}
+
+export const getDeskSourceFacets = (items: readonly AccountLibraryItem[]): DeskSourceFacet[] => {
+  const facets = new Map<AccountLibrarySource, DeskSourceFacet>();
+  items.forEach((item) => item.locations.forEach((location) => {
+    const current = facets.get(location.source);
+    facets.set(location.source, {
+      id: location.source,
+      label: current?.label ?? location.label,
+      count: (current?.count ?? 0) + 1,
+    });
+  }));
+  return [...facets.values()];
+};
 
 export const normalizeDeskOrder = (
   availableIds: string[],
@@ -47,25 +61,6 @@ export const normalizeDeskOrder = (
   const admitted = storedOrder.filter((id, index) => available.has(id) && storedOrder.indexOf(id) === index);
   const admittedSet = new Set(admitted);
   return [...admitted, ...availableIds.filter((id) => !admittedSet.has(id))];
-};
-
-export const reorderDeskItem = (
-  order: string[],
-  itemId: string,
-  target: string | 'earlier' | 'later',
-): string[] => {
-  const currentIndex = order.indexOf(itemId);
-  if (currentIndex < 0) return order;
-  const targetIndex = target === 'earlier'
-    ? Math.max(0, currentIndex - 1)
-    : target === 'later'
-      ? Math.min(order.length - 1, currentIndex + 1)
-      : order.indexOf(target);
-  if (targetIndex < 0 || targetIndex === currentIndex) return order;
-  const next = [...order];
-  next.splice(currentIndex, 1);
-  next.splice(targetIndex, 0, itemId);
-  return next;
 };
 
 export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
@@ -199,10 +194,11 @@ export const getWorkActions = (
   ];
 };
 
-export const matchesSourceFilter = (item: AccountLibraryItem, filter: HomeSourceFilter): boolean => {
+export const matchesSourceFilter = (item: AccountLibraryItem, filter: DeskSourceFilter): boolean => {
   if (filter === 'all') return true;
   const sources = item.locations.map((location) => location.source);
-  if (filter === 'device') return sources.includes('device') || sources.includes('local-folder');
+  // Compatibility-only aliases for return contexts created before reflective source facets.
   if (filter === 'temporary') return sources.includes('assistant-draft');
-  return sources.includes('google-drive');
+  if (filter === 'connected') return sources.includes('google-drive') || sources.includes('local-folder');
+  return sources.includes(filter);
 };

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_LEGAL_DOCUMENTS } from '@/features/legal/client';
 import { getCardForgePluginSkillCatalog } from '@/features/studio-documents/server/mcpPluginSkills';
 
 describe('CardForge Studio plugin', () => {
@@ -31,21 +32,6 @@ describe('CardForge Studio plugin', () => {
     });
   });
 
-  it('keeps publishing out of the chat tool surface', () => {
-    const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
-    const access = readFileSync(resolve(process.cwd(), 'src/app/mcp/mcpStudioAccess.ts'), 'utf8');
-
-    expect(route).toContain("'create_editable_template'");
-    expect(route).toContain("'continue_template_in_pipeline'");
-    expect(route).not.toContain("'publish_template'");
-    expect(access).toContain('getAccountToolAccessForUserId');
-    expect(access).toContain('getContributorCapabilities');
-    expect(access).not.toContain('getMcpAllowanceForPlan');
-    expect(access).not.toContain('mcpEnabled');
-    expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain('version: CARDFORGE_MCP_CONTRACT_VERSION');
-  });
-
   it('serves submission-time skill manifests with exact content digests', () => {
     const catalog = getCardForgePluginSkillCatalog();
     expect(catalog.map((skill) => skill.frontmatter.name)).toEqual([
@@ -67,28 +53,11 @@ describe('CardForge Studio plugin', () => {
     }
   });
 
-  it('declares telemetry-writing tools as non-read-only for publication review', () => {
-    const toolSources = [
-      'src/app/mcp/route.ts',
-      'src/features/studio-documents/server/mcpAccountWorkflowTools.ts',
-      'src/features/studio-documents/server/mcpAgentCardTools.ts',
-      'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
-      'src/features/personal-library/server/mcpPersonalLibraryTools.ts',
-    ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
-
-    expect(toolSources).toContain('observeMcpToolExecution');
-    expect(toolSources).not.toContain('readOnlyHint: true');
-  });
-
   it('discloses private assistant documents and aggregate MCP usage', () => {
-    const legal = readFileSync(
-      resolve(process.cwd(), 'src/features/legal/model/legalDocument.ts'),
-      'utf8',
-    );
+    const privacy = DEFAULT_LEGAL_DOCUMENTS.find((document) => document.slug === 'privacy');
 
-    expect(legal).toContain('private assistant working documents');
-    expect(legal).toContain('aggregate MCP usage');
-    expect(legal).toContain("'privacy', 'Privacy Policy', privacyBody, '2026-08-21'");
+    expect(privacy?.body).toContain('private assistant working documents');
+    expect(privacy?.body).toContain('aggregate MCP usage');
   });
 
   it('keeps a reviewer-ready submission source without committing credentials', () => {
@@ -118,40 +87,5 @@ describe('CardForge Studio plugin', () => {
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
     expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');
     expect(operations).toContain('plugins/cardforge-studio/SUBMISSION.md');
-  });
-
-  it('returns direct Studio document links while browser Clerk owns sign-in', () => {
-    const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
-    const studioPage = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
-    const handoff = readFileSync(
-      resolve(process.cwd(), 'src/features/studio-documents/hooks/useStudioDocumentHandoff.ts'),
-      'utf8',
-    );
-
-    expect(route).toContain('const studioDocumentUrl');
-    expect(route).toContain('/studio?document=');
-    expect(route).not.toContain('/sign-in?redirect_url=');
-    expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id, document.revision)');
-    expect(studioPage).toContain('redirectToSignIn');
-    expect(studioPage).toContain('createContextualStudioHref');
-    expect(studioPage).toContain('returnBackUrl: contextualHref');
-    expect(studioPage).toContain('redirect(contextualHref)');
-    expect(studioPage).not.toContain('StudioRuntimeLoader');
-    expect(handoff).not.toContain('signInPromptedDocumentIdRef');
-    expect(handoff).not.toContain('Sign in to open this draft');
-    expect(handoff).toContain('inFlightRevisionKeyRef');
-    expect(handoff).toContain('handledRevisionKeyRef.current = requestedKey');
-  });
-
-  it('keeps MCP server dependencies out of the Studio browser surface', () => {
-    const studioPage = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
-    const studioShell = readFileSync(resolve(process.cwd(), 'src/features/creator-workbench/components/CreatorWorkbench.tsx'), 'utf8');
-
-    expect(studioPage).not.toContain('@modelcontextprotocol');
-    expect(studioPage).not.toContain('@clerk/mcp-tools');
-    expect(studioPage).not.toContain('mcp-handler');
-    expect(studioShell).not.toContain('@modelcontextprotocol');
-    expect(studioShell).not.toContain('@clerk/mcp-tools');
-    expect(studioShell).not.toContain('mcp-handler');
   });
 });

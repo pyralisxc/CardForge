@@ -8,8 +8,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { parseTextBinding, shouldAutoFitTextElement } from '@/domain/rendering';
 import { textFontSizePx } from '@/features/card-rendering/client';
-import { PersonalLibraryFontPicker } from '@/features/personal-library/client';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import { FontLibraryPicker } from '@/features/template-editor/components/FontLibraryPicker';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
@@ -40,12 +40,13 @@ export function TypographyInspectorPanel({
           <div className="grid grid-cols-1 gap-2">
             <div>
               <Label htmlFor="element-font">Font</Label>
-              <Select value={element.fontFamily || 'font-sans'} onValueChange={(value) => onUpdateElement({ fontFamily: value })}>
-                <SelectTrigger id="element-font" aria-label="Element font family"><SelectValue /></SelectTrigger>
-                <SelectContent>{availableFonts.map((font) => <SelectItem key={font.value} value={font.value}>{font.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <div id="element-font" className="flex min-h-9 items-center rounded-md border border-[var(--cf-editor-border)] bg-[var(--cf-editor-control)] px-3 text-sm" role="status">
+                {availableFonts.find((font) => font.value === (element.fontFamily || 'font-sans'))?.name ?? 'Current font'}
+              </div>
             </div>
-            <PersonalLibraryFontPicker
+            <FontLibraryPicker
+              availableFonts={availableFonts}
+              targetId={element.id}
               onSelect={(fontValue) => {
                 const boundField = parseTextBinding(element.content).field;
                 if (boundField) onUpsertFieldContract(boundField, { elementId: element.id, fontFamily: fontValue });

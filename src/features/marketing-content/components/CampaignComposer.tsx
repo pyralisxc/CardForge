@@ -70,7 +70,7 @@ export const createEmptyCampaignDraft = (
   contentPillar: 'product-proof',
   funnelStage: 'awareness',
   contentKind: 'demonstration',
-  callToAction: strategy?.defaultCallToAction ?? 'Enter the Studio',
+  callToAction: strategy?.defaultCallToAction ?? 'Open your Desk',
   creationSource: 'contributor',
   utmContent: '',
   requestedPublishAt: '',
@@ -411,7 +411,7 @@ export function CampaignComposer({
             />
           </CountedField>
           <CountedField label="Call to action" value={draft.callToAction} limit={CAMPAIGN_FIELD_LIMITS.callToAction}>
-            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.callToAction} value={draft.callToAction} onChange={(event) => onDraftChange({ ...draft, callToAction: event.target.value })} placeholder="Enter the Studio" />
+            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.callToAction} value={draft.callToAction} onChange={(event) => onDraftChange({ ...draft, callToAction: event.target.value })} placeholder="Open your Desk" />
           </CountedField>
           <CountedField label="Tracking key" value={draft.utmContent} limit={CAMPAIGN_FIELD_LIMITS.utmContent}>
             <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.utmContent} value={draft.utmContent} onChange={(event) => onDraftChange({ ...draft, utmContent: event.target.value })} placeholder="one_card_to_full_set" />

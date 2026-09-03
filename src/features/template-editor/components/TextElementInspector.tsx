@@ -13,6 +13,7 @@ import { textFontSizePx } from '@/features/card-rendering/client';
 import { cn } from '@/shared/classNames';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
+import { FontLibraryPicker } from './FontLibraryPicker';
 
 export { TextElementFieldModeControl } from './TextElementFieldModeControl';
 export { TextExpressionEditor } from './TextExpressionEditor';
@@ -224,19 +225,18 @@ export function TextFieldSettingsList({
 
                     <div className="space-y-1">
                       <Label className="text-[10px] text-[#8f95a3]">Font Family</Label>
-                      <select
-                        value={contract?.fontFamily || ''}
-                        onChange={(event) => onUpdateContract(field.key, {
+                      <p className="truncate text-xs text-[#d8d1c4]">
+                        {availableFonts.find((font) => font.value === contract?.fontFamily)?.name ?? 'Inherited'}
+                      </p>
+                      <FontLibraryPicker
+                        availableFonts={availableFonts}
+                        targetId={`${element.id}:field:${field.key}`}
+                        onSelect={(fontFamily) => onUpdateContract(field.key, {
                           elementId: element.id,
-                          fontFamily: (event.target.value || undefined) as FieldContract['fontFamily'],
+                          fontFamily: fontFamily as FieldContract['fontFamily'],
                         })}
-                        className={fieldSelectClassName}
-                      >
-                        <option value="">Inherited</option>
-                        {availableFonts.map((font) => (
-                          <option key={font.value} value={font.value}>{font.name}</option>
-                        ))}
-                      </select>
+                      />
+                      {contract?.fontFamily ? <Button type="button" size="sm" variant="ghost" className="h-7 w-full text-xs" onClick={() => onUpdateContract(field.key, { elementId: element.id, fontFamily: undefined })}>Use inherited font</Button> : null}
                     </div>
 
                     <div className="space-y-1">

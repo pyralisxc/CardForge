@@ -16,9 +16,9 @@ export async function GET(request: Request) {
     return createNoStoreJsonResponse({ history: await getLegalDocumentHistory(slug as LegalDocumentSlug) });
   } catch (error) {
     if (error instanceof LegalDocumentStoreError) {
-      return createApiErrorResponse(error.status, 'owner_console_unavailable', error.message);
+      return createApiErrorResponse(error.status, 'owner_operations_unavailable', error.message);
     }
     console.error('Failed to load legal history:', error);
-    return createApiErrorResponse(500, 'owner_console_unavailable', 'Unable to load legal publication history.');
+    return createApiErrorResponse(500, 'owner_operations_unavailable', 'Unable to load legal publication history.');
   }
 }

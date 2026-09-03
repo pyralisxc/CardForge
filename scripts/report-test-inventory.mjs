@@ -21,12 +21,28 @@ const countDeclaredChecks = (source) => (
 const productDomains = [
   ['Billing & entitlements', /billing|entitlement|creator-pass|plan-management/],
   ['Identity & access', /account|auth|clerk|contributor|owner-access|server-cardforge-user|abuse-protection|openai-apps-challenge/],
-  ['Studio & authoring', /studio|template|canvas|card|generator|generation|layer|element|focused-artifact|set-workspace|surface-return|text-|rich-text|artifact-contract|generated-gallery|creator-interaction|action-runtime/],
+  ['Desk, creation & rendering', /studio|desk|template|canvas|card|generator|generation|layer|element|focused-artifact|set-workspace|surface-return|text-|rich-text|artifact-contract|generated-gallery|creator-interaction|action-runtime/],
   ['Storage & projects', /project|browser-storage|workspace-revision|work-locations|library|zip-export|draft-retention|google-drive/],
   ['MCP & plugin', /mcp|plugin/],
   ['Pipeline & publication', /pipeline|roadmap|showcase|asset-registry|native-meta|new-template/],
   ['Public site & operations', /public|site-|sitemap|legal|business-identity|founder|marketing|analytics|email|social-share|structured-data/],
   ['Shared product boundaries', /.*/],
+];
+
+// Source reads are allowed only when the file itself is the public, legal,
+// security, or repository contract under test. This explicit inventory keeps
+// ordinary component/helper composition pins from quietly returning.
+const sourceReaderContracts = [
+  ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
+  ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
+  ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
+  ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
+  ['tests/product/unit/billing-webhook-safety.test.ts', 'billing security ordering contract'],
+  ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
+  ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
+  ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
+  ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
+  ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
 ];
 
 const summarize = (files, classify) => {
@@ -67,3 +83,25 @@ for (const [name, row] of rows) {
 console.log(`${'-'.repeat(width)}  -----  ------  -----`);
 console.log(`${'Total'.padEnd(width)}  ${String(totals.files).padStart(5)}  ${String(totals.checks).padStart(6)}  ${String(totals.lines).padStart(5)}`);
 console.log('\nChecks are declared test blocks; parameterized rows may expand to more runtime tests.');
+
+const allFiles = [...testFiles(productRoot), ...testFiles(infrastructureRoot)];
+const sourceReadingFiles = allFiles
+  .filter((path) => /\breadFile(?:Sync)?\s*\(/u.test(readFileSync(path, 'utf8')))
+  .map((path) => relative(root, path).replaceAll('\\', '/'))
+  .sort();
+const classifications = new Map(sourceReaderContracts);
+const unclassified = sourceReadingFiles.filter((path) => !classifications.has(path));
+const staleClassifications = sourceReaderContracts.filter(([path]) => !sourceReadingFiles.includes(path));
+
+console.log(`\nSource-reading contract files (${sourceReadingFiles.length})`);
+for (const path of sourceReadingFiles) {
+  console.log(`- ${path}: ${classifications.get(path) ?? 'UNCLASSIFIED'}`);
+}
+
+if (unclassified.length > 0 || staleClassifications.length > 0) {
+  if (unclassified.length > 0) console.error(`\nUnclassified source-reading tests: ${unclassified.join(', ')}`);
+  if (staleClassifications.length > 0) {
+    console.error(`Stale source-reader classifications: ${staleClassifications.map(([path]) => path).join(', ')}`);
+  }
+  process.exitCode = 1;
+}

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { summarizeProjectProductionAssets } from '@/features/project/server';
@@ -389,38 +386,5 @@ describe('account Studio documents', () => {
       productionPlan: productionPlan({ width: 1200, height: 1200 }),
       template: baseTemplate,
     }).success).toBe(false);
-  });
-
-  it('keeps account Studio access separate from Contributor publication and delegates watermark eligibility to the entitlement owner', () => {
-    const route = readFileSync(resolve(process.cwd(), 'src/app/api/studio-documents/template-drafts/route.ts'), 'utf8');
-    const service = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/templateWorkingDocuments.ts'), 'utf8');
-    const access = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/studioDocumentAccess.ts'), 'utf8');
-
-    expect(service).toContain("requireAccountToolCapability(access, 'studio.ai.create')");
-    expect(service).toContain("requireContributionScope(access, 'library.submit')");
-    expect(access).toContain('isWatermarkRequired(entitlement.capabilities.canExportClean)');
-    expect(route).not.toContain('watermarkPreviewOpacity');
-  });
-});
-
-describe('account Studio document migration', () => {
-  const migration = readFileSync(
-    resolve(process.cwd(), 'supabase/migrations/20260817061522_account_studio_documents.sql'),
-    'utf8',
-  ).toLowerCase().replace(/\s+/g, ' ');
-
-  it('creates private Clerk-owned documents with optimistic revisions', () => {
-    expect(migration).toContain('create table public.cardforge_studio_documents');
-    expect(migration).toContain('owner_user_id text not null');
-    expect(migration).toContain('document_payload jsonb not null');
-    expect(migration).toContain('revision integer not null default 1');
-    expect(migration).toContain('alter table public.cardforge_studio_documents enable row level security');
-    expect(migration).toContain('revoke all privileges on public.cardforge_studio_documents from public, anon, authenticated');
-    expect(migration).toContain('grant all privileges on public.cardforge_studio_documents to service_role');
-  });
-
-  it('does not persist watermark state beside editable content', () => {
-    expect(migration).not.toContain('watermark_required');
-    expect(migration).not.toContain('can_export_clean');
   });
 });

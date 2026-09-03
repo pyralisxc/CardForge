@@ -5,6 +5,7 @@ import {
   completeSignUpIntent,
   configureGoogleAnalytics,
   getAnalyticsConsentPreference,
+  observeProviderBoundaryResponse,
   trackAnalyticsPageView,
   trackCardCreated,
 } from '@/features/analytics/client/tracking';
@@ -158,5 +159,39 @@ describe('analytics tracking', () => {
       'set',
       'event',
     ]);
+  });
+
+  it('records privacy-safe provider responses and thrown network failures', async () => {
+    const gtag = vi.fn();
+    vi.stubGlobal('window', {
+      sessionStorage: createStorage(),
+      gtag,
+      location: { href: 'https://cardforges.com/account?section=library&setId=private-set-id' },
+    });
+    setConsent('granted');
+
+    await expect(observeProviderBoundaryResponse('google_drive', 'project_list', async () => (
+      new Response(null, { status: 403 })
+    ))).resolves.toMatchObject({ status: 403 });
+    await expect(observeProviderBoundaryResponse('pipeline', 'pipeline_upload', async () => {
+      throw new TypeError('network unreachable');
+    })).rejects.toThrow('network unreachable');
+
+    const providerEvents = gtag.mock.calls.filter((call) => call[0] === 'event' && call[1] === 'provider_boundary_outcome');
+    expect(providerEvents).toEqual([
+      ['event', 'provider_boundary_outcome', expect.objectContaining({
+        scope: 'google_drive',
+        provider_action: 'project_list',
+        outcome: 'failure',
+        boundary_kind: 'authorization',
+      })],
+      ['event', 'provider_boundary_outcome', expect.objectContaining({
+        scope: 'pipeline',
+        provider_action: 'pipeline_upload',
+        outcome: 'failure',
+        boundary_kind: 'unavailable',
+      })],
+    ]);
+    expect(JSON.stringify(providerEvents)).not.toContain('private-set-id');
   });
 });

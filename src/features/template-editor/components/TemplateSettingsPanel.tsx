@@ -15,13 +15,14 @@ import {
   type CardMeasurementUnit,
 } from '@/domain/card-formats';
 import type { CardAssetOption, FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
-import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import { cn } from '@/shared/classNames';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 import { CardFormatSelect } from '@/features/template-editor/components/CardFormatSelect';
 import type { CanvasResizeStrategy } from '@/features/template-editor/lib/makerDimensions';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 interface TemplateSettingsPanelProps {
   currentTemplate: TCGCardTemplate;
@@ -49,6 +50,9 @@ interface TemplateSettingsPanelProps {
   onFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onUpdateCanvas: (updates: Partial<FreeformCanvas>, trackHistory?: boolean) => void;
   onUpdateTemplate: (updates: Partial<TCGCardTemplate>, trackHistory?: boolean) => void;
+  personalItems: readonly PersonalLibraryItem[];
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function TemplateSettingsPanel({
@@ -77,6 +81,9 @@ export function TemplateSettingsPanel({
   onFileUpload,
   onUpdateCanvas,
   onUpdateTemplate,
+  personalItems,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: TemplateSettingsPanelProps) {
   const resolvedFormat = resolveTemplateCardFormat(currentTemplate);
 
@@ -252,78 +259,52 @@ export function TemplateSettingsPanel({
         </div>
       </div>
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
-        <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
             {currentTemplate.templateUsage === 'back-preset' ? 'Back foundations' : 'Front foundations'}
           </Label>
           <p className="mt-1 text-[10px] leading-4 text-[#818999]">
             Full-card artwork rendered beneath editable content. Use this for the visual foundation, not for a transparent decorative border.
           </p>
-        </div>
-        {frameAssets.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5">
-            {frameAssets.map((asset) => (
-              <Button
-                key={asset.id}
-                type="button"
-                variant="outline"
-                className={cn(
-                  buttonClassName,
-                  'h-auto min-h-24 flex-col items-stretch gap-1.5 overflow-hidden p-1.5 text-left',
-                  currentTemplate.cardBackgroundImageUrl === asset.url && 'border-[#d5ad54] text-[var(--cf-accent-text)]',
-                )}
-                onClick={() => onUpdateTemplate({ cardBackgroundImageUrl: asset.url })}
-              >
-                <ProjectBinaryAssetBackground
-                  source={asset.url}
-                  className="h-20 w-full rounded-[3px] border border-[#3a2e17] bg-[#17120d] bg-contain bg-center bg-no-repeat"
-                />
-                <span className="block w-full truncate text-[10px] text-[#f1dfb4]">{asset.name}</span>
-              </Button>
-            ))}
           </div>
-        ) : (
-          <p className="rounded-[4px] border border-dashed border-[#3a2e17] p-2 text-[10px] leading-4 text-[#818999]">
-            No published {currentTemplate.templateUsage === 'back-preset' ? 'back' : 'front'} foundations are routed here yet. You can still upload a card background below.
-          </p>
-        )}
+          <TemplateAssetLibraryPicker
+            assets={frameAssets}
+            kind="frame"
+            label="a card foundation"
+            personalItems={personalItems}
+            personalRoles={['frame']}
+            providerRole="frame"
+            target={{ kind: 'template', ids: [currentTemplate.id ?? 'current-template'] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateTemplate({ cardBackgroundImageUrl: asset.url })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
+        </div>
       </div>
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
-        <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
             {currentTemplate.templateUsage === 'back-preset' ? 'Back border overlays' : 'Front border overlays'}
           </Label>
           <p className="mt-1 text-[10px] leading-4 text-[#818999]">
             Transparent professional border artwork rendered above the complete card. Pipeline contributors can publish PNG, WebP, or SVG overlays directly to this section.
           </p>
-        </div>
-        {borderAssets.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5">
-            {borderAssets.map((asset) => (
-              <Button
-                key={asset.id}
-                type="button"
-                variant="outline"
-                className={cn(
-                  buttonClassName,
-                  'h-auto min-h-24 flex-col items-stretch gap-1.5 overflow-hidden p-1.5 text-left',
-                  currentTemplate.cardBorderImageSource === asset.url && 'border-[#d5ad54] text-[var(--cf-accent-text)]',
-                )}
-                onClick={() => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
-              >
-                <ProjectBinaryAssetBackground
-                  source={asset.url}
-                  className="h-20 w-full rounded-[3px] border border-[#3a2e17] bg-[#17120d] bg-contain bg-center bg-no-repeat"
-                />
-                <span className="block w-full truncate text-[10px] text-[#f1dfb4]">{asset.name}</span>
-              </Button>
-            ))}
           </div>
-        ) : (
-          <p className="rounded-[4px] border border-dashed border-[#3a2e17] p-2 text-[10px] leading-4 text-[#818999]">
-            No published {currentTemplate.templateUsage === 'back-preset' ? 'back' : 'front'} border overlays are routed here yet.
-          </p>
-        )}
+          <TemplateAssetLibraryPicker
+            assets={borderAssets}
+            kind="frame"
+            label="a border overlay"
+            personalItems={personalItems}
+            personalRoles={['frame']}
+            providerRole="frame"
+            target={{ kind: 'template', ids: [currentTemplate.id ?? 'current-template'] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
+        </div>
       </div>
       <div>
         <Label htmlFor="maker-bg-image">Custom card foundation</Label>

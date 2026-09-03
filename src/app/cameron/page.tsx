@@ -95,7 +95,7 @@ export default async function CameronPage() {
             <h1 className="mt-2 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-ivory)] md:text-5xl">{profile.heroHeadline}</h1>
             <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.introduction}</p>
             <div className="mt-6 flex flex-wrap gap-5">
-              <Link data-site-content-slug="founder.hero.road-action" href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">{siteContent['founder.hero.road-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]"><span data-site-content-slug="founder.hero.road-action">{siteContent['founder.hero.road-action']}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
               <Link data-site-content-slug="founder.hero.contact-action" href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.contact-action']}</Link>
               {siteConfiguration.supportOfferVisible ? <Link data-site-content-slug="founder.hero.support-action" href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.support-action']}</Link> : null}
             </div>
@@ -154,7 +154,7 @@ export default async function CameronPage() {
       <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
           <h2 data-site-content-slug="founder.support-uses.heading" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.support-uses.heading']}</h2>
-          <p data-site-content-slug="founder.support-uses.body" className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['founder.support-uses.body']} {profile.supportUseSummary}</p>
+          <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]"><span data-site-content-slug="founder.support-uses.body">{siteContent['founder.support-uses.body']}</span> {profile.supportUseSummary}</p>
           <div className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2">
             {supportUses.map(([title, copy, Icon]) => (
               <article key={title} className="bg-[var(--public-surface)] p-5">

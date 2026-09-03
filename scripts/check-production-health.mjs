@@ -1,4 +1,10 @@
 import JSZip from 'jszip';
+import {
+  assertContributorPublicTruth,
+  assertContributorTermsPublicTruth,
+  assertPrivacyPublicTruth,
+  assertRepresentativeCatalogRouting,
+} from './lib/production-health-contract.mjs';
 
 const origin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.com').replace(/\/+$/, '');
 const requestedCategory = process.argv.find((argument) => argument.startsWith('--category='))?.split('=')[1] ?? 'all';
@@ -28,6 +34,12 @@ const requireOk = async (path, expectedContent) => {
   const body = await response.text();
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   if (expectedContent && !body.includes(expectedContent)) throw new Error(`missing ${JSON.stringify(expectedContent)}`);
+};
+const requireSemanticHtml = async (path, assertion) => {
+  const response = await get(path);
+  const body = await response.text();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  assertion(body);
 };
 const requireJson = async (path, acceptedStatuses = [200]) => {
   const response = await get(path);
@@ -80,6 +92,20 @@ await check('product', 'official 52-card starter package', async () => {
   if (!Array.isArray(templates) || templates.length < 1) throw new Error('starter Template is missing');
 });
 await check('product', 'Desk-first public promise', () => requireOk('/', 'Open your Desk'));
+await check('product', 'current Contributor publication boundary', () => requireSemanticHtml('/contributors', assertContributorPublicTruth));
+await check('product', 'current Privacy vocabulary', () => requireSemanticHtml('/privacy', assertPrivacyPublicTruth));
+await check('product', 'current Contributor Terms vocabulary', () => requireSemanticHtml('/contributor-terms', assertContributorTermsPublicTruth));
+await check('product', 'representative catalog destinations', async () => {
+  catalog ??= await requireJson('/api/catalog');
+  assertRepresentativeCatalogRouting(catalog);
+});
+await check('product', 'public Roadmap provider records', async () => {
+  const roadmap = await requireJson('/api/roadmap');
+  if (roadmap?.configured !== true || !Array.isArray(roadmap?.items)) throw new Error('Roadmap provider state is unavailable');
+  if (!roadmap.items.some((item) => item.itemType === 'feature') || !roadmap.items.some((item) => item.itemType === 'roi_checkpoint')) {
+    throw new Error('Roadmap is missing feature or service-checkpoint records');
+  }
+});
 
 await check('provider', 'Supabase catalog boundary', async () => {
   const value = await requireJson('/api/catalog');

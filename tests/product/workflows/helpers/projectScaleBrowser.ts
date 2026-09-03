@@ -6,9 +6,9 @@ export type ProjectScale = 100 | 500 | 1000;
 
 const BROWSER_DATABASE = 'cardforge-browser-storage';
 const BROWSER_STORE = 'key-value';
-const GUEST_WORKSPACE_KEY = 'project-workspace:guest:workspace';
+const LOCAL_WORKSPACE_SCOPES = ['guest', 'local'] as const;
 
-const workspaceStateFor = (cardCount: ProjectScale) => {
+const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0) => {
   const fixture = createProjectScaleFixture(cardCount);
   const storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
@@ -17,12 +17,20 @@ const workspaceStateFor = (cardCount: ProjectScale) => {
       artwork: `cardforge-browser-asset://${(index + 1).toString(16).padStart(64, '0')}`,
     },
   }));
+  const cardSets = [
+    ...fixture.cardSets,
+    ...Array.from({ length: additionalSets }, (_, index) => ({
+      id: `touch-companion-${index + 1}`,
+      name: `Touch Companion Set ${index + 1}`,
+      organization: { arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const, tags: [], positions: {} },
+    })),
+  ];
   return {
     userTemplates: fixture.userTemplates,
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
-    cardSets: fixture.cardSets,
-    activeCardSet: fixture.cardSets[0] ?? null,
+    cardSets,
+    activeCardSet: cardSets[0] ?? null,
     studioView: 'template',
     singleCardGeneratorSelectedTemplateId: fixture.userTemplates[0]?.id ?? null,
     singleCardGeneratorSelectedBackingTemplateId: null,
@@ -69,10 +77,10 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-  const state = workspaceStateFor(cardCount);
-  await page.evaluate(async ({ databaseName, objectStoreName, storageKey, stateValue }) => {
+  const state = workspaceStateFor(cardCount, options.additionalSets);
+  await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);
       request.onupgradeneeded = () => {
@@ -91,13 +99,15 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(objectStoreName, 'readwrite');
       const store = transaction.objectStore(objectStoreName);
-      store.put(record, storageKey);
+      scopes.forEach((scope) => store.put(record, `project-workspace:${scope}:workspace`));
       stateValue.storedCards.forEach((card, index) => {
         const reference = typeof card.data.artwork === 'string' ? card.data.artwork : '';
         const assetId = reference.replace('cardforge-browser-asset://', '');
         const marks = Array.from({ length: 36 }, (_, mark) => `<circle cx="${(mark * 83 + index * 17) % 512}" cy="${(mark * 137 + index * 29) % 720}" r="${12 + (mark % 22)}" fill="#4f7dc8" fill-opacity="0.42"/>`).join('');
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="720"><rect width="512" height="720" fill="#101723"/>${marks}<text x="24" y="680" fill="white" font-size="42">Artifact ${index + 1}</text></svg>`;
-        store.put(new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:guest:${assetId}`);
+        scopes.forEach((scope) => {
+          store.put(new Blob([svg], { type: 'image/svg+xml' }), `project-content-asset:${scope}:${assetId}`);
+        });
       });
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
@@ -107,7 +117,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
   }, {
     databaseName: BROWSER_DATABASE,
     objectStoreName: BROWSER_STORE,
-    storageKey: GUEST_WORKSPACE_KEY,
+    scopes: LOCAL_WORKSPACE_SCOPES,
     stateValue: state,
   });
 };
@@ -115,12 +125,14 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
 export const openScaleSet = async (page: Page, cardCount: ProjectScale, options: { expectOpeningMotion?: boolean } = {}) => {
   const startedAt = Date.now();
   const setButton = page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) });
+  const setObject = page.locator(`[data-desk-set-object-id="set:scale-set-${cardCount}"]`);
+  const persistentPreview = setObject.locator('[data-desk-set-stack]');
   await setButton.click();
   await expect(setButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-desk="overview"]')).toBeVisible();
   await setButton.press('Enter');
   if (options.expectOpeningMotion) {
-    await expect(page.locator('[data-set-object][data-opening-motion="true"]')).toBeVisible();
+    await expect(persistentPreview).toBeVisible();
   }
   await expect(page.locator('[data-focus-transition="set-to-artifacts"]')).toBeVisible();
   await expect(page.locator('[data-desk-artifact-stage]')).toBeVisible();

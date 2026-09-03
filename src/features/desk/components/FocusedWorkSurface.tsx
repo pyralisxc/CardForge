@@ -1,10 +1,10 @@
 "use client";
 
 import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Copy, Info, Layers3, LayoutGrid, MoreHorizontal, Pencil, Pin, Printer, Save, Search, Sparkles, Tag, Trash2, WandSparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, Search, Sparkles, Tag, Trash2, WandSparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -23,10 +23,6 @@ export interface FocusedWorkSurfaceProps {
   item: AccountLibraryItem;
   localSetId: string | null;
   remoteIcon: ReactNode;
-  contentsLabel: string;
-  renaming: boolean;
-  renameDraft: string;
-  pinned: boolean;
   focusedCards: DisplayCard[];
   visibleCards: DisplayCard[];
   sortedCards: DisplayCard[];
@@ -52,19 +48,9 @@ export interface FocusedWorkSurfaceProps {
   setSession: Dispatch<SetStateAction<CreatorInteractionSession>>;
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
-  onBack: () => void;
-  onRenameDraftChange: (value: string) => void;
-  onCommitRename: () => void;
-  onToggleRenaming: () => void;
   onOpenWork: () => void;
   onOpenDesign: () => void;
   onOpenGenerate: () => void;
-  onOpenLocation: () => void;
-  onDuplicateWork: () => void;
-  onOpenOutput: () => void;
-  onTogglePin: () => void;
-  onInspect: () => void;
-  onDeleteWork: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
   onTagFilterChange: (value: string) => void;
@@ -76,6 +62,7 @@ export interface FocusedWorkSurfaceProps {
   onMoveSelected: () => void;
   onEditSelected: (artifactId?: string) => void;
   onDuplicateSelected: () => void;
+  onReviseSelected: () => void;
   onDeleteSelected: () => void;
   onSetCardsTag: (cardIds: string[], tagId: string, applied: boolean) => void;
   onTagDraftChange: (value: string) => void;
@@ -89,28 +76,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
-    <button type="button" className={styles.backButton} onClick={props.onBack}><ArrowLeft size={16} aria-hidden="true" /> {artifactFocused ? 'Back to Set' : 'Back to Desk'}</button>
     <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
-      {!artifactFocused ? <header className={styles.focusHeader}>
-        <div className={styles.focusIdentity}>
-          {props.renaming && props.localSetId ? <form className={styles.renameRow} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input id="set-name" value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Work name" /><Button type="submit" size="sm">Save</Button></form> : <h1>{props.item.name}</h1>}
-          <p>{props.contentsLabel} · {workSourceLabel(props.item)}</p>
-        </div>
-        <div className={styles.focusActions}>
-          {!props.localSetId ? <button type="button" className={styles.quietAction} onClick={props.onOpenWork}><Pencil size={15} aria-hidden="true" />Open work</button> : null}
-          {props.localSetId ? <button type="button" className={styles.quietAction} onClick={props.onOpenDesign}><Pencil size={15} aria-hidden="true" />Design</button> : null}
-          {props.localSetId ? <button type="button" className={styles.quietAction} onClick={props.onOpenGenerate}><WandSparkles size={15} aria-hidden="true" />Generate</button> : null}
-          <button type="button" className={styles.quietAction} onClick={props.onOpenLocation}><Save size={15} aria-hidden="true" />Save &amp; move</button>
-          <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={styles.quietAction} aria-label={`More actions for ${props.item.name}`}><MoreHorizontal size={15} aria-hidden="true" />More</button></DropdownMenuTrigger><DropdownMenuContent align="end">
-            {props.localSetId ? <DropdownMenuItem onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
-            {props.localSetId ? <DropdownMenuItem onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.localSetId ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={props.onTogglePin}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from desk' : 'Pin to desk'}</DropdownMenuItem>
-            <DropdownMenuItem id={`set-info-${props.item.id}`} onSelect={props.onInspect}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
-          </DropdownMenuContent></DropdownMenu>
-        </div>
-      </header> : null}
       {props.localSetId ? <>
         {!artifactFocused ? <><div className={styles.contentHeading}><div><h2>Inside this Set</h2><p>Select one or more cards to arrange, move, duplicate, or remove them.</p></div><span className="text-xs text-[var(--cf-text-subtle)]">{props.visibleCards.length} shown</span></div>
         <div className={styles.contentToolbar}>
@@ -132,7 +98,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             {props.selectedCard ? <><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex <= 0} onClick={() => props.onReorderSelected('earlier')} aria-label="Move selected card earlier"><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex < 0 || props.selectedCardIndex >= props.focusedCards.length - 1} onClick={() => props.onReorderSelected('later')} aria-label="Move selected card later"><ArrowDown className="h-4 w-4" /></Button></> : null}
             {props.otherSets.length ? <Select value={props.moveTargetId} onValueChange={props.onMoveTargetChange}><SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {props.otherSets.find((set) => set.id === props.moveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{props.otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
             {props.otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={props.onMoveSelected}>Move</Button> : null}
-            <Button type="button" size="sm" variant="outline" onClick={props.onDuplicateSelected}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button><Button type="button" size="sm" variant="ghost" onClick={props.onDeleteSelected}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
+            <Button type="button" size="sm" variant="outline" onClick={props.onReviseSelected}><WandSparkles className="mr-1.5 h-4 w-4" />Revise</Button><Button type="button" size="sm" variant="outline" onClick={props.onDuplicateSelected}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button><Button type="button" size="sm" variant="ghost" onClick={props.onDeleteSelected}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
             <div className={styles.tagTools}>{props.organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Tags</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{props.organization.tags.map((tag) => { const applied = props.selectedCards.every((card) => card.tagIds?.includes(tag.id)); return <DropdownMenuItem key={tag.id} onSelect={() => props.onSetCardsTag(props.selectedCards.map((card) => card.uniqueId), tag.id, !applied)}>{applied ? 'Remove' : 'Add'} {tag.label}</DropdownMenuItem>; })}</DropdownMenuContent></DropdownMenu> : null}<Input value={props.tagDraft} onChange={(event) => props.onTagDraftChange(event.target.value)} placeholder="New tag" aria-label="New tag name" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); props.onApplyNewTag(); } }} /><Button type="button" size="sm" variant="outline" disabled={!props.tagDraft.trim()} onClick={props.onApplyNewTag}>Add tag</Button></div>
           </div> : null}
         </div>

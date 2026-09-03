@@ -95,6 +95,11 @@ export const isPersonalLibraryMimeTypeAllowedForRole = (
   return isPersonalLibraryImageMimeType(mimeType);
 };
 
+export const isPersonalLibraryVisualPickerItem = (
+  item: Pick<PersonalLibraryItem, 'mimeType' | 'role'>,
+  acceptedRoles: readonly PersonalLibraryRole[],
+): boolean => acceptedRoles.includes(item.role) && isPersonalLibraryImageMimeType(item.mimeType);
+
 export const getPersonalLibraryRoleLabel = (role: PersonalLibraryRole): string => {
   switch (role) {
     case 'artwork': return 'Artwork';

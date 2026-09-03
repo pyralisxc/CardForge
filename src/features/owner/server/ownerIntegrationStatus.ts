@@ -3,7 +3,7 @@ import { getBillingConfigStatus } from '@/features/billing/server';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
-import type { OwnerConnectedService } from '@/features/owner/lib/ownerConsole';
+import type { OwnerConnectedService } from '@/features/owner/lib/ownerOperations';
 import { getMetaConfiguration } from '@/features/marketing-distribution/server';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 

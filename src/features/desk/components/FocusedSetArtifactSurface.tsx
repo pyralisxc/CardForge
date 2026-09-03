@@ -361,16 +361,12 @@ export function FocusedSetArtifactSurface({
   const focusedCard = focusedEntry ? cardById.get(focusedEntry.identity.artifactId) ?? null : null;
   return (
     <div className={styles.setArtifactWorkspace} data-artifact-focused={Boolean(focusedEntry)}>
-      {focusedEntry && focusedCard ? <FocusedArtifactWorkspace
-        key={focusedEntry.identity.artifactId}
-        artifactId={focusedEntry.identity.artifactId}
-        card={focusedCard}
-        setName={setName}
-        stageRef={stageRef}
-        title={focusedEntry.title}
-        subtitle={focusedEntry.subtitle}
-        onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
-      /> : <>
+      <div
+        className={styles.artifactContextField}
+        data-obscured={Boolean(focusedEntry)}
+        aria-hidden={Boolean(focusedEntry)}
+        inert={focusedEntry ? true : undefined}
+      >
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Use Tab to reach visible Artifacts. In Freeform view, use Arrow keys to move the selected Artifacts and hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div className={styles.cameraControls} aria-label="Artifact view controls">
         <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
@@ -467,7 +463,16 @@ export function FocusedSetArtifactSurface({
           </div>
         </div>
       </div>
-      </>}
+      </div>
+      {focusedEntry && focusedCard ? <FocusedArtifactWorkspace
+        key={focusedEntry.identity.artifactId}
+        artifactId={focusedEntry.identity.artifactId}
+        card={focusedCard}
+        setName={setName}
+        title={focusedEntry.title}
+        subtitle={focusedEntry.subtitle}
+        onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
+      /> : null}
       <FocusedArtifactNavigator
         setName={setName}
         entries={layout.entries}
