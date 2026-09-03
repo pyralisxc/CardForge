@@ -65,7 +65,7 @@ export function TemplateAssetLibraryPicker({
   const request = useMemo((): LibraryPickerRequest => ({
     purpose: `template.${kind}-source`,
     title: `Choose ${label}`,
-    description: `Choose compatible ${label.toLocaleLowerCase()} from this project, your connected Library, or reviewed CardForge sources.`,
+    description: `Choose ${label.toLocaleLowerCase()} compatible with this field from this project, your connected Library, or reviewed CardForge sources.`,
     acceptedKinds: [kind],
     acceptedRoles: personalRoles,
     sources: ['project', 'personal', 'pipeline', 'published', 'provider'],
