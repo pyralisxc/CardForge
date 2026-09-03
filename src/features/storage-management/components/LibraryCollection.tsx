@@ -78,6 +78,7 @@ interface LibraryCollectionProps {
   sharedType: string;
   sharedTypes: string[];
   templateFor: (item: LibraryViewItem) => TCGCardTemplate | null;
+  unfilteredScopeItemCount: number;
   viewItems: LibraryViewItem[];
   votingId: string | null;
   onSharedTypeChange: (type: string) => void;
@@ -87,7 +88,7 @@ export function LibraryCollection({
   activeFailure, activeLoading, activeScope, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
   heartMetrics, heartingId, isSignedIn, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, projection,
-  scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, viewItems, votingId, isOwner,
+  scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
@@ -111,7 +112,7 @@ export function LibraryCollection({
         actionLabel={activeFailure.retryable ? 'Retry' : undefined}
         onAction={activeFailure.retryable ? onRefresh : undefined}
       /> : null}
-      {activeFailure && !scopeItems.length ? null : activeLoading && !scopeItems.length ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
+      {activeFailure && !scopeItems.length ? null : activeLoading && !unfilteredScopeItemCount ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
         {viewItems.map((item) => {
           const pipelineItem = item.scope === 'pipeline' ? item : null;
           const lineageId = pipelineLineageFor(item);
@@ -130,7 +131,7 @@ export function LibraryCollection({
             {heart ? <div className={styles.reactionActions}><button type="button" disabled={heartingId === lineageId} data-active={heart.hearted} onClick={() => onToggleHeart(item)} aria-label={`${heart.hearted ? 'Remove heart from' : 'Heart'} ${item.name}`} title={isSignedIn ? 'Heart this Pipeline object' : 'Sign in to heart this Pipeline object'}><Heart aria-hidden="true" />{heart.count}</button>{pipelineItem && canReview ? <><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'positive'} onClick={() => onVote(pipelineItem.pipeline.submission.id, item.name, 'positive')} aria-label={`Vote up for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{pipelineItem.pipeline.submission.positiveVotes}</button><button type="button" disabled={votingId === pipelineItem.pipeline.submission.id || pipelineItem.pipeline.reviewState === 'self'} data-active={pipelineItem.pipeline.submission.currentUserVote === 'negative'} onClick={() => onVote(pipelineItem.pipeline.submission.id, item.name, 'negative')} aria-label={`Vote down for ${item.name}`} title={pipelineItem.pipeline.reviewState === 'self' ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{pipelineItem.pipeline.submission.negativeVotes}</button></> : null}</div> : null}
           </article>;
         })}
-      </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{scopeItems.length ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{scopeItems.length ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
+      </div> : <div className={styles.emptyState}><Boxes aria-hidden="true" /><strong>{unfilteredScopeItemCount ? 'No objects match this view' : `${scopeDefinition.label} is ready`}</strong><p>{unfilteredScopeItemCount ? 'Clear the search or change the filter.' : activeScope === 'personal' ? 'Create a Set or connect a location to begin.' : activeScope === 'published' ? 'Your published Pipeline work will appear here.' : 'Shared work available to your account will appear here.'}</p></div>}
     </>}
   </section>;
 }

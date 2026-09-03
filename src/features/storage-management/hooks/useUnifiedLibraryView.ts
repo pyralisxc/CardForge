@@ -94,9 +94,10 @@ export function useUnifiedLibraryView({
       : activeScope === 'pipeline' && pipelineAccess
         ? shared.pipelineLoading || shared.catalogLoading
         : shared.catalogLoading;
+  const unfilteredScopeItemCount = activeScope === 'personal' ? projection.items.length : scopeItems.length;
   const activeStatus = activeScope === 'campaigns'
     ? { kind: 'ready' as const, label: 'Workspace' }
-    : getLibraryScopeStatus({ loading: activeLoading, itemCount: scopeItems.length, failure: activeFailure?.message ?? null });
+    : getLibraryScopeStatus({ loading: activeLoading, itemCount: unfilteredScopeItemCount, failure: activeFailure?.message ?? null });
 
-  return { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, viewItems };
+  return { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, unfilteredScopeItemCount, viewItems };
 }
