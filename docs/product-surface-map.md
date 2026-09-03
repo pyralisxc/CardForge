@@ -309,14 +309,15 @@ A future shared source-capability projection should expose human/agent reachabil
 
 ## Owner operations
 
-Owner remains protected and auditable, but composes as authority on native objects rather than a separate navigation environment. Cross-product operations remain in Profile; Pipeline operations live in Library → Pipeline; public copy and media controls live on their modeled public fields. `/owner` is compatibility ingress for older deep links and provider callbacks.
+Owner remains protected and auditable, but composes as authority on native objects rather than a separate navigation environment. Profile contains Overview, Growth & People, and Governance. Campaign operations live in Library → Campaigns; Pipeline operations live in Library → Pipeline; public site controls live contextually on the homepage; Roadmap mutations live on `/roadmap`. `/owner` is compatibility ingress for older deep links and provider callbacks.
 
 Current capability families remain preserved:
 
 - action/readiness overview;
-- marketing strategy/campaigns/distribution/results;
+- Library → Campaigns strategy/approval/distribution/results;
 - growth/people/Contributor access/analytics/billing/contact;
-- site/public-content controls;
+- contextual public-homepage site/content controls;
+- contextual `/roadmap` rules and status controls;
 - shared Library → Pipeline review/publication/routing/removal;
 - governance/legal/activity/retention.
 
@@ -363,7 +364,7 @@ Games remains the first active Specialty direction, including Playing Cards, Tar
 | `contributor-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/focused Studio; Owner people controls |
 | `pipeline` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
 | `contributor-program` | public program explanation/application | Public Contributor program |
-| `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Owner Marketing |
+| `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Library Campaigns |
 | `personal-library` | connected provider assets/fonts | Library + Studio source picker + MCP read |
 | `project` | browser workspace, packages, folders, Drive, recovery | Desk + Library location truth + Studio save/open |
 | `storage-management` | account unified inventory/location tools | Library; compact Profile summary |

@@ -110,8 +110,8 @@ export function PublicSiteMediaLiveEditor({
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
-      const result = await response.json() as { console: { siteMedia: SiteMediaAsset[] } };
-      onAssetsChange(result.console.siteMedia);
+      const result = await response.json() as { operations: { siteMedia: SiteMediaAsset[] } };
+      onAssetsChange(result.operations.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: 'Site media published', description: `${asset.label} and its responsive presentation are now live.` });
@@ -135,8 +135,8 @@ export function PublicSiteMediaLiveEditor({
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to restore the previous image.'));
-      const result = await response.json() as { console: { siteMedia: SiteMediaAsset[] } };
-      onAssetsChange(result.console.siteMedia);
+      const result = await response.json() as { operations: { siteMedia: SiteMediaAsset[] } };
+      onAssetsChange(result.operations.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: 'Previous image restored', description: `${asset.label} has been rolled back. The version you replaced is still available.` });

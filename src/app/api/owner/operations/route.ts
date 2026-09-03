@@ -1,7 +1,7 @@
 import {
-  getOwnerConsoleOverviewPayload,
+  getOwnerOperationsOverviewPayload,
   getOwnerIntegrationStatus,
-  getOwnerSiteConsolePayload,
+  getOwnerSiteOperationsPayload,
   getOwnerSiteControlPayload,
   recordOwnerActivity,
 } from '@/features/owner/server';
@@ -43,7 +43,7 @@ const requireOwner = async () => {
       response: createApiErrorResponse(
         403,
         'owner_access_required',
-        'Owner access is required for this console.'
+        'Owner access is required for these operations.'
       ),
     };
   }
@@ -63,12 +63,12 @@ export async function GET(request: Request) {
       return response;
     }
     if (scope && scope !== 'overview') {
-      return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner console scope.');
+      return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner operations scope.');
     }
 
     const [integrationStatus, overview] = await Promise.all([
       timing.track('integration_status', async () => getOwnerIntegrationStatus()),
-      timing.track('owner_overview', getOwnerConsoleOverviewPayload),
+      timing.track('owner_overview', getOwnerOperationsOverviewPayload),
     ]);
 
     const response = createNoStoreJsonResponse({
@@ -79,8 +79,8 @@ export async function GET(request: Request) {
     response.headers.set('Server-Timing', timing.header());
     return response;
   } catch (error) {
-    console.error('Failed to load owner console:', error);
-    return createApiErrorResponse(500, 'owner_console_unavailable', 'Unable to load owner console.');
+    console.error('Failed to load owner operations:', error);
+    return createApiErrorResponse(500, 'owner_operations_unavailable', 'Unable to load owner operations.');
   }
 }
 
@@ -114,7 +114,7 @@ export async function PUT(request: Request) {
         targetId,
         summary,
       });
-      return createNoStoreJsonResponse({ console: await getOwnerSiteConsolePayload(), activityRecorded });
+      return createNoStoreJsonResponse({ operations: await getOwnerSiteOperationsPayload(), activityRecorded });
     };
 
     if (body.kind === 'businessIdentity') {
@@ -158,7 +158,7 @@ export async function PUT(request: Request) {
       return respond({ action: 'roadmap.item.status.update', targetType: 'roadmap_item', targetId: typeof body.roadmapItem?.itemId === 'string' ? body.roadmapItem.itemId : null, summary: 'Updated an owner-controlled roadmap item status.' });
     }
 
-    return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner console update.');
+    return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner operations update.');
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
@@ -174,15 +174,15 @@ export async function PUT(request: Request) {
       return createApiErrorResponse(
         error.status,
         error.status === 503
-          ? 'owner_console_unavailable'
+          ? 'owner_operations_unavailable'
           : error.status === 409
-            ? 'owner_console_conflict'
+            ? 'owner_operations_conflict'
             : 'owner_request_invalid',
         error.message
       );
     }
 
-    console.error('Failed to update owner console:', error);
-    return createApiErrorResponse(500, 'owner_request_invalid', 'Unable to update owner console.');
+    console.error('Failed to update owner operations:', error);
+    return createApiErrorResponse(500, 'owner_request_invalid', 'Unable to update owner operations.');
   }
 }

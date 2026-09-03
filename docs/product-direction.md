@@ -404,16 +404,17 @@ Profile may hold durable personal defaults only when ownership is truly personal
 
 ## Owner Operations
 
-Owner operations reveal as protected tools at their native recurring object. Profile composes account-, provider-, governance-, and service-oriented operations. Public copy/media and roadmap-rule controls reveal contextually on server-confirmed Owner views of the native public pages, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
+Owner operations reveal as protected tools at their native recurring object. Profile composes Overview, Growth & People, and Governance. Campaigns live in Library → Campaigns, Pipeline authority lives in Library → Pipeline, public site controls reveal contextually on the homepage, and Roadmap rules/status controls reveal on `/roadmap`, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
 
 Owner responsibilities include:
 
 - action/readiness queues;
 - people and Contributor scopes;
-- shared Library review/publication/routing;
+- shared Library → Pipeline review/publication/routing;
 - owner overrides and permanent purge;
-- public site controls;
-- marketing strategy/approval/distribution;
+- contextual public-homepage site controls;
+- Library → Campaigns strategy/approval/distribution;
+- contextual Roadmap rules/status controls;
 - legal/governance/history;
 - service/provider readiness;
 - billing/usage/analytics reconciliation.

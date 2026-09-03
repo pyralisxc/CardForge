@@ -5,8 +5,8 @@ import { Save, UserRound } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
-import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
+import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
 import type { FounderProfile, FounderProfileInput } from '@/features/public-site/client';
 
 const toInput = ({ updatedAt: _updatedAt, ...profile }: FounderProfile): FounderProfileInput => profile;
@@ -14,19 +14,19 @@ const toInput = ({ updatedAt: _updatedAt, ...profile }: FounderProfile): Founder
 const inputClassName = 'border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm leading-6 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 
 export function OwnerFounderProfilePanel({
-  consolePayload,
-  onConsoleChange,
+  operationsPayload,
+  onOperationsChange,
 }: {
-  consolePayload: OwnerConsolePayload;
-  onConsoleChange: (payload: OwnerConsolePayload) => void;
+  operationsPayload: OwnerOperationsPayload;
+  onOperationsChange: (payload: OwnerOperationsPayload) => void;
 }) {
   const { toast } = useToast();
-  const [profile, setProfile] = useState(consolePayload.founderProfile);
+  const [profile, setProfile] = useState(operationsPayload.founderProfile);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setProfile(consolePayload.founderProfile);
-  }, [consolePayload]);
+    setProfile(operationsPayload.founderProfile);
+  }, [operationsPayload]);
 
   const setField = <K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) => {
     setProfile((current) => ({ ...current, [key]: value }));
@@ -35,11 +35,11 @@ export function OwnerFounderProfilePanel({
   const saveProfile = async () => {
     setIsSaving(true);
     try {
-      const next = await updateOwnerConsole({
+      const next = await updateOwnerOperations({
         kind: 'founderProfile',
         founderProfile: toInput(profile),
       }, 'Unable to save the Cameron profile.');
-      onConsoleChange(next);
+      onOperationsChange(next);
       toast({ title: 'Cameron profile published', description: 'Founder copy and social links are live without a deploy.' });
     } catch (error) {
       toast({ title: 'Cameron profile not saved', description: error instanceof Error ? error.message : 'Unable to save the Cameron profile.', variant: 'destructive' });

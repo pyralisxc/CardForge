@@ -154,7 +154,7 @@ Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live ro
 
 ## Owner operations
 
-Profile composes five protected cross-product groups for owners: Overview, Marketing, Growth & People, Site Controls, and Governance. Pipeline objects, publication controls, Contributor program policy, routing, and Content Health live in Library → Pipeline. Public copy edits from exact modeled rendered fields, while relevant media and roadmap operations remain on their native public surfaces. Profile People writes commercial plan, Contributor authority, and Owner authority independently. `/owner` remains permission-gated compatibility ingress, not a fourth navigation environment.
+Profile composes three protected cross-product groups for owners: Overview, Growth & People, and Governance. Campaign strategy, approval, distribution, and results live in Library → Campaigns; Pipeline objects, publication controls, Contributor program policy, routing, and Content Health live in Library → Pipeline. Site settings, modeled public copy, and relevant media publish contextually on the public homepage, while Roadmap rules and item-status changes live on `/roadmap`; Profile presents only a read-only Roadmap summary and navigation. Profile People writes commercial plan, Contributor authority, and Owner authority independently. `/owner` remains permission-gated compatibility ingress, not a fourth navigation environment.
 
 ## Source of truth
 

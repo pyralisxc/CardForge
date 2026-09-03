@@ -1,13 +1,13 @@
 import type {
   OwnerConnectedService,
-  OwnerConsoleOverviewPayload,
-  OwnerConsolePayload,
+  OwnerOperationsOverviewPayload,
+  OwnerOperationsPayload,
   OwnerSiteControlPayload,
-} from '@/features/owner/lib/ownerConsole';
+} from '@/features/owner/lib/ownerOperations';
 import type { AnalyticsConfigurationStatus } from '@/features/analytics/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export interface OwnerConsoleResponse {
+export interface OwnerOperationsResponse {
   ownerAccess: {
     isOwner: boolean;
     source: string;
@@ -44,7 +44,7 @@ export interface OwnerConsoleResponse {
     };
     connectedServices: OwnerConnectedService[];
   };
-  overview: OwnerConsoleOverviewPayload;
+  overview: OwnerOperationsOverviewPayload;
 }
 
 export type OwnerPersonIdentityState = 'connected' | 'history_only' | 'account_only';
@@ -90,20 +90,20 @@ export interface OwnerPeoplePage {
 }
 
 export const loadOwnerSiteControls = async (): Promise<OwnerSiteControlPayload> => {
-  const response = await fetch('/api/owner/console?scope=site', { cache: 'no-store' });
+  const response = await fetch('/api/owner/operations?scope=site', { cache: 'no-store' });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load site controls.'));
   return ((await response.json()) as { siteControls: OwnerSiteControlPayload }).siteControls;
 };
 
-export const updateOwnerConsole = async (
+export const updateOwnerOperations = async (
   body: Record<string, unknown>,
   fallback: string,
-): Promise<OwnerConsolePayload> => {
-  const response = await fetch('/api/owner/console', {
+): Promise<OwnerOperationsPayload> => {
+  const response = await fetch('/api/owner/operations', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, fallback));
-  return ((await response.json()) as { console: OwnerConsolePayload }).console;
+  return ((await response.json()) as { operations: OwnerOperationsPayload }).operations;
 };

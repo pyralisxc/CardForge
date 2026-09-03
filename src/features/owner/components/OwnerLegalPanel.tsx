@@ -7,8 +7,8 @@ import { Eye, FileText, KeyRound, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { DEFAULT_LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentSlug } from '@/features/legal/client/documents';
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
-import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
+import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
 
 const pathBySlug: Record<LegalDocumentSlug, string> = {
   privacy: '/privacy',
@@ -21,20 +21,20 @@ const pathBySlug: Record<LegalDocumentSlug, string> = {
   accessibility: '/accessibility',
 };
 
-export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
-  consolePayload: OwnerConsolePayload;
-  onConsoleChange: (payload: OwnerConsolePayload) => void;
+export function OwnerLegalPanel({ operationsPayload, onOperationsChange }: {
+  operationsPayload: OwnerOperationsPayload;
+  onOperationsChange: (payload: OwnerOperationsPayload) => void;
 }) {
   const { toast } = useToast();
   const [activeSlug, setActiveSlug] = useState<LegalDocumentSlug>('privacy');
-  const [drafts, setDrafts] = useState<Record<LegalDocumentSlug, LegalDocument>>(() => toDrafts(consolePayload.legalDocuments));
+  const [drafts, setDrafts] = useState<Record<LegalDocumentSlug, LegalDocument>>(() => toDrafts(operationsPayload.legalDocuments));
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<LegalDocument[]>([]);
   const [historyError, setHistoryError] = useState('');
-  useEffect(() => setDrafts(toDrafts(consolePayload.legalDocuments)), [consolePayload]);
+  useEffect(() => setDrafts(toDrafts(operationsPayload.legalDocuments)), [operationsPayload]);
   const documents = useMemo(() => DEFAULT_LEGAL_DOCUMENTS.map((document) => drafts[document.slug]).filter(Boolean), [drafts]);
   const active = drafts[activeSlug];
-  const live = consolePayload.legalDocuments.find((document) => document.slug === activeSlug) ?? active;
+  const live = operationsPayload.legalDocuments.find((document) => document.slug === activeSlug) ?? active;
   useEffect(() => {
     let mounted = true;
     const loadHistory = async () => {
@@ -50,22 +50,22 @@ export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
     };
     void loadHistory();
     return () => { mounted = false; };
-  }, [activeSlug, consolePayload.legalDocuments]);
+  }, [activeSlug, operationsPayload.legalDocuments]);
 
   const save = async () => {
     setIsSaving(true);
     try {
-      const next = await updateOwnerConsole({
+      const next = await updateOwnerOperations({
         kind: 'legal',
         legalDocument: {
           slug: active.slug,
           title: active.title,
           body: active.body,
           effectiveDate: active.effectiveDate,
-          expectedBusinessIdentityVersion: consolePayload.businessIdentity.identityVersion,
+          expectedBusinessIdentityVersion: operationsPayload.businessIdentity.identityVersion,
         },
       }, 'Unable to save legal document.');
-      onConsoleChange(next);
+      onOperationsChange(next);
       toast({ title: 'Legal page published', description: `${active.title} is updated.` });
     } catch (error) {
       toast({ title: 'Legal page not saved', description: error instanceof Error ? error.message : 'Unable to save legal document.', variant: 'destructive' });

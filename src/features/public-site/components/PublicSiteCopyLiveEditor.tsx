@@ -9,14 +9,14 @@ import type { SiteContentBlock, SiteContentBlockSlug } from '../model/siteConten
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export const savePublicSiteContentBlock = async (block: Pick<SiteContentBlock, 'slug' | 'body'>): Promise<SiteContentBlock[]> => {
-  const response = await fetch('/api/owner/console', {
+  const response = await fetch('/api/owner/operations', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind: 'siteContent', siteContentBlock: block }),
   });
   if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save site copy.'));
-  const result = await response.json() as { console: { siteContentBlocks: SiteContentBlock[] } };
-  return result.console.siteContentBlocks;
+  const result = await response.json() as { operations: { siteContentBlocks: SiteContentBlock[] } };
+  return result.operations.siteContentBlocks;
 };
 
 const groupLabels: Record<SiteContentBlock['group'], string> = {

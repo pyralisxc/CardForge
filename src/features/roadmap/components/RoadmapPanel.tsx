@@ -162,7 +162,7 @@ export function RoadmapPanel({ isContributor, isOwner, isSignedIn, accountEmail,
     if (!isOwner) return;
     setIsSaving(true);
     try {
-      const response = await fetch('/api/owner/console', {
+      const response = await fetch('/api/owner/operations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: 'roadmapStatus', roadmapItem: { itemId, status } }),

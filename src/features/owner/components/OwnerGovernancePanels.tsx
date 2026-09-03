@@ -40,7 +40,7 @@ const authorityRows = [
   [
     "Provider operator",
     "Credentials, billing records, email delivery, hosted deployment, or external analytics.",
-    "Provider dashboard; never copied into this console",
+    "Provider dashboard; never copied into CardForge",
   ],
 ] as const;
 
@@ -54,7 +54,7 @@ export function OwnerRolesPanel() {
         </h2>
       </div>
       <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
-        This is the effective control model. The console edits authority through
+        This is the effective control model. Owner operations edit authority through
         its real owner; it does not invent a second permissions system.
       </p>
       <div className="mt-4 overflow-x-auto">

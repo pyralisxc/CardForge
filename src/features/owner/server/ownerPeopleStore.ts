@@ -9,7 +9,7 @@ import {
 import type {
   OwnerPeoplePage,
   OwnerPerson,
-} from '@/features/owner/model/ownerConsoleClient';
+} from '@/features/owner/model/ownerOperationsClient';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 type ClerkBackendClient = Awaited<ReturnType<typeof clerkClient>>;

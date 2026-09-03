@@ -208,7 +208,7 @@ describe('business identity store', () => {
       status: 400,
       message: 'Assumed business name status requires documented external verification and a separate reviewed update.',
       fieldErrors: {
-        assumedBusinessNameStatus: 'Assumed business name status cannot be changed in the owner console.',
+        assumedBusinessNameStatus: 'Assumed business name status cannot be changed in Owner operations.',
       },
     } satisfies Partial<BusinessIdentityStoreError>);
     expect(read.from).toHaveBeenCalledTimes(1);

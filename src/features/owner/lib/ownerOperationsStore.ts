@@ -1,12 +1,11 @@
 import { getBusinessIdentity } from '@/features/business-identity/server';
-import { getContactRequests } from '@/features/contact/server';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
 import type {
-  OwnerConsoleOverviewPayload,
-  OwnerConsolePayload,
+  OwnerOperationsOverviewPayload,
+  OwnerOperationsPayload,
   OwnerSiteControlPayload,
-} from '@/features/owner/lib/ownerConsole';
+} from '@/features/owner/lib/ownerOperations';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
 import {
   getFounderProfile,
@@ -20,7 +19,7 @@ import {
 } from '@/features/roadmap/server';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
-export const getOwnerConsoleOverviewPayload = async (): Promise<OwnerConsoleOverviewPayload> => {
+export const getOwnerOperationsOverviewPayload = async (): Promise<OwnerOperationsOverviewPayload> => {
   const [businessIdentity, roadmapItems, databaseMetrics] = await Promise.all([
     getBusinessIdentity(),
     getRoadmapAdminItems(),
@@ -69,24 +68,8 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
   };
 };
 
-export const getOwnerSiteConsolePayload = async (): Promise<OwnerConsolePayload> => ({
+export const getOwnerSiteOperationsPayload = async (): Promise<OwnerOperationsPayload> => ({
   ...(await getOwnerSiteControlPayload()),
   configured: getSupabaseServerConfigStatus().configured,
   databaseMetrics: null,
-  contactRequests: [],
 });
-
-/** Full fan-in retained only for explicit compatibility callers; Owner Console startup no longer uses it. */
-export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
-  const [overview, site, contactRequests] = await Promise.all([
-    getOwnerConsoleOverviewPayload(),
-    getOwnerSiteControlPayload(),
-    getContactRequests(),
-  ]);
-  return {
-    ...site,
-    configured: overview.configured,
-    databaseMetrics: overview.databaseMetrics,
-    contactRequests,
-  };
-};

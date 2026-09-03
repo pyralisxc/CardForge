@@ -1,4 +1,4 @@
-import { getCurrentOwnerAccess, getOwnerSiteConsolePayload } from '@/features/owner/server';
+import { getCurrentOwnerAccess, getOwnerSiteOperationsPayload } from '@/features/owner/server';
 import { OwnerPublicSiteOperations } from '@/features/owner/client';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/client';
 
@@ -8,7 +8,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
   const ownerAccess = await getCurrentOwnerAccess();
   if (!ownerAccess.isOwner || !ownerAccess.userId) return null;
 
-  const payload = await getOwnerSiteConsolePayload();
+  const payload = await getOwnerSiteOperationsPayload();
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
     initialBlocks={payload.siteContentBlocks}

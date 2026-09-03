@@ -15,7 +15,7 @@ export async function POST() {
   const to = businessIdentity.supportEmail || owner.email || process.env.CARDFORGE_EMAIL_REPLY_TO || '';
   const built = buildContactRequestEmail({
     kind: 'support',
-    name: 'CardForge Owner Console',
+    name: 'CardForge Owner Operations',
     email: process.env.CARDFORGE_EMAIL_REPLY_TO || to,
     subject: 'Transactional email test',
     message: 'This confirms CardForge can send transactional email through the configured Resend route.',

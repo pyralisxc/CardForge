@@ -63,17 +63,17 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
     loadError,
     siteLoadError,
     payload,
-    siteConsole,
+    siteOperations,
     load,
     loadSite,
-    updateConsole,
+    updateOperations,
   } = useOwnerOperations();
   const [workspace, setWorkspace] = useState<OwnerWorkspace>(initialWorkspace);
   useEffect(() => {
-    if (workspace === 'governance' && !siteConsole && !isLoadingSite && !siteLoadError) {
+    if (workspace === 'governance' && !siteOperations && !isLoadingSite && !siteLoadError) {
       void loadSite();
     }
-  }, [workspace, siteConsole, isLoadingSite, siteLoadError, loadSite]);
+  }, [workspace, siteOperations, isLoadingSite, siteLoadError, loadSite]);
 
   if (!payload && isLoading) {
     return (
@@ -87,7 +87,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
               </div>
               <div className="h-2 w-32 animate-pulse bg-[var(--cf-border-subtle)]" />
             </div>
-            {isSlow ? <p className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] p-3 text-sm leading-6 text-[var(--cf-warning)]">This is taking longer than expected. The console should recover automatically.</p> : null}
+            {isSlow ? <p className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-surface-raised)] p-3 text-sm leading-6 text-[var(--cf-warning)]">This is taking longer than expected. Owner operations should recover automatically.</p> : null}
           </CardForgeSurface>
         </section>
       </div>
@@ -110,7 +110,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
     );
   }
 
-  const siteWorkspaceContent = siteConsole ?? null;
+  const siteWorkspaceContent = siteOperations ?? null;
   const ensureSite = () => { void loadSite(); };
 
   return (
@@ -127,16 +127,16 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
             />
 
             <TabsContent value="overview" className="mt-0 space-y-4">
-              <CardForgeSectionIntro eyebrow="Operate CardForge" title="Start with action, then open the owning workspace" body="The overview is a compact operating surface. Integrations report provider truth, health reports CardForge data, and roadmap actions publish through their existing owner." />
-              <Tabs defaultValue="actions" className="space-y-4">
+              <CardForgeSectionIntro eyebrow="Operate CardForge" title="Start with context, then open the owning workspace" body="The overview is a compact operating surface. Integrations report provider truth, health reports CardForge data, and Roadmap decisions open their native workspace." />
+              <Tabs defaultValue="roadmap" className="space-y-4">
                 <TabsList className={subtabListClassName}>
-                  <TabsTrigger value="actions" className={subtabClassName}>Action center</TabsTrigger>
+                  <TabsTrigger value="roadmap" className={subtabClassName}>Roadmap summary</TabsTrigger>
                   <TabsTrigger value="integrations" className={subtabClassName}>Integrations</TabsTrigger>
                   <TabsTrigger value="health" className={subtabClassName}>System health</TabsTrigger>
                 </TabsList>
-                <TabsContent value="actions" className="mt-0"><OwnerReadinessPanel view="roadmap" compactRoadmap consolePayload={payload.overview} onConsoleChange={updateConsole} onOpenRoadmap={() => router.push('/roadmap')} /></TabsContent>
+                <TabsContent value="roadmap" className="mt-0"><OwnerReadinessPanel view="roadmap" compactRoadmap operationsPayload={payload.overview} onOpenRoadmap={() => router.push('/roadmap')} /></TabsContent>
                 <TabsContent value="integrations" className="mt-0"><OwnerConnectedServicesPanel services={payload.integrationStatus.connectedServices} /></TabsContent>
-                <TabsContent value="health" className="mt-0"><OwnerReadinessPanel view="health" consolePayload={payload.overview} onConsoleChange={updateConsole} /></TabsContent>
+                <TabsContent value="health" className="mt-0"><OwnerReadinessPanel view="health" operationsPayload={payload.overview} /></TabsContent>
               </Tabs>
             </TabsContent>
 
@@ -168,7 +168,7 @@ export function OwnerProfileOperations({ initialWorkspace = 'overview' }: OwnerP
                     <TabsTrigger value="history" className={subtabClassName}>Change History</TabsTrigger>
                     <TabsTrigger value="retention" className={subtabClassName}>Deletion &amp; Retention</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="legal" className="mt-0"><OwnerLegalPanel consolePayload={siteWorkspaceContent} onConsoleChange={updateConsole} /></TabsContent>
+                  <TabsContent value="legal" className="mt-0"><OwnerLegalPanel operationsPayload={siteWorkspaceContent} onOperationsChange={updateOperations} /></TabsContent>
                   <TabsContent value="roles" className="mt-0"><OwnerRolesPanel /></TabsContent>
                   <TabsContent value="history" className="mt-0"><OwnerActivityPanel /></TabsContent>
                   <TabsContent value="retention" className="mt-0"><OwnerRetentionPanel /></TabsContent>

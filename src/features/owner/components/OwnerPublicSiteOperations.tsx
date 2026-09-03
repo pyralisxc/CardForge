@@ -33,14 +33,14 @@ const siteControlOwnership = [
 ] as const;
 
 export function OwnerPublicSiteOperations() {
-  const { isLoadingSite, siteLoadError, payload, siteConsole, loadSite, updateConsole } = useOwnerOperations();
+  const { isLoadingSite, siteLoadError, payload, siteOperations, loadSite, updateOperations } = useOwnerOperations();
   const [workspace, setWorkspace] = useState('identity');
 
   useEffect(() => {
-    if (payload && !siteConsole && !isLoadingSite && !siteLoadError) void loadSite();
-  }, [isLoadingSite, loadSite, payload, siteConsole, siteLoadError]);
+    if (payload && !siteOperations && !isLoadingSite && !siteLoadError) void loadSite();
+  }, [isLoadingSite, loadSite, payload, siteOperations, siteLoadError]);
 
-  if (!siteConsole) {
+  if (!siteOperations) {
     return <CardForgeWorkspaceState
       state={siteLoadError ? 'error' : 'loading'}
       message={siteLoadError ?? 'Loading public-site operations…'}
@@ -69,9 +69,9 @@ export function OwnerPublicSiteOperations() {
         <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
-      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" consolePayload={siteConsole} onConsoleChange={updateConsole} /><OwnerFounderProfilePanel consolePayload={siteConsole} onConsoleChange={updateConsole} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteConsole.siteConfiguration} onSettingsChange={(siteConfiguration) => updateConsole({ ...siteConsole, siteConfiguration })} /></TabsContent>
-      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteConsole.experienceSettings} onSettingsChange={(experienceSettings) => updateConsole({ ...siteConsole, experienceSettings })} /></TabsContent>
+      <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" operationsPayload={siteOperations} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => updateOperations({ ...siteOperations, siteConfiguration })} /></TabsContent>
+      <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => updateOperations({ ...siteOperations, experienceSettings })} /></TabsContent>
     </Tabs>
   </section>;
 }

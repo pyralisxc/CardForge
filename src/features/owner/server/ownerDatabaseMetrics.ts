@@ -1,4 +1,4 @@
-import type { OwnerDatabaseMetrics } from '@/features/owner/lib/ownerConsole';
+import type { OwnerDatabaseMetrics } from '@/features/owner/lib/ownerOperations';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 type DatabaseMetricsRow = {

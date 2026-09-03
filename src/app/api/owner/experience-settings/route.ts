@@ -14,7 +14,7 @@ export async function PUT(request: Request) {
   try {
     const ownerAccess = await getCurrentOwnerAccess();
     if (!ownerAccess.isOwner || !ownerAccess.userId) {
-      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for this console.');
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for these operations.');
     }
 
     const body = await request.json() as Record<string, unknown>;

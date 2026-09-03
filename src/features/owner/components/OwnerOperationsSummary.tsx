@@ -6,10 +6,10 @@ import { ExternalLink, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
-import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerOperationsResponse } from '@/features/owner/model/ownerOperationsClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function OwnerOperationsSummary({ payload }: { payload: OwnerConsoleResponse }) {
+export function OwnerOperationsSummary({ payload }: { payload: OwnerOperationsResponse }) {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
   const sendTestEmail = async () => {
