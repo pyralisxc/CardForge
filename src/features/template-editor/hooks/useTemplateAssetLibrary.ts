@@ -71,7 +71,6 @@ export function useTemplateAssetLibrary({
   canUploadCustomAssets,
   toast,
 }: UseTemplateAssetLibraryInput) {
-  const [assetSearch, setAssetSearch] = useState('');
   const [discoveredTextureAssets, setDiscoveredTextureAssets] = useState<CardAssetOption[]>([]);
   const [discoveredDividerAssets, setDiscoveredDividerAssets] = useState<CardAssetOption[]>([]);
   const [discoveredIconAssets, setDiscoveredIconAssets] = useState<CardAssetOption[]>([]);
@@ -153,36 +152,28 @@ export function useTemplateAssetLibrary({
   const compatibleTextureAssets = useMemo(() => {
     if (!selectedElement || !canUseBackgroundTexture) return [];
     const target = selectedElement.type === 'shape' ? 'shape' : 'text';
-    const search = assetSearch.trim().toLowerCase();
     return [...discoveredTextureAssets, ...customTextureAssets]
       .filter((asset) => isRoutedTo(asset, 'appearance.texture'))
-      .filter((asset) => asset.allowedTargets.includes(target))
-      .filter((asset) => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, canUseBackgroundTexture, customTextureAssets, discoveredTextureAssets, selectedElement]);
+      .filter((asset) => asset.allowedTargets.includes(target));
+  }, [canUseBackgroundTexture, customTextureAssets, discoveredTextureAssets, selectedElement]);
 
   const compatibleDividerAssets = useMemo(() => {
-    const search = assetSearch.trim().toLowerCase();
     return [...discoveredDividerAssets, ...customDividerAssets]
       .filter((asset) => isRoutedTo(asset, 'element.divider'))
-      .filter((asset) => asset.allowedTargets.includes('divider'))
-      .filter((asset) => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, customDividerAssets, discoveredDividerAssets]);
+      .filter((asset) => asset.allowedTargets.includes('divider'));
+  }, [customDividerAssets, discoveredDividerAssets]);
 
   const compatibleIconAssets = useMemo(() => {
-    const search = assetSearch.trim().toLowerCase();
     return [...discoveredIconAssets, ...customIconAssets]
       .filter((asset) => isRoutedTo(asset, 'element.icon'))
-      .filter((asset) => asset.allowedTargets.includes('icon'))
-      .filter((asset) => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, customIconAssets, discoveredIconAssets]);
+      .filter((asset) => asset.allowedTargets.includes('icon'));
+  }, [customIconAssets, discoveredIconAssets]);
 
   const compatibleImageAssets = useMemo(() => {
-    const search = assetSearch.trim().toLowerCase();
     return [...discoveredImageAssets, ...customImageAssets]
       .filter((asset) => isRoutedTo(asset, 'image.picture'))
-      .filter((asset) => asset.allowedTargets.includes('image'))
-      .filter((asset) => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, customImageAssets, discoveredImageAssets]);
+      .filter((asset) => asset.allowedTargets.includes('image'));
+  }, [customImageAssets, discoveredImageAssets]);
 
   const allImageAssets = useMemo(() => [...discoveredImageAssets, ...customImageAssets], [customImageAssets, discoveredImageAssets]);
   const frontFrameAssets = useMemo(
@@ -325,7 +316,6 @@ export function useTemplateAssetLibrary({
   }, [canUploadCustomAssets, customDividerAssets, customIconAssets, customImageAssets, customTextureAssets, toast]);
 
   return {
-    assetSearch,
     compatibleDividerAssets,
     compatibleIconAssets,
     compatibleImageAssets,
@@ -340,6 +330,5 @@ export function useTemplateAssetLibrary({
     handleAssetUpload,
     importConnectedLibraryItem,
     refreshLocalAssets,
-    setAssetSearch,
   };
 }

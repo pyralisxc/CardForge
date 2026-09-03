@@ -90,11 +90,9 @@ export function TemplateEditorInspectorSidebar({
               <ImageInspectorPanel
                   element={selectedElement}
                   imageAssets={elements.compatibleImageAssets}
-                  assetSearch={elements.assetSearch}
                   personalItems={elements.connectedLibraryItems}
                   onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
                   onHandleFileUpload={commands.handleFileUpload}
-                  onAssetSearchChange={elements.setAssetSearch}
                   onAddFromProvider={elements.addConnectedLibraryItems}
                   onMaterializePersonal={elements.importConnectedLibraryItem}
                 />
@@ -119,7 +117,6 @@ export function TemplateEditorInspectorSidebar({
               element={selectedElement}
               iconOptions={ICON_OPTIONS}
               iconAssets={elements.compatibleIconAssets}
-              assetSearch={elements.assetSearch}
               canUploadCustomAssets={canUploadCustomAssets}
               symbolStylePresets={elements.selectedElementPresetRecipeGroups.icon}
               controlClassName={makerTheme.control}
@@ -128,7 +125,6 @@ export function TemplateEditorInspectorSidebar({
               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
               onHandleFileUpload={commands.handleFileUpload}
               onHandleAssetUpload={elements.handleAssetUpload}
-              onAssetSearchChange={elements.setAssetSearch}
               personalItems={elements.connectedLibraryItems}
               onAddFromProvider={elements.addConnectedLibraryItems}
               onMaterializePersonal={elements.importConnectedLibraryItem}
@@ -223,9 +219,7 @@ export function TemplateEditorInspectorSidebar({
               canUseBackgroundTexture={elements.canUseBackgroundTexture}
               controlClassName={makerTheme.control}
               buttonClassName={makerTheme.button}
-              assetSearch={elements.assetSearch}
               canUploadCustomAssets={canUploadCustomAssets}
-              onAssetSearchChange={elements.setAssetSearch}
               onHandleAssetUpload={elements.handleAssetUpload}
               onSaveStyle={elements.saveSelectedAppearanceStyle}
               onApplyAppearancePreset={elements.applyAppearancePreset}

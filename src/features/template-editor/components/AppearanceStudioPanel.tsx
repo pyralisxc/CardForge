@@ -14,8 +14,6 @@ import { cn } from '@/shared/classNames';
 import { appearanceToStyle } from '@/features/card-rendering/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
-import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
-import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
@@ -37,9 +35,7 @@ interface AppearanceStudioPanelProps {
   canUseBackgroundTexture: boolean;
   controlClassName: string;
   buttonClassName: string;
-  assetSearch: string;
   canUploadCustomAssets: boolean;
-  onAssetSearchChange: (value: string) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => void;
   onSaveStyle: () => void;
   onApplyAppearancePreset: (style: AppearanceStylePreset) => void;
@@ -61,9 +57,7 @@ export function AppearanceStudioPanel({
   canUseBackgroundTexture,
   controlClassName,
   buttonClassName,
-  assetSearch,
   canUploadCustomAssets,
-  onAssetSearchChange,
   onHandleAssetUpload,
   onSaveStyle,
   onApplyAppearancePreset,
@@ -331,28 +325,6 @@ export function AppearanceStudioPanel({
             </Button>
             <input ref={textureAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'texture')} />
           </div>
-          <Input className={controlClassName} placeholder="Search reviewed and local fill textures..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
-          <div className="grid grid-cols-4 gap-1.5">
-            {compatibleTextureAssets.map((asset) => (
-              <Tooltip key={asset.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="relative h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] hover:border-[#d5ad54]"
-                    aria-label={asset.name}
-                    onClick={() => applyTexture(asset)}
-                  >
-                    <ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0" style={{
-                      backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',
-                      backgroundRepeat: asset.tileMode === 'repeat' ? 'repeat' : 'no-repeat',
-                      backgroundPosition: 'center',
-                    }} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
         </div>
       )}
       {canUseDividerControls && (
@@ -382,22 +354,6 @@ export function AppearanceStudioPanel({
               <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local' : 'Sign in'}
             </Button>
             <input ref={dividerAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'divider')} />
-          </div>
-          <Input className={controlClassName} placeholder="Search reviewed and local dividers..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
-          <div className="grid grid-cols-4 gap-1.5" data-testid="divider-asset-grid">
-            {compatibleDividerAssets.map((asset) => (
-              <Tooltip key={asset.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="relative h-14 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[#080b10] hover:border-[#d5ad54]"
-                    aria-label={asset.name}
-                    onClick={() => applyDivider(asset)}
-                  ><ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0 bg-contain bg-center bg-no-repeat" /></button>
-                </TooltipTrigger>
-                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
-              </Tooltip>
-            ))}
           </div>
         </div>
       )}

@@ -2,28 +2,23 @@
 
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { Image as ImageIcon, Search } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
-import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
 import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
-import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
 import { TemplateAssetLibraryPicker } from './TemplateAssetLibraryPicker';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;
   imageAssets: CardAssetOption[];
-  assetSearch: string;
   personalItems: readonly PersonalLibraryItem[];
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
-  onAssetSearchChange: (value: string) => void;
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
@@ -31,11 +26,9 @@ interface ImageInspectorPanelProps {
 export function ImageInspectorPanel({
   element,
   imageAssets,
-  assetSearch,
   personalItems,
   onUpdateElement,
   onHandleFileUpload,
-  onAssetSearchChange,
   onAddFromProvider,
   onMaterializePersonal,
 }: ImageInspectorPanelProps) {
@@ -86,39 +79,6 @@ export function ImageInspectorPanel({
             onMaterializePersonal={onMaterializePersonal}
           />
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
-          <Input
-            className="h-8 rounded-[4px] border-[#2d3340] bg-[#0d1117] pl-7 text-xs text-[#d8d1c4]"
-            placeholder="Search pictures..."
-            value={assetSearch}
-            onChange={(event) => onAssetSearchChange(event.target.value)}
-          />
-        </div>
-        {imageAssets.length > 0 ? (
-          <div className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto pr-1">
-            {imageAssets.map((asset) => (
-              <Tooltip key={asset.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="group min-h-[78px] rounded-[5px] border border-[#2d3340] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/80 hover:bg-[var(--cf-editor-control)]"
-                    onClick={() => applyAsset(asset)}
-                  >
-                    <ProjectBinaryAssetBackground source={asset.url} className="block h-10 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" />
-                    <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[var(--cf-accent-text)]">{asset.name}</span>
-                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[5px] border border-dashed border-[#2d3340] bg-[#090d13] p-2 text-[10px] text-[#8f95a3]">
-            No compatible pictures found.
-          </div>
-        )}
       </div>
       <div>
         <Label htmlFor="element-fit">Picture fit</Label>
