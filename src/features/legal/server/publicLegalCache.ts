@@ -30,7 +30,7 @@ const readers = Object.fromEntries(
     slug,
     unstable_cache(
       () => readPublishedLegalDocument(slug),
-      ['public-legal-document', slug],
+      ['public-legal-document', slug, 'current-contributor-model-v2'],
       {
         tags: [legalDocumentTag(slug), PUBLIC_IDENTITY_TAG],
         revalidate: 3600,

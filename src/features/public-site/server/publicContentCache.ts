@@ -9,7 +9,7 @@ const readCachedSiteContent = unstable_cache(
   getSiteContentBlocks,
   // Bump only when a provider migration intentionally replaces canonical
   // public copy outside the owner mutation route (which normally revalidates).
-  ['public-site-content', 'desk-model-v4'],
+  ['public-site-content', 'desk-model-v5'],
   { tags: [SITE_CONTENT_TAG], revalidate: 3600 },
 );
 
