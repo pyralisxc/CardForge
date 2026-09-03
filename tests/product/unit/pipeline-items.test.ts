@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -144,29 +141,6 @@ describe('contributor asset program rules', () => {
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });
     expect(settings.tierCapsByType.icons).toEqual(DEFAULT_PIPELINE_PROGRAM_SETTINGS.tierCapsByType.icons);
     expect(settings.publishCapsByType.templates).toBe(18);
-  });
-
-  it('cold-cuts the retired Creator Pool schema from the Contributor runtime', () => {
-    const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260831015135_contributor_cold_cut.sql'),
-      'utf8',
-    );
-
-    expect(DEFAULT_PIPELINE_PROGRAM_SETTINGS).not.toHaveProperty('profitSharePoolPercent');
-    expect(migration).toContain('drop column profit_share_pool_percent');
-    expect(migration).toContain('drop column eligible_for_profit_share');
-    expect(migration).toContain('drop function if exists public.cardforge_freeze_archived_creator_pool_fields()');
-    expect(migration).toMatch(/delete from public\.cardforge_legal_documents\s+where slug = 'creator-pool'/u);
-  });
-
-  it('keeps the upload-ceiling migration compatible with the previous owner payload', () => {
-    const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260822213000_owner_controlled_developer_upload_ceiling.sql'),
-      'utf8',
-    );
-
-    expect(migration).toContain("(p_settings ->> 'maxSubmissionFileSizeMb')::integer");
-    expect(migration).toMatch(/max_submission_file_size_mb = coalesce\([\s\S]*max_submission_file_size_mb[\s\S]*\)/u);
   });
 
   it('derives publish capacity from Starter plus Creator Pass capacity', () => {

@@ -1,15 +1,10 @@
 import 'fake-indexeddb/auto';
 
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { applyGuestWorkspaceAdoption, createProjectPersistenceScope, createScopedProjectStorage, getScopedProjectStorageNamespace, inspectGuestWorkspaceAdoption, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { BROWSER_STORAGE_DATABASE, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
 import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
-
-const rootPath = (...parts: string[]) => path.join(process.cwd(), ...parts);
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -192,26 +187,5 @@ describe('Studio account-scoped persistence', () => {
     await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
     await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
     await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe(oversized);
-  });
-
-  it('keeps non-agent external Studio documents as active-project opens instead of accumulating them', async () => {
-    const handoff = await readFile(
-      rootPath('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts'),
-      'utf8',
-    );
-    const branchStart = handoff.indexOf('// Non-agent Studio documents retain project-open semantics.');
-    const branchEnd = handoff.indexOf('      } catch (error) {', branchStart);
-    const nonAgentWorkspaceBranch = handoff.slice(branchStart, branchEnd);
-
-    expect(branchStart).toBeGreaterThan(-1);
-    expect(branchEnd).toBeGreaterThan(branchStart);
-    expect(handoff).toContain('writeProjectAssetListToStorage');
-    expect(nonAgentWorkspaceBranch).toContain('useProjectStore.setState({');
-    expect(nonAgentWorkspaceBranch).toContain('userTemplates: []');
-    expect(nonAgentWorkspaceBranch).toContain('appearanceStyles: []');
-    expect(nonAgentWorkspaceBranch).toContain('storedCards: []');
-    expect(nonAgentWorkspaceBranch).toContain('mergeStoredCards(patch.storedCards)');
-    expect(handoff).toContain('normalizeStudioDocumentPayload');
-    expect(handoff).toContain('applyProjectDocumentToState');
   });
 });

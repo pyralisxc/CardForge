@@ -49,13 +49,14 @@ Maintained operational commands:
 
 ```bash
 npm run health:production
+npm run smoke:golden
 npm run smoke:ui
 npm run smoke:scale
 npm run pipeline:sync-defaults
 npm run brand:export
 ```
 
-`smoke:ui` includes generated 100/500/1,000-Artifact browser fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
+`smoke:golden` is the compact Playwright merge lane for representative Desk mouse/touch behavior. `smoke:ui` adds generated 100/500/1,000-Artifact fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
 
 ## Source map
 
@@ -121,7 +122,7 @@ Use `.env.example` as the complete variable catalog. `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Verification posture
 
-GitHub CI is the deterministic code-health gate. Vercel Preview proves a coherent branch can deploy and supports browser-level inspection. Provider-backed auth, owner, billing, email, and protected workflows require a real signed-in production check on `cardforges.com` when affected.
+GitHub CI runs the deterministic non-browser code-health gate plus a compact golden Playwright lane. Vercel Preview proves a coherent branch can deploy and supports browser-level inspection. Provider-backed auth, owner, billing, email, and protected workflows require a real signed-in production check on `cardforges.com` when affected.
 
 Persistent tests protect durable security/access/billing/destructive-data/migration/rendering/export contracts and known regressions. Do not accumulate tests or abstractions merely to preserve development history.
 

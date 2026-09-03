@@ -193,7 +193,7 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 
 The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/contributor, or protected-recovery changes, use the real signed-in owner/contributor account and verify only the affected path.
 
-`npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
+`npm run smoke:golden` is the compact merge-protected mocked browser lane. `npm run smoke:ui` is the extended browser lane, including scale and soak. Neither proves a real Clerk/Stripe/provider session.
 
 ## ChatGPT development beta
 
@@ -232,10 +232,11 @@ Safe support rollback disables/removes support checkout configuration while reta
 ## Maintained commands
 
 - `npm run verify:focused`: discover and run focused tests for the current Git diff or explicit paths; it also runs the changed-file architecture check when an ownership boundary is affected.
-- `npm run verify:full`: canonical complete repository gate for the final candidate and CI.
+- `npm run verify:full`: canonical complete non-browser repository gate for the final candidate and CI.
 - `npm run architecture:report`: on-demand dependency-gravity, public-interface, and oversized-file analysis. Normal architecture enforcement is concise.
 - `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `product`, or `provider` to isolate a lane. Product health downloads and validates the official 52-card starter package; provider health verifies Supabase catalog, Stripe/Clerk readiness, and truthful anonymous Drive authentication classification.
-- `npm run smoke:ui`: focused mocked browser/accessibility regression.
+- `npm run smoke:golden`: compact browser merge protection for representative Desk mouse/touch behavior.
+- `npm run smoke:ui`: extended mocked browser/accessibility, scale, and soak regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.
 - `npm run brand:export`: synchronize canonical brand sources and regenerate ignored derivatives.
 

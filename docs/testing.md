@@ -11,7 +11,7 @@ CardForge keeps two permanent test structures:
 
 Use `npm run verify:focused` to discover and run tests affected by the current diff, or pass explicit paths after `--`. Use `npm run test:product`, `npm run test:infrastructure`, or `npm run test:inventory` to run or inspect lanes independently. The inventory groups product coverage by domain so test growth is visible instead of disappearing into one suite total.
 
-The durable browser lane covers select-first Desk interaction, exact focus restoration, 100/500/1,000 Artifact scale, reduced-motion continuity, lifecycle cleanup, recovery/conflict, and representative compact-screen behavior. `npm run health:production` is a separate non-mutating operational lane with independently runnable route, product, and provider categories; it is not a substitute for signed-in provider acceptance.
+The merge-protected `npm run smoke:golden` browser lane covers only fast, representative Desk mouse/touch behavior. The extended `npm run smoke:ui` lane covers exact focus restoration, 100/500/1,000 Artifact scale, reduced-motion continuity, lifecycle cleanup, recovery/conflict, and broader compact-screen behavior; scale and soak remain selective rather than blocking every merge. `npm run health:production` is a separate non-mutating operational lane with independently runnable route, product, and provider categories; it is not a substitute for signed-in provider acceptance.
 
 ## Prefer behavior and public contracts
 
@@ -68,6 +68,8 @@ A PR-specific development probe is temporary by default. Before merge, either:
 
 Tests that pin a component path, internal helper name, one-time migration shape, cutover state, or exact source composition should normally take the third path. Use `npm run test:inventory` when test growth itself is under review; it is an analysis report, not part of the normal final gate. Any material increase should be explainable by product or production risk, and cleanup should retire probes made obsolete by broader coverage.
 
-`npm run verify:full` is the sole complete code-health gate. It owns lint, types, both durable test lanes, architecture, migration safety, and the production build exactly once; CI calls the same command.
+`npm run verify:full` is the sole complete non-browser code-health gate. It owns lint, types, both Vitest lanes, architecture, migration safety, and the production build exactly once; CI calls the same command. CI runs `npm run smoke:golden` as a separate browser job so browser setup is explicit and the full scale/soak suite remains selective.
+
+`npm run test:inventory` also lists every test file that reads repository source or artifacts. Each remaining reader must be classified there as a literal security, legal, published-artifact, or repository-tooling contract. An unclassified reader fails the inventory report; ordinary component/helper composition belongs in behavioral tests instead.
 
 Test count is not a quality metric. CardForge should prefer fewer tests with broad, stable value over many tests that freeze implementation details.

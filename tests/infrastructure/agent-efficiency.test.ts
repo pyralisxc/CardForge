@@ -36,10 +36,11 @@ describe('agent verification routing', () => {
     });
   });
 
-  it('owns the full gate once instead of nesting architecture and migration checks in tests', async () => {
+  it('owns the non-browser gate once and keeps the compact browser lane independently merge-protected', async () => {
     const packageJson = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
     };
+    const ci = await readFile(path.join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
     const scripts = packageJson.scripts;
 
     expect(scripts['test:infrastructure']).toBe('vitest run --config vitest.infrastructure.config.ts');
@@ -54,5 +55,10 @@ describe('agent verification routing', () => {
       'npm run migrations:check',
       'npm run build',
     ].join(' && '));
+    expect(scripts['smoke:golden']).toBe('playwright test --grep @golden --workers=1');
+    expect(scripts['verify:full']).not.toContain('playwright');
+    expect(ci).toContain('browser-golden:');
+    expect(ci).toContain('npx playwright install --with-deps chromium');
+    expect(ci).toContain('npm run smoke:golden');
   });
 });

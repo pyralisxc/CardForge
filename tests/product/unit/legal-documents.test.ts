@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -144,14 +142,6 @@ Use the service responsibly.
     expect(html).toContain('href="/privacy"');
     expect(html).toContain('href="mailto:support@cardforges.com"');
     expect(html).toContain('href="https://cardforges.com"');
-  });
-
-  it('keeps the renderer source free of the raw HTML injection sink', () => {
-    const rendererSource = readFileSync(
-      join(process.cwd(), 'src/features/legal/components/LegalDocumentBody.tsx'),
-      'utf8',
-    );
-    expect(rendererSource).not.toContain('dangerouslySetInnerHTML');
   });
 
   it('rejects raw HTML and unsafe link protocols', () => {
