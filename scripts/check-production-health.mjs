@@ -1,4 +1,3 @@
-import JSZip from 'jszip';
 import {
   assertContributorPublicTruth,
   assertContributorTermsPublicTruth,
@@ -6,7 +5,9 @@ import {
   assertRepresentativeCatalogRouting,
 } from './lib/production-health-contract.mjs';
 
-const origin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.com').replace(/\/+$/, '');
+const rawOrigin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.com').replace(/\/+$/, '');
+const origin = /^https?:\/\//u.test(rawOrigin) ? rawOrigin : `https://${rawOrigin}`;
+const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 const requestedCategory = process.argv.find((argument) => argument.startsWith('--category='))?.split('=')[1] ?? 'all';
 const allowedCategories = new Set(['all', 'route', 'product', 'provider']);
 if (!allowedCategories.has(requestedCategory)) throw new Error('Use --category=route, product, provider, or all.');
@@ -24,7 +25,10 @@ const check = async (category, label, operation) => {
   }
 };
 const get = async (path, options = {}) => fetch(`${origin}${path}`, {
-  headers: { 'User-Agent': 'CardForge production health check' },
+  headers: {
+    'User-Agent': 'CardForge production health check',
+    ...(protectionBypass ? { 'x-vercel-protection-bypass': protectionBypass } : {}),
+  },
   redirect: 'follow',
   signal: AbortSignal.timeout(20_000),
   ...options,
@@ -69,6 +73,7 @@ await check('product', 'published catalog contract', async () => {
   }
 });
 await check('product', 'official 52-card starter package', async () => {
+  const { default: JSZip } = await import('jszip');
   catalog ??= await requireJson('/api/catalog');
   const starter = catalog.sets?.items?.find((item) => item.id === 'standard-playing-card-deck');
   if (!starter || starter.access !== 'free' || starter.revision < 1 || !starter.packageUrl) {

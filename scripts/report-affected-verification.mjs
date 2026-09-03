@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -51,6 +52,18 @@ const HIGH_RISK_FEATURES = new Map([
 ]);
 
 const toPosixPath = (value) => value.replaceAll('\\', '/').replace(/^\.\//u, '');
+
+export const specializedJobsForPath = (inputPath) => {
+  const filePath = toPosixPath(inputPath);
+  const browserSurface = (
+    /^src\/app\/(?!api\/)/u.test(filePath)
+    || (/^src\/features\//u.test(filePath) && !/\/server\//u.test(filePath))
+    || /^src\/(?:components\/ui|shared)\//u.test(filePath)
+    || /^tests\/product\/(?:hosted-smoke|workflows)\//u.test(filePath)
+    || /^(?:package(?:-lock)?\.json|playwright(?:\.hosted)?\.config\.ts)$/u.test(filePath)
+  );
+  return browserSurface ? ['browser-golden'] : [];
+};
 
 const areaForFeature = (feature) => FEATURE_AREAS.find(({ features }) => features.includes(feature));
 
@@ -171,6 +184,7 @@ export const buildAffectedVerification = async ({ root, changedPaths }) => {
     risk,
     architectureBoundaryAffected: classifications.some(({ architectureBoundaryAffected }) => architectureBoundaryAffected),
     providerVerification: [...new Set(classifications.map(({ providerVerification }) => providerVerification).filter(Boolean))].sort(),
+    specializedJobs: [...new Set(normalizedPaths.flatMap(specializedJobsForPath))].sort(),
     fullGateRequired: normalizedPaths.length > 0,
   };
 };
@@ -209,6 +223,7 @@ const printResult = (result) => {
   console.log(`Risk: ${result.risk}`);
   console.log(`Architecture boundary affected: ${result.architectureBoundaryAffected ? 'yes' : 'no'}`);
   console.log(`Provider verification: ${result.providerVerification.join(', ') || 'none'}`);
+  console.log(`Specialized CI: ${result.specializedJobs.join(', ') || 'none'}`);
   console.log(`Full gate before PR: ${result.fullGateRequired ? 'yes' : 'no'}`);
   if (result.docs.length > 0) console.log(`Read: ${result.docs.join(', ')}`);
   if (result.tests.length > 0) {
@@ -226,10 +241,11 @@ const runCommand = (command, args) => {
 };
 
 const parseArguments = (values) => {
-  const args = { base: undefined, paths: [], run: false };
+  const args = { base: undefined, githubOutput: false, paths: [], run: false };
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value === '--run') args.run = true;
+    else if (value === '--github-output') args.githubOutput = true;
     else if (value === '--base') {
       if (!values[index + 1]) throw new Error('--base requires a Git ref.');
       args.base = values[index + 1];
@@ -251,6 +267,16 @@ if (isDirectExecution) {
       changedPaths: args.paths.length > 0 ? args.paths : collectChangedPaths(root, args.base),
     });
     printResult(result);
+    if (args.githubOutput) {
+      const outputPath = process.env.GITHUB_OUTPUT?.trim();
+      if (!outputPath) throw new Error('--github-output requires GITHUB_OUTPUT.');
+      appendFileSync(outputPath, [
+        `browser_golden=${result.specializedJobs.includes('browser-golden')}`,
+        `risk=${result.risk}`,
+        `changed_count=${result.changedPaths.length}`,
+        '',
+      ].join('\n'));
+    }
     if (args.run && result.tests.length > 0) {
       const productTests = result.tests.filter((testPath) => testPath.startsWith('tests/product/unit/'));
       const infrastructureTests = result.tests.filter((testPath) => testPath.startsWith('tests/infrastructure/'));

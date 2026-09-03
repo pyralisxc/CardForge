@@ -26,6 +26,7 @@
     "verify:focused": "node scripts/report-affected-verification.mjs --run",
     "verify:full": "npm run lint && npm run typecheck && npm run test:product && npm run test:infrastructure && npm run architecture:check && npm run migrations:check && npm run build",
     "smoke:golden": "playwright test --grep @golden --workers=1",
+    "smoke:hosted": "playwright test --config playwright.hosted.config.ts --workers=1",
     "smoke:ui": "playwright test --workers=1",
     "smoke:scale": "playwright test artifact-scale-performance.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",

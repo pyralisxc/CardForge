@@ -47,6 +47,7 @@ const runGit = (root, args) => execFileSync('git', args, {
 
 const resolveBase = (root, explicitBase) => {
   const candidate = explicitBase
+    ?? process.env.CARDFORGE_VERIFY_BASE?.trim()
     ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
   runGit(root, ['rev-parse', '--verify', candidate]);
   return candidate;

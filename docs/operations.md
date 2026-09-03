@@ -31,7 +31,7 @@ Use `.env.example` as the complete catalog.
 
 ## Development and release cadence
 
-GitHub is the source/CI workspace. Vercel Preview is hosted integration proof, not a compile loop. Batch related work into coherent commits and avoid no-op/test-only pushes merely to retrigger provider status.
+GitHub is the source/CI workspace. Agents run focused/affected checks locally; the required GitHub `verify` job is authoritative for the full deterministic repository gate. Vercel Preview is hosted integration proof, not a compile loop. Batch related work into coherent commits and avoid no-op/test-only pushes merely to retrigger provider status.
 
 ### Preview lane
 
@@ -39,7 +39,9 @@ GitHub is the source/CI workspace. Vercel Preview is hosted integration proof, n
 
 `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`
 
-The stable URL is protected by Vercel Authentication. Stripe alone receives a provider-managed automation bypass on the branch webhook URL. Never copy that bypass value into Git, documentation, chat, logs, or another environment.
+The stable URL is protected by Vercel Authentication. Vercel's Protection Bypass for Automation supplies the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` to the small signed-out Preview smoke workflow; Stripe separately receives its provider-managed bypass on the branch webhook URL. Never copy either bypass value into Git, documentation, chat, logs, or another environment.
+
+Vercel's Git integration must emit `vercel.deployment.success` repository-dispatch events. The deployment workflow accepts only project `card-forge`, Preview branch `vercel-preview`, or Production branch `main`, then checks out the exact payload SHA. Preview tests the exact payload URL; Production tests the canonical public domain immediately after the successful `main` deployment. No `VERCEL_TOKEN`, duplicate deployment, polling loop, or CardForge deployment ledger is required. The workflow also has an explicit manual trigger for one-time setup verification before the repository-dispatch file reaches `main`.
 
 Preview provider ownership:
 
@@ -68,12 +70,12 @@ Before any merge into `main`, the agent must send Cameron the stable Preview lin
 Release sequence:
 
 1. Implement with focused checks and remove temporary development-only tests/fixtures unless they protect a durable boundary.
-2. Run the single complete gate, `npm run verify:full`, on the final candidate.
-3. Require GitHub `verify` and a READY Vercel Preview on that exact head.
-4. Exercise changed public/browser and provider-backed behavior with the durable Preview test identities. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
+2. Push the coherent candidate and require the GitHub `verify` job, which runs `npm run verify:full` once as the authoritative deterministic gate. Run that full command locally only for high-risk work or a local/CI discrepancy.
+3. Move `vercel-preview` to the exact green candidate and require both a READY deployment and the automated `preview-smoke` result for that SHA.
+4. Exercise only changed provider-backed or signed-in behavior that automation cannot prove. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
 5. Apply production migrations before merge only when the exact change is additive and the current production runtime remains compatible with it.
 6. Merge through the PR; do not bypass `main` safety.
-7. Require Vercel Production READY for the merge commit and run `npm run health:production`.
+7. Require Vercel Production READY and the immediate `production-smoke` route result for the merge commit. The six-hour `Production health` schedule continues to run the complete route/product/provider health command.
 8. Apply a destructive schema contraction only after the compatible runtime is already READY in production and provider postflight proves the retired records or objects are empty. If deployment order cannot be guaranteed, split runtime retirement and schema contraction into separate reviewed releases.
 9. Perform the smallest real signed-in production check needed for auth/owner/contributor/billing/provider changes.
 
@@ -237,6 +239,7 @@ Safe support rollback disables/removes support checkout configuration while reta
 - `npm run architecture:report`: on-demand dependency-gravity, public-interface, and oversized-file analysis. Normal architecture enforcement is concise.
 - `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `product`, or `provider` to isolate a lane. Product health downloads and validates the official 52-card starter package; provider health verifies Supabase catalog, Stripe/Clerk readiness, and truthful anonymous Drive authentication classification.
 - `npm run smoke:golden`: compact browser merge protection for representative Desk mouse/touch behavior.
+- `npm run smoke:hosted`: exact-deployment signed-out smoke for the public entry point, guest Studio opening, and compact-screen navigation; requires `CARDFORGE_E2E_BASE_URL` and the Vercel bypass secret when the deployment is protected.
 - `npm run smoke:ui`: extended mocked browser/accessibility, scale, and soak regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.
 - `npm run brand:export`: synchronize canonical brand sources and regenerate ignored derivatives.

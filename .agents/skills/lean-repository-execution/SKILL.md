@@ -47,9 +47,9 @@ If question 2 has no concrete answer, do not add a wrapper, cache, reconciliatio
 - **Git:** default to orientation, pre-commit, and pre-PR. Repeat only after state changed or to diagnose a specific failure.
 - **Remote Git writes:** one branch update per coherent milestone. Batch multi-file changes into one tree/commit whenever the available GitHub tooling supports it.
 - **Focused verification:** one intentional RED and one GREEN run per behavior. Rerun only after relevant code changes or a failure that needs diagnosis.
-- **Full verification:** run once after implementation and cleanup. After a failure, rerun the failing portion; repeat the full gate only when the fix could affect the wider system.
+- **Full verification:** the required GitHub `verify` job runs `npm run verify:full` once on the coherent candidate and is authoritative. Run the full gate locally only for high-risk work, a local/CI discrepancy, or diagnosis that cannot be isolated; otherwise keep local verification focused.
 - **Review:** self-review every PR diff. Add one independent review only for high-risk changes or material cross-owner changes; re-review only blocking fixes.
-- **CI:** inspect the final run once. Reinspect only after a new push or changed check state.
+- **CI:** inspect the final run summary once. Open full logs only to diagnose a failure, and reinspect only after a new push or changed check state.
 - **Vercel Preview:** ordinary branches are deployment-disabled. Use only the reusable `vercel-preview` branch for the exact final PR SHA. The repository's `ignoreCommand` may still avoid build work for safe-only diffs after Vercel accepts the preview request, but it is not a substitute for branch-level deployment gating. If Vercel reports a build-rate or daily deployment quota block, stop creating provider-triggering refs; never create extra commits to chase the check.
 - **Preview review gate:** do not merge into `main` until Cameron has received `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`, the exact candidate SHA, and the review scope, and has explicitly approved that candidate.
 - **Providers:** for high-risk changes, use one preflight, one approved mutation, and one postflight verification. Do not poll providers during ordinary edits.
