@@ -159,6 +159,13 @@ test.describe('large Artifact browser evidence', () => {
       expect(box).not.toBeNull();
       return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
     };
+    const worldPosition = (locator: Locator) => locator.evaluate((node) => {
+      const style = (node as HTMLElement).style;
+      return {
+        x: Number.parseFloat(style.getPropertyValue('--desk-x')),
+        y: Number.parseFloat(style.getPropertyValue('--desk-y')),
+      };
+    });
 
     await expect(viewport).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filter open work by source' })).toHaveCount(0);
@@ -194,19 +201,18 @@ test.describe('large Artifact browser evidence', () => {
     await expect(setButton).toHaveAttribute('aria-pressed', 'true');
     await expect(companionButton).toHaveAttribute('aria-pressed', 'true');
 
-    const beforeGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
+    const beforeGroup = await Promise.all([worldPosition(setObject), worldPosition(companionObject)]);
     const dragCenter = await center(companionButton);
     await touch('touchStart', [{ ...dragCenter, id: 2 }]);
     await touch('touchMove', [{ x: dragCenter.x + 36, y: dragCenter.y + 24, id: 2 }]);
     await touch('touchEnd', []);
     await expect.poll(async () => {
-      const afterGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
-      if (beforeGroup.some((box) => !box) || afterGroup.some((box) => !box)) return false;
-      const firstDelta = { x: afterGroup[0]!.x - beforeGroup[0]!.x, y: afterGroup[0]!.y - beforeGroup[0]!.y };
-      const secondDelta = { x: afterGroup[1]!.x - beforeGroup[1]!.x, y: afterGroup[1]!.y - beforeGroup[1]!.y };
+      const afterGroup = await Promise.all([worldPosition(setObject), worldPosition(companionObject)]);
+      const firstDelta = { x: afterGroup[0].x - beforeGroup[0].x, y: afterGroup[0].y - beforeGroup[0].y };
+      const secondDelta = { x: afterGroup[1].x - beforeGroup[1].x, y: afterGroup[1].y - beforeGroup[1].y };
       return firstDelta.x > 10 && firstDelta.y > 5
-        && Math.abs(firstDelta.x - secondDelta.x) < 2
-        && Math.abs(firstDelta.y - secondDelta.y) < 2;
+        && Math.abs(firstDelta.x - secondDelta.x) < 0.01
+        && Math.abs(firstDelta.y - secondDelta.y) < 0.01;
     }).toBe(true);
 
     await page.getByRole('button', { name: 'Clear Desk selection' }).click();
