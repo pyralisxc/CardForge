@@ -68,7 +68,7 @@ Before any merge into `main`, the agent must send Cameron the stable Preview lin
 Release sequence:
 
 1. Implement with focused checks and remove temporary development-only tests/fixtures unless they protect a durable boundary.
-2. Run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, `npm run test`, and `npm run build` on the final candidate.
+2. Run the single complete gate, `npm run verify:full`, on the final candidate.
 3. Require GitHub `verify` and a READY Vercel Preview on that exact head.
 4. Exercise changed public/browser and provider-backed behavior with the durable Preview test identities. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
 5. Apply production migrations before merge only when the exact change is additive and the current production runtime remains compatible with it.
@@ -231,6 +231,9 @@ Safe support rollback disables/removes support checkout configuration while reta
 
 ## Maintained commands
 
+- `npm run verify:focused`: discover and run focused tests for the current Git diff or explicit paths; it also runs the changed-file architecture check when an ownership boundary is affected.
+- `npm run verify:full`: canonical complete repository gate for the final candidate and CI.
+- `npm run architecture:report`: on-demand dependency-gravity, public-interface, and oversized-file analysis. Normal architecture enforcement is concise.
 - `npm run health:production`: canonical non-mutating production route, product, and provider health. Add `-- --category=route`, `product`, or `provider` to isolate a lane. Product health downloads and validates the official 52-card starter package; provider health verifies Supabase catalog, Stripe/Clerk readiness, and truthful anonymous Drive authentication classification.
 - `npm run smoke:ui`: focused mocked browser/accessibility regression.
 - `npm run pipeline:sync-defaults`: import missing bootstrap assets into the reviewed Pipeline without overwriting decisions/tombstones.
