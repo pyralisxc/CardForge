@@ -8,6 +8,7 @@ import {
   type LibraryPickerRequest,
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
+import { isPersonalLibraryVisualPickerItem } from '@/features/personal-library/client';
 
 const request: LibraryPickerRequest = {
   purpose: 'template.image-source',
@@ -82,5 +83,16 @@ describe('Library Picker contract', () => {
     expect(getNextLibraryPickerActiveIndex({ currentIndex: 1, itemCount: 3, key: 'End' })).toBe(2);
     expect(getNextLibraryPickerActiveIndex({ currentIndex: 2, itemCount: 3, key: 'ArrowDown' })).toBe(2);
     expect(getNextLibraryPickerActiveIndex({ currentIndex: 2, itemCount: 3, key: 'Home' })).toBe(0);
+  });
+
+  it('excludes reference-role fonts from visual resource requests', () => {
+    expect(isPersonalLibraryVisualPickerItem(
+      { role: 'reference', mimeType: 'font/woff2' },
+      ['artwork', 'frame', 'reference'],
+    )).toBe(false);
+    expect(isPersonalLibraryVisualPickerItem(
+      { role: 'reference', mimeType: 'image/png' },
+      ['artwork', 'frame', 'reference'],
+    )).toBe(true);
   });
 });

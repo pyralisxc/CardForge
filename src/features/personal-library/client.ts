@@ -13,6 +13,7 @@ export {
   isPersonalLibraryFontMimeType,
   isPersonalLibraryImageMimeType,
   isPersonalLibraryMimeTypeAllowedForRole,
+  isPersonalLibraryVisualPickerItem,
   isPersonalLibraryProvider,
   isPersonalLibraryRole,
   MAX_PERSONAL_LIBRARY_ITEM_BYTES,

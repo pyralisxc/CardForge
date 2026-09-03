@@ -20,7 +20,7 @@ CardForge remains local-first. Browser-only Sets stay private to that device unt
 
 ## Capability rule
 
-Use `get_cardforge_capabilities` when the account tier, project capability, developer/owner role, or allowed workflow matters. Normal signed-in customers can use private Studio/card collaboration and connected-project tools. Forge Review, shared-library publication, and owner operations remain separately scope-gated; never imply higher privileges merely because those capabilities exist in CardForge.
+Use `get_cardforge_capabilities` when the account tier, project capability, Contributor/Owner role, or allowed workflow matters. Normal signed-in customers can use private Studio/card collaboration and connected-project tools. Forge Review, shared-library publication, and owner operations remain separately scope-gated; never imply higher privileges merely because those capabilities exist in CardForge.
 
 When continuing prior agent work without a known document id, use `list_agent_working_documents` before creating another draft.
 

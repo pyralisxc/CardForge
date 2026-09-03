@@ -10,7 +10,11 @@ import {
   type LibraryPickerResource,
 } from '@/features/library-picker/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
-import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
+import {
+  isPersonalLibraryVisualPickerItem,
+  type PersonalLibraryItem,
+  type PersonalLibraryRole,
+} from '@/features/personal-library/client';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 
 type TemplateAssetPickerKind = 'image' | 'frame' | 'icon' | 'texture' | 'divider';
@@ -81,7 +85,7 @@ export function TemplateAssetLibraryPicker({
       };
     }),
     ...personalItems
-      .filter((item) => personalRoles.includes(item.role))
+      .filter((item) => isPersonalLibraryVisualPickerItem(item, personalRoles))
       .map((item) => ({
         id: `personal:${item.id}:${item.providerRevision}`,
         objectId: item.id,

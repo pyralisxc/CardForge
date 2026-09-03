@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { normalizeCardSet } from '@/domain/cards';
-import { getDeskSourceFacets, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder, reorderDeskItem } from '@/features/desk/model/desk';
+import { getDeskSourceFacets, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
@@ -43,11 +43,8 @@ describe('Desk model', () => {
     });
   });
 
-  it('keeps durable Desk order while admitting new and removing stale work', () => {
+  it('keeps the accessibility/default projection while admitting new and removing stale work', () => {
     expect(normalizeDeskOrder(['set:a', 'set:b', 'set:c'], ['set:c', 'missing', 'set:a'])).toEqual(['set:c', 'set:a', 'set:b']);
-    expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:c', 'set:a')).toEqual(['set:c', 'set:a', 'set:b']);
-    expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:b', 'earlier')).toEqual(['set:b', 'set:a', 'set:c']);
-    expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:b', 'later')).toEqual(['set:a', 'set:c', 'set:b']);
   });
 
   it('derives source facets only from sources present on the current Desk', () => {

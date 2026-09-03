@@ -63,25 +63,6 @@ export const normalizeDeskOrder = (
   return [...admitted, ...availableIds.filter((id) => !admittedSet.has(id))];
 };
 
-export const reorderDeskItem = (
-  order: string[],
-  itemId: string,
-  target: string | 'earlier' | 'later',
-): string[] => {
-  const currentIndex = order.indexOf(itemId);
-  if (currentIndex < 0) return order;
-  const targetIndex = target === 'earlier'
-    ? Math.max(0, currentIndex - 1)
-    : target === 'later'
-      ? Math.min(order.length - 1, currentIndex + 1)
-      : order.indexOf(target);
-  if (targetIndex < 0 || targetIndex === currentIndex) return order;
-  const next = [...order];
-  next.splice(currentIndex, 1);
-  next.splice(targetIndex, 0, itemId);
-  return next;
-};
-
 export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
   item.locations[0]?.source ?? 'device'
 );

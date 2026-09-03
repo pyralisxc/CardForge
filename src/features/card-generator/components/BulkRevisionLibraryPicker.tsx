@@ -15,6 +15,7 @@ import { loadCardForgeStudioAssets } from '@/features/pipeline/client/catalog';
 import {
   chooseGoogleDrivePersonalLibraryItems,
   importPersonalLibraryItemToLocalAsset,
+  isPersonalLibraryVisualPickerItem,
   loadPersonalLibrary,
   type PersonalLibraryItem,
 } from '@/features/personal-library/client';
@@ -51,7 +52,10 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
       if (cancelled) return;
       const byId = new Map([...sharedAssets, ...localAssets].map((asset) => [asset.id, asset]));
       setAssets([...byId.values()]);
-      setPersonalItems(items.filter((item) => item.role === 'artwork' || item.role === 'frame' || item.role === 'reference'));
+      setPersonalItems(items.filter((item) => isPersonalLibraryVisualPickerItem(
+        item,
+        ['artwork', 'frame', 'reference'],
+      )));
     });
     return () => { cancelled = true; };
   }, []);
@@ -116,7 +120,9 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
             if (!result) return;
             setPersonalItems((current) => {
               const byId = new Map(current.map((item) => [item.id, item]));
-              result.items.forEach((item) => byId.set(item.id, item));
+              result.items
+                .filter((item) => isPersonalLibraryVisualPickerItem(item, ['artwork', 'frame', 'reference']))
+                .forEach((item) => byId.set(item.id, item));
               return [...byId.values()];
             });
           },

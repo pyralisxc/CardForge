@@ -113,7 +113,10 @@ export function PublicSiteOwnerLiveControls({
       if (!(target instanceof Element)) return;
       const field = target.closest<HTMLElement>('[data-site-content-slug]');
       const slug = field?.dataset.siteContentSlug as SiteContentBlock['slug'] | undefined;
-      if (!slug || !contextualBlocks.some((block) => block.slug === slug)) return;
+      if (!field || !slug || !contextualBlocks.some((block) => block.slug === slug)) return;
+      // Inline targets are deliberately text-only leaves. Structured links and
+      // derived adjacent content keep their markup outside the editable span.
+      if (field.childElementCount > 0) return;
       event.preventDefault();
       event.stopPropagation();
       if (inlineElementRef.current && inlineElementRef.current !== field) finishInlineEdit(true);

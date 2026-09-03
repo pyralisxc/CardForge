@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "CardForge Studio",
     "shortDescription": "Design cards and generate complete card sets",
-    "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.",
+    "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.",
     "developerName": "Cameron Locke",
     "category": "Design",
     "capabilities": [

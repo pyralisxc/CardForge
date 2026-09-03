@@ -29,7 +29,10 @@ export const buildBulkRevisionPlan = ({
   match: BulkRevisionMatch;
   scopeIds?: readonly string[];
 }): BulkRevisionPlan => {
-  const scope = scopeIds?.length ? new Set(scopeIds) : null;
+  // `undefined` means an intentional whole-Set revision. An explicit empty
+  // array means the captured selection no longer resolves and must match
+  // nothing; never widen that stale selection to the whole Set.
+  const scope = scopeIds ? new Set(scopeIds) : null;
   const targets = new Map<string, DisplayCard[]>();
   existing.forEach((card) => {
     if (scope && !scope.has(card.uniqueId)) return;

@@ -48,6 +48,18 @@ describe('bulk revision planning', () => {
     expect(plan.revisions[0]).toMatchObject({ uniqueId: 'selected', data: { name: 'Same', note: 'changed' } });
   });
 
+  it('matches nothing when an explicit selection has become empty instead of widening to the Set', () => {
+    const plan = buildBulkRevisionPlan({
+      existing: [card('outside', { name: 'Same', note: 'outside' })],
+      incoming: [card('incoming', { name: 'Same', note: 'changed' })],
+      match: { kind: 'field', key: 'name', label: 'Name' },
+      scopeIds: [],
+    });
+
+    expect(plan).toMatchObject({ matchedCount: 0, unmatchedRows: [2], ambiguousRows: [], finalArtifactCount: 1 });
+    expect(plan.revisions).toEqual([]);
+  });
+
   it('maps Library resources onto selected Artifacts without changing identities or untouched fields', () => {
     const plan = buildBulkResourceRevisionPlan({
       existing: [card('one', { name: 'One', artwork: 'old-1', note: 'keep-1' }), card('two', { name: 'Two', artwork: 'old-2', note: 'keep-2' })],

@@ -15,7 +15,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Category: Design
 - Requested availability: public beta, globally wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because temporary working documents and connected-project authorizations are private to the linked account.
 - Short description: Design cards and generate complete card sets.
-- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.
+- Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.
 
 Starter prompts:
 

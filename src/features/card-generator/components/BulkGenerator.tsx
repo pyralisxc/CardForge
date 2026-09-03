@@ -108,6 +108,10 @@ export function BulkGenerator({
     const existingIds = new Set(currentCards.map((card) => card.uniqueId));
     return [...new Set(revisionScopeIds)].filter((id) => existingIds.has(id));
   }, [currentCards, revisionScopeIds]);
+  const requestedRevisionScopeCount = new Set(revisionScopeIds).size;
+  const hasRequestedRevisionScope = requestedRevisionScopeCount > 0;
+  const revisionScopeIsStale = hasRequestedRevisionScope
+    && effectiveRevisionScopeIds.length !== requestedRevisionScopeCount;
 
   useEffect(() => {
     if (!revisionScopeIds.length) return;
@@ -340,6 +344,14 @@ export function BulkGenerator({
       openDataReview();
       return;
     }
+    if (operation === 'revise' && revisionScopeIsStale) {
+      toast({
+        title: 'Selected Artifacts changed',
+        description: 'Return to the Desk and select the Artifacts again. CardForge will not widen a stale selection to the whole Set.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -379,7 +391,7 @@ export function BulkGenerator({
           existing: currentCards,
           incoming: generatedCards,
           match,
-          scopeIds: effectiveRevisionScopeIds.length ? effectiveRevisionScopeIds : undefined,
+          scopeIds: hasRequestedRevisionScope ? effectiveRevisionScopeIds : undefined,
         });
         trackCardForgeEvent('revision_started', {
           object_kind: 'card',
@@ -504,8 +516,8 @@ export function BulkGenerator({
             {fieldDefinitions.filter((field) => !field.isStaticBaseText && !field.isImage).map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
           </select>
         </label>
-        {effectiveRevisionScopeIds.length ? <p className="text-xs text-[var(--cf-text-muted)]" role="status">Revision scope: {effectiveRevisionScopeIds.length} selected Artifact{effectiveRevisionScopeIds.length === 1 ? '' : 's'}. Matches outside this stable-ID selection are ignored.</p> : <p className="text-xs text-[var(--cf-text-muted)]">Revision scope: all Artifacts in this Set.</p>}
-        {effectiveRevisionScopeIds.length && revisionImageFields.length ? <div className="flex flex-wrap items-end gap-2 rounded-md border border-[var(--cf-border-subtle)] p-2"><label className="grid min-w-48 flex-1 gap-1 text-xs text-[var(--cf-text-muted)]">Picture field
+        {revisionScopeIsStale ? <p className="text-xs text-[var(--cf-danger)]" role="alert">One or more selected Artifacts are no longer in this Set. Return to the Desk and select them again before revising.</p> : hasRequestedRevisionScope ? <p className="text-xs text-[var(--cf-text-muted)]" role="status">Revision scope: {effectiveRevisionScopeIds.length} selected Artifact{effectiveRevisionScopeIds.length === 1 ? '' : 's'}. Matches outside this stable-ID selection are ignored.</p> : <p className="text-xs text-[var(--cf-text-muted)]">Revision scope: all Artifacts in this Set.</p>}
+        {!revisionScopeIsStale && effectiveRevisionScopeIds.length && revisionImageFields.length ? <div className="flex flex-wrap items-end gap-2 rounded-md border border-[var(--cf-border-subtle)] p-2"><label className="grid min-w-48 flex-1 gap-1 text-xs text-[var(--cf-text-muted)]">Picture field
           <select className="min-h-9 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-2 text-sm text-[var(--cf-text-strong)]" value={revisionResourceFieldKey} onChange={(event) => { setRevisionResourceFieldKey(event.target.value); setPendingRevision(null); }}>
             {revisionImageFields.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
           </select>
