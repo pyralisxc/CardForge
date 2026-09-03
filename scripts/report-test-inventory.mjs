@@ -38,10 +38,10 @@ const sourceReaderContracts = [
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
   ['tests/product/unit/billing-webhook-safety.test.ts', 'billing security ordering contract'],
-  ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin, submission, and legal contract'],
+  ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
-  ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP/plugin and boundary-security contract'],
+  ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
 ];
 
