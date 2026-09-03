@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAffectedVerification,
   classifyChangedPath,
+  specializedJobsForPath,
 } from '../../scripts/report-affected-verification.mjs';
+import { compactFailureTail, formatCiSummary } from '../../scripts/run-ci-check.mjs';
 
 describe('agent verification routing', () => {
   it('routes a feature change to its exact owner, focused tests, and relevant documentation', async () => {
@@ -36,11 +38,32 @@ describe('agent verification routing', () => {
     });
   });
 
+  it('routes browser-owned changes to the existing golden job without treating server-only work as browser work', () => {
+    expect(specializedJobsForPath('src/features/desk/components/Desk.tsx')).toEqual(['browser-golden']);
+    expect(specializedJobsForPath('src/app/account/page.tsx')).toEqual(['browser-golden']);
+    expect(specializedJobsForPath('src/features/billing/server/processStripeWebhook.ts')).toEqual([]);
+    expect(specializedJobsForPath('docs/testing.md')).toEqual([]);
+  });
+
+  it('writes compact pass/failure summaries instead of requiring the full log for triage', () => {
+    const noisyLog = Array.from({ length: 60 }, (_, index) => `line ${index + 1}`).join('\n');
+    expect(compactFailureTail(noisyLog).split('\n')).toHaveLength(40);
+    expect(formatCiSummary({
+      title: 'Repository gate',
+      command: 'npm run verify:full',
+      durationSeconds: 2.34,
+      exitCode: 1,
+      output: noisyLog,
+    })).toContain('Failure tail');
+  });
+
   it('owns the non-browser gate once and keeps the compact browser lane independently merge-protected', async () => {
     const packageJson = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
     };
     const ci = await readFile(path.join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
+    const deploymentSmoke = await readFile(path.join(process.cwd(), '.github/workflows/deployment-smoke.yml'), 'utf8');
+    const productionHealth = await readFile(path.join(process.cwd(), '.github/workflows/production-health.yml'), 'utf8');
     const scripts = packageJson.scripts;
 
     expect(scripts['test:infrastructure']).toBe('vitest run --config vitest.infrastructure.config.ts');
@@ -56,9 +79,19 @@ describe('agent verification routing', () => {
       'npm run build',
     ].join(' && '));
     expect(scripts['smoke:golden']).toBe('playwright test --grep @golden --workers=1');
+    expect(scripts['smoke:hosted']).toBe('playwright test --config playwright.hosted.config.ts --workers=1');
     expect(scripts['verify:full']).not.toContain('playwright');
     expect(ci).toContain('browser-golden:');
+    expect(ci).toContain('fetch-depth: 2');
+    expect(ci).toContain('--github-output');
     expect(ci).toContain('npx playwright install --with-deps chromium');
     expect(ci).toContain('npm run smoke:golden');
+    expect(deploymentSmoke).toContain('types: [vercel.deployment.success]');
+    expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'vercel-preview'");
+    expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'main'");
+    expect(deploymentSmoke).toContain('npm run smoke:hosted');
+    expect(deploymentSmoke).toContain('--category=route');
+    expect(productionHealth).toContain('cron: "7 */6 * * *"');
+    expect(productionHealth).toContain('npm ci --ignore-scripts');
   });
 });

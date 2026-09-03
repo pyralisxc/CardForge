@@ -51,6 +51,7 @@ const collectChangedPaths = (root, explicitBase) => {
     }
   };
   const base = explicitBase
+    ?? process.env.CARDFORGE_VERIFY_BASE?.trim()
     ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
 
   try {

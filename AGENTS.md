@@ -66,7 +66,7 @@ Closed implementation plans, migration cutovers, and rollout checklists belong i
 
 ## Verification rules
 
-- Code health: focused tests while implementing; complete repository gate near completion.
+- Code health: run focused/affected checks while implementing. The required GitHub `verify` job is authoritative for `npm run verify:full`; run that full gate locally only for a high-risk change, a local/CI discrepancy, or targeted CI diagnosis.
 - Public UI: localhost can prove provider-independent page/component behavior.
 - Hosted integration: Vercel Preview proves a coherent branch deploys and supports browser inspection.
 - Before any merge into `main`, send Cameron the stable Preview review link `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`, identify the exact candidate SHA, summarize what needs review, and wait for explicit approval. A READY deployment is evidence, not merge permission.

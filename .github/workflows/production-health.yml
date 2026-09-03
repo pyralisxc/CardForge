@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-health
+  cancel-in-progress: true
+
 jobs:
   routes:
     runs-on: ubuntu-latest
@@ -17,4 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/check-production-health.mjs
+          cache: npm
+      - name: Install health-check dependencies
+        run: node scripts/run-ci-check.mjs --title "Health dependency install" -- npm ci --ignore-scripts
+      - name: Run production health
+        run: node scripts/run-ci-check.mjs --title "Production health" -- npm run health:production

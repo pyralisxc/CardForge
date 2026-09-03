@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARDFORGE_VERIFY_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,23 +22,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run verify:full
+      - name: Install dependencies
+        run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
+      - name: Run full repository gate
+        run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
 
   browser-golden:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        with:
+          fetch-depth: 2
+      - name: Route specialized verification
+        id: route
+        run: node scripts/report-affected-verification.mjs --base "$CARDFORGE_VERIFY_BASE" --github-output
+      - if: steps.route.outputs.browser_golden != 'true'
+        run: echo "No browser-owned surface changed; browser setup and tests were skipped." >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.route.outputs.browser_golden == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run smoke:golden
+      - if: steps.route.outputs.browser_golden == 'true'
+        name: Install dependencies
+        run: node scripts/run-ci-check.mjs --title "Browser dependency install" -- npm ci
+      - if: steps.route.outputs.browser_golden == 'true'
+        name: Install Chromium
+        run: node scripts/run-ci-check.mjs --title "Chromium install" -- npx playwright install --with-deps chromium
+      - if: steps.route.outputs.browser_golden == 'true'
+        name: Run compact browser gate
+        run: node scripts/run-ci-check.mjs --title "Golden browser gate" -- npm run smoke:golden

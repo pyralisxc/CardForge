@@ -2,7 +2,7 @@
 
 Use this page after `AGENTS.md` to find the smallest trustworthy slice of CardForge. It routes work; it does not redefine product behavior. Read the listed source owner and linked document sections, then let the code and tests answer local details.
 
-Run `npm run verify:focused` to derive the route from the current Git diff. For a proposed path before editing, run `npm run verify:focused -- <path>`; omit `--run` by calling `node scripts/report-affected-verification.mjs <path>` when only a report is wanted. Finish every coherent PR candidate with `npm run verify:full` once.
+Run `npm run verify:focused` to derive the route from the current Git diff. For a proposed path before editing, run `npm run verify:focused -- <path>`; omit `--run` by calling `node scripts/report-affected-verification.mjs <path>` when only a report is wanted. Push one coherent candidate and let the required GitHub `verify` job own `npm run verify:full`; run it locally only for high-risk work or a local/CI discrepancy.
 
 ## Studio surfaces and navigation
 
@@ -79,5 +79,5 @@ Run `npm run verify:focused` to derive the route from the current Git diff. For 
 
 - During implementation: `npm run verify:focused` or `npm run verify:focused -- <paths>`.
 - Architecture enforcement: `npm run architecture:check`; changed-file signal: `npm run architecture:changed`; deep analysis: `npm run architecture:report`.
-- Final candidate and CI: `npm run verify:full` only.
+- Final candidate: focused evidence locally; required GitHub `verify` runs `npm run verify:full` as the authoritative deterministic gate.
 - Test inventory: `npm run test:inventory` only when coverage growth or cleanup is the question.
