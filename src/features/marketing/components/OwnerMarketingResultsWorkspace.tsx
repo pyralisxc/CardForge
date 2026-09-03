@@ -32,7 +32,7 @@ export function OwnerMarketingResultsWorkspace({
       <p className="mt-3 max-w-4xl text-sm leading-6 text-[var(--cf-text-muted)]">
         Every campaign owns a utm_campaign key and every content package owns
         utm_content. Use those values in the existing analytics workspace to
-        connect visits and Studio actions back to the work that caused them.
+        connect visits and creation actions back to the work that caused them.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <OwnerMarketingMetric
