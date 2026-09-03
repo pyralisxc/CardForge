@@ -117,7 +117,7 @@ export const pipelineHandoffOutputSchema = objectOutput(
 );
 
 export const accountCapabilitiesOutputSchema = objectOutput(
-  ['account', 'studio', 'contributor', 'guidance'],
+  ['account', 'studio', 'contribution', 'guidance'],
   {
     account: objectValue,
     studio: objectValue,
@@ -134,6 +134,7 @@ export const agentInstallStatusOutputSchema = objectOutput(
   [
     'documentId', 'title', 'revision', 'lastInstalledRevision',
     'lastInstalledAt', 'lastInstallSummary', 'currentRevisionApplied',
+    'installPending', 'requiresExplicitStudioApply', 'openInStudioUrl',
   ],
   {
     documentId: { type: 'string' },
@@ -143,6 +144,9 @@ export const agentInstallStatusOutputSchema = objectOutput(
     lastInstalledAt: { type: ['string', 'null'] },
     lastInstallSummary: nullableObjectValue,
     currentRevisionApplied: { type: 'boolean' },
+    installPending: { type: 'boolean' },
+    requiresExplicitStudioApply: { type: 'boolean' },
+    openInStudioUrl: { type: 'string', format: 'uri' },
   },
 );
 

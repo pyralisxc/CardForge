@@ -3,6 +3,8 @@ import 'server-only';
 import { AccountToolAccessError } from '@/features/account/server';
 import { ContributorAccessError } from '@/features/contributor-access/server';
 import { McpUsageStoreError } from '@/features/mcp-usage/server';
+import { PersonalLibraryStoreError } from '@/features/personal-library/server';
+import { ProjectStorageProviderError } from '@/features/project/server';
 import { StudioDocumentStoreError } from '@/features/studio-documents/server';
 import {
   RateLimitExceededError,
@@ -17,6 +19,8 @@ const isSafeMcpError = (error: unknown): error is Error => (
   || error instanceof RateLimitExceededError
   || error instanceof RateLimitUnavailableError
   || error instanceof McpUsageStoreError
+  || error instanceof PersonalLibraryStoreError
+  || error instanceof ProjectStorageProviderError
 );
 
 export const createMcpToolError = (error: unknown) => {

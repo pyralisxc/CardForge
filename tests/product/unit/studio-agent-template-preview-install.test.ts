@@ -241,9 +241,11 @@ describe('agent Studio install and chat preview architecture', () => {
 
   it('pins Studio installation to an exact revision and acknowledges the applied revision', () => {
     expect(handoff).toContain("parseRequestedRevision(url.searchParams.get('revision'))");
+    expect(handoff).toContain('`?revision=${requestedRevision}`');
     expect(handoff).toContain('actualRevision !== requestedRevision');
     expect(handoff).toContain('handoffKey(documentId, requestedRevision)');
-    expect(handoff).toContain('/installation');
+    expect(handoff).toContain('await acknowledgeStudioDocumentInstallation');
+    expect(handoff).toContain("localAgentRevisionApplied ? 'Revision applied locally' : 'Draft not opened'");
     expect(mcpTools).toContain("'get_agent_install_status'");
   });
 

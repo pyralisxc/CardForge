@@ -66,7 +66,7 @@ const createDefaultFreeformElement = (type: FreeformCardElement['type'], overrid
     imageObjectFit: 'cover',
     fillColor: type === 'icon' ? 'transparent' : type === 'shape' ? 'rgba(255,255,255,0.16)' : undefined,
     strokeColor: type === 'icon' || type === 'shape' ? '#fbbf24' : undefined,
-    strokeWidth: 2,
+    strokeWidth: type === 'icon' || type === 'shape' ? 2 : undefined,
     ...overrides,
   };
   return {

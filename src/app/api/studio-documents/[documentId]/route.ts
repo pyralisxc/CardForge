@@ -42,14 +42,25 @@ const toErrorResponse = (error: unknown, fallback: string) => {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ documentId: string }> },
 ) {
   try {
     const documentId = await readDocumentId(context);
     if (!documentId) return createApiErrorResponse(400, 'studio_document_invalid', 'A valid Studio document id is required.');
+    const revisionValue = new URL(request.url).searchParams.get('revision');
+    const requestedRevision = revisionValue && /^\d+$/u.test(revisionValue) ? Number(revisionValue) : null;
+    if (revisionValue !== null && (!Number.isSafeInteger(requestedRevision) || Number(requestedRevision) < 1)) {
+      return createApiErrorResponse(400, 'studio_document_invalid', 'A valid positive Studio document revision is required.');
+    }
     const account = await getCurrentStudioDocumentAccount();
     const document = await getStudioDocument(account.ownerUserId, documentId, account.retentionHours);
+    if (requestedRevision !== null && document.revision !== requestedRevision) {
+      throw new StudioDocumentStoreError(
+        `This Studio document is now revision ${document.revision}. Reopen the latest revision-bound link before applying it.`,
+        409,
+      );
+    }
     const assets = await getStudioDocumentAssetDownloads({
       ownerUserId: account.ownerUserId,
       documentId,

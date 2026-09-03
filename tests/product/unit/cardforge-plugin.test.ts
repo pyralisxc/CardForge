@@ -19,7 +19,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '0.9.0',
+      version: '1.0.1',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -43,7 +43,7 @@ describe('CardForge Studio plugin', () => {
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain("version: '0.9.0'");
+    expect(route).toContain('version: CARDFORGE_MCP_CONTRACT_VERSION');
   });
 
   it('serves submission-time skill manifests with exact content digests', () => {
@@ -73,6 +73,7 @@ describe('CardForge Studio plugin', () => {
       'src/features/studio-documents/server/mcpAccountWorkflowTools.ts',
       'src/features/studio-documents/server/mcpAgentCardTools.ts',
       'src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts',
+      'src/features/personal-library/server/mcpPersonalLibraryTools.ts',
     ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
 
     expect(toolSources).toContain('observeMcpToolExecution');
@@ -100,7 +101,7 @@ describe('CardForge Studio plugin', () => {
 
     const positiveCases = submission.match(/^### Positive \d+[\s\S]*?(?=^### Positive \d+|^## Negative)/gm) ?? [];
     const negativeCases = submission.match(/^### Negative \d+[\s\S]*?(?=^### Negative \d+|^## Domain)/gm) ?? [];
-    expect(positiveCases).toHaveLength(5);
+    expect(positiveCases).toHaveLength(7);
     expect(negativeCases).toHaveLength(3);
     for (const reviewCase of positiveCases) expect(reviewCase).toContain('- Fixture:');
     for (const reviewCase of negativeCases) expect(reviewCase).toContain('- Why it should not complete:');
@@ -110,7 +111,7 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('https://cardforges.com/terms');
     expect(submission).toContain('There is no review-only authentication bypass.');
     expect(submission).toContain('globally wherever ChatGPT plugins');
-    expect(submission).toContain('Initial-submission release notes for 0.9.0');
+    expect(submission).toContain('Hardening release notes for 1.0.1');
     expect(submission).toContain('ordinary Free account scope with no contributor, owner, billing, or provider-console privileges');
     expect(submission).toContain('temporary working Set named OpenAI Review Fixture');
     expect(submission).toContain('temporary assistant drafts are created by the review cases');
@@ -130,7 +131,7 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain('const studioDocumentUrl');
     expect(route).toContain('/studio?document=');
     expect(route).not.toContain('/sign-in?redirect_url=');
-    expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id)');
+    expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id, document.revision)');
     expect(studioPage).toContain('redirectToSignIn');
     expect(studioPage).toContain('createContextualStudioHref');
     expect(studioPage).toContain('returnBackUrl: contextualHref');
@@ -139,7 +140,7 @@ describe('CardForge Studio plugin', () => {
     expect(handoff).not.toContain('signInPromptedDocumentIdRef');
     expect(handoff).not.toContain('Sign in to open this draft');
     expect(handoff).toContain('inFlightRevisionKeyRef');
-    expect(handoff).toContain('handledRevisionKeyRef.current = handoffKey');
+    expect(handoff).toContain('handledRevisionKeyRef.current = requestedKey');
   });
 
   it('keeps MCP server dependencies out of the Studio browser surface', () => {

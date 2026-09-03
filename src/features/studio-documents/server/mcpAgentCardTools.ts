@@ -34,8 +34,7 @@ import {
   cardSetWriteOutputSchema,
   cardWriteOutputSchema,
 } from './mcpToolOutputSchemas';
-
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.9.0';
+import { CARDFORGE_MCP_CONTRACT_VERSION } from './mcpContractVersion';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -51,7 +50,7 @@ type WorkflowAction = {
 };
 
 const workflowMeta = (workflowStage: string, nextActions: WorkflowAction[]) => ({
-  capabilityVersion: CARDFORGE_MCP_CAPABILITY_VERSION,
+  capabilityVersion: CARDFORGE_MCP_CONTRACT_VERSION,
   workflowStage,
   nextActions,
 });

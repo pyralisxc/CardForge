@@ -38,10 +38,12 @@ const installStatusInputSchema = fromJsonSchema<InstallStatusInput>({
 
 export const registerAccountWorkflowTools = ({
   server,
+  publicOrigin,
   getAccess,
   toolError,
 }: {
   server: McpRegistrationServer;
+  publicOrigin: string;
   getAccess: () => Promise<StudioAgentAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
@@ -66,6 +68,9 @@ export const registerAccountWorkflowTools = ({
       return toolError(error);
     }
   };
+  const studioUrl = (documentId: string, revision: number) => (
+    `${publicOrigin}/studio?document=${encodeURIComponent(documentId)}&revision=${revision}`
+  );
 
   server.registerTool(
     'get_cardforge_capabilities',
@@ -198,6 +203,9 @@ export const registerAccountWorkflowTools = ({
             lastInstalledAt: document.lastInstalledAt,
             lastInstallSummary: document.lastInstallSummary,
             currentRevisionApplied,
+            installPending: !currentRevisionApplied,
+            requiresExplicitStudioApply: !currentRevisionApplied,
+            openInStudioUrl: studioUrl(document.id, document.revision),
           },
         };
       },
