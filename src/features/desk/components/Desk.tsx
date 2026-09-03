@@ -144,7 +144,6 @@ export function Desk({
     locationItem,
     moveDeskDrag,
     moveDeskMarquee,
-    moveDeskWork,
     nudgeDeskSelection,
     moveSelectedCards,
     openContextStudio,
@@ -202,7 +201,6 @@ export function Desk({
     setSelectedCardIds,
     setShowGrid,
     setSnapToGrid,
-    setSort,
     setSourceFilter,
     setTagDraft,
     setTagFilter,
@@ -212,7 +210,7 @@ export function Desk({
     showGrid,
     showTemplateTool,
     snapToGrid,
-    sort,
+    sourceFacets,
     sortedCards,
     sourceFilter,
     statuses,
@@ -292,7 +290,7 @@ export function Desk({
             snapToGrid={snapToGrid}
             query={query}
             sourceFilter={sourceFilter}
-            sort={sort}
+            sourceFacets={sourceFacets}
             searchRef={searchRef}
             workGridRef={workGridRef}
             workWorldRef={workWorldRef}
@@ -385,7 +383,6 @@ export function Desk({
             onClearSelection={() => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))}
             onQueryChange={setQuery}
             onSourceFilterChange={setSourceFilter}
-            onSortChange={setSort}
             onShowGridChange={() => setShowGrid((value) => !value)}
             onSnapToGridChange={() => setSnapToGrid((value) => !value)}
             onFocusWork={focusWork}
@@ -394,7 +391,6 @@ export function Desk({
             onOpenLocation={setLocationItem}
             onOpenPipeline={openPipelineSubmission}
             onDuplicate={duplicateWork}
-            onMoveWork={moveDeskWork}
             onInspect={inspectItem}
             onDelete={setPendingDeleteWork}
             onCreate={openCreateMenu}

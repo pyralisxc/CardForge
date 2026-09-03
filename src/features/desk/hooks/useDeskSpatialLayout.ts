@@ -35,6 +35,7 @@ type DeskDragState = {
   selectedIds: string[];
   moved: boolean;
   latestPositions: Record<string, DeskWorldPosition>;
+  originalPositions: Record<string, DeskWorldPosition>;
 };
 
 type DeskMarqueeState = {
@@ -73,7 +74,14 @@ export function useDeskSpatialLayout({
   const suppressedActivationRef = useRef<string | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
-  const camera = useDeskCamera({ focused, viewportRef: workGridRef });
+  const cancelPointerGesture = useCallback(() => {
+    const drag = dragRef.current;
+    if (drag) setStoredPositions((current) => ({ ...current, ...drag.originalPositions }));
+    dragRef.current = null;
+    marqueeRef.current = null;
+    setMarquee(null);
+  }, []);
+  const camera = useDeskCamera({ focused, viewportRef: workGridRef, onPinchStart: cancelPointerGesture });
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +137,7 @@ export function useDeskSpatialLayout({
       selectedIds: selected,
       moved: false,
       latestPositions: {},
+      originalPositions: Object.fromEntries(selectedItems.map((item) => [item.id, { x: item.x, y: item.y, z: item.z }])),
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [collectWorldItems, onSelectionChange, positions, selectedIds]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
+import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { CardFace } from '@/domain/cards';
@@ -13,8 +13,6 @@ import styles from './Desk.module.css';
 
 interface DeskWorkObjectProps {
   item: AccountLibraryItem;
-  index: number;
-  itemCount: number;
   active: boolean;
   featured: boolean;
   focused: boolean;
@@ -39,7 +37,6 @@ interface DeskWorkObjectProps {
   onOpenLocation: (item: AccountLibraryItem) => void;
   onOpenPipeline: (setId: string) => void;
   onDuplicate: (item: AccountLibraryItem) => void;
-  onMove: (itemId: string, direction: 'earlier' | 'later') => void;
   onInspect: (item: AccountLibraryItem) => void;
   onDelete: (item: AccountLibraryItem) => void;
 }
@@ -216,8 +213,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save / move{props.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
         {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-        <DropdownMenuItem disabled={props.index === 0} onSelect={() => props.onMove(props.item.id, 'earlier')}><ArrowUp aria-hidden="true" />Move earlier on desk</DropdownMenuItem>
-        <DropdownMenuItem disabled={props.index === props.itemCount - 1} onSelect={() => props.onMove(props.item.id, 'later')}><ArrowDown aria-hidden="true" />Move later on desk</DropdownMenuItem>
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
         {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => props.onDelete(props.item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}

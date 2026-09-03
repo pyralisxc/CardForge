@@ -8,7 +8,7 @@ const BROWSER_DATABASE = 'cardforge-browser-storage';
 const BROWSER_STORE = 'key-value';
 const GUEST_WORKSPACE_KEY = 'project-workspace:guest:workspace';
 
-const workspaceStateFor = (cardCount: ProjectScale) => {
+const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0) => {
   const fixture = createProjectScaleFixture(cardCount);
   const storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
@@ -17,12 +17,20 @@ const workspaceStateFor = (cardCount: ProjectScale) => {
       artwork: `cardforge-browser-asset://${(index + 1).toString(16).padStart(64, '0')}`,
     },
   }));
+  const cardSets = [
+    ...fixture.cardSets,
+    ...Array.from({ length: additionalSets }, (_, index) => ({
+      id: `touch-companion-${index + 1}`,
+      name: `Touch Companion Set ${index + 1}`,
+      organization: { arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const, tags: [], positions: {} },
+    })),
+  ];
   return {
     userTemplates: fixture.userTemplates,
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
-    cardSets: fixture.cardSets,
-    activeCardSet: fixture.cardSets[0] ?? null,
+    cardSets,
+    activeCardSet: cardSets[0] ?? null,
     studioView: 'template',
     singleCardGeneratorSelectedTemplateId: fixture.userTemplates[0]?.id ?? null,
     singleCardGeneratorSelectedBackingTemplateId: null,
@@ -69,9 +77,9 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-  const state = workspaceStateFor(cardCount);
+  const state = workspaceStateFor(cardCount, options.additionalSets);
   await page.evaluate(async ({ databaseName, objectStoreName, storageKey, stateValue }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);

@@ -7,7 +7,8 @@ import {
   type AccountLibrarySource,
 } from '@/features/storage-management/client';
 
-export type HomeSourceFilter = 'all' | 'device' | 'connected' | 'temporary';
+type LegacyDeskSourceFilter = 'connected' | 'temporary';
+export type HomeSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
 export type HomeSort = 'desk' | 'name' | 'size';
 export type DeskWorkKeyboardIntent = 'open' | 'select' | 'select-additive' | 'none';
 
@@ -32,12 +33,24 @@ export interface DeskAccountStatus {
 export const DESK_PINS_KEY = 'home-desk-pins';
 export const DESK_ORDER_KEY = 'home-desk-order';
 export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
-export const sourceFilterOptions: Array<{ id: HomeSourceFilter; label: string }> = [
-  { id: 'all', label: 'All work' },
-  { id: 'device', label: 'Device' },
-  { id: 'connected', label: 'Connected' },
-  { id: 'temporary', label: 'Temporary' },
-];
+export interface DeskSourceFacet {
+  id: AccountLibrarySource;
+  label: string;
+  count: number;
+}
+
+export const getDeskSourceFacets = (items: readonly AccountLibraryItem[]): DeskSourceFacet[] => {
+  const facets = new Map<AccountLibrarySource, DeskSourceFacet>();
+  items.forEach((item) => item.locations.forEach((location) => {
+    const current = facets.get(location.source);
+    facets.set(location.source, {
+      id: location.source,
+      label: current?.label ?? location.label,
+      count: (current?.count ?? 0) + 1,
+    });
+  }));
+  return [...facets.values()];
+};
 
 export const normalizeDeskOrder = (
   availableIds: string[],
@@ -202,7 +215,8 @@ export const getWorkActions = (
 export const matchesSourceFilter = (item: AccountLibraryItem, filter: HomeSourceFilter): boolean => {
   if (filter === 'all') return true;
   const sources = item.locations.map((location) => location.source);
-  if (filter === 'device') return sources.includes('device') || sources.includes('local-folder');
+  // Compatibility-only aliases for return contexts created before reflective source facets.
   if (filter === 'temporary') return sources.includes('assistant-draft');
-  return sources.includes('google-drive');
+  if (filter === 'connected') return sources.includes('google-drive') || sources.includes('local-folder');
+  return sources.includes(filter);
 };

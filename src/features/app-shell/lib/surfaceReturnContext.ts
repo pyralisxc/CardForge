@@ -3,7 +3,7 @@ export type DeskSurfaceReturnContext = {
   focusedWorkId: string | null;
   inspectorWorkId: string | null;
   query: string;
-  sourceFilter: 'all' | 'device' | 'connected' | 'temporary';
+  sourceFilter: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'connected' | 'temporary';
   sort: 'desk' | 'name' | 'size';
   selectedCardIds: string[];
   cardQuery: string;
@@ -59,7 +59,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const focusedWorkId = nullableTextValue(record.focusedWorkId);
     const inspectorWorkId = nullableTextValue(record.inspectorWorkId);
     const query = textValue(record.query);
-    const sourceFilter = oneOf(record.sourceFilter, ['all', 'device', 'connected', 'temporary'] as const);
+    const sourceFilter = oneOf(record.sourceFilter, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'connected', 'temporary'] as const);
     const sort = oneOf(record.sort, ['desk', 'name', 'size'] as const);
     const cardQuery = textValue(record.cardQuery);
     const tagFilter = textValue(record.tagFilter);

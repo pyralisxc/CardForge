@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 import {
   closeScaleSet,
@@ -23,11 +23,11 @@ const attachEvidence = async (testInfo: TestInfo, name: string, value: unknown) 
   });
 };
 
-const prepareScalePage = async (page: Page, cardCount: ProjectScale) => {
+const prepareScalePage = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   await installBrowserPerformanceObservers(page);
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-  await seedGuestScaleWorkspace(page, cardCount);
+  await seedGuestScaleWorkspace(page, cardCount, options);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) })).toBeVisible();
@@ -123,7 +123,7 @@ test.describe('large Artifact browser evidence', () => {
     });
   }
 
-  test('Desk spatial controls move a real Set and restore its saved position', async ({ page }) => {
+  test('@golden Desk spatial controls move a real Set and restore its saved position', async ({ page }) => {
     await prepareScalePage(page, 100);
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
@@ -139,14 +139,27 @@ test.describe('large Artifact browser evidence', () => {
     await expect.poll(() => page.locator('[data-desk-set-object-id="set:scale-set-100"]').evaluate((node) => node.getAttribute('style')?.match(/--desk-x:\s*([^;]+)/)?.[1] ?? '')).toBe(savedX);
   });
 
-  test('mobile Desk stays one navigable world when Move is toggled', async ({ page }) => {
+  test('@golden mobile Desk supports touch multi-selection, group movement, marquee, and pinch zoom', async ({ page, context }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await prepareScalePage(page, 100);
+    await prepareScalePage(page, 100, { additionalSets: 1 });
     const viewport = page.locator('[data-desk-viewport]');
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
+    const companionButton = page.getByRole('button', { name: /^(Select|Selected) Touch Companion Set 1/ });
+    const companionObject = page.locator('[data-desk-set-object-id="set:touch-companion-1"]');
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    const touch = async (type: 'touchStart' | 'touchMove' | 'touchEnd', points: Array<{ x: number; y: number; id: number }>) => {
+      await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+    };
+    const center = async (locator: Locator) => {
+      const box = await locator.boundingBox();
+      expect(box).not.toBeNull();
+      return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+    };
 
     await expect(viewport).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Filter open work by source' })).toHaveCount(0);
     await expect(viewport).toHaveAttribute('aria-label', /Swipe or scroll to explore/);
     await expect(page.getByText('Swipe the Desk to look around')).toBeVisible();
     const initialZoom = Number(await viewport.getAttribute('data-zoom'));
@@ -161,6 +174,7 @@ test.describe('large Artifact browser evidence', () => {
     })).toBe(true);
     await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('pan-x pan-y');
 
+    await viewport.evaluate((node) => node.scrollTo({ left: 0, top: 0 }));
     await setButton.click();
     const beforeMoveMode = await setObject.boundingBox();
     await page.getByRole('button', { name: 'Move', exact: true }).click();
@@ -171,6 +185,62 @@ test.describe('large Artifact browser evidence', () => {
     expect(afterMoveMode).not.toBeNull();
     expect(Math.abs(afterMoveMode!.x - beforeMoveMode!.x)).toBeLessThan(1);
     expect(Math.abs(afterMoveMode!.y - beforeMoveMode!.y)).toBeLessThan(1);
+
+    const companionCenter = await center(companionButton);
+    await touch('touchStart', [{ ...companionCenter, id: 1 }]);
+    await touch('touchEnd', []);
+    await expect(setButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(companionButton).toHaveAttribute('aria-pressed', 'true');
+
+    const beforeGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
+    await touch('touchStart', [{ ...companionCenter, id: 2 }]);
+    await touch('touchMove', [{ x: companionCenter.x + 36, y: companionCenter.y + 24, id: 2 }]);
+    await touch('touchEnd', []);
+    await expect.poll(async () => {
+      const afterGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
+      if (beforeGroup.some((box) => !box) || afterGroup.some((box) => !box)) return false;
+      const firstDelta = { x: afterGroup[0]!.x - beforeGroup[0]!.x, y: afterGroup[0]!.y - beforeGroup[0]!.y };
+      const secondDelta = { x: afterGroup[1]!.x - beforeGroup[1]!.x, y: afterGroup[1]!.y - beforeGroup[1]!.y };
+      return firstDelta.x > 10 && firstDelta.y > 5
+        && Math.abs(firstDelta.x - secondDelta.x) < 2
+        && Math.abs(firstDelta.y - secondDelta.y) < 2;
+    }).toBe(true);
+
+    await page.getByRole('button', { name: 'Clear Desk selection' }).click();
+    const marqueeTarget = await companionObject.boundingBox();
+    expect(marqueeTarget).not.toBeNull();
+    const marqueeStart = await companionObject.evaluate((node) => {
+      const tile = node.getBoundingClientRect();
+      const world = node.parentElement!;
+      const candidates = [
+        { x: tile.left - 24, y: tile.top - 24 },
+        { x: tile.right + 24, y: tile.top - 24 },
+        { x: tile.left - 24, y: tile.bottom + 24 },
+        { x: tile.right + 24, y: tile.bottom + 24 },
+      ];
+      return candidates.find((point) => document.elementFromPoint(point.x, point.y) === world) ?? null;
+    });
+    expect(marqueeStart).not.toBeNull();
+    await touch('touchStart', [{ ...marqueeStart!, id: 5 }]);
+    await touch('touchMove', [{ x: marqueeTarget!.x + marqueeTarget!.width / 2, y: marqueeTarget!.y + marqueeTarget!.height / 2, id: 5 }]);
+    await touch('touchEnd', []);
+    await expect(companionButton).toHaveAttribute('aria-pressed', 'true');
+
+    const zoomBeforePinch = Number(await viewport.getAttribute('data-zoom'));
+    const viewportBox = await viewport.boundingBox();
+    expect(viewportBox).not.toBeNull();
+    const pinchY = viewportBox!.y + Math.min(180, viewportBox!.height / 2);
+    const pinchCenterX = viewportBox!.x + viewportBox!.width / 2;
+    await touch('touchStart', [
+      { x: pinchCenterX - 40, y: pinchY, id: 3 },
+      { x: pinchCenterX + 40, y: pinchY, id: 4 },
+    ]);
+    await touch('touchMove', [
+      { x: pinchCenterX - 70, y: pinchY, id: 3 },
+      { x: pinchCenterX + 70, y: pinchY, id: 4 },
+    ]);
+    await touch('touchEnd', []);
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(zoomBeforePinch);
 
     const cameraBeforeFocus = await viewport.evaluate((node) => ({
       left: node.scrollLeft,
@@ -196,6 +266,7 @@ test.describe('large Artifact browser evidence', () => {
       const worldRect = world.getBoundingClientRect();
       return worldRect.width <= node.clientWidth + 2 && worldRect.height <= node.clientHeight + 2;
     })).toBe(true);
+    await cdp.detach();
   });
 
   test('Artifact focus preserves exact Set context through Back and Escape', async ({ page }) => {

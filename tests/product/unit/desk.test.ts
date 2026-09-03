@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { normalizeCardSet } from '@/domain/cards';
-import { getDeskWorkKeyboardIntent, getWorkActions, normalizeDeskOrder, reorderDeskItem } from '@/features/desk/model/desk';
+import { getDeskSourceFacets, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder, reorderDeskItem } from '@/features/desk/model/desk';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
@@ -48,6 +48,31 @@ describe('Desk model', () => {
     expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:c', 'set:a')).toEqual(['set:c', 'set:a', 'set:b']);
     expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:b', 'earlier')).toEqual(['set:b', 'set:a', 'set:c']);
     expect(reorderDeskItem(['set:a', 'set:b', 'set:c'], 'set:b', 'later')).toEqual(['set:a', 'set:c', 'set:b']);
+  });
+
+  it('derives source facets only from sources present on the current Desk', () => {
+    const item = (id: string, source: AccountLibraryItem['locations'][number]['source'], label: string): AccountLibraryItem => ({
+      id,
+      kind: 'set',
+      name: id,
+      locations: [{ source, status: 'available', label }],
+      details: [],
+      sizeBytes: null,
+      revision: null,
+      updatedAt: null,
+      expiresAt: null,
+      webViewLink: null,
+      references: {},
+    });
+    const device = item('device-set', 'device', 'This device');
+    const drive = item('drive-set', 'google-drive', 'Google Drive');
+    expect(getDeskSourceFacets([device, drive])).toEqual([
+      { id: 'device', label: 'This device', count: 1 },
+      { id: 'google-drive', label: 'Google Drive', count: 1 },
+    ]);
+    expect(matchesSourceFilter(device, 'device')).toBe(true);
+    expect(matchesSourceFilter(device, 'google-drive')).toBe(false);
+    expect(matchesSourceFilter(drive, 'connected')).toBe(true);
   });
 
   it('keeps keyboard selection separate from deliberate Set opening', () => {
