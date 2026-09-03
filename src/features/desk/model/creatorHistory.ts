@@ -8,7 +8,7 @@ import {
   type CreatorToolSession,
 } from '@/features/app-shell/client/environment';
 
-export type HomeContextualToolId = 'design' | 'generate' | 'output' | 'pipeline';
+export type DeskContextualToolId = 'design' | 'generate' | 'output' | 'pipeline';
 
 export interface CreatorHistorySnapshot {
   version: 1;
@@ -17,7 +17,8 @@ export interface CreatorHistorySnapshot {
   session: CreatorInteractionSession;
 }
 
-export const HOME_CREATOR_HISTORY_KEY = 'cardforgeCreatorContext';
+export const DESK_CREATOR_HISTORY_KEY = 'cardforgeCreatorContext';
+const CREATOR_LAUNCH_INTENT_KEYS = ['document', 'revision', 'returnTo', 'editTemplate'] as const;
 
 export const createCreatorInitialSession = (
   focusedWorkId?: string | null,
@@ -71,7 +72,7 @@ const isInteractionSession = (value: unknown): value is CreatorInteractionSessio
 
 export const readCreatorHistorySnapshot = (state: unknown): CreatorHistorySnapshot | null => {
   if (!state || typeof state !== 'object') return null;
-  const snapshot = (state as Record<string, unknown>)[HOME_CREATOR_HISTORY_KEY];
+  const snapshot = (state as Record<string, unknown>)[DESK_CREATOR_HISTORY_KEY];
   if (!snapshot || typeof snapshot !== 'object') return null;
   const candidate = snapshot as Partial<CreatorHistorySnapshot>;
   if (candidate.version !== 1) return null;
@@ -94,7 +95,7 @@ export const createCreatorHistoryState = (
   snapshot: CreatorHistorySnapshot,
 ): Record<string, unknown> => ({
   ...(state && typeof state === 'object' ? state : {}),
-  [HOME_CREATOR_HISTORY_KEY]: snapshot,
+  [DESK_CREATOR_HISTORY_KEY]: snapshot,
 });
 
 export const createCreatorHref = (snapshot: CreatorHistorySnapshot): string => {
@@ -109,9 +110,23 @@ export const createCreatorHref = (snapshot: CreatorHistorySnapshot): string => {
   return query ? `/account?${query}` : '/account';
 };
 
+export const preserveCreatorLaunchIntent = (
+  creatorHref: string,
+  currentHref: string,
+): string => {
+  const base = 'https://cardforge.local';
+  const current = new URL(currentHref, base);
+  const target = new URL(creatorHref, base);
+  for (const key of CREATOR_LAUNCH_INTENT_KEYS) {
+    const value = current.searchParams.get(key);
+    if (value !== null && !target.searchParams.has(key)) target.searchParams.set(key, value);
+  }
+  return `${target.pathname}${target.search}${target.hash}`;
+};
+
 export const createCreatorTool = (
   setId: string,
-  toolId: HomeContextualToolId,
+  toolId: DeskContextualToolId,
 ): CreatorToolSession => ({
   instanceId: `desk-${toolId}-${setId}`,
   toolId,
