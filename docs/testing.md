@@ -9,7 +9,7 @@ CardForge keeps two permanent test structures:
 - `tests/product/` proves observable product behavior and data movement. Its unit tests cover stable public contracts; its browser workflows cover the smallest set of critical journeys.
 - `tests/infrastructure/` proves generic production guardrails such as architecture boundaries, migration safety, repository security, and durable grants.
 
-Use `npm run test:product`, `npm run test:infrastructure`, or `npm run test:inventory` to run or inspect these lanes independently. The inventory groups product coverage by domain so test growth is visible instead of disappearing into one suite total.
+Use `npm run verify:focused` to discover and run tests affected by the current diff, or pass explicit paths after `--`. Use `npm run test:product`, `npm run test:infrastructure`, or `npm run test:inventory` to run or inspect lanes independently. The inventory groups product coverage by domain so test growth is visible instead of disappearing into one suite total.
 
 The durable browser lane covers select-first Desk interaction, exact focus restoration, 100/500/1,000 Artifact scale, reduced-motion continuity, lifecycle cleanup, recovery/conflict, and representative compact-screen behavior. `npm run health:production` is a separate non-mutating operational lane with independently runnable route, product, and provider categories; it is not a substitute for signed-in provider acceptance.
 
@@ -66,6 +66,8 @@ A PR-specific development probe is temporary by default. Before merge, either:
 2. promote it into `tests/infrastructure/` because it enforces a generic rule across the repository; or
 3. delete it after the change is proven.
 
-Tests that pin a component path, internal helper name, one-time migration shape, cutover state, or exact source composition should normally take the third path. The final gate includes `npm run test:inventory`; any material increase should be explainable by product or production risk, and cleanup should retire probes made obsolete by broader coverage.
+Tests that pin a component path, internal helper name, one-time migration shape, cutover state, or exact source composition should normally take the third path. Use `npm run test:inventory` when test growth itself is under review; it is an analysis report, not part of the normal final gate. Any material increase should be explainable by product or production risk, and cleanup should retire probes made obsolete by broader coverage.
+
+`npm run verify:full` is the sole complete code-health gate. It owns lint, types, both durable test lanes, architecture, migration safety, and the production build exactly once; CI calls the same command.
 
 Test count is not a quality metric. CardForge should prefer fewer tests with broad, stable value over many tests that freeze implementation details.

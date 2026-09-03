@@ -28,6 +28,10 @@ const runArchitectureCheck = async (root: string, extraArgs: string[] = []) => n
   });
 });
 
+const runGit = async (root: string, args: string[]) => new Promise<void>((resolve, reject) => {
+  execFile('git', args, { cwd: root }, (error) => error ? reject(error) : resolve());
+});
+
 afterEach(async () => {
   await Promise.all(fixtureRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
@@ -52,9 +56,20 @@ describe('architecture boundary CLI', () => {
     });
     const result = await runArchitectureCheck(root);
     expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('Architecture check passed (0 violations; 0 size warnings).\n');
+    expect(result.stdout).not.toContain('Dependency gravity:');
+    expect(result.stdout).not.toContain('Public-interface breadth:');
+  });
+
+  it('keeps repository-wide analysis behind explicit report mode', async () => {
+    const root = await createFixture({
+      'src/features/gallery/client.ts': "export const galleryCard = 'card';\n",
+    });
+    const result = await runArchitectureCheck(root, ['--report']);
+    expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('Dependency gravity: gallery fan-in 0, fan-out 0, public exports 1.');
     expect(result.stdout).toContain('Public-interface breadth: src/features/gallery/client.ts exposes 1 export.');
-    expect(result.stdout).toContain('Architecture check passed (0 violations');
+    expect(result.stdout).toContain('Architecture check passed (0 violations; 0 size warnings).');
   });
 
   it('rejects client modules that import feature server code', async () => {
@@ -101,6 +116,30 @@ describe('architecture boundary CLI', () => {
     const root = await createFixture({ 'src/shared/largeCatalog.ts': Array.from({ length: 501 }, (_, index) => `export const value${index} = ${index};`).join('\n') });
     const result = await runArchitectureCheck(root);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('File-size review warning');
+    expect(result.stdout).toBe('Architecture check passed (0 violations; 1 size warning).\n');
+
+    const report = await runArchitectureCheck(root, ['--report']);
+    expect(report.exitCode).toBe(0);
+    expect(report.stdout).toContain('File-size review warning');
+  });
+
+  it('limits changed mode size signals to files changed from the selected base', async () => {
+    const unchangedLargeFile = Array.from({ length: 501 }, (_, index) => `export const stable${index} = ${index};`).join('\n');
+    const root = await createFixture({
+      'src/shared/stableCatalog.ts': unchangedLargeFile,
+      'src/shared/changedCatalog.ts': 'export const value = 1;\n',
+    });
+    await runGit(root, ['init']);
+    await runGit(root, ['config', 'user.email', 'tests@cardforges.com']);
+    await runGit(root, ['config', 'user.name', 'CardForge Tests']);
+    await runGit(root, ['add', '.']);
+    await runGit(root, ['commit', '-m', 'fixture']);
+    await writeFixtureFile(root, 'src/shared/changedCatalog.ts', unchangedLargeFile.replaceAll('stable', 'changed'));
+
+    const result = await runArchitectureCheck(root, ['--changed', '--base', 'HEAD', '--report']);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('File-size review warning: src/shared/changedCatalog.ts');
+    expect(result.stdout).not.toContain('File-size review warning: src/shared/stableCatalog.ts');
+    expect(result.stdout).toContain('Architecture check passed (0 violations; 1 changed size warning).');
   });
 });

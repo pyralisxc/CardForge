@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -12,21 +13,55 @@ const toPosixPath = (value) => value.split(path.sep).join('/');
 const parseArguments = (values) => {
   const args = {
     root: process.cwd(),
+    base: undefined,
+    changed: false,
+    report: false,
   };
 
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    if (value === '--root') {
+    if (value === '--root' || value === '--base') {
       const nextValue = values[index + 1];
       if (!nextValue) throw new Error(`${value} requires a path.`);
-      args.root = nextValue;
+      args[value.slice(2)] = nextValue;
       index += 1;
+      continue;
+    }
+    if (value === '--changed' || value === '--report') {
+      args[value.slice(2)] = true;
       continue;
     }
     throw new Error(`Unknown architecture option: ${value}`);
   }
 
-  return { root: path.resolve(args.root) };
+  return { ...args, root: path.resolve(args.root) };
+};
+
+const runGit = (root, args) => execFileSync('git', args, {
+  cwd: root,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+
+const collectChangedPaths = (root, explicitBase) => {
+  const paths = new Set();
+  const addOutput = (output) => {
+    for (const filePath of output.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean)) {
+      paths.add(filePath.replaceAll('\\', '/'));
+    }
+  };
+  const base = explicitBase
+    ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
+
+  try {
+    runGit(root, ['rev-parse', '--verify', base]);
+    addOutput(runGit(root, ['diff', '--name-only', `${base}...HEAD`]));
+  } catch {
+    runGit(root, ['rev-parse', '--verify', 'HEAD']);
+  }
+  addOutput(runGit(root, ['diff', '--name-only', 'HEAD']));
+  addOutput(runGit(root, ['ls-files', '--others', '--exclude-standard']));
+  return paths;
 };
 
 const collectSourceFiles = async (directory) => {
@@ -397,14 +432,21 @@ const analyzeRepository = async (root) => {
 const run = async () => {
   const args = parseArguments(process.argv.slice(2));
   const analysis = await analyzeRepository(args.root);
-  for (const hotspot of analysis.featureGravity.slice(0, 10)) {
-    console.log(`Dependency gravity: ${hotspot.featureName} fan-in ${hotspot.fanIn}, fan-out ${hotspot.fanOut}, public exports ${hotspot.publicExports}.`);
-  }
-  for (const publicInterface of analysis.publicInterfaces.filter((entry) => entry.exportCount > 0).slice(0, 10)) {
-    console.log(`Public-interface breadth: ${publicInterface.path} exposes ${publicInterface.exportCount} export${publicInterface.exportCount === 1 ? '' : 's'}.`);
-  }
-  for (const warning of analysis.sizeWarnings) {
-    console.log(`File-size review warning: ${warning.path} has ${warning.lineCount} lines (threshold ${FILE_SIZE_REVIEW_THRESHOLD}).`);
+  const changedPaths = args.changed ? collectChangedPaths(args.root, args.base) : null;
+  const relevantSizeWarnings = changedPaths
+    ? analysis.sizeWarnings.filter((warning) => changedPaths.has(warning.path))
+    : analysis.sizeWarnings;
+
+  if (args.report) {
+    for (const hotspot of analysis.featureGravity.slice(0, 10)) {
+      console.log(`Dependency gravity: ${hotspot.featureName} fan-in ${hotspot.fanIn}, fan-out ${hotspot.fanOut}, public exports ${hotspot.publicExports}.`);
+    }
+    for (const publicInterface of analysis.publicInterfaces.filter((entry) => entry.exportCount > 0).slice(0, 10)) {
+      console.log(`Public-interface breadth: ${publicInterface.path} exposes ${publicInterface.exportCount} export${publicInterface.exportCount === 1 ? '' : 's'}.`);
+    }
+    for (const warning of relevantSizeWarnings) {
+      console.log(`File-size review warning: ${warning.path} has ${warning.lineCount} lines (threshold ${FILE_SIZE_REVIEW_THRESHOLD}).`);
+    }
   }
 
   for (const violation of analysis.violations) {
@@ -414,7 +456,8 @@ const run = async () => {
     process.exitCode = 1;
     return;
   }
-  console.log(`Architecture check passed (0 violations; ${analysis.sizeWarnings.length} size warnings).`);
+  const warningLabel = `${relevantSizeWarnings.length} ${args.changed ? 'changed ' : ''}size warning${relevantSizeWarnings.length === 1 ? '' : 's'}`;
+  console.log(`Architecture check passed (0 violations; ${warningLabel}).`);
 };
 
 run().catch((error) => {

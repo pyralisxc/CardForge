@@ -4,14 +4,13 @@ CardForge is a live service app with local development. A fresh agent must be ab
 
 ## Repository authority
 
-Treat `main` plus live provider state as authoritative. Read current product truth in this order:
+Treat `main` plus live provider state as authoritative. Orient in this order:
 
 1. `README.md` for the live product/source map.
-2. `docs/architecture.md` for ownership and invariants.
-3. `docs/product-direction.md` for the intended product model and next delivery sequence; it does not override shipped behavior.
-4. `docs/integrations.md` for provider-native ownership and trace paths.
-5. `docs/operations.md` for current release/provider procedures.
-6. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
+2. `docs/agent-map.md` for the affected owner, focused tests, and relevant document sections.
+3. Only the source and linked sections routed for the objective.
+
+The durable truth sources remain `docs/architecture.md` for shipped ownership and invariants, `docs/product-direction.md` for intended direction, `docs/integrations.md` for provider seams, `docs/operations.md` for release procedures, and `docs/risk-register.md` for unresolved risk. Do not preload all of them when the routed slice answers the question.
 
 Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
@@ -76,16 +75,6 @@ Closed implementation plans, migration cutovers, and rollout checklists belong i
 - Do not recreate retired QA identities merely to satisfy broad tests.
 - If a verification method is invalid for the target, stop and use the correct owner/provider path rather than trying unrelated tools.
 - Keep reports concise: what was checked, what passed, what failed, and whether it matters.
-
-## Lean repository execution
-
-Use one coherent objective branch and one final PR unless an independent high-risk billing, security, legal, migration, permission, or provider boundary requires separation.
-
-During implementation, use one focused RED/GREEN cycle per behavior and run the complete gate once near completion. Default Git inspection to orientation, pre-commit, and pre-PR. Do not repeat unchanged Git/provider queries or create extra process artifacts.
-
-For remote GitHub-only work, batch related file changes into one Git tree/commit per coherent milestone. GitHub CI is the deterministic code-health loop; Vercel Preview is hosted integration proof, not a compile loop. Do not push incomplete/no-op/test-only commits merely to retrigger provider status.
-
-Provider-backed work uses one preflight, one approved mutation, and one postflight verification. If the same check would run twice without a relevant state change, stop the loop.
 
 Direct instructions from Cameron override this protocol.
 

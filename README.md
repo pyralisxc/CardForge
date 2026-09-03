@@ -20,11 +20,8 @@ Production runs at [cardforges.com](https://cardforges.com).
 A fresh maintainer or agent should be able to work from the repository without prior chat history. Treat `main` plus live provider state as authoritative. Start with:
 
 1. `AGENTS.md` for working rules.
-2. `docs/architecture.md` for current product ownership and invariants.
-3. `docs/product-direction.md` for the intended product model and next delivery sequence; it does not override shipped behavior.
-4. `docs/integrations.md` for provider-native ownership and human trace paths.
-5. `docs/operations.md` for the current release/provider runbook.
-6. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
+2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
+3. Only the routed source and documentation needed for the objective.
 
 PRs, commits, old migrations, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
@@ -39,16 +36,14 @@ npm run dev
 
 Local development runs at `http://localhost:9002`.
 
-Core verification:
+Use affected verification while implementing and the single complete gate on a final candidate:
 
 ```bash
-npm run lint
-npm run typecheck
-npm run architecture:check
-npm run migrations:check
-npm run test
-npm run build
+npm run verify:focused
+npm run verify:full
 ```
+
+Pass one or more paths after `npm run verify:focused --` to route an explicit slice. `npm run architecture:report` is the opt-in repository-wide architecture analysis; the normal architecture check stays concise.
 
 Maintained operational commands:
 
@@ -134,6 +129,7 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 ## Documentation
 
+- `docs/agent-map.md`: small objective-to-owner/test/documentation router.
 - `docs/architecture.md`: current architecture and source-of-truth behavior.
 - `docs/product-direction.md`: intended product model, boundaries, and delivery sequence.
 - `docs/product-surface-map.md`: canonical zones, feature placement, and shipped-versus-direction inventory.
