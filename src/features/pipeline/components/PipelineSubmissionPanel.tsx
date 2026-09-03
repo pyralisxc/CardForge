@@ -35,7 +35,7 @@ import {
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiError } from '@/infrastructure/http/clientResponses';
-import { trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
+import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import { ProjectBinaryAssetImage } from '@/features/project/client/binary-assets';
 
 interface PipelineUploadPlanResponse {
@@ -148,7 +148,7 @@ export function PipelineSubmissionPanel({
       if (!useCaseTags.length) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
 
-      const planResponse = await fetch('/api/pipeline/upload-plan', {
+      const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,25 +158,23 @@ export function PipelineSubmissionPanel({
           fileSizeBytes: selectedFile.size,
           mimeType: selectedFile.type || 'application/octet-stream',
         }),
-      });
-      trackProviderBoundaryOutcome('pipeline', planResponse);
+      }));
       if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
       pendingUpload = (await planResponse.json() as PipelineUploadPlanResponse).upload;
 
       const uploadForm = new FormData();
       uploadForm.append('cacheControl', '3600');
       uploadForm.append('', selectedFile);
-      const uploadResponse = await fetch(pendingUpload.signedUrl, {
+      const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(pendingUpload.signedUrl, {
         method: 'PUT',
         headers: { 'x-upsert': 'false' },
         body: uploadForm,
-      });
-      trackProviderBoundaryOutcome('pipeline', uploadResponse);
+      }));
       if (!uploadResponse.ok) {
         throw new Error('The source file could not be uploaded to Forge Review storage. Retry the same file.');
       }
 
-      const response = await fetch('/api/pipeline', {
+      const response = await observeProviderBoundaryResponse('pipeline', 'pipeline_submit', () => fetch('/api/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,8 +192,7 @@ export function PipelineSubmissionPanel({
             mimeType: pendingUpload.mimeType,
           },
         }),
-      });
-      trackProviderBoundaryOutcome('pipeline', response);
+      }));
       if (!response.ok) throw await readApiError(response, 'Unable to submit asset.');
       await response.json();
       submitted = true;

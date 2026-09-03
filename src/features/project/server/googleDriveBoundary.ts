@@ -13,6 +13,10 @@ export interface GoogleProviderFailure {
   reconnectRequired: boolean;
 }
 
+export type GoogleAccessTokenResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; failure: GoogleProviderFailure };
+
 const RATE_LIMIT_REASONS = new Set([
   'rateLimitExceeded',
   'sharingRateLimitExceeded',
@@ -65,4 +69,44 @@ export const readGoogleProviderFailure = async (
 ): Promise<GoogleProviderFailure> => {
   const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload;
   return classifyGoogleProviderFailure(response.status, payload, context);
+};
+
+export const requestGoogleAccessToken = async ({
+  endpoint,
+  refreshToken,
+  clientId,
+  clientSecret,
+}: {
+  endpoint: string;
+  refreshToken: string;
+  clientId: string;
+  clientSecret: string;
+}): Promise<GoogleAccessTokenResult> => {
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'refresh_token',
+      }),
+      cache: 'no-store',
+    });
+  } catch {
+    return {
+      ok: false,
+      failure: classifyGoogleProviderFailure(503, {}, 'token'),
+    };
+  }
+
+  const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload & { access_token?: string };
+  const accessToken = payload.access_token?.trim();
+  if (response.ok && accessToken) return { ok: true, accessToken };
+  return {
+    ok: false,
+    failure: classifyGoogleProviderFailure(response.status, payload, 'token'),
+  };
 };

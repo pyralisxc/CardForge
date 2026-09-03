@@ -196,6 +196,27 @@ describe('contributor asset upload submission', () => {
     }, new Blob([Buffer.from('not-an-image')], { type: 'image/png' }))).rejects.toThrow('do not match');
   });
 
+  it.each([
+    ['woff2', 'font/woff2', Buffer.from('wOF2font-payload')],
+    ['woff', 'font/woff', Buffer.from('wOFFfont-payload')],
+    ['otf', 'font/otf', Buffer.from('OTTOfont-payload')],
+    ['ttf', 'font/ttf', Buffer.from([0x00, 0x01, 0x00, 0x00, 0x66, 0x6f, 0x6e, 0x74])],
+  ])('accepts the declared %s font signature', async (extension, mimeType, bytes) => {
+    await expect(validateUploadedAssetBytes({
+      assetType: 'fonts',
+      extension,
+      mimeType,
+    }, new Blob([bytes], { type: mimeType }))).resolves.toBeUndefined();
+  });
+
+  it('rejects a mislabeled font before public registration', async () => {
+    await expect(validateUploadedAssetBytes({
+      assetType: 'fonts',
+      extension: 'woff2',
+      mimeType: 'font/woff2',
+    }, new Blob([Buffer.from('OTTOfont-payload')], { type: 'font/woff2' }))).rejects.toThrow('do not match');
+  });
+
   it('removes the uploaded object when submission persistence fails', async () => {
     const storage = setupStorage();
     mockedCreatePipelineSubmission.mockRejectedValue(new Error('insert failed'));

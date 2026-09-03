@@ -1,7 +1,7 @@
 "use client";
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
-import { trackProviderBoundaryOutcome } from '@/features/analytics/client/tracking';
+import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import { pickGoogleDriveItems } from '@/features/project/client/provider-google-drive';
 import {
   MAX_PERSONAL_LIBRARY_REGISTER_BATCH,
@@ -20,8 +20,9 @@ const roleMimeTypes = (role: PersonalLibraryRole): readonly string[] => {
 };
 
 export const loadPersonalLibrary = async (): Promise<PersonalLibraryListResult> => {
-  const response = await fetch('/api/personal-library', { cache: 'no-store' });
-  trackProviderBoundaryOutcome('google_drive', response);
+  const response = await observeProviderBoundaryResponse('google_drive', 'personal_list', () => (
+    fetch('/api/personal-library', { cache: 'no-store' })
+  ));
   if (!response.ok) throw await readApiError(response, 'Unable to load your personal library.');
   return await response.json() as PersonalLibraryListResult;
 };
@@ -33,12 +34,11 @@ export const registerGoogleDrivePersonalLibraryItems = async ({
   role: PersonalLibraryRole;
   fileIds: string[];
 }): Promise<PersonalLibraryRegisterResult> => {
-  const response = await fetch('/api/personal-library', {
+  const response = await observeProviderBoundaryResponse('google_drive', 'personal_register', () => fetch('/api/personal-library', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider: 'google-drive', role, fileIds }),
-  });
-  trackProviderBoundaryOutcome('google_drive', response);
+  }));
   if (!response.ok) throw await readApiError(response, 'Unable to add the selected Google Drive files to your CardForge library.');
   return await response.json() as PersonalLibraryRegisterResult;
 };
@@ -65,8 +65,9 @@ export const chooseGoogleDrivePersonalLibraryItems = async (
 };
 
 export const removePersonalLibraryItem = async (itemId: string): Promise<void> => {
-  const response = await fetch(`/api/personal-library/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
-  trackProviderBoundaryOutcome('google_drive', response);
+  const response = await observeProviderBoundaryResponse('google_drive', 'personal_remove', () => (
+    fetch(`/api/personal-library/${encodeURIComponent(itemId)}`, { method: 'DELETE' })
+  ));
   if (!response.ok) throw await readApiError(response, 'Unable to remove that item from your CardForge library.');
 };
 
@@ -80,8 +81,9 @@ export interface PersonalLibraryContent {
 export const materializePersonalLibraryItemContent = async (
   item: Pick<PersonalLibraryItem, 'id' | 'mimeType'>,
 ): Promise<PersonalLibraryContent> => {
-  const response = await fetch(`/api/personal-library/${encodeURIComponent(item.id)}/content`, { cache: 'no-store' });
-  trackProviderBoundaryOutcome('google_drive', response);
+  const response = await observeProviderBoundaryResponse('google_drive', 'personal_content', () => (
+    fetch(`/api/personal-library/${encodeURIComponent(item.id)}/content`, { cache: 'no-store' })
+  ));
   if (!response.ok) throw await readApiError(response, 'Unable to load that personal-library asset.');
   return {
     itemId: item.id,

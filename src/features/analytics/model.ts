@@ -101,6 +101,7 @@ const ALLOWED_EVENT_PARAMETERS = new Set([
   'input_method',
   'outcome',
   'boundary_kind',
+  'provider_action',
   'count_bucket',
   'selection_mode',
   'recovery_source',

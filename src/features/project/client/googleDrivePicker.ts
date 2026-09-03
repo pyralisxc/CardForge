@@ -1,6 +1,10 @@
 "use client";
 
 import { readApiError } from '@/infrastructure/http/clientResponses';
+import {
+  observeProviderBoundaryResponse,
+  trackProviderBoundaryFailure,
+} from '@/features/analytics/client/tracking';
 import type { GoogleDrivePickerConfiguration } from '../model/googleDriveProject';
 
 const GOOGLE_PICKER_SCRIPT_SRC = 'https://apis.google.com/js/api.js';
@@ -121,7 +125,9 @@ const loadPickerLibrary = async (): Promise<PickerNamespace> => {
 };
 
 export const loadGoogleDrivePickerConfiguration = async (): Promise<GoogleDrivePickerConfiguration> => {
-  const response = await fetch('/api/project-sources/google-drive/picker-config', { cache: 'no-store' });
+  const response = await observeProviderBoundaryResponse('google_drive', 'picker_config', () => (
+    fetch('/api/project-sources/google-drive/picker-config', { cache: 'no-store' })
+  ));
   if (!response.ok) throw await readApiError(response, 'Unable to prepare Google Drive selection.');
   return await response.json() as GoogleDrivePickerConfiguration;
 };
@@ -135,7 +141,10 @@ export const pickGoogleDriveItems = async ({
   initialFolderId,
 }: GoogleDrivePickerRequest): Promise<GoogleDrivePickerItem[] | null> => {
   const [picker, config] = await Promise.all([
-    loadPickerLibrary(),
+    loadPickerLibrary().catch((error) => {
+      trackProviderBoundaryFailure('google_drive', 'picker_load');
+      throw error;
+    }),
     loadGoogleDrivePickerConfiguration(),
   ]);
 

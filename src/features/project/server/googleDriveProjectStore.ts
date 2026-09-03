@@ -32,7 +32,7 @@ import {
   type ProjectDocumentV1,
 } from '../model/projectPackage';
 import { decryptProjectStorageToken, encryptProjectStorageToken } from './projectStorageTokenCrypto';
-import { classifyGoogleProviderFailure, readGoogleProviderFailure } from './googleDriveBoundary';
+import { readGoogleProviderFailure, requestGoogleAccessToken } from './googleDriveBoundary';
 
 const GOOGLE_AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -357,20 +357,13 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
       nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
     });
   }
-  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      grant_type: 'refresh_token',
-    }),
-    cache: 'no-store',
+  const token = await requestGoogleAccessToken({
+    endpoint: GOOGLE_TOKEN_ENDPOINT,
+    refreshToken,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
   });
-  const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
-  const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
-  if (!response.ok && failure.reconnectRequired) {
+  if (!token.ok && token.failure.reconnectRequired) {
     await requireStore()
       .from('cardforge_project_storage_connections')
       .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
@@ -380,20 +373,20 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
       nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
     });
   }
-  if (!response.ok || !payload.access_token) {
-    const message = payload.error_description
-      ? `Google Drive could not refresh this connection. ${payload.error_description}`
+  if (!token.ok) {
+    const message = token.failure.providerMessage
+      ? `Google Drive could not refresh this connection. ${token.failure.providerMessage}`
       : 'Google Drive could not refresh this connection.';
-    throw new ProjectStorageProviderError(message, failure.status, {
-      kind: failure.kind,
-      nextAction: failure.nextAction,
+    throw new ProjectStorageProviderError(message, token.failure.status, {
+      kind: token.failure.kind,
+      nextAction: token.failure.nextAction,
     });
   }
   await requireStore()
     .from('cardforge_project_storage_connections')
     .update({ status: 'active', status_note: '', last_verified_at: new Date().toISOString() })
     .eq('id', row.id);
-  return payload.access_token;
+  return token.accessToken;
 };
 
 const requireConnection = async (ownerUserId: string): Promise<{ row: GoogleDriveConnectionRow; accessToken: string }> => {

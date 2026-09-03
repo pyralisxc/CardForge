@@ -46,14 +46,61 @@ export const trackCardForgeEvent = (
   trackProductCardForgeEvent(eventName, parameters);
 };
 
+export type ProviderAnalyticsScope = 'google_drive' | 'pipeline';
+export type ProviderAnalyticsAction =
+  | 'disconnect'
+  | 'folder_select'
+  | 'personal_content'
+  | 'personal_list'
+  | 'personal_register'
+  | 'personal_remove'
+  | 'picker_config'
+  | 'picker_load'
+  | 'pipeline_submit'
+  | 'pipeline_upload'
+  | 'pipeline_upload_plan'
+  | 'project_delete'
+  | 'project_download'
+  | 'project_list'
+  | 'project_prepare'
+  | 'project_upload';
+
+export const trackProviderBoundaryFailure = (
+  scope: ProviderAnalyticsScope,
+  action: ProviderAnalyticsAction,
+  boundaryKind: BoundaryFailureKind = 'unavailable',
+) => trackCardForgeEvent('provider_boundary_outcome', {
+  scope,
+  provider_action: action,
+  outcome: 'failure',
+  boundary_kind: boundaryKind,
+});
+
 export const trackProviderBoundaryOutcome = (
-  scope: 'google_drive' | 'pipeline',
+  scope: ProviderAnalyticsScope,
+  action: ProviderAnalyticsAction,
   response: Pick<Response, 'ok' | 'status'>,
 ) => trackCardForgeEvent('provider_boundary_outcome', {
   scope,
+  provider_action: action,
   outcome: response.ok ? 'success' : 'failure',
   boundary_kind: response.ok ? 'none' : inferBoundaryFailureKind(response.status),
 });
+
+export const observeProviderBoundaryResponse = async (
+  scope: ProviderAnalyticsScope,
+  action: ProviderAnalyticsAction,
+  request: () => Promise<Response>,
+): Promise<Response> => {
+  try {
+    const response = await request();
+    trackProviderBoundaryOutcome(scope, action, response);
+    return response;
+  } catch (error) {
+    trackProviderBoundaryFailure(scope, action);
+    throw error;
+  }
+};
 
 export const trackGoogleCardForgeEvent = (
   eventName: CardForgeAnalyticsEventName,

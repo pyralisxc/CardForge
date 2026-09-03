@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { isGoogleDriveFileId } from '@/features/project/server';
 import { decryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
-import { classifyGoogleProviderFailure, readGoogleProviderFailure } from '@/features/project/server/googleDriveBoundary';
+import { readGoogleProviderFailure, requestGoogleAccessToken } from '@/features/project/server/googleDriveBoundary';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 import {
@@ -142,26 +142,19 @@ const getGoogleDriveAccessToken = async (ownerUserId: string): Promise<string> =
       nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
     });
   }
-  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'refresh_token',
-    }),
-    cache: 'no-store',
+  const token = await requestGoogleAccessToken({
+    endpoint: GOOGLE_TOKEN_ENDPOINT,
+    refreshToken,
+    clientId,
+    clientSecret,
   });
-  const payload = await response.json().catch(() => ({})) as { access_token?: string; error?: string; error_description?: string };
-  if (!response.ok || !payload.access_token) {
-    const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
-    throw new PersonalLibraryStoreError(payload.error_description || (failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'), failure.status, {
-      kind: failure.kind,
-      nextAction: failure.nextAction,
+  if (!token.ok) {
+    throw new PersonalLibraryStoreError(token.failure.providerMessage || (token.failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'), token.failure.status, {
+      kind: token.failure.kind,
+      nextAction: token.failure.nextAction,
     });
   }
-  return payload.access_token;
+  return token.accessToken;
 };
 
 const getDriveFile = async (accessToken: string, fileId: string): Promise<DriveFile> => {

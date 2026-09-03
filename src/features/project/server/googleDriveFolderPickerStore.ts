@@ -11,7 +11,7 @@ import {
   getGoogleDriveProjectStorageConfiguration,
   ProjectStorageProviderError,
 } from './googleDriveProjectStore';
-import { classifyGoogleProviderFailure, readGoogleProviderFailure } from './googleDriveBoundary';
+import { readGoogleProviderFailure, requestGoogleAccessToken } from './googleDriveBoundary';
 
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -22,12 +22,6 @@ type PickerConnectionRow = {
   refresh_token_iv: string;
   refresh_token_auth_tag: string;
   root_folder_id: string;
-};
-
-type GoogleTokenResponse = {
-  access_token?: string;
-  error?: string;
-  error_description?: string;
 };
 
 type GoogleDriveFolderMetadata = {
@@ -87,36 +81,29 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
     });
   }
 
-  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      grant_type: 'refresh_token',
-    }),
-    cache: 'no-store',
+  const token = await requestGoogleAccessToken({
+    endpoint: GOOGLE_TOKEN_ENDPOINT,
+    refreshToken,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
   });
-  const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
-  if (!response.ok || !payload.access_token) {
-    const failure = classifyGoogleProviderFailure(response.status, payload, 'token');
-    if (failure.reconnectRequired) {
+  if (!token.ok) {
+    if (token.failure.reconnectRequired) {
       await requireStore()
         .from('cardforge_project_storage_connections')
         .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
         .eq('id', row.id);
     }
     throw new ProjectStorageProviderError(
-      payload.error_description || (failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'),
-      failure.status,
+      token.failure.providerMessage || (token.failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'),
+      token.failure.status,
       {
-        kind: failure.kind,
-        nextAction: failure.nextAction,
+        kind: token.failure.kind,
+        nextAction: token.failure.nextAction,
       },
     );
   }
-  return payload.access_token;
+  return token.accessToken;
 };
 
 const requirePickerEnvironment = () => {
