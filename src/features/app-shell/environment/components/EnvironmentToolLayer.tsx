@@ -3,6 +3,7 @@
 import { X } from 'lucide-react';
 import { Component, useCallback, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
 
+import type { CreatorToolPresentation } from '../interactionSession';
 import styles from './EnvironmentFoundation.module.css';
 
 interface EnvironmentToolLayerProps {
@@ -17,7 +18,8 @@ interface EnvironmentToolLayerProps {
   onDirtyCloseRequest?: () => void;
   onCrash?: (error: Error) => void;
   manageHistory?: boolean;
-  presentation?: 'panel' | 'workspace';
+  presentation?: CreatorToolPresentation;
+  railOwned?: boolean;
 }
 
 const activeToolLayers: string[] = [];
@@ -62,8 +64,11 @@ export function EnvironmentToolLayer({
   onDirtyCloseRequest,
   onCrash,
   manageHistory = true,
-  presentation = 'panel',
+  presentation = 'sheet',
+  railOwned = false,
 }: EnvironmentToolLayerProps) {
+  const workspace = presentation === 'floating' || presentation === 'inline';
+  const modal = presentation === 'provider-handoff';
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -102,16 +107,21 @@ export function EnvironmentToolLayer({
       window.history.pushState({ ...window.history.state, cardforgeToolLayer: id }, '');
       historyOwnedRef.current = true;
     }
-    closeButtonRef.current?.focus();
+    if (modal) closeButtonRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isTopToolLayer(id)) return;
       if (event.key === 'Escape') {
+        if (
+          event.defaultPrevented
+          || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"]'))
+            .some((element) => element.getClientRects().length > 0)
+        ) return;
         event.preventDefault();
         closeFromControl();
         return;
       }
-      if (event.key !== 'Tab' || !panelRef.current) return;
+      if (!modal || event.key !== 'Tab' || !panelRef.current) return;
       const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
         'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       ));
@@ -153,13 +163,13 @@ export function EnvironmentToolLayer({
       }
       returnFocusRef.current?.focus();
     };
-  }, [closeFromControl, id, manageHistory, requestClose]);
+  }, [closeFromControl, id, manageHistory, modal, requestClose]);
 
   return (
-    <div className={`${styles.toolLayer} ${presentation === 'workspace' ? styles.toolLayerWorkspace : ''}`} role="dialog" aria-modal="true" aria-labelledby={id}>
-      <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} />
-      <section ref={panelRef} className={`${styles.toolPanel} ${presentation === 'workspace' ? styles.toolPanelWorkspace : ''}`}>
-        <header className={`${styles.toolHeader} ${presentation === 'workspace' ? styles.toolHeaderWorkspace : ''}`}>
+    <div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''}`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-desk-tool-surface>
+      {modal ? <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} /> : <div className={styles.toolSceneReveal} aria-hidden="true" />}
+      <section ref={panelRef} className={`${styles.toolPanel} ${workspace ? styles.toolPanelWorkspace : ''}`}>
+        <header className={`${styles.toolHeader} ${workspace ? styles.toolHeaderWorkspace : ''} ${railOwned ? styles.toolHeaderRailOwned : ''}`}>
           <div>
             <p className={styles.toolEyebrow}>{eyebrow}</p>
             <h2 id={id} className={styles.toolTitle}>{title}</h2>
@@ -169,7 +179,7 @@ export function EnvironmentToolLayer({
             <X aria-hidden="true" />
           </button>
         </header>
-        <div className={`${styles.toolContent} ${presentation === 'workspace' ? styles.toolContentWorkspace : ''}`}>
+        <div className={`${styles.toolContent} ${workspace ? styles.toolContentWorkspace : ''}`}>
           <ToolLayerErrorBoundary onCrash={onCrash}>{children}</ToolLayerErrorBoundary>
         </div>
       </section>

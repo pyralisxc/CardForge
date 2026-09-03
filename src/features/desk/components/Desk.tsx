@@ -31,8 +31,10 @@ import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 import {
   workSource,
+  getCardTitle,
   type DeskAccountStatus,
 } from '../model/desk';
+import { DeskContextRail } from './DeskContextRail';
 import { DeskOverviewSurface } from './DeskOverviewSurface';
 import { FocusedWorkSurface } from './FocusedWorkSurface';
 import { DeskDialogs } from './DeskDialogs';
@@ -129,7 +131,6 @@ export function Desk({
     focusWork,
     focusArtifactContext,
     focusedCards,
-    focusedContentsLabel,
     focusedItem,
     focusedLocalSetId,
     generationCards,
@@ -241,6 +242,34 @@ export function Desk({
     accessStatus,
     securityStatus,
   });
+  const activeTool = interactionSession.toolStack.at(-1) ?? null;
+  const focusedArtifactId = interactionSession.focusPath.artifactId;
+  const focusedArtifact = focusedArtifactId
+    ? focusedCards.find((card) => card.uniqueId === focusedArtifactId) ?? null
+    : null;
+  const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
+  const contextDepth = activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
+  const toolName = activeTool?.toolId === 'design' ? 'Design'
+    : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
+      : activeTool?.toolId === 'output' ? 'Output'
+        : activeTool?.toolId === 'pipeline' ? 'Pipeline'
+          : undefined;
+  const openSelectedRevision = () => {
+    if (!focusedItem || !selectedCards.length) return;
+    setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
+    setGeneratorSelectedTemplateId(selectedCards[0]?.template.id ?? null);
+    setGeneratorSelectedBackingTemplateId(selectedCards[0]?.backingTemplateId ?? null);
+    openWorkLane(focusedItem, 'generate');
+  };
+  const closeActiveTool = () => {
+    if (activeTool?.dirty) {
+      setDirtyCloseRequested(true);
+      return;
+    }
+    if (activeTool?.toolId === 'pipeline') closePipelineSubmission();
+    else if (activeTool?.toolId === 'generate') { setGenerationRevisionScopeIds([]); closeGenerate(); }
+    else closeContextStudio();
+  };
   return (
     <>
       <EnvironmentShell
@@ -254,6 +283,44 @@ export function Desk({
         detail={detail}
         actions={actions}
         accountControl={<PublicAuthControls />}
+        showPrimaryAction={!focusedItem}
+        contextBand={<DeskContextRail
+          depth={contextDepth}
+          setName={focusedItem?.name}
+          artifactName={focusedArtifact ? getCardTitle(focusedArtifact, selectedCardIndex) : undefined}
+          toolName={toolName}
+          toolDirty={activeTool?.dirty}
+          localSet={Boolean(focusedLocalSetId)}
+          pinned={Boolean(focusedItem && pinnedIds.includes(focusedItem.id))}
+          renaming={renaming}
+          renameDraft={renameDraft}
+          selectedDeskCount={selectedDeskIds.length}
+          selectedArtifactCount={selectedCards.length}
+          openWorkCount={visibleWork.length}
+          camera={deskCamera}
+          onBack={() => { setRenaming(false); requestHistoryBack(); }}
+          onCloseTool={closeActiveTool}
+          onOpenSelectedSet={() => { if (primarySelectedSet) focusWork(primarySelectedSet); }}
+          onClearDeskSelection={() => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))}
+          onNudgeDeskSelection={nudgeDeskSelection}
+          onRenameDraftChange={setRenameDraft}
+          onCommitRename={commitRename}
+          onToggleRenaming={() => setRenaming((current) => !current)}
+          onOpenWork={() => { if (focusedItem) openWorkLane(focusedItem, 'open'); }}
+          onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
+          onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
+          onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
+          onOpenOutput={() => { if (focusedItem) openWorkLane(focusedItem, 'export'); }}
+          onTogglePin={() => { if (focusedItem) togglePin(focusedItem.id); }}
+          onInspect={() => { if (focusedItem) inspectItem(focusedItem); }}
+          onDeleteWork={() => { if (focusedItem) setPendingDeleteWork(focusedItem); }}
+          onEditArtifact={() => { if (focusedArtifactId) editSelectedCard(focusedArtifactId); }}
+          onReviseSelected={openSelectedRevision}
+          onDuplicateSelected={duplicateSelectedCards}
+          onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
+        />}
+        focusDepth={contextDepth === 'desk' ? 'zone' : contextDepth}
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>
@@ -305,10 +372,6 @@ export function Desk({
               item={item}
               localSetId={focusedLocalSetId}
               remoteIcon={<WorkSourceIcon item={item} />}
-              contentsLabel={focusedContentsLabel}
-              renaming={renaming}
-              renameDraft={renameDraft}
-              pinned={pinnedIds.includes(item.id)}
               focusedCards={focusedCards}
               visibleCards={visibleCards}
               sortedCards={sortedCards}
@@ -334,19 +397,9 @@ export function Desk({
               setSession={setInteractionSession}
               stageRef={cardStageRef}
               onFocusArtifact={focusArtifactContext}
-              onBack={() => { setRenaming(false); requestHistoryBack(); }}
-              onRenameDraftChange={setRenameDraft}
-              onCommitRename={commitRename}
-              onToggleRenaming={() => setRenaming((current) => !current)}
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
               onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
-              onOpenLocation={() => setLocationItem(item)}
-              onDuplicateWork={() => duplicateWork(item)}
-              onOpenOutput={() => openWorkLane(item, 'export')}
-              onTogglePin={() => togglePin(item.id)}
-              onInspect={() => inspectItem(item)}
-              onDeleteWork={() => setPendingDeleteWork(item)}
               onCardQueryChange={setCardQuery}
               onOrganizationChange={updateOrganization}
               onTagFilterChange={setTagFilter}
@@ -359,10 +412,7 @@ export function Desk({
               onEditSelected={editSelectedCard}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={() => {
-                setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
-                setGeneratorSelectedTemplateId(selectedCards[0]?.template.id ?? null);
-                setGeneratorSelectedBackingTemplateId(selectedCards[0]?.backingTemplateId ?? null);
-                openWorkLane(item, 'generate');
+                openSelectedRevision();
               }}
               onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
               onSetCardsTag={setCardsTag}
@@ -379,8 +429,6 @@ export function Desk({
             endMarquee={endDeskMarquee}
             shouldSuppressActivation={shouldSuppressActivation}
             onSelectWork={selectDeskWork}
-            onNudgeSelection={nudgeDeskSelection}
-            onClearSelection={() => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))}
             onQueryChange={setQuery}
             onSourceFilterChange={setSourceFilter}
             onShowGridChange={() => setShowGrid((value) => !value)}
@@ -406,6 +454,8 @@ export function Desk({
           closeLabel="Close Pipeline submission"
           onClose={closePipelineSubmission}
           manageHistory={false}
+          presentation={activeTool?.presentation}
+          railOwned
         >
           <PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId} />
         </EnvironmentToolLayer> : null}
@@ -417,6 +467,8 @@ export function Desk({
           closeLabel="Close Generate"
           onClose={() => { setGenerationRevisionScopeIds([]); closeGenerate(); }}
           manageHistory={false}
+          presentation={activeTool?.presentation}
+          railOwned
         >
           <DeskGenerationWorkspace
             isLoadingTemplates={false}
@@ -451,7 +503,8 @@ export function Desk({
           manageHistory={false}
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
-          presentation="workspace"
+          presentation={activeTool?.presentation}
+          railOwned
         >
           <DeskDesignWorkspace
             businessIdentity={businessIdentity}

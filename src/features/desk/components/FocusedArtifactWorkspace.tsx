@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MutableRefObject } from 'react';
+import { useState } from 'react';
 import { Minus, Pencil, Plus, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ interface FocusedArtifactWorkspaceProps {
   artifactId: string;
   card: DisplayCard;
   setName: string;
-  stageRef: MutableRefObject<HTMLDivElement | null>;
   title: string;
   subtitle: string;
   onEdit: () => void;
@@ -24,7 +23,6 @@ export function FocusedArtifactWorkspace({
   artifactId,
   card,
   setName,
-  stageRef,
   title,
   subtitle,
   onEdit,
@@ -47,11 +45,11 @@ export function FocusedArtifactWorkspace({
       <Button type="button" size="sm" variant="outline" onClick={onEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit Artifact</Button>
     </div>
     <div
-      ref={(node) => { viewport.viewportRef.current = node; stageRef.current = node; }}
+      ref={viewport.viewportRef}
       tabIndex={-1}
       className={styles.contentStage}
       data-desk-artifact-stage
-      data-artifact-focus-exclusive="true"
+      data-artifact-focus-exclusive="false"
       data-artifact-scroll-contained
       data-auto-fit={viewport.isAutoFit ? 'true' : 'false'}
       onWheel={viewport.onWheel}

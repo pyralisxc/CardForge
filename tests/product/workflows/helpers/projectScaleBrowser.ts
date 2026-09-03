@@ -125,12 +125,14 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
 export const openScaleSet = async (page: Page, cardCount: ProjectScale, options: { expectOpeningMotion?: boolean } = {}) => {
   const startedAt = Date.now();
   const setButton = page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) });
+  const setObject = page.locator(`[data-desk-set-object-id="set:scale-set-${cardCount}"]`);
+  const persistentPreview = setObject.locator('[data-desk-set-stack]');
   await setButton.click();
   await expect(setButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-desk="overview"]')).toBeVisible();
   await setButton.press('Enter');
   if (options.expectOpeningMotion) {
-    await expect(page.locator('[data-set-object][data-opening-motion="true"]')).toBeVisible();
+    await expect(persistentPreview).toBeVisible();
   }
   await expect(page.locator('[data-focus-transition="set-to-artifacts"]')).toBeVisible();
   await expect(page.locator('[data-desk-artifact-stage]')).toBeVisible();

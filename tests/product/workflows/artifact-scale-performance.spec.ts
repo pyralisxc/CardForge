@@ -29,7 +29,7 @@ const prepareScalePage = async (page: Page, cardCount: ProjectScale, options: { 
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await seedGuestScaleWorkspace(page, cardCount, options);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-  await expect(page.getByRole('heading', { name: 'Your creative workspace' })).toBeVisible();
+  await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) })).toBeVisible();
 };
 
@@ -92,10 +92,12 @@ test.describe('large Artifact browser evidence', () => {
         await page.keyboard.press('End');
         await expect(orderedOptions.last()).toBeFocused();
         await page.keyboard.press('Enter');
-        await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeVisible();
-        await expect(page.locator(`[data-artifact-id="scale-card-${cardCount}"]`)).toBeFocused();
-        await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
-        await expect(visualArtifacts).toHaveCount(1);
+        const foregroundArtifact = page.locator(`[data-focused-artifact-workspace] [data-artifact-id="scale-card-${cardCount}"]`);
+        await expect(foregroundArtifact).toBeVisible();
+        await expect(foregroundArtifact).toBeFocused();
+        await expect(page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+        await expect(page.locator('[data-focused-artifact-workspace] [data-artifact-id]')).toHaveCount(1);
+        await expect(visualArtifacts).not.toHaveCount(1);
       });
       await page.evaluate(() => window.history.back());
       await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
@@ -161,7 +163,7 @@ test.describe('large Artifact browser evidence', () => {
     await expect(viewport).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filter open work by source' })).toHaveCount(0);
     await expect(viewport).toHaveAttribute('aria-label', /Swipe or scroll to explore/);
-    await expect(page.getByText('Swipe the Desk to look around')).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
     const initialZoom = Number(await viewport.getAttribute('data-zoom'));
     expect(initialZoom).toBeGreaterThan(0.6);
     await expect.poll(() => viewport.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
@@ -193,8 +195,9 @@ test.describe('large Artifact browser evidence', () => {
     await expect(companionButton).toHaveAttribute('aria-pressed', 'true');
 
     const beforeGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
-    await touch('touchStart', [{ ...companionCenter, id: 2 }]);
-    await touch('touchMove', [{ x: companionCenter.x + 36, y: companionCenter.y + 24, id: 2 }]);
+    const dragCenter = await center(companionButton);
+    await touch('touchStart', [{ ...dragCenter, id: 2 }]);
+    await touch('touchMove', [{ x: dragCenter.x + 36, y: dragCenter.y + 24, id: 2 }]);
     await touch('touchEnd', []);
     await expect.poll(async () => {
       const afterGroup = await Promise.all([setObject.boundingBox(), companionObject.boundingBox()]);
@@ -290,8 +293,8 @@ test.describe('large Artifact browser evidence', () => {
     await first.click();
     const focusedStage = page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]');
     const primarySurface = page.locator('main[data-scroll="contained"]');
-    const workSurface = page.locator('section[aria-labelledby="desk-open-work-heading"]');
-    await expect(focusedStage).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+    const workSurface = page.getByRole('region', { name: 'Open Sets on Desk' });
+    await expect(focusedStage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     await expect.poll(() => primarySurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
     await expect.poll(() => workSurface.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
     await expect.poll(async () => {
@@ -304,7 +307,8 @@ test.describe('large Artifact browser evidence', () => {
         && stageBox.y + stageBox.height <= surfaceBox.y + surfaceBox.height
         && stageBox.width / surfaceBox.width > 0.8;
     }).toBe(true);
-    await expect(visibleArtifacts).toHaveCount(1);
+    await expect(visibleArtifacts).not.toHaveCount(1);
+    await expect(focusedStage.locator('[data-artifact-id]')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
     await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
@@ -317,9 +321,9 @@ test.describe('large Artifact browser evidence', () => {
     }).toBeGreaterThan(0.55);
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
-    await expect(page.locator('[data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(1);
-    await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
+    await expect(page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+    await expect(page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage] [data-artifact-id]')).toHaveCount(1);
+    await expect(page.locator(`[data-focused-artifact-workspace] [data-artifact-id="${firstId}"]`)).toBeVisible();
     await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
 
     await page.evaluate(() => window.history.back());
@@ -336,8 +340,8 @@ test.describe('large Artifact browser evidence', () => {
     await expect(page.locator('[data-desk="overview"]')).toBeVisible();
 
     await page.goto(`/account?focus=${encodeURIComponent(focusedSetId!)}&artifact=${encodeURIComponent(firstId!)}`, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-    await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
-    await expect(page.locator(`[data-artifact-id="${firstId}"]`)).toBeVisible();
+    await expect(page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
+    await expect(page.locator(`[data-focused-artifact-workspace] [data-artifact-id="${firstId}"]`)).toBeVisible();
     await page.evaluate(() => window.history.back());
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
     await page.evaluate(() => window.history.back());
@@ -355,8 +359,8 @@ test.describe('large Artifact browser evidence', () => {
     const openFromNavigator = async () => {
       await option.focus();
       await page.keyboard.press('Enter');
-      await expect(page.locator(`[data-artifact-id="${artifactId}"]`)).toBeFocused();
-      await expect(page.locator('[data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'true');
+      await expect(page.locator(`[data-focused-artifact-workspace] [data-artifact-id="${artifactId}"]`)).toBeFocused();
+      await expect(page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]')).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     };
 
     await openFromNavigator();
@@ -383,9 +387,9 @@ test.describe('large Artifact browser evidence', () => {
     const runCycle = async () => {
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: 'Design', exact: true }).click();
-      await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toBeVisible();
-      await page.getByRole('button', { name: 'Close Studio tool' }).click();
-      await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
+      await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' }).click();
+      await expect(page.getByRole('region', { name: 'Design Artifacts' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
       await closeScaleSet(page);
       const closeStorageNotice = page.getByRole('button', { name: 'Close notification' });
@@ -455,7 +459,7 @@ test.describe('large Artifact browser evidence', () => {
 
     await openScaleSet(page, 100);
     await page.getByRole('button', { name: 'Design', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Design Artifacts' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
     await expect.poll(() => [...scripts].filter((url) => !baselineScripts.has(url)).length).toBeGreaterThan(0);
     const designDelta = [...scripts].filter((url) => !baselineScripts.has(url));
     await expect.poll(async () => (await Promise.all(scriptPayloads.slice(baselinePayloadCount))).join('\n').includes('studio-ready')).toBe(true);

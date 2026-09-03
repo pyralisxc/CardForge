@@ -162,6 +162,11 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     const onKeyDown = (event: KeyboardEvent) => {
       const session = currentRef.current.session;
       if (event.key !== 'Escape' || session.toolStack.length > 0 || !session.focusPath.setId) return;
+      if (
+        event.defaultPrevented
+        || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"]'))
+          .some((element) => element.getClientRects().length > 0)
+      ) return;
       event.preventDefault();
       requestHistoryBack();
     };

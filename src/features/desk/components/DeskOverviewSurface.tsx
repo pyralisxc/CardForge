@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CreditCard, FolderPlus, Hand, HardDrive, LayoutGrid, Link2, Loader2, Maximize2, Minus, Plus, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { CreditCard, FolderPlus, Hand, HardDrive, LayoutGrid, Link2, Loader2, Search, ShieldCheck, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,8 +53,6 @@ export interface DeskOverviewSurfaceProps {
   moveMarquee: (event: ReactPointerEvent<HTMLDivElement>) => void;
   endMarquee: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectWork: (item: AccountLibraryItem, options?: { additive?: boolean; range?: boolean }) => void;
-  onNudgeSelection: (delta: { x: number; y: number }) => void;
-  onClearSelection: () => void;
   onQueryChange: (value: string) => void;
   onSourceFilterChange: (value: DeskSourceFilter) => void;
   onShowGridChange: () => void;
@@ -74,15 +72,9 @@ export interface DeskOverviewSurfaceProps {
 
 export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [arrangeMode, setArrangeMode] = useState(false);
-  const primarySelected = props.visibleWork.find((item) => props.selectedIds.includes(item.id)) ?? null;
   return <div className={styles.desk} data-desk={props.focusedItemId ? 'focused' : 'overview'} data-focused={Boolean(props.focusedItemId)}>
-    <header className={styles.deskIntro}>
-      <div><p>Desk</p><h1>Your creative workspace</h1><span>Your open Sets stay arranged here. Choose one to move closer.</span></div>
-      <strong>{props.visibleWork.length} open</strong>
-    </header>
     {props.failureMessage ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${props.failureMessage} Available work remains unchanged.`} actionLabel="Retry" onAction={props.onRetry} /> : null}
-    <section className={styles.workSurface} data-grid={props.showGrid} aria-labelledby="desk-open-work-heading">
-      <div className={styles.workSurfaceHeader}><h2 id="desk-open-work-heading">Open work</h2><span>Each pile is one Set</span></div>
+    <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
       <div className={styles.deskToolbar}>
         <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Find work" /></label>
         {props.sourceFacets.length > 1 ? <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter open work by source" compactLabel="Source" className={styles.sourceSelect} value={props.sourceFilter} onChange={(value) => props.onSourceFilterChange(value as DeskSourceFilter)} options={props.sourceFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
@@ -94,17 +86,6 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <Button type="button" size="sm" variant={arrangeMode ? 'secondary' : 'ghost'} aria-pressed={arrangeMode} onClick={() => setArrangeMode((current) => !current)}><Hand className="mr-1 h-4 w-4" aria-hidden="true" />{arrangeMode ? 'Done' : 'Move'}</Button>
         </div>
       </div>
-      {props.selectedIds.length && !props.focusedItemId ? <div className={styles.deskSelectionBar}>
-        <strong role="status" aria-live="polite">{props.selectedIds.length} Set{props.selectedIds.length === 1 ? '' : 's'} selected</strong>
-        {primarySelected ? <Button type="button" size="sm" onClick={() => props.onFocusWork(primarySelected)}>Open</Button> : null}
-        <span className={styles.deskNudgeControls} role="group" aria-label="Move selected Sets">
-          <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets left" onClick={() => props.onNudgeSelection({ x: -24, y: 0 })}><ArrowLeft aria-hidden="true" /></Button>
-          <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets up" onClick={() => props.onNudgeSelection({ x: 0, y: -24 })}><ArrowUp aria-hidden="true" /></Button>
-          <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets down" onClick={() => props.onNudgeSelection({ x: 0, y: 24 })}><ArrowDown aria-hidden="true" /></Button>
-          <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets right" onClick={() => props.onNudgeSelection({ x: 24, y: 0 })}><ArrowRight aria-hidden="true" /></Button>
-        </span>
-        <Button type="button" size="icon" variant="ghost" aria-label="Clear Desk selection" onClick={props.onClearSelection}><X aria-hidden="true" /></Button>
-      </div> : null}
       {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.visibleWork.length ? <div
         id="desk-world-viewport"
         ref={props.workGridRef}
@@ -147,15 +128,6 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           </div>
         </div>
       </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{props.workItemsCount ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{props.workItemsCount ? <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onSourceFilterChange('all'); }}>Show all work</Button> : <Button type="button" onClick={props.onCreate}>Create your first Set</Button>}</div></div>}
-      {props.visibleWork.length && !props.focusedItemId ? <>
-        {!props.selectedIds.length ? <p className={styles.deskViewportHint}>{arrangeMode ? 'Move is on · tap Sets to add them, drag a group, or drag empty space to select' : 'Swipe the Desk to look around · tap a Set to select it'}</p> : null}
-        <div className={styles.deskCameraControls} role="group" aria-label="Desk view controls">
-          <Button type="button" size="icon" variant="ghost" aria-label="Zoom Desk out" aria-controls="desk-world-viewport" disabled={props.camera.zoom <= 0.25} onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)}><Minus aria-hidden="true" /></Button>
-          <span role="status" aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
-          <Button type="button" size="icon" variant="ghost" aria-label="Zoom Desk in" aria-controls="desk-world-viewport" disabled={props.camera.zoom >= 1.25} onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)}><Plus aria-hidden="true" /></Button>
-          <Button type="button" size="sm" variant="ghost" aria-label="Fit the whole Desk in view" aria-controls="desk-world-viewport" onClick={props.camera.fit}><Maximize2 className="mr-1 h-4 w-4" aria-hidden="true" />Fit</Button>
-        </div>
-      </> : null}
     </section>
     {props.campaignShelf}
     <div className={styles.utilityStrip} aria-label="Account essentials">{props.statuses.map((status) => { const Icon = statusIcons[status.label as keyof typeof statusIcons] ?? Sparkles; return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => props.onNavigate(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>; })}</div>

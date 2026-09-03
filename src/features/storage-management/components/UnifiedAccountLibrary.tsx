@@ -425,7 +425,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="The selected Template remains in Library while the reusable Design tool edits its local working copy."
           closeLabel="Close Design"
           onClose={() => runAction(actions[0]!)}
-          presentation="workspace"
+          presentation="floating"
         >
           <LibraryDesignWorkspace
             businessIdentity={businessIdentity}

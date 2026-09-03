@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -43,102 +43,13 @@ interface DeskWorkObjectProps {
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [face, setFace] = useState<CardFace>('front');
-  const [openingMotion, setOpeningMotion] = useState(false);
-  const articleRef = useRef<HTMLElement | null>(null);
-  const mainRef = useRef<HTMLButtonElement | null>(null);
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
-  const openingClonesRef = useRef(new Map<string, { element: HTMLElement; source: DOMRect }>());
-  const destinationRectsRef = useRef(new Map<string, DOMRect>());
-  const wasFocusedRef = useRef(props.focused);
-  const removeOpeningClones = () => {
-    openingClonesRef.current.forEach(({ element }) => element.remove());
-    openingClonesRef.current.clear();
-  };
-  const captureOpeningClones = () => {
-    removeOpeningClones();
-    openingClonesRef.current = new Map(Array.from(mainRef.current?.querySelectorAll<HTMLElement>('[data-preview-artifact-id]') ?? []).flatMap((element) => {
-      const id = element.dataset.previewArtifactId;
-      if (!id) return [];
-      const source = element.getBoundingClientRect();
-      const clone = element.cloneNode(true) as HTMLElement;
-      clone.setAttribute('aria-hidden', 'true');
-      Object.assign(clone.style, {
-        position: 'fixed',
-        zIndex: '120',
-        top: `${source.top}px`,
-        left: `${source.left}px`,
-        width: `${source.width}px`,
-        height: `${source.height}px`,
-        margin: '0',
-        pointerEvents: 'none',
-        transformOrigin: 'top left',
-      });
-      document.body.append(clone);
-      return [[id, { element: clone, source }] as const];
-    }));
-  };
-  const openWithMotion = () => {
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) captureOpeningClones();
-    setOpeningMotion(true);
-    props.onFocus(props.item);
-  };
-
-  useLayoutEffect(() => {
-    const wasFocused = wasFocusedRef.current;
-    wasFocusedRef.current = props.focused;
-    const previewElements = Array.from(mainRef.current?.querySelectorAll<HTMLElement>('[data-preview-artifact-id]') ?? []);
-    if (props.focused) {
-      const destinations = new Map(Array.from(articleRef.current?.querySelectorAll<HTMLElement>('[data-artifact-id]') ?? []).flatMap((element) => {
-        const id = element.dataset.artifactId;
-        return id ? [[id, element.getBoundingClientRect()] as const] : [];
-      }));
-      destinationRectsRef.current = destinations;
-      if (!openingMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        removeOpeningClones();
-        setOpeningMotion(false);
-        return;
-      }
-      const animations = Array.from(openingClonesRef.current.entries()).flatMap(([id, clone]) => {
-        const destination = id ? destinations.get(id) : null;
-        if (!destination) return [];
-        const endX = destination.left - clone.source.left;
-        const endY = destination.top - clone.source.top;
-        const endScale = Math.min(destination.width / Math.max(1, clone.source.width), destination.height / Math.max(1, clone.source.height));
-        return [clone.element.animate([
-          { opacity: 1, transform: 'translate(0, 0) scale(1)' },
-          { opacity: 0.88, offset: 0.72, transform: `translate(${endX}px, ${endY}px) scale(${endScale})` },
-          { opacity: 0, transform: `translate(${endX}px, ${endY}px) scale(${endScale})` },
-        ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' })];
-      });
-      void Promise.all(animations.map((animation) => animation.finished.catch(() => undefined))).then(() => {
-        removeOpeningClones();
-        setOpeningMotion(false);
-      });
-      return () => {
-        animations.forEach((animation) => animation.cancel());
-        removeOpeningClones();
-      };
-    }
-    removeOpeningClones();
-    if (!wasFocused || destinationRectsRef.current.size === 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animations = previewElements.flatMap((element) => {
-      const id = element.dataset.previewArtifactId;
-      const destination = id ? destinationRectsRef.current.get(id) : null;
-      if (!destination) return [];
-      const target = element.getBoundingClientRect();
-      return [element.animate([
-        { opacity: 0, transform: `translate(${destination.left - target.left}px, ${destination.top - target.top}px) scale(${Math.min(destination.width / Math.max(1, target.width), destination.height / Math.max(1, target.height))})` },
-        { opacity: 1, transform: 'translate(0, 0) scale(1)' },
-      ], { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' })];
-    });
-    return () => animations.forEach((animation) => animation.cancel());
-  }, [openingMotion, props.focused]);
+  const openWithMotion = () => props.onFocus(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
   return <article
-    ref={articleRef}
     className={styles.workTile}
     style={positionStyle}
     data-positioned={Boolean(props.position) && !props.focused}
@@ -149,12 +60,10 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-active={props.active}
     data-selected={props.selected}
     data-pinned={props.pinned}
-    data-opening-motion={openingMotion}
     aria-hidden={props.obscured || undefined}
   >
     <button
       id={`set-${props.item.id}`}
-      ref={mainRef}
       type="button"
       className={styles.workTileMain}
       disabled={props.focused}

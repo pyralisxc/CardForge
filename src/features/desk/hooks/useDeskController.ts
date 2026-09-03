@@ -181,9 +181,6 @@ export function useDeskController({
   } = projectState;
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
-  const focusedContentsLabel = focusedLocalSetId
-    ? `${focusedCards.length} card${focusedCards.length === 1 ? '' : 's'}`
-    : 'Contents load when opened';
   const focusedItemId = focusedItem?.id ?? null;
   const focusedItemName = focusedItem?.name ?? '';
   const publishedSetStarters = usePublishedSetStarters({
@@ -464,7 +461,6 @@ export function useDeskController({
     focusWork,
     focusArtifactContext,
     focusedCards,
-    focusedContentsLabel,
     focusedItem,
     focusedLocalSetId,
     generationCards,

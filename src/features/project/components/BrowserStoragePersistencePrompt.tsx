@@ -19,10 +19,14 @@ export function BrowserStoragePersistencePrompt() {
     void getBrowserStoragePersistenceState().then((state) => {
       if (cancelled || state !== 'best-effort' || hasShownPersistencePrompt) return;
       hasShownPersistencePrompt = true;
+      const compact = window.matchMedia('(max-width: 767px)').matches;
       toast({
-        title: 'Protect work stored in this browser',
-        description: 'Ask this browser to reduce automatic storage eviction. Persistent browser storage improves local resilience, but it is not a backup or a copy on another device.',
-        duration: 20_000,
+        title: compact ? 'Protect local work' : 'Protect work stored in this browser',
+        description: compact
+          ? 'Allow stronger storage protection on this device. Keep a separate project backup too.'
+          : 'Ask this browser to reduce automatic storage eviction. Persistent browser storage improves local resilience, but it is not a backup or a copy on another device.',
+        duration: compact ? 8_000 : 20_000,
+        className: compact ? 'p-3 pr-7' : undefined,
         action: (
           <ToastAction
             altText="Ask this browser to persist CardForge storage"

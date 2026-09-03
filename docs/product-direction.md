@@ -110,7 +110,7 @@ Opening a work container changes focus rather than changing the mental model:
 
 Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, and freeform card positions travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
 
-Artifact focus is another exclusive lens, not an inspector over a still-visible Set. Once a creator chooses an Artifact to work on, that Artifact fills the camera-fitted work field and sibling Artifacts plus Set-level organization controls leave the visual surface. Back/Escape restores the exact Set camera and selection before the next unwind returns to Desk.
+Artifact focus is a closer camera depth inside the same creative scene, not a detached inspector or replacement application. The chosen Artifact moves to the camera-fitted foreground while its Set field remains visibly present at reduced emphasis. The contextual rail carries identity and primary actions; detailed Artifact camera controls stay with the Artifact. Back/Escape restores the exact Set camera and selection before the next unwind returns to Desk.
 
 ### Studio: the focused authoring and production workbench
 

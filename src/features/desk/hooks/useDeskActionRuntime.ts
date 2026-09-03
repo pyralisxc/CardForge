@@ -49,7 +49,9 @@ export function useDeskActionRuntime({
   const actionItem = inspectorItem ?? focusedItem;
   const descriptors: ActionDescriptor[] = inspectorItem
     ? getWorkActions(inspectorItem, pinned, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
-    : focusedItem ? [] : [zoneAction('desk.create-set', 'New Set', 'mutation')];
+    : focusedItem
+      ? getWorkActions(focusedItem, pinned, true, experience.contributor.canSubmit, experience.capabilities.canUseProjectFiles)
+      : [zoneAction('desk.create-set', 'New Set', 'mutation')];
   const mutationResult = (targetIds: string[]): ActionOperationResult => ({ kind: 'mutation', changedIds: targetIds });
   const operations: Record<string, () => void | Promise<void>> = {
     'desk.create-set': commands.createWork,
@@ -57,13 +59,13 @@ export function useDeskActionRuntime({
       if (!actionItem) return;
       return actionItem.references.localSetId ? commands.focusWork(actionItem) : commands.openRemoteWork(actionItem);
     },
-    'desk.pin-set': () => { if (inspectorItem) commands.togglePin(inspectorItem.id); },
+    'desk.pin-set': () => { if (actionItem) commands.togglePin(actionItem.id); },
     'desk.generate-set': () => { if (actionItem?.references.localSetId) commands.openGenerate(actionItem.references.localSetId); },
     'desk.export-set': () => { if (actionItem?.references.localSetId) commands.openOutput(actionItem.references.localSetId); },
     'desk.save-move-set': () => { if (actionItem) commands.openLocation(actionItem); },
-    'desk.rename-set': () => { if (inspectorItem?.references.localSetId) commands.renameWork(inspectorItem); },
-    'desk.duplicate-set': () => { if (inspectorItem) commands.duplicateWork(inspectorItem); },
-    'desk.delete-set': () => { if (inspectorItem) commands.deleteWork(inspectorItem); },
+    'desk.rename-set': () => { if (actionItem?.references.localSetId) commands.renameWork(actionItem); },
+    'desk.duplicate-set': () => { if (actionItem) commands.duplicateWork(actionItem); },
+    'desk.delete-set': () => { if (actionItem) commands.deleteWork(actionItem); },
     'desk.manage-location': commands.manageLocation,
   };
   const definitions = descriptors.map((descriptor) => {
