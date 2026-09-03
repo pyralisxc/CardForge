@@ -7,7 +7,6 @@ import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
@@ -56,11 +55,7 @@ export function IconInspectorPanel({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="icon-name">Built-in Icon</Label>
-      <Select value={element.iconName || 'Sparkles'} onValueChange={(value) => onUpdateElement({ iconName: value, iconImageSource: undefined })}>
-        <SelectTrigger id="icon-name"><SelectValue /></SelectTrigger>
-        <SelectContent>{iconOptions.map((icon) => <SelectItem key={icon} value={icon}>{icon}</SelectItem>)}</SelectContent>
-      </Select>
+      <p className="text-xs text-[#8f95a3]">Current icon: {element.iconImageSource ? 'Custom source' : element.iconName || 'Sparkles'}</p>
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <Input
           className={controlClassName}
@@ -100,6 +95,8 @@ export function IconInspectorPanel({
             target={{ kind: 'template-element', ids: [element.id] }}
             onAddFromProvider={onAddFromProvider}
             onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
+            builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
+            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined })}
             onMaterializePersonal={onMaterializePersonal}
           />
           <Tooltip>

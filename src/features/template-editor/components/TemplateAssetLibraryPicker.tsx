@@ -29,6 +29,8 @@ interface TemplateAssetLibraryPickerProps {
   target: LibraryPickerRequest['target'];
   onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
   onApply: (asset: CardAssetOption) => void;
+  builtInOptions?: readonly { name: string; value: string }[];
+  onApplyBuiltIn?: (value: string) => void;
   onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
@@ -55,6 +57,8 @@ export function TemplateAssetLibraryPicker({
   target,
   onAddFromProvider,
   onApply,
+  builtInOptions = [],
+  onApplyBuiltIn,
   onMaterializePersonal,
 }: TemplateAssetLibraryPickerProps) {
   const [open, setOpen] = useState(false);
@@ -70,6 +74,16 @@ export function TemplateAssetLibraryPicker({
     requiresProjectMaterialization: false,
   }), [kind, label, personalRoles, target]);
   const resources = useMemo((): LibraryPickerResource[] => [
+    ...builtInOptions.map((option) => ({
+      id: `published:built-in-${kind}:${option.value}`,
+      objectId: option.value,
+      name: option.name,
+      kind,
+      role: personalRoles[0],
+      source: 'published' as const,
+      sourceLabel: 'Built into CardForge',
+      materialization: 'reference' as const,
+    })),
     ...assets.map((asset) => {
       const source = pickerSourceForAsset(asset);
       return {
@@ -98,7 +112,7 @@ export function TemplateAssetLibraryPicker({
         revision: Number.isFinite(Number(item.providerRevision)) ? Number(item.providerRevision) : undefined,
         materialization: 'project-copy' as const,
       })),
-  ], [assets, kind, personalItems, personalRoles]);
+  ], [assets, builtInOptions, kind, personalItems, personalRoles]);
 
   return (
     <>
@@ -120,6 +134,10 @@ export function TemplateAssetLibraryPicker({
         onSelect={async (result) => {
           const selection = result.selections[0];
           if (!selection) return;
+          if (selection.id.startsWith(`published:built-in-${kind}:`) && onApplyBuiltIn) {
+            onApplyBuiltIn(selection.objectId);
+            return;
+          }
           if (selection.source === 'personal') {
             const item = personalItems.find((candidate) => candidate.id === selection.objectId);
             if (!item) throw new Error('That personal Library item is no longer available. Refresh the Picker and choose again.');

@@ -8,29 +8,41 @@ import {
 } from '@/features/library-picker/client';
 
 const kinds = ['image', 'frame', 'icon', 'texture', 'divider', 'font'] as const;
-const resources: LibraryPickerResource[] = kinds.flatMap((kind, index) => ([
+const resources: LibraryPickerResource[] = [
+  ...kinds.flatMap((kind, index): LibraryPickerResource[] => ([
+    {
+      id: `project:${kind}`,
+      objectId: `local-${kind}`,
+      name: `Local ${kind}`,
+      kind,
+      role: kind === 'image' ? 'artwork' : kind,
+      source: 'project',
+      sourceLabel: 'This project',
+      materialization: 'already-local',
+    },
+    {
+      id: `personal:${kind}`,
+      objectId: `drive-${kind}`,
+      name: `Connected ${kind}`,
+      kind,
+      role: kind === 'image' ? 'artwork' : kind,
+      source: 'personal',
+      sourceLabel: 'My Library · Google Drive',
+      revision: index + 1,
+      materialization: 'project-copy',
+    },
+  ])),
   {
-    id: `project:${kind}`,
-    objectId: `local-${kind}`,
-    name: `Local ${kind}`,
-    kind,
-    role: kind === 'image' ? 'artwork' : kind,
-    source: 'project',
-    sourceLabel: 'This project',
-    materialization: 'already-local',
+    id: 'published:built-in-icon:Sparkles',
+    objectId: 'Sparkles',
+    name: 'Sparkles',
+    kind: 'icon',
+    role: 'icon',
+    source: 'published',
+    sourceLabel: 'Built into CardForge',
+    materialization: 'reference',
   },
-  {
-    id: `personal:${kind}`,
-    objectId: `drive-${kind}`,
-    name: `Connected ${kind}`,
-    kind,
-    role: kind === 'image' ? 'artwork' : kind,
-    source: 'personal',
-    sourceLabel: 'My Library · Google Drive',
-    revision: index + 1,
-    materialization: 'project-copy',
-  },
-]));
+];
 
 const requestFor = (kind: typeof kinds[number]): LibraryPickerRequest => ({
   purpose: `template.${kind}-source`,
@@ -48,7 +60,11 @@ describe('visual resource Picker contract', () => {
     const request = requestFor(kind);
     const compatible = getCompatibleLibraryPickerResources(request, resources);
 
-    expect(compatible.map((resource) => resource.id)).toEqual([`project:${kind}`, `personal:${kind}`]);
+    expect(compatible.map((resource) => resource.id)).toEqual([
+      `project:${kind}`,
+      `personal:${kind}`,
+      ...(kind === 'icon' ? ['published:built-in-icon:Sparkles'] : []),
+    ]);
     expect(createLibraryPickerResult(request, resources, [`personal:${kind}`])).toEqual({
       purpose: `template.${kind}-source`,
       target: request.target,

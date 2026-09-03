@@ -12,6 +12,7 @@ import {
 import {
   chooseGoogleDrivePersonalLibraryItems,
   importPersonalLibraryFont,
+  isPersonalLibraryFontMimeType,
   loadPersonalLibrary,
   type PersonalLibraryItem,
 } from '@/features/personal-library/client';
@@ -29,7 +30,9 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
   useEffect(() => {
     let cancelled = false;
     void loadPersonalLibrary()
-      .then((library) => { if (!cancelled) setPersonalItems(library.items.filter((item) => item.role === 'font')); })
+      .then((library) => { if (!cancelled) setPersonalItems(library.items.filter((item) => (
+        (item.role === 'font' || item.role === 'reference') && isPersonalLibraryFontMimeType(item.mimeType)
+      ))); })
       .catch(() => { if (!cancelled) setPersonalItems([]); });
     return () => { cancelled = true; };
   }, []);
@@ -39,7 +42,7 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
     title: 'Choose a font',
     description: 'Choose a built-in, reviewed, project, or connected font for this text.',
     acceptedKinds: ['font'],
-    acceptedRoles: ['font'],
+    acceptedRoles: ['font', 'reference'],
     sources: ['project', 'personal', 'published', 'provider'],
     selectionMode: 'single',
     target: { kind: 'template-element', ids: [targetId] },
@@ -92,7 +95,9 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
             setPersonalItems((current) => {
               const byId = new Map(current.map((item) => [item.id, item]));
               result.items.forEach((item) => byId.set(item.id, item));
-              return [...byId.values()].filter((item) => item.role === 'font');
+              return [...byId.values()].filter((item) => (
+                (item.role === 'font' || item.role === 'reference') && isPersonalLibraryFontMimeType(item.mimeType)
+              ));
             });
           },
         }]}
