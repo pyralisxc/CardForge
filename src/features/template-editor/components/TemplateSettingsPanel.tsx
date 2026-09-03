@@ -15,6 +15,7 @@ import {
   type CardMeasurementUnit,
 } from '@/domain/card-formats';
 import type { CardAssetOption, FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import { cn } from '@/shared/classNames';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
@@ -22,6 +23,7 @@ import { ColorField } from '@/features/template-editor/components/ColorField';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 import { CardFormatSelect } from '@/features/template-editor/components/CardFormatSelect';
 import type { CanvasResizeStrategy } from '@/features/template-editor/lib/makerDimensions';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 interface TemplateSettingsPanelProps {
   currentTemplate: TCGCardTemplate;
@@ -49,6 +51,9 @@ interface TemplateSettingsPanelProps {
   onFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onUpdateCanvas: (updates: Partial<FreeformCanvas>, trackHistory?: boolean) => void;
   onUpdateTemplate: (updates: Partial<TCGCardTemplate>, trackHistory?: boolean) => void;
+  personalItems: readonly PersonalLibraryItem[];
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function TemplateSettingsPanel({
@@ -77,6 +82,9 @@ export function TemplateSettingsPanel({
   onFileUpload,
   onUpdateCanvas,
   onUpdateTemplate,
+  personalItems,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: TemplateSettingsPanelProps) {
   const resolvedFormat = resolveTemplateCardFormat(currentTemplate);
 
@@ -252,13 +260,27 @@ export function TemplateSettingsPanel({
         </div>
       </div>
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
-        <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
             {currentTemplate.templateUsage === 'back-preset' ? 'Back foundations' : 'Front foundations'}
           </Label>
           <p className="mt-1 text-[10px] leading-4 text-[#818999]">
             Full-card artwork rendered beneath editable content. Use this for the visual foundation, not for a transparent decorative border.
           </p>
+          </div>
+          <TemplateAssetLibraryPicker
+            assets={frameAssets}
+            kind="frame"
+            label="a card foundation"
+            personalItems={personalItems}
+            personalRoles={['frame']}
+            providerRole="frame"
+            target={{ kind: 'template', ids: [currentTemplate.id ?? 'current-template'] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateTemplate({ cardBackgroundImageUrl: asset.url })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
         </div>
         {frameAssets.length > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
@@ -289,13 +311,27 @@ export function TemplateSettingsPanel({
         )}
       </div>
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
-        <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
             {currentTemplate.templateUsage === 'back-preset' ? 'Back border overlays' : 'Front border overlays'}
           </Label>
           <p className="mt-1 text-[10px] leading-4 text-[#818999]">
             Transparent professional border artwork rendered above the complete card. Pipeline contributors can publish PNG, WebP, or SVG overlays directly to this section.
           </p>
+          </div>
+          <TemplateAssetLibraryPicker
+            assets={borderAssets}
+            kind="frame"
+            label="a border overlay"
+            personalItems={personalItems}
+            personalRoles={['frame']}
+            providerRole="frame"
+            target={{ kind: 'template', ids: [currentTemplate.id ?? 'current-template'] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
         </div>
         {borderAssets.length > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Image as ImageIcon, Search } from 'lucide-react';
+import { Check, ExternalLink, Image as ImageIcon, Loader2, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,6 +11,8 @@ import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import {
   createLibraryPickerResult,
   getCompatibleLibraryPickerResources,
+  getNextLibraryPickerActiveIndex,
+  type LibraryPickerNavigationKey,
   type LibraryPickerRequest,
   type LibraryPickerResource,
   type LibraryPickerResult,
@@ -21,14 +23,24 @@ interface LibraryPickerDialogProps {
   request: LibraryPickerRequest;
   resources: readonly LibraryPickerResource[];
   onOpenChange: (open: boolean) => void;
-  onSelect: (result: LibraryPickerResult) => void;
+  onSelect: (result: LibraryPickerResult) => void | Promise<void>;
   renderPreview?: (resource: LibraryPickerResource) => ReactNode;
+  sourceActions?: readonly LibraryPickerSourceAction[];
 }
 
-export function LibraryPickerDialog({ open, request, resources, onOpenChange, onSelect, renderPreview }: LibraryPickerDialogProps) {
+export interface LibraryPickerSourceAction {
+  id: string;
+  label: string;
+  description?: string;
+  onInvoke: () => void | Promise<void>;
+}
+
+export function LibraryPickerDialog({ open, request, resources, onOpenChange, onSelect, renderPreview, sourceActions = [] }: LibraryPickerDialogProps) {
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [busyActionId, setBusyActionId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const wasOpen = useRef(false);
   const optionRefs = useRef(new Map<string, HTMLButtonElement>());
   const compatible = useMemo(() => getCompatibleLibraryPickerResources(request, resources), [request, resources]);
@@ -53,6 +65,8 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     if (!open) {
       setQuery('');
       setSelectedIds([]);
+      setBusyActionId(null);
+      setErrorMessage(null);
     }
   }, [compatible.length, open, request.acceptedKinds, request.selectionMode]);
 
@@ -60,9 +74,29 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
     ? (current.includes(id) ? [] : [id])
     : (current.includes(id) ? current.filter((candidate) => candidate !== id) : [...current, id]));
 
-  const confirm = () => {
-    onSelect(createLibraryPickerResult(request, resources, selectedIds));
-    onOpenChange(false);
+  const confirm = async () => {
+    setBusyActionId('confirm');
+    setErrorMessage(null);
+    try {
+      await onSelect(createLibraryPickerResult(request, resources, selectedIds));
+      onOpenChange(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'CardForge could not use that Library selection.');
+    } finally {
+      setBusyActionId(null);
+    }
+  };
+
+  const invokeSourceAction = async (action: LibraryPickerSourceAction) => {
+    setBusyActionId(action.id);
+    setErrorMessage(null);
+    try {
+      await action.onInvoke();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'CardForge could not open that Library source.');
+    } finally {
+      setBusyActionId(null);
+    }
   };
 
   const moveActiveOption = (nextIndex: number) => {
@@ -83,6 +117,24 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#757d8c]" />
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the Library..." className="border-[#2d3340] bg-[#0d1117] pl-9" autoFocus />
         </div>
+        {sourceActions.length ? (
+          <div className="flex flex-wrap gap-2" aria-label="Add Library resources">
+            {sourceActions.map((action) => (
+              <Button
+                key={action.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={Boolean(busyActionId)}
+                title={action.description}
+                onClick={() => { void invokeSourceAction(action); }}
+              >
+                {busyActionId === action.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden="true" />}
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
         {visible.length ? (
           <div
             className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3"
@@ -92,18 +144,9 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
             aria-activedescendant={`library-picker-option-${visible[activeIndex]!.id}`}
             aria-multiselectable={request.selectionMode === 'multiple'}
             onKeyDown={(event) => {
-              if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'ArrowLeft' || event.key === 'Home' || event.key === 'End') {
                 event.preventDefault();
-                moveActiveOption(activeIndex + 1);
-              } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-                event.preventDefault();
-                moveActiveOption(activeIndex - 1);
-              } else if (event.key === 'Home') {
-                event.preventDefault();
-                moveActiveOption(0);
-              } else if (event.key === 'End') {
-                event.preventDefault();
-                moveActiveOption(visible.length - 1);
+                moveActiveOption(getNextLibraryPickerActiveIndex({ currentIndex: activeIndex, itemCount: visible.length, key: event.key as LibraryPickerNavigationKey }));
               } else if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 toggle(visible[activeIndex]!.id);
@@ -133,9 +176,13 @@ export function LibraryPickerDialog({ open, request, resources, onOpenChange, on
             })}
           </div>
         ) : <div className="rounded-md border border-dashed border-[#2d3340] p-6 text-center text-sm text-[#8f95a3]">No compatible Library objects found.</div>}
+        {errorMessage ? <p className="text-sm text-red-300" role="alert">{errorMessage}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" disabled={!selectedIds.length} onClick={confirm}>Use selection</Button>
+          <Button type="button" variant="outline" disabled={Boolean(busyActionId)} onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" disabled={!selectedIds.length || Boolean(busyActionId)} onClick={() => { void confirm(); }}>
+            {busyActionId === 'confirm' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+            Use selection
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

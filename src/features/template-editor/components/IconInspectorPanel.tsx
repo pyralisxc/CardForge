@@ -11,11 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 interface IconInspectorPanelProps {
   element: FreeformCardElement;
@@ -31,6 +33,9 @@ interface IconInspectorPanelProps {
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'icon') => void;
   onAssetSearchChange: (value: string) => void;
+  personalItems: readonly PersonalLibraryItem[];
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function IconInspectorPanel({
@@ -47,6 +52,9 @@ export function IconInspectorPanel({
   onHandleFileUpload,
   onHandleAssetUpload,
   onAssetSearchChange,
+  personalItems,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: IconInspectorPanelProps) {
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const iconAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -88,6 +96,18 @@ export function IconInspectorPanel({
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Source Assets</Label>
+          <TemplateAssetLibraryPicker
+            assets={iconAssets}
+            kind="icon"
+            label="an icon"
+            personalItems={personalItems}
+            personalRoles={['icon']}
+            providerRole="icon"
+            target={{ kind: 'template-element', ids: [element.id] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
+            onMaterializePersonal={onMaterializePersonal}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="h-7 rounded-[4px] border-[#2d3340] bg-[var(--cf-editor-control)] px-2 text-[10px] text-[#d8d1c4]" onClick={() => iconAssetUploadInputRef.current?.click()}>

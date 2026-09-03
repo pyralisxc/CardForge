@@ -1,5 +1,3 @@
-export { PersonalLibraryImageFieldPicker } from './components/PersonalLibraryImageFieldPicker';
-export { PersonalLibraryFontPicker } from './components/PersonalLibraryFontPicker';
 export { importPersonalLibraryItemToLocalAsset } from './client/importPersonalLibraryAsset';
 export { importPersonalLibraryFont } from './client/importPersonalLibraryFont';
 export {

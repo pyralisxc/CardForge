@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useState } from 'react';
 import {
   Boxes,
   Cloud,
@@ -90,6 +91,7 @@ export function Desk({
   homeAccessStatus,
   homeSecurityStatus,
 }: DeskProps) {
+  const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const {
     actions,
     activeWorkId,
@@ -340,7 +342,7 @@ export function Desk({
               onToggleRenaming={() => setRenaming((current) => !current)}
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
-              onOpenGenerate={() => openWorkLane(item, 'generate')}
+              onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
               onOpenLocation={() => setLocationItem(item)}
               onDuplicateWork={() => duplicateWork(item)}
               onOpenOutput={() => openWorkLane(item, 'export')}
@@ -358,6 +360,12 @@ export function Desk({
               onMoveSelected={moveSelectedCards}
               onEditSelected={editSelectedCard}
               onDuplicateSelected={duplicateSelectedCards}
+              onReviseSelected={() => {
+                setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
+                setGeneratorSelectedTemplateId(selectedCards[0]?.template.id ?? null);
+                setGeneratorSelectedBackingTemplateId(selectedCards[0]?.backingTemplateId ?? null);
+                openWorkLane(item, 'generate');
+              }}
               onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
               onSetCardsTag={setCardsTag}
               onTagDraftChange={setTagDraft}
@@ -408,10 +416,10 @@ export function Desk({
         {generationSet ? <EnvironmentToolLayer
           id="desk-generate-title"
           eyebrow="Desk tool"
-          title={`Generate into ${generationSet.name}`}
-          summary="The Set stays open behind this tool. Generated cards return here as the active selection."
+          title={generationRevisionScopeIds.length ? `Revise ${generationRevisionScopeIds.length} selected Artifact${generationRevisionScopeIds.length === 1 ? '' : 's'}` : `Generate into ${generationSet.name}`}
+          summary={generationRevisionScopeIds.length ? 'The selected stable Artifact identities stay scoped while you revise values or map Library resources.' : 'The Set stays open behind this tool. Generated cards return here as the active selection.'}
           closeLabel="Close Generate"
-          onClose={closeGenerate}
+          onClose={() => { setGenerationRevisionScopeIds([]); closeGenerate(); }}
           manageHistory={false}
         >
           <DeskGenerationWorkspace
@@ -431,6 +439,7 @@ export function Desk({
             onBulkCardsGenerated={addGeneratedCards}
             onBulkCardsRevised={reviseGeneratedCards}
             onUndoBulkRevision={undoLastBulkRevision}
+            revisionScopeIds={generationRevisionScopeIds}
             onViewGeneratedCards={viewGeneratedCards}
             onTemplateSelectionChange={setGeneratorSelectedTemplateId}
             onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateId}

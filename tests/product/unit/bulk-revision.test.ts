@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
-import { buildBulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
+import { buildBulkResourceRevisionPlan, buildBulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
 
 const template = { id: 'template-playing-card', name: 'Playing Card' } as TCGCardTemplate;
 const card = (uniqueId: string, data: Record<string, string>): DisplayCard => ({
@@ -34,5 +34,35 @@ describe('bulk revision planning', () => {
       match: { kind: 'field', key: 'name', label: 'Name' },
     });
     expect(plan).toMatchObject({ matchedCount: 0, unmatchedRows: [], ambiguousRows: [2], finalArtifactCount: 2 });
+  });
+
+  it('matches imported revisions only inside an explicit stable-ID scope', () => {
+    const plan = buildBulkRevisionPlan({
+      existing: [card('selected', { name: 'Same', note: 'keep' }), card('outside', { name: 'Same', note: 'outside' })],
+      incoming: [card('incoming', { name: 'Same', note: 'changed' })],
+      match: { kind: 'field', key: 'name', label: 'Name' },
+      scopeIds: ['selected'],
+    });
+
+    expect(plan).toMatchObject({ matchedCount: 1, ambiguousRows: [], finalArtifactCount: 2 });
+    expect(plan.revisions[0]).toMatchObject({ uniqueId: 'selected', data: { name: 'Same', note: 'changed' } });
+  });
+
+  it('maps Library resources onto selected Artifacts without changing identities or untouched fields', () => {
+    const plan = buildBulkResourceRevisionPlan({
+      existing: [card('one', { name: 'One', artwork: 'old-1', note: 'keep-1' }), card('two', { name: 'Two', artwork: 'old-2', note: 'keep-2' })],
+      fieldKey: 'artwork',
+      assignments: [
+        { targetId: 'one', value: 'project://image-a' },
+        { targetId: 'two', value: 'project://image-b' },
+      ],
+    });
+
+    expect(plan).toMatchObject({ matchedCount: 2, finalArtifactCount: 2, changedFields: ['artwork'] });
+    expect(plan.revisions.map((revision) => revision.uniqueId)).toEqual(['one', 'two']);
+    expect(plan.revisions.map((revision) => revision.data)).toEqual([
+      { name: 'One', artwork: 'project://image-a', note: 'keep-1' },
+      { name: 'Two', artwork: 'project://image-b', note: 'keep-2' },
+    ]);
   });
 });

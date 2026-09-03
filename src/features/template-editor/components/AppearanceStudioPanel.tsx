@@ -13,10 +13,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/shared/classNames';
 import { appearanceToStyle } from '@/features/card-rendering/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { ColorField } from '@/features/template-editor/components/ColorField';
+import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
 
 type LocalFillPreset = {
   label: string;
@@ -42,6 +44,9 @@ interface AppearanceStudioPanelProps {
   onSaveStyle: () => void;
   onApplyAppearancePreset: (style: AppearanceStylePreset) => void;
   onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
+  personalItems: readonly PersonalLibraryItem[];
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function AppearanceStudioPanel({
@@ -63,6 +68,9 @@ export function AppearanceStudioPanel({
   onSaveStyle,
   onApplyAppearancePreset,
   onUpdateAppearance,
+  personalItems,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -86,6 +94,42 @@ export function AppearanceStudioPanel({
     ? filteredReviewedStyles
     : filteredReviewedStyles.slice(0, 6);
   const hiddenStyleCount = filteredLocalFills.length + filteredReviewedStyles.length - visibleLocalFills.length - visibleReviewedStyles.length;
+
+  const applyTexture = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
+    ...appearance,
+    assetSource: undefined,
+    assetKind: 'texture',
+    textureScale: asset.defaultScale ?? 12,
+    textureOpacity: asset.defaultOpacity ?? 100,
+    blendMode: asset.defaultBlendMode ?? 'normal',
+    tileMode: asset.tileMode ?? 'repeat',
+    material: {
+      ...appearance.material,
+      texture: {
+        ...(appearance.material?.texture || {}),
+        kind: 'uploaded',
+        imageSource: asset.url,
+        assetSource: asset.url,
+        assetKind: 'texture',
+        textureScale: asset.defaultScale ?? 12,
+        textureOpacity: asset.defaultOpacity ?? 100,
+        blendMode: asset.defaultBlendMode ?? 'normal',
+        tileMode: asset.tileMode ?? 'repeat',
+      },
+    },
+  }));
+
+  const applyDivider = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
+    ...appearance,
+    dividerAsset: asset.url,
+    assetKind: 'divider',
+    textureOpacity: asset.defaultOpacity ?? 100,
+    blendMode: asset.defaultBlendMode ?? 'normal',
+    tileMode: asset.tileMode ?? 'stretch',
+    shapeRole: 'divider',
+    material: { ...appearance.material, baseColor: 'transparent', texture: { kind: 'none' } },
+    border: { ...appearance.border, kind: 'none', width: 0 },
+  }));
 
   const applyLocalFillPreset = (preset: LocalFillPreset) => {
     onUpdateAppearance((appearance) => {
@@ -263,6 +307,18 @@ export function AppearanceStudioPanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Fill Texture Library</Label>
+            <TemplateAssetLibraryPicker
+              assets={compatibleTextureAssets}
+              kind="texture"
+              label="a texture"
+              personalItems={personalItems}
+              personalRoles={['texture']}
+              providerRole="texture"
+              target={{ kind: 'template-element', ids: [element.id] }}
+              onAddFromProvider={onAddFromProvider}
+              onApply={applyTexture}
+              onMaterializePersonal={onMaterializePersonal}
+            />
             <Button
               type="button"
               variant="outline"
@@ -284,29 +340,7 @@ export function AppearanceStudioPanel({
                     type="button"
                     className="relative h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[var(--cf-editor-control)] hover:border-[#d5ad54]"
                     aria-label={asset.name}
-                    onClick={() => onUpdateAppearance((appearance) => ({
-                      ...appearance,
-                      assetSource: undefined,
-                      assetKind: 'texture',
-                      textureScale: asset.defaultScale ?? 12,
-                      textureOpacity: asset.defaultOpacity ?? 100,
-                      blendMode: asset.defaultBlendMode ?? 'normal',
-                      tileMode: asset.tileMode ?? 'repeat',
-                      material: {
-                        ...appearance.material,
-                        texture: {
-                          ...(appearance.material?.texture || {}),
-                          kind: 'uploaded',
-                          imageSource: asset.url,
-                          assetSource: asset.url,
-                          assetKind: 'texture',
-                          textureScale: asset.defaultScale ?? 12,
-                          textureOpacity: asset.defaultOpacity ?? 100,
-                          blendMode: asset.defaultBlendMode ?? 'normal',
-                          tileMode: asset.tileMode ?? 'repeat',
-                        },
-                      },
-                    }))}
+                    onClick={() => applyTexture(asset)}
                   >
                     <ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0" style={{
                       backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',
@@ -325,6 +359,18 @@ export function AppearanceStudioPanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Divider Library</Label>
+            <TemplateAssetLibraryPicker
+              assets={compatibleDividerAssets}
+              kind="divider"
+              label="a divider"
+              personalItems={personalItems}
+              personalRoles={['divider']}
+              providerRole="divider"
+              target={{ kind: 'template-element', ids: [element.id] }}
+              onAddFromProvider={onAddFromProvider}
+              onApply={applyDivider}
+              onMaterializePersonal={onMaterializePersonal}
+            />
             <Button
               type="button"
               variant="outline"
@@ -346,17 +392,7 @@ export function AppearanceStudioPanel({
                     type="button"
                     className="relative h-14 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[#080b10] hover:border-[#d5ad54]"
                     aria-label={asset.name}
-                    onClick={() => onUpdateAppearance((appearance) => ({
-                      ...appearance,
-                      dividerAsset: asset.url,
-                      assetKind: 'divider',
-                      textureOpacity: asset.defaultOpacity ?? 100,
-                      blendMode: asset.defaultBlendMode ?? 'normal',
-                      tileMode: asset.tileMode ?? 'stretch',
-                      shapeRole: 'divider',
-                      material: { ...appearance.material, baseColor: 'transparent', texture: { kind: 'none' } },
-                      border: { ...appearance.border, kind: 'none', width: 0 },
-                    }))}
+                    onClick={() => applyDivider(asset)}
                   ><ProjectBinaryAssetBackground source={asset.url} className="absolute inset-0 bg-contain bg-center bg-no-repeat" /></button>
                 </TooltipTrigger>
                 <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>

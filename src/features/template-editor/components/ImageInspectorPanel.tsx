@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Image as ImageIcon, Search } from 'lucide-react';
 
@@ -9,56 +9,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { LibraryPickerDialog, type LibraryPickerRequest, type LibraryPickerResource } from '@/features/library-picker/client';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { getAssetBadgeSummary } from '@/features/pipeline/client/assets';
+import type { PersonalLibraryItem, PersonalLibraryRole } from '@/features/personal-library/client';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
 import type { FreeformCardElement } from '@/domain/templates';
+import { TemplateAssetLibraryPicker } from './TemplateAssetLibraryPicker';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;
   imageAssets: CardAssetOption[];
   assetSearch: string;
+  personalItems: readonly PersonalLibraryItem[];
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onAssetSearchChange: (value: string) => void;
+  onAddFromProvider: (role: PersonalLibraryRole) => Promise<void>;
+  onMaterializePersonal: (item: PersonalLibraryItem) => Promise<CardAssetOption>;
 }
 
 export function ImageInspectorPanel({
   element,
   imageAssets,
   assetSearch,
+  personalItems,
   onUpdateElement,
   onHandleFileUpload,
   onAssetSearchChange,
+  onAddFromProvider,
+  onMaterializePersonal,
 }: ImageInspectorPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const libraryRequest = useMemo((): LibraryPickerRequest => ({
-    purpose: 'template.image-source',
-    title: 'Choose a picture',
-    description: 'Choose a compatible picture from project work and reviewed Library sources.',
-    acceptedKinds: ['image'],
-    acceptedRoles: ['artwork'],
-    sources: ['project', 'pipeline', 'published'],
-    selectionMode: 'single',
-    target: { kind: 'template-element', ids: [element.id] },
-    requiresProjectMaterialization: false,
-  }), [element.id]);
-  const libraryResources = useMemo((): LibraryPickerResource[] => imageAssets.map((asset) => {
-    const source = asset.librarySource === 'local' ? 'project' : asset.librarySource === 'contributor' ? 'pipeline' : 'published';
-    return {
-      id: `${source}:${asset.id}`,
-      objectId: asset.id,
-      name: asset.name,
-      kind: 'image',
-      role: 'artwork',
-      source,
-      sourceLabel: source === 'project' ? 'This project' : source === 'pipeline' ? 'Contributor Library' : 'Starter Library',
-      previewUrl: asset.url,
-      materialization: source === 'project' ? 'already-local' : 'reference',
-    };
-  }), [imageAssets]);
   const applyAsset = (asset: CardAssetOption) => onUpdateElement({
     imageSource: asset.url,
     content: asset.url,
@@ -92,7 +73,18 @@ export function ImageInspectorPanel({
         </div>
         <div className="flex items-center justify-between gap-2">
           <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pictures</Label>
-          <Button type="button" variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setLibraryOpen(true)}>Choose from Library</Button>
+          <TemplateAssetLibraryPicker
+            assets={imageAssets}
+            kind="image"
+            label="a picture"
+            personalItems={personalItems}
+            personalRoles={['artwork', 'reference', 'frame']}
+            providerRole="artwork"
+            target={{ kind: 'template-element', ids: [element.id] }}
+            onAddFromProvider={onAddFromProvider}
+            onApply={applyAsset}
+            onMaterializePersonal={onMaterializePersonal}
+          />
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
@@ -128,25 +120,6 @@ export function ImageInspectorPanel({
           </div>
         )}
       </div>
-
-      <LibraryPickerDialog
-        open={libraryOpen}
-        request={libraryRequest}
-        resources={libraryResources}
-        onOpenChange={setLibraryOpen}
-        onSelect={(result) => {
-          const selection = result.selections[0];
-          const asset = selection ? imageAssets.find((candidate) => candidate.id === selection.objectId) : null;
-          if (asset) applyAsset(asset);
-        }}
-        renderPreview={(resource) => (
-          <ProjectBinaryAssetBackground
-            source={resource.previewUrl ?? ''}
-            className="block h-16 rounded bg-[#07090d] bg-contain bg-center bg-no-repeat"
-          />
-        )}
-      />
-
       <div>
         <Label htmlFor="element-fit">Picture fit</Label>
         <Select value={element.imageObjectFit || 'cover'} onValueChange={(value) => onUpdateElement({ imageObjectFit: value as FreeformCardElement['imageObjectFit'] })}>

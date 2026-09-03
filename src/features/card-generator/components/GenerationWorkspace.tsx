@@ -39,7 +39,10 @@ interface GenerationWorkspaceProps {
   onViewGeneratedCards: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
   onBackingTemplateSelectionChange: (templateId: string | null) => void;
+  revisionScopeIds?: readonly string[];
 }
+
+const EMPTY_REVISION_SCOPE: readonly string[] = [];
 
 export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   const {
@@ -62,6 +65,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
     onViewGeneratedCards,
     onTemplateSelectionChange,
     onBackingTemplateSelectionChange,
+    revisionScopeIds = EMPTY_REVISION_SCOPE,
   } = props;
   type GenerationStage = 'setup' | 'data';
   const [generationStage, setGenerationStage] = useState<GenerationStage>('setup');
@@ -157,8 +161,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         <div className="mb-4 flex items-center gap-2">
           <Layers3 className="h-5 w-5 text-primary" />
           <div>
-            <h2 id="generator-setup-heading" className="text-base font-semibold">Generate into {activeCardSet.name}</h2>
-            <p className="text-xs text-muted-foreground">This Set came from Desk. Choose the front and back designs for the next cards.</p>
+            <h2 id="generator-setup-heading" className="text-base font-semibold">{revisionScopeIds.length ? `Revise ${revisionScopeIds.length} selected Artifact${revisionScopeIds.length === 1 ? '' : 's'}` : `Generate into ${activeCardSet.name}`}</h2>
+            <p className="text-xs text-muted-foreground">{revisionScopeIds.length ? 'This stable-ID selection came from Desk. Choose the design used to interpret revision fields.' : 'This Set came from Desk. Choose the front and back designs for the next cards.'}</p>
           </div>
         </div>
 
@@ -273,8 +277,8 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
-            <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Generate cards from a list</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Choose a starting format, add the information for each card, and let CardForge check it before anything changes.</p>
+            <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">{revisionScopeIds.length ? 'Revise selected Artifacts' : 'Generate cards from a list'}</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{revisionScopeIds.length ? 'Replace selected values from structured data or map Library pictures without changing Artifact identities or untouched fields.' : 'Choose a starting format, add the information for each card, and let CardForge check it before anything changes.'}</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
             <PackagePlus className="h-4 w-4 text-primary" />
@@ -297,6 +301,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           onUndoRevision={onUndoBulkRevision}
           onViewGeneratedCards={onViewGeneratedCards}
           selectedTemplateIdProp={generatorSelectedTemplateId}
+          revisionScopeIds={revisionScopeIds}
         />
       </section> : null}
 

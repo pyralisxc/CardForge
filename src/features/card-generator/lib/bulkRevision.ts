@@ -22,13 +22,17 @@ export const buildBulkRevisionPlan = ({
   existing,
   incoming,
   match,
+  scopeIds,
 }: {
   existing: readonly DisplayCard[];
   incoming: readonly DisplayCard[];
   match: BulkRevisionMatch;
+  scopeIds?: readonly string[];
 }): BulkRevisionPlan => {
+  const scope = scopeIds?.length ? new Set(scopeIds) : null;
   const targets = new Map<string, DisplayCard[]>();
   existing.forEach((card) => {
+    if (scope && !scope.has(card.uniqueId)) return;
     const value = normalizedMatchValue(readMatchValue(card, match));
     if (!value) return;
     targets.set(value, [...(targets.get(value) ?? []), card]);
@@ -70,6 +74,39 @@ export const buildBulkRevisionPlan = ({
     ambiguousRows,
     changedFields: [...changedFields].sort(),
     preservedFields: [...preservedFields].sort(),
+    finalArtifactCount: existing.length,
+    revisions,
+  };
+};
+
+export const buildBulkResourceRevisionPlan = ({
+  existing,
+  fieldKey,
+  assignments,
+}: {
+  existing: readonly DisplayCard[];
+  fieldKey: string;
+  assignments: readonly { targetId: string; value: string }[];
+}): BulkRevisionPlan => {
+  const byId = new Map(existing.map((card) => [card.uniqueId, card]));
+  const seen = new Set<string>();
+  const revisions = assignments.map(({ targetId, value }) => {
+    const current = byId.get(targetId);
+    if (!current) throw new Error(`The selected Artifact ${targetId} is no longer in this Set.`);
+    if (seen.has(targetId)) throw new Error(`The selected Artifact ${targetId} received more than one resource.`);
+    seen.add(targetId);
+    return {
+      ...current,
+      data: { ...current.data, [fieldKey]: value },
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  return {
+    matchedCount: revisions.length,
+    unmatchedRows: [],
+    ambiguousRows: [],
+    changedFields: revisions.some((card) => card.data[fieldKey] !== byId.get(card.uniqueId)?.data[fieldKey]) ? [fieldKey] : [],
+    preservedFields: [...new Set(revisions.flatMap((card) => Object.keys(card.data).filter((key) => key !== fieldKey)))].sort(),
     finalArtifactCount: existing.length,
     revisions,
   };

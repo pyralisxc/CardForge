@@ -1,10 +1,14 @@
-export { LibraryPickerDialog } from './components/LibraryPickerDialog';
+export { LibraryPickerDialog, type LibraryPickerSourceAction } from './components/LibraryPickerDialog';
 export {
+  createLibraryPickerAssignments,
   createLibraryPickerResult,
   getCompatibleLibraryPickerResources,
+  getNextLibraryPickerActiveIndex,
 } from './model/libraryPicker';
 export type {
   LibraryPickerMaterialization,
+  LibraryPickerNavigationKey,
+  LibraryPickerAssignment,
   LibraryPickerRequest,
   LibraryPickerResource,
   LibraryPickerResult,

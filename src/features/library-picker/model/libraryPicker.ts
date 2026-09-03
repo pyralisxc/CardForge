@@ -40,6 +40,29 @@ export interface LibraryPickerResult {
   selections: LibraryPickerSelection[];
 }
 
+export interface LibraryPickerAssignment {
+  targetId: string;
+  selection: LibraryPickerSelection;
+}
+
+export type LibraryPickerNavigationKey = 'ArrowDown' | 'ArrowRight' | 'ArrowUp' | 'ArrowLeft' | 'Home' | 'End';
+
+export const getNextLibraryPickerActiveIndex = ({
+  currentIndex,
+  itemCount,
+  key,
+}: {
+  currentIndex: number;
+  itemCount: number;
+  key: LibraryPickerNavigationKey;
+}): number => {
+  if (itemCount <= 0) return 0;
+  if (key === 'Home') return 0;
+  if (key === 'End') return itemCount - 1;
+  const delta = key === 'ArrowDown' || key === 'ArrowRight' ? 1 : -1;
+  return Math.max(0, Math.min(itemCount - 1, currentIndex + delta));
+};
+
 const includes = (accepted: readonly string[] | undefined, value: string | undefined) => (
   !accepted?.length || Boolean(value && accepted.includes(value))
 );
@@ -66,4 +89,17 @@ export const createLibraryPickerResult = (
     throw new Error('This Library request accepts one object.');
   }
   return { purpose: request.purpose, target: request.target, selections };
+};
+
+export const createLibraryPickerAssignments = (
+  result: LibraryPickerResult,
+): LibraryPickerAssignment[] => {
+  if (!result.selections.length || !result.target.ids.length) return [];
+  if (result.selections.length === 1) {
+    return result.target.ids.map((targetId) => ({ targetId, selection: result.selections[0]! }));
+  }
+  if (result.selections.length !== result.target.ids.length) {
+    throw new Error(`Choose one resource for every selected ${result.target.kind}, or choose one resource to use for all ${result.target.ids.length}.`);
+  }
+  return result.target.ids.map((targetId, index) => ({ targetId, selection: result.selections[index]! }));
 };

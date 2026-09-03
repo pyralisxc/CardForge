@@ -14,9 +14,11 @@ import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/pipeline/client/assets';
 import { loadCardForgeStudioAssets } from '@/features/pipeline/client/catalog';
 import {
+  chooseGoogleDrivePersonalLibraryItems,
   importPersonalLibraryItemToLocalAsset,
   loadPersonalLibrary,
   type PersonalLibraryItem,
+  type PersonalLibraryRole,
 } from '@/features/personal-library/client';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
 import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
@@ -79,7 +81,6 @@ export function useTemplateAssetLibrary({
   const [customIconAssets, setCustomIconAssets] = useState<CardAssetOption[]>([]);
   const [customImageAssets, setCustomImageAssets] = useState<CardAssetOption[]>([]);
   const [connectedLibraryItems, setConnectedLibraryItems] = useState<PersonalLibraryItem[]>([]);
-  const [connectedLibraryBusyItemId, setConnectedLibraryBusyItemId] = useState<string | null>(null);
 
   const refreshLocalAssets = useCallback(async () => {
     const [textures, dividers, icons, images] = await Promise.all([
@@ -201,40 +202,28 @@ export function useTemplateAssetLibrary({
     [allImageAssets],
   );
 
-  const connectedImageItems = useMemo(
-    () => connectedLibraryItems.filter((item) => item.role === 'artwork' || item.role === 'frame' || item.role === 'reference'),
-    [connectedLibraryItems],
-  );
-  const connectedIconItems = useMemo(
-    () => connectedLibraryItems.filter((item) => item.role === 'icon'),
-    [connectedLibraryItems],
-  );
-  const connectedTextureItems = useMemo(
-    () => connectedLibraryItems.filter((item) => item.role === 'texture'),
-    [connectedLibraryItems],
-  );
-  const connectedDividerItems = useMemo(
-    () => connectedLibraryItems.filter((item) => item.role === 'divider'),
-    [connectedLibraryItems],
-  );
-
   const importConnectedLibraryItem = useCallback(async (item: PersonalLibraryItem): Promise<CardAssetOption> => {
-    setConnectedLibraryBusyItemId(item.id);
-    try {
-      const asset = await importPersonalLibraryItemToLocalAsset(item);
-      if (asset.kind === 'texture') setCustomTextureAssets((current) => replaceAssetById(current, asset));
-      else if (asset.kind === 'divider') setCustomDividerAssets((current) => replaceAssetById(current, asset));
-      else if (asset.kind === 'icon') setCustomIconAssets((current) => replaceAssetById(current, asset));
-      else setCustomImageAssets((current) => replaceAssetById(current, asset));
-      toast({
-        title: 'Connected asset ready in this project',
-        description: `“${item.displayName}” was materialized from Google Drive into this browser's portable CardForge asset library.`,
-      });
-      return asset;
-    } finally {
-      setConnectedLibraryBusyItemId(null);
-    }
+    const asset = await importPersonalLibraryItemToLocalAsset(item);
+    if (asset.kind === 'texture') setCustomTextureAssets((current) => replaceAssetById(current, asset));
+    else if (asset.kind === 'divider') setCustomDividerAssets((current) => replaceAssetById(current, asset));
+    else if (asset.kind === 'icon') setCustomIconAssets((current) => replaceAssetById(current, asset));
+    else setCustomImageAssets((current) => replaceAssetById(current, asset));
+    toast({
+      title: 'Connected asset ready in this project',
+      description: `“${item.displayName}” was materialized from Google Drive into this browser's portable CardForge asset library.`,
+    });
+    return asset;
   }, [toast]);
+
+  const addConnectedLibraryItems = useCallback(async (role: PersonalLibraryRole): Promise<void> => {
+    const result = await chooseGoogleDrivePersonalLibraryItems(role);
+    if (!result) return;
+    setConnectedLibraryItems((current) => {
+      const byId = new Map(current.map((item) => [item.id, item]));
+      result.items.forEach((item) => byId.set(item.id, item));
+      return [...byId.values()];
+    });
+  }, []);
 
   const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
     if (!canUploadCustomAssets) {
@@ -346,11 +335,8 @@ export function useTemplateAssetLibrary({
     frontBorderAssets,
     backBorderAssets,
     canUploadCustomAssets,
-    connectedDividerItems,
-    connectedIconItems,
-    connectedImageItems,
-    connectedLibraryBusyItemId,
-    connectedTextureItems,
+    connectedLibraryItems,
+    addConnectedLibraryItems,
     handleAssetUpload,
     importConnectedLibraryItem,
     refreshLocalAssets,
