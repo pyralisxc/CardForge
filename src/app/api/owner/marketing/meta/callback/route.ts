@@ -16,9 +16,8 @@ const safeStateMatch = (expected: string, received: string): boolean => {
 
 const ownerRedirect = (status: string, message?: string) => {
   const url = new URL('/account', getPublicAppUrl());
-  url.searchParams.set('section', 'profile');
-  url.searchParams.set('utility', 'owner');
-  url.searchParams.set('ownerWorkspace', 'marketing');
+  url.searchParams.set('section', 'library');
+  url.searchParams.set('scope', 'campaigns');
   url.searchParams.set('meta', status);
   if (message) url.searchParams.set('message', message.slice(0, 240));
   const response = NextResponse.redirect(url);

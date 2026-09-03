@@ -12,7 +12,7 @@ import {
 } from '@/features/owner/model/ownerConsoleClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function useOwnerConsole() {
+export function useOwnerOperations() {
   const [payload, setPayload] = useState<OwnerConsoleResponse | null>(null);
   const [siteConsole, setSiteConsole] = useState<OwnerConsolePayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);

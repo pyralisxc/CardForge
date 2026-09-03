@@ -20,7 +20,6 @@ export const isValidPostHogProjectId = (value: string): boolean => /^\d+$/u.test
 export type AnalyticsConsentPreference = 'granted' | 'granted_once' | 'denied';
 
 export type CardForgeAnalyticsEventName =
-  | 'open_studio'
   | 'sign_up'
   | 'navigation_selected'
   | 'template_creation_started'
@@ -49,7 +48,6 @@ export type ProductAnalyticsEventName = CardForgeAnalyticsEventName | 'page_view
 
 export const PRODUCT_ANALYTICS_EVENT_NAMES: ProductAnalyticsEventName[] = [
   'page_viewed',
-  'open_studio',
   'sign_up',
   'navigation_selected',
   'template_creation_started',

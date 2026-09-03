@@ -13,7 +13,7 @@ import {
   matchesSourceFilter,
   normalizeDeskOrder,
   workSourceLabel,
-  type HomeSourceFilter,
+  type DeskSourceFilter,
 } from '../model/desk';
 import { useDeskSpatialLayout } from './useDeskSpatialLayout';
 
@@ -21,7 +21,7 @@ interface DeskLayoutOptions {
   persistenceScope: ProjectPersistenceScope;
   workItems: AccountLibraryItem[];
   query: string;
-  sourceFilter: HomeSourceFilter;
+  sourceFilter: DeskSourceFilter;
   focused: boolean;
   snapToGrid: boolean;
   selectedIds: readonly string[];

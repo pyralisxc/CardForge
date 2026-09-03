@@ -9,7 +9,7 @@ import {
   type CardForgeAnalyticsEventName,
 } from '../model';
 import { captureProductAnalyticsEvent } from './posthog';
-import { inferBoundaryFailureKind } from '@/shared/boundaryFailure';
+import { inferBoundaryFailureKind, type BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 declare global {
   interface Window {

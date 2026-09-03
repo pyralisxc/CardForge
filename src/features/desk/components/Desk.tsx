@@ -63,8 +63,8 @@ export interface DeskProps {
   initialTool?: 'design' | 'generate' | 'output' | 'pipeline' | null;
   initialContributorAccess: ContributorAccessSessionState;
   initialReturnContextKey?: string | null;
-  homeAccessStatus?: DeskAccountStatus;
-  homeSecurityStatus?: DeskAccountStatus;
+  accessStatus?: DeskAccountStatus;
+  securityStatus?: DeskAccountStatus;
 }
 
 const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; className?: string }) => {
@@ -88,8 +88,8 @@ export function Desk({
   initialTool = null,
   initialContributorAccess,
   initialReturnContextKey,
-  homeAccessStatus,
-  homeSecurityStatus,
+  accessStatus,
+  securityStatus,
 }: DeskProps) {
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const {
@@ -238,8 +238,8 @@ export function Desk({
     initialFocusedArtifactId,
     initialTool,
     initialReturnContextKey,
-    homeAccessStatus,
-    homeSecurityStatus,
+    accessStatus,
+    securityStatus,
   });
   return (
     <>

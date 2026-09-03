@@ -27,6 +27,9 @@ import styles from './UnifiedAccountLibrary.module.css';
 const CampaignLibraryWorkspace = dynamic(() => import(
   '@/features/marketing-content/client'
 ).then((module) => module.CampaignLibraryWorkspace));
+const OwnerMarketingPanel = dynamic(() => import(
+  '@/features/marketing/client'
+).then((module) => module.OwnerMarketingPanel));
 
 const LIBRARY_SOURCES: AccountLibrarySource[] = ['device', 'google-drive', 'local-folder', 'assistant-draft'];
 
@@ -49,6 +52,7 @@ interface LibraryCollectionProps {
   activeLoading: boolean;
   activeScope: LibraryScope;
   campaignTargetId: string | null;
+  campaignNotice?: { kind: 'success' | 'error'; message: string };
   canReview: boolean;
   canSubmit: boolean;
   cardsFor: (item: LibraryViewItem) => DisplayCard[];
@@ -56,6 +60,7 @@ interface LibraryCollectionProps {
   heartMetrics: Record<string, { count: number; hearted: boolean }>;
   heartingId: string | null;
   isSignedIn: boolean;
+  isOwner: boolean;
   onDensityChange: (density: LibraryDensity) => void;
   onOpenContribution: () => void;
   onOpenDetail: (item: LibraryViewItem) => void;
@@ -79,15 +84,17 @@ interface LibraryCollectionProps {
 }
 
 export function LibraryCollection({
-  activeFailure, activeLoading, activeScope, campaignTargetId, canReview, canSubmit, cardsFor, density,
+  activeFailure, activeLoading, activeScope, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
   heartMetrics, heartingId, isSignedIn, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, projection,
-  scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, viewItems, votingId,
+  scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, viewItems, votingId, isOwner,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
     <div className={styles.collectionHeading}><div><h2 id="library-collection-heading">{scopeDefinition.label}</h2><p>{scopeDefinition.description}</p></div>{activeScope === 'campaigns' ? null : <span>{viewItems.length} shown</span>}</div>
-    {activeScope === 'campaigns' ? <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
+    {activeScope === 'campaigns' ? isOwner
+      ? <OwnerMarketingPanel initialNotice={campaignNotice} />
+      : <CampaignLibraryWorkspace initialCampaignId={campaignTargetId} /> : <>
       <div className={styles.toolbar} aria-label="Library toolbar">
         <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
         {activeScope === 'personal' ? <>

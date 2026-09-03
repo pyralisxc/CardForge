@@ -8,8 +8,7 @@ import {
 } from '@/features/storage-management/client';
 
 type LegacyDeskSourceFilter = 'connected' | 'temporary';
-export type HomeSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
-export type HomeSort = 'desk' | 'name' | 'size';
+export type DeskSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
 export type DeskWorkKeyboardIntent = 'open' | 'select' | 'select-additive' | 'none';
 
 export const getDeskWorkKeyboardIntent = (
@@ -30,6 +29,8 @@ export interface DeskAccountStatus {
 }
 
 // Values stay unchanged so existing browser-local Desk layouts migrate without loss.
+// These persisted keys predate the Desk noun cut. Keep the strings as narrow
+// compatibility reads so existing browser work retains its pins and tab order.
 export const DESK_PINS_KEY = 'home-desk-pins';
 export const DESK_ORDER_KEY = 'home-desk-order';
 export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
@@ -212,7 +213,7 @@ export const getWorkActions = (
   ];
 };
 
-export const matchesSourceFilter = (item: AccountLibraryItem, filter: HomeSourceFilter): boolean => {
+export const matchesSourceFilter = (item: AccountLibraryItem, filter: DeskSourceFilter): boolean => {
   if (filter === 'all') return true;
   const sources = item.locations.map((location) => location.source);
   // Compatibility-only aliases for return contexts created before reflective source facets.

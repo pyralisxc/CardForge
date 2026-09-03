@@ -12,7 +12,7 @@ import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import type { DeskAccountStatus, DeskSourceFacet, HomeSourceFilter } from '../model/desk';
+import type { DeskAccountStatus, DeskSourceFacet, DeskSourceFilter } from '../model/desk';
 import { DeskWorkObject } from './DeskWorkObject';
 import styles from './Desk.module.css';
 
@@ -32,7 +32,7 @@ export interface DeskOverviewSurfaceProps {
   showGrid: boolean;
   snapToGrid: boolean;
   query: string;
-  sourceFilter: HomeSourceFilter;
+  sourceFilter: DeskSourceFilter;
   sourceFacets: DeskSourceFacet[];
   searchRef: RefObject<HTMLInputElement>;
   workGridRef: RefObject<HTMLDivElement>;
@@ -56,7 +56,7 @@ export interface DeskOverviewSurfaceProps {
   onNudgeSelection: (delta: { x: number; y: number }) => void;
   onClearSelection: () => void;
   onQueryChange: (value: string) => void;
-  onSourceFilterChange: (value: HomeSourceFilter) => void;
+  onSourceFilterChange: (value: DeskSourceFilter) => void;
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
   onFocusWork: (item: AccountLibraryItem) => void;
@@ -85,7 +85,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       <div className={styles.workSurfaceHeader}><h2 id="desk-open-work-heading">Open work</h2><span>Each pile is one Set</span></div>
       <div className={styles.deskToolbar}>
         <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Find work" /></label>
-        {props.sourceFacets.length > 1 ? <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter open work by source" compactLabel="Source" className={styles.sourceSelect} value={props.sourceFilter} onChange={(value) => props.onSourceFilterChange(value as HomeSourceFilter)} options={props.sourceFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
+        {props.sourceFacets.length > 1 ? <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter open work by source" compactLabel="Source" className={styles.sourceSelect} value={props.sourceFilter} onChange={(value) => props.onSourceFilterChange(value as DeskSourceFilter)} options={props.sourceFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
         <div className={styles.spatialControls} aria-label="Desk positioning">
           <span className={styles.desktopSpatialControls}>
             <Button type="button" size="icon" variant="ghost" aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>

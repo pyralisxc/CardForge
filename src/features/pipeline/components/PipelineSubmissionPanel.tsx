@@ -160,12 +160,13 @@ export function PipelineSubmissionPanel({
         }),
       }));
       if (!planResponse.ok) throw await readApiError(planResponse, 'Unable to prepare the source upload.');
-      pendingUpload = (await planResponse.json() as PipelineUploadPlanResponse).upload;
+      const uploadPlan = (await planResponse.json() as PipelineUploadPlanResponse).upload;
+      pendingUpload = uploadPlan;
 
       const uploadForm = new FormData();
       uploadForm.append('cacheControl', '3600');
       uploadForm.append('', selectedFile);
-      const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(pendingUpload.signedUrl, {
+      const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(uploadPlan.signedUrl, {
         method: 'PUT',
         headers: { 'x-upsert': 'false' },
         body: uploadForm,
@@ -186,10 +187,10 @@ export function PipelineSubmissionPanel({
           description,
           previewUrl,
           uploadedFile: {
-            storagePath: pendingUpload.storagePath,
-            fileName: pendingUpload.fileName,
-            fileSizeBytes: pendingUpload.fileSizeBytes,
-            mimeType: pendingUpload.mimeType,
+            storagePath: uploadPlan.storagePath,
+            fileName: uploadPlan.fileName,
+            fileSizeBytes: uploadPlan.fileSizeBytes,
+            mimeType: uploadPlan.mimeType,
           },
         }),
       }));

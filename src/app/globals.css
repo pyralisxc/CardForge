@@ -573,3 +573,10 @@ html[data-site-inline-editing="true"] [data-site-content-slug]:hover {
   outline-style: solid;
   background-color: color-mix(in srgb, var(--public-brass, #d7a849) 12%, transparent);
 }
+
+html[data-site-inline-editing="true"] [data-site-content-slug][data-site-inline-active="true"] {
+  outline-style: solid;
+  cursor: text;
+  white-space: pre-wrap;
+  background-color: color-mix(in srgb, var(--public-brass, #d7a849) 18%, var(--cf-surface, #17120d));
+}

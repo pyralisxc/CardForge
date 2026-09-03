@@ -24,7 +24,7 @@ import { useAccountLibraryProjection, type AccountLibraryItem } from '@/features
 import {
   visibleWorkKinds,
   type DeskAccountStatus,
-  type HomeSourceFilter,
+  type DeskSourceFilter,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
 import { useCreatorNavigation } from './useCreatorNavigation';
@@ -41,8 +41,8 @@ interface DeskControllerOptions {
   initialFocusedArtifactId?: string | null;
   initialTool?: 'design' | 'generate' | 'output' | 'pipeline' | null;
   initialReturnContextKey?: string | null;
-  homeAccessStatus?: DeskAccountStatus;
-  homeSecurityStatus?: DeskAccountStatus;
+  accessStatus?: DeskAccountStatus;
+  securityStatus?: DeskAccountStatus;
 }
 
 export function useDeskController({
@@ -52,8 +52,8 @@ export function useDeskController({
   initialFocusedArtifactId,
   initialTool = null,
   initialReturnContextKey,
-  homeAccessStatus,
-  homeSecurityStatus,
+  accessStatus,
+  securityStatus,
 }: DeskControllerOptions) {
   const { toast } = useToast();
   const isSignedIn = experience.signedIn;
@@ -66,7 +66,7 @@ export function useDeskController({
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const zones = getVisibleEnvironmentZones(viewer);
   const [query, setQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<HomeSourceFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<DeskSourceFilter>('all');
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const {
@@ -242,7 +242,7 @@ export function useDeskController({
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
   }, [initialReturnContextKey, itemById, restoreFocusedContext]);
 
-  const statuses = createDeskAccountStatuses({ accessStatus: homeAccessStatus, isSignedIn, projection, securityStatus: homeSecurityStatus });
+  const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 
   const selectDeskWork = (item: AccountLibraryItem, options: { additive?: boolean; range?: boolean } = {}) => {
     trackCardForgeEvent('set_selected', {

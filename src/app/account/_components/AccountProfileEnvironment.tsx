@@ -50,9 +50,7 @@ interface AccountProfileEnvironmentProps {
   initialAuthConfigured: boolean;
   initialPlanIntent?: 'creator' | 'designer' | null;
   initialUtility?: 'billing' | 'identity' | 'contributor' | 'owner' | null;
-  initialOwnerWorkspace?: 'overview' | 'marketing' | 'audience' | 'site' | 'library' | 'governance';
-  initialOwnerPipelineStatus?: 'all' | 'submitted';
-  initialOwnerMarketingNotice?: { kind: 'success' | 'error'; message: string };
+  initialOwnerWorkspace?: 'overview' | 'audience' | 'governance';
   initialContributorAccess: ContributorAccessSessionState;
   plans?: McpAllowance[];
 }
@@ -90,8 +88,6 @@ export function AccountProfileEnvironment({
   initialPlanIntent = null,
   initialUtility = null,
   initialOwnerWorkspace = 'overview',
-  initialOwnerPipelineStatus = 'all',
-  initialOwnerMarketingNotice,
   initialContributorAccess,
   plans = [],
 }: AccountProfileEnvironmentProps) {
@@ -316,8 +312,6 @@ export function AccountProfileEnvironment({
               ) : activeUtility === 'owner' ? (
                 <OwnerProfileOperations
                   initialWorkspace={initialOwnerWorkspace}
-                  initialPipelineStatus={initialOwnerPipelineStatus}
-                  initialMarketingNotice={initialOwnerMarketingNotice}
                 />
               ) : (
                 <ContributorProfilePanel access={contributorAccess} />

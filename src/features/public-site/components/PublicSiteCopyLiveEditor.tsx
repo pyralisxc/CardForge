@@ -8,6 +8,17 @@ import { useToast } from '@/components/ui/use-toast';
 import type { SiteContentBlock, SiteContentBlockSlug } from '../model/siteContent';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
+export const savePublicSiteContentBlock = async (block: Pick<SiteContentBlock, 'slug' | 'body'>): Promise<SiteContentBlock[]> => {
+  const response = await fetch('/api/owner/console', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'siteContent', siteContentBlock: block }),
+  });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save site copy.'));
+  const result = await response.json() as { console: { siteContentBlocks: SiteContentBlock[] } };
+  return result.console.siteContentBlocks;
+};
+
 const groupLabels: Record<SiteContentBlock['group'], string> = {
   shell: 'Shared header & footer',
   landing: 'Landing page',
@@ -54,14 +65,7 @@ export function PublicSiteCopyLiveEditor({
   const saveBlock = async (block: SiteContentBlock) => {
     setBusyBlock(block.slug);
     try {
-      const response = await fetch('/api/owner/console', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'siteContent', siteContentBlock: { slug: block.slug, body: block.body } }),
-      });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save site copy.'));
-      const result = await response.json() as { console: { siteContentBlocks: SiteContentBlock[] } };
-      onBlocksChange(result.console.siteContentBlocks);
+      onBlocksChange(await savePublicSiteContentBlock(block));
       toast({ title: 'Site copy published', description: `${block.label} is live without a deploy.` });
     } catch (error) {
       toast({ title: 'Site copy not saved', description: error instanceof Error ? error.message : 'Unable to save site copy.', variant: 'destructive' });
