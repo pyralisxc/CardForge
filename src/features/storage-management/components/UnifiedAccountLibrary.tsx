@@ -133,7 +133,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   }, [activeScope, projection.router, scope]);
   useEffect(() => { if (initialTool) setActiveTool(initialTool); }, [initialTool]);
 
-  const { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, viewItems } = useUnifiedLibraryView({
+  const { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, unfilteredScopeItemCount, viewItems } = useUnifiedLibraryView({
     activeScope,
     pipelineAccess,
     projection,
@@ -319,7 +319,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       )}
     /> : undefined}
     actions={actions} accountControl={<PublicAuthControls />} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
-    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${scopeItems.length} ${activeScope} object${scopeItems.length === 1 ? '' : 's'}`} tone="neutral" /></>}
+    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${unfilteredScopeItemCount} ${activeScope} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone="neutral" /></>}
     footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
@@ -370,6 +370,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         sharedType={sharedType}
         sharedTypes={sharedTypes}
         templateFor={templateFor}
+        unfilteredScopeItemCount={unfilteredScopeItemCount}
         viewItems={viewItems}
         votingId={votingId}
       />
