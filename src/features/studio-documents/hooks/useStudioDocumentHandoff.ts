@@ -15,6 +15,10 @@ import {
   type StudioDocumentSource,
 } from '@/features/studio-documents/model';
 import { hydrateStudioDocumentAssets } from '../client/studioDocumentAssetHydration';
+import {
+  acknowledgeStudioDocumentInstallation,
+  StudioDocumentInstallationAcknowledgementError,
+} from '../client/studioDocumentInstallation';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface ToastInput {
@@ -85,8 +89,10 @@ export function useStudioDocumentHandoff({
 
     let cancelled = false;
     void (async () => {
+      let localAgentRevisionApplied = false;
       try {
-        const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}`, {
+        const revisionQuery = requestedRevision === null ? '' : `?revision=${requestedRevision}`;
+        const response = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}${revisionQuery}`, {
           cache: 'no-store',
           credentials: 'same-origin',
         });
@@ -184,18 +190,18 @@ export function useStudioDocumentHandoff({
             destination,
           };
 
+          handledRevisionKeyRef.current = requestedKey;
+          localAgentRevisionApplied = true;
+          onInstalled?.({ activeSetId: installSummary.activeSetId, destination: installSummary.destination });
           if (actualRevision) {
-            void fetch(`/api/studio-documents/${encodeURIComponent(documentId)}/installation`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'same-origin',
-              body: JSON.stringify({ revision: actualRevision, summary: installSummary }),
-            }).catch((error) => {
-              console.warn('Unable to acknowledge installed agent revision:', error);
+            await acknowledgeStudioDocumentInstallation({
+              documentId,
+              revision: actualRevision,
+              summary: installSummary,
             });
           }
+          if (cancelled) return;
 
-          handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
           url.searchParams.delete('document');
           url.searchParams.delete('revision');
           window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
@@ -216,7 +222,6 @@ export function useStudioDocumentHandoff({
               description: `CardForge applied${revisionLabel} to this device.`,
             });
           }
-          onInstalled?.({ activeSetId: installSummary.activeSetId, destination: installSummary.destination });
           return;
         }
 
@@ -256,7 +261,7 @@ export function useStudioDocumentHandoff({
         setTemplateEditorSelectedTemplateId(firstTemplateId);
         setStudioView('template');
 
-        handledRevisionKeyRef.current = handoffKey(documentId, actualRevision ?? requestedRevision);
+        handledRevisionKeyRef.current = requestedKey;
         url.searchParams.delete('document');
         url.searchParams.delete('revision');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
@@ -270,8 +275,10 @@ export function useStudioDocumentHandoff({
       } catch (error) {
         if (!cancelled) {
           toast({
-            title: 'Draft not opened',
-            description: error instanceof Error ? error.message : 'Unable to open the Studio draft.',
+            title: localAgentRevisionApplied ? 'Revision applied locally' : 'Draft not opened',
+            description: localAgentRevisionApplied
+              ? `${error instanceof StudioDocumentInstallationAcknowledgementError ? error.message : 'CardForge could not confirm this locally applied revision with the server.'} The revision link remains in the address bar; reload it to retry confirmation.`
+              : error instanceof Error ? error.message : 'Unable to open the Studio draft.',
             variant: 'destructive',
           });
         }

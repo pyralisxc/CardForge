@@ -1,75 +1,15 @@
-import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { createMcpHandler } from 'mcp-handler';
 
 import type { AccountToolAccess } from '@/features/account/server';
 import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
-  PERSONAL_LIBRARY_ROLES,
-  type PersonalLibraryRole,
-} from '../model';
-import {
   listPersonalLibraryItems,
   PersonalLibraryStoreError,
 } from './personalLibraryStore';
-
-interface SearchPersonalLibraryInput {
-  query?: string;
-  role?: PersonalLibraryRole;
-  limit?: number;
-}
-
-const searchInputSchema = fromJsonSchema<SearchPersonalLibraryInput>({
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    query: {
-      type: 'string',
-      maxLength: 160,
-      description: 'Optional case-insensitive name search. Omit to browse recent authorized personal-library items.',
-    },
-    role: {
-      type: 'string',
-      enum: [...PERSONAL_LIBRARY_ROLES],
-      description: 'Optional CardForge semantic asset role.',
-    },
-    limit: {
-      type: 'integer',
-      minimum: 1,
-      maximum: 50,
-      description: 'Maximum matching items to return. Defaults to 20.',
-    },
-  },
-});
-
-const outputSchema = fromJsonSchema({
-  type: 'object',
-  additionalProperties: false,
-  required: ['query', 'role', 'count', 'items', 'usageNote'],
-  properties: {
-    query: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-    role: { anyOf: [{ type: 'string', enum: [...PERSONAL_LIBRARY_ROLES] }, { type: 'null' }] },
-    count: { type: 'integer', minimum: 0 },
-    items: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['itemId', 'provider', 'displayName', 'role', 'mimeType', 'byteSize', 'providerRevision', 'contentHash'],
-        properties: {
-          itemId: { type: 'string' },
-          provider: { type: 'string', enum: ['google-drive'] },
-          displayName: { type: 'string' },
-          role: { type: 'string', enum: [...PERSONAL_LIBRARY_ROLES] },
-          mimeType: { type: 'string' },
-          byteSize: { type: 'number', minimum: 0 },
-          providerRevision: { type: 'string' },
-          contentHash: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-        },
-      },
-    },
-    usageNote: { type: 'string' },
-  },
-});
+import {
+  personalLibrarySearchOutputSchema,
+  searchPersonalLibraryInputSchema,
+} from './mcpPersonalLibrarySchemas';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -93,9 +33,9 @@ export const registerPersonalLibraryTools = ({
     {
       title: 'Search the user’s CardForge personal library',
       description: 'Find reusable artwork, frames, textures, dividers, icons, fonts, and reference images the linked CardForge user explicitly authorized from connected storage. Returns metadata only; provider credentials and file bytes never enter model context.',
-      inputSchema: searchInputSchema,
-      outputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      inputSchema: searchPersonalLibraryInputSchema,
+      outputSchema: personalLibrarySearchOutputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ query, role, limit }) => {
       try {
@@ -144,9 +84,6 @@ export const registerPersonalLibraryTools = ({
           },
         });
       } catch (error) {
-        if (error instanceof PersonalLibraryStoreError) {
-          return { isError: true, content: [{ type: 'text', text: error.message }] };
-        }
         return toolError(error);
       }
     },

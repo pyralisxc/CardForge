@@ -27,6 +27,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
   const projectTools = readSource('src/features/studio-documents/server/mcpProjectSourceTools.ts');
   const workingDocumentTools = readSource('src/features/studio-documents/server/mcpWorkingDocumentTools.ts');
+  const personalLibraryTools = readSource('src/features/personal-library/server/mcpPersonalLibraryTools.ts');
   const pluginSkills = readSource('src/features/studio-documents/server/mcpPluginSkills.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
   const cardDrafts = readSource('src/features/studio-documents/server/cardSetWorkingDocuments.ts');
@@ -51,6 +52,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
       ...toolNames(cardTools),
       ...toolNames(projectTools),
       ...toolNames(workingDocumentTools),
+      ...toolNames(personalLibraryTools),
     ].sort();
 
     expect(names).toEqual([
@@ -77,6 +79,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
       'preview_card_set',
       'preview_cards',
       'preview_template_draft',
+      'search_personal_library',
       'search_studio_library',
       'update_editable_template',
       'upsert_card',
@@ -99,12 +102,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('publishes an explicit output schema for every structured MCP tool', () => {
-    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
   });
 
   it('labels private overwrites and external artwork retrieval accurately', () => {
-    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools].join('\n');
+    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     const destructiveTools = new Set([
       'attach_template_artwork',
       'attach_template_artworks',
@@ -185,9 +188,16 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('keeps the plugin version aligned with the live MCP server contract', () => {
-    const serverVersion = route.match(/serverInfo:\s*\{\s*name:\s*'cardforge-studio',\s*version:\s*'([^']+)'/)?.[1];
-    expect(serverVersion).toBeTruthy();
+    const contract = readSource('src/features/studio-documents/server/mcpContractVersion.ts');
+    const serverVersion = contract.match(/CARDFORGE_MCP_CONTRACT_VERSION = '([^']+)'/)?.[1];
+    expect(route).toContain('version: CARDFORGE_MCP_CONTRACT_VERSION');
     expect(plugin.version).toBe(serverVersion);
+    expect(plugin.version).toBe('1.0.1');
+  });
+
+  it('returns revision-bound Studio links from every editable Template read and write', () => {
+    expect(route).toContain('const studioDocumentUrl = (documentId: string, revision: number)');
+    expect(route.match(/studioDocumentUrl\(document\.id, document\.revision\)/g)).toHaveLength(3);
   });
 
   it('presents CardForge as a card-making product rather than a contributor Template utility', () => {

@@ -70,12 +70,14 @@ describe('MCP workflow hardening', () => {
   it('tracks exact browser installation acknowledgements and resumable work', () => {
     const store = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
     const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');
+    const acknowledgement = readSource('src/features/studio-documents/client/studioDocumentInstallation.ts');
     const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
 
     expect(store).toContain('last_installed_revision');
     expect(store).toContain('recordStudioDocumentInstallation');
     expect(handoff).toContain('handledRevisionKeyRef');
-    expect(handoff).toContain('/installation');
+    expect(handoff).toContain('await acknowledgeStudioDocumentInstallation');
+    expect(acknowledgement).toContain('/installation');
     expect(accountTools).toContain("'list_agent_working_documents'");
     expect(accountTools).toContain("'get_agent_install_status'");
   });

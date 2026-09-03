@@ -27,6 +27,9 @@ export const normalizeAppearanceForElement = (element: Partial<FreeformCardEleme
   const baseColor = element.backgroundColor || element.fillColor || (element.type === 'text' ? 'transparent' : undefined);
   const rawBackground = typeof element.backgroundImageUrl === 'string' ? element.backgroundImageUrl : undefined;
   const borderWidth = borderClassToPixels(element.borderWidth);
+  const shapeStrokeWidth = element.type === 'shape' && typeof element.strokeWidth === 'number'
+    ? element.strokeWidth
+    : 0;
   return {
     material: {
       baseColor,
@@ -37,9 +40,9 @@ export const normalizeAppearanceForElement = (element: Partial<FreeformCardEleme
       texture: rawBackground ? { kind: 'parchment', intensity: 25, scale: 10 } : { kind: 'none' },
     },
     border: {
-      kind: borderWidth > 0 || Boolean(element.strokeWidth) ? 'solid' : 'none',
+      kind: borderWidth > 0 || shapeStrokeWidth > 0 ? 'solid' : 'none',
       color: element.borderColor || element.strokeColor,
-      width: borderWidth || element.strokeWidth || 0,
+      width: borderWidth || shapeStrokeWidth,
       radius: radiusClassToPixels(element.borderRadius),
     },
     effects: { shadow: 0, glow: 0, bevel: 0, innerHighlight: 0, overlayOpacity: 100 },

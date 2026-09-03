@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Initial-submission release notes for 0.9.0: CardForge Studio is an authenticated beta for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. Template and Set review returns immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
+Hardening release notes for 1.0.1: CardForge Studio is an authenticated beta for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
 
 ## Authentication and reviewer fixture
 
@@ -41,7 +41,7 @@ Enter its credentials only in the OpenAI submission portal. Never commit the rev
 
 ## Tool safety and UI declarations
 
-Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The nine tools that can replace, remove, move, or permanently commit private working state declare `destructiveHint: true`: `update_editable_template`, `attach_template_artwork`, `upsert_card_set`, `upsert_card`, `upsert_cards`, `delete_cards`, `move_cards`, `delete_card_set`, and `commit_project`. `upsert_card` and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `checkout_project` only creates a temporary private working copy and does not alter the connected provider project; `continue_template_in_pipeline` creates a private review draft and does not publish.
+Every MCP call records aggregate usage telemetry, so every tool truthfully declares `readOnlyHint: false`, including tools that otherwise only retrieve private data. The twelve tools that can replace, remove, move, or permanently commit private working state declare `destructiveHint: true`: `update_editable_template`, `attach_template_artwork`, `attach_template_artworks`, `patch_working_document`, `patch_cards`, `upsert_card_set`, `upsert_card`, `upsert_cards`, `delete_cards`, `move_cards`, `delete_card_set`, and `commit_project`. The tools `attach_template_artworks`, `patch_working_document`, `upsert_card`, and `upsert_cards` declare `openWorldHint: true` because they may retrieve a user-supplied public HTTPS artwork URL from outside the linked CardForge account. All other tools declare it false, and no tool publishes content. `checkout_project` only creates a temporary private working copy and does not alter the connected provider project; `continue_template_in_pipeline` creates a private review draft and does not publish.
 
 Connected-project commits are revision-conditional. `commit_project` requires the exact working-document, provider, and CardForge project revisions. Stale operations fail rather than overwriting newer provider work.
 
@@ -83,6 +83,20 @@ Template and Set preview tools do not register iframe/widget output templates. T
 - Prompt: “Find my temporary working Set named OpenAI Review Fixture and summarize its cards without changing it.”
 - Expected tools: `list_agent_working_documents`, then `get_card_generation_contract` for the selected document.
 - Expected result: only the linked account's retained private working document is returned; browser-local projects and embedded private artwork bytes are not exposed.
+
+### Positive 6 — verify browser installation state
+
+- Fixture: reuse the current private working document from Positive 2, 3, or 4 and open its exact-revision Studio link in the same linked CardForge account.
+- Prompt: “Check whether the latest revision is actually applied in CardForge Studio.”
+- Expected tools: `get_agent_install_status` after the reviewer opens and applies the revision-bound Studio link.
+- Expected result: the response includes the exact current revision, `currentRevisionApplied: true`, `installPending: false`, and the matching `lastInstalledRevision`; a failed browser acknowledgement must remain pending rather than being reported as applied.
+
+### Positive 7 — list and safely round-trip a connected project
+
+- Fixture: connect the reviewer account to a dedicated Google Drive folder containing one non-sensitive `.cardforge` project; record the returned stable file id and exact provider/project revisions.
+- Prompt: “List my connected CardForge projects, check out the review fixture, and tell me the safe next steps without changing the Drive file.”
+- Expected tools: `list_connected_projects`, then `checkout_project`; call `commit_project` only after an explicit reviewed change.
+- Expected result: the project summary includes stable `fileId` and `workId` fields without schema rejection, checkout leaves the Drive source unchanged, and any later commit requires all exact revisions and fails closed on conflict.
 
 ## Negative review cases
 

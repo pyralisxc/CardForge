@@ -28,8 +28,6 @@ import {
 } from './workingDocumentPatches';
 import { getWorkingDocumentStructuralValidation } from './workingDocumentValidation';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '1.0.0';
-
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
 type ToolErrorResult = {
@@ -263,6 +261,4 @@ export const registerWorkingDocumentTools = ({
       },
     }),
   );
-
-  void CARDFORGE_MCP_CAPABILITY_VERSION;
 };

@@ -30,6 +30,7 @@ import {
   updateTemplateWorkingDocument,
 } from '@/features/studio-documents/server';
 import { registerAgentTemplateTools } from '@/features/studio-documents/server/mcpAgentTemplateTools';
+import { CARDFORGE_MCP_CONTRACT_VERSION } from '@/features/studio-documents/server/mcpContractVersion';
 import {
   createTemplateInputSchema,
   documentIdInputSchema,
@@ -72,8 +73,8 @@ const publicOrigin = () => (
 );
 
 const absoluteUrl = (path: string) => `${publicOrigin()}${path}`;
-const studioDocumentUrl = (documentId: string) => absoluteUrl(
-  `/studio?document=${encodeURIComponent(documentId)}`,
+const studioDocumentUrl = (documentId: string, revision: number) => absoluteUrl(
+  `/studio?document=${encodeURIComponent(documentId)}&revision=${revision}`,
 );
 
 type ObservedMcpTool<Result> = {
@@ -267,7 +268,7 @@ const handler = createMcpHandler(
               type: 'text',
               text: `Created "${document.title}" as a private editable Studio Template with a locked ${validatedInput.productionPlan.decisionMode} production plan and ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
             }],
-            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id, document.revision)),
           };
         },
       }),
@@ -310,7 +311,7 @@ const handler = createMcpHandler(
           });
           return {
             content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision} without reopening its accepted planning gate.` }],
-            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id, document.revision)),
           };
         },
       }),
@@ -373,7 +374,7 @@ const handler = createMcpHandler(
             planningLocked: Boolean(productionPlan),
             planningDecisionMode: productionPlan?.decisionMode ?? null,
             editableImageFieldKeys,
-            openInStudioUrl: studioDocumentUrl(document.id),
+            openInStudioUrl: studioDocumentUrl(document.id, document.revision),
           };
           return {
             content: [{ type: 'text', text: `Loaded "${document.title}" at Studio document revision ${document.revision}.` }],
@@ -426,7 +427,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.9.0' },
+    serverInfo: { name: 'cardforge-studio', version: CARDFORGE_MCP_CONTRACT_VERSION },
     capabilities: {
       extensions: {
         'io.modelcontextprotocol/skills': {},

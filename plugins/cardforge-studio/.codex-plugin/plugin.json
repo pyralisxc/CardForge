@@ -1,6 +1,6 @@
 {
   "name": "cardforge-studio",
-  "version": "0.9.0",
+  "version": "1.0.1",
   "description": "Design editable cards and complete sets with ChatGPT using native CardForge rendering and revision-safe collaboration.",
   "author": {
     "name": "Cameron Locke",
