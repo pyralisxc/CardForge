@@ -75,6 +75,22 @@ test.describe('mobile Desk controls', () => {
     await page.getByRole('button', { name: 'Open', exact: true }).tap();
     await page.getByRole('button', { name: 'Design', exact: true }).tap();
 
+    const editorTools = page.getByRole('button', { name: 'Open editor tools', exact: true });
+    await editorTools.tap();
+    const toolsSheet = page.getByRole('dialog', { name: 'Editor tools', exact: true });
+    const close = toolsSheet.getByRole('button', { name: 'Close', exact: true });
+    await expect(close).toBeVisible();
+    const closeBounds = await close.boundingBox();
+    expect(closeBounds?.width).toBeGreaterThanOrEqual(44);
+    expect(closeBounds?.height).toBeGreaterThanOrEqual(44);
+    const iconBounds = await close.locator('svg').boundingBox();
+    expect(iconBounds?.width).toBeLessThanOrEqual(24);
+    expect(iconBounds?.height).toBeLessThanOrEqual(24);
+    // A tap outside the small icon must still activate the full close target.
+    await close.tap({ position: { x: 3, y: 3 } });
+    await expect(toolsSheet).toBeHidden();
+    await expect(editorTools).toBeFocused();
+
     const canvas = page.getByRole('region', { name: 'Template canvas' });
     const editableElement = page.locator('[data-cardforge-editor-overlay]').first();
     await expect(editableElement).toBeVisible();

@@ -35,9 +35,11 @@ GitHub is the source/CI workspace. Agents run focused/affected checks locally; t
 
 ### Preview lane
 
-`main` is the only production branch. Ordinary work uses one feature/objective branch and one PR into `main`; those branches do not deploy automatically. After the PR reaches its final candidate SHA and GitHub `verify` passes, move the reusable `vercel-preview` branch to that exact SHA once. Vercel then assigns the stable review URL:
+`main` is the only production branch. Ordinary work uses one feature/objective branch and one PR into `main`; those branches do not deploy automatically. After the PR reaches its final candidate SHA and GitHub `verify` passes, move the reusable `vercel-preview` branch to that exact SHA once. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
 
 `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`
+
+Preserve this explicit branch-domain binding rather than relying only on the generated branch alias or repeatedly assigning a deployment by hand. Keep the hostname unchanged because Preview provider origins and callbacks use it. A routing repair must preserve Vercel Authentication and leave production domains unchanged; verify automatic assignment on a subsequent native Preview deployment before calling the repair complete.
 
 The stable URL is protected by Vercel Authentication. Vercel's Protection Bypass for Automation supplies the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` to the small signed-out Preview smoke workflow; Stripe separately receives its provider-managed bypass on the branch webhook URL. Never copy either bypass value into Git, documentation, chat, logs, or another environment.
 

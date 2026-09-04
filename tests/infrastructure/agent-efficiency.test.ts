@@ -85,10 +85,12 @@ describe('agent verification routing', () => {
       'npm run typecheck',
       'npm run test:product',
       'npm run test:infrastructure',
+      'npm run test:inventory:check',
       'npm run architecture:check',
       'npm run migrations:check',
       'npm run build',
     ].join(' && '));
+    expect(scripts['test:inventory:check']).toBe('node scripts/report-test-inventory.mjs --check');
     expect(scripts['smoke:golden']).toBe('playwright test --grep @golden --workers=1');
     expect(scripts['smoke:hosted']).toBe('playwright test --config playwright.hosted.config.ts --workers=1');
     expect(scripts['verify:full']).not.toContain('playwright');
