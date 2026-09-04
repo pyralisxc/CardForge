@@ -1,8 +1,73 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAccountProfileUtilityGroups } from '@/features/account/lib/accountProfileEnvironment';
+import { buildAccountProfileSnapshot, buildAccountProfileUtilityGroups } from '@/features/account/lib/accountProfileEnvironment';
+
+const guest = {
+  accountEmail: 'No signed-in account', authConfigured: true,
+  entitlementLoading: false, entitlementUnavailable: false,
+  isContributor: false, isOwner: false, isSignedIn: false, planLabel: 'Free',
+};
 
 describe('account profile environment', () => {
+  it('presents unresolved identity, access, and authority without inventing a guest account', () => {
+    expect(buildAccountProfileSnapshot({ ...guest, entitlementLoading: true })).toMatchObject({
+      accountLabel: 'Checking account', identityLabel: 'Checking Clerk account',
+      planLabel: 'Checking access', authorityLabel: 'Checking authority',
+    });
+    expect(buildAccountProfileSnapshot({ ...guest, entitlementUnavailable: true })).toMatchObject({
+      accountLabel: 'Account unavailable', identityLabel: 'Identity verification unavailable',
+      planLabel: 'Access unavailable', authorityLabel: 'Authority unavailable',
+    });
+    const groups = buildAccountProfileUtilityGroups({ ...guest, entitlementUnavailable: true });
+    expect(groups[0].items.every((item) => item.tone === 'danger')).toBe(true);
+    expect(groups[0].items.map((item) => item.value)).toEqual(['Account unavailable', 'Account unavailable']);
+  });
+
+  it('only presents Guest and Free after a successful signed-out result', () => {
+    expect(buildAccountProfileSnapshot(guest)).toMatchObject({
+      accountLabel: 'Guest creator', identityLabel: 'Guest workspace', planLabel: 'Free', authorityLabel: 'Guest',
+    });
+    expect(buildAccountProfileSnapshot({ ...guest, authConfigured: false })).toMatchObject({
+      accountLabel: 'Setup required', identityLabel: 'Authentication setup required',
+      planLabel: 'Setup required', authorityLabel: 'Setup required',
+    });
+  });
+
+  it.each([
+    { entitlementLoading: true, entitlementUnavailable: false, value: 'Checking authority', status: 'Verifying account access' },
+    { entitlementLoading: false, entitlementUnavailable: true, value: 'Authority unavailable', status: 'Verification unavailable' },
+  ])('keeps protected tools reachable while honestly showing $value', ({ value, status, ...state }) => {
+    const groups = buildAccountProfileUtilityGroups({
+      ...guest, ...state, isSignedIn: true, isOwner: true, isContributor: true,
+      accountEmail: 'owner@example.com', planLabel: 'Owner access',
+    });
+    const protectedItems = groups.find((group) => group.id === 'protected-access')!.items;
+    expect(protectedItems.map((item) => item.target)).toEqual(['contributor', 'owner']);
+    for (const item of protectedItems) {
+      expect(item).toMatchObject({ value, status });
+      expect(item.tone).not.toBe('success');
+      expect(item.meta.map(([key]) => key)).toContain('Last verified authority');
+    }
+  });
+
+  it.each([
+    { isOwner: false, isContributor: false, planLabel: 'Free', authorityLabel: 'Creator' },
+    { isOwner: false, isContributor: true, planLabel: 'Contributor access', authorityLabel: 'Contributor' },
+    { isOwner: true, isContributor: true, planLabel: 'Owner access', authorityLabel: 'Owner' },
+  ])('preserves verified $authorityLabel identity and access', ({ authorityLabel, ...access }) => {
+    const signedIn = { ...guest, ...access, isSignedIn: true, accountEmail: 'maker@example.com' };
+    expect(buildAccountProfileSnapshot(signedIn)).toMatchObject({
+      accountLabel: 'maker@example.com', identityLabel: 'Clerk identity connected',
+      planLabel: access.planLabel, authorityLabel,
+    });
+    expect(buildAccountProfileSnapshot({ ...signedIn, entitlementLoading: true })).toMatchObject({
+      accountLabel: 'maker@example.com', planLabel: 'Checking access', authorityLabel: 'Checking authority',
+    });
+    expect(buildAccountProfileSnapshot({ ...signedIn, entitlementUnavailable: true })).toMatchObject({
+      accountLabel: 'maker@example.com', planLabel: 'Access unavailable', authorityLabel: 'Authority unavailable',
+    });
+  });
+
   it('keeps identity, security, billing, storage, and protected entries in compact groups', () => {
     const groups = buildAccountProfileUtilityGroups({
       accountEmail: 'owner@example.com',

@@ -17,12 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - name: Install health-check dependencies
-        run: node scripts/run-ci-check.mjs --title "Health dependency install" -- npm ci --ignore-scripts
+        # Full CI retains npm audit; scheduled health measures the deployed product/providers.
+        run: node scripts/run-ci-check.mjs --title "Health dependency install" -- npm ci --workspace @cardforge/hosted-verification --include-workspace-root=false --ignore-scripts --no-audit --no-fund
       - name: Run production health
         run: node scripts/run-ci-check.mjs --title "Production health" -- npm run health:production

@@ -1,3 +1,5 @@
+import { parse } from 'parse5';
+
 const requireText = (value, label) => {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new Error(`${label} is empty`);
@@ -5,8 +7,43 @@ const requireText = (value, label) => {
   return value;
 };
 
+const nonContentTags = new Set(['script', 'style', 'template', 'noscript']);
+const textBreakTags = new Set(['address', 'article', 'aside', 'blockquote', 'br', 'dd', 'div', 'dl', 'dt', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'td', 'th', 'tr', 'ul']);
+const isNonContent = (node) => nonContentTags.has(node.tagName)
+  || node.attrs?.some(({ name, value }) => name === 'hidden' || (name === 'aria-hidden' && value.toLowerCase() === 'true'));
+
+const findElements = (node, tagName) => {
+  if (isNonContent(node)) return [];
+  return [
+    ...(node.tagName === tagName ? [node] : []),
+    ...(node.childNodes ?? []).flatMap((child) => findElements(child, tagName)),
+  ];
+};
+
+const requireElement = (root, tagName, label) => {
+  const elements = findElements(root, tagName);
+  if (elements.length !== 1) throw new Error(`${label} requires exactly one ${tagName} element.`);
+  return elements[0];
+};
+
+const textContent = (node) => {
+  if (isNonContent(node)) return '';
+  if (node.nodeName === '#text') return node.value;
+  const text = (node.childNodes ?? []).map(textContent).join('');
+  return textBreakTags.has(node.tagName) ? ` ${text} ` : text;
+};
+const normalizedText = (node) => textContent(node).replace(/\s+/gu, ' ').trim();
+
+// Check the authored semantic surface, not shell announcements, attributes or RSC payloads.
+// HTML parsing also decodes entities and preserves words split across inline formatting.
+const readPublicSurface = (html, label, legal = false) => {
+  const main = requireElement(parse(requireText(html, label)), 'main', label);
+  const surface = legal ? requireElement(main, 'article', label) : main;
+  return { surface, text: requireText(normalizedText(surface), label) };
+};
+
 export const assertContributorPublicTruth = (html) => {
-  const body = requireText(html, 'Contributor page');
+  const { text: body } = readPublicSurface(html, 'Contributor page');
   if (/propose clearer public-site text/iu.test(body)) {
     throw new Error('Contributor page still advertises retired public-site copy proposals');
   }
@@ -16,7 +53,7 @@ export const assertContributorPublicTruth = (html) => {
 };
 
 export const assertPrivacyPublicTruth = (html) => {
-  const body = requireText(html, 'Privacy publication');
+  const { text: body } = readPublicSurface(html, 'Privacy publication', true);
   const retiredClaims = [
     /developer profile/iu,
     /developer submission/iu,
@@ -34,11 +71,12 @@ export const assertPrivacyPublicTruth = (html) => {
 };
 
 export const assertContributorTermsPublicTruth = (html) => {
-  const body = requireText(html, 'Contributor Terms publication');
+  const { surface, text: body } = readPublicSurface(html, 'Contributor Terms publication', true);
   if (/Developer Contributor Terms/iu.test(body) || /\bDevelopers?\b/iu.test(body) || /developer (?:contribution|path|votes?)/iu.test(body)) {
     throw new Error('Contributor Terms contain retired Developer-program language');
   }
-  if (!/Contributor Terms/iu.test(body) || !/review Pipeline/iu.test(body)) {
+  const title = normalizedText(requireElement(surface, 'h1', 'Contributor Terms publication'));
+  if (title !== 'Contributor Terms' || !/review Pipeline/iu.test(body)) {
     throw new Error('Contributor Terms are missing the current title or Pipeline language');
   }
 };

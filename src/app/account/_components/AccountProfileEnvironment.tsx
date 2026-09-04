@@ -30,6 +30,7 @@ import {
   AccountPlanBillingUtility,
   AccountProfileSnapshot,
   ProfileManagementPage,
+  buildAccountProfileSnapshot,
   buildAccountProfileUtilityGroups,
   createAccountProfileOperations,
   type AccountProfileUtility,
@@ -133,6 +134,13 @@ export function AccountProfileEnvironment({
     canExportClean: entitlement.canExportClean,
   });
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: isContributor, owner: isOwner };
+  const snapshot = buildAccountProfileSnapshot({
+    accountEmail,
+    authConfigured: entitlement.authConfigured,
+    entitlementLoading: entitlement.isLoadingEntitlement,
+    entitlementUnavailable,
+    isContributor, isOwner, isSignedIn, planLabel,
+  });
   const availableZones = getVisibleEnvironmentZones(viewer);
   const zones = availableZones.some((zone) => zone.id === 'profile')
     ? availableZones
@@ -219,12 +227,12 @@ export function AccountProfileEnvironment({
       statusContent={(
         <>
           <EnvironmentStatus
-            label={!entitlement.authConfigured ? 'Authentication setup required' : entitlement.isLoadingEntitlement ? 'Checking Clerk account' : isSignedIn ? 'Clerk identity connected' : 'Sign in required'}
-            tone={isSignedIn ? 'success' : entitlement.isLoadingEntitlement ? 'neutral' : 'warning'}
+            label={snapshot.identityLabel}
+            tone={snapshot.identityTone}
           />
           <EnvironmentStatus
-            label={!entitlement.authConfigured ? 'Authentication setup required' : entitlementUnavailable ? 'Account access unavailable' : entitlement.isLoadingEntitlement ? 'Checking account access' : planLabel}
-            tone={!entitlement.authConfigured ? 'warning' : entitlementUnavailable ? 'danger' : entitlement.isLoadingEntitlement ? 'warning' : 'neutral'}
+            label={snapshot.planLabel}
+            tone={snapshot.accessTone}
           />
         </>
       )}
@@ -240,11 +248,11 @@ export function AccountProfileEnvironment({
           body="Identity, security, access, and account utilities stay compact around you. Provider-sensitive controls remain with the provider that owns them."
         />
         <AccountProfileSnapshot
-          accountLabel={isSignedIn ? accountEmail : 'Guest creator'}
-          identityLabel={isSignedIn ? 'Clerk identity connected' : 'Guest workspace'}
-          planLabel={planLabel}
+          accountLabel={snapshot.accountLabel}
+          identityLabel={snapshot.identityLabel}
+          planLabel={snapshot.planLabel}
           workspaceLabel="Local-first browser workspace"
-          authorityLabel={isOwner ? 'Owner' : isContributor ? 'Contributor' : isSignedIn ? 'Creator' : 'Guest'}
+          authorityLabel={snapshot.authorityLabel}
         />
         {entitlementUnavailable ? (
           <EnvironmentBoundaryNotice
