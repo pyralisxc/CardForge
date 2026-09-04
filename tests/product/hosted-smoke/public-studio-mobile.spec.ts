@@ -18,6 +18,43 @@ const dismissAnalyticsIfOffered = async (page: Page) => {
 };
 
 test.describe('hosted release smoke', () => {
+  test('keeps Profile loading and unavailable access distinct from a verified guest', async ({ page }) => {
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((resolve) => { releaseRequest = resolve; });
+    let unavailable = false;
+    await page.route('**/api/account/entitlement', async (route) => {
+      await requestGate;
+      if (unavailable) await route.abort('failed');
+      else await route.continue();
+    });
+    try {
+      await page.goto('/account?section=profile', { waitUntil: 'domcontentloaded' });
+      const snapshot = page.getByTestId('profile-snapshot');
+      await expect(snapshot).toContainText('Checking account');
+      await expect(snapshot).toContainText('Checking access');
+      await expect(snapshot).not.toContainText('Guest');
+      await expect(snapshot).not.toContainText('Free');
+
+      releaseRequest();
+      await expect(snapshot).toContainText('Guest creator');
+      await expect(snapshot.getByText('Free', { exact: true })).toBeVisible();
+
+      unavailable = true;
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(snapshot).toContainText('Account unavailable');
+      await expect(snapshot).toContainText('Access unavailable');
+      await expect(snapshot).not.toContainText('Guest');
+      await expect(snapshot).not.toContainText('Free');
+
+      unavailable = false;
+      await page.getByRole('button', { name: 'Retry', exact: true }).click();
+      await expect(snapshot).toContainText('Guest creator');
+      await expect(snapshot.getByText('Free', { exact: true })).toBeVisible();
+    } finally {
+      releaseRequest();
+    }
+  });
+
   test('opens the public entry point and a guest Studio tool', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await dismissAnalyticsIfOffered(page);

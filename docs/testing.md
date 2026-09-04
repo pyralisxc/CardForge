@@ -13,6 +13,8 @@ Use `npm run verify:focused` to discover and run tests affected by the current d
 
 The merge-protected `npm run smoke:golden` browser lane covers only fast, representative Desk mouse/touch behavior and is routed by the same affected-verification owner map used by agents. `npm run smoke:hosted` is smaller still: it checks the deployed public-to-Desk path, guest Studio opening, and compact-screen navigation without replaying the golden, scale, or soak suites. The extended `npm run smoke:ui` lane covers exact focus restoration, 100/500/1,000 Artifact scale, reduced-motion continuity, lifecycle cleanup, recovery/conflict, and broader compact-screen behavior; scale and soak remain selective rather than blocking every merge. `npm run health:production` is a separate non-mutating operational lane with independently runnable route, product, and provider categories; it is not a substitute for signed-in provider acceptance.
 
+The hosted lane also checks Profile's loading → verified guest and unavailable → retry transitions by delaying or rejecting the entitlement request, then allowing the real signed-out response. It does not fabricate a signed-in provider session or replace signed-in acceptance.
+
 ## Prefer behavior and public contracts
 
 Tests should normally exercise exported functions, stores, parsers, policies, API contracts, persistence behavior, security behavior, or rendered outcomes. A refactor that preserves the same observable behavior should usually keep the same tests green.

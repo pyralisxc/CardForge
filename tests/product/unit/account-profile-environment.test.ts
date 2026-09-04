@@ -34,6 +34,23 @@ describe('account profile environment', () => {
   });
 
   it.each([
+    { entitlementLoading: true, entitlementUnavailable: false, value: 'Checking authority', status: 'Verifying account access' },
+    { entitlementLoading: false, entitlementUnavailable: true, value: 'Authority unavailable', status: 'Verification unavailable' },
+  ])('keeps protected tools reachable while honestly showing $value', ({ value, status, ...state }) => {
+    const groups = buildAccountProfileUtilityGroups({
+      ...guest, ...state, isSignedIn: true, isOwner: true, isContributor: true,
+      accountEmail: 'owner@example.com', planLabel: 'Owner access',
+    });
+    const protectedItems = groups.find((group) => group.id === 'protected-access')!.items;
+    expect(protectedItems.map((item) => item.target)).toEqual(['contributor', 'owner']);
+    for (const item of protectedItems) {
+      expect(item).toMatchObject({ value, status });
+      expect(item.tone).not.toBe('success');
+      expect(item.meta.map(([key]) => key)).toContain('Last verified authority');
+    }
+  });
+
+  it.each([
     { isOwner: false, isContributor: false, planLabel: 'Free', authorityLabel: 'Creator' },
     { isOwner: false, isContributor: true, planLabel: 'Contributor access', authorityLabel: 'Contributor' },
     { isOwner: true, isContributor: true, planLabel: 'Owner access', authorityLabel: 'Owner' },

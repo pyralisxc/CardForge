@@ -23,6 +23,7 @@ jobs:
           node-version: 24
           cache: npm
       - name: Install health-check dependencies
-        run: node scripts/run-ci-check.mjs --title "Health dependency install" -- npm ci --ignore-scripts
+        # Full CI retains npm audit; scheduled health measures the deployed product/providers.
+        run: node scripts/run-ci-check.mjs --title "Health dependency install" -- npm ci --workspace @cardforge/hosted-verification --include-workspace-root=false --ignore-scripts --no-audit --no-fund
       - name: Run production health
         run: node scripts/run-ci-check.mjs --title "Production health" -- npm run health:production

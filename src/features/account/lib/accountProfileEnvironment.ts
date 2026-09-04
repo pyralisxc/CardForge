@@ -171,6 +171,7 @@ export function buildAccountProfileUtilityGroups({
   }];
 
   const protectedItems: AccountProfileUtility[] = [];
+  const authorityVerified = authConfigured && !entitlementLoading && !entitlementUnavailable;
   if (isContributor || isOwner) {
     protectedItems.push({
       id: 'profile-contributor-access',
@@ -178,12 +179,12 @@ export function buildAccountProfileUtilityGroups({
       eyebrow: 'Contributor access',
       title: 'Contributor profile',
       summary: 'Granted scopes, personal progress, and shared-work access',
-      value: isOwner ? 'Owner-grade access' : 'Contributor access',
-      status: 'Access granted',
-      tone: 'success',
+      value: authorityVerified ? isOwner ? 'Owner-grade access' : 'Contributor access' : snapshot.authorityLabel,
+      status: authorityVerified ? 'Access granted' : accessStatus,
+      tone: authorityVerified ? 'success' : accessTone,
       target: 'contributor',
       meta: [
-        ['Authority', isOwner ? 'Owner and contributor' : 'Contributor'],
+        [authorityVerified ? 'Authority' : 'Last verified authority', isOwner ? 'Owner and contributor' : 'Contributor'],
         ['Shared work', 'Desk and Library'],
         ['Publication', 'Owner-governed'],
         ['Management', 'Open contributor profile'],
@@ -197,12 +198,12 @@ export function buildAccountProfileUtilityGroups({
       eyebrow: 'Owner access',
       title: 'Owner operations',
       summary: 'Protected CardForge controls, governed records, and provider readiness',
-      value: 'Owner access',
-      status: 'Access granted',
-      tone: 'success',
+      value: authorityVerified ? 'Owner access' : snapshot.authorityLabel,
+      status: authorityVerified ? 'Access granted' : accessStatus,
+      tone: authorityVerified ? 'success' : accessTone,
       target: 'owner',
       meta: [
-        ['Authority', 'Owner'],
+        [authorityVerified ? 'Authority' : 'Last verified authority', 'Owner'],
         ['Surface', 'Profile'],
         ['Operations', 'Protected CardForge controls'],
         ['Management', 'Open protected operations'],

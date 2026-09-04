@@ -60,6 +60,9 @@ describe('agent verification routing', () => {
   it('owns the non-browser gate once and keeps the compact browser lane independently merge-protected', async () => {
     const packageJson = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
+      workspaces: string[];
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
     };
     const ci = await readFile(path.join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
     const deploymentSmoke = await readFile(path.join(process.cwd(), '.github/workflows/deployment-smoke.yml'), 'utf8');
@@ -100,6 +103,15 @@ describe('agent verification routing', () => {
     expect(deploymentSmoke).toContain('npm run smoke:hosted');
     expect(deploymentSmoke).toContain('--category=route');
     expect(productionHealth).toContain('cron: "7 */6 * * *"');
-    expect(productionHealth).toContain('npm ci --ignore-scripts');
+    expect(packageJson.workspaces).toContain('scripts/hosted-verification');
+    const hostedPackage = JSON.parse(await readFile(path.join(process.cwd(), 'scripts/hosted-verification/package.json'), 'utf8'));
+    expect(hostedPackage.private).toBe(true);
+    expect(hostedPackage.dependencies).toEqual({
+      '@playwright/test': packageJson.devDependencies['@playwright/test'],
+      jszip: packageJson.dependencies.jszip,
+    });
+    for (const workflow of [deploymentSmoke, productionHealth]) {
+      expect(workflow).toContain('npm ci --workspace @cardforge/hosted-verification --include-workspace-root=false --ignore-scripts');
+    }
   });
 });
