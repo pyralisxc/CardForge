@@ -15,6 +15,8 @@ The merge-protected `npm run smoke:golden` browser lane covers only fast, repres
 
 The hosted lane also checks Profile's loading → verified guest and unavailable → retry transitions by delaying or rejecting the entitlement request, then allowing the real signed-out response. It does not fabricate a signed-in provider session or replace signed-in acceptance.
 
+Production-health copy checks parse the returned HTML and inspect the relevant semantic surface: main content for Contributors, and the unique legal article inside main for legal publications. Shell announcements, attributes, serialized framework payloads, and explicitly hidden content do not establish publication truth. Missing or ambiguous content fails the check; entities and inline formatting are decoded before evaluating the same required/retired claims. These checks do not certify computed CSS visibility or replace browser acceptance.
+
 ## Prefer behavior and public contracts
 
 Tests should normally exercise exported functions, stores, parsers, policies, API contracts, persistence behavior, security behavior, or rendered outcomes. A refactor that preserves the same observable behavior should usually keep the same tests green.

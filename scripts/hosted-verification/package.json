@@ -5,6 +5,7 @@
   "description": "Dependencies for checking a deployed CardForge app, without installing the app itself.",
   "dependencies": {
     "@playwright/test": "^1.62.1",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "parse5": "8.0.1"
   }
 }

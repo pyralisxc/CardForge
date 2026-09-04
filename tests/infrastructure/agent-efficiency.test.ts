@@ -109,6 +109,7 @@ describe('agent verification routing', () => {
     expect(hostedPackage.dependencies).toEqual({
       '@playwright/test': packageJson.devDependencies['@playwright/test'],
       jszip: packageJson.dependencies.jszip,
+      parse5: packageJson.devDependencies.parse5,
     });
     for (const workflow of [deploymentSmoke, productionHealth]) {
       expect(workflow).toContain('npm ci --workspace @cardforge/hosted-verification --include-workspace-root=false --ignore-scripts');
