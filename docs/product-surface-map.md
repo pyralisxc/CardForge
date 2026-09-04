@@ -1,6 +1,9 @@
+Warning: truncated output (original token count: 6704)
+Total output lines: 402
+
 # CardForge Product Surface Map
 
-Last updated: September 1, 2026
+Last updated: September 3, 2026
 
 This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
 
@@ -53,12 +56,12 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 
 ## Desk
 
-### Shipped foundation
+### Shipped
 
 - Desk uses the shared Environment shell through the dedicated `desk` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
 - Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
-- Focusing local work exclusively reveals its contained cards with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact then leaves only a camera-fitted Artifact field; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
+- Focusing local work expands its contained cards inside the same persistent Desk scene, with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact moves it to a camera-fitted foreground while its Set field remains mounted as dimmed spatial context; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
 - Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
 
@@ -66,13 +69,13 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 
 Desk is the user's real higher-level spatial account home, not merely a router/dashboard.
 
-Required behavior:
+Persistent-scene invariants:
 
 - show meaningful work containers as visual authored objects;
 - do not manufacture an `Untitled Set` or assign a starting Template before the user creates or imports work;
 - allow constrained spatial grouping/stacks/saved views rather than a filesystem folder metaphor;
 - preserve selection/position/context;
-- opening a Set reveals its contained objects and pulling back restores the prior arrangement; opening one Artifact hides its siblings and Set controls until the user returns to the Set;
+- opening a Set expands its contained objects and pulling back restores the prior arrangement; opening one Artifact keeps the Set field visibly present at reduced emphasis until the user returns to the Set;
 - expose object-scoped Open, Edit/Test, Rename, Duplicate, Delete/remove, Save/Move, Generate, Export/share where supported;
 - show compact Pipeline/contribution state on Contributor-owned objects;
 - expose Send to Pipeline / Submit Revision / review actions only when valid;
@@ -110,134 +113,7 @@ Rules:
 - Pipeline default view is one item per lineage, not every revision as a top-level tile;
 - show current published revision when present, otherwise current/strongest active candidate;
 - revisions expand from inspector;
-- support Gallery, Compact List, and Expanded/Detail review densities;
-- preserve current Forge Review filters and add saved views such as Needs my vote, My votes, New revisions, Near threshold, Changed since my vote, Published, Archived/recovery, family, Specialty, contributor, tier, status;
-- hearts available wherever Pipeline objects display and quick exact-revision voting available to Contributors;
-- testing an exact revision opens the contextual Design tool and returning restores Library scope/filter/position;
-- source/rights/classification/decision detail stays available.
-
-### Location tools
-
-Library remains the owner of location management presentation:
-
-- browser workspace health;
-- portable project/Set packages;
-- local-folder attach/save/open/reconnect/disconnect;
-- Google Drive connect/folder/list/open/save-new/revision-safe update/delete/disconnect;
-- default save-location preference plus verified Copy/Move between supported locations; Move never removes the source before the destination is readable;
-- connected personal asset references;
-- temporary AI workspace lifecycle.
-
-CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
-
-## Contextual creator tools — Design, Generate, Output, Pipeline
-
-### Shipped creation foundation
-
-- Template Studio canvas/layers/inspector/history/front/back workflows;
-- text/rich text/images/icons/shapes/dividers/frames/semantic bindings;
-- Template library create/clone/revise/import/export;
-- single-card generation;
-- bulk CSV/import mapping/validation;
-- Set create/select/rename/import/export and front/back relationships;
-- generated card gallery/edit/duplicate/remove;
-- canonical preview/rendering;
-- individual downloads/share;
-- PNG ZIP, print PDF, quality/DPI, cut lines, duplex layout, TTS spritesheets;
-- entitlement/watermark policy;
-- portable project files;
-- Google Drive/local-folder project save/open;
-- temporary AI Studio-document handoff;
-- command palette/mobile editor controls.
-
-### Shipped contextual-tool consolidation
-
-- Desk and Library retain the active Set/object context while Design, Generate, Output, Pipeline, and location controls layer over the current environment;
-- Design exclusively owns the full viewport while active, exposes one close path, and does not retain page-level navigation or account chrome inside the tool;
-- Design Fit centers the complete Template canvas without document scrolling; wheel/button/pinch zoom may then create scroll only inside the canvas viewport;
-- Design and Generate remain the two focused authoring modes and preserve the active Set when switching;
-- Generate progressively separates Template/back setup from card-data entry and validation, then returns the new card selection to its originating Desk context;
-- Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
-- one tool-host contract owns focus restoration, Back/Escape/close unwind, crash isolation, and dirty-close rejection;
-- legacy tab navigation, tab IDs, Set Library component, duplicate Studio Set Desk, and duplicate inline output surface are removed;
-- `/studio` is a lightweight compatibility translator into Desk Design; exact document/revision handoffs install through the same contextual creator runtime rather than booting a second application;
-- persisted legacy `desk`/`sets` destinations normalize without preserving a retired runtime surface.
-
-### Current placement
-
-Templates / Make Cards / Sets have been retired as competing top-level Studio destinations after preserving their native capability owners.
-
-The creator tool runtime opens for one active object/tool context:
-
-- the selected Set/object/revision and requested action determine the initial tool;
-- Template editing focuses the selected Template/master;
-- Generate is a contextual tool and returns outputs to the Desk;
-- advanced Output is contextual and already knows object/group/Set scope;
-- Save names the current durable destination;
-- Library/source selection opens around the work;
-- returning to Desk or Library restores the originating selection, filters, arrangement, inspector, and scroll context;
-- Set switching and spatial organization stay on Desk;
-- full editing power follows the focused object rather than turning every Desk object into a live editor.
-
-### Save / contribution commitment language
-
-- **Save · [destination]** — persist to current durable owner.
-- **Save As / Move** — choose another durable location.
-- **Send to Pipeline** — create a new reviewable contribution.
-- **Submit Revision** — create a new reviewable revision on an existing shared lineage.
-- **Publish Live** — Owner/policy boundary that changes stable Published Library truth.
-
-Never conflate these actions.
-
-### Contributor enhancements in Studio
-
-- Pipeline candidates/unpublished revisions visible in source picker;
-- published vs candidate/archived state explicit;
-- one primary revision shown per lineage by default;
-- inspector Revisions expansion;
-- exact `Use this revision` pinning;
-- contextual positive/negative vote on exact revision;
-- compare revision/history/source/review notes;
-- Send to Pipeline / Submit Revision from selected eligible objects;
-- controlled rights/source/classification collection;
-- candidate testing never silently publishes or updates a Project.
-
-### New domain work required
-
-- real Set/Project duplicate/delete actions;
-- generalized Pipeline lineage for media/fonts/etc. beyond the strong Template revision model;
-- exact candidate dependency pinning/materialization for durable Projects;
-- shared source-capability projection;
-- contributor Withdraw/Retire lifecycle distinct from Owner permanent purge.
-
-## Profile — person and personal continuity
-
-### Shipped
-
-- Clerk identity/security/session management;
-- access/plan presentation;
-- Stripe checkout/Billing Portal handoff;
-- temporary AI usage/allowance presentation;
-- compact protected-access entry;
-- Environment shell/focused utilities.
-- current account/access/workspace/authority snapshot before utility navigation;
-- current assisted-work allowance and Contributor progress summaries when authorized, with explanations and controls in their focused utilities.
-
-### Direction
-
-Profile remains person-centered and quiet:
-
-- actual display name/avatar rather than email-derived identity when available;
-- personal Studio defaults/preferences only when ownership is truly personal;
-- provider connection summary, with detailed management opening in Library;
-- temporary AI capacity/retention status;
-- Contributor access/scopes/meaningful personal limits when authorized;
-- account/data lifecycle paths through the service that owns each datum.
-- current personal statistics stay visible in the overview; settings, policy explanation, and provider-owned management stay in focused utilities.
-
-Do not put work inventory or Pipeline queue here.
-
-## Contributor capability placement
+- support Gallery, Compact L…1704 tokens truncated…ity placement
 
 | Capability | Desk | Library | Studio | Profile |
 | --- | --- | --- | --- | --- |
@@ -248,7 +124,7 @@ Do not put work inventory or Pipeline queue here.
 | Submit revision | Quick entry on linked owned object | Selected lineage action | **Native selected-object action** | No |
 | Compare revisions | Inspector | **Inspector/detail** | **Inspector/detail** | No |
 | Contributor scopes/limits | Attention only when meaningful | No | Permission resolves actions | **Personal configuration/status** |
-| Campaign packages | Active visual shelf for authorized work | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Later contextual editing where useful | Scope/status only |
+| Campaign packages | Active visual shelf for authorized work | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Contextual editing where useful | Scope/status only |
 | Site proposals | Retired | Retired | Retired | Historical records only; no active Contributor scope or mutation surface |
 
 ## Pipeline and revision policy
