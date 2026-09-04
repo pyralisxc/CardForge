@@ -60,11 +60,22 @@ describe('agent verification routing', () => {
   it('owns the non-browser gate once and keeps the compact browser lane independently merge-protected', async () => {
     const packageJson = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
+      workspaces: string[];
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
     };
     const ci = await readFile(path.join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
     const deploymentSmoke = await readFile(path.join(process.cwd(), '.github/workflows/deployment-smoke.yml'), 'utf8');
     const productionHealth = await readFile(path.join(process.cwd(), '.github/workflows/production-health.yml'), 'utf8');
     const scripts = packageJson.scripts;
+
+    for (const workflow of [ci, deploymentSmoke, productionHealth]) {
+      const runtimes = [...workflow.matchAll(/node-version: (\d+)/g)].map((match) => match[1]);
+      expect(runtimes.length).toBeGreaterThan(0);
+      expect(new Set(runtimes)).toEqual(new Set(['24']));
+      expect(workflow).not.toMatch(/actions\/(?:checkout|setup-node)@v4/);
+    }
+    expect(deploymentSmoke.split('  production-smoke:')[1]).toContain('package-manager-cache: false');
 
     expect(scripts['test:infrastructure']).toBe('vitest run --config vitest.infrastructure.config.ts');
     expect(scripts['verify:focused']).toBe('node scripts/report-affected-verification.mjs --run');
@@ -92,6 +103,16 @@ describe('agent verification routing', () => {
     expect(deploymentSmoke).toContain('npm run smoke:hosted');
     expect(deploymentSmoke).toContain('--category=route');
     expect(productionHealth).toContain('cron: "7 */6 * * *"');
-    expect(productionHealth).toContain('npm ci --ignore-scripts');
+    expect(packageJson.workspaces).toContain('scripts/hosted-verification');
+    const hostedPackage = JSON.parse(await readFile(path.join(process.cwd(), 'scripts/hosted-verification/package.json'), 'utf8'));
+    expect(hostedPackage.private).toBe(true);
+    expect(hostedPackage.dependencies).toEqual({
+      '@playwright/test': packageJson.devDependencies['@playwright/test'],
+      jszip: packageJson.dependencies.jszip,
+      parse5: packageJson.devDependencies.parse5,
+    });
+    for (const workflow of [deploymentSmoke, productionHealth]) {
+      expect(workflow).toContain('npm ci --workspace @cardforge/hosted-verification --include-workspace-root=false --ignore-scripts');
+    }
   });
 });

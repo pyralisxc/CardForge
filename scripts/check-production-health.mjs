@@ -1,10 +1,3 @@
-import {
-  assertContributorPublicTruth,
-  assertContributorTermsPublicTruth,
-  assertPrivacyPublicTruth,
-  assertRepresentativeCatalogRouting,
-} from './lib/production-health-contract.mjs';
-
 const rawOrigin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.com').replace(/\/+$/, '');
 const origin = /^https?:\/\//u.test(rawOrigin) ? rawOrigin : `https://${rawOrigin}`;
 const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
@@ -15,6 +8,13 @@ if (!allowedCategories.has(requestedCategory)) throw new Error('Use --category=r
 const failures = [];
 const passes = [];
 const runCategory = (category) => requestedCategory === 'all' || requestedCategory === category;
+// Route/provider smoke uses only native fetch; HTML and archive tooling belongs to product health.
+const {
+  assertContributorPublicTruth,
+  assertContributorTermsPublicTruth,
+  assertPrivacyPublicTruth,
+  assertRepresentativeCatalogRouting,
+} = runCategory('product') ? await import('./lib/production-health-contract.mjs') : {};
 const check = async (category, label, operation) => {
   if (!runCategory(category)) return;
   try {

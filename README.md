@@ -27,7 +27,7 @@ PRs, commits, old migrations, and provider history are historical evidence, not 
 
 ## Quick start
 
-Requirements: Node.js 22+ and npm.
+Requirements: Node.js 22.17+ and npm. Use Node.js 24 for parity with CI and Vercel.
 
 ```bash
 npm install
@@ -58,6 +58,8 @@ npm run brand:export
 ```
 
 `smoke:golden` is the conditionally routed Playwright merge lane for representative Desk mouse/touch behavior. `smoke:hosted` is the smaller deployed-site lane for the public entry point, guest Studio opening, and compact-screen navigation. `smoke:ui` adds generated 100/500/1,000-Artifact fixtures, culling and interaction-latency evidence, a repeated Desk/Design cleanup soak, and lazy contextual-bundle observation. `smoke:scale` runs only that generated scale lane. Chromium heap/long-task readings are practical guardrails rather than cross-browser memory certification; browser-loaded chunk markers plus the source-owned `next/dynamic` boundaries prove that Design, Output, Pipeline, and Owner implementations are absent from the initial Desk script set.
+
+Hosted smoke and scheduled production health install only the private `scripts/hosted-verification` npm workspace (Playwright, HTML parsing, and ZIP validation), using the root lockfile. They check an already-deployed app and do not need application/build dependencies or a repeated npm advisory request. Local development, CI's full gate, and golden browser tests retain the full install and npm's advisory reporting. Keep the workspace's dependency ranges aligned with the root package; infrastructure tests enforce this.
 
 ## Source map
 

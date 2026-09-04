@@ -31,6 +31,35 @@ interface BuildAccountProfileUtilitiesInput {
   planLabel: string;
 }
 
+export function buildAccountProfileSnapshot({
+  accountEmail, authConfigured, entitlementLoading, entitlementUnavailable,
+  isContributor, isOwner, isSignedIn, planLabel,
+}: BuildAccountProfileUtilitiesInput) {
+  const unresolvedIdentity = !isSignedIn && (entitlementLoading || entitlementUnavailable);
+  const accountLabel = !authConfigured ? 'Setup required'
+    : isSignedIn ? accountEmail
+      : entitlementUnavailable ? 'Account unavailable'
+        : entitlementLoading ? 'Checking account' : 'Guest creator';
+  const identityLabel = !authConfigured ? 'Authentication setup required'
+    : isSignedIn ? 'Clerk identity connected'
+      : entitlementUnavailable ? 'Identity verification unavailable'
+        : entitlementLoading ? 'Checking Clerk account' : 'Guest workspace';
+  const identityTone: AccountProfileUtilityTone = !authConfigured ? 'warning'
+    : isSignedIn ? 'success'
+      : entitlementUnavailable ? 'danger' : entitlementLoading ? 'neutral' : 'warning';
+  const accessLabel = !authConfigured ? 'Setup required'
+    : entitlementUnavailable ? 'Access unavailable'
+      : entitlementLoading ? 'Checking access' : planLabel;
+  const accessTone: AccountProfileUtilityTone = !authConfigured ? 'warning'
+    : entitlementUnavailable ? 'danger' : 'neutral';
+  const authorityLabel = !authConfigured ? 'Setup required'
+    : entitlementUnavailable ? 'Authority unavailable'
+      : entitlementLoading ? 'Checking authority'
+        : isOwner ? 'Owner' : isContributor ? 'Contributor' : isSignedIn ? 'Creator' : 'Guest';
+
+  return { accountLabel, identityLabel, identityTone, planLabel: accessLabel, accessTone, authorityLabel, unresolvedIdentity };
+}
+
 export function buildAccountProfileUtilityGroups({
   accountEmail,
   authConfigured,
@@ -41,28 +70,15 @@ export function buildAccountProfileUtilityGroups({
   isSignedIn,
   planLabel,
 }: BuildAccountProfileUtilitiesInput): readonly AccountProfileUtilityGroup[] {
-  const identityValue = !authConfigured
-    ? 'Setup required'
-    : entitlementLoading && !isSignedIn
-      ? 'Checking account'
-    : isSignedIn
-      ? accountEmail
-      : 'Sign in required';
-  const identityStatus = !authConfigured
-    ? 'Authentication unavailable'
-    : entitlementLoading && !isSignedIn
-      ? 'Checking Clerk account'
-    : isSignedIn
-      ? 'Clerk account connected'
-      : 'Authentication required';
-  const identityTone: AccountProfileUtilityTone = isSignedIn ? 'success' : entitlementLoading ? 'neutral' : 'warning';
-  const accessValue = !authConfigured
-    ? 'Setup required'
-    : entitlementUnavailable
-      ? 'Access unavailable'
-      : entitlementLoading
-        ? 'Checking access'
-        : planLabel;
+  const snapshot = buildAccountProfileSnapshot({
+    accountEmail, authConfigured, entitlementLoading, entitlementUnavailable,
+    isContributor, isOwner, isSignedIn, planLabel,
+  });
+  const confirmedGuest = authConfigured && !isSignedIn && !snapshot.unresolvedIdentity;
+  const identityValue = confirmedGuest ? 'Sign in required' : snapshot.accountLabel;
+  const identityStatus = confirmedGuest ? 'Authentication required' : snapshot.identityLabel;
+  const identityTone = snapshot.identityTone;
+  const accessValue = snapshot.planLabel;
   const accessStatus = !authConfigured
     ? 'Authentication setup required'
     : entitlementUnavailable
@@ -70,18 +86,8 @@ export function buildAccountProfileUtilityGroups({
       : entitlementLoading
         ? 'Verifying account access'
         : 'Current account access';
-  const accessTone: AccountProfileUtilityTone = entitlementUnavailable
-    ? 'danger'
-    : !authConfigured
-      ? 'warning'
-      : 'neutral';
-  const securityValue = !authConfigured
-    ? 'Setup required'
-    : entitlementLoading && !isSignedIn
-      ? 'Checking account'
-      : isSignedIn
-        ? 'Managed by Clerk'
-        : 'Sign in required';
+  const accessTone = snapshot.accessTone;
+  const securityValue = authConfigured && isSignedIn ? 'Managed by Clerk' : identityValue;
   const storageValue = !authConfigured
     ? 'Local workspace only'
     : entitlementUnavailable
@@ -165,6 +171,7 @@ export function buildAccountProfileUtilityGroups({
   }];
 
   const protectedItems: AccountProfileUtility[] = [];
+  const authorityVerified = authConfigured && !entitlementLoading && !entitlementUnavailable;
   if (isContributor || isOwner) {
     protectedItems.push({
       id: 'profile-contributor-access',
@@ -172,12 +179,12 @@ export function buildAccountProfileUtilityGroups({
       eyebrow: 'Contributor access',
       title: 'Contributor profile',
       summary: 'Granted scopes, personal progress, and shared-work access',
-      value: isOwner ? 'Owner-grade access' : 'Contributor access',
-      status: 'Access granted',
-      tone: 'success',
+      value: authorityVerified ? isOwner ? 'Owner-grade access' : 'Contributor access' : snapshot.authorityLabel,
+      status: authorityVerified ? 'Access granted' : accessStatus,
+      tone: authorityVerified ? 'success' : accessTone,
       target: 'contributor',
       meta: [
-        ['Authority', isOwner ? 'Owner and contributor' : 'Contributor'],
+        [authorityVerified ? 'Authority' : 'Last verified authority', isOwner ? 'Owner and contributor' : 'Contributor'],
         ['Shared work', 'Desk and Library'],
         ['Publication', 'Owner-governed'],
         ['Management', 'Open contributor profile'],
@@ -191,12 +198,12 @@ export function buildAccountProfileUtilityGroups({
       eyebrow: 'Owner access',
       title: 'Owner operations',
       summary: 'Protected CardForge controls, governed records, and provider readiness',
-      value: 'Owner access',
-      status: 'Access granted',
-      tone: 'success',
+      value: authorityVerified ? 'Owner access' : snapshot.authorityLabel,
+      status: authorityVerified ? 'Access granted' : accessStatus,
+      tone: authorityVerified ? 'success' : accessTone,
       target: 'owner',
       meta: [
-        ['Authority', 'Owner'],
+        [authorityVerified ? 'Authority' : 'Last verified authority', 'Owner'],
         ['Surface', 'Profile'],
         ['Operations', 'Protected CardForge controls'],
         ['Management', 'Open protected operations'],
