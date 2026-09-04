@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const root = process.cwd();
+const checkOnly = process.argv.includes('--check');
 const productRoot = join(root, 'tests', 'product');
 const infrastructureRoot = join(root, 'tests', 'infrastructure');
 
@@ -65,26 +66,29 @@ const classifyProduct = (path) => {
   return productDomains.find(([, pattern]) => pattern.test(name))?.[0] ?? 'Shared product boundaries';
 };
 
-const product = summarize(testFiles(productRoot), classifyProduct);
-const infrastructure = summarize(testFiles(infrastructureRoot), () => 'Infrastructure guardrails');
-const rows = [...product, ...infrastructure];
-const totals = rows.reduce((sum, [, row]) => ({
-  files: sum.files + row.files,
-  checks: sum.checks + row.checks,
-  lines: sum.lines + row.lines,
-}), { files: 0, checks: 0, lines: 0 });
-
-const width = Math.max(...rows.map(([name]) => name.length), 'Lane / domain'.length);
-console.log(`${'Lane / domain'.padEnd(width)}  Files  Checks  Lines`);
-console.log(`${'-'.repeat(width)}  -----  ------  -----`);
-for (const [name, row] of rows) {
-  console.log(`${name.padEnd(width)}  ${String(row.files).padStart(5)}  ${String(row.checks).padStart(6)}  ${String(row.lines).padStart(5)}`);
-}
-console.log(`${'-'.repeat(width)}  -----  ------  -----`);
-console.log(`${'Total'.padEnd(width)}  ${String(totals.files).padStart(5)}  ${String(totals.checks).padStart(6)}  ${String(totals.lines).padStart(5)}`);
-console.log('\nChecks are declared test blocks; parameterized rows may expand to more runtime tests.');
-
 const allFiles = [...testFiles(productRoot), ...testFiles(infrastructureRoot)];
+
+if (!checkOnly) {
+  const product = summarize(testFiles(productRoot), classifyProduct);
+  const infrastructure = summarize(testFiles(infrastructureRoot), () => 'Infrastructure guardrails');
+  const rows = [...product, ...infrastructure];
+  const totals = rows.reduce((sum, [, row]) => ({
+    files: sum.files + row.files,
+    checks: sum.checks + row.checks,
+    lines: sum.lines + row.lines,
+  }), { files: 0, checks: 0, lines: 0 });
+
+  const width = Math.max(...rows.map(([name]) => name.length), 'Lane / domain'.length);
+  console.log(`${'Lane / domain'.padEnd(width)}  Files  Checks  Lines`);
+  console.log(`${'-'.repeat(width)}  -----  ------  -----`);
+  for (const [name, row] of rows) {
+    console.log(`${name.padEnd(width)}  ${String(row.files).padStart(5)}  ${String(row.checks).padStart(6)}  ${String(row.lines).padStart(5)}`);
+  }
+  console.log(`${'-'.repeat(width)}  -----  ------  -----`);
+  console.log(`${'Total'.padEnd(width)}  ${String(totals.files).padStart(5)}  ${String(totals.checks).padStart(6)}  ${String(totals.lines).padStart(5)}`);
+  console.log('\nChecks are declared test blocks; parameterized rows may expand to more runtime tests.');
+}
+
 const sourceReadingFiles = allFiles
   .filter((path) => /\breadFile(?:Sync)?\s*\(/u.test(readFileSync(path, 'utf8')))
   .map((path) => relative(root, path).replaceAll('\\', '/'))
@@ -93,9 +97,11 @@ const classifications = new Map(sourceReaderContracts);
 const unclassified = sourceReadingFiles.filter((path) => !classifications.has(path));
 const staleClassifications = sourceReaderContracts.filter(([path]) => !sourceReadingFiles.includes(path));
 
-console.log(`\nSource-reading contract files (${sourceReadingFiles.length})`);
-for (const path of sourceReadingFiles) {
-  console.log(`- ${path}: ${classifications.get(path) ?? 'UNCLASSIFIED'}`);
+if (!checkOnly) {
+  console.log(`\nSource-reading contract files (${sourceReadingFiles.length})`);
+  for (const path of sourceReadingFiles) {
+    console.log(`- ${path}: ${classifications.get(path) ?? 'UNCLASSIFIED'}`);
+  }
 }
 
 if (unclassified.length > 0 || staleClassifications.length > 0) {
@@ -104,4 +110,6 @@ if (unclassified.length > 0 || staleClassifications.length > 0) {
     console.error(`Stale source-reader classifications: ${staleClassifications.map(([path]) => path).join(', ')}`);
   }
   process.exitCode = 1;
+} else if (checkOnly) {
+  console.log(`Test inventory passed (${allFiles.length} files; ${sourceReadingFiles.length} classified source readers).`);
 }
