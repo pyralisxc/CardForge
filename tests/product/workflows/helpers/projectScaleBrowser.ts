@@ -8,10 +8,14 @@ const BROWSER_DATABASE = 'cardforge-browser-storage';
 const BROWSER_STORE = 'key-value';
 const LOCAL_WORKSPACE_SCOPES = ['guest', 'local'] as const;
 
-const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0) => {
+const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToolTemplate = false, catalogToolTemplates = false) => {
   const fixture = createProjectScaleFixture(cardCount);
+  const staleTemplate = { ...fixture.userTemplates[0]!, id: 'unrelated-template', name: 'Unrelated Template' };
+  const backingTemplate = { ...fixture.userTemplates[0]!, id: 'scale-back', name: 'Scale Fixture Back', templateUsage: 'back-preset' as const };
+  const initialTemplateId = staleToolTemplate ? staleTemplate.id : fixture.userTemplates[0]?.id ?? null;
   const storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
+    ...(staleToolTemplate ? { backingTemplateId: backingTemplate.id } : {}),
     data: {
       ...card.data,
       artwork: `cardforge-browser-asset://${(index + 1).toString(16).padStart(64, '0')}`,
@@ -26,15 +30,15 @@ const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0) => {
     })),
   ];
   return {
-    userTemplates: fixture.userTemplates,
+    userTemplates: catalogToolTemplates ? [staleTemplate] : staleToolTemplate ? [...fixture.userTemplates, staleTemplate, backingTemplate] : fixture.userTemplates,
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
     cardSets,
     activeCardSet: cardSets[0] ?? null,
     studioView: 'template',
-    singleCardGeneratorSelectedTemplateId: fixture.userTemplates[0]?.id ?? null,
+    singleCardGeneratorSelectedTemplateId: initialTemplateId,
     singleCardGeneratorSelectedBackingTemplateId: null,
-    templateEditorSelectedTemplateId: fixture.userTemplates[0]?.id ?? null,
+    templateEditorSelectedTemplateId: initialTemplateId,
     ...fixture.exportSettings,
   };
 };
@@ -77,9 +81,9 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean } = {}) => {
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-  const state = workspaceStateFor(cardCount, options.additionalSets);
+  const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates);
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);

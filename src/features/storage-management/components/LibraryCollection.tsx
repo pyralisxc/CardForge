@@ -72,7 +72,6 @@ interface LibraryCollectionProps {
   personalActions: (item: AccountLibraryItem) => ActionDescriptor[];
   projection: ReturnType<typeof useAccountLibraryProjection>;
   scopeDefinition: { label: string; description: string };
-  scopeItems: LibraryViewItem[];
   searchRef: RefObject<HTMLInputElement>;
   selection: SelectionSession;
   sharedType: string;
@@ -88,7 +87,7 @@ export function LibraryCollection({
   activeFailure, activeLoading, activeScope, campaignNotice, campaignTargetId, canReview, canSubmit, cardsFor, density,
   heartMetrics, heartingId, isSignedIn, onDensityChange, onOpenContribution, onOpenDetail, onPersonalAction,
   onPublishedAction, onRefresh, onSharedTypeChange, onToggleHeart, onVote, personalActions, projection,
-  scopeDefinition, scopeItems, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
+  scopeDefinition, searchRef, selection, sharedType, sharedTypes, templateFor, unfilteredScopeItemCount, viewItems, votingId, isOwner,
 }: LibraryCollectionProps) {
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
   return <section className={styles.collection} aria-labelledby="library-collection-heading">
@@ -107,12 +106,12 @@ export function LibraryCollection({
         {canSubmit && activeScope === 'published' ? <button id="library-contribute-trigger" type="button" className={styles.contributeButton} onClick={onOpenContribution}><UploadCloud size={16} aria-hidden="true" />Submit new</button> : null}
       </div>
       {activeFailure ? <EnvironmentBoundaryNotice
-        title={`${scopeDefinition.label} is unavailable`}
+        title={unfilteredScopeItemCount ? 'Some sources are unavailable' : `${scopeDefinition.label} is unavailable`}
         message={describeLibraryBoundaryFailure(activeFailure)}
         actionLabel={activeFailure.retryable ? 'Retry' : undefined}
         onAction={activeFailure.retryable ? onRefresh : undefined}
       /> : null}
-      {activeFailure && !scopeItems.length ? null : activeLoading && !unfilteredScopeItemCount ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
+      {activeFailure && !unfilteredScopeItemCount ? null : activeLoading && !unfilteredScopeItemCount ? <div className={styles.emptyState}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing {activeScope}</strong></div> : viewItems.length ? <div className={styles.objectGrid} aria-label={`${activeScope} Library objects`}>
         {viewItems.map((item) => {
           const pipelineItem = item.scope === 'pipeline' ? item : null;
           const lineageId = pipelineLineageFor(item);

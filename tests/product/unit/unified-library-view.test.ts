@@ -20,8 +20,9 @@ const localSet: AccountLibraryItem = {
 };
 
 describe('unified Library view', () => {
-  it('keeps the Personal scope ready when the current search has no matches', () => {
+  it.each([false, true])('preserves Personal items and search state when a source has failed: %s', (sourceFailed) => {
     const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
+    const failure = { id: 'google-drive', kind: 'authentication_required', code: 'drive_auth_required', message: 'Reconnect Google Drive.', retryable: false, correlationId: null };
 
     function Harness() {
       capture.current = useUnifiedLibraryView({
@@ -34,7 +35,7 @@ describe('unified Library view', () => {
           source: 'all',
           kind: 'all',
           sort: 'recent',
-          failures: [],
+          failures: sourceFailed ? [failure] : [],
           isLoading: false,
         } as never,
         shared: {
@@ -50,8 +51,9 @@ describe('unified Library view', () => {
     const result = capture.current;
 
     expect(result).toMatchObject({
-      activeStatus: { kind: 'ready', label: '1 object' },
+      activeStatus: sourceFailed ? { kind: 'partial', label: 'Some sources unavailable' } : { kind: 'ready', label: '1 object' },
     });
+    expect(result?.activeFailure).toBe(sourceFailed ? failure : null);
     expect(result?.unfilteredScopeItemCount).toBe(1);
     expect(result?.scopeItems).toHaveLength(0);
     expect(result?.viewItems).toHaveLength(0);

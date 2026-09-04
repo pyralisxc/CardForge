@@ -1,4 +1,5 @@
 import type { DisplayCard } from '@/domain/rendering';
+import type { StoredDisplayCard } from '@/domain/cards';
 import type { ActionDescriptor, EnvironmentDetailRecord } from '@/features/app-shell/client/environment';
 import { createSendToPipelineActionDescriptor } from '@/features/pipeline/client';
 import {
@@ -8,6 +9,18 @@ import {
 } from '@/features/storage-management/client';
 
 type LegacyDeskSourceFilter = 'connected' | 'temporary';
+
+export const getDeskToolCard = (
+  setCards: readonly StoredDisplayCard[],
+  focusedArtifactId: string | null,
+  selectedCardIds: readonly string[],
+  requestedCardId?: string,
+): StoredDisplayCard | undefined => (
+  setCards.find((card) => card.uniqueId === requestedCardId)
+  ?? setCards.find((card) => card.uniqueId === focusedArtifactId)
+  ?? setCards.find((card) => selectedCardIds.includes(card.uniqueId))
+  ?? setCards[0]
+);
 export type DeskSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
 export type DeskWorkKeyboardIntent = 'open' | 'select' | 'select-additive' | 'none';
 

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
-import { normalizeCardSet } from '@/domain/cards';
-import { getDeskSourceFacets, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
+import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
+import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
@@ -13,6 +12,25 @@ import {
   projectDeskWorldPosition,
 } from '@/features/desk/model/deskSpatialGeometry';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
+
+describe('Desk tool template context', () => {
+  const cards = [
+    { uniqueId: 'first', templateId: 'set-front', backingTemplateId: 'set-back', data: {} },
+    { uniqueId: 'selected', templateId: 'selected-front', data: {} },
+    { uniqueId: 'focused', templateId: 'focused-front', data: {} },
+  ] satisfies StoredDisplayCard[];
+
+  it('uses the focused Artifact, then a selected Artifact, then the first card of the target Set', () => {
+    expect(getDeskToolCard(cards, 'focused', ['selected'])?.templateId).toBe('focused-front');
+    expect(getDeskToolCard(cards, 'foreign-card', ['selected'])?.templateId).toBe('selected-front');
+    expect(getDeskToolCard(cards, null, ['foreign-card'])).toBe(cards[0]);
+    expect(getDeskToolCard([], null, [])).toBeUndefined();
+  });
+
+  it('preserves an explicit revision card before focused context, without needing loaded templates', () => {
+    expect(getDeskToolCard(cards, 'focused', ['first', 'focused'], 'first')).toBe(cards[0]);
+  });
+});
 
 describe('Desk model', () => {
   it('opens a local Set through its project owner', () => {

@@ -69,6 +69,7 @@ export function EnvironmentToolLayer({
 }: EnvironmentToolLayerProps) {
   const workspace = presentation === 'floating' || presentation === 'inline';
   const modal = presentation === 'provider-handoff';
+  const headerOwnedByRail = railOwned && !modal;
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -169,15 +170,15 @@ export function EnvironmentToolLayer({
     <div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''}`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-desk-tool-surface>
       {modal ? <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} /> : <div className={styles.toolSceneReveal} aria-hidden="true" />}
       <section ref={panelRef} className={`${styles.toolPanel} ${workspace ? styles.toolPanelWorkspace : ''}`}>
-        <header className={`${styles.toolHeader} ${workspace ? styles.toolHeaderWorkspace : ''} ${railOwned ? styles.toolHeaderRailOwned : ''}`}>
+        <header className={`${styles.toolHeader} ${workspace ? styles.toolHeaderWorkspace : ''} ${headerOwnedByRail ? styles.toolHeaderRailOwned : ''}`}>
           <div>
             <p className={styles.toolEyebrow}>{eyebrow}</p>
             <h2 id={id} className={styles.toolTitle}>{title}</h2>
             <p className={styles.toolSummary}>{summary}</p>
           </div>
-          <button ref={closeButtonRef} type="button" className={styles.toolClose} onClick={closeFromControl} aria-label={closeLabel}>
+          {headerOwnedByRail ? null : <button ref={closeButtonRef} type="button" className={styles.toolClose} onClick={closeFromControl} aria-label={closeLabel}>
             <X aria-hidden="true" />
-          </button>
+          </button>}
         </header>
         <div className={`${styles.toolContent} ${workspace ? styles.toolContentWorkspace : ''}`}>
           <ToolLayerErrorBoundary onCrash={onCrash}>{children}</ToolLayerErrorBoundary>

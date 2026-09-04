@@ -22,6 +22,7 @@ import { type ProjectPersistenceScope } from '@/features/project/client/persiste
 import { useAccountLibraryProjection, type AccountLibraryItem } from '@/features/storage-management/client';
 
 import {
+  getDeskToolCard,
   visibleWorkKinds,
   type DeskAccountStatus,
   type DeskSourceFilter,
@@ -87,14 +88,17 @@ export function useDeskController({
     setInspectorWorkId,
     setInteractionSession,
   } = useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtifactId });
+  const [pendingTool, setPendingTool] = useState<{
+    setId: string;
+    tool: Parameters<typeof navigateToTool>[1];
+    templateId?: string;
+    backingTemplateId?: string | null;
+    origin: typeof interactionSession.focusPath;
+  } | null>(null);
   const focusArtifactContext = useCallback((nextSession: Parameters<typeof navigateToArtifact>[0]) => {
     trackCardForgeEvent('artifact_focused', { object_kind: 'card', input_method: 'direct' });
     navigateToArtifact(nextSession);
   }, [navigateToArtifact]);
-  const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1]) => {
-    trackCardForgeEvent('tool_opened', { object_kind: tool, input_method: 'direct' });
-    navigateToTool(setId, tool);
-  }, [navigateToTool]);
   const selectedCardIds = interactionSession.selection;
   const selectedDeskIds = interactionSession.deskSelection;
   const setSelectedCardIds = (next: SetStateAction<string[]>) => {
@@ -177,8 +181,52 @@ export function useDeskController({
     displayCards, effectiveMoveTargetId, focusedCards, generationCards, generationSet,
     generatorSelectedBackingTemplateId, generatorSelectedTemplateId, organization, organizedGroups, otherSets, reflectiveGroupings,
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
-    visibleCards,
+    storedCards, visibleCards,
   } = projectState;
+  const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
+    const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
+    const card = getDeskToolCard(setCards, interactionSession.focusPath.artifactId, selectedCardIds, context?.generationCard?.uniqueId);
+    setPendingTool({
+      setId, tool, origin: interactionSession.focusPath,
+      templateId: tool === 'design' ? context?.designTemplateId ?? card?.templateId : tool === 'generate' ? card?.templateId : undefined,
+      backingTemplateId: tool === 'generate' ? card?.backingTemplateId : undefined,
+    });
+  }, [cardSets, interactionSession.focusPath, selectedCardIds, storedCards]);
+
+  const templateSourceFailure = projection.failures.find((failure) => failure.id === 'published-library');
+  useEffect(() => {
+    if (!pendingTool) return;
+    if (pendingTool.origin.setId !== interactionSession.focusPath.setId
+      || pendingTool.origin.artifactId !== interactionSession.focusPath.artifactId
+      || !cardSets.some((set) => set.id === pendingTool.setId)) {
+      setPendingTool(null);
+      return;
+    }
+    const missingTemplate = [pendingTool.templateId, pendingTool.backingTemplateId]
+      .some((id) => id && !templates.some((template) => template.id === id));
+    if (missingTemplate) {
+      if (projection.isLoading) return;
+      toast({
+        title: templateSourceFailure ? 'Template source unavailable' : 'Template not found',
+        description: templateSourceFailure
+          ? `${templateSourceFailure.message} Your cards are unchanged. Restore the source in Library, then open the tool again.`
+          : 'This Set’s front or back Template was not found. Your cards are unchanged. Restore the Template in Library, then open the tool again.',
+        variant: 'destructive',
+      });
+      setPendingTool(null);
+      return;
+    }
+    setActiveCardSetId(pendingTool.setId);
+    if (pendingTool.tool === 'design' && pendingTool.templateId) {
+      setTemplateEditorSelectedTemplateId(pendingTool.templateId);
+    } else if (pendingTool.tool === 'generate' && pendingTool.templateId) {
+      setGeneratorSelectedTemplateId(pendingTool.templateId);
+      setGeneratorSelectedBackingTemplateId(pendingTool.backingTemplateId ?? null);
+    }
+    trackCardForgeEvent('tool_opened', { object_kind: pendingTool.tool, input_method: 'direct' });
+    navigateToTool(pendingTool.setId, pendingTool.tool);
+    setPendingTool(null);
+  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.isLoading, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
   const focusedItemId = focusedItem?.id ?? null;
@@ -314,9 +362,8 @@ export function useDeskController({
     });
   };
 
-  const openContextStudio = (setId: string, tool: 'design' | 'output') => {
-    setActiveCardSetId(setId);
-    openContextTool(setId, tool);
+  const openContextStudio = (setId: string, tool: 'design' | 'output', designTemplateId?: string) => {
+    openContextTool(setId, tool, { designTemplateId });
   };
 
   const closeContextStudio = () => {
@@ -390,7 +437,7 @@ export function useDeskController({
         : item ? createDeskStudioReturnTo(item.id) : '/account',
   });
 
-  const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export') => {
+  const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export', generationCard?: DisplayCard) => {
     if (!item.references.localSetId) {
       if (lane === 'open') void projection.openItem(item, createDeskStudioReturnTo(item.id));
       else setLocationItem(item);
@@ -398,7 +445,7 @@ export function useDeskController({
     }
     setActiveCardSetId(item.references.localSetId);
     if (lane === 'generate') {
-      openContextTool(item.references.localSetId, 'generate');
+      openContextTool(item.references.localSetId, 'generate', { generationCard });
       return;
     }
     openContextStudio(item.references.localSetId, lane === 'export' ? 'output' : 'design');
@@ -413,9 +460,8 @@ export function useDeskController({
   };
   const closeGenerate = () => closeContextTool();
   const showTemplateTool = (templateId?: string | null) => {
-    if (templateId) setTemplateEditorSelectedTemplateId(templateId);
     const setId = generationSet?.id ?? focusedLocalSetId ?? activeCardSet?.id;
-    if (setId) openContextStudio(setId, 'design');
+    if (setId) openContextStudio(setId, 'design', templateId ?? undefined);
   };
   const viewGeneratedCards = (cards: DisplayCard[]) => {
     const ids = cards.map((card) => card.uniqueId);
