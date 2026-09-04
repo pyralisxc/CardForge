@@ -113,7 +113,7 @@ Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invoke
 
 ### Preview environment boundary
 
-Vercel's branch-specific Preview deployment is CardForge's hosted staging surface. The reusable `vercel-preview` branch points to one exact PR candidate and owns the stable review URL `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`. Ordinary branches remain deployment-disabled; GitHub CI proves code health before the candidate ref moves.
+Vercel's branch-specific Preview deployment is CardForge's hosted staging surface. The reusable `vercel-preview` branch points to one exact PR candidate. Its stable review hostname `card-forge-git-vercel-preview-pyralis-projects.vercel.app` is explicitly registered as a Vercel project domain bound to that Git branch, with no redirect or custom environment; native domain assignment owns subsequent routing updates. The URL remains `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`, preserving provider origins and callbacks without a custom alias updater. Ordinary branches remain deployment-disabled; GitHub CI proves code health before the candidate ref moves.
 
 Preview uses provider-native isolation rather than CardForge emulation:
 
