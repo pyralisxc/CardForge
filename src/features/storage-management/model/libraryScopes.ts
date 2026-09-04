@@ -15,7 +15,7 @@ export interface LibraryScopeViewer {
 }
 
 export interface LibraryScopeStatus {
-  kind: 'loading' | 'unavailable' | 'empty' | 'ready';
+  kind: 'loading' | 'unavailable' | 'partial' | 'empty' | 'ready';
   label: string;
 }
 
@@ -79,7 +79,9 @@ export const getLibraryScopeStatus = ({
   failure: string | null;
 }): LibraryScopeStatus => {
   if (loading) return { kind: 'loading', label: 'Loading' };
-  if (failure) return { kind: 'unavailable', label: 'Unavailable' };
+  if (failure) return itemCount > 0
+    ? { kind: 'partial', label: 'Some sources unavailable' }
+    : { kind: 'unavailable', label: 'Unavailable' };
   if (itemCount === 0) return { kind: 'empty', label: 'Empty' };
   return { kind: 'ready', label: `${itemCount} object${itemCount === 1 ? '' : 's'}` };
 };

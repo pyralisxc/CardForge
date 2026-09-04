@@ -144,7 +144,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
       organization, organizedGroups: [...groups.entries()], otherSets, richTextHighlightColor,
       selectedCard, selectedCardIndex: selectedCard ? focusedCards.findIndex((card) => card.uniqueId === selectedCard.uniqueId) : -1,
       selectedCards, selectionScope: getArtifactSelectionScope(options.selectedCardIds, visibleCards.map((card) => card.uniqueId)),
-      sortedCards, templates, visibleCards,
+      sortedCards, storedCards, templates, visibleCards,
     },
   };
 }

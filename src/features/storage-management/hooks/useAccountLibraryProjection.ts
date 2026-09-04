@@ -142,7 +142,8 @@ export function useAccountLibraryProjection({
   const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
   const [workingDrafts, setWorkingDrafts] = useState<StudioDocumentSummary[]>([]);
   const [sourceFailures, setSourceFailures] = useState<AccountLibrarySourceFailure[]>([]);
-  const [loadingSources, setLoadingSources] = useState(false);
+  // Restoring local work does not complete the first source bootstrap.
+  const [loadingSources, setLoadingSources] = useState(true);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<AccountLibraryKind | 'all'>('all');
@@ -161,6 +162,7 @@ export function useAccountLibraryProjection({
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
+    setLoadingSources(true);
     setHydrationFailure(null);
     void hydrateProjectWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setHydrated(true); })

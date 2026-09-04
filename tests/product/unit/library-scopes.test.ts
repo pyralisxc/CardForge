@@ -57,4 +57,11 @@ describe('Library scopes', () => {
       ['personal', 'ready'],
     ]);
   });
+
+  it('keeps available objects distinct from a failed source, even while filtered out', () => {
+    expect(getLibraryScopeStatus({ loading: false, itemCount: 5, failure: 'Google Drive authorization expired' }))
+      .toEqual({ kind: 'partial', label: 'Some sources unavailable' });
+    expect(getLibraryScopeStatus({ loading: false, itemCount: 0, failure: 'Google Drive authorization expired' }))
+      .toEqual({ kind: 'unavailable', label: 'Unavailable' });
+  });
 });

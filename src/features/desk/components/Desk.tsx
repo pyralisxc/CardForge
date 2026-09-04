@@ -257,9 +257,7 @@ export function Desk({
   const openSelectedRevision = () => {
     if (!focusedItem || !selectedCards.length) return;
     setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
-    setGeneratorSelectedTemplateId(selectedCards[0]?.template.id ?? null);
-    setGeneratorSelectedBackingTemplateId(selectedCards[0]?.backingTemplateId ?? null);
-    openWorkLane(focusedItem, 'generate');
+    openWorkLane(focusedItem, 'generate', selectedCards[0]);
   };
   const closeActiveTool = () => {
     if (activeTool?.dirty) {

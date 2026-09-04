@@ -3,7 +3,7 @@ Total output lines: 169
 
 # CardForge Architecture
 
-Last updated: September 3, 2026
+Last updated: September 4, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
 
@@ -11,6 +11,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 - Public product: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
 - Creator environment: Desk at `/account` owns working context. Design, Generate, Output, Pipeline, and storage/location controls are lazy contextual tools layered over Desk or Library. `/studio` is compatibility ingress for an exact temporary Studio document and otherwise redirects to Desk Design.
+- Desk tool launches resolve the focused Artifact, selected Artifact, or first card of the target Set from persisted card identities. Explicit revision and front/back editing choices take precedence. A launch waits for required Templates through the existing Library bootstrap, without replacing missing Templates or clearing a card back; changing focus cancels the pending launch. The context rail owns closing non-modal Desk tools, so their visually hidden headings contain no duplicate keyboard control.
 - Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, contributor, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
 - Shared platform state: Supabase owns CardForge shared records, temporary private Studio documents, and approved managed media.
@@ -32,6 +33,8 @@ CardForge has four deliberate storage lanes.
 Portable Set/Project files, browser-authorized local project folders, and connected providers own durable creator copies outside the browser workspace. `src/features/project` owns the shared v2 project package writer, v1/v2 compatibility reader, archive safety bounds, and revision contracts; each location adapter owns only its native permission, read, write, remove, and conflict lifecycle. Device File System Access saves stream the archive directly; download, Pipeline, MCP, and Google Drive boundaries that require a complete body use the same writer's bounded Blob form without redundant byte-array copies. New Desk/Library saves isolate one Set per package so a work container keeps one stable CardForge identity while gaining multiple location records. The same validated `.cardforge` package owns import, export, provider transfer, Pipeline Set publication, and Published Set installation. Installing a published revision creates independently editable local identities; it does not introduce a starter schema, mutate Pipeline lineage, or create CardForge-owned durable creator storage. Google Drive stores work identity as `cardforgeWorkId` beside the exact provider and package revisions; updates preserve it even when an older Studio or MCP caller omits it. Local-folder writes are read back and decoded before CardForge reports success. Browser-only and local-folder work remain unavailable to remote agents unless the user explicitly hands it into the temporary Studio-document workspace or saves it to a server-reachable provider.
 
 `src/features/storage-management/model/workLocations.ts` is the current human-facing capability owner for device, Google Drive, and local-folder destinations. Copy and Move are separate commitments: Copy leaves the source unchanged, while Move may remove the source only after the destination package has been written and verified. Unsupported provider-to-provider paths require opening a device copy first rather than pretending CardForge operates a universal sync layer. The default save-location preference is browser/workspace state, not provider authority.
+
+Library reports partial availability when a source fails but collection objects remain usable. It preserves the source's failure and recovery details alongside those objects; a search with no matches does not turn partial availability into an empty or wholly unavailable collection.
 
 CardForge does not operate a durable first-party creator backup lane. Cloud Set Mirror creation, updates, account promotion, and agent workflows are retired from the runtime. Production ownership was resolved before deletion: the two remaining mirrors belonged to the explicitly approved owner test accounts, and the mirror rows plus dedicated artwork bucket were erased through their Supabase-native owners. The now-empty legacy table and Studio lineage columns remain only until the runtime cut reaches production; a separate forward schema contraction removes them afterward so the old production runtime is never pointed at missing columns or tables.
 
