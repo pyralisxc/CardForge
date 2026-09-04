@@ -27,7 +27,7 @@ PRs, commits, old migrations, and provider history are historical evidence, not 
 
 ## Quick start
 
-Requirements: Node.js 22+ and npm.
+Requirements: Node.js 22.17+ and npm. Use Node.js 24 for parity with CI and Vercel.
 
 ```bash
 npm install

@@ -66,6 +66,14 @@ describe('agent verification routing', () => {
     const productionHealth = await readFile(path.join(process.cwd(), '.github/workflows/production-health.yml'), 'utf8');
     const scripts = packageJson.scripts;
 
+    for (const workflow of [ci, deploymentSmoke, productionHealth]) {
+      const runtimes = [...workflow.matchAll(/node-version: (\d+)/g)].map((match) => match[1]);
+      expect(runtimes.length).toBeGreaterThan(0);
+      expect(new Set(runtimes)).toEqual(new Set(['24']));
+      expect(workflow).not.toMatch(/actions\/(?:checkout|setup-node)@v4/);
+    }
+    expect(deploymentSmoke.split('  production-smoke:')[1]).toContain('package-manager-cache: false');
+
     expect(scripts['test:infrastructure']).toBe('vitest run --config vitest.infrastructure.config.ts');
     expect(scripts['verify:focused']).toBe('node scripts/report-affected-verification.mjs --run');
     expect(scripts['architecture:report']).toBe('node scripts/check-architecture.mjs --report');
