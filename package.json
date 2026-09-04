@@ -86,8 +86,8 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.24",
-    "@next/eslint-plugin-next": "^16.3.1",
+    "@clerk/testing": "^2.2.31",
+    "@next/eslint-plugin-next": "^16.3.3",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.18.0",
     "@types/papaparse": "5.5.2",
@@ -95,7 +95,7 @@
     "@types/react-dom": "^18",
     "axe-core": "^4.13.0",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.3.1",
+    "eslint-config-next": "^16.3.3",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -103,7 +103,7 @@
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "fast-uri": "3.1.6",
