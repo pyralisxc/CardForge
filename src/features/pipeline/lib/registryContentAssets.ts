@@ -158,43 +158,9 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
 export const getPublishedRegistryContentRows = async (
   assetType: RegistryContentAssetType,
   viewerAccess: RegistryViewerAccess = 'free',
-): Promise<RegistryContentAssetRow[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
-
-  const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
-  const { data, error } = await resolveWithTimeout(
-    Promise.resolve(
-      supabase
-        .from('cardforge_asset_registry')
-        .select('asset_id,contributor_submission_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
-        .eq('asset_type', assetType)
-        .eq('status', 'published')
-        .in('access_tier', visibleTiers)
-        .order('name', { ascending: true }),
-    ),
-    {
-      fallback: {
-        data: null,
-        error: REGISTRY_CONTENT_TIMEOUT_ERROR,
-        count: null,
-        status: 408,
-        statusText: 'Request Timeout',
-        success: false,
-      },
-      timeoutMs: REGISTRY_CONTENT_ROWS_TIMEOUT_MS,
-    },
-  );
-
-  if (error) {
-    if ((error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'REGISTRY_CONTENT_TIMEOUT') {
-      console.error(`Failed to load ${assetType} registry content:`, error);
-    }
-    return [];
-  }
-
-  return attachSubmissionPayloads(supabase, (data ?? []) as RegistryContentAssetRow[]);
-};
+): Promise<RegistryContentAssetRow[]> => (
+  await getPublishedRegistryRows(viewerAccess)
+).filter((row) => row.asset_type === assetType);
 
 export const getPublishedRegistryRows = async (
   viewerAccess: RegistryViewerAccess = 'free',

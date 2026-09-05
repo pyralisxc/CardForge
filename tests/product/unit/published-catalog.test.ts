@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCardForgeCatalogManifest } from '@/features/pipeline/lib/catalogManifest';
+import { getPublishedRegistryContentRows } from '@/features/pipeline/lib/registryContentAssets';
 
 const database = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
@@ -42,6 +43,16 @@ const setupDatabase = () => {
 beforeEach(() => vi.clearAllMocks());
 
 describe('published catalog discovery details', () => {
+  it('reports provider failure consistently for catalog and style mutation reads', async () => {
+    const query = { select: vi.fn(), eq: vi.fn(), in: vi.fn(), order: vi.fn(), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: { code: 'REGISTRY_CONTENT_TIMEOUT' } }).then(resolve) };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    database.from.mockReturnValue(query);
+    await expect(getPublishedRegistryContentRows('elementPreset', 'contributor')).rejects.toThrow('temporarily unavailable');
+    await expect(getCardForgeCatalogManifest()).rejects.toThrow('temporarily unavailable');
+  });
   it.each([
     ['free', ['free-icon']],
     ['paid', ['free-icon', 'paid-icon']],

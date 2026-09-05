@@ -19,9 +19,14 @@ const currentTerms = '<h1>Contributor Terms</h1><p>Contributors submit work thro
 const currentPrivacy = '<h1>Privacy Policy</h1><p>Contributor profiles are provider records. Work remains separate from browser-local CardForge projects.</p>';
 
 describe('production health semantic contracts', () => {
-  it('runs the route-only CLI in a clean directory without installed packages', async () => {
+  it.each([['route', 9], ['deployment', 11]] as const)('runs the %s CLI without installed packages', async (category, count) => {
     const directory = await mkdtemp(path.join(tmpdir(), 'cardforge-route-health-'));
-    const server = createServer((_request, response) => {
+    const server = createServer((request, response) => {
+      if (request.url === '/api/catalog') {
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ version: 'registry-1:test', sets: { items: [{ id: 'standard-playing-card-deck', packageUrl: 'https://example.test/starter.cardforge', access: 'free', revision: 2 }] }, pipeline: { items: [{ id: 'standard-playing-card-deck', assetType: 'set' }] } }));
+        return;
+      }
       response.end('CardForge — Open your Desk — Cameron — Contributor — Roadmap — independent sole proprietor based in Oregon');
     });
     try {
@@ -31,12 +36,12 @@ describe('production health semantic contracts', () => {
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
       const address = server.address();
       if (!address || typeof address === 'string') throw new Error('Test server did not start');
-      const result = await promisify(execFile)(process.execPath, [path.join(directory, 'check-production-health.mjs'), '--category=route'], {
+      const result = await promisify(execFile)(process.execPath, [path.join(directory, 'check-production-health.mjs'), `--category=${category}`], {
         cwd: directory,
         env: { ...process.env, CARDFORGE_HEALTH_ORIGIN: `http://127.0.0.1:${address.port}`, VERCEL_AUTOMATION_BYPASS_SECRET: '' },
         timeout: 10_000,
       });
-      expect(result.stdout).toContain('production health passed (9 route checks)');
+      expect(result.stdout).toContain(`production health passed (${count} ${category} checks)`);
       expect(result.stderr).toBe('');
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));

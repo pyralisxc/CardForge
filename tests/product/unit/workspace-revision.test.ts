@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getBrowserWorkspaceSaveStatus } from '@/features/project/persistence/indexedDbStorage';
 
 import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord, resolveGuestWorkspaceAdoption } from '@/features/project/client/persistence-workspace';
@@ -13,6 +14,17 @@ const deleteDatabase = () => new Promise<void>((resolve, reject) => {
 
 describe('browser workspace revisions', () => {
   beforeEach(deleteDatabase);
+
+  it('reports database-open failures and clears saving status after recovery', async () => {
+    const input = { namespace: 'save-status', key: 'workspace', value: '{}', expectedRevision: 0, writerId: 'test' };
+    const open = vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => { throw new Error('Unavailable'); });
+    try {
+      await expect(compareAndSetBrowserWorkspaceValue(input)).rejects.toThrow('Unavailable');
+      expect(getBrowserWorkspaceSaveStatus()).toBe('failed');
+      await compareAndSetBrowserWorkspaceValue(input);
+      expect(getBrowserWorkspaceSaveStatus()).toBe('saved');
+    } finally { open.mockRestore(); }
+  });
 
   it('treats existing Zustand JSON as a revision-zero legacy record', () => {
     expect(parseBrowserWorkspaceRecord('{"state":{"name":"legacy"}}')).toEqual({

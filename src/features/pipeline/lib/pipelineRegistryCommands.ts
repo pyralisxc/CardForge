@@ -117,7 +117,14 @@ const requireSupabase = () => {
   return supabase;
 };
 
+const throwIfPublicationBusy = (errorMessage?: string): void => {
+  if (errorMessage?.includes('pipeline_publication_unavailable')) {
+    throw new PipelineRegistryCommandError('The shared library is being updated. Try this action again.', 503, 'pipeline_publication_unavailable');
+  }
+};
+
 const throwRegistryCommandError = (message: string, errorMessage?: string): never => {
+  throwIfPublicationBusy(errorMessage);
   const status = errorMessage?.includes('pipeline_asset_not_found') ? 404 : 500;
   throw new PipelineRegistryCommandError(
     status === 404 ? 'The shared library asset was not found.' : message,
@@ -126,6 +133,7 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 };
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
+  throwIfPublicationBusy(errorMessage);
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('The Template Pipeline draft was not found.', 404);
   }
@@ -185,6 +193,7 @@ const throwPipelinePurgeError = (errorMessage?: string): never => {
 };
 
 const throwContributorLifecycleError = (errorMessage?: string): never => {
+  throwIfPublicationBusy(errorMessage);
   if (errorMessage?.includes('contributor_asset_not_found')) {
     throw new PipelineRegistryCommandError('Pipeline revision was not found.', 404);
   }
@@ -387,6 +396,7 @@ export const castPipelineVote = async ({
     p_owner_contributor_id: ownerContributorId ?? null,
   });
   if (error) {
+    throwIfPublicationBusy(error.message);
     if (
       error.message?.includes('contributor_asset_vote_not_permitted')
       || error.message?.includes('contributor_asset_self_vote_not_permitted')
@@ -425,6 +435,7 @@ export const savePipelineProgramSettings = async (
     p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
+    throwIfPublicationBusy(error.message);
     throw new PipelineRegistryCommandError(
       'Unable to save the automatic Contributor Pipeline rules.',
       500,
@@ -450,6 +461,7 @@ export const setPipelineOwnerOverride = async ({
     p_owner_contributor_id: ownerContributorId,
   });
   if (error) {
+    throwIfPublicationBusy(error.message);
     if (error.message?.includes('contributor_asset_lineage_purge_pending')) {
       throw new PipelineRegistryCommandError(
         'This Pipeline object is being permanently deleted and can no longer be changed.',
@@ -592,6 +604,7 @@ export const upsertPipelineRegistryAsset = async ({
   });
 
   if (error) {
+    throwIfPublicationBusy(error.message);
     throwRegistryCommandError('Unable to save the shared library asset.', error.message);
   }
 };
@@ -603,6 +616,7 @@ export const archivePipelineRegistryAsset = async (assetId: string): Promise<voi
   });
 
   if (error) {
+    throwIfPublicationBusy(error.message);
     throwRegistryCommandError('Unable to archive the shared library asset.', error.message);
   }
 };

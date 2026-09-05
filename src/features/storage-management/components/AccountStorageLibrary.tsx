@@ -95,22 +95,26 @@ export function AccountStorageLibrary({
   }, [persistenceScope]);
 
   const refreshDeviceDetails = useCallback(async () => {
-    const storage = getProjectAssetStorage();
-    const [health, textures, dividers, icons, images] = await Promise.all([
-      getBrowserStorageHealth(),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-    ]);
-    setDeviceHealth(health);
-    setCustomAssets({
-      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
-      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
-      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: icons,
-      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
-    });
-  }, []);
+    try {
+      const storage = getProjectAssetStorage();
+      const [health, textures, dividers, icons, images] = await Promise.all([
+        getBrowserStorageHealth(),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      ]);
+      setDeviceHealth(health);
+      setCustomAssets({
+        [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
+        [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
+        [CUSTOM_ICON_ASSETS_STORAGE_KEY]: icons,
+        [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
+      });
+    } catch (error) {
+      toast({ title: 'Local library unavailable', description: error instanceof Error ? error.message : 'Your saved artwork could not be read. Try Refresh again.', variant: 'destructive' });
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (hydrated) void refreshDeviceDetails();
