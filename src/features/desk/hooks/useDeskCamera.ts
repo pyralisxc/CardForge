@@ -55,7 +55,6 @@ export function useDeskCamera({
   onPinchStart?: () => void;
 }): DeskCamera {
   const scrollRef = useRef({ left: 0, top: 0 });
-  const cameraInitializedRef = useRef(false);
   const userZoomedRef = useRef(false);
   const zoomRef = useRef(1);
   const touchPointsRef = useRef(new Map<number, { x: number; y: number }>());
@@ -75,18 +74,15 @@ export function useDeskCamera({
       if (!userZoomedRef.current) {
         const preferredZoom = preferredDeskZoom(next);
         setZoom(preferredZoom);
-        if (!cameraInitializedRef.current) {
-          cameraInitializedRef.current = true;
-          const geometry = getDeskCameraGeometry(next, preferredZoom);
-          requestAnimationFrame(() => {
-            const centered = {
-              left: Math.max(0, (geometry.surfaceWidth - grid.clientWidth) / 2),
-              top: Math.max(0, (geometry.surfaceHeight - grid.clientHeight) / 2),
-            };
-            scrollRef.current = centered;
-            grid.scrollTo(centered);
-          });
-        }
+        const geometry = getDeskCameraGeometry(next, preferredZoom);
+        requestAnimationFrame(() => {
+          const centered = {
+            left: Math.max(0, (geometry.surfaceWidth - grid.clientWidth) / 2),
+            top: Math.max(0, (geometry.surfaceHeight - grid.clientHeight) / 2),
+          };
+          scrollRef.current = centered;
+          grid.scrollTo(centered);
+        });
       }
     };
     update();

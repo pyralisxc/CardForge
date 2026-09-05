@@ -124,7 +124,7 @@ const getGoogleDriveAccessToken = async (ownerUserId: string): Promise<string> =
   if (!data) {
     throw new PersonalLibraryStoreError('Connect Google Drive before adding files to your personal library.', 404, {
       kind: 'not_found',
-      nextAction: 'Connect Google Drive in Account → Storage & Library.',
+      nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
   const row = data as unknown as DriveConnectionRow;
@@ -139,7 +139,7 @@ const getGoogleDriveAccessToken = async (ownerUserId: string): Promise<string> =
     console.error('Unable to decrypt Google Drive token for personal library:', error);
     throw new PersonalLibraryStoreError('The Google Drive connection needs to be reconnected.', 401, {
       kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+      nextAction: 'Reconnect Google Drive in Library → Locations.',
     });
   }
   const token = await requestGoogleAccessToken({

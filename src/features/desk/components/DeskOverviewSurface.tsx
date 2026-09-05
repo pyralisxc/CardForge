@@ -73,7 +73,7 @@ export interface DeskOverviewSurfaceProps {
 export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [arrangeMode, setArrangeMode] = useState(false);
   return <div className={styles.desk} data-desk={props.focusedItemId ? 'focused' : 'overview'} data-focused={Boolean(props.focusedItemId)}>
-    {props.failureMessage ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${props.failureMessage} Available work remains unchanged.`} actionLabel="Retry" onAction={props.onRetry} /> : null}
+    {props.failureMessage ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${props.failureMessage} Available work remains unchanged.`} settingsHref="/account?section=library&tool=locations" actionLabel="Retry" onAction={props.onRetry} /> : null}
     <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
       <div className={styles.deskToolbar}>
         <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Find work" /></label>

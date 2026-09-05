@@ -20,12 +20,15 @@ export const valueForTemplateField = (
 
 export const initializeCardDataFromTemplate = (
   template?: TCGCardTemplate | null,
-  existingData?: CardData | null
+  existingData?: CardData | null,
+  preserveImageSources = false,
 ): [TemplateFieldDefinition[], CardData] => {
   if (!template) return [[], {}];
 
   const fields = extractTemplateFieldDefinitions(template);
   const data = fields.reduce<CardData>((acc, field) => {
+    // An absent override in an existing card means the Template owns the image.
+    if (preserveImageSources && field.isImage && existingData?.[field.key] === undefined) return acc;
     const previewValue = template.templatePreviewData?.[field.key];
     acc[field.key] = valueForTemplateField(field, existingData ?? (previewValue !== undefined ? { [field.key]: previewValue } : null));
     return acc;
@@ -55,11 +58,13 @@ export const initializeCardDataFromTemplate = (
 
 export const completeCardDataWithTemplateDefaults = (
   fields: TemplateFieldDefinition[],
-  data: CardData
+  data: CardData,
+  preserveImageSources = false,
 ): CardData => {
   const finalData = { ...data };
 
   fields.forEach((field) => {
+    if (preserveImageSources && field.isImage && data[field.key] === undefined) return;
     if (finalData[field.key] === undefined || String(finalData[field.key]).trim() === `{{${field.key}}}`) {
       finalData[field.key] = valueForTemplateField(field);
     }

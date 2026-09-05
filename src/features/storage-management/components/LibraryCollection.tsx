@@ -108,6 +108,7 @@ export function LibraryCollection({
       {activeFailure ? <EnvironmentBoundaryNotice
         title={unfilteredScopeItemCount ? 'Some sources are unavailable' : `${scopeDefinition.label} is unavailable`}
         message={describeLibraryBoundaryFailure(activeFailure)}
+        settingsHref={activeFailure.id === 'google-drive' || activeFailure.id === 'local-folder' ? '/account?section=library&tool=locations' : undefined}
         actionLabel={activeFailure.retryable ? 'Retry' : undefined}
         onAction={activeFailure.retryable ? onRefresh : undefined}
       /> : null}

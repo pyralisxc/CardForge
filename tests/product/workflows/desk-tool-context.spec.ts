@@ -7,6 +7,39 @@ for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
     test.use(mobile ? { viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
 
+    test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100);
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).dblclick();
+      await page.getByRole('button', { name: 'Edit', exact: true }).click();
+      const artwork = page.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
+      const original = await artwork.inputValue();
+      await artwork.fill('https://example.com/draft.png');
+      await page.getByRole('button', { name: 'Review & close', exact: true }).click();
+      await expect(page.getByRole('alertdialog')).toContainText('unsaved changes');
+      await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+      await expect(artwork).toHaveValue('https://example.com/draft.png');
+      await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(page.getByRole('alertdialog')).toContainText('Discard unsaved card changes');
+      await page.keyboard.press('Escape');
+      await expect(artwork).toHaveValue('https://example.com/draft.png');
+      await page.getByRole('button', { name: 'Review & close', exact: true }).click();
+      await page.getByRole('button', { name: 'Close Design', exact: true }).click();
+      await page.getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(artwork).toHaveValue(original);
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+      await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
+      await expect(page.getByRole('menuitem', { name: 'Save & move', exact: true })).toBeVisible();
+      await page.getByRole('menuitem', { name: 'Export / print', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Output 100 Card Scale Set', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Template canvas', exact: true })).toHaveCount(0);
+      await expect(artwork).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Remove all cards', exact: true })).toHaveCount(0);
+    });
+
     test('@golden opens the Set template and back instead of stale tool selections', async ({ page }) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });

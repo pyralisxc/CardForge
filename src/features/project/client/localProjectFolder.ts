@@ -278,14 +278,18 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
   if (decoded.format !== 'cardforge-package' || !decoded.sourceRevision) {
     throw new ProjectPackageError('The selected folder does not contain a current .cardforge project package.');
   }
-  await applyProjectDocumentToWorkspace(decoded.document, 'replace');
+  const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy');
   const binding: LocalProjectFolderBinding = {
     handle: directory,
     folderName: directory.name,
     sourceRevision: decoded.sourceRevision,
     lastSavedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
-    workId: decoded.document.activeCardSetId ?? decoded.document.cardSets[0]?.id ?? null,
+    workId: imported.activeSetId,
   };
+  if (binding.workId && decoded.document.cardSets.length === 1) {
+    await writeStructuredBrowserValue(getWorkBindingStorageKey(binding.workId), binding);
+    await indexWorkBinding(binding.workId);
+  }
   await persistBinding(binding);
   return binding;
 };

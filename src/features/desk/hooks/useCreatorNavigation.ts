@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useProjectStore } from '@/features/project/client/workspace';
 
 import {
   closeCreatorContext,
@@ -48,6 +49,10 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   currentRef.current = { version: 1, focusedWorkId, inspectorWorkId, session: interactionSession };
 
   const applySnapshot = useCallback((snapshot: CreatorHistorySnapshot) => {
+    if (currentRef.current.session.toolStack.at(-1)?.toolId === 'design'
+      && snapshot.session.toolStack.at(-1)?.toolId !== 'design') {
+      useProjectStore.getState().closeEditDialog();
+    }
     setFocusedWorkId(snapshot.focusedWorkId);
     setInspectorWorkId(snapshot.inspectorWorkId);
     setInteractionSession(snapshot.session);

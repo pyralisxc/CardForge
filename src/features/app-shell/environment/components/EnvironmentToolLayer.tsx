@@ -115,7 +115,7 @@ export function EnvironmentToolLayer({
       if (event.key === 'Escape') {
         if (
           event.defaultPrevented
-          || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"]'))
+          || Array.from(document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper], [role="listbox"], [role="menu"], [role="alertdialog"]'))
             .some((element) => element.getClientRects().length > 0)
         ) return;
         event.preventDefault();

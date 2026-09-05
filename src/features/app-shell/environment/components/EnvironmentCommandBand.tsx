@@ -30,7 +30,7 @@ export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisa
         <Icon size={18} aria-hidden="true" /><strong>{zone.label}</strong>
       </div>
       <button type="button" className={styles.commandLauncher} onClick={onCommand}>
-        <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>⌘K</kbd>
+        <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
       </button>
       <div className={styles.commandActions}>
         {search}

@@ -21,11 +21,12 @@ import {
 } from '../persistence/projectAssets';
 import { readProjectFonts, writeProjectFonts } from '../persistence/projectFonts';
 import { selectAllTemplates } from '../store/selectors';
-import { useProjectStore } from '../store/workspaceStore';
+import { persistProjectWorkspaceNow, useProjectStore } from '../store/workspaceStore';
 
 export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy';
 
 export interface ProjectWorkspaceApplySummary {
+  activeSetId: string | null;
   importedTemplateCount: number;
   successCount: number;
   skippedCount: number;
@@ -133,7 +134,9 @@ export const applyProjectDocumentToWorkspace = async (
     useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 
+  await persistProjectWorkspaceNow();
   return {
+    activeSetId: activeSet?.id ?? null,
     importedTemplateCount,
     successCount: cardResult.successCount,
     skippedCount: cardResult.skippedCount,

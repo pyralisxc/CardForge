@@ -41,14 +41,19 @@ export interface CreatorWorkbenchProps {
   businessIdentity: WorkbenchBusinessIdentity;
   initialContributorAccess: ContributorAccessSessionState;
   onDirtyChange?: (dirty: boolean) => void;
+  tool?: 'design' | 'output';
+  onCloseTool?: () => void;
 }
 
 export function CreatorWorkbench({
   businessIdentity,
   initialContributorAccess,
   onDirtyChange,
+  tool,
+  onCloseTool,
 }: CreatorWorkbenchProps) {
   const searchParams = useSearchParams();
+  const isOutput = (tool ?? searchParams.get('tool')) === 'output';
   const router = useRouter();
   const { toast } = useToast();
   const checkoutReturnTo = useSafeCurrentReturnPath('/account?section=profile&utility=billing');
@@ -85,7 +90,6 @@ export function CreatorWorkbench({
       addGeneratedCardsAction,
       addOrUpdateAppearanceStyleAction,
       addOrUpdateTemplateAction,
-      clearGeneratedCardsAction,
       cloneTemplateAction,
       closeEditDialogAction,
       createCardSetAction,
@@ -205,15 +209,11 @@ export function CreatorWorkbench({
   });
   const {
     handleBulkCardsGenerated,
-    handleClearGeneratedCards,
     handleCloseEditDialog,
     handleDuplicateCard,
     handleSaveEditedCard,
-    isClearCardsDialogOpen,
-    setIsClearCardsDialogOpen,
   } = useGeneratedOutputActions({
     addGeneratedCards: addGeneratedCardsAction,
-    clearGeneratedCards: clearGeneratedCardsAction,
     closeEditDialog: closeEditDialogAction,
     openEditDialog: openEditDialogAction,
     removeGeneratedCard: removeGeneratedCardAction,
@@ -437,18 +437,19 @@ export function CreatorWorkbench({
         </div>
       ) : null}
 
-      {isEditDialogOpen && editingCardFromStore ? (
+      {!isOutput && isEditDialogOpen && editingCardFromStore ? (
         <EditCardDialog
           isOpen={isEditDialogOpen}
           card={editingCardFromStore}
-          onSave={handleSaveEditedCard}
+          onSave={(card) => { handleSaveEditedCard(card); onCloseTool?.(); }}
           onDuplicate={handleDuplicateCard}
-          onClose={handleCloseEditDialog}
+          onClose={() => { handleCloseEditDialog(); onCloseTool?.(); }}
           presentation="workspace"
+          onDirtyChange={onDirtyChange}
         />
       ) : (
         <>
-      <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+      {!isOutput ? <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
         <main className="cardforge-studio-main flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-0">
           {isStudioReady ? (
             <div data-testid="studio-ready" className="sr-only">Studio ready</div>
@@ -542,9 +543,10 @@ export function CreatorWorkbench({
             />
           </div>
         </main>
-      </div>
+      </div> : null}
 
       <StudioContextTools
+        inlineOutput={isOutput}
         activeSetName={activeCardSet.name}
         activeSetId={activeCardSet.id}
         openTool={openStudioSheet}
@@ -570,7 +572,6 @@ export function CreatorWorkbench({
           selectedPaperSize,
           zipExportKind,
           zipProgress,
-          onClearCardsRequest: () => setIsClearCardsDialogOpen(true),
           onExportAllAsZip: handleExportAllAsZip,
           onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets,
           onSelectPaperSize: setSelectedPaperSizeAction,
@@ -598,10 +599,6 @@ export function CreatorWorkbench({
         pendingTemplateRetarget={pendingTemplateRetarget}
         onDismissTemplateRetarget={dismissPendingTemplateRetarget}
         onApplyTemplateRetarget={applyPendingTemplateRetarget}
-        clearCardsOpen={isClearCardsDialogOpen}
-        generatedCardCount={generatedDisplayCards.length}
-        onClearCardsOpenChange={setIsClearCardsDialogOpen}
-        onConfirmClearCards={handleClearGeneratedCards}
         pendingProjectImport={pendingProjectImport}
         onClearProjectImport={clearPendingProjectImport}
         onApplyProjectImport={(mode) => void applyPendingProjectImport(mode)}

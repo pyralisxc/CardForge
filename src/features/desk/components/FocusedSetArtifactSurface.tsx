@@ -382,7 +382,6 @@ export function FocusedSetArtifactSurface({
         }}>Reset view</Button>
         <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
         <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
-        <span>{projectedEntries.length} of {layout.entries.length} visuals mounted</span>
       </div>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}

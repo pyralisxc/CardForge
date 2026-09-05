@@ -28,6 +28,19 @@ const WORKSPACE_STORAGE_OPTIONS = {
   trackWorkspaceSaveStatus: true,
 } as const;
 
+/** A provider Move must await a committed browser copy, not only Zustand state. */
+export const persistProjectWorkspaceNow = async (): Promise<void> => {
+  const options = useProjectStore.persist.getOptions();
+  const state = useProjectStore.getState();
+  await createScopedProjectStorage('project-workspace', {
+    ...WORKSPACE_STORAGE_OPTIONS,
+    suppressWriteErrors: false,
+  }).setItem('workspace', JSON.stringify({
+    state: options.partialize ? options.partialize(state) : state,
+    version: options.version,
+  }));
+};
+
 type WorkspacePersistedState = Pick<
   ProjectState,
   | 'userTemplates'
