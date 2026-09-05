@@ -16,3 +16,4 @@ export type {
   LibraryPickerSelectionMode,
   LibraryPickerSource,
 } from './model/libraryPicker';
+export { toLocalLibraryPickerResources } from './model/projectResources';

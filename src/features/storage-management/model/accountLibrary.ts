@@ -1,3 +1,5 @@
+import type { LocalLibraryResource } from '@/features/project/client/library-resources';
+
 export const ACCOUNT_LIBRARY_KINDS = ['set', 'template', 'asset', 'working-draft'] as const;
 export type AccountLibraryKind = typeof ACCOUNT_LIBRARY_KINDS[number];
 
@@ -9,7 +11,7 @@ export const ACCOUNT_LIBRARY_SOURCES = [
 ] as const;
 export type AccountLibrarySource = typeof ACCOUNT_LIBRARY_SOURCES[number];
 
-export type AccountLibraryLocationStatus = 'available' | 'attached' | 'needs-permission' | 'temporary';
+export type AccountLibraryLocationStatus = 'available' | 'attached' | 'needs-permission' | 'temporary' | 'unavailable';
 
 export interface AccountLibraryLocation {
   source: AccountLibrarySource;
@@ -20,6 +22,7 @@ export interface AccountLibraryLocation {
 export interface AccountLibraryReferences {
   localSetId?: string;
   localTemplateId?: string;
+  localResourceId?: string;
   driveFileId?: string;
   driveProviderRevision?: string;
   driveProjectRevision?: string;
@@ -40,6 +43,7 @@ export interface AccountLibraryItem {
   expiresAt: string | null;
   webViewLink: string | null;
   references: AccountLibraryReferences;
+  localResource?: LocalLibraryResource;
 }
 
 export type AccountLibraryAction = 'open' | 'continue' | 'save-move' | 'duplicate' | 'delete-copy' | 'view-source' | 'manage-storage';
@@ -130,6 +134,7 @@ interface WorkingDraftInput {
 export interface BuildAccountLibraryItemsInput {
   localSets: LocalSetInput[];
   localTemplates?: LocalTemplateInput[];
+  localResources?: readonly LocalLibraryResource[];
   driveProjects: DriveProjectInput[];
   driveBindingFileId: string | null;
   localWorkFolders: LocalWorkFolderInput[];
@@ -151,6 +156,7 @@ const compareLibraryItems = (left: AccountLibraryItem, right: AccountLibraryItem
 export const buildAccountLibraryItems = ({
   localSets,
   localTemplates = [],
+  localResources = [],
   driveProjects,
   driveBindingFileId,
   localWorkFolders,
@@ -194,6 +200,23 @@ export const buildAccountLibraryItems = ({
       expiresAt: null,
       webViewLink: null,
       references: { localTemplateId: template.id },
+    });
+  }
+
+  for (const resource of localResources) {
+    items.push({
+      id: resource.id,
+      kind: 'asset',
+      name: resource.name,
+      locations: [{ source: 'device', status: resource.status === 'available' ? 'available' : 'unavailable', label: 'This device' }],
+      details: [resource.kind === 'font' ? 'Project font' : `Local ${resource.kind}`, resource.status === 'missing-source' ? 'Source missing; restore a backup' : resource.status === 'unavailable' ? 'Source unavailable; retry this collection' : 'Reusable in Studio'],
+      sizeBytes: resource.sizeBytes,
+      revision: null,
+      updatedAt: null,
+      expiresAt: null,
+      webViewLink: null,
+      references: { localResourceId: resource.id },
+      localResource: resource,
     });
   }
 

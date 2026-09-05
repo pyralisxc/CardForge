@@ -5,14 +5,11 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 
 import { useToast } from '@/components/ui/use-toast';
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
-import type { CardAssetOption } from '@/domain/templates';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
-import { createCardSetTransfer } from '@/features/project/client/package-transfer';
-import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, type ProjectDocumentCustomAssets } from '@/features/project/client/package-document';
 import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
 import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
-import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
-import { hydrateProjectWorkspaceForScope, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
+import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import {
   getPersonalLibraryRoleLabel,
@@ -21,6 +18,7 @@ import {
 } from '@/features/personal-library/client';
 import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
+import { readLocalLibraryResources, retainLocalLibraryResources, type LocalLibraryResource } from '@/features/project/client/library-resources';
 
 import {
   buildAccountLibraryItems,
@@ -82,13 +80,6 @@ interface UseAccountLibraryProjectionOptions {
   isSignedIn: boolean;
 }
 
-const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
-  [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
-  [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
-});
-
 const sourceFailure = (
   id: AccountLibrarySourceId,
   error: unknown,
@@ -133,8 +124,7 @@ export function useAccountLibraryProjection({
   const { toast } = useToast();
   const [hydrated, setHydrated] = useState(false);
   const [hydrationFailure, setHydrationFailure] = useState<AccountLibrarySourceFailure | null>(null);
-  const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
-  const [portableSetBytes, setPortableSetBytes] = useState<Record<string, number>>({});
+  const [localResourceSource, setLocalResourceSource] = useState<ScopedLibrarySource<LocalLibraryResource[]> | null>(null);
   const [driveLibrarySource, setDriveLibrarySource] = useState<ScopedLibrarySource<GoogleDriveProjectListResult> | null>(null);
   const [driveBindingSource, setDriveBindingSource] = useState<ScopedLibrarySource<string> | null>(null);
   const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
@@ -153,6 +143,7 @@ export function useAccountLibraryProjection({
   const refreshGeneration = useRef(0);
   const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
   const driveBindingFileId = driveBindingSource?.scope === persistenceScope ? driveBindingSource.value : null;
+  const localResources = useMemo(() => localResourceSource?.scope === persistenceScope ? localResourceSource.value ?? [] : [], [localResourceSource, persistenceScope]);
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
@@ -179,16 +170,7 @@ export function useAccountLibraryProjection({
     refreshGeneration.current = generation;
     setLoadingSources(true);
     const failures: AccountLibrarySourceFailure[] = [];
-    const assetStorage = getProjectAssetStorage();
-    const deviceAssetsPromise = Promise.all([
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-    ]).catch((error) => {
-      failures.push(sourceFailure('device-assets', error, 'Device assets are unavailable.'));
-      return [[], [], [], []] as CardAssetOption[][];
-    });
+    const deviceAssetsPromise = readLocalLibraryResources();
     const localFolderPromise = getLocalProjectFolderStatus().catch((error) => {
       failures.push(sourceFailure('local-folder', error, 'Local-folder status is unavailable.'));
       return null;
@@ -227,7 +209,7 @@ export function useAccountLibraryProjection({
         ] as const)
       : Promise.resolve([null, null, null, null] as const);
 
-    const [[textures, dividers, icons, images], folderResult, workFolderResults, bootstrapResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
+    const [resourceResult, folderResult, workFolderResults, bootstrapResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
       deviceAssetsPromise,
       localFolderPromise,
       localWorkFoldersPromise,
@@ -235,12 +217,11 @@ export function useAccountLibraryProjection({
       signedInSourcesPromise,
     ]);
     if (generation !== refreshGeneration.current) return;
-    setCustomAssets({
-      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: textures,
-      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: dividers,
-      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: icons,
-      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: images,
-    });
+    resourceResult.failures.forEach(({ collection, error }) => failures.push(sourceFailure('device-assets', error, `Local ${collection} resources are unavailable.`)));
+    setLocalResourceSource((current) => ({
+      scope: persistenceScope,
+      value: retainLocalLibraryResources(current?.scope === persistenceScope ? current.value ?? [] : [], resourceResult.resources, resourceResult.failures.map((failure) => failure.collection)),
+    }));
     setLocalFolder(folderResult);
     setLocalWorkFolders(workFolderResults);
     if (bootstrapResult) {
@@ -268,14 +249,10 @@ export function useAccountLibraryProjection({
 
   useEffect(() => {
     if (!hydrated) return;
-    const templates = selectAllTemplates(useProjectStore.getState());
-    const next: Record<string, number> = {};
-    cardSets.forEach((set) => {
-      const transfer = createCardSetTransfer({ set, storedCards, templates, customAssets });
-      next[set.id] = new Blob([JSON.stringify(transfer)]).size;
-    });
-    setPortableSetBytes(next);
-  }, [cardSets, customAssets, hydrated, storedCards, userTemplates]);
+    const refresh = () => { void refreshLibrarySources(); };
+    window.addEventListener(PROJECT_FONT_LIBRARY_CHANGE_EVENT, refresh);
+    return () => window.removeEventListener(PROJECT_FONT_LIBRARY_CHANGE_EVENT, refresh);
+  }, [hydrated, refreshLibrarySources]);
 
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -290,9 +267,10 @@ export function useAccountLibraryProjection({
       id: set.id,
       name: set.name,
       cardCount: cardCounts.get(set.id) ?? 0,
-      sizeBytes: portableSetBytes[set.id] ?? null,
+      sizeBytes: null,
       })),
     localTemplates: userTemplates.flatMap((template) => template.id ? [{ id: template.id, name: template.name }] : []),
+    localResources,
     driveProjects: driveLibrary?.projects ?? [],
     driveBindingFileId,
     localWorkFolders: localWorkFolders.map((binding) => ({
@@ -312,7 +290,7 @@ export function useAccountLibraryProjection({
       providerWebViewLink: item.providerWebViewLink,
     })),
     workingDrafts,
-  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localWorkFolders, personalLibrary?.items, portableSetBytes, userTemplates, workingDrafts]);
+  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localResources, localWorkFolders, personalLibrary?.items, userTemplates, workingDrafts]);
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
@@ -377,6 +355,7 @@ export function useAccountLibraryProjection({
 
   return {
     items,
+    localResources,
     visibleItems,
     featuredItem: home.featuredItem,
     recentItems: home.moreItems,
