@@ -24,6 +24,7 @@ export function LocalProjectFolderPanel({
   const { toast } = useToast();
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<LocalProjectFolderStatus | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,7 +46,12 @@ export function LocalProjectFolderPanel({
 
   const refresh = useCallback(async () => {
     if (!ready) return;
-    setStatus(await getLocalProjectFolderStatus());
+    try {
+      setStatus(await getLocalProjectFolderStatus());
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Saved folder locations are unavailable.');
+    }
   }, [ready]);
 
   useEffect(() => {
@@ -79,6 +85,15 @@ export function LocalProjectFolderPanel({
   if (!ready) {
     return <p className="mt-3 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Preparing local project storage…</p>;
   }
+
+  if (loadError) return <div role="alert" className="space-y-3 py-3">
+    <p>{loadError}</p>
+    <Button type="button" variant="outline" onClick={() => void refresh()}>Try again</Button>
+    <Button type="button" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => void run('open', async () => {
+      const opened = await openProjectFromFolder();
+      router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
+    })}>Open project folder</Button>
+  </div>;
 
   if (status && !status.supported) {
     return (
@@ -133,7 +148,7 @@ export function LocalProjectFolderPanel({
               })}
             >
               {busyAction === 'save-new' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveDownload className="mr-2 h-4 w-4" />}
-              Save current project to folder
+              Save workspace backup to folder
             </Button>
             <Button
               type="button"
@@ -162,7 +177,7 @@ export function LocalProjectFolderPanel({
               })}
             >
               {busyAction === 'save' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save project now
+              {binding.workId ? 'Save attached Set' : 'Save workspace backup'}
             </Button>
             {permission !== 'granted' ? (
               <Button
@@ -185,7 +200,7 @@ export function LocalProjectFolderPanel({
               disabled={Boolean(busyAction)}
               onClick={() => void run('disconnect', async () => {
                 await disconnectLocalProjectFolder();
-                toast({ title: 'Folder disconnected', description: 'The project file was left untouched. CardForge only forgot the browser permission link.' });
+                toast({ title: 'Folder disconnected', description: 'CardForge forgot every saved Set link to this folder. The files and browser permissions were left unchanged.' });
               })}
             >
               <Link2Off className="mr-2 h-4 w-4" /> Disconnect

@@ -41,6 +41,7 @@ export function GoogleDriveProjectStoragePanel({
   const [binding, setBinding] = useState<GoogleDriveProjectBinding | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
+  const [bindingError, setBindingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,9 +68,13 @@ export function GoogleDriveProjectStoragePanel({
     }
     try {
       setLoadError(null);
+      setBindingError(null);
       const [nextLibrary, nextBinding] = await Promise.all([
         loadGoogleDriveProjectLibrary(),
-        getGoogleDriveProjectBinding(),
+        getGoogleDriveProjectBinding().catch((error: unknown) => {
+          setBindingError(error instanceof Error ? error.message : 'The saved attachment is unavailable. Reopen a Drive file before saving.');
+          return null;
+        }),
       ]);
       setLibrary(nextLibrary);
       setBinding(nextBinding);
@@ -175,6 +180,7 @@ export function GoogleDriveProjectStoragePanel({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {bindingError ? <p role="alert" className="w-full text-sm text-[var(--cf-warning)]">{bindingError} Your Drive files remain available below.</p> : null}
               <Button
                 type="button"
                 size="sm"
@@ -203,7 +209,7 @@ export function GoogleDriveProjectStoragePanel({
                 })}
               >
                 {busyAction === 'save-new' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveUpload className="mr-2 h-4 w-4" />}
-                Save current as new
+                Save workspace backup as new
               </Button>
               {binding ? (
                 <Button
@@ -213,11 +219,11 @@ export function GoogleDriveProjectStoragePanel({
                   disabled={Boolean(busyAction) || !canUseProjectFiles}
                   onClick={() => void run('update', async () => {
                     const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name });
-                    toast({ title: 'Google Drive project updated', description: `Saved the current workspace to “${saved.name}” without intentionally overwriting a newer Drive revision.` });
+                    toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
                   })}
                 >
                   {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save attached project
+                  {binding.workId ? 'Save attached Set' : 'Save workspace backup'}
                 </Button>
               ) : null}
               <Button
