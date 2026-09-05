@@ -44,6 +44,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
+  ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
 ];
 
 const summarize = (files, classify) => {

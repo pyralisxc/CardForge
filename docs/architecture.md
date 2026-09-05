@@ -51,6 +51,8 @@ The Owner Content Health panel exposes every loaded finding and a downloadable r
 
 Classification validation, contribution forms, and Content Health share one policy: reusable textures, dividers, icons, images, styles, and fonts classified only as General may omit a specific use case. Templates and Sets still require a meaningful use case; unsupported labels never silently become an empty valid value.
 
+Published discovery classification is an Owner operation in Content Health. The existing owner boundary reads the exact current registry/submission identity, then one service-role-only Postgres command compares lineage, revision, and previous taxonomy before changing tags. It follows native publication lock order and returns a retryable busy failure instead of waiting on a competing bootstrap publication. The existing taxonomy trigger updates discovery; authored payloads, votes, publication status, and lineage stay unchanged. `scripts/prepare-pipeline-catalog-modernization.mjs` produces read-only, source-backed proposals and native revision payloads; ambiguous or partially authored classifications require review.
+
 `npm run pipeline:sync-defaults` imports missing stable IDs and referenced media without overwriting owner decisions or recreating tombstoned assets. Code owns finite Studio destinations/compatibility; Supabase owns live placement, ordering, featured state, and owner overrides.
 
 ## Core ownership

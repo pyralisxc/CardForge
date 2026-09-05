@@ -1,0 +1,14 @@
+{
+  "default-playing-card-theme": { "specialtyTags": ["games"], "useCaseTags": ["playing-cards"] },
+  "default-mtg-theme": { "specialtyTags": ["games"], "useCaseTags": ["tcg"] },
+  "default-ttrpg-stat-sheet": { "specialtyTags": ["games"], "useCaseTags": ["reference-card"] },
+  "default-cardforge-studio-back-bridge": { "specialtyTags": ["games"], "useCaseTags": ["playing-cards"] },
+  "default-cardforge-studio-back-poker": { "specialtyTags": ["games"], "useCaseTags": ["playing-cards"] },
+  "default-cardforge-studio-back-tarot": { "specialtyTags": ["games"], "useCaseTags": ["tarot"] },
+  "default-cardforge-studio-back-ttrpg-reference": { "specialtyTags": ["games"], "useCaseTags": ["reference-card"] },
+  "default-event-badge-theme": { "specialtyTags": ["events"], "useCaseTags": [], "reviewReason": "The controlled vocabulary has no event badge use case; an event poster is a different artifact." },
+  "default-cardforge-studio-back-event-badge": { "specialtyTags": ["events"], "useCaseTags": [], "reviewReason": "The controlled vocabulary has no event badge use case." },
+  "default-name-card-theme": { "specialtyTags": ["business"], "useCaseTags": [], "reviewReason": "The controlled vocabulary has no business card use case; do not classify this as packaging or a game reference card." },
+  "default-cardforge-studio-back-us-business": { "specialtyTags": ["business"], "useCaseTags": [], "reviewReason": "The controlled vocabulary has no business card use case." },
+  "default-obsidian-neon-card-back": { "specialtyTags": ["games"], "useCaseTags": [], "reviewReason": "The source describes a shared launch back without limiting it to one game system." }
+}
