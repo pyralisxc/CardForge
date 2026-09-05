@@ -1,4 +1,4 @@
--- Run after both catalog-content migrations. Probe mutations are rolled back.
+-- Run after the catalog-content and public description migrations. Probe mutations are rolled back.
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
@@ -48,6 +48,20 @@ begin
     exception when raise_exception then
       if sqlerrm <> 'pipeline_classification_conflict' then raise; end if;
     end;
+  end loop;
+
+  for item in select * from (values
+    ('default-name-card-theme', 'Business card front for staff introductions and networking. Personalize the name, role, company logo, and contact details; pair it with CardForge Studio Business Back.'),
+    ('default-cardforge-studio-back-us-business', 'Fantasy artwork for the reverse of a horizontal business card. Pair it with Name Card Theme for a two-sided card.'),
+    ('default-event-badge-theme', 'Event badge front for conferences, workshops, and team events. Fill in attendee and event details, then pair it with CardForge Studio Event Badge Back.'),
+    ('default-cardforge-studio-back-event-badge', 'Fantasy artwork for the reverse of a portrait event badge. Pair it with Event Badge Theme for a two-sided pass.')
+  ) as expected(asset_id, description)
+  loop
+    if not exists (
+      select 1 from public.cardforge_asset_registry r
+      join public.cardforge_contributor_asset_submissions s on s.id = r.contributor_submission_id
+      where r.asset_id = item.asset_id and s.description = item.description
+    ) then raise exception 'Public Template usage description missing: %', item.asset_id; end if;
   end loop;
 
   if (select count(*) from public.cardforge_asset_registry r
