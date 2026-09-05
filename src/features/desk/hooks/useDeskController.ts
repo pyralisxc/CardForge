@@ -14,6 +14,7 @@ import {
   selectCreatorArtifacts,
   selectCreatorDeskSets,
   setCreatorLens,
+  setCreatorToolDirty,
   type EnvironmentViewer,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
@@ -161,6 +162,13 @@ export function useDeskController({
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
   const activeContextTool = interactionSession.toolStack.at(-1) ?? null;
+  const generationContextTool = interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate');
+  const setGenerationToolDirty = useCallback((dirty: boolean) => {
+    setInteractionSession((current) => {
+      const tool = current.toolStack.findLast((candidate) => candidate.toolId === 'generate');
+      return tool && tool.dirty !== dirty ? setCreatorToolDirty(current, tool.instanceId, dirty) : current;
+    });
+  }, [setInteractionSession]);
   const activeContextSetId = activeContextTool?.targetIds[0] ?? null;
   const pipelineSubmitSetId = activeContextTool?.toolId === 'pipeline' ? activeContextSetId : null;
   const studioTool = activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
@@ -168,7 +176,7 @@ export function useDeskController({
     : null;
   const { actions: projectActions, state: projectState } = useDeskProjectWorkspace({
     focusedSetId: focusedLocalSetId,
-    generationSetId: activeContextTool?.toolId === 'generate' ? activeContextSetId : null,
+    generationSetId: generationContextTool?.targetIds[0] ?? null,
     selectedCardIds,
     latestGeneratedIds,
     cardQuery,
@@ -556,6 +564,7 @@ export function useDeskController({
     setCardQuery,
     setCardsTag,
     setActiveToolDirty,
+    setGenerationToolDirty,
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,

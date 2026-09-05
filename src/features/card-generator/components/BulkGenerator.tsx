@@ -37,6 +37,7 @@ import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import { BulkRevisionLibraryPicker } from '@/features/card-generator/components/BulkRevisionLibraryPicker';
 
 interface BulkGeneratorProps {
+  onDirtyChange?: (dirty: boolean) => void;
   templates: TCGCardTemplate[];
   backingTemplate?: TCGCardTemplate | null;
   activeCardSet: CardSet;
@@ -54,6 +55,7 @@ const EMPTY_REVISION_SCOPE: readonly string[] = [];
 type SupportedFileType = 'auto';
 
 export function BulkGenerator({
+  onDirtyChange,
   templates,
   backingTemplate,
   activeCardSet,
@@ -66,6 +68,7 @@ export function BulkGenerator({
   revisionScopeIds = EMPTY_REVISION_SCOPE,
 }: BulkGeneratorProps) {
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
+  const [committedInput, setCommittedInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFileType] = useState<SupportedFileType>('auto');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -81,6 +84,9 @@ export function BulkGenerator({
   const [revisionResourceFieldKey, setRevisionResourceFieldKey] = useState<string>('');
   const [pendingRevision, setPendingRevision] = useState<BulkRevisionPlan | null>(null);
   const [lastRevisionCount, setLastRevisionCount] = useState(0);
+  useEffect(() => {
+    onDirtyChange?.(Boolean(pendingRevision) || (Boolean(bulkDataInput.trim()) && bulkDataInput !== committedInput));
+  }, [bulkDataInput, committedInput, onDirtyChange, pendingRevision]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const revisionPreviewRef = useRef<HTMLElement>(null);
@@ -405,6 +411,7 @@ export function BulkGenerator({
       }
 
       onCardsGenerated(generatedCards);
+      setCommittedInput(bulkDataInput);
       if (generatedCards.length > 0) {
         setLastGeneratedCards(generatedCards);
         toast({ title: 'Cards added to your set', description: `${generatedCards.length} cards are ready to review, edit, or download.` });

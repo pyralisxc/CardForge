@@ -536,6 +536,7 @@ export function CreatorWorkbench({
 
           {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto">
             <GenerationWorkspace
+              onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined}
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
               backFaceTemplates={backFacePresetTemplates}

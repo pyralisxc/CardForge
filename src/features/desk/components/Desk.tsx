@@ -181,6 +181,7 @@ export function Desk({
     selectionScope,
     setCardPositions,
     setActiveToolDirty,
+    setGenerationToolDirty,
     setCardQuery,
     setCardsTag,
     setCreateOpen,
@@ -467,10 +468,13 @@ export function Desk({
           closeLabel="Close Generate"
           onClose={() => { setGenerationRevisionScopeIds([]); closeGenerate(); }}
           manageHistory={false}
+          dirty={interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate')?.dirty ?? false}
+          onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
           railOwned
         >
           <DeskGenerationWorkspace
+            onDirtyChange={setGenerationToolDirty}
             isLoadingTemplates={false}
             templates={templates.filter((template) => template.templateUsage !== 'back-preset')}
             backFaceTemplates={templates.filter((template) => template.templateUsage === 'back-preset')}
@@ -539,6 +543,7 @@ export function Desk({
         pendingDeleteWork={pendingDeleteWork}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
+        dirtyToolName={toolName}
         selectionScope={selectionScope}
         onDirtyCloseOpenChange={setDirtyCloseRequested}
         onConfirmDirtyClose={confirmDirtyClose}

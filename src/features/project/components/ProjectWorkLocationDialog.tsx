@@ -103,7 +103,7 @@ export function DefaultWorkLocationControl({ isSignedIn, canUseProjectFiles, dri
   return <div className={styles.locationPreference}>
     <div><strong>Preferred save destination</strong><span>Shown first when choosing where to save a Set. Existing attachments keep their destination.</span></div>
     <Select value={defaultLocation} onValueChange={(value) => { void changeDefault(value as WorkLocationId); }}>
-      <SelectTrigger aria-label="Default save location" className={styles.defaultSelect}><span>{capabilities.find((capability) => capability.id === defaultLocation)?.label ?? 'This device'}</span></SelectTrigger>
+      <SelectTrigger aria-label="Preferred save destination" className={styles.defaultSelect}><span>{capabilities.find((capability) => capability.id === defaultLocation)?.label ?? 'This device'}</span></SelectTrigger>
       <SelectContent>{capabilities.map((capability) => <SelectItem key={capability.id} value={capability.id} disabled={!capability.available || !capability.create}>{capability.label}</SelectItem>)}</SelectContent>
     </Select>
   </div>;
@@ -192,9 +192,9 @@ export function ProjectWorkLocationDialog({
         </DialogHeader>
 
         <div className={styles.defaultRow}>
-          <div><strong>Default save location</strong><span>Used as the first destination when you save a Set.</span></div>
+          <div><strong>Preferred save destination</strong><span>Shown first for new saves. Existing attachments keep their destination.</span></div>
           <Select value={defaultLocation} onValueChange={(value) => { void changeDefault(value as WorkLocationId); }}>
-            <SelectTrigger aria-label="Default save location" className={styles.defaultSelect}>
+            <SelectTrigger aria-label="Preferred save destination" className={styles.defaultSelect}>
               <span>{capabilities.find((capability) => capability.id === defaultLocation)?.label ?? 'This device'}</span>
             </SelectTrigger>
             <SelectContent>{capabilities.map((capability) => <SelectItem key={capability.id} value={capability.id} disabled={!capability.available || !capability.create}>{capability.label}</SelectItem>)}</SelectContent>

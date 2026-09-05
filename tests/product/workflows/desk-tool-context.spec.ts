@@ -33,7 +33,7 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
       await expect(page.getByRole('menuitem', { name: 'Save & move', exact: true })).toBeVisible();
-      await page.getByRole('menuitem', { name: 'Export / print', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Output', exact: true }).click();
       await expect(page.getByRole('region', { name: 'Output 100 Card Scale Set', exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Template canvas', exact: true })).toHaveCount(0);
       await expect(artwork).toHaveCount(0);

@@ -21,6 +21,7 @@ import { trackCardForgeEvent } from '@/features/analytics/client';
 import styles from './GenerationWorkspace.module.css';
 
 interface GenerationWorkspaceProps {
+  onDirtyChange?: (dirty: boolean) => void;
   isLoadingTemplates: boolean;
   templates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -274,7 +275,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         </div>
       </section> : null}
 
-      {generationStage === 'data' ? <section data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
+      <section hidden={generationStage !== 'data'} data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bulk generation</p>
@@ -293,6 +294,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
         </div>
 
         <BulkGenerator
+          onDirtyChange={props.onDirtyChange}
           templates={templates}
           backingTemplate={selectedBackingTemplate}
           activeCardSet={activeCardSet}
@@ -304,7 +306,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           selectedTemplateIdProp={generatorSelectedTemplateId}
           revisionScopeIds={revisionScopeIds}
         />
-      </section> : null}
+      </section>
 
       {generationStage === 'setup' && generatedDisplayCards.length > 0 ? (
         <div className="rounded-md border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-text-muted)]" role="status">
