@@ -20,6 +20,8 @@ export const CARDFORGE_USE_CASE_OPTIONS = [
   { id: 'tarot', label: 'Tarot / Oracle', description: 'Tarot, oracle, and divination card systems.' },
   { id: 'board-game', label: 'Board Game', description: 'Board-game cards, components, and reference pieces.' },
   { id: 'reference-card', label: 'Reference Card', description: 'Rules summaries, quick-reference cards, and game aids.' },
+  { id: 'business-card', label: 'Business Card', description: 'Professional contact, networking, and business identity cards.' },
+  { id: 'event-badge', label: 'Event Badge', description: 'Attendee, staff, speaker, and exhibitor identification badges.' },
   { id: 'event-poster', label: 'Event Poster', description: 'Printed or digital event promotion.' },
   { id: 'social-post', label: 'Social Post', description: 'Social-media graphics and campaign posts.' },
   { id: 'rulebook', label: 'Rulebook', description: 'Rulebook and instructional visual systems.' },
