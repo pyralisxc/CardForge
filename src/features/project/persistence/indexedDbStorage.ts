@@ -168,6 +168,41 @@ export const createBrowserKeyValueStorage = (
   };
 };
 
+// Keep the read and update in the same native transaction so another tab cannot
+// replace the value between them. The updater must remain synchronous.
+export const updateBrowserKeyValue = async (
+  namespace: string,
+  key: string,
+  update: (current: string | null) => string,
+): Promise<string> => {
+  const database = await openDatabase();
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+      const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
+      const request = store.get(`${namespace}:${key}`);
+      let next: string;
+      request.onsuccess = () => {
+        try {
+          if (request.result !== undefined && typeof request.result !== 'string') {
+            throw new Error('Local asset storage is invalid.');
+          }
+          next = update(request.result ?? null);
+          store.put(next, `${namespace}:${key}`);
+        } catch (error) {
+          transaction.abort();
+          reject(error);
+        }
+      };
+      transaction.oncomplete = () => resolve(next);
+      transaction.onerror = () => reject(transaction.error ?? new Error('Unable to update browser storage.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Browser storage update was aborted.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
 export const compareAndSetBrowserWorkspaceValue = async ({
   namespace,
   key,
@@ -185,10 +220,12 @@ export const compareAndSetBrowserWorkspaceValue = async ({
 }): Promise<number> => {
   const namespacedKey = `${namespace}:${key}`;
   beginWorkspaceWrite();
-  const database = await openDatabase();
+  let database: IDBDatabase | undefined;
   try {
+    database = await openDatabase();
+    const openedDatabase = database;
     const revision = await new Promise<number>((resolve, reject) => {
-      const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+      const transaction = openedDatabase.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
       const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
       const request = store.get(namespacedKey);
       let nextRevision: number | null = null;
@@ -226,7 +263,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
     }
     throw error;
   } finally {
-    database.close();
+    database?.close();
   }
 };
 
@@ -258,7 +295,7 @@ export const createIndexedDbStorage = (
   namespace: string,
   options: { keepRecoverySnapshot?: boolean; suppressWriteErrors?: boolean; trackWorkspaceSaveStatus?: boolean } = {},
 ): StateStorage => {
-  if (typeof indexedDB === 'undefined') {
+  if (typeof indexedDB === 'undefined' && typeof window === 'undefined') {
     return {
       getItem: () => null,
       setItem: () => undefined,

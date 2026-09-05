@@ -84,12 +84,6 @@ export const mapRegistryRowsToStyleLibrary = async (
   return styles.flatMap((style) => style ? [style] : []);
 };
 
-export const getRepositoryTemplateLibrary = async (
-  viewerAccess: RegistryViewerAccess = 'free',
-): Promise<TCGCardTemplate[]> => mapRegistryRowsToTemplateLibrary(
-  await getPublishedRegistryContentRows('template', viewerAccess),
-);
-
 export const getRepositoryStyleLibrary = async (
   viewerAccess: RegistryViewerAccess = 'free',
 ): Promise<AppearanceStyleLibrary> => {

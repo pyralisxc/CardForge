@@ -71,5 +71,5 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Run immediate production route smoke
-        run: node scripts/run-ci-check.mjs --title "Post-deploy production smoke" -- node scripts/check-production-health.mjs --category=route
+      - name: Check production routes and starter discovery
+        run: node scripts/run-ci-check.mjs --title "Post-deploy production smoke" -- node scripts/check-production-health.mjs --category=deployment

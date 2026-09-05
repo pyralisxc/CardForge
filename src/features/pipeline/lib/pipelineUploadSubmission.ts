@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';
+import { create as decodeFont } from 'fontkit';
 
 import {
   isContributorUploadAssetType,
@@ -316,11 +317,29 @@ export const validateUploadedAssetBytes = async (
   if (!magicMatches) {
     throw new PipelineStoreError('The uploaded file contents do not match its declared file type.', 400, { kind: 'invalid' });
   }
-  if (descriptor.assetType !== 'fonts') {
+  if (descriptor.assetType === 'fonts') {
     try {
-      const metadata = await sharp(buffer, { failOn: 'error' }).metadata();
+      const font = decodeFont(buffer);
+      if (!('characterSet' in font) || !font.numGlyphs || !font.unitsPerEm || !font.characterSet.length) {
+        throw new Error('The font has no usable characters.');
+      }
+      // Fontkit decodes lazily. Materialize mapped outlines as well as the header
+      // so truncated glyph tables cannot enter the published library.
+      for (const codePoint of font.characterSet) {
+        const glyph = font.glyphForCodePoint(codePoint);
+        void glyph.path.commands;
+        if (!Number.isFinite(glyph.advanceWidth)) throw new Error('Invalid glyph metrics.');
+      }
+    } catch {
+      throw new PipelineStoreError('The uploaded font is malformed or cannot be decoded safely.', 400, { kind: 'invalid' });
+    }
+  } else {
+    try {
+      const image = sharp(buffer, { failOn: 'error' });
+      const metadata = await image.metadata();
       const expectedFormat = descriptor.extension === 'jpg' ? 'jpeg' : descriptor.extension;
       if (metadata.format !== expectedFormat || !metadata.width || !metadata.height) throw new Error('Unexpected image metadata.');
+      await image.stats();
     } catch {
       throw new PipelineStoreError('The uploaded image is malformed or cannot be decoded safely.', 400, { kind: 'invalid' });
     }

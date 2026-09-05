@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import {
@@ -40,11 +40,12 @@ const createStoredAssetFile = async (asset: CardAssetOption, fileNameStem: strin
 export function usePipelineSubmissionCandidates() {
   const [filter, setFilter] = useState<PersonalLibraryFilter>('all');
   const [assets, setAssets] = useState(emptyPersonalAssets);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const cardSets = useProjectStore((state) => state.cardSets);
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     const storage = getProjectAssetStorage();
-    const refresh = async () => {
+    try {
       const [textures, dividers, icons, imageAssets] = await Promise.all([
         readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
         readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
@@ -52,12 +53,17 @@ export function usePipelineSubmissionCandidates() {
         readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
       ]);
       setAssets({ textures, dividers, icons, imageAssets });
-    };
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Saved artwork could not be read.');
+    }
+  }, []);
+  useEffect(() => {
     const handleFocus = () => void refresh();
     handleFocus();
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [refresh]);
 
   const items = useMemo<PersonalLibraryItem[]>(() => {
     const assetItems = ([
@@ -100,5 +106,5 @@ export function usePipelineSubmissionCandidates() {
   }, [assets, cardSets]);
 
   const visibleItems = useMemo(() => filter === 'all' ? items : items.filter((item) => item.assetType === filter), [filter, items]);
-  return { filter, setFilter, items, visibleItems };
+  return { filter, setFilter, items, visibleItems, loadError, refresh };
 }

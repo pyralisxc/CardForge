@@ -12,12 +12,12 @@ import {
 } from '../model/projectFont';
 import {
   getProjectAssetStorage,
-  readRequiredTypedProjectAssetListFromStorage,
+  readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from './projectAssets';
 
 export const readProjectFonts = async (): Promise<ProjectFontAsset[]> => (
-  normalizeProjectFontAssets(await readRequiredTypedProjectAssetListFromStorage<ProjectFontAsset>(
+  normalizeProjectFontAssets(await readTypedProjectAssetListFromStorage<ProjectFontAsset>(
     getProjectAssetStorage(),
     CUSTOM_FONT_ASSETS_STORAGE_KEY,
   ))
