@@ -42,6 +42,9 @@ export interface PublishedPipelineCatalogItem {
   id: string;
   lineageId: string | null;
   name: string;
+  description?: string;
+  specialtyTags?: string[];
+  useCaseTags?: string[];
   assetType: string;
   previewUrl: string | null;
   access: 'free' | 'paid' | 'contributor';
@@ -189,6 +192,9 @@ export const getCardForgeCatalogManifest = async (
         id: row.asset_id,
         lineageId: row.lineage_id ?? null,
         name: row.name,
+        description: row.description ?? '',
+        specialtyTags: row.specialty_tags ?? [],
+        useCaseTags: row.use_case_tags ?? [],
         assetType: row.asset_type,
         previewUrl: row.preview_url ?? null,
         access: row.access_tier,

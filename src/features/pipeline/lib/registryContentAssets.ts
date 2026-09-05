@@ -2,6 +2,7 @@ import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import type { PostgrestError } from '@supabase/supabase-js';
 import type { StudioAssetDestination, StudioAssetRoutingMode } from '@/domain/templates';
+import { normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';
 export type RegistryViewerAccess = 'free' | 'paid' | 'contributor';
@@ -19,6 +20,9 @@ export interface RegistryContentAssetRow {
   asset_id: string;
   contributor_submission_id?: string | null;
   lineage_id?: string | null;
+  description?: string;
+  specialty_tags?: string[];
+  use_case_tags?: string[];
   name: string;
   url: string;
   preview_url?: string | null;
@@ -114,7 +118,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   const registryAssetIds = [...new Set(rows.map((row) => row.asset_id).filter(Boolean))];
   const [submissionResult, lineageResult] = await Promise.all([
     submissionIds.length
-      ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload').in('id', submissionIds)
+      ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags').in('id', submissionIds)
       : Promise.resolve({ data: [], error: null }),
     registryAssetIds.length
       ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
@@ -122,10 +126,13 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   ]);
   if (submissionResult.error || lineageResult.error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
   const payloadsById = new Map((submissionResult.data ?? []).flatMap((entry) => {
-    const row = entry as { id?: unknown; lineage_id?: unknown; source_payload?: unknown };
+    const row = entry as { id?: unknown; lineage_id?: unknown; source_payload?: unknown; description?: unknown; specialty_tags?: unknown; use_case_tags?: unknown };
     return typeof row.id === 'string' ? [[row.id, {
       lineageId: typeof row.lineage_id === 'string' ? row.lineage_id : null,
       payload: row.source_payload,
+      description: typeof row.description === 'string' ? row.description.trim() : '',
+      specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
+      useCaseTags: normalizeUseCaseTags(row.use_case_tags),
     }] as const] : [];
   }));
   const lineageByAssetId = new Map((lineageResult.data ?? []).flatMap((entry) => {
@@ -136,6 +143,9 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   }));
   return rows.map((row) => ({
     ...row,
+    description: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.description ?? '' : '',
+    specialty_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.specialtyTags ?? [] : [],
+    use_case_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.useCaseTags ?? [] : [],
     lineage_id: row.contributor_submission_id
       ? payloadsById.get(row.contributor_submission_id)?.lineageId ?? lineageByAssetId.get(row.asset_id) ?? null
       : lineageByAssetId.get(row.asset_id) ?? null,

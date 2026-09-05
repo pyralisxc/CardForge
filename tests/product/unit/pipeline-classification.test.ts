@@ -23,6 +23,13 @@ const classification = {
 beforeEach(() => { vi.clearAllMocks(); boundary.rpc.mockResolvedValue({ error: null }); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'owner' }); boundary.classify.mockResolvedValue(undefined); });
 
 describe('published classification command', () => {
+  it.each([['business', 'business-card'], ['events', 'event-badge']])('accepts the %s use case without weakening unknown-tag rejection', async (specialty, useCase) => {
+    await classifyPublishedPipelineAsset({ ...classification, specialtyTags: [specialty], useCaseTags: [useCase] });
+    expect(boundary.rpc).toHaveBeenCalledWith('cardforge_classify_published_pipeline_asset', expect.objectContaining({ p_specialty_tags: [specialty], p_use_case_tags: [useCase] }));
+    boundary.rpc.mockClear();
+    await expect(classifyPublishedPipelineAsset({ ...classification, specialtyTags: [specialty], useCaseTags: [useCase, 'invented-category'] })).rejects.toMatchObject({ status: 400 });
+    expect(boundary.rpc).not.toHaveBeenCalled();
+  });
   it('passes exact compare-and-set identity and tags to the atomic owner without authored fields', async () => {
     await classifyPublishedPipelineAsset(classification);
     expect(boundary.rpc).toHaveBeenCalledWith('cardforge_classify_published_pipeline_asset', {

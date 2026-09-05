@@ -34,6 +34,9 @@ export interface PublishedLibraryObject {
   packageUrl: string | null;
   revision: number | null;
   lineageId: string | null;
+  description: string;
+  specialtyTags: string[];
+  useCaseTags: string[];
 }
 
 export interface PipelineLibraryObject {
@@ -59,7 +62,7 @@ interface LibrarySharedFailure {
   nextAction?: string;
 }
 
-const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObject[] => {
+export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest): PublishedLibraryObject[] => {
   const pipelineByAssetId = new Map((catalog.pipeline?.items ?? []).map((item) => [item.id, item]));
   const templateByIdentity = new Map<string, TCGCardTemplate>();
   catalog.templates.defaults.forEach((template) => {
@@ -91,6 +94,9 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(asset.id)?.lineageId ?? null,
+    description: pipelineByAssetId.get(asset.id)?.description ?? '',
+    specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
+    useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -107,6 +113,9 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     packageUrl: null,
     revision: null,
     lineageId: pipelineByAssetId.get(font.value)?.lineageId ?? null,
+    description: pipelineByAssetId.get(font.value)?.description ?? '',
+    specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
+    useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
     id: `published:set:${set.id}`,
@@ -123,6 +132,9 @@ const publishedAssets = (catalog: CardForgeCatalogManifest): PublishedLibraryObj
     packageUrl: set.packageUrl,
     revision: set.revision,
     lineageId: pipelineByAssetId.get(set.id)?.lineageId ?? null,
+    description: set.description,
+    specialtyTags: set.specialtyTags,
+    useCaseTags: set.useCaseTags,
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
@@ -301,7 +313,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
 
   return {
     catalog,
-    publishedItems: useMemo(() => catalog ? publishedAssets(catalog) : [], [catalog]),
+    publishedItems: useMemo(() => catalog ? projectPublishedLibraryObjects(catalog) : [], [catalog]),
     pipelineItems: useMemo(() => pipelineEnabled && program ? projectPipelineLibraryObjects(program, catalog) : [], [catalog, pipelineEnabled, program]),
     program: pipelineEnabled ? program : null,
     catalogFailure,

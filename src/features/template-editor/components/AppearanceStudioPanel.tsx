@@ -28,7 +28,6 @@ interface AppearanceStudioPanelProps {
   selectedAppearance?: FreeformAppearance;
   compatibleAppearanceStyles: AppearanceStylePreset[];
   compatibleTextureAssets: CardAssetOption[];
-  compatibleDividerAssets: CardAssetOption[];
   elementStylePresets: LocalFillPreset[];
   canUseImageSource: boolean;
   canUseDividerControls: boolean;
@@ -50,7 +49,6 @@ export function AppearanceStudioPanel({
   selectedAppearance,
   compatibleAppearanceStyles,
   compatibleTextureAssets,
-  compatibleDividerAssets,
   elementStylePresets,
   canUseImageSource,
   canUseDividerControls,
@@ -67,7 +65,6 @@ export function AppearanceStudioPanel({
   onMaterializePersonal,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const [styleSearch, setStyleSearch] = useState('');
   const [showAllStyles, setShowAllStyles] = useState(false);
   const normalizedStyleSearch = styleSearch.trim().toLowerCase();
@@ -111,18 +108,6 @@ export function AppearanceStudioPanel({
         tileMode: asset.tileMode ?? 'repeat',
       },
     },
-  }));
-
-  const applyDivider = (asset: CardAssetOption) => onUpdateAppearance((appearance) => ({
-    ...appearance,
-    dividerAsset: asset.url,
-    assetKind: 'divider',
-    textureOpacity: asset.defaultOpacity ?? 100,
-    blendMode: asset.defaultBlendMode ?? 'normal',
-    tileMode: asset.tileMode ?? 'stretch',
-    shapeRole: 'divider',
-    material: { ...appearance.material, baseColor: 'transparent', texture: { kind: 'none' } },
-    border: { ...appearance.border, kind: 'none', width: 0 },
   }));
 
   const applyLocalFillPreset = (preset: LocalFillPreset) => {
@@ -324,36 +309,6 @@ export function AppearanceStudioPanel({
               <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local' : 'Sign in'}
             </Button>
             <input ref={textureAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'texture')} />
-          </div>
-        </div>
-      )}
-      {canUseDividerControls && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Divider Library</Label>
-            <TemplateAssetLibraryPicker
-              assets={compatibleDividerAssets}
-              kind="divider"
-              label="a divider"
-              personalItems={personalItems}
-              personalRoles={['divider']}
-              providerRole="divider"
-              target={{ kind: 'template-element', ids: [element.id] }}
-              onAddFromProvider={onAddFromProvider}
-              onApply={applyDivider}
-              onMaterializePersonal={onMaterializePersonal}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={cn(buttonClassName, 'h-7 px-2 text-[10px]')}
-              title={canUploadCustomAssets ? 'Upload custom divider' : 'Sign in to add custom art'}
-              onClick={() => dividerAssetUploadInputRef.current?.click()}
-            >
-              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local' : 'Sign in'}
-            </Button>
-            <input ref={dividerAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'divider')} />
           </div>
         </div>
       )}

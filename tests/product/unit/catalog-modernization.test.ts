@@ -5,7 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { prepareCatalogModernization } from '../../../scripts/prepare-pipeline-catalog-modernization.mjs';
 import { buildStarterSetProject, buildDeterministicStarterSetPackage } from '../../../scripts/sync-pipeline-defaults.mjs';
-import { normalizeSpecialtyTags, normalizeUseCaseTags } from '@/features/pipeline/lib/contentTaxonomy';
+import { CARDFORGE_USE_CASE_OPTIONS, hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from '@/features/pipeline/lib/contentTaxonomy';
+import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
 import { decodeCardForgeProjectPackage, hydrateCardForgeProjectSnapshot } from '@/features/project/lib/projectPackageCodec';
 import { TemplateThumbnail } from '@/features/card-rendering/client';
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
@@ -24,6 +25,14 @@ const input = () => ({
 });
 
 describe('catalog modernization preparation', () => {
+  it.each([['business', 'business-card', 'Business Card'], ['events', 'event-badge', 'Event Badge']])('retains and displays %s classification in the shared control', (specialty, useCase, label) => {
+    expect(normalizeUseCaseTags([useCase, 'invented-category'])).toEqual([useCase]);
+    expect(normalizeSpecialtyTags([useCase])).toEqual([]);
+    expect(hasRequiredPipelineClassification('templates', [specialty], [useCase])).toBe(true);
+    expect(hasRequiredPipelineClassification('sets', [specialty], [useCase])).toBe(true);
+    const markup = renderToStaticMarkup(createElement(ControlledTaxonomySelect, { label: 'Use cases', selectedIds: [useCase], options: CARDFORGE_USE_CASE_OPTIONS, onChange: () => undefined }));
+    expect(markup).toContain(`Remove ${label}`);
+  });
   it('preserves General resources and never replaces partially authored classification', () => {
     const source = input();
     const base = { asset_id: 'texture', asset_type: 'texture', source_path: 'data/texture.json', specialty_tags: [], use_case_tags: [] };
@@ -34,13 +43,17 @@ describe('catalog modernization preparation', () => {
     expect(manifest.entries.map((entry: { action: string }) => entry.action)).toEqual(['preserve', 'classification-review', 'classification-review', 'classification-review']);
     expect(manifest.entries.every((entry: object) => !('request' in entry))).toBe(true);
   });
-  it('uses only supported taxonomy and leaves unsupported badge/business use cases explicit', () => {
+  it('classifies business cards and event badges through the supported shared taxonomy', () => {
     for (const item of Object.values(classification) as Array<{ specialtyTags: string[]; useCaseTags: string[] }>) {
       expect(normalizeSpecialtyTags(item.specialtyTags)).toEqual(item.specialtyTags);
       expect(normalizeUseCaseTags(item.useCaseTags)).toEqual(item.useCaseTags);
     }
-    expect(classification['default-name-card-theme'].useCaseTags).toEqual([]);
-    expect(classification['default-event-badge-theme'].reviewReason).toContain('badge');
+    for (const id of ['default-name-card-theme', 'default-cardforge-studio-back-us-business']) {
+      expect(classification[id]).toEqual({ specialtyTags: ['business'], useCaseTags: ['business-card'] });
+    }
+    for (const id of ['default-event-badge-theme', 'default-cardforge-studio-back-event-badge']) {
+      expect(classification[id]).toEqual({ specialtyTags: ['events'], useCaseTags: ['event-badge'] });
+    }
   });
 
   it('patches only physical format using the exact baseline payload and native revision expectation', () => {

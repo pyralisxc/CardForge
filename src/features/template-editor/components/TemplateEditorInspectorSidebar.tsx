@@ -161,6 +161,12 @@ export function TemplateEditorInspectorSidebar({
                   element={selectedElement}
                   selectedAppearance={elements.selectedAppearance}
                   dividerPresets={elements.selectedElementPresetRecipeGroups.divider}
+                  dividerAssets={elements.compatibleDividerAssets}
+                  personalItems={elements.connectedLibraryItems}
+                  onAddFromProvider={elements.addConnectedLibraryItems}
+                  onMaterializePersonal={elements.importConnectedLibraryItem}
+                  canUploadCustomAssets={canUploadCustomAssets}
+                  onHandleAssetUpload={elements.handleAssetUpload}
                   onApplyPreset={elements.applyElementPresetRecipe}
                   onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
                   onUpdateAppearance={(updater, trackHistory) => elements.updateElementAppearance(selectedElement.id, updater, trackHistory)}
@@ -212,7 +218,6 @@ export function TemplateEditorInspectorSidebar({
               selectedAppearance={elements.selectedAppearance}
               compatibleAppearanceStyles={elements.compatibleAppearanceStyles}
               compatibleTextureAssets={elements.compatibleTextureAssets}
-              compatibleDividerAssets={elements.compatibleDividerAssets}
               elementStylePresets={ELEMENT_STYLE_PRESETS}
               canUseImageSource={elements.canUseImageSource}
               canUseDividerControls={elements.canUseDividerControls}

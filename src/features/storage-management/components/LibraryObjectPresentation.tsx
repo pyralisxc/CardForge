@@ -8,7 +8,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
 
@@ -116,6 +116,8 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
     actionSources: [{ id: `${item.id}:catalog`, label: 'CardForge catalog', source: 'provider-native', currentRevisionAvailable: true }],
     meta: [
       ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
+      ...(item.published.specialtyTags.length ? [['Specialties', item.published.specialtyTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
+      ...(item.published.useCaseTags.length ? [['Use cases', item.published.useCaseTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
       ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
       ['Design access', 'Ready to use'],

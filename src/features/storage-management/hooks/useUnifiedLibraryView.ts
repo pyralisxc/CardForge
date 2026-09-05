@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from 'react';
+import { formatContentTaxonomyTag } from '@/features/pipeline/client';
 
 import { getLibraryScopeStatus, type LibraryScope } from '../model/libraryScopes';
 import { accountLibraryKindLabels } from '../components/AccountLibraryItemRow';
@@ -34,7 +35,7 @@ export function useUnifiedLibraryView({
   }), [projection.visibleItems]);
   const publishedItems = useMemo<LibraryViewItem[]>(() => shared.publishedItems.map((item) => ({
     id: item.id, scope: 'published', name: item.name, kindLabel: item.kindLabel, sourceLabel: item.sourceLabel,
-    statusLabel: item.accessLabel, summary: `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
+    statusLabel: item.accessLabel, summary: item.description || `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
     sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
   })), [shared.publishedItems]);
   const pipelineItems = useMemo<LibraryViewItem[]>(() => shared.pipelineItems.map((item) => ({
@@ -71,7 +72,9 @@ export function useUnifiedLibraryView({
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
-    return !normalizedQuery || [item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary].join(' ').toLocaleLowerCase().includes(normalizedQuery);
+    const tags = item.scope === 'published' ? [...item.published.specialtyTags, ...item.published.useCaseTags]
+      : item.scope === 'pipeline' ? [...item.pipeline.submission.specialtyTags, ...item.pipeline.submission.useCaseTags] : [];
+    return !normalizedQuery || [item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary, ...tags, ...tags.map(formatContentTaxonomyTag)].join(' ').toLocaleLowerCase().includes(normalizedQuery);
   }).toSorted((left, right) => projection.sort === 'name'
     ? left.name.localeCompare(right.name)
     : projection.sort === 'kind'
