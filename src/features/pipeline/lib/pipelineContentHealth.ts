@@ -48,7 +48,7 @@ export const buildPipelineContentHealth = ({
     let validPackage = false;
     try { validPackage = new URL(set.packageUrl).protocol === 'https:'; } catch { validPackage = false; }
     if (!validPackage) issues.push({ code: 'invalid-package', severity: 'error', objectId: set.id, objectName: set.name, message: 'Published Set does not have a valid HTTPS package source.', repair: 'Publish a verified portable Set package revision.' });
-    if (!hasRequiredPipelineClassification('sets', set.specialtyTags, set.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Classify specialty and use case on the next revision.' });
+    if (!hasRequiredPipelineClassification('sets', set.specialtyTags, set.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Choose this published Set in Content Health and save its specialty and use-case tags.' });
   });
   (program?.submissions ?? []).filter((submission) => submission.status === 'published').forEach((submission) => {
     const objectId = submission.lineageId ?? submission.id;
