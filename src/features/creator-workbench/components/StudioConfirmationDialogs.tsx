@@ -25,10 +25,6 @@ interface StudioConfirmationDialogsProps {
   pendingTemplateRetarget: PendingTemplateRetarget | null;
   onDismissTemplateRetarget: () => void;
   onApplyTemplateRetarget: () => void;
-  clearCardsOpen: boolean;
-  generatedCardCount: number;
-  onClearCardsOpenChange: (open: boolean) => void;
-  onConfirmClearCards: () => void;
   pendingProjectImport: { preview: ProjectImportPreview } | null;
   onClearProjectImport: () => void;
   onApplyProjectImport: (mode: ProjectImportMode) => void;
@@ -43,10 +39,6 @@ export function StudioConfirmationDialogs({
   pendingTemplateRetarget,
   onDismissTemplateRetarget,
   onApplyTemplateRetarget,
-  clearCardsOpen,
-  generatedCardCount,
-  onClearCardsOpenChange,
-  onConfirmClearCards,
   pendingProjectImport,
   onClearProjectImport,
   onApplyProjectImport,
@@ -101,23 +93,6 @@ export function StudioConfirmationDialogs({
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
-
-      <AlertDialog open={clearCardsOpen} onOpenChange={onClearCardsOpenChange}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove all cards from this set?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove {generatedCardCount} card{generatedCardCount === 1 ? '' : 's'} from this browser. Templates will not be deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmClearCards} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove Cards
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={Boolean(pendingProjectImport)} onOpenChange={(open) => !open && onClearProjectImport()}>
         <AlertDialogContent>

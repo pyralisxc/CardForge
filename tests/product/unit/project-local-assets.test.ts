@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { mergeProjectAssetListToStorage } from '@/features/project/persistence/projectAssets';
 
 import { canUploadCustomLocalAssets, readRequiredProjectAssetListFromStorage, readProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
 
@@ -17,6 +18,15 @@ const createStorage = (initial: Record<string, string | null> = {}) => {
 };
 
 describe('projectLocalAssets', () => {
+  it('leaves existing assets unchanged when a merge cannot read them', async () => {
+    let saved = '[{"id":"existing"}]';
+    const storage = {
+      getItem: async () => { throw new Error('Unreadable storage'); },
+      setItem: async (_key: string, value: string) => { saved = value; },
+    };
+    await expect(mergeProjectAssetListToStorage(storage, 'images', [{ id: 'incoming' }])).rejects.toThrow('Unreadable storage');
+    expect(saved).toBe('[{"id":"existing"}]');
+  });
   it('reads arrays from storage and returns empty arrays for missing or invalid values', async () => {
     const storage = createStorage({
       textures: JSON.stringify([{ id: 'asset-1' }]),

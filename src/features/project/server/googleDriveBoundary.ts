@@ -50,7 +50,7 @@ export const classifyGoogleProviderFailure = (
         : [400, 401, 403, 404, 409, 413].includes(responseStatus) ? responseStatus : 503;
   const kind = permanentLimit ? 'limit' : inferBoundaryFailureKind(status);
   const nextAction = reconnectRequired || status === 401
-    ? 'Reconnect Google Drive in Account → Storage & Library.'
+    ? 'Reconnect Google Drive in Library → Locations.'
     : permanentLimit
       ? 'Review the Google account storage or Google Cloud project quota before retrying.'
       : status === 403

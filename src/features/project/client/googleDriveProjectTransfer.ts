@@ -276,14 +276,15 @@ export const openGoogleDriveProject = async (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'name'>,
 ): Promise<GoogleDriveProjectBinding> => {
   const { decoded, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary);
-  await applyProjectDocumentToWorkspace(decoded.document, 'replace');
+  const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy');
   const binding = downloadedBinding({
     summary,
     providerRevision,
     projectRevision,
     modifiedAt,
-    workId: decoded.document.activeCardSetId ?? decoded.document.cardSets[0]?.id ?? null,
+    workId: imported.activeSetId,
   });
+  if (binding.workId && decoded.document.cardSets.length === 1) await persistWorkBinding(binding.workId, binding);
   await persistBinding(binding);
   return binding;
 };

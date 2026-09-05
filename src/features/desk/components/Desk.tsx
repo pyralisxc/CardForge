@@ -505,6 +505,8 @@ export function Desk({
           railOwned
         >
           <DeskDesignWorkspace
+            tool={studioTool.tool === 'output' ? 'output' : 'design'}
+            onCloseTool={confirmDirtyClose}
             businessIdentity={businessIdentity}
             initialContributorAccess={initialContributorAccess}
             onDirtyChange={studioTool.tool === 'design' ? setActiveToolDirty : undefined}

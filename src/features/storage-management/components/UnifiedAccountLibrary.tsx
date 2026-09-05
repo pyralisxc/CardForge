@@ -332,7 +332,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
       </nav>
-      {activeScope === 'pipeline' && experience.owner ? <details className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]" open>
+      {activeScope === 'pipeline' && experience.owner ? <details className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface-inset)]">
         <summary className="cursor-pointer px-4 py-3 font-serif text-lg text-[var(--cf-text-strong)]">Owner Pipeline operations <span className="ml-2 font-sans text-xs text-[var(--cf-text-subtle)]">publication, quotas, routing, revisions</span></summary>
         <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel /></div>
       </details> : null}

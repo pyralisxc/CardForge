@@ -175,7 +175,8 @@ export const createScopedProjectStorage = (
       if (baseNamespace === 'project-assets') {
         return externalized.storedValue;
       }
-    } catch {
+    } catch (error) {
+      if (baseNamespace === 'project-assets') throw error;
       // The recovery copy below is authoritative when structured artwork or JSON
       // cannot be read safely. Never hydrate a partial/empty replacement.
     }
@@ -188,15 +189,16 @@ export const createScopedProjectStorage = (
   },
   setItem: async (key, value) => {
     const scope = activeProjectPersistenceScope;
-    const externalized = await externalizeBrowserProjectAssetJson(value, scope);
     const namespace = getScopedProjectStorageNamespace(baseNamespace, scope);
     if (baseNamespace !== 'project-workspace') {
+      const externalized = await externalizeBrowserProjectAssetJson(value, scope);
       await createIndexedDbStorage(namespace, options).setItem(key, externalized.storedValue);
       return;
     }
     const revisionKey = getWorkspaceRevisionKey(namespace, key);
     try {
       await enqueueWorkspaceWrite(revisionKey, async () => {
+        const externalized = await externalizeBrowserProjectAssetJson(value, scope);
         const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
         const revision = await compareAndSetBrowserWorkspaceValue({
           namespace,

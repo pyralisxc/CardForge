@@ -228,7 +228,7 @@ test.describe('account contribution surfaces', () => {
     }))).toEqual({ horizontal: 0, vertical: 0 });
     const artifactEditOverflow = await artifactEditStage.evaluate((node) => window.getComputedStyle(node).overflow);
     expect(artifactEditOverflow).toBe('hidden');
-    await expect(artifactEditor.getByRole('complementary', { name: 'Artifact fields' })).toBeVisible();
+    await expect(artifactEditor.getByRole('complementary', { name: 'Card fields' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
     await page.setViewportSize({ width: 390, height: 844 });
     await artifactEditor.getByRole('button', { name: 'Fit', exact: true }).click();

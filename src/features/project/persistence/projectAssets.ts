@@ -73,7 +73,7 @@ export const mergeProjectAssetListToStorage = async (
   key: string,
   assets: unknown[],
 ): Promise<void> => {
-  const existingAssets = await readProjectAssetListFromStorage(storage, key);
+  const existingAssets = await readRequiredProjectAssetListFromStorage(storage, key);
   const merged = new Map<string, unknown>();
 
   [...existingAssets, ...assets].forEach((asset, index) => {

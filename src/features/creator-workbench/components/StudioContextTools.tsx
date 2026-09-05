@@ -27,6 +27,7 @@ export function StudioContextTools({
   onSaveMoveOpenChange,
   outputPanelProps,
   saveMoveDialogProps,
+  inlineOutput = false,
 }: {
   activeSetName: string;
   activeSetId: string;
@@ -37,7 +38,13 @@ export function StudioContextTools({
   onSaveMoveOpenChange: (open: boolean) => void;
   outputPanelProps: ComponentProps<typeof StudioOutputPanel>;
   saveMoveDialogProps: Omit<ComponentProps<typeof StudioSaveMoveDialog>, 'open' | 'onOpenChange'>;
+  inlineOutput?: boolean;
 }) {
+  if (inlineOutput) return (
+    <section aria-label={`Output ${activeSetName}`} className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+      <StudioOutputPanel {...outputPanelProps} />
+    </section>
+  );
   return (
     <>
       <Sheet open={openTool === 'output'} onOpenChange={(open) => { if (!open) onOpenToolChange(null); }}>

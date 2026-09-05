@@ -354,7 +354,7 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
     console.error('Unable to decrypt Google Drive project refresh token:', error);
     throw new ProjectStorageProviderError('The Google Drive connection needs to be reconnected.', 401, {
       kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+      nextAction: 'Reconnect Google Drive in Library → Locations.',
     });
   }
   const token = await requestGoogleAccessToken({
@@ -370,7 +370,7 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
       .eq('id', row.id);
     throw new ProjectStorageProviderError('Google Drive authorization expired or was revoked.', 401, {
       kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+      nextAction: 'Reconnect Google Drive in Library → Locations.',
     });
   }
   if (!token.ok) {
@@ -395,7 +395,7 @@ const requireConnection = async (ownerUserId: string): Promise<{ row: GoogleDriv
   if (!row) {
     throw new ProjectStorageProviderError('Connect Google Drive before using it for CardForge projects.', 404, {
       kind: 'not_found',
-      nextAction: 'Connect Google Drive in Account → Storage & Library.',
+      nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
   return { row, accessToken: await refreshGoogleAccessToken(row) };

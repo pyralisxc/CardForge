@@ -54,7 +54,7 @@ const getPickerConnection = async (ownerUserId: string): Promise<PickerConnectio
   if (!data) {
     throw new ProjectStorageProviderError('Connect Google Drive before choosing a project folder.', 404, {
       kind: 'not_found',
-      nextAction: 'Connect Google Drive in Account → Storage & Library.',
+      nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
   return data as unknown as PickerConnectionRow;
@@ -77,7 +77,7 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
     console.error('Unable to decrypt Google Drive refresh token for Picker:', error);
     throw new ProjectStorageProviderError('The Google Drive connection needs to be reconnected.', 401, {
       kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Account → Storage & Library.',
+      nextAction: 'Reconnect Google Drive in Library → Locations.',
     });
   }
 

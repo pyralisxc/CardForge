@@ -1,4 +1,5 @@
 import { AlertTriangle, ChevronRight, ListChecks, RefreshCw, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import type { EnvironmentCollectionRecord, EnvironmentDetailRecord, EnvironmentSettingRecord } from '../presentation';
@@ -12,8 +13,8 @@ export function EnvironmentSectionHeading({ id, title, meta }: { id: string; tit
   return <div className={styles.sectionHeading}><h3 id={id}>{title}</h3><span>{meta}</span></div>;
 }
 
-export function EnvironmentBoundaryNotice({ title, message, actionLabel, onAction }: { title: string; message: string; actionLabel?: string; onAction?: () => void }) {
-  return <div className={styles.boundary} role="status"><AlertTriangle size={18} aria-hidden="true" /><p><strong>{title}.</strong> {message}</p>{actionLabel && onAction ? <button type="button" className={styles.quietButton} onClick={onAction}>{actionLabel}<RefreshCw size={14} aria-hidden="true" /></button> : null}</div>;
+export function EnvironmentBoundaryNotice({ title, message, actionLabel, onAction, settingsHref }: { title: string; message: string; actionLabel?: string; onAction?: () => void; settingsHref?: string }) {
+  return <div className={styles.boundary} role="status"><AlertTriangle size={18} aria-hidden="true" /><p><strong>{title}.</strong> {message}</p>{settingsHref ? <Link className={styles.quietButton} href={settingsHref}>Manage connections<ChevronRight size={14} aria-hidden="true" /></Link> : null}{actionLabel && onAction ? <button type="button" className={styles.quietButton} onClick={onAction}>{actionLabel}<RefreshCw size={14} aria-hidden="true" /></button> : null}</div>;
 }
 
 export function CompactSettingRow({ item, selected, showSummary = true, onOpen }: { item: EnvironmentSettingRecord; selected: boolean; showSummary?: boolean; onOpen: (record: EnvironmentDetailRecord) => void }) {

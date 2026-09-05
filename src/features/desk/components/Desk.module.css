@@ -1,3 +1,5 @@
+.desktopSaveAction { display: inline-flex; }
+
 .spatialPlane {
   width: 100%;
   min-width: 0;
@@ -1258,7 +1260,7 @@
     font-size: 0.62rem;
   }
 
-  .contextRail[data-depth="set"] .contextActions > button:nth-of-type(3),
+  .desktopSaveAction,
   .contextRail[data-depth="desk"] .contextStatus {
     display: none;
   }
@@ -1276,6 +1278,19 @@
     height: 100%;
     min-height: 0;
     gap: 0.45rem;
+  }
+
+  .desk[data-desk="overview"] {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .desk[data-desk="overview"] > * { flex-shrink: 0; }
+
+  .desk[data-desk="overview"] .workSurface {
+    flex: none;
+    height: max(24rem, 55dvh);
   }
 
   .workSurface {

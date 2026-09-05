@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import type { ChangeEvent } from 'react';
 import type { CardData, CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -36,9 +38,12 @@ interface EditCardDialogProps {
   onDuplicate: (cardToDuplicate: DisplayCard) => void;
   onClose: () => void;
   presentation?: 'dialog' | 'workspace';
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, presentation = 'dialog' }: EditCardDialogProps) {
+export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onDirtyChange, presentation = 'dialog' }: EditCardDialogProps) {
+  const router = useRouter();
+  const [pendingLeave, setPendingLeave] = useState<{ href?: string } | null>(null);
   const [editedData, setEditedData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   const [editedBackingData, setEditedBackingData] = useState<CardData>({});
@@ -60,7 +65,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
   const fitArtifactViewport = artifactViewport.fit;
 
   const generateFieldsAndData = useCallback((template: TCGCardTemplate | undefined | null, existingData: CardData | null | undefined): [TemplateFieldDefinition[], CardData] => {
-    return initializeCardDataFromTemplate(template, existingData);
+    return initializeCardDataFromTemplate(template, existingData, true);
   }, []);
 
   useEffect(() => {
@@ -78,6 +83,30 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
       setBackingFields([]);
     }
   }, [card, generateFieldsAndData]);
+
+  const dirty = Boolean(card && (
+    JSON.stringify(editedData) !== JSON.stringify(generateFieldsAndData(card.template, card.data)[1])
+    || JSON.stringify(editedBackingData) !== JSON.stringify(generateFieldsAndData(card.backingTemplate, card.backingData)[1])
+  ));
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    const navigate = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!(link instanceof HTMLAnchorElement) || link.target === '_blank' || link.hasAttribute('download')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setPendingLeave({ href: link.href });
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('click', navigate, true);
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      document.removeEventListener('click', navigate, true);
+    };
+  }, [dirty]);
 
   useEffect(() => {
     if (!card?.backingTemplate) setPreviewFace('front');
@@ -122,9 +151,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
 
   const validateRequiredFields = useCallback((): boolean => {
     const missingFields = [
-      ...getMissingRequiredFieldLabels(dynamicFields, editedData).map((label) => `Front: ${label}`),
+      ...getMissingRequiredFieldLabels(dynamicFields.filter((field) => !(field.isImage && editedData[field.key] === undefined)), editedData).map((label) => `Front: ${label}`),
       ...(card?.backingTemplate
-        ? getMissingRequiredFieldLabels(backingFields, editedBackingData).map((label) => `Back: ${label}`)
+        ? getMissingRequiredFieldLabels(backingFields.filter((field) => !(field.isImage && editedBackingData[field.key] === undefined)), editedBackingData).map((label) => `Back: ${label}`)
         : []),
     ];
     if (missingFields.length === 0) return true;
@@ -138,9 +167,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
 
   const getEditedCard = useCallback((): DisplayCard | null => {
     if (!card) return null;
-    const finalData = completeCardDataWithTemplateDefaults(dynamicFields, editedData);
+    const finalData = completeCardDataWithTemplateDefaults(dynamicFields, editedData, true);
     const finalBackingData = card.backingTemplate
-      ? completeCardDataWithTemplateDefaults(backingFields, editedBackingData)
+      ? completeCardDataWithTemplateDefaults(backingFields, editedBackingData, true)
       : undefined;
     return { ...card, data: finalData, backingData: finalBackingData };
   }, [backingFields, card, dynamicFields, editedBackingData, editedData]);
@@ -149,18 +178,20 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
     if (validateRequiredFields()) {
       const updatedCard = getEditedCard();
       if (!updatedCard) return;
+      onDirtyChange?.(false);
       onSave(updatedCard);
     }
-  }, [getEditedCard, onSave, validateRequiredFields]);
+  }, [getEditedCard, onDirtyChange, onSave, validateRequiredFields]);
 
   const handleDuplicateThisCard = useCallback(() => {
     if (validateRequiredFields()) {
       const updatedCard = getEditedCard();
       if (!updatedCard) return;
+      onDirtyChange?.(false);
       onDuplicate(updatedCard);
       onClose();
     }
-  }, [getEditedCard, onClose, onDuplicate, validateRequiredFields]);
+  }, [getEditedCard, onClose, onDirtyChange, onDuplicate, validateRequiredFields]);
 
   const previewCard = useMemo<DisplayCard | null>(() => card ? {
     ...card,
@@ -169,6 +200,20 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
   } : null, [card, editedBackingData, editedData]);
 
   if (!card) return null;
+
+  const requestClose = () => dirty ? setPendingLeave({}) : onClose();
+  const discardDialog = <AlertDialog open={pendingLeave !== null} onOpenChange={(open) => { if (!open) setPendingLeave(null); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>Discard unsaved card changes?</AlertDialogTitle><AlertDialogDescription>Your saved card will stay unchanged. Keep editing to save your changes first.</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction onClick={() => {
+        const href = pendingLeave?.href;
+        setPendingLeave(null);
+        onDirtyChange?.(false);
+        onClose();
+        if (href) router.push(href);
+      }}>Discard changes</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
 
   const cardIdentifier = String(editedData[dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImage)?.key || ''] || editedData[dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImage)?.key || ''] || `Card ${card.uniqueId.substring(0,5)}`);
 
@@ -230,17 +275,17 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
       <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]" data-artifact-edit-workspace aria-labelledby="artifact-edit-heading">
         <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-editor-shell)] py-2 pl-3 pr-16 sm:gap-3 sm:px-4 sm:pr-20">
           <div className="mr-auto min-w-0">
-            <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Artifact editor</p>
+            <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Card editor</p>
             <h2 id="artifact-edit-heading" className="truncate font-serif text-lg text-[var(--cf-text-strong)]">{cardIdentifier}</h2>
           </div>
-          <div className="flex items-center gap-1" aria-label="Artifact zoom controls">
+          <div className="flex items-center gap-1" aria-label="Card zoom controls">
             <Button type="button" size="icon" variant="ghost" onClick={() => artifactViewport.changeZoom(artifactViewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
             <span className="w-12 text-center text-xs tabular-nums text-[var(--cf-text-muted)]" aria-live="polite">{Math.round(artifactViewport.zoom * 100)}%</span>
             <Button type="button" size="icon" variant="ghost" onClick={() => artifactViewport.changeZoom(artifactViewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
             <Button type="button" size="sm" variant="ghost" onClick={artifactViewport.fit}>Fit</Button>
           </div>
           <span className="hidden text-[0.68rem] text-[var(--cf-text-subtle)] xl:inline">Pinch or scroll to zoom</span>
-          <Button type="button" size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" size="sm" variant="outline" onClick={requestClose}>Cancel</Button>
           <Button type="button" size="sm" variant="secondary" onClick={handleDuplicateThisCard}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
           <Button type="button" size="sm" onClick={handleSaveChanges}><Save className="mr-1.5 h-4 w-4" />Save</Button>
         </header>
@@ -269,17 +314,19 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, pre
               </div>
             </div>
           </div>
-          <aside className="cardforge-scroll-body min-h-0 overflow-y-auto overscroll-contain border-t border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 [-webkit-overflow-scrolling:touch] lg:border-l lg:border-t-0" aria-label="Artifact fields">
+          <aside className="cardforge-scroll-body min-h-0 overflow-y-auto overscroll-contain border-t border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 [-webkit-overflow-scrolling:touch] lg:border-l lg:border-t-0" aria-label="Card fields">
             <p className="mb-1 text-xs text-[var(--cf-text-muted)]">Front: {card.template.name || card.template.id?.substring(0,8)}{card.backingTemplate ? ` · Back: ${card.backingTemplate.name || card.backingTemplate.id?.substring(0, 8)}` : ' · No back selected'}</p>
             {editorFields}
           </aside>
         </div>
+        {discardDialog}
       </section>
     );
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(openState) => !openState && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(openState) => !openState && requestClose()}>
+      {discardDialog}
       <ScrollableDialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit: {cardIdentifier}</DialogTitle>

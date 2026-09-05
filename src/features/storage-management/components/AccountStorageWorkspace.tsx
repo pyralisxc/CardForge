@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -41,12 +42,14 @@ const focusedStorageContent = (node: ReactNode, focus: AccountStorageLibraryFocu
 const selectedContentClass = 'account-storage-detail [&>div]:m-0 [&>div]:border-0 [&>div]:bg-transparent [&>div]:p-0 [&>section]:m-0 [&>section]:max-w-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:p-0 [&>section>div]:border-0 [&>section>div]:bg-transparent [&>section>div]:p-0';
 
 function StorageToolDetail({ location, onClose }: { location: StorageToolLocation; onClose: () => void }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, [location.id]);
   return (
     <div id="environment-detail-panel" className="min-w-0">
       <div className="flex items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">{location.eyebrow}</p>
-          <h3 className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">{location.title}</h3>
+          <h3 ref={headingRef} tabIndex={-1} className="mt-1 font-serif text-xl text-[var(--cf-text-strong)]">{location.title}</h3>
           <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{location.summary}</p>
         </div>
         <button type="button" className="grid h-11 w-11 shrink-0 place-items-center border border-[var(--cf-border-subtle)] text-[var(--cf-text-muted)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]" aria-label={`Close ${location.title}`} onClick={onClose}><X className="h-4 w-4" /></button>
@@ -64,13 +67,14 @@ export function LibraryStorageConnectionsTool({
 }: LibraryStorageConnectionsToolProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const containerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)');
-    const update = () => setMobileDetail(media.matches);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => setMobileDetail(entry.contentRect.width < 720));
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
 
   const locations = useMemo<StorageToolLocation[]>(() => [
@@ -124,13 +128,13 @@ export function LibraryStorageConnectionsTool({
   };
 
   return (
-    <section aria-label="Storage and connections">
-      {mobileDetail && selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
+    <section ref={containerRef} aria-label="Storage and connections">
+      {mobileDetail && selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className={`grid min-w-0 gap-5 ${mobileDetail ? '' : 'grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]'}`}>
         <div className="min-w-0">
           <EnvironmentSectionHeading id="storage-location-list-heading" title="Owners & locations" meta={`${locations.length} locations`} />
           {locations.map((location) => <CompactSettingRow key={location.id} item={location} selected={selectedId === location.id} showSummary={false} onOpen={() => setSelectedId(location.id)} />)}
         </div>
-        {!mobileDetail ? <aside className="hidden min-w-0 border-l border-[var(--cf-border-subtle)] pl-5 md:block" aria-live="polite">
+        {!mobileDetail ? <aside className="min-w-0 border-l border-[var(--cf-border-subtle)] pl-5" aria-live="polite">
           {selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className="py-8"><p className="font-serif text-xl text-[var(--cf-text-strong)]">Choose a location</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Actions stay with the location they affect, so removing a local copy, provider file, index reference, or temporary draft cannot be mistaken for deleting authored work everywhere.</p></div>}
         </aside> : null}
       </div>}

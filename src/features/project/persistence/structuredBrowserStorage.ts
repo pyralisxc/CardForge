@@ -26,9 +26,11 @@ const runStructuredRequest = async <T>(
   return await new Promise<T>((resolve, reject) => {
     const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, mode);
     const request = action(transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE));
-    request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error('Browser storage request failed.'));
-    transaction.oncomplete = () => database.close();
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(request.result);
+    };
     transaction.onerror = () => {
       database.close();
       reject(transaction.error ?? new Error('Browser storage transaction failed.'));

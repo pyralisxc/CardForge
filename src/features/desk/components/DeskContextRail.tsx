@@ -110,8 +110,9 @@ export function DeskContextRail(props: DeskContextRailProps) {
           {!props.localSet ? <Button type="button" size="sm" onClick={props.onOpenWork}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Open work</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenDesign}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
-          <Button type="button" size="sm" variant="ghost" onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
+          <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
             {props.localSet ? <DropdownMenuItem onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}

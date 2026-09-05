@@ -41,7 +41,6 @@ export function useCardForgeWorkspaceState() {
   const deleteAppearanceStyleAction = useProjectStore((state) => state.deleteAppearanceStyle);
   const addGeneratedCardsAction = useProjectStore((state) => state.addGeneratedCards);
   const createCardSetAction = useProjectStore((state) => state.createCardSet);
-  const clearGeneratedCardsAction = useProjectStore((state) => state.clearGeneratedCards);
   const removeGeneratedCardAction = useProjectStore((state) => state.removeGeneratedCard);
   const updateGeneratedCardAction = useProjectStore((state) => state.updateGeneratedCard);
   const reviseGeneratedCardsAction = useProjectStore((state) => state.reviseGeneratedCards);
@@ -82,7 +81,6 @@ export function useCardForgeWorkspaceState() {
       createCardSetAction,
       addOrUpdateAppearanceStyleAction,
       addOrUpdateTemplateAction,
-      clearGeneratedCardsAction,
       cloneTemplateAction,
       closeEditDialogAction,
       deleteAppearanceStyleAction,

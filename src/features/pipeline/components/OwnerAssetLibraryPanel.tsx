@@ -6,6 +6,7 @@ import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, 
 import { Button } from '@/components/ui/button';
 import { AssetRow } from './PipelineSubmissionRows';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
+import { getTemplatePreviewId } from './PipelineContributionModel';
 import {
   PIPELINE_STATUSES,
   PIPELINE_TYPES,
@@ -224,6 +225,7 @@ export function OwnerAssetLibraryPanel({
             && submission.revisionNumber != null
             && submission.status === 'submitted';
           const isNewTemplateSubmission = isPendingTemplateRevision && submission.baseRevisionNumber === 0;
+          const editTemplateId = getTemplatePreviewId(submission);
           return (
           <AssetRow
             key={submission.id}
@@ -304,9 +306,9 @@ export function OwnerAssetLibraryPanel({
                     : `Approve & publish revision ${submission.revisionNumber}`}
               </Button>
             ) : null}
-            {submission.assetType === 'templates' && (submission.registryAssetId || (submission.baseRevisionNumber ?? 0) > 0) ? (
+            {editTemplateId && templatePreviews[editTemplateId] ? (
               <Button asChild size="sm" variant="outline" className="border-[var(--cf-border)] bg-transparent text-[var(--cf-accent-text)]">
-                <a href="/account?section=library&scope=pipeline">
+                <a href={`/account?${new URLSearchParams({ section: 'library', scope: 'pipeline', tool: 'design', artifact: editTemplateId, editTemplate: editTemplateId })}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template
                 </a>
               </Button>

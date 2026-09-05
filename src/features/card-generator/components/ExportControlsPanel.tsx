@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { ArrowLeftRight, BringToFront, Download, Gamepad2, Scissors, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, BringToFront, Download, Gamepad2, Scissors } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +48,6 @@ interface ExportControlsPanelProps {
   selectedPaperSize: PaperSize;
   zipExportKind: ZipExportKind | null;
   zipProgress: { done: number; total: number } | null;
-  onClearCardsRequest: () => void;
   onExportAllAsZip: () => void;
   onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onSelectPaperSize: (size: PaperSize) => void;
@@ -90,7 +89,6 @@ export function ExportControlsPanel({
   selectedPaperSize,
   zipExportKind,
   zipProgress,
-  onClearCardsRequest,
   onExportAllAsZip,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
@@ -381,11 +379,6 @@ export function ExportControlsPanel({
             </Button>
           </section>
 
-          {generatedDisplayCards.length > 0 ? (
-            <Button variant="destructive" onClick={onClearCardsRequest} className="w-full gap-2">
-              <Trash2 className="h-4 w-4" />Remove all cards ({generatedDisplayCards.length})
-            </Button>
-          ) : null}
         </CardContent>
       </Card>
 

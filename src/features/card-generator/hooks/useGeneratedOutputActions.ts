@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { nanoid } from 'nanoid';
 
 
@@ -12,7 +12,6 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseGeneratedOutputActionsInput {
   addGeneratedCards: (cards: DisplayCard[]) => void;
-  clearGeneratedCards: () => void;
   closeEditDialog: () => void;
   openEditDialog: (cardUniqueId: string) => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
@@ -22,14 +21,12 @@ interface UseGeneratedOutputActionsInput {
 
 export function useGeneratedOutputActions({
   addGeneratedCards,
-  clearGeneratedCards,
   closeEditDialog,
   openEditDialog,
   removeGeneratedCard,
   toast,
   updateGeneratedCard,
 }: UseGeneratedOutputActionsInput) {
-  const [isClearCardsDialogOpen, setIsClearCardsDialogOpen] = useState(false);
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     addGeneratedCards(cards);
@@ -44,11 +41,6 @@ export function useGeneratedOutputActions({
     trackCardCreated('single', 1);
   }, [addGeneratedCards]);
 
-  const handleClearGeneratedCards = useCallback(() => {
-    clearGeneratedCards();
-    setIsClearCardsDialogOpen(false);
-    toast({ title: 'Cards removed', description: 'The cards were removed from this set.' });
-  }, [clearGeneratedCards, toast]);
 
   const handleEditCardRequest = useCallback((cardToEdit: DisplayCard) => {
     openEditDialog(cardToEdit.uniqueId);
@@ -80,14 +72,11 @@ export function useGeneratedOutputActions({
 
   return {
     handleBulkCardsGenerated,
-    handleClearGeneratedCards,
     handleCloseEditDialog,
     handleDuplicateCard,
     handleEditCardRequest,
     handleRemoveCard,
     handleSaveEditedCard,
     handleSingleCardAdded,
-    isClearCardsDialogOpen,
-    setIsClearCardsDialogOpen,
   };
 }

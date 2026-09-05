@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function GoogleDriveProjectStoragePanel({
   const [library, setLibrary] = useState<GoogleDriveProjectListResult | null>(null);
   const [binding, setBinding] = useState<GoogleDriveProjectBinding | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +66,7 @@ export function GoogleDriveProjectStoragePanel({
       return;
     }
     try {
+      setLoadError(null);
       const [nextLibrary, nextBinding] = await Promise.all([
         loadGoogleDriveProjectLibrary(),
         getGoogleDriveProjectBinding(),
@@ -71,6 +74,7 @@ export function GoogleDriveProjectStoragePanel({
       setLibrary(nextLibrary);
       setBinding(nextBinding);
     } catch (error) {
+      setLoadError(error instanceof Error ? error : new Error('Google Drive could not be loaded.'));
       toast({
         title: 'Google Drive unavailable',
         description: error instanceof Error ? error.message : 'CardForge could not load Google Drive project storage.',
@@ -133,6 +137,13 @@ export function GoogleDriveProjectStoragePanel({
               <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
             </Link>
           </Button>
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="mt-4 space-y-3 border border-[var(--cf-border)] p-3 text-sm">
+          <p>{loadError.message}</p>
+          {loadError instanceof ApiClientError && loadError.kind === 'authentication' ? (
+            <Button size="sm" disabled={!canUseProjectFiles} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
+          ) : <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>}
         </div>
       ) : !connection ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading Google Drive storage…</p>
