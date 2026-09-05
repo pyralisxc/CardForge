@@ -26,6 +26,23 @@ begin
   if calculated_tier is distinct from 'contributor' or automated_tier is distinct from 'contributor' then
     raise exception 'Native Template submission must use Contributor tiers';
   end if;
+  -- The owner publisher must reuse the same idempotent revision and project it
+  -- through the existing publication owner, without a second write workflow.
+  if public.cardforge_publish_owner_template_revision(
+    probe_key, 'Default contract regression', 'Rolled back database regression',
+    probe_key, null,
+    pg_catalog.jsonb_build_object('id', probe_key, 'name', 'Default contract regression', 'fieldContracts', '[]'::jsonb),
+    0, probe_key
+  ) is distinct from revision_id then
+    raise exception 'Owner publication must reuse the submitted revision';
+  end if;
+  if not exists (
+    select 1 from public.cardforge_asset_registry
+    where asset_id = probe_key and contributor_submission_id = revision_id
+      and status = 'published' and access_tier = 'free'
+  ) then
+    raise exception 'Owner publication must project the published free Template';
+  end if;
 end;
 $$;
 
@@ -38,8 +55,8 @@ create temporary table template_asset_defaults_probe
 create temporary table registry_defaults_probe
   (like public.cardforge_asset_registry including defaults including constraints) on commit drop;
 
-insert into submission_defaults_probe (contributor_id, asset_type, name)
-values ('defaults-regression', 'icons', 'Omitted tier defaults');
+insert into submission_defaults_probe (contributor_id, asset_type, name, lineage_id)
+values ('defaults-regression', 'icons', 'Omitted tier defaults', pg_catalog.gen_random_uuid());
 insert into template_asset_defaults_probe (asset_id, storage_path, mime_type, byte_count)
 values (repeat('a', 64), 'defaults-regression.webp', 'image/webp', 1);
 insert into registry_defaults_probe (asset_id, name, asset_type, url)
