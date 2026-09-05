@@ -51,8 +51,8 @@ export interface SettingsSlice {
   richTextHighlightColor: string;
   cardSets: CardSet[];
   activeCardSet: CardSet | null;
-  singleCardGeneratorSelectedTemplateId: string | null;
-  singleCardGeneratorSelectedBackingTemplateId: string | null;
+  generatorSelectedTemplateId: string | null;
+  generatorSelectedBackingTemplateId: string | null;
   templateEditorSelectedTemplateId: string | null;
   pdfMarginMm: number;
   pdfCardSpacingMm: number;
@@ -71,8 +71,8 @@ export interface SettingsSlice {
   setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
-  setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
-  setSingleCardGeneratorSelectedBackingTemplateId: (id: string | null) => void;
+  setGeneratorSelectedTemplateId: (id: string | null) => void;
+  setGeneratorSelectedBackingTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setExportMode: (mode: ExportMode) => void;

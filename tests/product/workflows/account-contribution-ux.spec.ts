@@ -41,8 +41,8 @@ async function seedNewCreatorTemplates(page: Page) {
     cardSets: [],
     activeCardSet: null,
     studioView: 'template',
-    singleCardGeneratorSelectedTemplateId: 'workflow-ember',
-    singleCardGeneratorSelectedBackingTemplateId: 'workflow-back',
+    generatorSelectedTemplateId: 'workflow-ember',
+    generatorSelectedBackingTemplateId: 'workflow-back',
     templateEditorSelectedTemplateId: 'workflow-ember',
     exportMode: 'virtual',
     exportDpi: 300,
@@ -60,7 +60,7 @@ async function seedNewCreatorTemplates(page: Page) {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    const value = JSON.stringify({ state: stateValue, version: 3 });
+    const value = JSON.stringify({ state: stateValue, version: 4 });
     const record = JSON.stringify({ cardforgeWorkspaceRecord: 1, revision: 1, writerId: 'playwright-new-creator', value });
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(objectStoreName, 'readwrite');

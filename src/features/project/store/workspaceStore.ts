@@ -51,8 +51,8 @@ type WorkspacePersistedState = Pick<
   | 'richTextHighlightColor'
   | 'cardSets'
   | 'activeCardSet'
-  | 'singleCardGeneratorSelectedTemplateId'
-  | 'singleCardGeneratorSelectedBackingTemplateId'
+  | 'generatorSelectedTemplateId'
+  | 'generatorSelectedBackingTemplateId'
   | 'templateEditorSelectedTemplateId'
   | 'pdfMarginMm'
   | 'pdfCardSpacingMm'
@@ -101,11 +101,11 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
       preferredId: state.activeCardSet?.id,
     });
     const templates = selectAllTemplates(state);
-    const currentId = resolveGeneratorFrontTemplateId(templates, state.singleCardGeneratorSelectedTemplateId);
+    const currentId = resolveGeneratorFrontTemplateId(templates, state.generatorSelectedTemplateId);
     const generatorBackingTemplateId = getCompatibleGeneratorBackingId(
       templates,
       currentId,
-      state.singleCardGeneratorSelectedBackingTemplateId,
+      state.generatorSelectedBackingTemplateId,
     );
     const templateEditorSelectedTemplateId = state.templateEditorSelectedTemplateId
       && templates.some((template) => template.id === state.templateEditorSelectedTemplateId)
@@ -115,14 +115,14 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
     if (
       JSON.stringify(state.cardSets ?? []) !== JSON.stringify(cardSets)
       || state.activeCardSet?.id !== activeCardSet?.id
-      || state.singleCardGeneratorSelectedTemplateId !== currentId
-      || state.singleCardGeneratorSelectedBackingTemplateId !== generatorBackingTemplateId
+      || state.generatorSelectedTemplateId !== currentId
+      || state.generatorSelectedBackingTemplateId !== generatorBackingTemplateId
       || state.templateEditorSelectedTemplateId !== templateEditorSelectedTemplateId
     ) {
       set({
         cardSets,
-        singleCardGeneratorSelectedTemplateId: currentId,
-        singleCardGeneratorSelectedBackingTemplateId: generatorBackingTemplateId,
+        generatorSelectedTemplateId: currentId,
+        generatorSelectedBackingTemplateId: generatorBackingTemplateId,
         templateEditorSelectedTemplateId,
         activeCardSet,
       });
@@ -159,8 +159,8 @@ export const useProjectStore = create<ProjectState>()(
           richTextHighlightColor: state.richTextHighlightColor,
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
-          singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
-          singleCardGeneratorSelectedBackingTemplateId: state.singleCardGeneratorSelectedBackingTemplateId,
+          generatorSelectedTemplateId: state.generatorSelectedTemplateId,
+          generatorSelectedBackingTemplateId: state.generatorSelectedBackingTemplateId,
           templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,
@@ -174,19 +174,25 @@ export const useProjectStore = create<ProjectState>()(
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
         skipHydration: true,
-        version: 3,
+        version: 4,
         migrate: (persistedState, version) => {
-          const legacy = persistedState as WorkspacePersistedState & { activeTab?: unknown };
-          if (version < 2) {
-            const { activeTab, ...current } = legacy;
-            return {
-              ...current,
-              studioView: normalizeStudioView(activeTab),
-            } as WorkspacePersistedState;
-          }
+          const {
+            activeTab,
+            singleCardGeneratorSelectedTemplateId,
+            singleCardGeneratorSelectedBackingTemplateId,
+            ...current
+          } = persistedState as WorkspacePersistedState & {
+            activeTab?: unknown;
+            singleCardGeneratorSelectedTemplateId?: string | null;
+            singleCardGeneratorSelectedBackingTemplateId?: string | null;
+          };
           return {
-            ...legacy,
-            studioView: normalizeStudioView(legacy.studioView),
+            ...current,
+            generatorSelectedTemplateId: current.generatorSelectedTemplateId !== undefined
+              ? current.generatorSelectedTemplateId : singleCardGeneratorSelectedTemplateId ?? null,
+            generatorSelectedBackingTemplateId: current.generatorSelectedBackingTemplateId !== undefined
+              ? current.generatorSelectedBackingTemplateId : singleCardGeneratorSelectedBackingTemplateId ?? null,
+            studioView: normalizeStudioView(version < 2 ? activeTab : current.studioView),
           } as WorkspacePersistedState;
         },
       },

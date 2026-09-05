@@ -15,7 +15,7 @@ describe('app store helpers', () => {
         name: 'Untitled Set',
       },
       cardSets: [{ id: 'active-card-set', name: 'Untitled Set' }],
-      singleCardGeneratorSelectedTemplateId: null,
+      generatorSelectedTemplateId: null,
       templateEditorSelectedTemplateId: null,
       editingCardUniqueId: null,
       isEditDialogOpen: false,
@@ -183,14 +183,14 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, tarotFront, pokerBack],
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
-      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
+      generatorSelectedTemplateId: 'poker-front',
+      generatorSelectedBackingTemplateId: 'poker-back',
     });
 
-    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId('tarot-front');
+    useProjectStore.getState().setGeneratorSelectedTemplateId('tarot-front');
 
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('tarot-front');
-    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBeNull();
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('tarot-front');
+    expect(useProjectStore.getState().generatorSelectedBackingTemplateId).toBeNull();
   });
 
   it('rejects an incompatible back selection', () => {
@@ -203,12 +203,12 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, tarotBack],
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      generatorSelectedTemplateId: 'poker-front',
     });
 
-    useProjectStore.getState().setSingleCardGeneratorSelectedBackingTemplateId('tarot-back');
+    useProjectStore.getState().setGeneratorSelectedBackingTemplateId('tarot-back');
 
-    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBeNull();
+    expect(useProjectStore.getState().generatorSelectedBackingTemplateId).toBeNull();
   });
 
   it('accepts a compatible Generator back without changing Set identity', () => {
@@ -221,12 +221,12 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      generatorSelectedTemplateId: 'poker-front',
     });
 
-    useProjectStore.getState().setSingleCardGeneratorSelectedBackingTemplateId('poker-back');
+    useProjectStore.getState().setGeneratorSelectedBackingTemplateId('poker-back');
 
-    expect(useProjectStore.getState().singleCardGeneratorSelectedBackingTemplateId).toBe('poker-back');
+    expect(useProjectStore.getState().generatorSelectedBackingTemplateId).toBe('poker-back');
     expect(useProjectStore.getState().activeCardSet).toEqual({ id: 'active-card-set', name: 'Untitled Set' });
   });
 
@@ -240,16 +240,16 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
-      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
+      generatorSelectedTemplateId: 'poker-front',
+      generatorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: 'poker-front',
     });
 
     useProjectStore.getState().setTemplateEditorSelectedTemplateId('poker-back');
 
     expect(useProjectStore.getState()).toMatchObject({
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
-      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
+      generatorSelectedTemplateId: 'poker-front',
+      generatorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: 'poker-back',
     });
   });
@@ -264,15 +264,15 @@ describe('app store helpers', () => {
     });
     useProjectStore.setState({
       defaultTemplates: [pokerFront, pokerBack],
-      singleCardGeneratorSelectedTemplateId: 'poker-back',
-      singleCardGeneratorSelectedBackingTemplateId: 'poker-back',
+      generatorSelectedTemplateId: 'poker-back',
+      generatorSelectedBackingTemplateId: 'poker-back',
       templateEditorSelectedTemplateId: null,
     });
 
     useProjectStore.getState()._rehydrateCallback();
 
     expect(useProjectStore.getState()).toMatchObject({
-      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      generatorSelectedTemplateId: 'poker-front',
       templateEditorSelectedTemplateId: 'poker-front',
       activeCardSet: { id: 'active-card-set', name: 'Untitled Set' },
     });
@@ -515,7 +515,7 @@ describe('app store helpers', () => {
         { uniqueId: 'card-kept', templateId: 'template-kept', data: {} },
         { uniqueId: 'card-deleted', templateId: 'template-deleted', data: {} },
       ],
-      singleCardGeneratorSelectedTemplateId: 'template-deleted',
+      generatorSelectedTemplateId: 'template-deleted',
       templateEditorSelectedTemplateId: 'template-deleted',
       editingCardUniqueId: 'card-deleted',
       isEditDialogOpen: true,
@@ -525,7 +525,7 @@ describe('app store helpers', () => {
 
     expect(selectAllTemplates(useProjectStore.getState()).map(t => t.id)).toEqual(['template-kept']);
     expect(useProjectStore.getState().storedCards.map(card => card.uniqueId)).toEqual(['card-kept']);
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('template-kept');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('template-kept');
     expect(useProjectStore.getState().templateEditorSelectedTemplateId).toBe('template-kept');
     expect(useProjectStore.getState().editingCardUniqueId).toBeNull();
     expect(useProjectStore.getState().isEditDialogOpen).toBe(false);
@@ -607,7 +607,7 @@ describe('app store helpers', () => {
     useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [localTemplate],
-      singleCardGeneratorSelectedTemplateId: 'local-template',
+      generatorSelectedTemplateId: 'local-template',
     });
 
     const importedCount = useProjectStore.getState().mergeUserTemplatesFromFiles([
@@ -623,7 +623,7 @@ describe('app store helpers', () => {
       { id: 'local-template', name: 'Local Template', templateSource: 'user' },
       { id: 'server-template', name: 'Server Template', templateSource: 'user' },
     ]);
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('local-template');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('local-template');
   });
 
   it('ignores empty bootstrap user template payloads to preserve browser-local templates', () => {
@@ -636,7 +636,7 @@ describe('app store helpers', () => {
     useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [localTemplate],
-      singleCardGeneratorSelectedTemplateId: 'local-template',
+      generatorSelectedTemplateId: 'local-template',
     });
 
     const importedCount = useProjectStore.getState().mergeUserTemplatesFromFiles([]);
@@ -652,12 +652,12 @@ describe('app store helpers', () => {
     useProjectStore.setState({
       defaultTemplates: [template],
       userTemplates: [],
-      singleCardGeneratorSelectedTemplateId: 'stale-id-that-no-longer-exists',
+      generatorSelectedTemplateId: 'stale-id-that-no-longer-exists',
     });
 
     useProjectStore.getState()._rehydrateCallback();
 
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('only-template');
   });
 
   it('keeps the Studio view constrained to focused authoring tools', () => {
@@ -668,7 +668,7 @@ describe('app store helpers', () => {
 
   it('creates a neutral Set without inheriting Generator template choices', () => {
     useProjectStore.setState({
-      singleCardGeneratorSelectedTemplateId: 'generator-template',
+      generatorSelectedTemplateId: 'generator-template',
     });
 
     const setId = useProjectStore.getState().createCardSet('Neutral Set');
@@ -677,7 +677,7 @@ describe('app store helpers', () => {
     expect(created).toEqual(expect.objectContaining({ name: 'Neutral Set' }));
     expect(created && 'frontTemplateId' in created).toBe(false);
     expect(created && 'backingTemplateId' in created).toBe(false);
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('generator-template');
   });
 
   it('keeps Generator template selection independent from the active Set', () => {
@@ -686,9 +686,9 @@ describe('app store helpers', () => {
       activeCardSet: { id: 'set-a', name: 'Alpha' },
     });
 
-    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId('generator-template');
+    useProjectStore.getState().setGeneratorSelectedTemplateId('generator-template');
 
-    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('generator-template');
+    expect(useProjectStore.getState().generatorSelectedTemplateId).toBe('generator-template');
     expect(useProjectStore.getState().activeCardSet).toEqual({ id: 'set-a', name: 'Alpha' });
   });
 
@@ -805,5 +805,37 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().deleteCardSet('set-a')).toBe(true);
     expect(useProjectStore.getState().cardSets).toEqual([]);
     expect(useProjectStore.getState().activeCardSet).toBeNull();
+  });
+});
+
+describe('persisted Generator selection migration', () => {
+  it('preserves v3 front/back selections and removes retired keys from new writes', async () => {
+    const options = useProjectStore.persist.getOptions();
+    const migrated = await options.migrate!({
+      singleCardGeneratorSelectedTemplateId: 'authored-front',
+      singleCardGeneratorSelectedBackingTemplateId: 'authored-back',
+      studioView: 'generate',
+    }, 3);
+    expect(migrated).toMatchObject({ generatorSelectedTemplateId: 'authored-front', generatorSelectedBackingTemplateId: 'authored-back', studioView: 'generate' });
+    expect(migrated).not.toHaveProperty('singleCardGeneratorSelectedTemplateId');
+    expect(migrated).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
+    useProjectStore.setState(migrated);
+    const serialized = options.partialize!(useProjectStore.getState());
+    expect(serialized).toMatchObject({ generatorSelectedTemplateId: 'authored-front', generatorSelectedBackingTemplateId: 'authored-back' });
+    expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedTemplateId');
+    expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
+    expect(options.version).toBe(4);
+  });
+
+  it('retains older Studio-tab migration and explicit cleared current selections', async () => {
+    const migrated = await useProjectStore.persist.getOptions().migrate!({
+      activeTab: 'template',
+      generatorSelectedTemplateId: null,
+      generatorSelectedBackingTemplateId: null,
+      singleCardGeneratorSelectedTemplateId: 'old-front',
+      singleCardGeneratorSelectedBackingTemplateId: 'old-back',
+    }, 1);
+    expect(migrated).toMatchObject({ generatorSelectedTemplateId: null, generatorSelectedBackingTemplateId: null, studioView: 'template' });
+    expect(migrated).not.toHaveProperty('activeTab');
   });
 });

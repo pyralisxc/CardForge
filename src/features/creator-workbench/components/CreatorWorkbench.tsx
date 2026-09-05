@@ -116,8 +116,8 @@ export function CreatorWorkbench({
       setExportModeAction,
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
-      setSingleCardGeneratorSelectedTemplateIdAction,
-      setSingleCardGeneratorSelectedBackingTemplateIdAction,
+      setGeneratorSelectedTemplateIdAction,
+      setGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -136,7 +136,7 @@ export function CreatorWorkbench({
       freeformTemplatesForGenerator,
       generatedDisplayCards,
       generatorSelectedTemplateId,
-      singleCardGeneratorSelectedBackingTemplateId,
+      generatorSelectedBackingTemplateId,
       isEditDialogOpen,
       pdfCardSpacingMm,
       pdfDuplexLayout,
@@ -208,7 +208,7 @@ export function CreatorWorkbench({
       canSubmitTemplateRevisions,
       canPublishSharedLibrary,
     },
-    setSingleCardGeneratorSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setGeneratorSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
     templates: templatesFromStore,
@@ -251,7 +251,7 @@ export function CreatorWorkbench({
     setExportDpi: setExportDpiAction,
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
-    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
     setStoredCardsFromFile: setStoredCardsFromFileAction,
     mergeStoredCardsFromFile: mergeStoredCardsFromFileAction,
@@ -320,12 +320,12 @@ export function CreatorWorkbench({
     matchingBackRequest,
     pendingTemplateRetarget,
   } = useTemplateStudioHandoffs({
-    activeBackingTemplateId: singleCardGeneratorSelectedBackingTemplateId,
+    activeBackingTemplateId: generatorSelectedBackingTemplateId,
     focusStudioRegion,
     retargetGeneratedCardsBackingTemplate: retargetGeneratedCardsBackingTemplateAction,
     retargetGeneratedCardsTemplate: retargetGeneratedCardsTemplateAction,
     saveTemplateToLibrary,
-    setGeneratorBackingTemplateId: setSingleCardGeneratorSelectedBackingTemplateIdAction,
+    setGeneratorBackingTemplateId: setGeneratorSelectedBackingTemplateIdAction,
     setStudioView: setStudioViewAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
@@ -407,7 +407,7 @@ export function CreatorWorkbench({
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
-    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
   });
@@ -542,7 +542,7 @@ export function CreatorWorkbench({
               backFaceTemplates={backFacePresetTemplates}
               activeCardSet={activeCardSet}
               generatorSelectedTemplateId={generatorSelectedTemplateId}
-              generatorSelectedBackingTemplateId={singleCardGeneratorSelectedBackingTemplateId}
+              generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId}
               richTextHighlightColor={richTextHighlightColor}
               generatedDisplayCards={generatedDisplayCards}
               canExportClean={projectCapabilities.canExportClean}
@@ -554,8 +554,8 @@ export function CreatorWorkbench({
               onBulkCardsRevised={reviseGeneratedCardsAction}
               onUndoBulkRevision={undoLastBulkRevisionAction}
               onViewGeneratedCards={viewGeneratedCardsOnDesk}
-              onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-              onBackingTemplateSelectionChange={setSingleCardGeneratorSelectedBackingTemplateIdAction}
+              onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction}
+              onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction}
             />
           </div> : null}
         </main>

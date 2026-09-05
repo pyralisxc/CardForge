@@ -135,7 +135,7 @@ export const applyProjectDocumentToWorkspace = async (
   const activeSet = useProjectStore.getState().activeCardSet;
   const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId ?? null;
   if (activeTemplateId) {
-    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId(activeTemplateId);
+    useProjectStore.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 

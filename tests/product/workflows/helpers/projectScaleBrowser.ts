@@ -36,8 +36,8 @@ const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToo
     cardSets,
     activeCardSet: cardSets[0] ?? null,
     studioView: 'template',
-    singleCardGeneratorSelectedTemplateId: initialTemplateId,
-    singleCardGeneratorSelectedBackingTemplateId: null,
+    generatorSelectedTemplateId: initialTemplateId,
+    generatorSelectedBackingTemplateId: null,
     templateEditorSelectedTemplateId: initialTemplateId,
     ...fixture.exportSettings,
   };
@@ -93,7 +93,7 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    const persistedValue = JSON.stringify({ state: stateValue, version: 3 });
+    const persistedValue = JSON.stringify({ state: stateValue, version: 4 });
     const record = JSON.stringify({
       cardforgeWorkspaceRecord: 1,
       revision: 1,
