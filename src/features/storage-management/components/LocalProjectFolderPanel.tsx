@@ -107,6 +107,7 @@ export function LocalProjectFolderPanel({
   }
 
   const binding = status?.binding ?? null;
+  const scopeUnverified = Boolean(binding && !binding.workId && binding.packageScope !== 'workspace');
   const permission = status?.permission ?? 'prompt';
 
   return (
@@ -167,17 +168,24 @@ export function LocalProjectFolderPanel({
           </>
         ) : (
           <>
+            {scopeUnverified ? <div className="w-full space-y-2 text-sm">
+              <p>Reopen this folder to verify its saved Set or workspace scope before updating it.</p>
+              <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => void run('open', async () => {
+                const opened = await openProjectFromFolder();
+                router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
+              })}>Reopen project folder</Button>
+            </div> : null}
             <Button
               type="button"
               size="sm"
-              disabled={Boolean(busyAction) || !canUseProjectFiles || permission !== 'granted'}
+              disabled={Boolean(busyAction) || !canUseProjectFiles || permission !== 'granted' || scopeUnverified}
               onClick={() => void run('save', async () => {
                 const next = await saveProjectToAttachedFolder();
                 toast({ title: 'Project folder saved', description: `Wrote revision ${next.sourceRevision?.slice(0, 12) ?? 'current'} to “${next.folderName}”.` });
               })}
             >
               {busyAction === 'save' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {binding.workId ? 'Save attached Set' : 'Save workspace backup'}
+              {scopeUnverified ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
             </Button>
             {permission !== 'granted' ? (
               <Button

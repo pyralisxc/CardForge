@@ -38,6 +38,7 @@ export interface GoogleDriveProjectBinding {
   lastSavedAt: string;
   webViewLink: string | null;
   workId?: string | null;
+  packageScope?: 'set' | 'workspace';
 }
 
 const getBindingStorageKey = () => (
@@ -181,6 +182,7 @@ const toBinding = ({
     : new Date().toISOString(),
   webViewLink: completed.webViewLink ?? null,
   workId: workId ?? null,
+  packageScope: workId ? 'set' : 'workspace',
 });
 
 export const saveCurrentProjectToGoogleDrive = async ({
@@ -192,6 +194,9 @@ export const saveCurrentProjectToGoogleDrive = async ({
 }): Promise<GoogleDriveProjectBinding> => {
   const existing = asNew ? null : await getGoogleDriveProjectBinding();
   if (existing?.workId) return await saveCardSetToGoogleDrive({ setId: existing.workId, name });
+  if (existing && existing.packageScope !== 'workspace') {
+    throw new ProjectPackageError('Reopen this Drive file before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
+  }
   const { snapshot, blob } = await createProjectPackage(name);
   const plan = await prepareUpload({
     name: snapshot.manifest.name,
@@ -283,6 +288,7 @@ const downloadedBinding = ({
   lastSavedAt: modifiedAt,
   webViewLink: null,
   workId,
+  packageScope: workId ? 'set' : 'workspace',
 });
 
 export const openGoogleDriveProject = async (

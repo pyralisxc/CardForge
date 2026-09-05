@@ -43,6 +43,7 @@ export interface LocalProjectFolderBinding {
   sourceRevision: string | null;
   lastSavedAt: string | null;
   workId?: string | null;
+  packageScope?: 'set' | 'workspace';
 }
 
 export interface LocalProjectFolderStatus {
@@ -170,6 +171,7 @@ const writeSnapshotToDirectory = async (
     sourceRevision: snapshot.manifest.projectRevision,
     lastSavedAt: snapshot.manifest.savedAt,
     workId: workId ?? null,
+    packageScope: workId ? 'set' : 'workspace',
   };
   if (workId) {
     await writeStructuredBrowserValue(getWorkBindingStorageKey(workId), binding);
@@ -305,6 +307,7 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
     sourceRevision: decoded.sourceRevision,
     lastSavedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
     workId: decoded.document.cardSets.length === 1 ? imported.activeSetId : null,
+    packageScope: decoded.document.cardSets.length === 1 ? 'set' : 'workspace',
   };
   if (binding.workId && decoded.document.cardSets.length === 1) {
     await writeStructuredBrowserValue(getWorkBindingStorageKey(binding.workId), binding);
@@ -317,6 +320,9 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
 export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderBinding> => {
   const binding = await readAttachedBinding();
   if (!binding?.handle) throw new ProjectPackageError('No local project folder is attached. Choose a folder first.');
+  if (!binding.workId && binding.packageScope !== 'workspace') {
+    throw new ProjectPackageError('Reopen this folder before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
+  }
   return await writeSnapshotToDirectory(binding.handle, binding, binding.workId ?? undefined);
 };
 

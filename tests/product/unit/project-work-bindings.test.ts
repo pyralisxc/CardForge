@@ -64,6 +64,7 @@ describe('one authoritative Set location across save entry points', () => {
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
     expect(mock.apply).toHaveBeenCalledWith(document, 'copy');
     expect(binding.workId).toBe(count === 1 ? 'set-c' : null);
+    expect(binding.packageScope).toBe(count === 1 ? 'set' : 'workspace');
     expect(mock.values.has('test:google-drive-work-binding:set-c')).toBe(count === 1);
     expect(await getGoogleDriveProjectBinding()).toEqual(binding);
   });
@@ -103,9 +104,9 @@ describe('one authoritative Set location across save entry points', () => {
     expect(mock.values.get('test:local-project-folder-binding')).toEqual({ workId: 'set-c' });
   });
 
-  it('preserves explicit legacy workspace backup saves', async () => {
+  it('preserves verified workspace backup saves', async () => {
     const handle = folder('backup');
-    mock.values.set('test:local-project-folder-binding', { handle, folderName: 'backup', sourceRevision: 'b'.repeat(64) });
+    mock.values.set('test:local-project-folder-binding', { handle, folderName: 'backup', sourceRevision: 'b'.repeat(64), packageScope: 'workspace' });
     await saveProjectToAttachedFolder();
     expect(mock.captureWorkspace).toHaveBeenCalledOnce();
     expect(mock.captureSet).not.toHaveBeenCalled();
@@ -113,6 +114,22 @@ describe('one authoritative Set location across save entry points', () => {
 });
 
 describe('location failure and detach safety', () => {
+  it('keeps unscoped historical attachments readable but refuses to overwrite them', async () => {
+    const handle = folder('old');
+    const drive = { fileId: driveBinding.fileId, name: 'old', providerRevision: '1', projectRevision: driveBinding.projectRevision };
+    mock.values.set('test:google-drive-project-binding', drive);
+    mock.values.set('test:local-project-folder-binding', { handle, folderName: 'old', sourceRevision: 'b'.repeat(64) });
+    expect(await getGoogleDriveProjectBinding()).toEqual(drive);
+    expect((await getLocalProjectFolderStatus()).binding?.folderName).toBe('old');
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveCurrentProjectToGoogleDrive({ name: 'old' })).rejects.toThrow('Reopen');
+    await expect(saveProjectToAttachedFolder()).rejects.toThrow('Reopen');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+    expect(mock.captureWorkspace).not.toHaveBeenCalled();
+  });
+
   it('clears only matching local bindings after the exact Drive file is deleted', async () => {
     mock.localSets = [{ id: 'set-c' }, { id: 'other' }];
     mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
