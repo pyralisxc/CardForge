@@ -169,6 +169,11 @@ export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-l
 
 export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
   if (item.scope === 'pipeline') return [
+    ...(item.pipeline.packageUrl ? [{
+      id: 'library.use-published' as const, label: 'Create from published Set', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const, scope: 'object' as const, hierarchy: 'primary' as const,
+      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
     ...(item.pipeline.editableSubmission ? [{
       id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,

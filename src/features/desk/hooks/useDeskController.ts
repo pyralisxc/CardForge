@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { useToast } from '@/components/ui/use-toast';
 import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
@@ -15,7 +16,7 @@ import {
   setCreatorLens,
   type EnvironmentViewer,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -65,7 +66,10 @@ export function useDeskController({
   const returnContextRestoredRef = useRef(false);
   const initialToolHandledRef = useRef(false);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
-  const zones = getVisibleEnvironmentZones(viewer);
+  const searchParams = useSearchParams();
+  const originHref = normalizeStudioReturnTo(searchParams.get('returnTo'));
+  const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
+  const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<DeskSourceFilter>('all');
   const [renaming, setRenaming] = useState(false);

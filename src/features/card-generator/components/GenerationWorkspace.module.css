@@ -1,0 +1,15 @@
+.workspace {
+  container-type: inline-size;
+}
+
+.setupGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+@container (min-width: 56rem) {
+  .setupGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}

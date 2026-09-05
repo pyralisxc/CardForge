@@ -101,7 +101,7 @@ export function DefaultWorkLocationControl({ isSignedIn, canUseProjectFiles, dri
   const capabilities = useMemo(() => getWorkLocationCapabilities({ signedIn: isSignedIn, canUseProjectFiles, driveConnected, localFolderSupported }), [canUseProjectFiles, driveConnected, isSignedIn, localFolderSupported]);
   const { defaultLocation, changeDefault } = useDefaultWorkLocation(capabilities);
   return <div className={styles.locationPreference}>
-    <div><strong>Default save location</strong><span>New Save actions start here. You can choose another destination per Set.</span></div>
+    <div><strong>Preferred save destination</strong><span>Shown first when choosing where to save a Set. Existing attachments keep their destination.</span></div>
     <Select value={defaultLocation} onValueChange={(value) => { void changeDefault(value as WorkLocationId); }}>
       <SelectTrigger aria-label="Default save location" className={styles.defaultSelect}><span>{capabilities.find((capability) => capability.id === defaultLocation)?.label ?? 'This device'}</span></SelectTrigger>
       <SelectContent>{capabilities.map((capability) => <SelectItem key={capability.id} value={capability.id} disabled={!capability.available || !capability.create}>{capability.label}</SelectItem>)}</SelectContent>
@@ -134,8 +134,6 @@ export function ProjectWorkLocationDialog({
   const source = target?.localSetId ? 'device' : target?.locations[0] ?? null;
 
   const removeDeviceCopy = (setId: string) => {
-    const store = useProjectStore.getState();
-    if (store.cardSets.length <= 1) store.createCardSet();
     if (!useProjectStore.getState().deleteCardSet(setId)) {
       throw new Error('CardForge could not remove the device copy after verifying the destination.');
     }

@@ -18,6 +18,7 @@ import {
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard } from '@/domain/rendering';
 import { trackCardForgeEvent } from '@/features/analytics/client';
+import styles from './GenerationWorkspace.module.css';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -145,7 +146,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 pb-6">
+    <div className={`${styles.workspace} mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 pb-6`}>
       <nav aria-label="Generate steps" className="grid grid-cols-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)]">
         <button id="generation-step-setup" type="button" aria-current={generationStage === 'setup' ? 'step' : undefined} onClick={() => setGenerationStage('setup')} className={`flex min-h-12 items-center gap-3 px-4 text-left ${generationStage === 'setup' ? 'bg-[var(--cf-surface-raised)] text-[var(--cf-text-strong)] shadow-[inset_0_-2px_var(--cf-accent-strong)]' : 'text-[var(--cf-text-muted)]'}`}>
           <span className="grid h-6 w-6 place-items-center border border-[var(--cf-border-strong)] text-xs">1</span>
@@ -166,7 +167,7 @@ export function GenerationWorkspace(props: GenerationWorkspaceProps) {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
+        <div className={styles.setupGrid}>
           <div>
             <Label htmlFor="deck-front-template">Template</Label>
             <Select

@@ -15,7 +15,7 @@ import {
   EnvironmentStatus,
   EnvironmentToolLayer,
 } from '@/features/app-shell/client/environment';
-import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
+import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -94,6 +94,7 @@ export function Desk({
   securityStatus,
 }: DeskProps) {
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
+  const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const {
     actions,
     activeWorkId,
@@ -479,9 +480,9 @@ export function Desk({
             generatedDisplayCards={generationCards}
             canExportClean={experience.capabilities.canExportClean}
             onOpenTemplateMaker={() => showTemplateTool()}
-            onCreateMatchingBack={(template) => showTemplateTool(template.id)}
-            onEditSelectedBack={(templateId) => showTemplateTool(templateId)}
-            onManageCardBacks={() => showTemplateTool()}
+            onCreateMatchingBack={(formatSource) => { setDesignIntent({ kind: 'matching-back', formatSource }); showTemplateTool(); }}
+            onEditSelectedBack={(templateId) => { setDesignIntent({ kind: 'edit-back', templateId }); showTemplateTool(templateId); }}
+            onManageCardBacks={() => { setDesignIntent({ kind: 'manage-backs' }); showTemplateTool(); }}
             onBulkCardsGenerated={addGeneratedCards}
             onBulkCardsRevised={reviseGeneratedCards}
             onUndoBulkRevision={undoLastBulkRevision}
@@ -510,6 +511,9 @@ export function Desk({
             businessIdentity={businessIdentity}
             initialContributorAccess={initialContributorAccess}
             onDirtyChange={studioTool.tool === 'design' ? setActiveToolDirty : undefined}
+            designIntent={designIntent}
+            onDesignIntentConsumed={() => setDesignIntent(null)}
+            onReturnToGenerator={closeActiveTool}
           />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>

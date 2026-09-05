@@ -26,9 +26,11 @@ export const normalizeStudioReturnTo = (value: string | null | undefined): strin
   }
 };
 
-export const createDeskReturnHref = (workId: string, returnContext?: string | null): string => {
+export const createDeskReturnHref = (workId: string, returnContext?: string | null, returnTo?: string | null): string => {
   const params = new URLSearchParams({ focus: workId });
   if (returnContext) params.set('returnContext', returnContext);
+  const safeReturnTo = normalizeStudioReturnTo(returnTo);
+  if (safeReturnTo) params.set('returnTo', safeReturnTo);
   return `/account?${params.toString()}`;
 };
 
