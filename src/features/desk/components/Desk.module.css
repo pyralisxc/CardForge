@@ -914,6 +914,7 @@
   right: 0.55rem;
   left: 7.5rem;
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;

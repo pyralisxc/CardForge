@@ -367,7 +367,8 @@ export function Desk({
             campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
             renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
-            renderFocusedSurface={(item) => <FocusedWorkSurface
+            renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
+              canExportClean={experience.capabilities.canExportClean}
               item={item}
               localSetId={focusedLocalSetId}
               remoteIcon={<WorkSourceIcon item={item} />}

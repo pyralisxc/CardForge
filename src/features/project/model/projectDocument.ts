@@ -356,6 +356,26 @@ export const isolateProjectDocumentToSet = (
   };
 };
 
+/** A portable card keeps its front/back definitions without exporting sibling cards. */
+export const isolateProjectDocumentToCard = (document: ProjectDocumentV1, cardId: string): ProjectDocumentV1 => {
+  const card = document.storedCards.find((candidate) => candidate.uniqueId === cardId);
+  if (!card) throw new Error('The selected card is no longer available in this browser workspace.');
+  const setId = card.setId ?? document.cardSets[0]?.id;
+  if (!setId) throw new Error('The selected card has no Set. Move it into a Set before exporting.');
+  const isolated = isolateProjectDocumentToSet({ ...document, storedCards: [card] }, setId);
+  return {
+    ...isolated,
+    cardSets: isolated.cardSets.map((set) => ({
+      ...set,
+      ...(set.organization ? { organization: {
+        ...set.organization,
+        tags: set.organization.tags.filter((tag) => card.tagIds?.includes(tag.id)),
+        positions: set.organization.positions[cardId] ? { [cardId]: set.organization.positions[cardId] } : {},
+      } } : {}),
+    })),
+  };
+};
+
 /**
  * Instantiates a portable project as new, independently owned browser work.
  * Published starters, imported examples, and future catalog Kits all use this

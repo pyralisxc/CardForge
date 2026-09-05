@@ -10,6 +10,7 @@ import {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
   isolateProjectDocumentToSet,
+  isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
@@ -72,6 +73,10 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
 
 export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => (
   isolateProjectDocumentToSet(await captureCurrentProjectDocument(), setId)
+);
+
+export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => (
+  isolateProjectDocumentToCard(await captureCurrentProjectDocument(), cardId)
 );
 
 export const applyProjectDocumentToWorkspace = async (
