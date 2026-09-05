@@ -31,6 +31,18 @@ export const CARDFORGE_USE_CASE_SUGGESTIONS = CARDFORGE_USE_CASE_OPTIONS.map((op
 
 const specialtyTagSet = new Set<string>(CARDFORGE_SPECIALTY_SUGGESTIONS);
 const useCaseTagSet = new Set<string>(CARDFORGE_USE_CASE_SUGGESTIONS);
+const reusableResourceKinds = new Set(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts']);
+
+/** General reusable resources need no invented use case; Templates and Sets do. */
+export const hasRequiredPipelineClassification = (
+  assetType: unknown,
+  specialtyTags: readonly string[],
+  useCaseTags: readonly string[],
+): boolean => {
+  if (typeof assetType !== 'string' || (!reusableResourceKinds.has(assetType) && assetType !== 'templates' && assetType !== 'sets')) return false;
+  if (!specialtyTags.length || specialtyTags.some((tag) => !specialtyTagSet.has(tag)) || useCaseTags.some((tag) => !useCaseTagSet.has(tag))) return false;
+  return useCaseTags.length > 0 || (reusableResourceKinds.has(assetType) && specialtyTags.length === 1 && specialtyTags[0] === 'general');
+};
 const contentTagSet = new Set<string>([
   ...CARDFORGE_SPECIALTY_SUGGESTIONS,
   ...CARDFORGE_USE_CASE_SUGGESTIONS,

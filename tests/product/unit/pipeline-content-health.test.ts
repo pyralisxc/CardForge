@@ -22,6 +22,12 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
 } as PipelineProgramView);
 
 describe('Pipeline content health', () => {
+  it.each(['textures', 'dividers', 'icons', 'imageAssets', 'elementPresets', 'fonts', 'templates', 'sets'] as const)('uses the same General resource policy in health and review for %s', (assetType) => {
+    const program = programWith({ assetType, specialtyTags: ['general'], useCaseTags: [] });
+    const requiresUseCase = assetType === 'templates' || assetType === 'sets';
+    expect(buildPipelineContentHealth({ catalog: null, program }).issues.some((issue) => issue.code === 'missing-taxonomy')).toBe(requiresUseCase);
+    expect(buildPipelineContentReview(program).entries[0]?.classificationNeedsReview).toBe(requiresUseCase);
+  });
   it('accepts destination-free Sets but checks routes for routed asset kinds', () => {
     expect(buildPipelineContentHealth({ catalog: null, program: programWith() }).errors).toBe(0);
     expect(buildPipelineContentHealth({ catalog: null, program: programWith({ assetType: 'templates' }) }).issues)

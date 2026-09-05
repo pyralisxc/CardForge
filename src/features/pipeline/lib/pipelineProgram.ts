@@ -17,7 +17,12 @@ import {
 } from './pipelineItems';
 import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
-import { normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+
+const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
+  const supplied = Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim().length > 0 : value != null;
+  return supplied && normalizeUseCaseTags(value).length === 0;
+};
 
 export type PipelineSubmissionInputResult =
   | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
@@ -285,7 +290,7 @@ export const normalizePipelineSubmissionInput = (value: {
   const specialtyTags = normalizeSpecialtyTags(value.specialtyTags);
   if (!specialtyTags.length) return { ok: false, message: 'Choose at least one supported CardForge specialty.' };
   const useCaseTags = normalizeUseCaseTags(value.useCaseTags);
-  if (!useCaseTags.length) return { ok: false, message: 'Choose at least one supported CardForge use case.' };
+  if (hasUnsupportedUseCaseSelection(value.useCaseTags) || !hasRequiredPipelineClassification(value.assetType, specialtyTags, useCaseTags)) return { ok: false, message: 'Choose at least one supported CardForge use case.' };
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -324,6 +329,7 @@ export const normalizePipelineSubmissionEditInput = (value: {
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   let requestedStudioDestination: StudioAssetDestination | undefined;
+  if (hasUnsupportedUseCaseSelection(value.useCaseTags)) return { ok: false, message: 'Choose a supported CardForge use case.' };
   const hasRequestedStudioDestination = typeof value.requestedStudioDestination === 'string'
     ? value.requestedStudioDestination.trim() !== ''
     : value.requestedStudioDestination !== undefined && value.requestedStudioDestination !== null;

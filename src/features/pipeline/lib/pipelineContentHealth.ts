@@ -1,3 +1,4 @@
+import { hasRequiredPipelineClassification } from './contentTaxonomy';
 import type { CardForgeCatalogManifest } from './catalogManifest';
 import type { PipelineProgramView } from './pipelineProgram';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
@@ -47,14 +48,14 @@ export const buildPipelineContentHealth = ({
     let validPackage = false;
     try { validPackage = new URL(set.packageUrl).protocol === 'https:'; } catch { validPackage = false; }
     if (!validPackage) issues.push({ code: 'invalid-package', severity: 'error', objectId: set.id, objectName: set.name, message: 'Published Set does not have a valid HTTPS package source.', repair: 'Publish a verified portable Set package revision.' });
-    if (!set.specialtyTags.length || !set.useCaseTags.length) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Classify specialty and use case on the next revision.' });
+    if (!hasRequiredPipelineClassification('sets', set.specialtyTags, set.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId: set.id, objectName: set.name, message: 'Published Set classification is incomplete.', repair: 'Classify specialty and use case on the next revision.' });
   });
   (program?.submissions ?? []).filter((submission) => submission.status === 'published').forEach((submission) => {
     const objectId = submission.lineageId ?? submission.id;
     const destinations = getPipelineStudioDestinationOptions(submission.assetType);
     if (destinations.length && !submission.requestedStudioDestination) issues.push({ code: 'missing-route', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has no destination route.', repair: 'Choose its native Library/Design destination.' });
     if (submission.requestedStudioDestination && !destinations.includes(submission.requestedStudioDestination)) issues.push({ code: 'invalid-route', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has a destination incompatible with its kind.', repair: 'Review routing through the native Pipeline owner; Sets use package installation without a Studio destination.' });
-    if (!submission.specialtyTags.length || !submission.useCaseTags.length) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId, objectName: submission.name, message: 'Published revision is missing controlled taxonomy.', repair: 'Classify the next revision with specialty and use-case metadata.' });
+    if (!hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId, objectName: submission.name, message: 'Published revision is missing controlled taxonomy.', repair: 'Classify the next revision with specialty and use-case metadata.' });
     if (!submission.sourceUrl && !submission.sourcePayload) issues.push({ code: 'missing-source', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has no readable source.', repair: 'Archive it or publish a verified replacement revision.' });
   });
   review.entries.forEach((entry) => {

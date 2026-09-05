@@ -35,6 +35,7 @@ import {
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
   formatContentTaxonomyTag,
+  hasRequiredPipelineClassification,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import { isRepositoryStyle } from '@/features/pipeline/lib/registryContentValidation';
@@ -53,6 +54,7 @@ const parseTaxonomySelection = (value: string): string[] => [...new Set(
 )];
 
 export function EditSubmissionForm({
+  assetType,
   name,
   description,
   previewUrl,
@@ -74,6 +76,7 @@ export function EditSubmissionForm({
   onSave,
   onSubmit,
 }: {
+  assetType: PipelineSubmission['assetType'];
   name: string;
   description: string;
   previewUrl: string;
@@ -121,6 +124,7 @@ export function EditSubmissionForm({
           selectedIds={parseTaxonomySelection(useCaseTags)}
           options={CARDFORGE_USE_CASE_OPTIONS}
           onChange={(value) => onUseCaseTagsChange(value.join(','))}
+          emptyLabel={hasRequiredPipelineClassification(assetType, parseTaxonomySelection(specialtyTags), []) ? 'Optional for a General reusable resource.' : 'Choose at least one use case.'}
         />
       </div>
       <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
@@ -269,7 +273,7 @@ export function AssetRow({
               <div><dt className="uppercase tracking-[0.12em]">Live catalog id</dt><dd className="break-all text-[var(--cf-text-muted)]">{submission.registryAssetId ?? 'Not published'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Studio placement</dt><dd className="text-[var(--cf-text-muted)]">{submission.requestedStudioDestination ? getPipelineStudioDestinationLabel(submission.requestedStudioDestination) : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Specialties</dt><dd className="text-[var(--cf-text-muted)]">{submission.specialtyTags.length ? submission.specialtyTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[var(--cf-text-muted)]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[var(--cf-text-muted)]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, []) ? 'General reusable resource' : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Source and rights</dt><dd className="text-[var(--cf-text-muted)]">{submission.sourceNotes || 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">{submission.status === 'draft' ? 'Draft created' : 'Submitted'}</dt><dd className="text-[var(--cf-text-muted)]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[var(--cf-text-muted)]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>

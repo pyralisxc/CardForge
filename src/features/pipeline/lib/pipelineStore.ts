@@ -36,6 +36,7 @@ import {
   type ContributorProfileOverrideInput,
 } from './pipelineProgram';
 import { PipelineStoreError } from './pipelineStoreError';
+import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
 import { isPipelineRevisionVisibleToContributor } from './pipelineVisibility';
 import {
   fetchPipelineProgramAggregate,
@@ -401,7 +402,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags')
     .eq('id', submissionId)
     .limit(1);
 
@@ -410,7 +411,7 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to load Pipeline submission.', 500);
   }
 
-  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown } | undefined;
+  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown; specialty_tags?: unknown; use_case_tags?: unknown } | undefined;
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
   if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
@@ -421,6 +422,13 @@ export const updatePipelineSubmissionDetails = async ({
 
   const normalized = normalizePipelineSubmissionEditInput({ ...input, assetType: row.asset_type });
   if (!normalized.ok) throw new PipelineStoreError(normalized.message, 400);
+  if (input.specialtyTags !== undefined || input.useCaseTags !== undefined) {
+    const specialtyTags = normalized.value.specialtyTags ?? normalizeSpecialtyTags(row.specialty_tags);
+    const useCaseTags = normalized.value.useCaseTags ?? normalizeUseCaseTags(row.use_case_tags);
+    if (!hasRequiredPipelineClassification(row.asset_type, specialtyTags, useCaseTags)) {
+      throw new PipelineStoreError('Choose a supported specialty and use case, or General alone for a reusable resource.', 400);
+    }
+  }
 
   const previewUrl = normalized.value.previewUrl || row.source_url || '';
   const { error } = await supabase

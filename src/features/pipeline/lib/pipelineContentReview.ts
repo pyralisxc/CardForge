@@ -1,5 +1,5 @@
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
-import { normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
 import type { PipelineProgramView } from './pipelineProgram';
 import { isRepositoryTemplate } from './registryContentValidation';
 
@@ -32,7 +32,7 @@ export const buildPipelineContentReview = (program: PipelineProgramView | null) 
       sourceNotes: submission.sourceNotes,
       destination: submission.requestedStudioDestination,
       classification: { specialtyTags, useCaseTags },
-      classificationNeedsReview: !specialtyTags.length || !useCaseTags.length,
+      classificationNeedsReview: !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags),
       revisionNeedsReview: submission.revisionNumber === null,
       template: template && format ? {
         id: template.id,
