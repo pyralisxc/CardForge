@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { useToast } from '@/components/ui/use-toast';
 import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
@@ -13,9 +14,10 @@ import {
   selectCreatorArtifacts,
   selectCreatorDeskSets,
   setCreatorLens,
+  setCreatorToolDirty,
   type EnvironmentViewer,
 } from '@/features/app-shell/client/environment';
-import { createDeskReturnHref, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
+import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -65,7 +67,10 @@ export function useDeskController({
   const returnContextRestoredRef = useRef(false);
   const initialToolHandledRef = useRef(false);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
-  const zones = getVisibleEnvironmentZones(viewer);
+  const searchParams = useSearchParams();
+  const originHref = normalizeStudioReturnTo(searchParams.get('returnTo'));
+  const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
+  const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<DeskSourceFilter>('all');
   const [renaming, setRenaming] = useState(false);
@@ -157,6 +162,13 @@ export function useDeskController({
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
   const activeContextTool = interactionSession.toolStack.at(-1) ?? null;
+  const generationContextTool = interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate');
+  const setGenerationToolDirty = useCallback((dirty: boolean) => {
+    setInteractionSession((current) => {
+      const tool = current.toolStack.findLast((candidate) => candidate.toolId === 'generate');
+      return tool && tool.dirty !== dirty ? setCreatorToolDirty(current, tool.instanceId, dirty) : current;
+    });
+  }, [setInteractionSession]);
   const activeContextSetId = activeContextTool?.targetIds[0] ?? null;
   const pipelineSubmitSetId = activeContextTool?.toolId === 'pipeline' ? activeContextSetId : null;
   const studioTool = activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
@@ -164,7 +176,7 @@ export function useDeskController({
     : null;
   const { actions: projectActions, state: projectState } = useDeskProjectWorkspace({
     focusedSetId: focusedLocalSetId,
-    generationSetId: activeContextTool?.toolId === 'generate' ? activeContextSetId : null,
+    generationSetId: generationContextTool?.targetIds[0] ?? null,
     selectedCardIds,
     latestGeneratedIds,
     cardQuery,
@@ -552,6 +564,7 @@ export function useDeskController({
     setCardQuery,
     setCardsTag,
     setActiveToolDirty,
+    setGenerationToolDirty,
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,

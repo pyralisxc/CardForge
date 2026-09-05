@@ -24,6 +24,7 @@ import { ControlledTaxonomySelect } from '@/features/pipeline/components/Control
 import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi';
 import { usePipelineSubmissionCandidates } from '@/features/pipeline/components/usePipelineSubmissionCandidates';
 import {
+  hasRequiredPipelineClassification,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
 } from '@/features/pipeline/lib/contentTaxonomy';
@@ -145,7 +146,7 @@ export function PipelineSubmissionPanel({
     try {
       if (!name.trim()) throw new Error('Name the asset before submitting.');
       if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
-      if (!useCaseTags.length) throw new Error('Choose at least one CardForge use case.');
+      if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
 
       const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
@@ -299,7 +300,7 @@ export function PipelineSubmissionPanel({
               selectedIds={useCaseTags}
               options={CARDFORGE_USE_CASE_OPTIONS}
               onChange={setUseCaseTags}
-              emptyLabel="Choose at least one use case."
+              emptyLabel={hasRequiredPipelineClassification(assetType, specialtyTags, []) ? 'Optional for a General reusable resource.' : 'Choose at least one use case.'}
             />
           </div>
           <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">

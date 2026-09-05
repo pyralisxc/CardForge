@@ -73,6 +73,7 @@ export function PipelineSubmissionEditPanel({
   };
 
   return <EditSubmissionForm
+    assetType={submission.assetType}
     name={name}
     description={description}
     previewUrl={previewUrl}

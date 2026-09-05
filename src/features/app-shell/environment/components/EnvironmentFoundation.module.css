@@ -418,6 +418,7 @@
 }
 
 .toolPanel {
+  min-height: 0;
   min-width: 0;
   border-left: 1px solid var(--cf-border-strong);
   background: var(--cf-canvas);

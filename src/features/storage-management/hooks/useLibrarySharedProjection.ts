@@ -37,6 +37,7 @@ export interface PublishedLibraryObject {
 }
 
 export interface PipelineLibraryObject {
+  packageUrl?: string | null;
   submission: PipelineSubmission;
   editableSubmission: PipelineSubmission | null;
   retirableSubmission: PipelineSubmission | null;
@@ -212,6 +213,10 @@ export const projectPipelineLibraryObjects = (
       .find((visual): visual is CatalogLibraryVisual => Boolean(visual))
       ?? EMPTY_CATALOG_VISUAL;
     return {
+      packageUrl: catalog?.sets.items.find((set) => (
+        set.id === item.currentPublishedSubmission?.registryAssetId
+        || set.id === item.currentPublishedSubmission?.targetRegistryAssetId
+      ))?.packageUrl ?? null,
       submission: item.submission,
       editableSubmission: item.editableSubmission,
       retirableSubmission: item.retirableSubmission,

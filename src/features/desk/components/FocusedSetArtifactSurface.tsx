@@ -13,7 +13,7 @@ import {
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { CardPreview } from '@/features/card-rendering/client';
+import { CardPreview, CardWatermarkOverlay } from '@/features/card-rendering/client';
 
 import {
   buildFocusedArtifactLayout,
@@ -30,6 +30,8 @@ interface FocusedSetArtifactSurfaceProps {
   setId: string;
   setName: string;
   allCards: DisplayCard[];
+  canExportClean: boolean;
+  canUseProjectFiles: boolean;
   groups: Array<[string, DisplayCard[]]>;
   organization: CardSetOrganization;
   session: CreatorInteractionSession;
@@ -69,6 +71,8 @@ export function FocusedSetArtifactSurface({
   setId,
   setName,
   allCards,
+  canExportClean,
+  canUseProjectFiles,
   groups,
   organization,
   session,
@@ -450,7 +454,7 @@ export function FocusedSetArtifactSurface({
                     } else focusArtifact(artifactId);
                   }}
                 >
-                  {useDetailedPreview ? <CardPreview card={card} face={face} targetWidthPx={132} /> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
+                  {useDetailedPreview ? <><CardPreview card={card} face={face} targetWidthPx={132} />{!canExportClean ? <CardWatermarkOverlay /> : null}</> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
                   <strong>{entry.title}</strong>
                   <span>{entry.subtitle}</span>
                   {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
@@ -464,6 +468,7 @@ export function FocusedSetArtifactSurface({
       </div>
       </div>
       {focusedEntry && focusedCard ? <FocusedArtifactWorkspace
+        canExportClean={canExportClean} canUseProjectFiles={canUseProjectFiles}
         key={focusedEntry.identity.artifactId}
         artifactId={focusedEntry.identity.artifactId}
         card={focusedCard}

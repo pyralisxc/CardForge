@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { hasRequiredPipelineClassification } from '@/features/pipeline/lib/contentTaxonomy';
+import { getPipelineStudioDestinationOptions } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
+import { PIPELINE_TYPES } from '@/features/pipeline/lib/pipelineItems';
 
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
@@ -21,6 +24,30 @@ const settings: PipelineProgramSettings = {
   monthlySubmissionLimit: 3,
   monthlyPublishedRequirement: 2,
 };
+
+describe('General resource classification', () => {
+  it.each(PIPELINE_TYPES)('keeps the native kind and destination requirements for %s', (assetType) => {
+    const reusable = assetType !== 'templates' && assetType !== 'sets';
+    const input = { assetType, name: 'Reusable original', sourceUrl: 'https://example.test/source', studioDestination: getPipelineStudioDestinationOptions(assetType)[0], specialtyTags: ['general'], useCaseTags: [] };
+    expect(hasRequiredPipelineClassification(assetType, ['general'], [])).toBe(reusable);
+    expect(normalizePipelineSubmissionInput(input).ok).toBe(reusable);
+    expect(hasRequiredPipelineClassification(assetType, ['games'], [])).toBe(false);
+    expect(hasRequiredPipelineClassification(assetType, ['general', 'games'], [])).toBe(false);
+    expect(hasRequiredPipelineClassification(assetType, ['games'], ['tcg'])).toBe(true);
+  });
+
+  it('does not turn unsupported tags or kinds into an optional selection', () => {
+    const input = { assetType: 'icons', name: 'Icon', sourceUrl: 'https://example.test/icon.svg', studioDestination: 'element.icon', specialtyTags: ['general'] };
+    expect(normalizePipelineSubmissionInput(input).ok).toBe(true);
+    for (const useCaseTags of [['general'], ['unknown'], 'unknown', 1]) {
+      expect(normalizePipelineSubmissionInput({ ...input, useCaseTags }).ok).toBe(false);
+      expect(normalizePipelineSubmissionEditInput({ ...input, useCaseTags }).ok).toBe(false);
+    }
+    expect(hasRequiredPipelineClassification('unknown', ['general'], [])).toBe(false);
+    expect(hasRequiredPipelineClassification('icons', ['general', 'unknown'], [])).toBe(false);
+    expect(hasRequiredPipelineClassification('icons', ['general'], ['unknown'])).toBe(false);
+  });
+});
 
 const submission = (
   input: Partial<PipelineSubmission> & Pick<PipelineSubmission, 'id' | 'contributorId' | 'name'>,

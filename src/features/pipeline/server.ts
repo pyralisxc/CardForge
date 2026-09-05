@@ -16,3 +16,4 @@ export * from './lib/repositoryCatalog';
 export * from './lib/ownerStudioRouting';
 export * from './server/catalogCache';
 export * from './server/pipelineRequestAccess';
+export { classifyPublishedPipelineAsset, readPublishedPipelineClassification } from './server/classifyPublishedAsset';

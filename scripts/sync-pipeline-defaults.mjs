@@ -551,6 +551,68 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
   return items;
 };
 
+export const buildStarterSetProject = (definition, template) => {
+  const setId = `starter-${definition.id}`;
+  const templateId = `${definition.id}-template`;
+  const userTemplate = {
+    ...template,
+    id: templateId,
+    name: `${definition.name} Template`,
+    templateSource: 'user',
+    templateLibrarySource: 'personal',
+    templateRegistryStatus: undefined,
+  };
+  const tags = definition.suits.map((suit) => ({ id: suit.tag, label: suit.name }));
+  const cards = definition.suits.flatMap((suit) => definition.ranks.map((rank) => {
+    const uniqueId = `${definition.id}-${suit.tag}-${rank.symbol.toLowerCase()}`;
+    return {
+      artifactId: uniqueId,
+      artifactType: 'card',
+      setId,
+      card: {
+        templateId,
+        setId,
+        setName: definition.name,
+        uniqueId,
+        tagIds: [suit.tag],
+        data: {
+          Rank: rank.symbol,
+          Suit: suit.symbol,
+          Artwork: '',
+          CardTitle: `${rank.name} of ${suit.name}`,
+        },
+      },
+    };
+  }));
+  if (cards.length !== 52) throw new Error(`${definition.name} must contain exactly 52 cards.`);
+  const project = {
+    version: 2,
+    userTemplates: [userTemplate],
+    cardSets: [{
+      id: setId,
+      name: definition.name,
+      organization: {
+        arrangement: 'grid',
+        groupBy: 'tag',
+        sort: 'manual',
+        tags,
+        positions: {},
+      },
+    }],
+    activeCardSetId: setId,
+    artifacts: cards,
+    appearanceStyles: [],
+    exportSettings: {},
+    customAssets: {
+      'cardforge-maker-custom-textures': [],
+      'cardforge-maker-custom-dividers': [],
+      'cardforge-maker-custom-icons': [],
+      'cardforge-maker-custom-images': [],
+    },
+  };
+  return project;
+};
+
 const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
   const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'sets');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
@@ -562,64 +624,7 @@ const collectStarterSetItems = async (supabase, publicUrlByLocalPath) => {
       await readJson(path.join(projectRoot, BOOTSTRAP_ROOT, 'templates', definition.templatePath)),
       publicUrlByLocalPath,
     );
-    const setId = `starter-${definition.id}`;
-    const templateId = `${definition.id}-template`;
-    const userTemplate = {
-      ...template,
-      id: templateId,
-      name: `${definition.name} Template`,
-      templateSource: 'user',
-      templateLibrarySource: 'personal',
-      templateRegistryStatus: undefined,
-    };
-    const tags = definition.suits.map((suit) => ({ id: suit.tag, label: suit.name }));
-    const cards = definition.suits.flatMap((suit) => definition.ranks.map((rank) => {
-      const uniqueId = `${definition.id}-${suit.tag}-${rank.symbol.toLowerCase()}`;
-      return {
-        artifactId: uniqueId,
-        artifactType: 'card',
-        setId,
-        card: {
-          templateId,
-          setId,
-          setName: definition.name,
-          uniqueId,
-          tagIds: [suit.tag],
-          data: {
-            Rank: rank.symbol,
-            Suit: suit.symbol,
-            Artwork: '',
-            CardTitle: `${rank.name} of ${suit.name}`,
-          },
-        },
-      };
-    }));
-    if (cards.length !== 52) throw new Error(`${definition.name} must contain exactly 52 cards.`);
-    const project = {
-      version: 2,
-      userTemplates: [userTemplate],
-      cardSets: [{
-        id: setId,
-        name: definition.name,
-        organization: {
-          arrangement: 'grid',
-          groupBy: 'tag',
-          sort: 'manual',
-          tags,
-          positions: {},
-        },
-      }],
-      activeCardSetId: setId,
-      artifacts: cards,
-      appearanceStyles: [],
-      exportSettings: {},
-      customAssets: {
-        'cardforge-maker-custom-textures': [],
-        'cardforge-maker-custom-dividers': [],
-        'cardforge-maker-custom-icons': [],
-        'cardforge-maker-custom-images': [],
-      },
-    };
+    const project = buildStarterSetProject(definition, template);
     const assets = [];
     const projectRevision = createHash('sha256')
       .update(JSON.stringify({ project, assets }))

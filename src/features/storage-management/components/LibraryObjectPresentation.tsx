@@ -10,6 +10,7 @@ import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone }
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
+import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
 
 import type { PipelineLibraryObject, PublishedLibraryObject } from '../hooks/useLibrarySharedProjection';
 import { getAccountLibraryActionSources } from '../model/accountLibraryEnvironment';
@@ -29,7 +30,11 @@ export const pipelineLineageFor = (item: LibraryViewItem): string | null => item
     : null;
 
 export const getPersonalLibraryStatus = (item: AccountLibraryItem): { label: string; tone: EnvironmentStatusTone } => (
-  item.locations.some((location) => location.status === 'needs-permission')
+  item.localResource?.status === 'missing-source'
+    ? { label: 'Source missing', tone: 'warning' }
+    : item.localResource?.status === 'unavailable' || item.locations.some((location) => location.status === 'unavailable')
+      ? { label: 'Source unavailable', tone: 'warning' }
+      : item.locations.some((location) => location.status === 'needs-permission')
     ? { label: 'Permission required', tone: 'warning' }
     : item.kind === 'working-draft' ? { label: 'Temporary work', tone: 'warning' } : { label: 'Available', tone: 'success' }
 );
@@ -72,6 +77,7 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
 }
 
 export function LibraryVisual({ item, cards, template, large = false, face = 'front' }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean; face?: CardFace }) {
+  if (item.scope === 'personal' && item.personal.localResource) return <LocalLibraryResourcePreview resource={item.personal.localResource} className={item.personal.localResource.kind === 'font' ? styles.fontSample : styles.objectImage} />;
   if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
     return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} face={face} />;
   }
@@ -169,6 +175,11 @@ export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-l
 
 export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
   if (item.scope === 'pipeline') return [
+    ...(item.pipeline.packageUrl ? [{
+      id: 'library.use-published' as const, label: 'Create from published Set', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
+      supportedSources: ['provider-native'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const, scope: 'object' as const, hierarchy: 'primary' as const,
+      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'navigation' as const,
+    }] : []),
     ...(item.pipeline.editableSubmission ? [{
       id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,

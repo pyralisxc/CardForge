@@ -108,6 +108,8 @@ export function CardTemplateMaker({
     beginDraft,
     controller,
     contributorFontFaceCss,
+    fontFailure,
+    retryFonts,
     isDirty,
     isHydrated: draftPersistenceHydrated,
   } = useTemplateEditorSession({
@@ -350,13 +352,7 @@ export function CardTemplateMaker({
     savePresentation,
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
-  const livePreviewData = useMemo(() => ({
-    cardName: 'Astral Relic',
-    cost: '3',
-    rulesText: 'When Astral Relic enters play, draw a card. If you control an icon, gain 2 focus.',
-    artworkUrl: 'https://placehold.co/600x400.png?text=Astral+Relic',
-    ...(currentTemplate.templatePreviewData || {}),
-  }), [currentTemplate.templatePreviewData]);
+  const livePreviewData = useMemo(() => currentTemplate.templatePreviewData ?? {}, [currentTemplate.templatePreviewData]);
   const renderEditableElement = useCallback((element: FreeformCardElement) => (
     <TemplateEditableElement
       key={element.id}
@@ -393,6 +389,9 @@ export function CardTemplateMaker({
         className={cn('cardforge-maker-shell min-h-0 overflow-hidden rounded-[10px] border', makerTheme.shell)}
         data-mobile-panel={mobilePanel}
       >
+        {fontFailure ? <div role="alert" className="border-b border-amber-500/40 p-2 text-sm">
+          {fontFailure} <button type="button" className="underline" onClick={retryFonts}>Retry fonts</button>
+        </div> : null}
         <TemplateEditorTopBar
           actions={editorActions}
           isDirty={isDirty}

@@ -105,7 +105,7 @@ export function useAccountLibraryActions({
 
   const openPersonalItem = (item: AccountLibraryItem) => {
     if (item.references.localSetId) {
-      const href = createDeskReturnHref(`set:${item.references.localSetId}`);
+      const href = createDeskReturnHref(`set:${item.references.localSetId}`, null, createCompatibilityReturnTo());
       projection.router.push(href);
       return href;
     }
@@ -125,15 +125,19 @@ export function useAccountLibraryActions({
     projection.refresh();
   };
 
+  const openPublishedSet = async (packageUrl: string, name: string) => {
+      const result = await createPublishedSetCopy({ packageUrl, expectedName: name });
+      toast({ title: 'Set created', description: `${result.setName} is now independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
+      projection.refresh();
+      const href = createDeskReturnHref(`set:${result.setId}`, null, createCompatibilityReturnTo());
+      projection.router.push(href);
+      return href;
+  };
+
   const runPublishedAction = async (item: Extract<LibraryViewItem, { scope: 'published' }>, copyTemplate: boolean) => {
     if (item.published.kind === 'set' && item.published.packageUrl) {
       if (copyTemplate) throw new Error('Published Sets create an independent Set rather than a Template copy.');
-      const result = await createPublishedSetCopy({ packageUrl: item.published.packageUrl, expectedName: item.name });
-      toast({ title: 'Set created', description: `${result.setName} is now independent browser work with ${result.cardCount} card${result.cardCount === 1 ? '' : 's'}.` });
-      projection.refresh();
-      const href = createDeskReturnHref(`set:${result.setId}`);
-      projection.router.push(href);
-      return href;
+      return openPublishedSet(item.published.packageUrl, item.name);
     }
     const template = item.published.template;
     if (!template) throw new Error('This published object does not provide a contextual editor or a Set package.');
@@ -220,7 +224,9 @@ export function useAccountLibraryActions({
         return item.webViewLink;
       },
       manageLocation: openLocations,
-      usePublished: () => runPublishedAction(requirePublished(), false),
+      usePublished: () => pipeline?.pipeline.packageUrl
+        ? openPublishedSet(pipeline.pipeline.packageUrl, pipeline.name)
+        : runPublishedAction(requirePublished(), false),
       copyPublishedTemplate: () => runPublishedAction(requirePublished(), true),
       editPipeline: () => {
         const item = requirePipeline();
@@ -232,7 +238,7 @@ export function useAccountLibraryActions({
       testPipeline: () => {
         const item = requirePipeline();
         if (!item.pipeline.template) throw new Error('This Pipeline revision has no Template to test.');
-        const templateId = useProjectStore.getState().addOrUpdateTemplate(item.pipeline.template, 'user');
+        const templateId = useProjectStore.getState().addOrUpdateTemplate({ ...item.pipeline.template, id: null }, 'user');
         if (!templateId) throw new Error('CardForge could not prepare this exact revision for Design.');
         toast({ title: 'Exact Pipeline revision prepared', description: `${item.name} is open as a local test copy. The shared revision is unchanged.` });
         return openDesignTool(templateId, `library-object-${item.id}`);

@@ -6,7 +6,7 @@ export type {
   ProjectWorkLocationContextProps,
   ProjectWorkLocationTarget,
 } from '../components/ProjectWorkLocationDialog';
-export { useCardTransferActions } from '../hooks/useCardTransferActions';
+export { exportCardProjectPackage } from './cardPackageExport';
 export {
   canMoveWork,
   canTransferWork,

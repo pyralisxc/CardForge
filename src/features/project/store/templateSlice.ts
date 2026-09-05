@@ -82,12 +82,12 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       });
       const selectedId = selectFallbackTemplateId(
         allTemplates,
-        state.singleCardGeneratorSelectedTemplateId,
+        state.generatorSelectedTemplateId,
         preferredTemplateId,
       );
       return {
         defaultTemplates: reconstructed,
-        singleCardGeneratorSelectedTemplateId: selectedId,
+        generatorSelectedTemplateId: selectedId,
         templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
           allTemplates,
           state.templateEditorSelectedTemplateId,
@@ -108,10 +108,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
         defaultTemplates: state.defaultTemplates,
         userTemplates: reconstructed,
       });
-      const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
+      const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
       return {
         userTemplates: reconstructed,
-        singleCardGeneratorSelectedTemplateId: selectedId,
+        generatorSelectedTemplateId: selectedId,
         templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
           allTemplates,
           state.templateEditorSelectedTemplateId,
@@ -138,10 +138,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
         defaultTemplates: state.defaultTemplates,
         userTemplates,
       });
-      const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
+      const selectedId = selectFallbackTemplateId(allTemplates, state.generatorSelectedTemplateId);
       return {
         userTemplates,
-        singleCardGeneratorSelectedTemplateId: selectedId,
+        generatorSelectedTemplateId: selectedId,
         templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
           allTemplates,
           state.templateEditorSelectedTemplateId,
@@ -181,9 +181,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       .map((card) => card.backingTemplateId === templateId
         ? { ...card, backingTemplateId: null, backingData: undefined }
         : card);
-    const selectedId = state.singleCardGeneratorSelectedTemplateId === templateId
+    const selectedId = state.generatorSelectedTemplateId === templateId
       ? (allTemplates.find((template) => Boolean(template.id?.trim()))?.id ?? null)
-      : state.singleCardGeneratorSelectedTemplateId;
+      : state.generatorSelectedTemplateId;
     const editorSelectedId = state.templateEditorSelectedTemplateId === templateId
       ? selectFallbackEditorTemplateId(allTemplates, null, selectedId)
       : state.templateEditorSelectedTemplateId;
@@ -196,7 +196,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       defaultTemplates,
       userTemplates,
       storedCards,
-      singleCardGeneratorSelectedTemplateId: selectedId,
+      generatorSelectedTemplateId: selectedId,
       templateEditorSelectedTemplateId: editorSelectedId,
       editingCardUniqueId,
       isEditDialogOpen: editingCardUniqueId ? state.isEditDialogOpen : false,

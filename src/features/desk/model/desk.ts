@@ -96,7 +96,7 @@ export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRec
   kind: 'set',
   eyebrow: 'Work',
   title: item.name,
-  summary: item.details.join(' · ') || 'Ready to continue.',
+  summary: item.details.join(' Â· ') || 'Ready to continue.',
   status: item.locations.some((location) => location.status === 'needs-permission')
     ? 'Permission required'
     : item.kind === 'working-draft'
@@ -108,7 +108,7 @@ export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRec
   actionSources: getAccountLibraryActionSources(item),
   meta: [
     ['Source', workSourceLabel(item)],
-    ['Contents', item.details.join(' · ') || 'No content summary'],
+    ['Contents', item.details.join(' Â· ') || 'No content summary'],
     ...(item.revision ? [['Revision', item.revision] as const] : []),
     ...(item.expiresAt ? [['Expires', new Date(item.expiresAt).toLocaleString()] as const] : []),
   ],
@@ -166,13 +166,13 @@ export const getWorkActions = (
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     {
-      id: 'desk.export-set', label: 'Export / print', ownerFeature: 'card-generator',
+      id: 'desk.export-set', label: 'Output', ownerFeature: 'card-generator',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'overflow', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before exporting it.' }, commitment: 'none',
       automation: { kind: 'planned-mcp', capability: 'export a selected Set with explicit output settings' }, result: 'navigation',
     },
     {
-      id: 'desk.save-move-set', label: 'Save / move', ownerFeature: 'storage-management',
+      id: 'desk.save-move-set', label: 'Save & move', ownerFeature: 'storage-management',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: canUseProjectFiles
         ? { kind: 'available' }

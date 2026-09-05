@@ -115,7 +115,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
             <DropdownMenuItem onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
             {props.localSet ? <DropdownMenuItem onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.localSet ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
+            {props.localSet ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={props.onTogglePin}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from Desk' : 'Pin to Desk'}</DropdownMenuItem>
             <DropdownMenuItem onSelect={props.onInspect}><Info aria-hidden="true" />Details</DropdownMenuItem>
             {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}

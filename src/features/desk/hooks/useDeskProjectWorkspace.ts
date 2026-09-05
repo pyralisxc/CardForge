@@ -44,11 +44,11 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
   const openEditDialog = useProjectStore((state) => state.openEditDialog);
   const setStudioView = useProjectStore((state) => state.setStudioView);
-  const generatorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
-  const generatorSelectedBackingTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedBackingTemplateId);
+  const generatorSelectedTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
+  const generatorSelectedBackingTemplateId = useProjectStore((state) => state.generatorSelectedBackingTemplateId);
   const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
-  const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
+  const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setGeneratorSelectedTemplateId);
+  const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
   const addCardSetTag = useProjectStore((state) => state.addCardSetTag);

@@ -17,8 +17,8 @@ export function useCardForgeWorkspaceState() {
   const selectedPaperSize = useProjectStore((state) => state.selectedPaperSize);
   const studioView = useProjectStore((state) => state.studioView);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
-  const singleCardGeneratorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
-  const singleCardGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedBackingTemplateId);
+  const requestedGeneratorTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
+  const generatorSelectedBackingTemplateId = useProjectStore((state) => state.generatorSelectedBackingTemplateId);
   const templateEditorSelectedTemplateId = useProjectStore((state) => state.templateEditorSelectedTemplateId);
   const pdfMarginMm = useProjectStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useProjectStore((state) => state.pdfCardSpacingMm);
@@ -52,8 +52,8 @@ export function useCardForgeWorkspaceState() {
   const setSelectedPaperSizeAction = useProjectStore((state) => state.setSelectedPaperSize);
   const setStudioViewAction = useProjectStore((state) => state.setStudioView);
   const setActiveCardSetNameAction = useProjectStore((state) => state.setActiveCardSetName);
-  const setSingleCardGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
-  const setSingleCardGeneratorSelectedBackingTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedBackingTemplateId);
+  const setGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setGeneratorSelectedTemplateId);
+  const setGeneratorSelectedBackingTemplateIdAction = useProjectStore((state) => state.setGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateIdAction = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const setPdfOptionsAction = useProjectStore((state) => state.setPdfOptions);
   const setExportModeAction = useProjectStore((state) => state.setExportMode);
@@ -72,8 +72,8 @@ export function useCardForgeWorkspaceState() {
 
   const generatorSelectedTemplateId = useMemo(() => resolveGeneratorFrontTemplateId(
     freeformTemplatesForGenerator,
-    singleCardGeneratorSelectedTemplateId,
-  ), [freeformTemplatesForGenerator, singleCardGeneratorSelectedTemplateId]);
+    requestedGeneratorTemplateId,
+  ), [freeformTemplatesForGenerator, requestedGeneratorTemplateId]);
 
   return {
     actions: {
@@ -100,8 +100,8 @@ export function useCardForgeWorkspaceState() {
       setExportModeAction,
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
-      setSingleCardGeneratorSelectedTemplateIdAction,
-      setSingleCardGeneratorSelectedBackingTemplateIdAction,
+      setGeneratorSelectedTemplateIdAction,
+      setGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -127,8 +127,7 @@ export function useCardForgeWorkspaceState() {
       pdfMarginMm,
       richTextHighlightColor,
       selectedPaperSize,
-      singleCardGeneratorSelectedTemplateId,
-      singleCardGeneratorSelectedBackingTemplateId,
+      generatorSelectedBackingTemplateId,
       standardDefaultTemplates,
       storedCards,
       templateEditorSelectedTemplateId,

@@ -32,26 +32,24 @@ export function EnvironmentCommandPalette({
     <DialogContent className={styles.commandDialog}>
       <DialogHeader>
         <DialogTitle>Actions for this context</DialogTitle>
-        <DialogDescription>Search the actions CardForge already owns for the current Zone, selection, or object.</DialogDescription>
+        <DialogDescription>Find actions for your current selection or workspace.</DialogDescription>
       </DialogHeader>
       <label className={styles.commandSearch}>
         <Search size={16} aria-hidden="true" />
         <span className="sr-only">Search actions</span>
         <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search actions…" />
       </label>
-      <div className={styles.commandResults} role="list">
+      <div className={styles.commandResults}>
         {matches.map((action) => {
           const available = isActionAvailable(action);
           return <button
             key={action.id}
             type="button"
-            role="listitem"
             disabled={!available}
             title={action.availability.kind === 'disabled' ? action.availability.reason : undefined}
             onClick={() => { if (available) { onOpenChange(false); onAction(action); } }}
           >
-            <span><strong>{action.label}</strong><small>{action.scope} · {action.ownerFeature}</small></span>
-            <small>{action.commitment === 'none' ? action.result : action.commitment}</small>
+            <span><strong>{action.label}</strong>{action.availability.kind === 'disabled' ? <small>{action.availability.reason}</small> : null}</span>
           </button>;
         })}
         {matches.length === 0 ? <p>No available action matches that search.</p> : null}

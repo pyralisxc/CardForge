@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createPipelineSubmission } from '@/features/pipeline/lib/pipelineStore';
+import { createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
 import {
   createUploadedPipelineSubmission,
   preparePipelineUpload,
@@ -20,6 +20,30 @@ vi.mock('@/features/pipeline/lib/pipelineStore', async (importOriginal) => {
 
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedCreatePipelineSubmission = vi.mocked(createPipelineSubmission);
+
+describe('Pipeline partial classification edits', () => {
+  it.each([
+    ['icons', ['general'], [], { useCaseTags: [] }, true],
+    ['icons', ['games'], ['tcg'], { useCaseTags: [] }, false],
+    ['icons', ['general'], [], { specialtyTags: ['games'] }, false],
+    ['templates', ['general'], ['tcg'], { useCaseTags: [] }, false],
+    ['sets', ['general'], ['tcg'], { useCaseTags: [] }, false],
+  ])('validates merged taxonomy before writing %s', async (assetType, specialtyTags, useCaseTags, edit, allowed) => {
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn().mockResolvedValue({ data: [{ contributor_id: 'owner', status: 'draft', asset_type: assetType, specialty_tags: specialtyTags, use_case_tags: useCaseTags }], error: null }), update };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    const result = updatePipelineSubmissionDetails({ submissionId: 'draft', contributorId: 'owner', input: { name: 'Original', ...edit } });
+    if (allowed) {
+      await expect(result).resolves.toBeUndefined();
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ use_case_tags: [] }));
+    } else {
+      await expect(result).rejects.toThrow('Choose a supported specialty and use case');
+      expect(update).not.toHaveBeenCalled();
+    }
+  });
+});
 
 const taxonomy = {
   specialtyTags: ['games'],

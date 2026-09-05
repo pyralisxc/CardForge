@@ -43,8 +43,8 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     richTextHighlightColor: '#ffd700',
     cardSets: [],
     activeCardSet: null,
-    singleCardGeneratorSelectedTemplateId: null,
-    singleCardGeneratorSelectedBackingTemplateId: null,
+    generatorSelectedTemplateId: null,
+    generatorSelectedBackingTemplateId: null,
     templateEditorSelectedTemplateId: null,
     pdfMarginMm: 5,
     pdfCardSpacingMm: 0,
@@ -189,18 +189,18 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
           : card),
       };
     }),
-    setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({
-      singleCardGeneratorSelectedTemplateId: id,
-      singleCardGeneratorSelectedBackingTemplateId: getCompatibleBackingId(
+    setGeneratorSelectedTemplateId: (id) => set((state) => ({
+      generatorSelectedTemplateId: id,
+      generatorSelectedBackingTemplateId: getCompatibleBackingId(
         state,
         id,
-        state.singleCardGeneratorSelectedBackingTemplateId,
+        state.generatorSelectedBackingTemplateId,
       ),
     })),
-    setSingleCardGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
-      singleCardGeneratorSelectedBackingTemplateId: getCompatibleBackingId(
+    setGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
+      generatorSelectedBackingTemplateId: getCompatibleBackingId(
         state,
-        state.singleCardGeneratorSelectedTemplateId,
+        state.generatorSelectedTemplateId,
         id,
       ),
     })),

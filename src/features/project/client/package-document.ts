@@ -7,6 +7,7 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   isolateProjectDocumentToSet,
+  isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
   parseProjectDocumentFile,
   parseProjectDocumentValue,

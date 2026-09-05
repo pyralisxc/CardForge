@@ -83,6 +83,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
   const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | 'edit-contribution' | 'design' | null>(() => initialTool);
   const [designReturnFocusId, setDesignReturnFocusId] = useState<string | null>(null);
+  const [toolDirty, setToolDirty] = useState(false);
+  const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
@@ -132,6 +134,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     projection.router.replace(`/account?section=library&scope=${activeScope}`);
   }, [activeScope, projection.router, scope]);
   useEffect(() => { if (initialTool) setActiveTool(initialTool); }, [initialTool]);
+  useEffect(() => { if (!activeTool) setToolDirty(false); }, [activeTool]);
 
   const { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, unfilteredScopeItemCount, viewItems } = useUnifiedLibraryView({
     activeScope,
@@ -251,7 +254,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     actions,
     openLocations,
     personalActions,
-    runAction,
+    runAction: executeAction,
     runPersonalAction,
     runPublishedRowAction,
   } = useAccountLibraryActions({
@@ -274,13 +277,26 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setPendingDeleteItem,
   });
 
+  const closeOrExecute: typeof executeAction = (action) => {
+    if ((action.id === 'library.close-tool' || action.id === 'library.close-locations') && window.history.state?.cardforgeToolLayer) {
+      window.history.back();
+      return;
+    }
+    executeAction(action);
+  };
+  const runAction: typeof executeAction = (action) => {
+    if (toolDirty && (action.id === 'library.close-tool' || action.id === 'library.close-locations')) {
+      setDiscardToolRequested(true);
+      return;
+    }
+    closeOrExecute(action);
+  };
+
   const confirmDeleteCopy = async () => {
     const item = pendingDeleteItem;
     if (!item) return;
     try {
       if (item.references.localSetId) {
-        const store = useProjectStore.getState();
-        if (store.cardSets.length <= 1) store.createCardSet();
         if (!useProjectStore.getState().deleteCardSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
       } else if (item.references.driveFileId && item.references.driveProviderRevision && item.references.driveProjectRevision) {
         await deleteGoogleDriveProjectCopy({
@@ -336,7 +352,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         <summary className="cursor-pointer px-4 py-3 font-serif text-lg text-[var(--cf-text-strong)]">Owner Pipeline operations <span className="ml-2 font-sans text-xs text-[var(--cf-text-subtle)]">publication, quotas, routing, revisions</span></summary>
         <div className="border-t border-[var(--cf-border-subtle)] p-4"><OwnerContributorProgramPanel /></div>
       </details> : null}
-      {activeScope === 'pipeline' ? <PipelineContentHealthPanel health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
+      {activeScope === 'pipeline' ? <PipelineContentHealthPanel catalog={shared.catalog} onClassified={shared.refresh} health={contentHealth} canRepair={experience.owner} onOpenObject={(objectId) => { const item = viewItems.find((candidate) => candidate.id === `pipeline:${objectId}` || candidate.id === objectId); if (item) openDetail(item); }} /> : null}
       {storageCallback ? <EnvironmentBoundaryNotice title={storageCallback.title} message={storageCallback.message} /> : null}
       <LibraryCollection
         activeFailure={activeFailure}
@@ -425,16 +441,32 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="The selected Template remains in Library while the reusable Design tool edits its local working copy."
           closeLabel="Close Design"
           onClose={() => runAction(actions[0]!)}
+          dirty={toolDirty}
+          onDirtyCloseRequest={() => setDiscardToolRequested(true)}
           presentation="floating"
         >
           <LibraryDesignWorkspace
             businessIdentity={businessIdentity}
             initialContributorAccess={EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE}
+            tool="design"
+            onDirtyChange={setToolDirty}
           />
         </EnvironmentToolLayer>
       ) : null}
     </div>
   </EnvironmentShell>
+  <AlertDialog open={discardToolRequested} onOpenChange={setDiscardToolRequested}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+        <AlertDialogDescription>Your saved Template remains unchanged. Keep editing to save this draft.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Keep editing</AlertDialogCancel>
+        <AlertDialogAction onClick={() => { setToolDirty(false); setDiscardToolRequested(false); closeOrExecute(actions[0]!); }}>Discard changes</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
   <WorkLocationDialog
     item={locationItem}
     open={Boolean(locationItem)}

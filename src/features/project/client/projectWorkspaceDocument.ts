@@ -10,6 +10,7 @@ import {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
   isolateProjectDocumentToSet,
+  isolateProjectDocumentToCard,
   instantiateProjectDocumentCopy,
   type ProjectDocumentV1,
 } from '../model/projectDocument';
@@ -74,6 +75,10 @@ export const captureCardSetProjectDocument = async (setId: string): Promise<Proj
   isolateProjectDocumentToSet(await captureCurrentProjectDocument(), setId)
 );
 
+export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => (
+  isolateProjectDocumentToCard(await captureCurrentProjectDocument(), cardId)
+);
+
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
@@ -130,7 +135,7 @@ export const applyProjectDocumentToWorkspace = async (
   const activeSet = useProjectStore.getState().activeCardSet;
   const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId ?? null;
   if (activeTemplateId) {
-    useProjectStore.getState().setSingleCardGeneratorSelectedTemplateId(activeTemplateId);
+    useProjectStore.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 

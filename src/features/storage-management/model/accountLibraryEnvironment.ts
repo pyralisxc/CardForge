@@ -114,7 +114,7 @@ export const getAccountLibraryEnvironmentActions = (
   if (availableActions.includes('save-move')) {
     actions.push({
       id: 'library.save-move',
-      label: 'Save / move',
+      label: 'Save & move',
       ownerFeature: 'storage-management',
       supportedObjectKinds: [item.kind],
       supportedSources: sources,

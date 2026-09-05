@@ -135,7 +135,7 @@ export const createCreatorTool = (
     : toolId === 'pipeline'
       ? 'pipeline'
       : 'card-generator',
-  presentation: toolId === 'design' || toolId === 'output' ? 'floating' : 'sheet',
+  presentation: toolId === 'design' ? 'floating' : 'sheet',
   targetIds: [setId],
   dirty: false,
 });

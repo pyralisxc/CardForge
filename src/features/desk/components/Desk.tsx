@@ -15,7 +15,7 @@ import {
   EnvironmentStatus,
   EnvironmentToolLayer,
 } from '@/features/app-shell/client/environment';
-import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
+import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -94,6 +94,7 @@ export function Desk({
   securityStatus,
 }: DeskProps) {
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
+  const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const {
     actions,
     activeWorkId,
@@ -180,6 +181,7 @@ export function Desk({
     selectionScope,
     setCardPositions,
     setActiveToolDirty,
+    setGenerationToolDirty,
     setCardQuery,
     setCardsTag,
     setCreateOpen,
@@ -366,7 +368,8 @@ export function Desk({
             campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
             renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
-            renderFocusedSurface={(item) => <FocusedWorkSurface
+            renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
+              canExportClean={experience.capabilities.canExportClean}
               item={item}
               localSetId={focusedLocalSetId}
               remoteIcon={<WorkSourceIcon item={item} />}
@@ -465,10 +468,13 @@ export function Desk({
           closeLabel="Close Generate"
           onClose={() => { setGenerationRevisionScopeIds([]); closeGenerate(); }}
           manageHistory={false}
+          dirty={interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate')?.dirty ?? false}
+          onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
           railOwned
         >
           <DeskGenerationWorkspace
+            onDirtyChange={setGenerationToolDirty}
             isLoadingTemplates={false}
             templates={templates.filter((template) => template.templateUsage !== 'back-preset')}
             backFaceTemplates={templates.filter((template) => template.templateUsage === 'back-preset')}
@@ -479,9 +485,9 @@ export function Desk({
             generatedDisplayCards={generationCards}
             canExportClean={experience.capabilities.canExportClean}
             onOpenTemplateMaker={() => showTemplateTool()}
-            onCreateMatchingBack={(template) => showTemplateTool(template.id)}
-            onEditSelectedBack={(templateId) => showTemplateTool(templateId)}
-            onManageCardBacks={() => showTemplateTool()}
+            onCreateMatchingBack={(formatSource) => { setDesignIntent({ kind: 'matching-back', formatSource }); showTemplateTool(); }}
+            onEditSelectedBack={(templateId) => { setDesignIntent({ kind: 'edit-back', templateId }); showTemplateTool(templateId); }}
+            onManageCardBacks={() => { setDesignIntent({ kind: 'manage-backs' }); showTemplateTool(); }}
             onBulkCardsGenerated={addGeneratedCards}
             onBulkCardsRevised={reviseGeneratedCards}
             onUndoBulkRevision={undoLastBulkRevision}
@@ -510,6 +516,9 @@ export function Desk({
             businessIdentity={businessIdentity}
             initialContributorAccess={initialContributorAccess}
             onDirtyChange={studioTool.tool === 'design' ? setActiveToolDirty : undefined}
+            designIntent={designIntent}
+            onDesignIntentConsumed={() => setDesignIntent(null)}
+            onReturnToGenerator={closeActiveTool}
           />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
@@ -534,6 +543,7 @@ export function Desk({
         pendingDeleteWork={pendingDeleteWork}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
+        dirtyToolName={toolName}
         selectionScope={selectionScope}
         onDirtyCloseOpenChange={setDirtyCloseRequested}
         onConfirmDirtyClose={confirmDirtyClose}

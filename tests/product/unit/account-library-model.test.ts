@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { CardAssetOption } from '@/domain/templates';
+import type { ProjectFontAsset } from '@/features/project/client/assets';
+import { projectLocalLibraryAsset, projectLocalLibraryFont, retainLocalLibraryResources, getLocalLibrarySelectionValue } from '@/features/project/model/localLibraryResources';
+import { readLocalLibraryResources } from '@/features/project/client/library-resources';
+import { toLocalLibraryPickerResources } from '@/features/library-picker/client';
+import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
 
 import {
   buildAccountLibraryItems,
@@ -12,6 +18,69 @@ import {
 } from '@/features/storage-management/model/accountLibraryEnvironment';
 
 describe('account library model', () => {
+  const localAsset = (overrides: Partial<CardAssetOption> = {}): CardAssetOption => ({
+    id: 'native-image-id', name: 'My artwork', url: `cardforge-browser-asset://${'a'.repeat(64)}`,
+    kind: 'image', tileMode: 'contain', seamless: false, allowedTargets: ['image'], ...overrides,
+  });
+
+  it('projects native local resources without synthetic binary estimates or destructive actions', () => {
+    const image = projectLocalLibraryAsset('image', localAsset());
+    const [item] = buildAccountLibraryItems({ localSets: [], localResources: [image], driveProjects: [], driveBindingFileId: null, localWorkFolders: [], personalAssets: [], workingDrafts: [] });
+    expect(item?.localResource?.objectId).toBe('native-image-id');
+    expect(item?.sizeBytes).toBeNull();
+    expect(item?.locations).toEqual([{ source: 'device', status: 'available', label: 'This device' }]);
+    expect(getAccountLibraryAvailableActions(item!)).toEqual([]);
+    expect(getAccountLibraryMcpWorkflow(item!).availability).toBe('browser-only');
+    expect(getLocalLibrarySelectionValue([image], image.id)).toBe(localAsset().url);
+  });
+
+  it('preserves distinct collection identities and font assignment values in the shared picker', () => {
+    const image = projectLocalLibraryAsset('image', localAsset());
+    const icon = projectLocalLibraryAsset('icon', localAsset({ kind: 'icon' }));
+    const font = projectLocalLibraryFont({ id: 'native-image-id', name: 'My font', value: 'font-personal-original', mimeType: 'font/woff2', dataUrl: 'data:font/woff2;base64,AQID', fileSizeBytes: 3 });
+    const resources = [image, icon, font];
+    const options = toLocalLibraryPickerResources(resources);
+    expect(new Set(options.map((option) => option.id)).size).toBe(3);
+    expect(options.map((option) => option.objectId)).toEqual(['native-image-id', 'native-image-id', 'native-image-id']);
+    expect(options.every((option) => option.source === 'project' && option.materialization === 'already-local')).toBe(true);
+    expect(getLocalLibrarySelectionValue(resources, font.id)).toBe('font-personal-original');
+    expect(font.sizeBytes).toBe(3);
+    const frame = projectLocalLibraryAsset('image', localAsset({ kind: 'frame' }));
+    expect(toLocalLibraryPickerResources([frame])[0]).toMatchObject({ kind: 'image', role: 'frame' });
+  });
+
+  it('shows missing and unavailable sources without offering them for selection', () => {
+    const missing = projectLocalLibraryAsset('image', localAsset({ url: '' }));
+    expect(missing.status).toBe('missing-source');
+    const retained = retainLocalLibraryResources([projectLocalLibraryAsset('icon', localAsset({ kind: 'icon' }))], [missing], ['icon']);
+    expect(retained[1]?.status).toBe('unavailable');
+    expect(toLocalLibraryPickerResources(retained)).toEqual([]);
+    expect(() => getLocalLibrarySelectionValue(retained, missing.id)).toThrow('unavailable');
+    expect(() => getLocalLibrarySelectionValue(retained, 'deleted')).toThrow('unavailable');
+  });
+
+  it('keeps readable collections when a native resource collection fails', async () => {
+    const readAssets = vi.fn(async (key: string) => {
+      if (key === CUSTOM_IMAGE_ASSETS_STORAGE_KEY) throw new Error('Artwork metadata could not be read');
+      return [localAsset()];
+    });
+    const readFonts = vi.fn(async (): Promise<ProjectFontAsset[]> => []);
+    const result = await readLocalLibraryResources({ readAssets, readFonts });
+    expect(readAssets).toHaveBeenCalledTimes(4);
+    expect(readFonts).toHaveBeenCalledOnce();
+    expect(result.resources).toHaveLength(3);
+    expect(result.failures).toEqual([{ collection: 'image', error: expect.any(Error) }]);
+  });
+
+  it('reports font collection read failure while preserving readable artwork', async () => {
+    const result = await readLocalLibraryResources({
+      readAssets: async () => [localAsset()],
+      readFonts: async () => { throw new Error('Unreadable font record'); },
+    });
+    expect(result.resources).toHaveLength(4);
+    expect(result.failures[0]?.collection).toBe('font');
+  });
+
   it('shows browser Sets as device-owned work', () => {
     const items = buildAccountLibraryItems({
       localSets: [{ id: 'set-1', name: 'Arcane Deck', cardCount: 52, sizeBytes: 1200 }],

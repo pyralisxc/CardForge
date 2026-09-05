@@ -24,7 +24,9 @@ export function useUnifiedLibraryView({
   const personalItems = useMemo<LibraryViewItem[]>(() => projection.visibleItems.map((item) => {
     const status = getPersonalLibraryStatus(item);
     return {
-      id: item.id, scope: 'personal', name: item.name, kindLabel: accountLibraryKindLabels[item.kind].replace(/s$/u, ''),
+      id: item.id, scope: 'personal', name: item.name, kindLabel: item.localResource
+        ? item.localResource.kind.charAt(0).toUpperCase() + item.localResource.kind.slice(1)
+        : accountLibraryKindLabels[item.kind].replace(/s$/u, ''),
       sourceLabel: item.locations.map((location) => location.label).join(' + '), statusLabel: status.label,
       summary: item.details.join(' · ') || 'Ready to inspect.', updatedAt: item.updatedAt ?? item.expiresAt,
       sizeBytes: item.sizeBytes, previewUrl: null, fontFamily: null, personal: item,

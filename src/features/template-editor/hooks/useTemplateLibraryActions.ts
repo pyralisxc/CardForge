@@ -24,7 +24,7 @@ interface UseTemplateLibraryActionsInput {
   deleteAppearanceStyle: (styleId: string) => void;
   deleteTemplate: (templateId: string, source?: TCGCardTemplate['templateSource']) => void;
   projectCapabilities: TemplateLibraryCapabilities;
-  setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
+  setGeneratorSelectedTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   storedCards: StoredDisplayCard[];
   templates: TCGCardTemplate[];
@@ -76,7 +76,7 @@ export function useTemplateLibraryActions({
   deleteAppearanceStyle,
   deleteTemplate,
   projectCapabilities,
-  setSingleCardGeneratorSelectedTemplateId,
+  setGeneratorSelectedTemplateId,
   setTemplateEditorSelectedTemplateId,
   storedCards,
   templates,
@@ -126,7 +126,7 @@ export function useTemplateLibraryActions({
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
     setTemplateEditorSelectedTemplateId(savedTemplateId);
     if (templateToSave.templateUsage !== 'back-preset') {
-      setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
+      setGeneratorSelectedTemplateId(savedTemplateId);
     }
     const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile?.templateSource === 'default' && projectCapabilities.canSubmitTemplateRevisions) {
@@ -213,7 +213,7 @@ export function useTemplateLibraryActions({
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
+  }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, projectCapabilities.canSubmitTemplateRevisions, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
   const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
     if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') {

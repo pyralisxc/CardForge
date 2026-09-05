@@ -43,6 +43,7 @@ export interface LocalProjectFolderBinding {
   sourceRevision: string | null;
   lastSavedAt: string | null;
   workId?: string | null;
+  packageScope?: 'set' | 'workspace';
 }
 
 export interface LocalProjectFolderStatus {
@@ -69,9 +70,17 @@ const getWorkBindingIndexStorageKey = () => (
   `${getScopedProjectStorageNamespace('project-assets')}:${LOCAL_WORK_FOLDER_INDEX_KEY}`
 );
 
+const readWorkBindingIndex = async (): Promise<string[]> => {
+  const current = await readStructuredBrowserValue<unknown>(getWorkBindingIndexStorageKey());
+  if (current === null) return [];
+  if (!Array.isArray(current) || !current.every((value) => typeof value === 'string')) {
+    throw new ProjectPackageError('The saved folder index is unreadable. Existing folder links were left unchanged.');
+  }
+  return current;
+};
+
 const indexWorkBinding = async (workId: string): Promise<void> => {
-  const current = await readStructuredBrowserValue<unknown>(getWorkBindingIndexStorageKey()).catch(() => null);
-  const ids = Array.isArray(current) ? current.filter((value): value is string => typeof value === 'string') : [];
+  const ids = await readWorkBindingIndex();
   if (!ids.includes(workId)) await writeStructuredBrowserValue(getWorkBindingIndexStorageKey(), [...ids, workId]);
 };
 
@@ -87,7 +96,15 @@ const getPermission = async (
 };
 
 const persistBinding = async (binding: LocalProjectFolderBinding): Promise<void> => {
-  await writeStructuredBrowserValue(getBindingStorageKey(), binding);
+  await writeStructuredBrowserValue(getBindingStorageKey(), binding.workId ? { workId: binding.workId } : binding);
+};
+
+const readAttachedBinding = async (): Promise<LocalProjectFolderBinding | null> => {
+  const attached = await readStructuredBrowserValue<LocalProjectFolderBinding | { workId: string }>(getBindingStorageKey());
+  if (!attached?.workId) return attached as LocalProjectFolderBinding | null;
+  const binding = await getLocalProjectWorkBinding(attached.workId);
+  if (!binding) throw new ProjectPackageError('The attached Set folder is unavailable. Reopen the folder before saving; existing files were left unchanged.');
+  return binding;
 };
 
 const requireWritePermission = async (handle: FileSystemDirectoryHandle): Promise<void> => {
@@ -119,6 +136,7 @@ const writeSnapshotToDirectory = async (
   existingBinding?: LocalProjectFolderBinding | null,
   workId?: string,
 ): Promise<LocalProjectFolderBinding> => {
+  if (workId) await readWorkBindingIndex();
   await requireWritePermission(directory);
   const document = workId ? await captureCardSetProjectDocument(workId) : await captureCurrentProjectDocument();
   const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: directory.name });
@@ -153,12 +171,13 @@ const writeSnapshotToDirectory = async (
     sourceRevision: snapshot.manifest.projectRevision,
     lastSavedAt: snapshot.manifest.savedAt,
     workId: workId ?? null,
+    packageScope: workId ? 'set' : 'workspace',
   };
   if (workId) {
     await writeStructuredBrowserValue(getWorkBindingStorageKey(workId), binding);
     await indexWorkBinding(workId);
   }
-  else await persistBinding(binding);
+  await persistBinding(binding);
   return binding;
 };
 
@@ -202,9 +221,9 @@ export const isLocalProjectFolderSupported = (): boolean => (
 export const getLocalProjectFolderStatus = async (): Promise<LocalProjectFolderStatus> => {
   const supported = isLocalProjectFolderSupported();
   const binding = supported
-    ? await readStructuredBrowserValue<LocalProjectFolderBinding>(getBindingStorageKey()).catch(() => null)
+    ? await readAttachedBinding()
     : null;
-  const permission = binding ? await getPermission(binding.handle, false).catch(() => 'denied' as const) : supported ? 'prompt' : 'unavailable';
+  const permission = binding ? await getPermission(binding.handle, false) : supported ? 'prompt' : 'unavailable';
   return {
     supported,
     binding,
@@ -238,18 +257,21 @@ export const saveCardSetToNewFolder = async ({ setId }: { setId: string }): Prom
   return await writeSnapshotToDirectory(directory, null, setId);
 };
 
-export const getLocalProjectWorkBinding = async (workId: string): Promise<LocalProjectFolderBinding | null> => (
-  readStructuredBrowserValue<LocalProjectFolderBinding>(getWorkBindingStorageKey(workId)).catch(() => null)
-);
+export const getLocalProjectWorkBinding = async (workId: string): Promise<LocalProjectFolderBinding | null> => {
+  const binding = await readStructuredBrowserValue<LocalProjectFolderBinding>(getWorkBindingStorageKey(workId));
+  if (binding && (!binding.handle || typeof binding.handle.getFileHandle !== 'function')) {
+    throw new ProjectPackageError('The saved Set folder is unreadable. Reopen the folder before saving.');
+  }
+  return binding;
+};
 
 export const listLocalProjectWorkBindings = async (): Promise<LocalProjectWorkBindingStatus[]> => {
   if (!isLocalProjectFolderSupported()) return [];
-  const current = await readStructuredBrowserValue<unknown>(getWorkBindingIndexStorageKey()).catch(() => null);
-  const ids = Array.isArray(current) ? current.filter((value): value is string => typeof value === 'string') : [];
+  const ids = await readWorkBindingIndex();
   const bindings = await Promise.all(ids.map(async (workId) => {
     const binding = await getLocalProjectWorkBinding(workId);
     if (!binding?.handle) return null;
-    const permission = await getPermission(binding.handle, false).catch(() => 'denied' as const);
+    const permission = await getPermission(binding.handle, false);
     return { ...binding, workId, permission } satisfies LocalProjectWorkBindingStatus;
   }));
   return bindings.flatMap((binding) => binding ? [binding] : []);
@@ -284,7 +306,8 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
     folderName: directory.name,
     sourceRevision: decoded.sourceRevision,
     lastSavedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
-    workId: imported.activeSetId,
+    workId: decoded.document.cardSets.length === 1 ? imported.activeSetId : null,
+    packageScope: decoded.document.cardSets.length === 1 ? 'set' : 'workspace',
   };
   if (binding.workId && decoded.document.cardSets.length === 1) {
     await writeStructuredBrowserValue(getWorkBindingStorageKey(binding.workId), binding);
@@ -295,13 +318,16 @@ export const openProjectFromFolder = async (): Promise<LocalProjectFolderBinding
 };
 
 export const saveProjectToAttachedFolder = async (): Promise<LocalProjectFolderBinding> => {
-  const binding = await readStructuredBrowserValue<LocalProjectFolderBinding>(getBindingStorageKey());
+  const binding = await readAttachedBinding();
   if (!binding?.handle) throw new ProjectPackageError('No local project folder is attached. Choose a folder first.');
-  return await writeSnapshotToDirectory(binding.handle, binding);
+  if (!binding.workId && binding.packageScope !== 'workspace') {
+    throw new ProjectPackageError('Reopen this folder before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
+  }
+  return await writeSnapshotToDirectory(binding.handle, binding, binding.workId ?? undefined);
 };
 
 export const reconnectAttachedProjectFolder = async (): Promise<LocalProjectFolderBinding> => {
-  const binding = await readStructuredBrowserValue<LocalProjectFolderBinding>(getBindingStorageKey());
+  const binding = await readAttachedBinding();
   if (!binding?.handle) throw new ProjectPackageError('No local project folder is attached.');
   await requireWritePermission(binding.handle);
   await persistBinding(binding);
@@ -309,6 +335,17 @@ export const reconnectAttachedProjectFolder = async (): Promise<LocalProjectFold
 };
 
 export const disconnectLocalProjectFolder = async (): Promise<void> => {
+  const attached = await readAttachedBinding();
+  if (!attached) return;
+  const bindings = await listLocalProjectWorkBindings();
+  const matching = await Promise.all(bindings.map(async (binding) => ({
+    workId: binding.workId,
+    matches: await attached.handle.isSameEntry(binding.handle),
+  })));
+  for (const binding of matching) {
+    if (binding.matches) await removeStructuredBrowserValue(getWorkBindingStorageKey(binding.workId));
+  }
+  await writeStructuredBrowserValue(getWorkBindingIndexStorageKey(), matching.filter((binding) => !binding.matches).map((binding) => binding.workId));
   await removeStructuredBrowserValue(getBindingStorageKey());
 };
 

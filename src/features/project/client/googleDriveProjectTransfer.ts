@@ -38,6 +38,7 @@ export interface GoogleDriveProjectBinding {
   lastSavedAt: string;
   webViewLink: string | null;
   workId?: string | null;
+  packageScope?: 'set' | 'workspace';
 }
 
 const getBindingStorageKey = () => (
@@ -45,7 +46,7 @@ const getBindingStorageKey = () => (
 );
 
 const persistBinding = async (binding: GoogleDriveProjectBinding): Promise<void> => {
-  await writeStructuredBrowserValue(getBindingStorageKey(), binding);
+  await writeStructuredBrowserValue(getBindingStorageKey(), binding.workId ? { workId: binding.workId } : binding);
 };
 
 const getWorkBindingStorageKey = (workId: string) => (
@@ -56,13 +57,24 @@ const persistWorkBinding = async (workId: string, binding: GoogleDriveProjectBin
   await writeStructuredBrowserValue(getWorkBindingStorageKey(workId), { ...binding, workId });
 };
 
+const validateBinding = (binding: GoogleDriveProjectBinding | null): GoogleDriveProjectBinding | null => {
+  if (binding && (!isGoogleDriveFileId(binding.fileId) || !isGoogleDriveProviderRevision(binding.providerRevision) || !isProjectPackageAssetId(binding.projectRevision))) {
+    throw new ProjectPackageError('The saved Set location is unreadable. Reopen the Drive file before saving.');
+  }
+  return binding;
+};
+
 export const getGoogleDriveWorkBinding = async (workId: string): Promise<GoogleDriveProjectBinding | null> => (
-  readStructuredBrowserValue<GoogleDriveProjectBinding>(getWorkBindingStorageKey(workId)).catch(() => null)
+  validateBinding(await readStructuredBrowserValue<GoogleDriveProjectBinding>(getWorkBindingStorageKey(workId)))
 );
 
-export const getGoogleDriveProjectBinding = async (): Promise<GoogleDriveProjectBinding | null> => (
-  readStructuredBrowserValue<GoogleDriveProjectBinding>(getBindingStorageKey()).catch(() => null)
-);
+export const getGoogleDriveProjectBinding = async (): Promise<GoogleDriveProjectBinding | null> => {
+  const attached = await readStructuredBrowserValue<GoogleDriveProjectBinding | { workId: string }>(getBindingStorageKey());
+  if (!attached?.workId) return validateBinding(attached as GoogleDriveProjectBinding | null);
+  const binding = await getGoogleDriveWorkBinding(attached.workId);
+  if (!binding) throw new ProjectPackageError('The attached Set location is unavailable. Reopen the provider file before saving; existing files were left unchanged.');
+  return binding;
+};
 
 export const disconnectGoogleDriveProjectBinding = async (): Promise<void> => {
   await removeStructuredBrowserValue(getBindingStorageKey());
@@ -170,6 +182,7 @@ const toBinding = ({
     : new Date().toISOString(),
   webViewLink: completed.webViewLink ?? null,
   workId: workId ?? null,
+  packageScope: workId ? 'set' : 'workspace',
 });
 
 export const saveCurrentProjectToGoogleDrive = async ({
@@ -180,6 +193,10 @@ export const saveCurrentProjectToGoogleDrive = async ({
   asNew?: boolean;
 }): Promise<GoogleDriveProjectBinding> => {
   const existing = asNew ? null : await getGoogleDriveProjectBinding();
+  if (existing?.workId) return await saveCardSetToGoogleDrive({ setId: existing.workId, name });
+  if (existing && existing.packageScope !== 'workspace') {
+    throw new ProjectPackageError('Reopen this Drive file before saving so CardForge can verify whether it contains one Set or a workspace backup. Existing files were left unchanged.');
+  }
   const { snapshot, blob } = await createProjectPackage(name);
   const plan = await prepareUpload({
     name: snapshot.manifest.name,
@@ -225,6 +242,7 @@ export const saveCardSetToGoogleDrive = async ({
     workId: setId,
   });
   await persistWorkBinding(setId, binding);
+  await persistBinding(binding);
   return binding;
 };
 
@@ -270,6 +288,7 @@ const downloadedBinding = ({
   lastSavedAt: modifiedAt,
   webViewLink: null,
   workId,
+  packageScope: workId ? 'set' : 'workspace',
 });
 
 export const openGoogleDriveProject = async (
@@ -282,7 +301,7 @@ export const openGoogleDriveProject = async (
     providerRevision,
     projectRevision,
     modifiedAt,
-    workId: imported.activeSetId,
+    workId: decoded.document.cardSets.length === 1 ? imported.activeSetId : null,
   });
   if (binding.workId && decoded.document.cardSets.length === 1) await persistWorkBinding(binding.workId, binding);
   await persistBinding(binding);
@@ -304,7 +323,7 @@ export const copyGoogleDriveProjectToBrowser = async (
   if (!importedIds.every((id) => afterIds.has(id))) {
     throw new ProjectPackageError('CardForge could not verify the copied Set in this browser. The Drive source was left unchanged.');
   }
-  const workId = decoded.document.activeCardSetId ?? decoded.document.cardSets[0]?.id ?? null;
+  const workId = decoded.document.cardSets.length === 1 ? decoded.document.cardSets[0]!.id : null;
   const binding = downloadedBinding({ summary, providerRevision, projectRevision, modifiedAt, workId });
   if (workId) await persistWorkBinding(workId, binding);
   return binding;
@@ -321,6 +340,13 @@ const deleteGoogleDriveProjectRevision = async ({
   projectRevision: string;
   fallback: string;
 }): Promise<void> => {
+  const attached = await getGoogleDriveProjectBinding();
+  const workIds = new Set(useProjectStore.getState().cardSets.map((set) => set.id));
+  if (attached?.workId) workIds.add(attached.workId);
+  const bindings = await Promise.all([...workIds].map(async (workId) => ({
+    workId,
+    binding: await getGoogleDriveWorkBinding(workId),
+  })));
   const response = await observeProviderBoundaryResponse('google_drive', 'project_delete', () => fetch(`/api/project-sources/google-drive/${encodeURIComponent(fileId)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
@@ -330,6 +356,10 @@ const deleteGoogleDriveProjectRevision = async ({
     }),
   }));
   if (!response.ok) throw await readApiError(response, fallback);
+  for (const entry of bindings) {
+    if (entry.binding?.fileId === fileId) await removeStructuredBrowserValue(getWorkBindingStorageKey(entry.workId));
+  }
+  if (attached?.fileId === fileId) await disconnectGoogleDriveProjectBinding();
 };
 
 export const deleteGoogleDriveProjectFromLibrary = async (
@@ -342,8 +372,6 @@ export const deleteGoogleDriveProjectFromLibrary = async (
     projectRevision: summary.projectRevision,
     fallback: 'Unable to delete the Google Drive project.',
   });
-  const binding = await getGoogleDriveProjectBinding();
-  if (binding?.fileId === summary.fileId) await disconnectGoogleDriveProjectBinding();
 };
 
 export const deleteGoogleDriveProjectCopy = async ({

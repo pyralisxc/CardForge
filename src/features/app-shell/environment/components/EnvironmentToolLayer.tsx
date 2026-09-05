@@ -1,7 +1,8 @@
 "use client";
 
 import { X } from 'lucide-react';
-import { Component, useCallback, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 import type { CreatorToolPresentation } from '../interactionSession';
 import styles from './EnvironmentFoundation.module.css';
@@ -74,6 +75,9 @@ export function EnvironmentToolLayer({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const historyOwnedRef = useRef(false);
+  const historyInitializedRef = useRef<string | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<HTMLElement | null>(null);
+  const discardNavigationRef = useRef(false);
   const dirtyRef = useRef(dirty);
   const onCloseRef = useRef(onClose);
   const onDirtyCloseRequestRef = useRef(onDirtyCloseRequest);
@@ -105,10 +109,31 @@ export function EnvironmentToolLayer({
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     activeToolLayers.push(id);
     if (manageHistory) {
-      window.history.pushState({ ...window.history.state, cardforgeToolLayer: id }, '');
+      const state = { ...window.history.state, cardforgeToolLayer: id };
+      // React may replay effect setup. Reattach this same entry instead of
+      // leaving a second tool URL behind in the user's Back history.
+      if (historyInitializedRef.current === id) window.history.replaceState(state, '');
+      else window.history.pushState(state, '');
+      historyInitializedRef.current = id;
       historyOwnedRef.current = true;
     }
     if (modal) closeButtonRef.current?.focus();
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isTopToolLayer(id) || !dirtyRef.current || discardNavigationRef.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const onNavigate = (event: MouseEvent) => {
+      if (!isTopToolLayer(id) || !dirtyRef.current || discardNavigationRef.current || !(event.target instanceof Element)) return;
+      const action = event.target.closest<HTMLElement>('a[href], button, [role="tab"], [role="menuitem"]');
+      if (!action || panelRef.current?.contains(action)
+        || action.hasAttribute('data-tool-safe-action') || action.dataset.environmentAction?.includes('.close-')
+        || action.closest('[role="alertdialog"], [role="dialog"], [data-radix-popper-content-wrapper], [data-desk-context-rail]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingNavigation(action);
+    };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isTopToolLayer(id)) return;
@@ -149,9 +174,13 @@ export function EnvironmentToolLayer({
       requestClose();
     };
     document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('click', onNavigate, true);
+    window.addEventListener('beforeunload', onBeforeUnload);
     if (manageHistory) window.addEventListener('popstate', onPopState);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('click', onNavigate, true);
+      window.removeEventListener('beforeunload', onBeforeUnload);
       if (manageHistory) window.removeEventListener('popstate', onPopState);
       const index = activeToolLayers.lastIndexOf(id);
       if (index >= 0) activeToolLayers.splice(index, 1);
@@ -167,7 +196,7 @@ export function EnvironmentToolLayer({
   }, [closeFromControl, id, manageHistory, modal, requestClose]);
 
   return (
-    <div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''}`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-desk-tool-surface>
+    <><div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''}`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-desk-tool-surface>
       {modal ? <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} /> : <div className={styles.toolSceneReveal} aria-hidden="true" />}
       <section ref={panelRef} className={`${styles.toolPanel} ${workspace ? styles.toolPanelWorkspace : ''}`}>
         <header className={`${styles.toolHeader} ${workspace ? styles.toolHeaderWorkspace : ''} ${headerOwnedByRail ? styles.toolHeaderRailOwned : ''}`}>
@@ -185,5 +214,24 @@ export function EnvironmentToolLayer({
         </div>
       </section>
     </div>
+    <AlertDialog open={Boolean(pendingNavigation)} onOpenChange={(open) => { if (!open) setPendingNavigation(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Leave with unsaved changes?</AlertDialogTitle>
+          <AlertDialogDescription>Your saved work stays unchanged. Keep editing to save this draft before leaving.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction onClick={() => {
+            const action = pendingNavigation;
+            discardNavigationRef.current = true;
+            dirtyRef.current = false;
+            setPendingNavigation(null);
+            action?.click();
+            requestAnimationFrame(() => { discardNavigationRef.current = false; });
+          }}>Discard and continue</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog></>
   );
 }

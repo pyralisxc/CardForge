@@ -31,6 +31,7 @@ import { canUploadCustomLocalAssets } from '@/features/project/client/assets';
 import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { useStudioDocumentHandoff } from '@/features/studio-documents/client';
 import type { DisplayCard } from '@/domain/rendering';
+import type { DesignToolIntent } from '../model/designToolIntent';
 
 export type WorkbenchBusinessIdentity = {
   brandName: string;
@@ -43,6 +44,9 @@ export interface CreatorWorkbenchProps {
   onDirtyChange?: (dirty: boolean) => void;
   tool?: 'design' | 'output';
   onCloseTool?: () => void;
+  designIntent?: DesignToolIntent | null;
+  onDesignIntentConsumed?: () => void;
+  onReturnToGenerator?: () => void;
 }
 
 export function CreatorWorkbench({
@@ -51,6 +55,9 @@ export function CreatorWorkbench({
   onDirtyChange,
   tool,
   onCloseTool,
+  designIntent,
+  onDesignIntentConsumed,
+  onReturnToGenerator,
 }: CreatorWorkbenchProps) {
   const searchParams = useSearchParams();
   const isOutput = (tool ?? searchParams.get('tool')) === 'output';
@@ -109,8 +116,8 @@ export function CreatorWorkbench({
       setExportModeAction,
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
-      setSingleCardGeneratorSelectedTemplateIdAction,
-      setSingleCardGeneratorSelectedBackingTemplateIdAction,
+      setGeneratorSelectedTemplateIdAction,
+      setGeneratorSelectedBackingTemplateIdAction,
       setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -129,7 +136,7 @@ export function CreatorWorkbench({
       freeformTemplatesForGenerator,
       generatedDisplayCards,
       generatorSelectedTemplateId,
-      singleCardGeneratorSelectedBackingTemplateId,
+      generatorSelectedBackingTemplateId,
       isEditDialogOpen,
       pdfCardSpacingMm,
       pdfDuplexLayout,
@@ -201,7 +208,7 @@ export function CreatorWorkbench({
       canSubmitTemplateRevisions,
       canPublishSharedLibrary,
     },
-    setSingleCardGeneratorSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setGeneratorSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
     templates: templatesFromStore,
@@ -244,7 +251,7 @@ export function CreatorWorkbench({
     setExportDpi: setExportDpiAction,
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
-    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
     setStoredCardsFromFile: setStoredCardsFromFileAction,
     mergeStoredCardsFromFile: mergeStoredCardsFromFileAction,
@@ -313,12 +320,12 @@ export function CreatorWorkbench({
     matchingBackRequest,
     pendingTemplateRetarget,
   } = useTemplateStudioHandoffs({
-    activeBackingTemplateId: singleCardGeneratorSelectedBackingTemplateId,
+    activeBackingTemplateId: generatorSelectedBackingTemplateId,
     focusStudioRegion,
     retargetGeneratedCardsBackingTemplate: retargetGeneratedCardsBackingTemplateAction,
     retargetGeneratedCardsTemplate: retargetGeneratedCardsTemplateAction,
     saveTemplateToLibrary,
-    setGeneratorBackingTemplateId: setSingleCardGeneratorSelectedBackingTemplateIdAction,
+    setGeneratorBackingTemplateId: setGeneratorSelectedBackingTemplateIdAction,
     setStudioView: setStudioViewAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
@@ -400,7 +407,7 @@ export function CreatorWorkbench({
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
-    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
   });
@@ -411,7 +418,15 @@ export function CreatorWorkbench({
     focusStudioRegion('[data-testid="layout-studio-panel"]');
   }, [focusStudioRegion, handleStudioViewChange]);
 
-  if (!activeCardSet) {
+  useEffect(() => {
+    if (!designIntent || isLoadingTemplates) return;
+    if (designIntent.kind === 'matching-back') handleCreateMatchingBack(designIntent.formatSource);
+    else if (designIntent.kind === 'edit-back') handleEditCardBack(designIntent.templateId);
+    else handleManageCardBacks();
+    onDesignIntentConsumed?.();
+  }, [designIntent, handleCreateMatchingBack, handleEditCardBack, handleManageCardBacks, isLoadingTemplates, onDesignIntentConsumed]);
+
+  if (!activeCardSet && (isOutput || studioView !== 'template')) {
     return (
       <div className="flex min-h-full items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]">
         <section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center">
@@ -484,7 +499,7 @@ export function CreatorWorkbench({
 
           <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
             {generatorBackWorkflow ? (
-              <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={handleReturnToGenerator} />
+              <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={onReturnToGenerator ?? handleReturnToGenerator} />
             ) : null}
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canUseProjectFiles}
@@ -519,14 +534,15 @@ export function CreatorWorkbench({
             />
           </div>
 
-          <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto">
+          {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto">
             <GenerationWorkspace
+              onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined}
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
               backFaceTemplates={backFacePresetTemplates}
               activeCardSet={activeCardSet}
               generatorSelectedTemplateId={generatorSelectedTemplateId}
-              generatorSelectedBackingTemplateId={singleCardGeneratorSelectedBackingTemplateId}
+              generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId}
               richTextHighlightColor={richTextHighlightColor}
               generatedDisplayCards={generatedDisplayCards}
               canExportClean={projectCapabilities.canExportClean}
@@ -538,14 +554,14 @@ export function CreatorWorkbench({
               onBulkCardsRevised={reviseGeneratedCardsAction}
               onUndoBulkRevision={undoLastBulkRevisionAction}
               onViewGeneratedCards={viewGeneratedCardsOnDesk}
-              onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-              onBackingTemplateSelectionChange={setSingleCardGeneratorSelectedBackingTemplateIdAction}
+              onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction}
+              onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction}
             />
-          </div>
+          </div> : null}
         </main>
       </div> : null}
 
-      <StudioContextTools
+      {activeCardSet ? <StudioContextTools
         inlineOutput={isOutput}
         activeSetName={activeCardSet.name}
         activeSetId={activeCardSet.id}
@@ -586,7 +602,7 @@ export function CreatorWorkbench({
           setId: activeCardSet.id,
           setName: activeCardSet.name,
         }}
-      />
+      /> : null}
 
         </>
       )}

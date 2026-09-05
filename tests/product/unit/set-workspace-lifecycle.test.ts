@@ -8,8 +8,8 @@ describe('neutral Set workspace lifecycle', () => {
       cardSets: [],
       activeCardSet: null,
       storedCards: [],
-      singleCardGeneratorSelectedTemplateId: null,
-      singleCardGeneratorSelectedBackingTemplateId: null,
+      generatorSelectedTemplateId: null,
+      generatorSelectedBackingTemplateId: null,
     });
   });
 

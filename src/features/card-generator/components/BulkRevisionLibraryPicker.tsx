@@ -6,6 +6,7 @@ import { Images } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   createLibraryPickerAssignments,
+  toLocalLibraryPickerResources,
   LibraryPickerDialog,
   type LibraryPickerRequest,
   type LibraryPickerResource,
@@ -19,9 +20,8 @@ import {
   loadPersonalLibrary,
   type PersonalLibraryItem,
 } from '@/features/personal-library/client';
-import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
 import { ProjectBinaryAssetBackground } from '@/features/project/client/binary-assets';
-import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { LocalLibraryResourcePreview, readLocalLibraryResources, resolveLocalLibrarySelectionValue, type LocalLibraryResource } from '@/features/project/client/library-resources';
 import type { DisplayCard } from '@/domain/rendering';
 import { buildBulkResourceRevisionPlan, type BulkRevisionPlan } from '@/features/card-generator/lib/bulkRevision';
 
@@ -41,39 +41,46 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<CardAssetOption[]>([]);
   const [personalItems, setPersonalItems] = useState<PersonalLibraryItem[]>([]);
+  const [localResources, setLocalResources] = useState<LocalLibraryResource[]>([]);
+  const [localFailure, setLocalFailure] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
+    setLocalResources([]);
     void Promise.all([
-      readTypedProjectAssetListFromStorage<CardAssetOption>(getProjectAssetStorage(), CUSTOM_IMAGE_ASSETS_STORAGE_KEY).catch(() => []),
+      readLocalLibraryResources(),
       loadCardForgeStudioAssets().then((result) => result.assets.imageAssets ?? []).catch(() => []),
       loadPersonalLibrary().then((result) => result.items).catch(() => []),
-    ]).then(([localAssets, sharedAssets, items]) => {
+    ]).then(([localResult, sharedAssets, items]) => {
       if (cancelled) return;
-      const byId = new Map([...sharedAssets, ...localAssets].map((asset) => [asset.id, asset]));
-      setAssets([...byId.values()]);
+      setLocalResources(localResult.resources.filter((resource) => resource.collection === 'image'));
+      const failure = localResult.failures.find((item) => item.collection === 'image');
+      setLocalFailure(failure ? 'Local pictures are unavailable. Retry the local Library source.' : null);
+      setAssets(sharedAssets);
       setPersonalItems(items.filter((item) => isPersonalLibraryVisualPickerItem(
         item,
         ['artwork', 'frame', 'reference'],
       )));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [open]);
 
   const request = useMemo((): LibraryPickerRequest => ({
     purpose: 'artifact.bulk-revision.image-field',
     title: `Replace ${fieldLabel}`,
-    description: targetIds.length === 1
+    description: (targetIds.length === 1
       ? 'Choose one Library picture for the selected Artifact.'
-      : `Choose one picture for all ${targetIds.length} selected Artifacts, or choose exactly ${targetIds.length} pictures to map them in selection order.`,
+      : `Choose one picture for all ${targetIds.length} selected Artifacts, or choose exactly ${targetIds.length} pictures to map them in selection order.`) + (localFailure ? ` ${localFailure}` : ''),
     acceptedKinds: ['image'],
     acceptedRoles: ['artwork', 'frame', 'reference'],
     sources: ['project', 'personal', 'pipeline', 'published', 'provider'],
     selectionMode: 'multiple',
     target: { kind: 'Artifact', ids: targetIds },
     requiresProjectMaterialization: false,
-  }), [fieldLabel, targetIds]);
+  }), [fieldLabel, localFailure, targetIds]);
   const resources = useMemo((): LibraryPickerResource[] => [
+    ...toLocalLibraryPickerResources(localResources),
     ...assets.map((asset) => {
       const source = sourceForAsset(asset);
       return {
@@ -99,7 +106,7 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
       sourceLabel: 'My Library · Google Drive',
       materialization: 'project-copy' as const,
     })),
-  ], [assets, personalItems]);
+  ], [assets, localResources, personalItems]);
 
   return (
     <>
@@ -112,6 +119,21 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
         resources={resources}
         onOpenChange={setOpen}
         sourceActions={[{
+          id: 'refresh-local-pictures',
+          label: localFailure ? 'Retry local pictures' : 'Refresh local pictures',
+          description: localFailure ?? 'Reload local artwork from this browser workspace.',
+          onInvoke: async () => {
+            const result = await readLocalLibraryResources();
+            const failure = result.failures.find((item) => item.collection === 'image');
+            if (failure) {
+              setLocalFailure('Local pictures are unavailable. Retry the local Library source.');
+              setLocalResources((current) => current.map((resource) => ({ ...resource, status: 'unavailable' })));
+              throw failure.error;
+            }
+            setLocalResources(result.resources.filter((resource) => resource.collection === 'image'));
+            setLocalFailure(null);
+          },
+        }, {
           id: 'google-drive-artwork',
           label: 'Add pictures from Google Drive',
           description: 'Google Drive owns file selection. CardForge indexes the chosen files in My Library.',
@@ -130,7 +152,9 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
         onSelect={async (result) => {
           const values = new Map<string, string>();
           for (const selection of result.selections) {
-            if (selection.source === 'personal') {
+            if (selection.source === 'project') {
+              values.set(selection.id, await resolveLocalLibrarySelectionValue(localResources, selection.id));
+            } else if (selection.source === 'personal') {
               const item = personalItems.find((candidate) => candidate.id === selection.objectId);
               if (!item) throw new Error('A selected personal Library picture is no longer available. Refresh the Picker and choose again.');
               values.set(selection.id, (await importPersonalLibraryItemToLocalAsset(item)).url);
@@ -146,7 +170,9 @@ export function BulkRevisionLibraryPicker({ currentCards, fieldKey, fieldLabel, 
           }));
           onPlan(buildBulkResourceRevisionPlan({ existing: currentCards, fieldKey, assignments }));
         }}
-        renderPreview={(resource) => resource.previewUrl ? (
+        renderPreview={(resource) => resource.source === 'project' && localResources.find((item) => item.id === resource.id) ? (
+          <LocalLibraryResourcePreview resource={localResources.find((item) => item.id === resource.id)!} className="block h-16 w-full rounded object-contain" />
+        ) : resource.previewUrl ? (
           <ProjectBinaryAssetBackground source={resource.previewUrl} className="block h-16 rounded bg-[#07090d] bg-contain bg-center bg-no-repeat" />
         ) : undefined}
       />

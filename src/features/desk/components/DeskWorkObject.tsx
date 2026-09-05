@@ -110,7 +110,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Press Enter to open.`}
     >
       <div className={styles.workVisual} data-desk-set-stack data-card-face={face}>{props.preview(face)}</div>
-      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' · ') || workSourceLabel(props.item)}</span><span>{workSourceLabel(props.item)}</span></span>
+      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' Â· ') || workSourceLabel(props.item)}</span><span>{workSourceLabel(props.item)}</span></span>
     </button>
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => setFace((current) => current === 'front' ? 'back' : 'front')} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
@@ -119,10 +119,10 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       <DropdownMenu><DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={openWithMotion}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-        <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save / move{props.canUseProjectFiles ? '' : ' · Creator Pass'}</DropdownMenuItem>
+        <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : ' Â· Creator Pass'}</DropdownMenuItem>
         {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-        {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Export / print</DropdownMenuItem> : null}
+        {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
         {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => props.onDelete(props.item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
       </DropdownMenuContent></DropdownMenu>
