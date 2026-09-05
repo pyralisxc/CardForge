@@ -103,7 +103,7 @@ describe('agent verification routing', () => {
     expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'vercel-preview'");
     expect(deploymentSmoke).toContain("github.event.client_payload.git.ref == 'main'");
     expect(deploymentSmoke).toContain('npm run smoke:hosted');
-    expect(deploymentSmoke).toContain('--category=route');
+    expect(deploymentSmoke).toContain('--category=deployment');
     expect(productionHealth).toContain('cron: "7 */6 * * *"');
     expect(packageJson.workspaces).toContain('scripts/hosted-verification');
     const hostedPackage = JSON.parse(await readFile(path.join(process.cwd(), 'scripts/hosted-verification/package.json'), 'utf8'));
