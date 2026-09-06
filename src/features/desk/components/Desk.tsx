@@ -430,6 +430,7 @@ export function Desk({
               onFocusArtifact={focusArtifactContext}
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+              onDesignTemplate={(templateId) => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design', templateId)}
               onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
               onCardQueryChange={setCardQuery}
               onOrganizationChange={updateOrganization}

@@ -17,6 +17,7 @@ import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
 import { getCardTitle, workSourceLabel } from '../model/desk';
 import type { ReflectiveFieldFacet, ReflectiveOrganization } from '../model/reflectiveOrganization';
 import { FocusedSetArtifactSurface } from './FocusedSetArtifactSurface';
+import { SetTemplates } from './SetTemplates';
 import styles from './Desk.module.css';
 
 export interface FocusedWorkSurfaceProps {
@@ -52,6 +53,7 @@ export interface FocusedWorkSurfaceProps {
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
   onOpenWork: () => void;
   onOpenDesign: () => void;
+  onDesignTemplate: (templateId: string) => void;
   onOpenGenerate: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
@@ -80,7 +82,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
     <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
       {props.localSetId ? <>
-        {!artifactFocused ? <><div className={styles.contentHeading}><div><h2 className="sr-only">Inside this Set</h2><p>Open a card to focus. Use Ctrl or Shift to select several.</p></div><span className="text-xs text-[var(--cf-text-subtle)]">{props.visibleCards.length} shown</span></div>
+        {!artifactFocused ? <><SetTemplates cards={props.focusedCards} onDesign={props.onDesignTemplate} /><div className={styles.contentHeading}><div><h2 className="sr-only">Inside this Set</h2><p>Open a card to focus. Use Ctrl or Shift to select several.</p></div><span className="text-xs text-[var(--cf-text-subtle)]">{props.visibleCards.length} shown</span></div>
         <div className={styles.contentToolbar}>
           <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
           <div className={styles.organizationToolbar} aria-label="Set organization">

@@ -800,10 +800,16 @@
 }
 
 .cardButton strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-top: 0.45rem;
   color: var(--cf-text-strong);
   font-size: 0.7rem;
 }
+
+.cardTemplateLabel { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .cardButton span {
   margin-top: 0.1rem;

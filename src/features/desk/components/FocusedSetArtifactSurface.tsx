@@ -6,14 +6,14 @@ import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardSetOrganization } from '@/domain/cards';
-import { type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { ArtifactSlot, useArtifactFaces } from '@/features/card-rendering/client';
+import { ArtifactSlot, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
 
 import {
   buildFocusedArtifactLayout,
@@ -426,6 +426,9 @@ export function FocusedSetArtifactSurface({
               const selected = session.selection.includes(artifactId);
               if (!card) return null;
               const face = faces[artifactId] ?? 'front';
+              const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
+              const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
+              const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
               return (
                 <div
                   key={artifactId}
@@ -456,9 +459,9 @@ export function FocusedSetArtifactSurface({
                     } else focusArtifact(artifactId);
                   }}
                 >
-                  {useDetailedPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={132} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
+                  {useDetailedPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : <span className={styles.artifactLodPreview} style={{ border: `2px dashed ${getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name)}` }} aria-hidden="true">{entry.index + 1}</span>}
                   <strong>{entry.title}</strong>
-                  <span>{entry.subtitle}</span>
+                  <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
                   {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
                 </button>
                 </div>

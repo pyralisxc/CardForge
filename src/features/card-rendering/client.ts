@@ -3,6 +3,7 @@ export { CardPreview } from './components/CardPreview';
 export { useArtifactViewport } from './hooks/useArtifactViewport';
 export { AuthoredObjectPreview } from './components/AuthoredObjectPreview';
 export { ArtifactScene, ArtifactSlot, useArtifactFace, useArtifactFaces } from './components/ArtifactScene';
+export { getTemplateAccent } from './model/templateAccent';
 export {
   applyContractRichTextStyle,
   buildContractSegmentStyle,

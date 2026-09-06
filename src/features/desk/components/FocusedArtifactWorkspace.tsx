@@ -43,7 +43,7 @@ export function FocusedArtifactWorkspace({
 
   return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={viewport.zoom.toFixed(2)}>
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact controls">
-      <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>{subtitle}</small></span>
+      <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>Card · {face === 'back' && card.backingTemplate ? card.backingTemplate.name : subtitle}</small></span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
       <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>

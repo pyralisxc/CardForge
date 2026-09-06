@@ -7,6 +7,7 @@ import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, hasCardBa
 import type { CardFace } from '@/domain/cards';
 import { CardPreview } from './CardPreview';
 import { CardWatermarkOverlay } from './CardWatermarkOverlay';
+import { getTemplateAccent } from '../model/templateAccent';
 
 type Depth = 'stack' | 'board' | 'focus' | 'edit';
 const priority: Record<Depth, number> = { stack: 0, board: 1, focus: 2, edit: 3 };
@@ -51,11 +52,15 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
   const activeSetId = usePresenceData();
   const culled = !present && activeSetId === item.setId;
   const travelling = !immediate && (!present || settledDepth !== item.depth);
+  const template = getCardFaceTemplate(item.card, item.face);
+  const screenScale = RENDER_WIDTH / item.width;
   return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
     <motion.div
       data-scene-artifact={item.card.uniqueId}
       data-scene-depth={item.depth}
       data-scene-face={item.face}
+      data-scene-template={template.id}
+      data-scene-moving={travelling}
       initial={{ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 }}
       animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: item.opacity }}
       exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
@@ -64,6 +69,7 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
       style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))' }}
     >
       <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>
+      {item.depth !== 'stack' ? <span data-artifact-template-border aria-hidden="true" style={{ position: 'absolute', inset: -3 * screenScale, border: `${2 * screenScale}px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4 * screenScale, pointerEvents: 'none' }} /> : null}
       {item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
         type="button"
         onClick={() => onFlip(item.card.uniqueId, item.face === 'front' ? 'back' : 'front')}
