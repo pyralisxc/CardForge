@@ -7,10 +7,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
   type RefObject,
   type UIEvent as ReactUIEvent,
 } from 'react';
+import { useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
 
 import {
   DESK_MAX_ZOOM,
@@ -19,25 +19,10 @@ import {
   getDeskCameraGeometry,
 } from '../model/deskSpatialGeometry';
 
-export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & {
+export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<typeof useSpatialGestures> & {
   changeZoom: (nextZoom: number, focalPoint?: { clientX: number; clientY: number }) => void;
   fit: () => void;
   onScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
-  onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onPointerMoveCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onPointerUpCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onPointerCancelCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
-};
-
-type DeskPinchState = { distance: number; zoom: number };
-
-const pinchGeometry = (points: Array<{ x: number; y: number }>) => {
-  const [first, second] = points;
-  if (!first || !second) return null;
-  return {
-    distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
-    focalPoint: { clientX: (first.x + second.x) / 2, clientY: (first.y + second.y) / 2 },
-  };
 };
 
 const preferredDeskZoom = (viewport: { width: number; height: number }) => {
@@ -47,19 +32,18 @@ const preferredDeskZoom = (viewport: { width: number; height: number }) => {
 
 export function useDeskCamera({
   focused,
+  hasItems,
   viewportRef,
   onPinchStart,
 }: {
   focused: boolean;
+  hasItems: boolean;
   viewportRef: RefObject<HTMLDivElement>;
   onPinchStart?: () => void;
 }): DeskCamera {
   const scrollRef = useRef({ left: 0, top: 0 });
   const userZoomedRef = useRef(false);
   const zoomRef = useRef(1);
-  const touchPointsRef = useRef(new Map<number, { x: number; y: number }>());
-  const pinchRef = useRef<DeskPinchState | null>(null);
-  const suppressedPinchPointersRef = useRef(new Set<number>());
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
   const [zoom, setZoom] = useState(1);
 
@@ -67,7 +51,7 @@ export function useDeskCamera({
 
   useEffect(() => {
     const grid = viewportRef.current;
-    if (!grid) return;
+    if (!grid || focused) return;
     const update = () => {
       const next = { width: Math.max(1, grid.clientWidth), height: Math.max(1, grid.clientHeight) };
       setViewport(next);
@@ -89,7 +73,7 @@ export function useDeskCamera({
     const observer = new ResizeObserver(update);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [viewportRef]);
+  }, [viewportRef, hasItems, focused]);
 
   useLayoutEffect(() => {
     if (focused) return;
@@ -98,12 +82,12 @@ export function useDeskCamera({
 
   const geometry = useMemo(() => getDeskCameraGeometry(viewport, zoom), [viewport, zoom]);
 
-  const changeZoom = useCallback((nextZoom: number, focalPoint?: { clientX: number; clientY: number }) => {
+  const changeZoom = useCallback((nextZoom: number, focalPoint?: SpatialPoint, previousPoint = focalPoint) => {
     const grid = viewportRef.current;
     const currentZoom = zoomRef.current;
     const next = Math.max(DESK_MIN_ZOOM, Math.min(DESK_MAX_ZOOM, nextZoom));
     userZoomedRef.current = true;
-    if (!grid || Math.abs(next - currentZoom) < 0.001) return;
+    if (!grid) return;
     const currentGeometry = getDeskCameraGeometry(viewport, currentZoom);
     const nextGeometry = getDeskCameraGeometry(viewport, next);
     const bounds = grid.getBoundingClientRect();
@@ -111,8 +95,8 @@ export function useDeskCamera({
       ? { x: focalPoint.clientX - bounds.left, y: focalPoint.clientY - bounds.top }
       : { x: grid.clientWidth / 2, y: grid.clientHeight / 2 };
     const worldPoint = {
-      x: (grid.scrollLeft + localPoint.x - currentGeometry.offsetX) / currentZoom,
-      y: (grid.scrollTop + localPoint.y - currentGeometry.offsetY) / currentZoom,
+      x: (grid.scrollLeft + (previousPoint ? previousPoint.clientX - bounds.left : localPoint.x) - currentGeometry.offsetX) / currentZoom,
+      y: (grid.scrollTop + (previousPoint ? previousPoint.clientY - bounds.top : localPoint.y) - currentGeometry.offsetY) / currentZoom,
     };
     zoomRef.current = next;
     setZoom(next);
@@ -126,52 +110,20 @@ export function useDeskCamera({
     });
   }, [viewport, viewportRef]);
 
-  const onPointerDownCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch') return;
-    touchPointsRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    const pinch = pinchGeometry([...touchPointsRef.current.values()]);
-    if (!pinch) return;
-    pinchRef.current = { distance: pinch.distance, zoom: zoomRef.current };
-    suppressedPinchPointersRef.current = new Set(touchPointsRef.current.keys());
-    onPinchStart?.();
-    event.preventDefault();
-    event.stopPropagation();
-  }, [onPinchStart]);
-
-  const onPointerMoveCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch' || !touchPointsRef.current.has(event.pointerId)) return;
-    touchPointsRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    const initial = pinchRef.current;
-    const current = pinchGeometry([...touchPointsRef.current.values()]);
-    if (!initial || !current) return;
-    suppressedPinchPointersRef.current.add(event.pointerId);
-    changeZoom(initial.zoom * current.distance / initial.distance, current.focalPoint);
-    event.preventDefault();
-    event.stopPropagation();
-  }, [changeZoom]);
-
-  const endPointerCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch') return;
-    const suppress = suppressedPinchPointersRef.current.has(event.pointerId);
-    touchPointsRef.current.delete(event.pointerId);
-    if (touchPointsRef.current.size < 2) pinchRef.current = null;
-    if (suppress) {
-      event.preventDefault();
-      event.stopPropagation();
-      suppressedPinchPointersRef.current.delete(event.pointerId);
-    }
-    if (touchPointsRef.current.size === 0) suppressedPinchPointersRef.current.clear();
-  }, []);
+  const gestures = useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag: onPinchStart, disabled: focused });
 
   const fit = useCallback(() => {
     const grid = viewportRef.current;
     userZoomedRef.current = true;
+    zoomRef.current = geometry.fitZoom;
+    scrollRef.current = { left: 0, top: 0 };
     setZoom(geometry.fitZoom);
     requestAnimationFrame(() => grid?.scrollTo({ left: 0, top: 0 }));
   }, [geometry.fitZoom, viewportRef]);
 
   const onScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
     if (focused || event.currentTarget.dataset.focused === 'true') return;
+    userZoomedRef.current = true;
     scrollRef.current = { left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
   }, [focused]);
 
@@ -180,9 +132,6 @@ export function useDeskCamera({
     changeZoom,
     fit,
     onScroll,
-    onPointerDownCapture,
-    onPointerMoveCapture,
-    onPointerUpCapture: endPointerCapture,
-    onPointerCancelCapture: endPointerCapture,
+    ...gestures,
   };
 }

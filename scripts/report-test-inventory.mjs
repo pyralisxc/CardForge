@@ -46,6 +46,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
   ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
   ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
+  ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
 ];
 
 const summarize = (files, classify) => {

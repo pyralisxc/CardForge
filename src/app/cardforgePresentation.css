@@ -257,7 +257,7 @@
 }
 
 .cardforge-studio-workspace {
-  height: 100dvh;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--cf-canvas);
@@ -273,7 +273,7 @@
 
 @media (max-width: 1023px) {
   .cardforge-studio-workspace:has([data-testid="layout-studio-panel"][data-state="active"]) {
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
     overflow: hidden;
     background: var(--cf-canvas);

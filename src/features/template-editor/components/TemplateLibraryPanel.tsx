@@ -92,6 +92,9 @@ export function TemplateLibraryPanel({
             {frontUserTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
+            {backFaceTemplates.map((template) => (
+              <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <div className="grid grid-cols-2 gap-2">

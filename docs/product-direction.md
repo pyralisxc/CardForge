@@ -105,6 +105,8 @@ Desk supports:
 
 Opening a work container unfolds its three-to-five representative artifacts into the Set spread, with additional artifacts emerging from that same origin. Focus and Edit continue moving the same artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
 
+The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen.
+
 Opening a work container changes focus rather than changing the mental model:
 
 > Desk → focused work → contained objects

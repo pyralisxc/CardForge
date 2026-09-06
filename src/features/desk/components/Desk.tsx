@@ -43,21 +43,27 @@ import { DeskDialogs } from './DeskDialogs';
 import { useDeskController } from '../hooks/useDeskController';
 import styles from './Desk.module.css';
 
+const DeskToolLoading = () => (
+  <div role="status" aria-live="polite" className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-[var(--cf-text-muted)]">
+    Loading workspace tools…
+  </div>
+);
+
 const CampaignDeskShelf = dynamic(() => import(
   '@/features/marketing-content/client'
 ).then((module) => module.CampaignDeskShelf));
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client/contribution-panel'
-).then((module) => module.PipelineContributionPanel));
+).then((module) => module.PipelineContributionPanel), { loading: DeskToolLoading });
 const DeskGenerationWorkspace = dynamic(() => import(
   '@/features/card-generator/client/generation-workspace'
-).then((module) => module.GenerationWorkspace), { ssr: false });
+).then((module) => module.GenerationWorkspace), { ssr: false, loading: DeskToolLoading });
 const DeskDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
-).then((module) => module.CreatorWorkbench), { ssr: false });
+).then((module) => module.CreatorWorkbench), { ssr: false, loading: DeskToolLoading });
 const DeskCardEditor = dynamic(() => import(
   '@/features/card-generator/client/card-editor'
-).then((module) => module.CardEditor), { ssr: false });
+).then((module) => module.CardEditor), { ssr: false, loading: DeskToolLoading });
 
 export type { DeskAccountStatus } from '../model/desk';
 

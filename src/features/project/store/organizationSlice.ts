@@ -98,7 +98,7 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
     if (!get().cardSets.some((candidate) => candidate.id === setId)) return false;
     set((state) => {
       const organization = organizationFor(state, setId);
-      return updateSet(state, setId, { ...organization, positions: { ...organization.positions, ...positions } });
+      return updateSet(state, setId, { ...organization, arrangement: 'manual', positions: { ...organization.positions, ...positions } });
     });
     return true;
   },

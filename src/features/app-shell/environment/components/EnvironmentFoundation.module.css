@@ -34,8 +34,8 @@
 }
 
 .shell[data-viewport="desk"] {
-  height: min(54rem, calc(100dvh - 2rem));
-  min-height: 38rem;
+  height: 100dvh;
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
@@ -393,6 +393,7 @@
 
 .primarySurface[data-scroll="contained"] {
   overflow: hidden;
+  padding: 0;
 }
 
 .toolLayer {
@@ -1181,15 +1182,20 @@
     border-left: 0;
   }
 
-  .shell[data-viewport="desk"] .primarySurface {
-    height: calc(100dvh - 14.75rem);
-    min-height: 28rem;
-    overflow: auto;
+  .shell[data-viewport="desk"] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
-
-  .shell[data-viewport="desk"][data-focus-depth]:not([data-focus-depth="zone"]) .primarySurface {
-    height: calc(100dvh - 10.25rem);
+  .shell[data-viewport="desk"][data-focus-depth]:not([data-focus-depth="zone"]) {
+    padding-bottom: env(safe-area-inset-bottom);
   }
+  .shell[data-viewport="desk"] .primarySurface { flex: 1; height: auto; min-height: 0; }
+  .shell[data-viewport="desk"] .commandStack,
+  .shell[data-viewport="desk"] .statusBar { flex-shrink: 0; }
 
   .shell[data-focus-depth]:not([data-focus-depth="zone"]) .mobileNav {
     display: none;

@@ -81,7 +81,7 @@ export function useDeskSpatialLayout({
     marqueeRef.current = null;
     setMarquee(null);
   }, []);
-  const camera = useDeskCamera({ focused, viewportRef: workGridRef, onPinchStart: cancelPointerGesture });
+  const camera = useDeskCamera({ focused, hasItems: itemIds.length > 0, viewportRef: workGridRef, onPinchStart: cancelPointerGesture });
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +113,7 @@ export function useDeskSpatialLayout({
 
   const beginDrag = useCallback((itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options: { additive?: boolean } = {}) => {
     if (event.button !== 0) return;
+    suppressedActivationRef.current = null;
     const items = collectWorldItems();
     const selected = selectedIds.includes(itemId)
       ? [...selectedIds]
@@ -161,6 +162,7 @@ export function useDeskSpatialLayout({
   }, [camera.zoom, snapToGrid]);
 
   const endDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.type === 'pointercancel') { cancelPointerGesture(); return; }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -169,7 +171,7 @@ export function useDeskSpatialLayout({
     const next = { ...storedPositions, ...drag.latestPositions };
     setStoredPositions(next);
     persistPositions(next);
-  }, [persistPositions, storedPositions]);
+  }, [cancelPointerGesture, persistPositions, storedPositions]);
 
   const nudgeSelection = useCallback((delta: { x: number; y: number }) => {
     const moved = moveDeskWorldSelection({
@@ -184,8 +186,9 @@ export function useDeskSpatialLayout({
   }, [collectWorldItems, persistPositions, selectedIds, snapToGrid, storedPositions]);
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
-    if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || event.target !== event.currentTarget) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
+    if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
+    const bounds = workWorldRef.current?.getBoundingClientRect();
+    if (!bounds) return;
     const point = {
       x: (event.clientX - bounds.left) / camera.zoom,
       y: (event.clientY - bounds.top) / camera.zoom,
@@ -196,14 +199,14 @@ export function useDeskSpatialLayout({
       startY: point.y,
       additiveIds: event.metaKey || event.ctrlKey || event.shiftKey ? [...selectedIds] : [],
     };
-    setMarquee(rectFromPoints(point.x, point.y, point.x, point.y));
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [camera.zoom, selectedIds]);
 
   const moveMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
+    const bounds = workWorldRef.current?.getBoundingClientRect();
+    if (!bounds) return;
     setMarquee(rectFromPoints(
       state.startX,
       state.startY,
@@ -215,7 +218,8 @@ export function useDeskSpatialLayout({
   const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
+    const bounds = workWorldRef.current?.getBoundingClientRect();
+    if (!bounds) return;
     const selectedRect = rectFromPoints(
       state.startX,
       state.startY,
