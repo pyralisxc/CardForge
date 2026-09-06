@@ -131,7 +131,25 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             })}
           </div>
         </div>
-      </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><FolderPlus aria-hidden="true" /><strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong><p className={styles.emptyCopy}>{props.workItemsCount ? 'Clear the search or change the source filter.' : 'Create a Set here, or connect durable work from Library.'}</p>{props.workItemsCount ? <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onSourceFilterChange('all'); }}>Show all work</Button> : <Button type="button" onClick={props.onCreate}>Create your first Set</Button>}</div></div>}
+      </div> : <div className={styles.emptyDesk}>
+        <div className={styles.emptyDeskInner}>
+          <FolderPlus aria-hidden="true" />
+          <strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong>
+          <p className={styles.emptyCopy}>
+            {props.workItemsCount
+              ? 'Clear the search or change the source filter.'
+              : 'A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.'}
+          </p>
+          {props.workItemsCount ? (
+            <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onSourceFilterChange('all'); }}>Show all work</Button>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button type="button" onClick={props.onCreate}>Create your first Set</Button>
+              <Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button>
+            </div>
+          )}
+        </div>
+      </div>}
     </section>
     {props.campaignShelf}
     <div className={styles.utilityStrip} aria-label="Account essentials">{props.statuses.map((status) => { const Icon = statusIcons[status.label as keyof typeof statusIcons] ?? Sparkles; return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => props.onNavigate(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>; })}</div>
