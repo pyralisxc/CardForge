@@ -1,4 +1,3 @@
-import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
 import type { CardSetOrganization } from '@/domain/cards';
@@ -40,24 +39,17 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
     if (!normalizedLabel || !get().cardSets.some((candidate) => candidate.id === setId)) return null;
     const existing = organizationFor(get(), setId).tags.find((tag) => tag.label.toLocaleLowerCase() === normalizedLabel.toLocaleLowerCase());
     if (existing) return existing.id;
-    const id = `tag-${nanoid()}`;
+    const tag = get().createWorkLabel('tags', normalizedLabel);
+    if (!tag) return null;
     set((state) => {
       const organization = organizationFor(state, setId);
-      return updateSet(state, setId, { ...organization, tags: [...organization.tags, { id, label: normalizedLabel }] });
+      return updateSet(state, setId, { ...organization, tags: [...organization.tags, tag] });
     });
-    return id;
+    return tag.id;
   },
   renameCardSetTag: (setId, tagId, label) => {
-    const normalizedLabel = label.trim();
-    if (!normalizedLabel || !organizationFor(get(), setId).tags.some((tag) => tag.id === tagId)) return false;
-    set((state) => {
-      const organization = organizationFor(state, setId);
-      return updateSet(state, setId, {
-        ...organization,
-        tags: organization.tags.map((tag) => tag.id === tagId ? { ...tag, label: normalizedLabel } : tag),
-      });
-    });
-    return true;
+    if (!organizationFor(get(), setId).tags.some((tag) => tag.id === tagId)) return false;
+    return get().renameWorkLabel('tags', tagId, label);
   },
   removeCardSetTag: (setId, tagId) => {
     if (!organizationFor(get(), setId).tags.some((tag) => tag.id === tagId)) return false;
@@ -69,10 +61,10 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
           tags: organization.tags.filter((tag) => tag.id !== tagId),
           groupTagId: organization.groupTagId === tagId ? undefined : organization.groupTagId,
         }),
-        storedCards: state.storedCards.map((card) => ({
+        storedCards: state.storedCards.map((card) => card.setId === setId || (!card.setId && state.cardSets[0]?.id === setId) ? ({
           ...card,
           tagIds: card.tagIds?.filter((id) => id !== tagId),
-        })),
+        }) : card),
       };
     });
     return true;
@@ -83,7 +75,8 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
     let changed = 0;
     set((state) => ({
       storedCards: state.storedCards.map((card) => {
-        if (!ids.has(card.uniqueId)) return card;
+        const setId = card.setId ?? state.cardSets[0]?.id;
+        if (!ids.has(card.uniqueId) || !setId || !organizationFor(state, setId).tags.some((tag) => tag.id === tagId)) return card;
         const tags = new Set(card.tagIds ?? []);
         const hadTag = tags.has(tagId);
         if (applied) tags.add(tagId); else tags.delete(tagId);

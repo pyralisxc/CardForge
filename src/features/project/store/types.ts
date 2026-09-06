@@ -2,6 +2,7 @@ import type { CardSet, CardSetOrganization, StoredDisplayCard } from '@/domain/c
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
 import type { StudioView } from './workspaceDefaults';
+import type { WorkOrganizationSlice } from './workOrganizationSlice';
 
 export interface TemplateSlice {
   defaultTemplates: TCGCardTemplate[];
@@ -97,4 +98,5 @@ export type ProjectState = TemplateSlice
   & OutputSlice
   & SettingsSlice
   & OrganizationSlice
+  & WorkOrganizationSlice
   & WorkspaceLifecycleSlice;

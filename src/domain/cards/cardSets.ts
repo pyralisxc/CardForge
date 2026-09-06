@@ -1,3 +1,4 @@
+import { normalizeWorkClassification } from '../artifacts/workOrganization';
 import type { CardSet, CardSetOrganization, StoredDisplayCard } from './types';
 
 const cleanId = (value: unknown): string | null => (
@@ -52,10 +53,12 @@ export const normalizeCardSet = (value: unknown): CardSet | null => {
   const id = cleanId(record.id);
   if (!id) return null;
   const organization = normalizeOrganization(record.organization);
+  const classification = normalizeWorkClassification(record.classification);
   return {
     id,
     name: cleanName(record.name),
     ...(organization ? { organization } : {}),
+    ...(classification ? { classification } : {}),
   };
 };
 

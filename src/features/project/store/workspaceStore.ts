@@ -3,6 +3,7 @@ import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
 import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
+import { normalizeWorkOrganization } from '@/domain/artifacts/workOrganization';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
 import {
@@ -13,6 +14,7 @@ import {
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
 import { createOrganizationSlice } from './organizationSlice';
+import { createWorkOrganizationSlice } from './workOrganizationSlice';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import { createSettingsSlice } from './settingsSlice';
 import { createTemplateSlice } from './templateSlice';
@@ -51,6 +53,7 @@ type WorkspacePersistedState = Pick<
   | 'richTextHighlightColor'
   | 'cardSets'
   | 'activeCardSet'
+  | 'workOrganization'
   | 'generatorSelectedTemplateId'
   | 'generatorSelectedBackingTemplateId'
   | 'templateEditorSelectedTemplateId'
@@ -144,6 +147,7 @@ export const useProjectStore = create<ProjectState>()(
         ...createAppearanceSlice(...args),
         ...createOutputSlice(...args),
         ...createOrganizationSlice(...args),
+        ...createWorkOrganizationSlice(...args),
         ...createSettingsSlice(...args),
         ...createLifecycleSlice(...args),
       }),
@@ -159,6 +163,7 @@ export const useProjectStore = create<ProjectState>()(
           richTextHighlightColor: state.richTextHighlightColor,
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
+          workOrganization: state.workOrganization,
           generatorSelectedTemplateId: state.generatorSelectedTemplateId,
           generatorSelectedBackingTemplateId: state.generatorSelectedBackingTemplateId,
           templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId,
@@ -169,6 +174,10 @@ export const useProjectStore = create<ProjectState>()(
           exportMode: state.exportMode,
           exportDpi: state.exportDpi,
         }),
+        merge: (persisted, current) => {
+          const value = persisted as Partial<WorkspacePersistedState> | undefined;
+          return { ...current, ...value, workOrganization: normalizeWorkOrganization(value?.workOrganization) };
+        },
         onRehydrateStorage: () => (state, error) => {
           if (error) console.error('Error rehydrating the project workspace:', error);
           if (state) setTimeout(() => state._rehydrateCallback(), 0);

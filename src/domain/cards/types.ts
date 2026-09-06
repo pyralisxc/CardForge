@@ -1,3 +1,5 @@
+import type { WorkClassification } from '../artifacts/workOrganization';
+
 export type CardFace = 'front' | 'back';
 
 export interface CardData {
@@ -45,4 +47,6 @@ export interface CardSet {
   id: string;
   name: string;
   organization?: CardSetOrganization;
+  /** Portable creator labels, independent of permissions and publication taxonomy. */
+  classification?: WorkClassification;
 }
