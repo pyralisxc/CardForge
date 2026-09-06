@@ -19,10 +19,12 @@ import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/cre
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { hasCardBacking } from '@/domain/rendering';
-import { AuthoredObjectPreview } from '@/features/card-rendering/client';
+import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
+import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { useProjectStore } from '@/features/project/client/workspace';
 import {
   WorkLocationDialog,
   type AccountLibraryItem,
@@ -53,6 +55,9 @@ const DeskGenerationWorkspace = dynamic(() => import(
 const DeskDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
 ).then((module) => module.CreatorWorkbench), { ssr: false });
+const DeskCardEditor = dynamic(() => import(
+  '@/features/card-generator/client/card-editor'
+).then((module) => module.CardEditor), { ssr: false });
 
 export type { DeskAccountStatus } from '../model/desk';
 
@@ -249,13 +254,35 @@ export function Desk({
   const focusedArtifact = focusedArtifactId
     ? focusedCards.find((card) => card.uniqueId === focusedArtifactId) ?? null
     : null;
+  const editingCardId = useProjectStore((state) => state.isEditDialogOpen ? state.editingCardUniqueId : null);
+  const editingCard = studioTool?.tool === 'design' && editingCardId
+    ? focusedCards.find((card) => card.uniqueId === editingCardId) ?? null : null;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const contextDepth = activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const toolName = activeTool?.toolId === 'design' ? 'Design'
+  const toolName = activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
     : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
       : activeTool?.toolId === 'output' ? 'Output'
         : activeTool?.toolId === 'pipeline' ? 'Pipeline'
           : undefined;
+  const designCard = (card: DisplayCard, face: CardFace = 'front', copy = false) => {
+    const template = face === 'back' ? card.backingTemplate : card.template;
+    if (!template?.id || !focusedLocalSetId) return;
+    const project = useProjectStore.getState();
+    let templateId = template.id;
+    if (copy) {
+      const copiedId = project.cloneTemplate(templateId);
+      if (!copiedId) return;
+      const copiedTemplate = useProjectStore.getState().userTemplates.find((candidate) => candidate.id === copiedId);
+      if (!copiedTemplate) return;
+      templateId = copiedId;
+      project.updateGeneratedCard(face === 'back'
+        ? { ...card, backingTemplate: copiedTemplate, backingTemplateId: copiedId }
+        : { ...card, template: copiedTemplate });
+    }
+    project.closeEditDialog();
+    if (activeTool?.toolId === 'design') project.setTemplateEditorSelectedTemplateId(templateId);
+    else openContextStudio(focusedLocalSetId, 'design', templateId);
+  };
   const openSelectedRevision = () => {
     if (!focusedItem || !selectedCards.length) return;
     setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
@@ -271,7 +298,7 @@ export function Desk({
     else closeContextStudio();
   };
   return (
-    <>
+    <ArtifactScene activeSetId={focusedLocalSetId}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
@@ -307,7 +334,9 @@ export function Desk({
           onCommitRename={commitRename}
           onToggleRenaming={() => setRenaming((current) => !current)}
           onOpenWork={() => { if (focusedItem) openWorkLane(focusedItem, 'open'); }}
-          onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          artifactId={focusedArtifactId ?? undefined}
+          onOpenDesign={(face) => focusedArtifact ? designCard(focusedArtifact, face) : focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face, true); }}
           onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
@@ -341,7 +370,7 @@ export function Desk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-scene-hidden={Boolean(studioTool?.tool === 'design' && !editingCard)} data-artifact-editing={Boolean(editingCard)} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
@@ -366,7 +395,8 @@ export function Desk({
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
             campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
-            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview cards={workCards(item)} template={workTemplate(item)} label={item.name} size={focused ? 'compact' : featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
               canExportClean={experience.capabilities.canExportClean}
@@ -400,6 +430,7 @@ export function Desk({
               onFocusArtifact={focusArtifactContext}
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+              onDesignTemplate={(templateId) => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design', templateId)}
               onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
               onCardQueryChange={setCardQuery}
               onOrganizationChange={updateOrganization}
@@ -500,7 +531,7 @@ export function Desk({
         {studioTool ? <EnvironmentToolLayer
           id="desk-design-tool-title"
           eyebrow="Desk tool"
-          title={studioTool.tool === 'output' ? 'Output Set' : 'Design Artifacts'}
+          title={studioTool.tool === 'output' ? 'Output Set' : editingCard ? 'Edit card content' : 'Design Artifacts'}
           summary="The focused Set remains on the Desk while this reusable Studio tool operates on it."
           closeLabel="Close Studio tool"
           onClose={closeContextStudio}
@@ -508,9 +539,18 @@ export function Desk({
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
+          sceneVisible={Boolean(editingCard)}
           railOwned
         >
-          <DeskDesignWorkspace
+          {editingCard ? <DeskCardEditor
+            key={editingCard.uniqueId}
+            card={editingCard}
+            onDirtyChange={setActiveToolDirty}
+            onClose={confirmDirtyClose}
+            onSave={(card) => { useProjectStore.getState().updateGeneratedCard(card); confirmDirtyClose(); }}
+            onDesign={(face, savedCard) => { if (savedCard) useProjectStore.getState().updateGeneratedCard(savedCard); designCard(savedCard ?? editingCard, face); }}
+            onDuplicate={(card) => addGeneratedCards([{ ...card, uniqueId: crypto.randomUUID() }])}
+          /> : <DeskDesignWorkspace
             tool={studioTool.tool === 'output' ? 'output' : 'design'}
             onCloseTool={confirmDirtyClose}
             businessIdentity={businessIdentity}
@@ -519,7 +559,7 @@ export function Desk({
             designIntent={designIntent}
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
-          />
+          />}
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
 
@@ -556,6 +596,6 @@ export function Desk({
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
-    </>
+    </ArtifactScene>
   );
 }

@@ -82,6 +82,8 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
 };
 
 export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean } = {}) => {
+  const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
+  if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
   const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates);
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
@@ -129,14 +131,13 @@ export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScal
 export const openScaleSet = async (page: Page, cardCount: ProjectScale, options: { expectOpeningMotion?: boolean } = {}) => {
   const startedAt = Date.now();
   const setButton = page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) });
-  const setObject = page.locator(`[data-desk-set-object-id="set:scale-set-${cardCount}"]`);
-  const persistentPreview = setObject.locator('[data-desk-set-stack]');
+  const persistentPreview = page.locator('[data-scene-artifact="scale-card-1"]');
   await setButton.click();
   await expect(setButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-desk="overview"]')).toBeVisible();
   await setButton.press('Enter');
   if (options.expectOpeningMotion) {
-    await expect(persistentPreview).toBeVisible();
+    await expect(persistentPreview).toHaveAttribute('data-scene-depth', 'board');
   }
   await expect(page.locator('[data-focus-transition="set-to-artifacts"]')).toBeVisible();
   await expect(page.locator('[data-desk-artifact-stage]')).toBeVisible();

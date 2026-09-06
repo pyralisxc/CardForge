@@ -1,12 +1,12 @@
 "use client";
 
-import type { DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
 import { Boxes } from 'lucide-react';
 
-import { CardPreview } from './CardPreview';
+import { ArtifactSlot, useArtifactFaces } from './ArtifactScene';
 import styles from './AuthoredObjectPreview.module.css';
 
 export interface AuthoredObjectPreviewProps {
@@ -17,6 +17,8 @@ export interface AuthoredObjectPreviewProps {
   className?: string;
   emptyLabel?: string;
   face?: CardFace;
+  setId?: string;
+  sceneHidden?: boolean;
 }
 
 const widthBySize = {
@@ -46,13 +48,23 @@ export function AuthoredObjectPreview({
   className,
   emptyLabel,
   face = 'front',
+  setId,
+  sceneHidden = false,
 }: AuthoredObjectPreviewProps) {
-  const renderedCards = cards.slice(0, 3);
+  const [faces] = useArtifactFaces();
+  const renderedCards = cards.slice(0, 5);
   const explicitlyEmpty = renderedCards.length === 0 && Boolean(emptyLabel);
   const fallbackCard = !explicitlyEmpty && renderedCards.length === 0 && template
     ? previewCardFromTemplate(template, label)
     : null;
   const visualCards = fallbackCard ? [fallbackCard] : renderedCards;
+  const width = widthBySize[size];
+  // Transforms do not reserve layout space. Keep the fan clear of its Set label.
+  const fanClearance = visualCards.length > 1 ? Math.max(...visualCards.map((card) => {
+    const visibleFace = faces[card.uniqueId] ?? face;
+    const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: getCardFaceTemplate(card, visibleFace).aspectRatio, canvas: getCardFaceCanvas(card, visibleFace), isPrintMode: false });
+    return geometry.visualHeightPx * 0.18 + width * 0.25 + 8;
+  })) : 0;
 
   if (visualCards.length === 0) {
     return (
@@ -64,10 +76,10 @@ export function AuthoredObjectPreview({
   }
 
   return (
-    <span className={cn(styles.stack, className)} data-size={size} aria-label={`${label} preview`}>
+    <span className={cn(styles.stack, className)} style={{ paddingBlockEnd: fanClearance }} data-size={size} data-scene-hidden={sceneHidden} aria-label={`${label} preview`}>
       {visualCards.map((card, index) => (
         <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
-          <CardPreview card={card} face={face} targetWidthPx={widthBySize[size]} isEditorPreview />
+          <ArtifactSlot card={card} face={face} width={width} depth="stack" setId={setId} rotation={[0, -7, 7, -14, 14][index]} order={5 - index} />
         </span>
       ))}
     </span>

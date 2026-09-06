@@ -464,7 +464,7 @@ export function useDeskController({
   };
 
   const workCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
-    ? displayCards.filter((card) => card.setId === item.references.localSetId || (!card.setId && cardSets[0]?.id === item.references.localSetId)).slice(0, 3)
+    ? displayCards.filter((card) => card.setId === item.references.localSetId || (!card.setId && cardSets[0]?.id === item.references.localSetId)).slice(0, 5)
     : [];
   const workTemplate = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return null;

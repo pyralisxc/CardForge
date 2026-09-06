@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Minus, Pencil, Plus, RefreshCcw } from 'lucide-react';
+import { Minus, Pencil, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import type { CardFace } from '@/domain/cards';
-import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
-import { CardPreview, CardWatermarkOverlay, useArtifactViewport } from '@/features/card-rendering/client';
+import { getCardFaceCanvas, type DisplayCard } from '@/domain/rendering';
+import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 
 import styles from './Desk.module.css';
 
@@ -34,9 +32,10 @@ export function FocusedArtifactWorkspace({
   subtitle,
   onEdit,
 }: FocusedArtifactWorkspaceProps) {
-  const [face, setFace] = useState<CardFace>('front');
+  const [face] = useArtifactFace(artifactId);
+  const canvas = getCardFaceCanvas(card, face);
   const viewport = useArtifactViewport({
-    aspectRatio: (face === 'back' ? card.backingTemplate : card.template)?.aspectRatio,
+    aspectRatio: canvas ? `${canvas.width}:${canvas.height}` : (face === 'back' ? card.backingTemplate : card.template)?.aspectRatio,
     horizontalPadding: 96,
     maxWidth: 560,
     verticalPadding: 96,
@@ -44,7 +43,7 @@ export function FocusedArtifactWorkspace({
 
   return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={viewport.zoom.toFixed(2)}>
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact controls">
-      <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>{subtitle}</small></span>
+      <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>Card · {face === 'back' && card.backingTemplate ? card.backingTemplate.name : subtitle}</small></span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
       <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
@@ -57,6 +56,7 @@ export function FocusedArtifactWorkspace({
       tabIndex={-1}
       className={styles.contentStage}
       data-desk-artifact-stage
+      data-scene-viewport
       data-artifact-focus-exclusive="false"
       data-artifact-scroll-contained
       data-auto-fit={viewport.isAutoFit ? 'true' : 'false'}
@@ -80,11 +80,9 @@ export function FocusedArtifactWorkspace({
             aria-label={`${title}. ${subtitle}`}
             onDoubleClick={onEdit}
           >
-            <CardPreview card={card} face={face} targetWidthPx={viewport.visualWidth} />
-            {!canExportClean ? <CardWatermarkOverlay /> : null}
+            <ArtifactSlot card={card} face={face} width={viewport.visualWidth} depth="focus" flipLabel={title} watermark={!canExportClean} />
             <span className="sr-only">{title}</span>
           </button>
-          {hasCardBacking(card) ? <button type="button" className={styles.artifactFlipButton} onClick={() => setFace((current) => current === 'front' ? 'back' : 'front')} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${title}`}><RefreshCcw aria-hidden="true" /><span>{face === 'front' ? 'Back' : 'Front'}</span></button> : null}
         </div>
       </div>
     </div>

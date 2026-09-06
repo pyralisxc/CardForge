@@ -50,7 +50,7 @@ test.describe('mobile Desk controls', () => {
     await expect(tool).toBeVisible();
     await expect(tool).toHaveAttribute('data-presentation', 'sheet');
     await expect(page.locator('[data-desk-context-rail][data-depth="tool"]')).toContainText('Generate');
-    await expect(page.locator('[data-set-object][data-presentation="focused"] [data-desk-set-stack]')).toBeVisible();
+    await expect(page.locator('[data-scene-artifact="scale-card-1"]')).toHaveAttribute('data-scene-depth', 'board');
     await expect(page.locator('[class*="mobileNav"]')).toBeHidden();
     await expect.poll(async () => {
       const [toolPanel, primary] = await Promise.all([

@@ -42,7 +42,7 @@ const pinchGeometry = (points: Array<{ x: number; y: number }>) => {
 
 const preferredDeskZoom = (viewport: { width: number; height: number }) => {
   const fit = getDeskCameraGeometry(viewport, 1).fitZoom;
-  return viewport.width < 768 ? Math.max(fit, DESK_MOBILE_EXPLORATION_ZOOM) : fit;
+  return Math.max(fit, viewport.width < 768 ? DESK_MOBILE_EXPLORATION_ZOOM : 0.85);
 };
 
 export function useDeskCamera({

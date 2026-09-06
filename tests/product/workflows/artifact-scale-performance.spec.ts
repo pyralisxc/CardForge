@@ -24,9 +24,7 @@ const attachEvidence = async (testInfo: TestInfo, name: string, value: unknown) 
 };
 
 const prepareScalePage = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
-  const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   await installBrowserPerformanceObservers(page);
-  if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await seedGuestScaleWorkspace(page, cardCount, options);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
@@ -49,12 +47,12 @@ test.describe('large Artifact browser evidence', () => {
 
       const openMs = await openScaleSet(page, cardCount, { expectOpeningMotion: true });
       const visualArtifacts = page.locator('[data-desk-artifact-stage] [data-artifact-id]');
-      const expensivePreviews = page.locator('[data-desk-artifact-stage] [id^="card-preview-"]');
+      const expensivePreviews = page.locator('[data-artifact-scene] [id^="card-preview-"]');
       const mountedVisuals = await visualArtifacts.count();
-      const mountedExpensivePreviews = await expensivePreviews.count();
       expect(mountedVisuals).toBeGreaterThan(0);
       expect(mountedVisuals).toBeLessThan(cardCount);
-      expect(mountedExpensivePreviews).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
+      await expect.poll(() => expensivePreviews.count()).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
+      const mountedExpensivePreviews = await expensivePreviews.count();
 
       const panMs = await elapsed(async () => {
         await page.locator('[data-desk-artifact-stage]').evaluate((stage) => {

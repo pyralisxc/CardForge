@@ -65,8 +65,8 @@ export const StudioSaveMoveDialog = dynamic(
   { ssr: false },
 );
 
-export const EditCardDialog = dynamic(
-  () => import('@/features/card-generator/client/edit-card-dialog')
-    .then((module) => module.EditCardDialog),
+export const CardEditor = dynamic(
+  () => import('@/features/card-generator/client/card-editor')
+    .then((module) => module.CardEditor),
   { ssr: false },
 );

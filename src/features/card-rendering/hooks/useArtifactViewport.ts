@@ -56,14 +56,15 @@ export function useArtifactViewport({
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
     let measurementFrame = 0;
+    const measureNow = () => {
+      const bounds = viewportNode.getBoundingClientRect();
+      setViewport({ width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+    };
     const measure = () => {
       cancelAnimationFrame(measurementFrame);
-      measurementFrame = requestAnimationFrame(() => {
-        const bounds = viewportNode.getBoundingClientRect();
-        setViewport({ width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
-      });
+      measurementFrame = requestAnimationFrame(measureNow);
     };
-    measure();
+    measureNow();
     if (typeof ResizeObserver === 'undefined') return () => cancelAnimationFrame(measurementFrame);
     const observer = new ResizeObserver(measure);
     observer.observe(viewportNode);

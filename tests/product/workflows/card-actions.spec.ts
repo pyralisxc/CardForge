@@ -9,7 +9,8 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).dblclick();
+      const artifact = page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true });
+      if (mobile) await artifact.tap(); else await artifact.click();
       const actions = page.getByRole('group', { name: 'Card downloads and sharing' });
       await expect(actions).toBeVisible();
       await actions.getByRole('button', { name: 'Download individual card' }).click();

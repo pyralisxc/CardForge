@@ -84,7 +84,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
           <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
           {contextBand ? <div className={styles.contextBand}>{contextBand}</div> : null}
         </div>
-        <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scroll={primaryScroll}>{children}</main>
+        <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scene-viewport data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={styles.statusBar} aria-label="Environment status">
           <div className={styles.statusItems}>{statusContent}</div>
