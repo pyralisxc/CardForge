@@ -15,6 +15,7 @@ import {
 } from '@/features/app-shell/client/environment';
 
 import {
+  createCreatorDeskSnapshot,
   createCreatorHistoryState,
   createCreatorHref,
   createCreatorInitialSession,
@@ -36,7 +37,13 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
   const [interactionSession, setInteractionSession] = useState<CreatorInteractionSession>(() => (
     createCreatorInitialSession(initialFocusedWorkId, initialFocusedArtifactId)
   ));
-  const [dirtyCloseRequested, setDirtyCloseRequested] = useState(false);
+  const [dirtyCloseTarget, setDirtyCloseTarget] = useState<'tool' | 'desk' | null>(null);
+  const dirtyCloseRequested = dirtyCloseTarget !== null;
+  const dirtyCloseToDesk = dirtyCloseTarget === 'desk';
+  const setDirtyCloseRequested = useCallback((open: boolean) => {
+    setDirtyCloseTarget(open ? 'tool' : null);
+  }, []);
+  const previousFocusedWorkIdRef = useRef(focusedWorkId);
   const initializedRef = useRef(false);
   const bypassDirtyCloseRef = useRef(false);
   const pendingPopSnapshotRef = useRef<CreatorHistorySnapshot | null>(null);
@@ -47,6 +54,16 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     session: interactionSession,
   });
   currentRef.current = { version: 1, focusedWorkId, inspectorWorkId, session: interactionSession };
+
+  useEffect(() => {
+    const previousWorkId = previousFocusedWorkIdRef.current;
+    previousFocusedWorkIdRef.current = focusedWorkId;
+    if (focusedWorkId || !previousWorkId) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`set-${previousWorkId}`)?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusedWorkId]);
 
   const applySnapshot = useCallback((snapshot: CreatorHistorySnapshot) => {
     if (currentRef.current.session.toolStack.at(-1)?.toolId === 'design'
@@ -143,15 +160,20 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [applySnapshot, pushSnapshot, replaceSnapshot]);
+  }, [applySnapshot, pushSnapshot, replaceSnapshot, setDirtyCloseRequested]);
 
   const requestHistoryBack = useCallback(() => {
     if (typeof window === 'undefined') return;
+    const current = currentRef.current;
+    if (current.session.toolStack.at(-1)?.dirty && !bypassDirtyCloseRef.current) {
+      setDirtyCloseRequested(true);
+      return;
+    }
     if (readCreatorHistorySnapshot(window.history.state)) {
       window.history.back();
       return;
     }
-    const current = currentRef.current;
+    bypassDirtyCloseRef.current = false;
     const closed = closeCreatorContext(current.session);
     const next = {
       ...current,
@@ -161,7 +183,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     };
     applySnapshot(next);
     replaceSnapshot(next);
-  }, [applySnapshot, replaceSnapshot]);
+  }, [applySnapshot, replaceSnapshot, setDirtyCloseRequested]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -253,13 +275,37 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
       pendingPopSnapshotRef.current = { ...current, session: nextSession };
     }
     requestHistoryBack();
-  }, [requestHistoryBack]);
+  }, [requestHistoryBack, setDirtyCloseRequested]);
+
+  const returnToDesk = useCallback(() => {
+    const next = createCreatorDeskSnapshot(currentRef.current);
+    pendingPopSnapshotRef.current = null;
+    bypassDirtyCloseRef.current = false;
+    setDirtyCloseTarget(null);
+    applySnapshot(next);
+    replaceSnapshot(next);
+  }, [applySnapshot, replaceSnapshot]);
+
+  const requestDeskReturn = useCallback(() => {
+    const current = currentRef.current;
+    if (!current.focusedWorkId && !current.inspectorWorkId && !current.session.toolStack.length) return;
+    // A direct return leaves every nested tool, not just the topmost one.
+    if (current.session.toolStack.some((tool) => tool.dirty)) {
+      setDirtyCloseTarget('desk');
+      return;
+    }
+    returnToDesk();
+  }, [returnToDesk]);
 
   const confirmDirtyClose = useCallback(() => {
+    if (dirtyCloseTarget === 'desk') {
+      returnToDesk();
+      return;
+    }
     bypassDirtyCloseRef.current = true;
-    setDirtyCloseRequested(false);
+    setDirtyCloseTarget(null);
     requestHistoryBack();
-  }, [requestHistoryBack]);
+  }, [dirtyCloseTarget, requestHistoryBack, returnToDesk]);
 
   const setActiveToolDirty = useCallback((dirty: boolean) => {
     setInteractionSession((current) => {
@@ -283,6 +329,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
+    dirtyCloseToDesk,
     focusArtifactContext,
     focusWorkContext,
     focusedWorkId,
@@ -290,6 +337,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     interactionSession,
     openContextTool,
     requestHistoryBack,
+    requestDeskReturn,
     resetToDesk,
     restoreFocusedContext,
     setActiveToolDirty,

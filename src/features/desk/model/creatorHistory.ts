@@ -37,6 +37,18 @@ export const createCreatorInitialSession = (
   );
 };
 
+/** Return to the Desk without replacing its selected work or creating a new workspace. */
+export const createCreatorDeskSnapshot = (current: CreatorHistorySnapshot): CreatorHistorySnapshot => ({
+  version: 1,
+  focusedWorkId: null,
+  inspectorWorkId: null,
+  session: selectCreatorDeskSets(
+    createCreatorInteractionSession(),
+    current.session.deskSelection,
+    current.session.deskSelectionAnchorId,
+  ),
+});
+
 const isStringArray = (value: unknown): value is string[] => (
   Array.isArray(value) && value.every((entry) => typeof entry === 'string')
 );

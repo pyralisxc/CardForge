@@ -7,6 +7,7 @@ import {
   ArrowUp,
   ChevronRight,
   Copy,
+  Home,
   Info,
   Maximize2,
   Minus,
@@ -20,6 +21,8 @@ import {
   WandSparkles,
   X,
 } from 'lucide-react';
+
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +55,7 @@ interface DeskContextRailProps {
   openWorkCount: number;
   camera: DeskCamera;
   onBack: () => void;
+  onReturnToDesk: () => void;
   onCloseTool: () => void;
   onOpenSelectedSet: () => void;
   onClearDeskSelection: () => void;
@@ -81,17 +85,41 @@ export function DeskContextRail(props: DeskContextRailProps) {
   const artifactFocused = props.depth === 'artifact';
   const toolFocused = props.depth === 'tool';
   const backLabel = artifactFocused ? 'Back to Set' : 'Back to Desk';
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const setActionsRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!props.renaming || !props.localSet || props.depth !== 'set') return;
+    const frame = requestAnimationFrame(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [props.depth, props.localSet, props.renaming]);
+  const cancelRename = () => {
+    props.onRenameDraftChange(props.setName ?? '');
+    props.onToggleRenaming();
+    requestAnimationFrame(() => setActionsRef.current?.focus());
+  };
 
   return (
     <div className={styles.contextRail} data-depth={props.depth} data-desk-context-rail>
-      <div className={styles.contextPath} aria-label="Creative context">
-        {focused && !toolFocused ? <Button type="button" size="icon" variant="ghost" onClick={props.onBack} aria-label={backLabel}><ArrowLeft aria-hidden="true" /></Button> : null}
-        <span className={styles.contextCrumb}>Desk</span>
-        {props.setName ? <><ChevronRight aria-hidden="true" /><strong title={props.setName}>{props.setName}</strong></> : null}
-        {props.artifactName ? <><ChevronRight aria-hidden="true" /><strong title={props.artifactName}>{props.artifactName}</strong></> : null}
-        {props.toolName ? <><ChevronRight aria-hidden="true" /><strong title={props.toolName}>{props.toolName}</strong></> : null}
-        {props.toolDirty ? <span className={styles.contextDirty}>Unsaved changes</span> : null}
-      </div>
+      <nav className={styles.contextPath} aria-label="Creative context">
+        {focused && !toolFocused ? <Button type="button" size="sm" variant="outline" className={styles.contextReturn} onClick={artifactFocused ? props.onBack : props.onReturnToDesk}>
+          <ArrowLeft aria-hidden="true" /><span>{backLabel}</span>
+        </Button> : null}
+        {artifactFocused || toolFocused ? <Button type="button" size="sm" variant="ghost" className={styles.contextReturn} onClick={props.onReturnToDesk} aria-label="Return to Desk">
+          <Home aria-hidden="true" /><span>Desk</span>
+        </Button> : null}
+        <div className={styles.contextIdentity}>
+          <div className={styles.contextBreadcrumbs}>
+            {!focused ? <span className={styles.contextCrumb}>Desk</span> : null}
+            {props.setName ? <><ChevronRight aria-hidden="true" /><strong title={props.setName}>{props.setName}</strong></> : null}
+            {props.artifactName ? <><ChevronRight aria-hidden="true" /><strong title={props.artifactName}>{props.artifactName}</strong></> : null}
+            {props.toolName ? <><ChevronRight aria-hidden="true" /><strong title={props.toolName}>{props.toolName}</strong></> : null}
+          </div>
+          {props.toolDirty ? <span className={styles.contextDirty}>Unsaved changes</span> : null}
+        </div>
+      </nav>
 
       <div className={styles.contextActions}>
         {props.depth === 'desk' ? <>
@@ -111,12 +139,25 @@ export function DeskContextRail(props: DeskContextRailProps) {
         </> : null}
 
         {props.depth === 'set' ? <>
-          {props.renaming && props.localSet ? <form className={styles.contextRename} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Set name" /><Button type="submit" size="sm">Save</Button></form> : null}
+          {props.renaming && props.localSet ? <form className={styles.contextRename}
+            onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); requestAnimationFrame(() => setActionsRef.current?.focus()); }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') return;
+              event.preventDefault();
+              event.stopPropagation();
+              cancelRename();
+            }}
+          >
+            <Input id="set-name" ref={renameInputRef} value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Set name" />
+            <Button type="submit" size="sm">Save</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={cancelRename} aria-label="Cancel rename">Cancel</Button>
+          </form> : <>
           {!props.localSet ? <Button type="button" size="sm" onClick={props.onOpenWork}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Open work</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign()}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenOutput}><Printer className="mr-1 h-4 w-4" aria-hidden="true" />Output</Button> : null}
           <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
             {props.localSet ? <DropdownMenuItem onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
@@ -125,10 +166,11 @@ export function DeskContextRail(props: DeskContextRailProps) {
             <DropdownMenuItem onSelect={props.onInspect}><Info aria-hidden="true" />Details</DropdownMenuItem>
             {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent></DropdownMenu>
+          </>}
         </> : null}
 
         {props.depth === 'artifact' ? <>
-          <span className={styles.contextStatus}>{props.selectedArtifactCount > 1 ? `${props.selectedArtifactCount} selected` : 'Artifact focus'}</span>
+          {props.selectedArtifactCount > 1 ? <span className={styles.contextStatus}>{props.selectedArtifactCount} selected</span> : null}
           <Button type="button" size="sm" onClick={props.onEditArtifact}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Edit</Button>
           <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button>
           <Button type="button" size="sm" variant="outline" onClick={props.onReviseSelected}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Revise</Button>
