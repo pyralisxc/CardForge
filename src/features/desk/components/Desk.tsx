@@ -134,6 +134,7 @@ export function Desk({
     deskMarquee,
     detail,
     dirtyCloseRequested,
+    dirtyCloseToDesk,
     duplicateSelectedCards,
     duplicateWork,
     editSelectedCard,
@@ -178,6 +179,7 @@ export function Desk({
     removeGeneratedCards,
     reflectiveGroupings,
     requestHistoryBack,
+    requestDeskReturn,
     renameDraft,
     renaming,
     reorderSelectedCard,
@@ -311,6 +313,7 @@ export function Desk({
         viewer={viewer}
         zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'desk' || zone.id === 'library' || zone.id === 'profile')}
         activeZone="desk"
+        onActiveZoneNavigate={requestDeskReturn}
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
@@ -332,6 +335,7 @@ export function Desk({
           openWorkCount={visibleWork.length}
           camera={deskCamera}
           onBack={() => { setRenaming(false); requestHistoryBack(); }}
+          onReturnToDesk={() => { setRenaming(false); requestDeskReturn(); }}
           onCloseTool={closeActiveTool}
           onOpenSelectedSet={() => { if (primarySelectedSet) focusWork(primarySelectedSet); }}
           onClearDeskSelection={() => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))}
@@ -589,6 +593,7 @@ export function Desk({
         pendingDeleteWork={pendingDeleteWork}
         pendingDeleteCards={pendingDeleteCards}
         dirtyCloseRequested={dirtyCloseRequested}
+        dirtyCloseToDesk={dirtyCloseToDesk}
         dirtyToolName={toolName}
         selectionScope={selectionScope}
         onDirtyCloseOpenChange={setDirtyCloseRequested}

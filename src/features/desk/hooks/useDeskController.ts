@@ -79,6 +79,7 @@ export function useDeskController({
     closeContextTool,
     confirmDirtyClose,
     dirtyCloseRequested,
+    dirtyCloseToDesk,
     focusArtifactContext: navigateToArtifact,
     focusWorkContext,
     focusedWorkId,
@@ -86,6 +87,7 @@ export function useDeskController({
     interactionSession,
     openContextTool: navigateToTool,
     requestHistoryBack,
+    requestDeskReturn,
     resetToDesk,
     restoreFocusedContext,
     setActiveToolDirty,
@@ -349,7 +351,6 @@ export function useDeskController({
       setActiveCardSetId(id);
       openContextTool(id, 'design');
     } else focusWorkContext(`set:${id}`, id);
-    requestAnimationFrame(() => document.getElementById('set-name')?.focus());
   };
 
   const duplicateWork = (item: AccountLibraryItem) => {
@@ -436,7 +437,6 @@ export function useDeskController({
       renameWork: (item) => {
         focusWork(item);
         setRenaming(true);
-        requestAnimationFrame(() => document.getElementById('set-name')?.focus());
       },
       duplicateWork,
       deleteWork: setPendingDeleteWork,
@@ -512,6 +512,7 @@ export function useDeskController({
     deskMarquee,
     detail,
     dirtyCloseRequested,
+    dirtyCloseToDesk,
     duplicateWork,
     effectiveMoveTargetId,
     endDeskDrag,
@@ -586,6 +587,7 @@ export function useDeskController({
     setTagFilter,
     undoLastBulkRevision,
     requestHistoryBack,
+    requestDeskReturn,
     resetToDesk,
     shouldSuppressActivation,
     showGrid,

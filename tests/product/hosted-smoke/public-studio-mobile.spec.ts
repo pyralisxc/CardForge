@@ -60,10 +60,30 @@ test.describe('hosted release smoke', () => {
     await dismissAnalyticsIfOffered(page);
     await page.getByRole('link', { name: 'Open your Desk', exact: true }).first().click();
     await expect(page).toHaveURL(/\/account(?:\?|$)/u);
-    await expect(page.getByRole('region', { name: 'Open Sets on Desk' })).toBeVisible();
+    const desk = page.getByRole('region', { name: 'Open Sets on Desk' });
+    await expect(desk).toBeVisible();
+    await expect(desk).toContainText('A Set keeps related cards together.');
+    await expect(page.locator('[data-set-object]')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Create your first Set' }).click();
-    await page.getByRole('button', { name: 'Fresh Set + Design', exact: true }).click();
+    await desk.getByRole('button', { name: 'Open Library', exact: true }).click();
+    await expect(page).toHaveURL(/\/account\?section=library(?:&|$)/u);
+    await expect(desk).not.toBeVisible();
+    await page.goto('/account', { waitUntil: 'domcontentloaded' });
+    await expect(desk.getByRole('button', { name: 'Create your first Set' })).toBeVisible();
+    await expect(page.locator('[data-set-object]')).toHaveCount(0);
+    await test.info().attach('empty-desk-desktop', { body: await page.screenshot(), contentType: 'image/png' });
+
+    await desk.getByRole('button', { name: 'Create your first Set' }).click();
+    const choices = page.getByRole('dialog', { name: 'Start a new Set' });
+    await expect(choices).toHaveAccessibleDescription(/published original stays unchanged/u);
+    await expect(choices.getByRole('button', { name: 'Fresh Set', exact: true })).toHaveAccessibleDescription(/Start with no cards/u);
+    await expect(choices.getByRole('button', { name: 'Fresh Set + Design', exact: true })).toHaveAccessibleDescription(/card layout editor/u);
+    await page.keyboard.press('Escape');
+    await expect(choices).toHaveCount(0);
+    await expect(page.locator('[data-set-object]')).toHaveCount(0);
+
+    await desk.getByRole('button', { name: 'Create your first Set' }).click();
+    await choices.getByRole('button', { name: 'Fresh Set + Design', exact: true }).click();
     const designTool = page.getByRole('region', { name: 'Design Artifacts' });
     await expect(designTool).toBeVisible();
     await page.getByRole('button', { name: 'Done', exact: true }).click();
@@ -81,7 +101,20 @@ test.describe('hosted mobile release smoke', () => {
     const navigation = page.getByRole('navigation', { name: 'Mobile navigation' });
     await expect(navigation).toBeVisible();
     await navigation.getByRole('link', { name: /^Open (?:your )?Desk$/u }).tap();
-    await expect(page.getByRole('region', { name: 'Open Sets on Desk' })).toBeVisible();
+    const desk = page.getByRole('region', { name: 'Open Sets on Desk' });
+    await expect(desk).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'CardForge zones' })).toBeVisible();
+    await expect(desk.getByRole('button', { name: 'Open Library', exact: true })).toBeInViewport();
+    await expect(page.locator('[data-set-object]')).toHaveCount(0);
+    await test.info().attach('empty-desk-mobile', { body: await page.screenshot(), contentType: 'image/png' });
+
+    await desk.getByRole('button', { name: 'Create your first Set' }).tap();
+    const choices = page.getByRole('dialog', { name: 'Start a new Set' });
+    const design = choices.getByRole('button', { name: 'Fresh Set + Design', exact: true });
+    await expect(design).toHaveAccessibleDescription(/card layout editor/u);
+    await expect(design).toBeInViewport();
+    await test.info().attach('new-set-choices-mobile', { body: await page.screenshot(), contentType: 'image/png' });
+    await design.tap();
+    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
   });
 });

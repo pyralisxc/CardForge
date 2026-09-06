@@ -36,9 +36,10 @@ interface EnvironmentShellProps {
   onCommand: () => void;
   onAction: (action: ActionDescriptor) => void;
   onCloseDetail: () => void;
+  onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
@@ -79,7 +80,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
       <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy} data-focus-depth={focusDepth}>
-        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} />
+        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} />
         <div className={styles.commandStack}>
           <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
           {contextBand ? <div className={styles.contextBand}>{contextBand}</div> : null}

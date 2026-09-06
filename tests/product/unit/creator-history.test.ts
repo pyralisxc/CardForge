@@ -6,9 +6,11 @@ import {
   focusCreatorSet,
   openCreatorTool,
   selectCreatorArtifacts,
+  selectCreatorDeskSets,
   setCreatorCamera,
 } from '@/features/app-shell/client/environment';
 import {
+  createCreatorDeskSnapshot,
   createCreatorHistoryState,
   createCreatorHref,
   createCreatorInitialSession,
@@ -48,6 +50,28 @@ describe('Desk creator history', () => {
     expect(readCreatorHistorySnapshot(state)).toEqual(snapshot);
     expect(createCreatorHref(snapshot)).toBe('/account?focus=set%3Aset-1&artifact=card-1&tool=design');
     expect(state).toMatchObject({ nextInternal: true });
+  });
+
+  it('returns from nested tools to the same Desk selection without mutating the focused snapshot', () => {
+    const initial = selectCreatorDeskSets(createCreatorInteractionSession(), ['set:one', 'set:two'], 'set:two');
+    let session = focusCreatorSet(initial, 'one');
+    session = focusCreatorArtifact(selectCreatorArtifacts(session, ['card-1']), 'card-1');
+    session = openCreatorTool(session, { ...createCreatorTool('one', 'generate'), dirty: true });
+    session = openCreatorTool(session, createCreatorTool('one', 'design'));
+    const current: CreatorHistorySnapshot = { version: 1, focusedWorkId: 'set:one', inspectorWorkId: 'set:one', session };
+    const before = JSON.parse(JSON.stringify(current));
+
+    const desk = createCreatorDeskSnapshot(current);
+    expect(desk).toEqual({
+      version: 1, focusedWorkId: null, inspectorWorkId: null,
+      session: initial,
+    });
+    expect(desk.session.deskSelection).not.toBe(current.session.deskSelection);
+    expect(current).toEqual(before);
+    expect(createCreatorHref(desk)).toBe('/account');
+    const state = createCreatorHistoryState({ nextInternal: true }, desk);
+    expect(state.nextInternal).toBe(true);
+    expect(readCreatorHistorySnapshot(state)).toEqual(desk);
   });
 
   it('rejects malformed browser state instead of inventing an empty creator context', () => {

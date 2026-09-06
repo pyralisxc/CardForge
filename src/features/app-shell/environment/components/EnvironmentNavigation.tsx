@@ -22,6 +22,7 @@ interface EnvironmentNavigationProps {
   zones: readonly ZoneDefinition[];
   activeZone: ZoneId;
   brand: { src: string; alt: string };
+  onActiveZoneNavigate?: () => void;
 }
 
 function ZoneLinkContents({ Icon, label }: { Icon: LucideIcon; label: string }) {
@@ -36,9 +37,11 @@ function ZoneLinkContents({ Icon, label }: { Icon: LucideIcon; label: string }) 
 function MobileZoneButton({
   zone,
   activeZone,
+  onActiveZoneNavigate,
 }: {
   zone: ZoneDefinition;
   activeZone: ZoneId;
+  onActiveZoneNavigate?: () => void;
 }) {
   const Icon = ZONE_ICONS[zone.id];
   return (
@@ -47,13 +50,18 @@ function MobileZoneButton({
       prefetch={true}
       className={styles.mobileZoneButton}
       aria-current={activeZone === zone.id ? 'page' : undefined}
+      data-tool-safe-action={activeZone === zone.id && onActiveZoneNavigate ? true : undefined}
+      onNavigate={activeZone === zone.id && onActiveZoneNavigate ? (event) => {
+        event.preventDefault();
+        onActiveZoneNavigate();
+      } : undefined}
     >
       <ZoneLinkContents Icon={Icon} label={zone.shortLabel} />
     </Link>
   );
 }
 
-export function EnvironmentNavigation({ zones, activeZone, brand }: EnvironmentNavigationProps) {
+export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNavigate }: EnvironmentNavigationProps) {
   const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'member');
   const protectedZones = zones.filter((zone) => zone.minimumAccess === 'contributor' || zone.minimumAccess === 'owner');
 
@@ -69,7 +77,13 @@ export function EnvironmentNavigation({ zones, activeZone, brand }: EnvironmentN
             return (
               <div key={zone.id}>
                 {showDivider ? <div className={styles.railDivider} aria-hidden="true" /> : null}
-                <Link href={zone.href} prefetch={true} className={styles.railButton} aria-current={activeZone === zone.id ? 'page' : undefined}>
+                <Link href={zone.href} prefetch={true} className={`${styles.railButton} w-full`} aria-current={activeZone === zone.id ? 'page' : undefined}
+                  data-tool-safe-action={activeZone === zone.id && onActiveZoneNavigate ? true : undefined}
+                  onNavigate={activeZone === zone.id && onActiveZoneNavigate ? (event) => {
+                    event.preventDefault();
+                    onActiveZoneNavigate();
+                  } : undefined}
+                >
                   <ZoneLinkContents Icon={Icon} label={zone.shortLabel} />
                 </Link>
               </div>
@@ -80,10 +94,10 @@ export function EnvironmentNavigation({ zones, activeZone, brand }: EnvironmentN
 
       <nav className={styles.mobileNav} aria-label="CardForge zones" style={{ gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}>
         {coreZones.map((zone) => (
-          <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} />
+          <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} onActiveZoneNavigate={onActiveZoneNavigate} />
         ))}
         {protectedZones.length === 1 ? (
-          <MobileZoneButton zone={protectedZones[0]!} activeZone={activeZone} />
+          <MobileZoneButton zone={protectedZones[0]!} activeZone={activeZone} onActiveZoneNavigate={onActiveZoneNavigate} />
         ) : protectedZones.length > 1 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
