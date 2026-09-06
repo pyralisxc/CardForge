@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import type { ChangeEvent } from 'react';
-import type { CardData } from '@/domain/cards';
+import type { CardData, CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Copy, Save, Layers, Minus, Plus, RefreshCcw } from 'lucide-react';
+import { Copy, Save, Layers, Minus, Plus, RefreshCcw, Pencil } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useProjectStore } from '@/features/project/client/workspace';
 import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
@@ -28,9 +28,10 @@ interface CardEditorProps {
   onDuplicate: (cardToDuplicate: DisplayCard) => void;
   onClose: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onDesign?: (face: CardFace, savedCard?: DisplayCard) => void;
 }
 
-export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange }: CardEditorProps) {
+export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange, onDesign }: CardEditorProps) {
   const router = useRouter();
   const [pendingLeave, setPendingLeave] = useState<{ href?: string } | null>(null);
   const [editedData, setEditedData] = useState<CardData>(() => initializeCardDataFromTemplate(card?.template, card?.data, true)[1]);
@@ -275,6 +276,11 @@ export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange }
             <Button type="button" size="sm" variant="ghost" onClick={artifactViewport.fit}>Fit</Button>
           </div>
           {hasCardBacking(card) ? <Button type="button" size="sm" variant="outline" onClick={() => setPreviewFace(previewFace === 'front' ? 'back' : 'front')} aria-label={`Show ${previewFace === 'front' ? 'back' : 'front'} of ${cardIdentifier}`}><RefreshCcw className="mr-1.5 h-4 w-4" />{previewFace === 'front' ? 'Back' : 'Front'}</Button> : null}
+          {onDesign ? <Button type="button" size="sm" variant="outline" onClick={() => {
+            if (dirty && !validateRequiredFields()) return;
+            onDirtyChange?.(false);
+            onDesign(previewFace, dirty ? getEditedCard() ?? undefined : undefined);
+          }} title="Open the shared template in Studio. Template changes apply to all linked cards."><Pencil className="mr-1.5 h-4 w-4" />{dirty ? 'Save & Design' : 'Design'}</Button> : null}
           <span className="hidden text-[0.68rem] text-[var(--cf-text-subtle)] xl:inline">Pinch or scroll to zoom</span>
           <Button type="button" size="sm" variant="outline" onClick={requestClose}>Cancel</Button>
           <Button type="button" size="sm" variant="secondary" onClick={handleDuplicateThisCard}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
@@ -304,6 +310,7 @@ export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange }
           </div>
           <aside className="cardforge-scroll-body min-h-0 overflow-y-auto overscroll-contain border-t border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 [-webkit-overflow-scrolling:touch] lg:border-l lg:border-t-0" aria-label="Card fields">
             <p className="mb-1 text-xs text-[var(--cf-text-muted)]">Front: {card.template.name || card.template.id?.substring(0,8)}{card.backingTemplate ? ` · Back: ${card.backingTemplate.name || card.backingTemplate.id?.substring(0, 8)}` : ' · No back selected'}</p>
+            {onDesign ? <p className="mb-3 text-xs text-[var(--cf-text-muted)]">Content changes affect this card. Design opens its shared template and affects every linked card.</p> : null}
             {editorFields}
           </aside>
         </div>

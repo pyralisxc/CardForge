@@ -30,6 +30,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import type { CardFace } from '@/domain/cards';
+import { useArtifactFace } from '@/features/card-rendering/client';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import styles from './Desk.module.css';
@@ -38,6 +40,7 @@ interface DeskContextRailProps {
   depth: 'desk' | 'set' | 'artifact' | 'tool';
   setName?: string;
   artifactName?: string;
+  artifactId?: string;
   toolName?: string;
   toolDirty?: boolean;
   localSet: boolean;
@@ -57,7 +60,7 @@ interface DeskContextRailProps {
   onCommitRename: () => void;
   onToggleRenaming: () => void;
   onOpenWork: () => void;
-  onOpenDesign: () => void;
+  onOpenDesign: (face?: CardFace) => void;
   onOpenGenerate: () => void;
   onOpenLocation: () => void;
   onDuplicateWork: () => void;
@@ -66,12 +69,14 @@ interface DeskContextRailProps {
   onInspect: () => void;
   onDeleteWork: () => void;
   onEditArtifact: () => void;
+  onDesignArtifactCopy: (face: CardFace) => void;
   onReviseSelected: () => void;
   onDuplicateSelected: () => void;
   onDeleteSelected: () => void;
 }
 
 export function DeskContextRail(props: DeskContextRailProps) {
+  const [artifactFace] = useArtifactFace(props.artifactId ?? '');
   const focused = props.depth !== 'desk';
   const artifactFocused = props.depth === 'artifact';
   const toolFocused = props.depth === 'tool';
@@ -108,7 +113,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
         {props.depth === 'set' ? <>
           {props.renaming && props.localSet ? <form className={styles.contextRename} onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); }}><Input value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} aria-label="Set name" /><Button type="submit" size="sm">Save</Button></form> : null}
           {!props.localSet ? <Button type="button" size="sm" onClick={props.onOpenWork}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Open work</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenDesign}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign()}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
           <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
@@ -125,8 +130,10 @@ export function DeskContextRail(props: DeskContextRailProps) {
         {props.depth === 'artifact' ? <>
           <span className={styles.contextStatus}>{props.selectedArtifactCount > 1 ? `${props.selectedArtifactCount} selected` : 'Artifact focus'}</span>
           <Button type="button" size="sm" onClick={props.onEditArtifact}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Edit</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button>
           <Button type="button" size="sm" variant="outline" onClick={props.onReviseSelected}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Revise</Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => props.onDesignArtifactCopy(artifactFace)}><Pencil aria-hidden="true" />Design a copy for this card</DropdownMenuItem>
             <DropdownMenuItem onSelect={props.onDuplicateSelected}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteSelected}><Trash2 aria-hidden="true" />Remove from Set</DropdownMenuItem>

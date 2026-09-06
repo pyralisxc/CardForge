@@ -71,6 +71,53 @@ for (const mobile of [false, true]) {
         await expect(page.getByLabel('Template name', { exact: true })).toHaveValue('Scale Fixture Back');
       }
     });
+
+    test('@golden opens Studio from card content and copies only the viewed template for that card', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+      const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
+      if (mobile) await firstCard.tap(); else await firstCard.click();
+      const rail = page.locator('[data-desk-context-rail]');
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      const editor = page.locator('[data-artifact-edit-workspace]');
+      const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();
+      await artwork.fill('/brand/cardforge-studio/brand-mark.svg');
+      await editor.getByRole('button', { name: 'Save & Design', exact: true }).click();
+      const design = page.getByRole('region', { name: 'Design Artifacts', exact: true });
+      await expect(design).toBeVisible();
+      const expectTemplate = async (name: string) => {
+        if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText(name);
+        else {
+          await design.getByRole('button', { name: 'Card Setup', exact: true }).click();
+          await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(name);
+        }
+      };
+      await expectTemplate('Scale Fixture Template');
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+      const visual = page.locator('[data-scene-artifact="scale-card-1"]');
+      await visual.getByRole('button', { name: /^Show back of/ }).click();
+      await rail.getByRole('button', { name: 'Design', exact: true }).click();
+      await expectTemplate('Scale Fixture Back');
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await rail.getByRole('button', { name: 'More Artifact actions' }).click();
+      await page.getByRole('menuitem', { name: 'Design a copy for this card' }).click();
+      await expectTemplate('Copy of Scale Fixture Back');
+      await rail.getByRole('button', { name: 'Done', exact: true }).click();
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(editor).toContainText('Back: Copy of Scale Fixture Back');
+      await expect(editor).toContainText('Front: Scale Fixture Template');
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      await page.locator('button[data-artifact-id="scale-card-2"]').click();
+      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(editor).toContainText('Back: Scale Fixture Back');
+      await expect(editor).not.toContainText('Copy of');
+    });
   });
 }
 

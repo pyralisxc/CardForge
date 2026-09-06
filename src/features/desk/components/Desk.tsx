@@ -19,7 +19,8 @@ import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/cre
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { hasCardBacking } from '@/domain/rendering';
+import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -258,11 +259,30 @@ export function Desk({
     ? focusedCards.find((card) => card.uniqueId === editingCardId) ?? null : null;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const contextDepth = activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const toolName = activeTool?.toolId === 'design' ? 'Design'
+  const toolName = activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
     : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
       : activeTool?.toolId === 'output' ? 'Output'
         : activeTool?.toolId === 'pipeline' ? 'Pipeline'
           : undefined;
+  const designCard = (card: DisplayCard, face: CardFace = 'front', copy = false) => {
+    const template = face === 'back' ? card.backingTemplate : card.template;
+    if (!template?.id || !focusedLocalSetId) return;
+    const project = useProjectStore.getState();
+    let templateId = template.id;
+    if (copy) {
+      const copiedId = project.cloneTemplate(templateId);
+      if (!copiedId) return;
+      const copiedTemplate = useProjectStore.getState().userTemplates.find((candidate) => candidate.id === copiedId);
+      if (!copiedTemplate) return;
+      templateId = copiedId;
+      project.updateGeneratedCard(face === 'back'
+        ? { ...card, backingTemplate: copiedTemplate, backingTemplateId: copiedId }
+        : { ...card, template: copiedTemplate });
+    }
+    project.closeEditDialog();
+    if (activeTool?.toolId === 'design') project.setTemplateEditorSelectedTemplateId(templateId);
+    else openContextStudio(focusedLocalSetId, 'design', templateId);
+  };
   const openSelectedRevision = () => {
     if (!focusedItem || !selectedCards.length) return;
     setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
@@ -314,7 +334,9 @@ export function Desk({
           onCommitRename={commitRename}
           onToggleRenaming={() => setRenaming((current) => !current)}
           onOpenWork={() => { if (focusedItem) openWorkLane(focusedItem, 'open'); }}
-          onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          artifactId={focusedArtifactId ?? undefined}
+          onOpenDesign={(face) => focusedArtifact ? designCard(focusedArtifact, face) : focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face, true); }}
           onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
@@ -508,7 +530,7 @@ export function Desk({
         {studioTool ? <EnvironmentToolLayer
           id="desk-design-tool-title"
           eyebrow="Desk tool"
-          title={studioTool.tool === 'output' ? 'Output Set' : 'Design Artifacts'}
+          title={studioTool.tool === 'output' ? 'Output Set' : editingCard ? 'Edit card content' : 'Design Artifacts'}
           summary="The focused Set remains on the Desk while this reusable Studio tool operates on it."
           closeLabel="Close Studio tool"
           onClose={closeContextStudio}
@@ -525,6 +547,7 @@ export function Desk({
             onDirtyChange={setActiveToolDirty}
             onClose={confirmDirtyClose}
             onSave={(card) => { useProjectStore.getState().updateGeneratedCard(card); confirmDirtyClose(); }}
+            onDesign={(face, savedCard) => { if (savedCard) useProjectStore.getState().updateGeneratedCard(savedCard); designCard(savedCard ?? editingCard, face); }}
             onDuplicate={(card) => addGeneratedCards([{ ...card, uniqueId: crypto.randomUUID() }])}
           /> : <DeskDesignWorkspace
             tool={studioTool.tool === 'output' ? 'output' : 'design'}
