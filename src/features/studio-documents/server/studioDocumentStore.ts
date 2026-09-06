@@ -48,6 +48,7 @@ const STUDIO_DOCUMENT_LIST_LIMIT = 100;
 export interface StudioDocumentListPage {
   documents: StudioDocumentSummary[];
   hasMore: boolean;
+  nextCursor: number | null;
 }
 
 export interface StudioDocumentProjectSourceLineage {
@@ -126,7 +127,9 @@ const validateProjectSourceLineage = (lineage: StudioDocumentProjectSourceLineag
 export const listStudioDocumentsPage = async (
   ownerUserId: string,
   retentionHours: number,
+  cursor = 0,
 ): Promise<StudioDocumentListPage> => {
+  const offset = Math.max(0, Math.floor(cursor));
   await applyRetentionPolicy(ownerUserId, retentionHours);
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
@@ -134,7 +137,7 @@ export const listStudioDocumentsPage = async (
     .eq('owner_user_id', ownerUserId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
-    .limit(STUDIO_DOCUMENT_LIST_LIMIT + 1);
+    .range(offset, offset + STUDIO_DOCUMENT_LIST_LIMIT);
   if (error) {
     console.error('Failed to list Studio documents:', error);
     throw new StudioDocumentStoreError('Unable to list Studio documents.');
@@ -145,19 +148,30 @@ export const listStudioDocumentsPage = async (
       .slice(0, STUDIO_DOCUMENT_LIST_LIMIT)
       .map((row) => toSummary(row as unknown as Omit<StudioDocumentRow, 'document_payload'>)),
     hasMore: rows.length > STUDIO_DOCUMENT_LIST_LIMIT,
+    nextCursor: rows.length > STUDIO_DOCUMENT_LIST_LIMIT ? offset + STUDIO_DOCUMENT_LIST_LIMIT : null,
   };
 };
 
 export const listStudioDocuments = async (
   ownerUserId: string,
   retentionHours: number,
-): Promise<StudioDocumentSummary[]> => (
-  await listStudioDocumentsPage(ownerUserId, retentionHours)
-).documents;
+): Promise<StudioDocumentSummary[]> => {
+  let cursor = 0;
+  const documents: StudioDocumentSummary[] = [];
+  do {
+    const page = await listStudioDocumentsPage(ownerUserId, retentionHours, cursor);
+    documents.push(...page.documents);
+    if (page.nextCursor === null) break;
+    cursor = page.nextCursor;
+  } while (true);
+  return documents;
+};
 
 export const listDeletedStudioDocumentsPage = async (
   ownerUserId: string,
+  cursor = 0,
 ): Promise<StudioDocumentListPage> => {
+  const offset = Math.max(0, Math.floor(cursor));
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .select(SUMMARY_COLUMNS)
@@ -165,7 +179,7 @@ export const listDeletedStudioDocumentsPage = async (
     .not('deleted_at', 'is', null)
     .gt('purge_after', new Date().toISOString())
     .order('deleted_at', { ascending: false })
-    .limit(STUDIO_DOCUMENT_LIST_LIMIT + 1);
+    .range(offset, offset + STUDIO_DOCUMENT_LIST_LIMIT);
   if (error) {
     console.error('Failed to list deleted Studio documents:', error);
     throw new StudioDocumentStoreError('Unable to list deleted Studio documents.');
@@ -176,14 +190,23 @@ export const listDeletedStudioDocumentsPage = async (
       .slice(0, STUDIO_DOCUMENT_LIST_LIMIT)
       .map((row) => toSummary(row as unknown as Omit<StudioDocumentRow, 'document_payload'>)),
     hasMore: rows.length > STUDIO_DOCUMENT_LIST_LIMIT,
+    nextCursor: rows.length > STUDIO_DOCUMENT_LIST_LIMIT ? offset + STUDIO_DOCUMENT_LIST_LIMIT : null,
   };
 };
 
 export const listDeletedStudioDocuments = async (
   ownerUserId: string,
-): Promise<StudioDocumentSummary[]> => (
-  await listDeletedStudioDocumentsPage(ownerUserId)
-).documents;
+): Promise<StudioDocumentSummary[]> => {
+  let cursor = 0;
+  const documents: StudioDocumentSummary[] = [];
+  do {
+    const page = await listDeletedStudioDocumentsPage(ownerUserId, cursor);
+    documents.push(...page.documents);
+    if (page.nextCursor === null) break;
+    cursor = page.nextCursor;
+  } while (true);
+  return documents;
+};
 
 export const getStudioDocument = async (
   ownerUserId: string,

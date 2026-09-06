@@ -1,6 +1,6 @@
 # CardForge Product Surface Map
 
-Last updated: September 3, 2026
+Last updated: September 6, 2026
 
 This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
 
@@ -57,7 +57,10 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 
 - Desk uses the shared Environment shell through the dedicated `desk` feature owner.
 - Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
-- Search, source filters, sort, persistent pinning, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present.
+- Search, persistent pinning/order/world positions, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present. Desk views, types, tags, and sources use multi-select dropdowns; My work is the default and authorized Campaigns/My published views are opt-in and saveable.
+- Browser, Drive, remembered local folders, and temporary Studio documents load independently. Drive and Studio document cursors are exhausted through their native listing contracts; same-scope transient failures retain known results while account/access changes clear protected projections. Folder-only remembered work remains explicit and permission-aware.
+- Set workflow/type/tags are portable package metadata. Shared/public items may receive account-private organization only; labels do not change capability, publication, storage ownership, or contained-card tags.
+- Campaign packages appear as individual authorized Desk objects, while the existing marketing-content package remains the owner. My published projects only the contributor's own published Pipeline lineages through `assets.submit`, never through broader review access.
 - Focusing local work expands its contained cards inside the same persistent Desk scene, with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact moves it to a camera-fitted foreground while its Set field remains mounted as dimmed spatial context; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
 - Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.

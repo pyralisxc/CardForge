@@ -32,6 +32,8 @@ export const accountLibraryKindLabels: Record<AccountLibraryKind, string> = {
   template: 'Templates',
   asset: 'Assets',
   'working-draft': 'Working drafts',
+  campaign: 'Campaigns',
+  'published-resource': 'Published resources',
 };
 
 const sourceStyles: Record<AccountLibrarySource, string> = {
@@ -39,6 +41,8 @@ const sourceStyles: Record<AccountLibrarySource, string> = {
   'google-drive': 'border-emerald-800/50 bg-emerald-950/20 text-emerald-100',
   'local-folder': 'border-violet-800/50 bg-violet-950/20 text-violet-100',
   'assistant-draft': 'border-fuchsia-800/50 bg-fuchsia-950/20 text-fuchsia-100',
+  campaign: 'border-orange-800/50 bg-orange-950/20 text-orange-100',
+  pipeline: 'border-amber-800/50 bg-amber-950/20 text-amber-100',
 };
 
 export const formatAccountLibraryBytes = (bytes: number | null) => {

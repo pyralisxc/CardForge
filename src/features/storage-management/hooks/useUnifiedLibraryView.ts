@@ -29,7 +29,11 @@ export function useUnifiedLibraryView({
         ? item.localResource.kind.charAt(0).toUpperCase() + item.localResource.kind.slice(1)
         : accountLibraryKindLabels[item.kind].replace(/s$/u, ''),
       sourceLabel: item.locations.map((location) => location.label).join(' + '), statusLabel: status.label,
-      summary: item.details.join(' · ') || 'Ready to inspect.', updatedAt: item.updatedAt ?? item.expiresAt,
+      summary: [
+        item.details.join(' · ') || 'Ready to inspect.',
+        item.organization.type ? `Type: ${item.organization.type}` : null,
+        item.organization.tags.length ? `Tags: ${item.organization.tags.join(' · ')}` : null,
+      ].filter(Boolean).join(' · '), updatedAt: item.updatedAt ?? item.expiresAt,
       sizeBytes: item.sizeBytes, previewUrl: null, fontFamily: null, personal: item,
     };
   }), [projection.visibleItems]);

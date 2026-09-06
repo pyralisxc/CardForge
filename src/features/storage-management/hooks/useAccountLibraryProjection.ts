@@ -11,6 +11,7 @@ import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, type LocalPr
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   getPersonalLibraryRoleLabel,
   loadPersonalLibrary,
@@ -22,7 +23,9 @@ import { readLocalLibraryResources, retainLocalLibraryResources, type LocalLibra
 
 import {
   buildAccountLibraryItems,
+  applyAccountLibraryPrivateOrganization,
   resolveAccountHomeLibraryProjection,
+  type AccountLibraryPrivateOrganization,
   type AccountLibraryItem,
   type AccountLibraryKind,
   type AccountLibrarySource,
@@ -36,6 +39,32 @@ interface StudioDocumentSummary {
   updatedAt: string;
   expiresAt: string;
 }
+
+const EMPTY_STUDIO_DOCUMENT_SUMMARIES: StudioDocumentSummary[] = [];
+
+const loadAllStudioDocumentSummaries = async (): Promise<StudioDocumentSummary[]> => {
+  let cursor: number | null = 0;
+  const documents: StudioDocumentSummary[] = [];
+  const seenCursors = new Set<number>();
+  while (cursor !== null) {
+    const response = await fetch(`/api/studio-documents?cursor=${cursor}`, { cache: 'no-store' });
+    if (!response.ok) throw await readApiError(response, 'Private working drafts are unavailable.');
+    const page = await response.json() as {
+      documents?: StudioDocumentSummary[];
+      documentsNextCursor?: number | null;
+    };
+    documents.push(...(Array.isArray(page.documents) ? page.documents : []));
+    const next = typeof page.documentsNextCursor === 'number' && page.documentsNextCursor >= 0
+      ? page.documentsNextCursor
+      : null;
+    if (next === null || seenCursors.has(next)) cursor = null;
+    else {
+      seenCursors.add(next);
+      cursor = next;
+    }
+  }
+  return documents;
+};
 
 export type AccountLibrarySourceId =
   | 'workspace'
@@ -74,6 +103,21 @@ export const retainScopedLastKnownLibrarySource = <Value,>(
   scope,
   value: retainLastKnownLibrarySource(current?.scope === scope ? current.value : null, refreshed),
 });
+
+const ACCOUNT_LIBRARY_ORGANIZATION_KEY = 'account-library-organization:v1';
+
+const normalizePrivateOrganization = (value: unknown): Record<string, AccountLibraryPrivateOrganization> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([id, entry]) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const record = entry as Record<string, unknown>;
+    const tags = Array.isArray(record.tags)
+      ? record.tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 40)
+      : [];
+    const type = typeof record.type === 'string' ? record.type : undefined;
+    return [[id, { ...(type ? { type } : {}), tags }] as const];
+  }));
+};
 
 interface UseAccountLibraryProjectionOptions {
   persistenceScope: ProjectPersistenceScope;
@@ -129,8 +173,11 @@ export function useAccountLibraryProjection({
   const [driveBindingSource, setDriveBindingSource] = useState<ScopedLibrarySource<string> | null>(null);
   const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
   const [localWorkFolders, setLocalWorkFolders] = useState<LocalProjectWorkBindingStatus[]>([]);
-  const [personalLibrary, setPersonalLibrary] = useState<PersonalLibraryListResult | null>(null);
-  const [workingDrafts, setWorkingDrafts] = useState<StudioDocumentSummary[]>([]);
+  const [personalLibrarySource, setPersonalLibrarySource] = useState<ScopedLibrarySource<PersonalLibraryListResult> | null>(null);
+  const [workingDraftSource, setWorkingDraftSource] = useState<ScopedLibrarySource<StudioDocumentSummary[]> | null>(null);
+  const [privateOrganization, setPrivateOrganization] = useState<Record<string, AccountLibraryPrivateOrganization>>({});
+  const [privateOrganizationReady, setPrivateOrganizationReady] = useState(false);
+  const [privateOrganizationUnavailable, setPrivateOrganizationUnavailable] = useState(false);
   const [sourceFailures, setSourceFailures] = useState<AccountLibrarySourceFailure[]>([]);
   // Restoring local work does not complete the first source bootstrap.
   const [loadingSources, setLoadingSources] = useState(true);
@@ -143,6 +190,10 @@ export function useAccountLibraryProjection({
   const refreshGeneration = useRef(0);
   const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
   const driveBindingFileId = driveBindingSource?.scope === persistenceScope ? driveBindingSource.value : null;
+  const personalLibrary = personalLibrarySource?.scope === persistenceScope ? personalLibrarySource.value : null;
+  const workingDrafts = workingDraftSource?.scope === persistenceScope
+    ? workingDraftSource.value ?? EMPTY_STUDIO_DOCUMENT_SUMMARIES
+    : EMPTY_STUDIO_DOCUMENT_SUMMARIES;
   const localResources = useMemo(() => localResourceSource?.scope === persistenceScope ? localResourceSource.value ?? [] : [], [localResourceSource, persistenceScope]);
 
   const cardSets = useProjectStore((state) => state.cardSets);
@@ -150,11 +201,17 @@ export function useAccountLibraryProjection({
   const storedCards = useProjectStore((state) => state.storedCards);
   const userTemplates = useProjectStore((state) => state.userTemplates);
   const setDefaultTemplatesFromFiles = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
+  const updateCardSetMetadata = useProjectStore((state) => state.updateCardSetMetadata);
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
     setLoadingSources(true);
     setHydrationFailure(null);
+    setLocalFolder(null);
+    setLocalWorkFolders([]);
+    setPersonalLibrarySource(null);
+    setWorkingDraftSource(null);
+    setSourceFailures([]);
     void hydrateProjectWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setHydrated(true); })
       .catch((error) => {
@@ -164,6 +221,24 @@ export function useAccountLibraryProjection({
       });
     return () => { cancelled = true; };
   }, [persistenceScope]);
+
+  const organizationPreferenceKey = `${ACCOUNT_LIBRARY_ORGANIZATION_KEY}:${persistenceScope}`;
+  useEffect(() => {
+    let cancelled = false;
+    setPrivateOrganization({});
+    setPrivateOrganizationReady(false);
+    setPrivateOrganizationUnavailable(false);
+    void readProjectPreferenceSafely<unknown>(organizationPreferenceKey).then((result) => {
+      if (cancelled) return;
+      if (result.kind === 'unavailable') {
+        setPrivateOrganizationUnavailable(true);
+      } else {
+        setPrivateOrganization(result.kind === 'available' ? normalizePrivateOrganization(result.value) : {});
+        setPrivateOrganizationReady(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [organizationPreferenceKey]);
 
   const refreshLibrarySources = useCallback(async () => {
     const generation = refreshGeneration.current + 1;
@@ -195,16 +270,16 @@ export function useAccountLibraryProjection({
           }),
           loadPersonalLibrary().catch((error) => {
             failures.push(sourceFailure('personal-library', error, 'Connected assets are unavailable.'));
-            return null;
+            // `undefined` deliberately means "keep the last value for this
+            // account". `null` is reserved for a known empty/signed-out
+            // source, so a transient provider failure never erases work the
+            // person was already looking at.
+            return undefined;
           }),
-          fetch('/api/studio-documents', { cache: 'no-store' })
-            .then(async (response) => {
-              if (!response.ok) throw await readApiError(response, 'Private working drafts are unavailable.');
-              return await response.json() as { documents?: StudioDocumentSummary[] };
-            })
+          loadAllStudioDocumentSummaries()
             .catch((error) => {
               failures.push(sourceFailure('assistant-drafts', error, 'Private working drafts are unavailable.'));
-              return null;
+              return undefined;
             }),
         ] as const)
       : Promise.resolve([null, null, null, null] as const);
@@ -236,8 +311,12 @@ export function useAccountLibraryProjection({
       persistenceScope,
       bindingResult === undefined ? undefined : bindingResult?.fileId ?? null,
     ));
-    setPersonalLibrary(assetsResult);
-    setWorkingDrafts(Array.isArray(draftsResult?.documents) ? draftsResult.documents : []);
+    setPersonalLibrarySource((current) => retainScopedLastKnownLibrarySource(current, persistenceScope, assetsResult));
+    setWorkingDraftSource((current) => retainScopedLastKnownLibrarySource(
+      current,
+      persistenceScope,
+      draftsResult,
+    ));
     setSourceFailures(failures);
     setLoadingSources(false);
   }, [isSignedIn, persistenceScope, setDefaultTemplatesFromFiles]);
@@ -262,12 +341,13 @@ export function useAccountLibraryProjection({
     return counts;
   }, [storedCards]);
 
-  const items = useMemo(() => buildAccountLibraryItems({
+  const items = useMemo(() => applyAccountLibraryPrivateOrganization(buildAccountLibraryItems({
     localSets: cardSets.map((set) => ({
       id: set.id,
       name: set.name,
       cardCount: cardCounts.get(set.id) ?? 0,
       sizeBytes: null,
+      metadata: set.metadata,
       })),
     localTemplates: userTemplates.flatMap((template) => template.id ? [{ id: template.id, name: template.name }] : []),
     localResources,
@@ -290,7 +370,7 @@ export function useAccountLibraryProjection({
       providerWebViewLink: item.providerWebViewLink,
     })),
     workingDrafts,
-  }), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localResources, localWorkFolders, personalLibrary?.items, userTemplates, workingDrafts]);
+  }), privateOrganization), [cardCounts, cardSets, driveBindingFileId, driveLibrary?.projects, localResources, localWorkFolders, personalLibrary?.items, privateOrganization, userTemplates, workingDrafts]);
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
@@ -318,6 +398,22 @@ export function useAccountLibraryProjection({
 
   const home = useMemo(() => resolveAccountHomeLibraryProjection(items, activeSetId), [activeSetId, items]);
 
+  const updatePersonalOrganization = useCallback((item: AccountLibraryItem, patch: { type?: string; tags?: string[] }): boolean => {
+    if (item.references.localSetId) return updateCardSetMetadata(item.references.localSetId, patch);
+    if (!privateOrganizationReady) return false;
+    setPrivateOrganization((current) => {
+      const existing = current[item.id] ?? { tags: [] };
+      const next: AccountLibraryPrivateOrganization = {
+        ...(patch.type !== undefined ? { type: patch.type } : existing.type ? { type: existing.type } : {}),
+        tags: patch.tags ?? existing.tags,
+      };
+      const updated = { ...current, [item.id]: next };
+      void writeProjectPreference(organizationPreferenceKey, updated);
+      return updated;
+    });
+    return true;
+  }, [organizationPreferenceKey, privateOrganizationReady, updateCardSetMetadata]);
+
   const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) => {
     setBusyItemId(item.id);
     try {
@@ -336,6 +432,20 @@ export function useAccountLibraryProjection({
         store.setStudioView('template');
         const params = new URLSearchParams({ section: 'library', scope: 'personal', tool: 'design', artifact: item.references.localTemplateId });
         router.push(`/account?${params.toString()}`);
+        return;
+      }
+      if (item.references.campaignId) {
+        router.push(`/account?section=library&scope=campaigns&campaign=${encodeURIComponent(item.references.campaignId)}`);
+        return;
+      }
+      if (item.references.pipelineLineageId) {
+        router.push(`/account?section=library&scope=published&lineage=${encodeURIComponent(item.references.pipelineLineageId)}`);
+        return;
+      }
+      if (item.references.localFolderWorkId) {
+        // A remembered directory handle cannot be elevated in the background.
+        // The Library location tool makes the user-triggered reconnect choice.
+        router.push('/account?section=library&tool=locations');
         return;
       }
       if (item.references.driveFileId) {
@@ -360,6 +470,10 @@ export function useAccountLibraryProjection({
     featuredItem: home.featuredItem,
     recentItems: home.moreItems,
     sourceCounts,
+    privateOrganization,
+    privateOrganizationReady,
+    privateOrganizationUnavailable,
+    updatePersonalOrganization,
     failures: [hydrationFailure, ...sourceFailures].filter((failure): failure is AccountLibrarySourceFailure => Boolean(failure)),
     isLoading: !hydrated || loadingSources,
     loadingSources,

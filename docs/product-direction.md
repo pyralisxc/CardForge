@@ -153,6 +153,12 @@ Desk's primary content is user-owned Sets/Projects and resumable work. It is not
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
 
+Desk restores each source independently. A transient same-account failure keeps already loaded items with an honest unavailable state; an account switch, revoked capability, or expired protected session clears that protected source. Folder-only remembered work remains visible as a reconnectable work location. Drive/AI listing follows provider cursors, and discovery never imports provider work merely because a person logged in.
+
+**My work** is the quiet default. Authorized people may opt into and combine **Campaigns** and **My published**, or save a custom view; a newly granted permission never changes the default selection. Views, types, tags, and sources are genuine multi-select filters, tags may use any/all matching, and Reset returns to My work rather than broad protected content. Compact Desk layouts hold the full filter set behind one explicit disclosure while keeping the active restriction readable. Filtering must not rewrite spatial positions, pins, or saved order.
+
+Set metadata separates its supported workflow from descriptive type and reusable personal tags. Built-in types describe shipped card-set work; creators may use custom types such as `Postcards`. Labels never grant a capability. Authored Set metadata travels in the project package; organization applied to an immutable publication/shared resource is private to the account and cannot mutate its public revision. Set tags do not silently tag contained cards.
+
 New work has one creation boundary: start with a fresh Set or instantiate an independent browser-owned copy of a Published Set. Published starters are immutable reviewed `.cardforge` package revisions, not a second starter document format or a special Set subtype. The same portable package contract owns import, export, provider transfer, Pipeline publication, and starter installation; installation re-keys local object identity so editing a starter never mutates its published lineage.
 
 A Contributor sees contribution/Pipeline state on their own objects when relevant. Other contributors' Pipeline objects do not appear on Desk simply because they are reviewable.
@@ -433,7 +439,7 @@ Campaign package capability remains valid while Contributor stops being a separa
 First integration rule:
 
 - Campaign packages are Set-like specialized work in the interaction model, while `marketing-content` remains their record and lifecycle owner.
-- Desk surfaces a compact visual shelf for active campaign packages owned by or available to the current Contributor.
+- Desk projects authorized campaign packages as individual campaign work objects in the same spatial scene, never as fake card Sets or a separate shelf. `marketing-content` retains the package record, variants, media, and campaign publication lifecycle.
 - Library adds a Campaigns scope only for Owners and Contributors granted `campaigns.draft`; normal accounts do not receive campaign packages or reusable campaign media through Pipeline entitlement.
 - Contributors draft, revise, attach approved media, and submit campaign packages in Library. Owner retains strategy, approval, destination credentials, scheduling, publication, and delivery history.
 - Profile owns personal Contributor access, limits, and scopes. Owner operations compose inside Profile.

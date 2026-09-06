@@ -140,6 +140,30 @@ describe('Google Drive provider boundaries', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it('follows Google Drive native page tokens instead of stopping at the first page', async () => {
+    const connectionQuery = selectConnectionQuery() as ReturnType<typeof selectConnectionQuery> & { update?: ReturnType<typeof vi.fn> };
+    connectionQuery.update = vi.fn().mockReturnValue(connectionQuery);
+    const from = vi.fn().mockReturnValue(connectionQuery);
+    mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
+    const project = (id: string, version: string) => ({
+      id, name: `${id}.cardforge`, mimeType: 'application/vnd.cardforge.project+zip', version,
+      modifiedTime: '2026-09-01T00:00:00.000Z', size: '12', parents: ['drive_folder_123'],
+      appProperties: { cardforgeProject: '1', cardforgeProjectRevision: `${id}-revision` },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'first-token' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile1', '1')], nextPageToken: 'page-two' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'second-token' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile2', '2')] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(listGoogleDriveProjects('user-1')).resolves.toMatchObject({
+      projects: [{ fileId: 'drivefile1' }, { fileId: 'drivefile2' }], nextPageToken: null,
+    });
+    const secondListUrl = new URL(String(fetchMock.mock.calls[3]?.[0]));
+    expect(secondListUrl.searchParams.get('pageToken')).toBe('page-two');
+  });
+
   it('classifies a token-endpoint network failure as unavailable without changing the connection', async () => {
     const from = vi.fn().mockReturnValue(selectConnectionQuery());
     mockedGetSupabaseServerClient.mockReturnValue({ from } as never);

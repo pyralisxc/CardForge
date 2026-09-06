@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
-import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
+import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
+import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
@@ -40,6 +41,7 @@ describe('Desk model', () => {
       details: ['0 cards', 'Device only'], sizeBytes: null, revision: null,
       updatedAt: null, expiresAt: null, webViewLink: null,
       references: { localSetId: 'set-alpha' },
+      organization: { workflow: 'card-set', type: null, tags: [], source: 'none', publicationState: 'working' },
     };
     expect(getWorkActions(localSet, false, true)[0]).toMatchObject({
       id: 'desk.open-set', label: 'Open Set', ownerFeature: 'project',
@@ -78,6 +80,7 @@ describe('Desk model', () => {
       expiresAt: null,
       webViewLink: null,
       references: {},
+      organization: { workflow: 'card-set', type: null, tags: [], source: 'none', publicationState: 'working' },
     });
     const device = item('device-set', 'device', 'This device');
     const drive = item('drive-set', 'google-drive', 'Google Drive');
@@ -95,6 +98,27 @@ describe('Desk model', () => {
     expect(getDeskWorkKeyboardIntent(' ', true)).toBe('select-additive');
     expect(getDeskWorkKeyboardIntent('Enter', false)).toBe('open');
     expect(getDeskWorkKeyboardIntent('ArrowRight', false)).toBe('none');
+  });
+
+  it('supports any/all tag filters without treating user labels as permissions', () => {
+    const item: AccountLibraryItem = {
+      id: 'set:postcards', kind: 'set', name: 'Postcards', locations: [{ source: 'device', status: 'available', label: 'This device' }],
+      details: [], sizeBytes: null, revision: null, updatedAt: null, expiresAt: null, webViewLink: null, references: { localSetId: 'postcards' },
+      organization: { workflow: 'card-set', type: 'Postcards', tags: ['launch', 'print'], source: 'portable', publicationState: 'working' },
+    };
+    expect(matchesDeskTagFilters(item, ['launch', 'archive'], 'any')).toBe(true);
+    expect(matchesDeskTagFilters(item, ['launch', 'print'], 'all')).toBe(true);
+    expect(matchesDeskTagFilters(item, ['launch', 'archive'], 'all')).toBe(false);
+    expect(matchesDeskViews(item, ['my-work'])).toBe(true);
+    expect(matchesDeskViews(item, ['campaigns'])).toBe(false);
+  });
+
+  it('defaults saved Desk preferences to quiet My work and preserves custom multi-select values', () => {
+    expect(normalizeDeskViewPreferences(null)).toMatchObject({ views: ['my-work'], types: [], tags: [], sources: [] });
+    expect(normalizeDeskViewPreferences({
+      views: ['my-work', 'my-published'], types: ['Postcards'], tags: ['launch', 'print'],
+      sources: ['device', 'google-drive'], tagMatch: 'all', saved: [{ id: 'launch', name: 'Launch work', views: ['my-work'], types: ['Postcards'], tags: ['launch'], sources: ['device'], tagMatch: 'any' }],
+    })).toMatchObject({ views: ['my-work', 'my-published'], types: ['Postcards'], tags: ['launch', 'print'], sources: ['device', 'google-drive'], tagMatch: 'all', saved: [{ name: 'Launch work' }] });
   });
 
   it('migrates legacy pixels into versioned world geometry and projects across viewport sizes', () => {

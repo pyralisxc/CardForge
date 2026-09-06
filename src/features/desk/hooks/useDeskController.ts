@@ -21,19 +21,20 @@ import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { useAccountLibraryProjection, type AccountLibraryItem } from '@/features/storage-management/client';
+import { applyAccountLibraryPrivateOrganization, useAccountLibraryProjection, type AccountLibraryItem, type AccountLibrarySource } from '@/features/storage-management/client';
 
 import {
   getDeskToolCard,
   visibleWorkKinds,
   type DeskAccountStatus,
-  type DeskSourceFilter,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
 import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
 import { useDeskActionRuntime } from './useDeskActionRuntime';
 import { useDeskLayout } from './useDeskLayout';
+import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
+import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
 import { usePublishedSetStarters } from './usePublishedSetStarters';
 import { useDeskProjectWorkspace } from './useDeskProjectWorkspace';
 
@@ -61,6 +62,18 @@ export function useDeskController({
   const { toast } = useToast();
   const isSignedIn = experience.signedIn;
   const projection = useAccountLibraryProjection({ persistenceScope, isSignedIn });
+  const discoveredWork = useDeskWorkDiscovery({ persistenceScope, experience });
+  const refreshDeskSources = useCallback(() => {
+    projection.refresh();
+    void discoveredWork.refresh();
+  }, [discoveredWork, projection]);
+  const deskProjection = useMemo(() => ({
+    ...projection,
+    failures: [...projection.failures, ...discoveredWork.failures],
+    isLoading: projection.isLoading || discoveredWork.loading,
+    loadingSources: projection.loadingSources || discoveredWork.loading,
+    refresh: refreshDeskSources,
+  }), [discoveredWork.failures, discoveredWork.loading, projection, refreshDeskSources]);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const cardStageRef = useRef<HTMLDivElement | null>(null);
@@ -72,7 +85,20 @@ export function useDeskController({
   const libraryOrigin = originHref && new URL(originHref, 'https://cardforge.local').searchParams.get('section') === 'library' ? originHref : null;
   const zones = getVisibleEnvironmentZones(viewer).map((zone) => zone.id === 'library' && libraryOrigin ? { ...zone, href: libraryOrigin } : zone);
   const [query, setQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<DeskSourceFilter>('all');
+  const deskViewPreferences = useDeskViewPreferences(persistenceScope);
+  const availableDeskViews = useMemo(() => ([
+    'my-work',
+    ...(discoveredWork.canLoadCampaigns ? ['campaigns'] : []),
+    ...(discoveredWork.canLoadPublished ? ['my-published'] : []),
+  ] as DeskViewId[]), [discoveredWork.canLoadCampaigns, discoveredWork.canLoadPublished]);
+  const activeDeskViews = useMemo(() => {
+    const authorized = deskViewPreferences.preferences.views.filter((view) => availableDeskViews.includes(view));
+    return authorized.length ? authorized : ['my-work'] as DeskViewId[];
+  }, [availableDeskViews, deskViewPreferences.preferences.views]);
+  const sourceFilter = deskViewPreferences.preferences.sources[0] ?? 'all';
+  const setSourceFilter = useCallback((source: 'all' | AccountLibrarySource) => {
+    deskViewPreferences.update((current) => ({ ...current, sources: source === 'all' ? [] : [source] }));
+  }, [deskViewPreferences]);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
   const {
@@ -124,9 +150,12 @@ export function useDeskController({
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
   const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
 
-  const workItems = useMemo(() => projection.items.filter((item) => (
+  const workItems = useMemo(() => applyAccountLibraryPrivateOrganization([
+    ...projection.items,
+    ...discoveredWork.items,
+  ], projection.privateOrganization).filter((item) => (
     visibleWorkKinds.has(item.kind)
-  )), [projection.items]);
+  )), [discoveredWork.items, projection.items, projection.privateOrganization]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
   const {
     beginDrag: beginDeskDrag,
@@ -142,7 +171,9 @@ export function useDeskController({
     positions: deskPositions,
     shouldSuppressActivation,
     sourceFacets,
+    tagFacets,
     togglePin,
+    typeFacets,
     visibleWork,
     workGridRef,
     workWorldRef,
@@ -150,16 +181,16 @@ export function useDeskController({
     persistenceScope,
     workItems,
     query,
-    sourceFilter,
+    sourceFilters: deskViewPreferences.preferences.sources,
+    typeFilters: deskViewPreferences.preferences.types,
+    tagFilters: deskViewPreferences.preferences.tags,
+    tagMatch: deskViewPreferences.preferences.tagMatch,
+    viewIds: activeDeskViews,
     focused: Boolean(focusedWorkId),
     snapToGrid,
     selectedIds: selectedDeskIds,
     onSelectionChange: (ids, anchorId) => setInteractionSession((current) => selectCreatorDeskSets(current, ids, anchorId)),
   });
-  useEffect(() => {
-    if (sourceFilter === 'all' || sourceFacets.some((facet) => facet.id === sourceFilter)) return;
-    setSourceFilter('all');
-  }, [sourceFacets, sourceFilter]);
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
@@ -189,6 +220,7 @@ export function useDeskController({
     addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision,
+    updateCardSetMetadata,
   } = projectActions;
   const {
     activeCardSet, activeCardSetId, allArtifactsSelected, allVisibleCardsSelected, availableFields, cardSets,
@@ -278,6 +310,7 @@ export function useDeskController({
 
   useEffect(() => {
     if (!initialReturnContextKey || returnContextRestoredRef.current) return;
+    if (!deskViewPreferences.ready && !deskViewPreferences.unavailable) return;
     const context = readSurfaceReturnContext(initialReturnContextKey);
     if (!context || context.kind !== 'desk') {
       returnContextRestoredRef.current = true;
@@ -286,7 +319,14 @@ export function useDeskController({
     if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
     returnContextRestoredRef.current = true;
     setQuery(context.query);
-    setSourceFilter(context.sourceFilter);
+    deskViewPreferences.update((current) => ({
+      ...current,
+      views: context.deskViews?.length ? context.deskViews : current.views,
+      sources: context.deskSources ?? (context.sourceFilter === 'all' || context.sourceFilter === 'connected' || context.sourceFilter === 'temporary' ? current.sources : [context.sourceFilter]),
+      types: context.deskTypes ?? current.types,
+      tags: context.deskTags ?? current.tags,
+      tagMatch: context.deskTagMatch ?? current.tagMatch,
+    }));
     const restoredSetId = context.focusedWorkId?.startsWith('set:') ? context.focusedWorkId.slice(4) : null;
     restoreFocusedContext({
       focusedWorkId: context.focusedWorkId,
@@ -299,7 +339,7 @@ export function useDeskController({
     setCardQuery(context.cardQuery);
     setTagFilter(context.tagFilter);
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
-  }, [initialReturnContextKey, itemById, restoreFocusedContext]);
+  }, [deskViewPreferences, initialReturnContextKey, itemById, restoreFocusedContext]);
 
   const statuses = createDeskAccountStatuses({ accessStatus, isSignedIn, projection, securityStatus });
 
@@ -332,6 +372,13 @@ export function useDeskController({
       item.id,
     ));
   };
+  const selectedWorkItems = useMemo(() => workItems.filter((item) => selectedDeskIds.includes(item.id)), [selectedDeskIds, workItems]);
+  const updateSelectedWorkOrganization = useCallback((patch: { type?: string; tags?: string[] }) => {
+    selectedWorkItems.forEach((item) => {
+      if (item.references.localSetId) updateCardSetMetadata(item.references.localSetId, patch);
+      else projection.updatePersonalOrganization(item, patch);
+    });
+  }, [projection, selectedWorkItems, updateCardSetMetadata]);
 
   const focusWork = (item: AccountLibraryItem) => {
     trackCardForgeEvent('set_opened', { object_kind: 'set', input_method: 'direct' });
@@ -411,6 +458,11 @@ export function useDeskController({
       inspectorWorkId,
       query,
       sourceFilter,
+      deskViews: deskViewPreferences.preferences.views,
+      deskSources: deskViewPreferences.preferences.sources,
+      deskTypes: deskViewPreferences.preferences.types,
+      deskTags: deskViewPreferences.preferences.tags,
+      deskTagMatch: deskViewPreferences.preferences.tagMatch,
       sort: 'desk',
       selectedCardIds: nextSelectedCardIds,
       cardQuery,
@@ -510,6 +562,7 @@ export function useDeskController({
     deskPositions,
     deskCamera,
     deskMarquee,
+    deskViewPreferences,
     detail,
     dirtyCloseRequested,
     dirtyCloseToDesk,
@@ -546,7 +599,8 @@ export function useDeskController({
     pendingDeleteWork,
     pinnedIds,
     pipelineSubmitSetId,
-    projection,
+    projection: deskProjection,
+    refreshDeskSources,
     query,
     removeGeneratedCards,
     reflectiveGroupings,
@@ -559,6 +613,7 @@ export function useDeskController({
     selectedCardIndex,
     selectedCards,
     selectedDeskIds,
+    selectedWorkItems,
     selectDeskWork,
     selectionScope,
     setCardPositions,
@@ -594,6 +649,10 @@ export function useDeskController({
     showTemplateTool,
     snapToGrid,
     sourceFacets,
+    tagFacets,
+    typeFacets,
+    activeDeskViews,
+    availableDeskViews,
     sortedCards,
     sourceFilter,
     statuses,
@@ -603,6 +662,7 @@ export function useDeskController({
     tagFilter,
     templates,
     togglePin,
+    updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
     visibleCards,

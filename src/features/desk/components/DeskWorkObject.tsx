@@ -113,7 +113,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Press Enter to open.`}
     >
       <div className={styles.workVisual} data-desk-set-stack data-card-face={face}>{props.preview(face)}</div>
-      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' Â· ') || workSourceLabel(props.item)}</span><span>{workSourceLabel(props.item)}</span></span>
+      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' Â· ') || workSourceLabel(props.item)}</span>{props.item.organization.type || props.item.organization.tags.length ? <span className={styles.workOrganization}>{[props.item.organization.type, ...props.item.organization.tags].filter(Boolean).join(' · ')}</span> : null}<span>{workSourceLabel(props.item)}</span></span>
     </button>
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}

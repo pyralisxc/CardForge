@@ -1,6 +1,7 @@
+import type { CardSetMetadata } from '@/domain/cards';
 import type { LocalLibraryResource } from '@/features/project/client/library-resources';
 
-export const ACCOUNT_LIBRARY_KINDS = ['set', 'template', 'asset', 'working-draft'] as const;
+export const ACCOUNT_LIBRARY_KINDS = ['set', 'template', 'asset', 'working-draft', 'campaign', 'published-resource'] as const;
 export type AccountLibraryKind = typeof ACCOUNT_LIBRARY_KINDS[number];
 
 export const ACCOUNT_LIBRARY_SOURCES = [
@@ -8,6 +9,8 @@ export const ACCOUNT_LIBRARY_SOURCES = [
   'google-drive',
   'local-folder',
   'assistant-draft',
+  'campaign',
+  'pipeline',
 ] as const;
 export type AccountLibrarySource = typeof ACCOUNT_LIBRARY_SOURCES[number];
 
@@ -15,6 +18,8 @@ export type AccountLibraryLocationStatus = 'available' | 'attached' | 'needs-per
 
 export interface AccountLibraryLocation {
   source: AccountLibrarySource;
+  /** Storage is a durable copy; work-source identifies a server-owned projection. */
+  kind?: 'storage' | 'work-source';
   status: AccountLibraryLocationStatus;
   label: string;
 }
@@ -27,8 +32,25 @@ export interface AccountLibraryReferences {
   driveProviderRevision?: string;
   driveProjectRevision?: string;
   localFolder?: boolean;
+  localFolderWorkId?: string;
   personalAssetId?: string;
   workingDraftId?: string;
+  campaignId?: string;
+  pipelineLineageId?: string;
+}
+
+export type AccountLibraryPublicationState = 'working' | 'published' | 'campaign' | 'temporary';
+
+/**
+ * Each field is deliberately descriptive. Provider locations and Pipeline
+ * status remain on their native records; labels cannot unlock an action.
+ */
+export interface AccountLibraryOrganization {
+  workflow: 'card-set' | 'assistant-document' | 'campaign' | 'published-resource' | 'resource';
+  type: string | null;
+  tags: string[];
+  source: 'portable' | 'private' | 'none';
+  publicationState: AccountLibraryPublicationState;
 }
 
 export interface AccountLibraryItem {
@@ -44,6 +66,7 @@ export interface AccountLibraryItem {
   webViewLink: string | null;
   references: AccountLibraryReferences;
   localResource?: LocalLibraryResource;
+  organization: AccountLibraryOrganization;
 }
 
 export type AccountLibraryAction = 'open' | 'continue' | 'save-move' | 'duplicate' | 'delete-copy' | 'view-source' | 'manage-storage';
@@ -86,6 +109,7 @@ interface LocalSetInput {
   name: string;
   cardCount: number;
   sizeBytes: number | null;
+  metadata?: CardSetMetadata;
 }
 
 interface LocalTemplateInput {
@@ -111,6 +135,34 @@ interface LocalWorkFolderInput {
   lastSavedAt: string | null;
   permission: 'granted' | 'denied' | 'prompt' | 'unavailable';
 }
+
+export interface AccountLibraryPrivateOrganization {
+  type?: string;
+  tags: string[];
+}
+
+const normalizeOrganizationText = (value: string | undefined, limit: number): string | null => {
+  const normalized = value?.trim().replace(/\s+/gu, ' ').slice(0, limit) ?? '';
+  return normalized || null;
+};
+
+const normalizeOrganizationTags = (tags: readonly string[]): string[] => Array.from(new Set(tags
+  .map((tag) => normalizeOrganizationText(tag, 60))
+  .filter((tag): tag is string => Boolean(tag)))).slice(0, 40);
+
+const portableSetOrganization = (metadata: CardSetMetadata | undefined): AccountLibraryOrganization => ({
+  workflow: 'card-set',
+  type: normalizeOrganizationText(metadata?.type, 80),
+  tags: normalizeOrganizationTags(metadata?.tags ?? []),
+  source: metadata ? 'portable' : 'none',
+  publicationState: 'working',
+});
+
+const organization = (
+  workflow: AccountLibraryOrganization['workflow'],
+  publicationState: AccountLibraryPublicationState,
+  type: string | null = null,
+): AccountLibraryOrganization => ({ workflow, publicationState, type, tags: [], source: 'none' });
 
 interface PersonalAssetInput {
   id: string;
@@ -182,6 +234,7 @@ export const buildAccountLibraryItems = ({
       expiresAt: null,
       webViewLink: null,
       references: { localSetId: localSet.id },
+      organization: portableSetOrganization(localSet.metadata),
     };
     items.push(item);
     workById.set(localSet.id, item);
@@ -200,6 +253,7 @@ export const buildAccountLibraryItems = ({
       expiresAt: null,
       webViewLink: null,
       references: { localTemplateId: template.id },
+      organization: organization('resource', 'working', 'Template'),
     });
   }
 
@@ -217,6 +271,7 @@ export const buildAccountLibraryItems = ({
       webViewLink: null,
       references: { localResourceId: resource.id },
       localResource: resource,
+      organization: organization('resource', 'working', resource.kind === 'font' ? 'Font' : resource.kind),
     });
   }
 
@@ -255,6 +310,7 @@ export const buildAccountLibraryItems = ({
         driveProviderRevision: project.providerRevision,
         ...(project.projectRevision ? { driveProjectRevision: project.projectRevision } : {}),
       },
+      organization: organization('card-set', 'working'),
     };
     items.push(item);
     if (project.workId) workById.set(project.workId, item);
@@ -262,13 +318,30 @@ export const buildAccountLibraryItems = ({
 
   for (const localFolder of localWorkFolders) {
     const matchingWork = workById.get(localFolder.workId);
-    if (!matchingWork) continue;
     const needsPermission = localFolder.permission !== 'granted';
-    matchingWork.locations.push({
+    const location: AccountLibraryLocation = {
         source: 'local-folder',
         status: needsPermission ? 'needs-permission' : 'attached',
         label: needsPermission ? `${localFolder.folderName} · reconnect` : localFolder.folderName,
-    });
+    };
+    if (!matchingWork) {
+      items.push({
+        id: `local-folder-work:${localFolder.workId}`,
+        kind: 'set',
+        name: localFolder.folderName,
+        locations: [location],
+        details: [needsPermission ? 'Folder permission required' : 'Saved folder work'],
+        sizeBytes: null,
+        revision: localFolder.sourceRevision,
+        updatedAt: localFolder.lastSavedAt,
+        expiresAt: null,
+        webViewLink: null,
+        references: { localFolder: true, localFolderWorkId: localFolder.workId },
+        organization: organization('card-set', 'working'),
+      });
+      continue;
+    }
+    matchingWork.locations.push(location);
     matchingWork.references.localFolder = true;
     matchingWork.revision ??= localFolder.sourceRevision;
     matchingWork.updatedAt ??= localFolder.lastSavedAt;
@@ -287,6 +360,7 @@ export const buildAccountLibraryItems = ({
       expiresAt: null,
       webViewLink: asset.providerWebViewLink,
       references: { personalAssetId: asset.id },
+      organization: organization('resource', 'working', asset.roleLabel),
     });
   }
 
@@ -303,11 +377,37 @@ export const buildAccountLibraryItems = ({
       expiresAt: draft.expiresAt,
       webViewLink: null,
       references: { workingDraftId: draft.id },
+      organization: organization('assistant-document', 'temporary'),
     });
   }
 
   return items.sort(compareLibraryItems);
 };
+
+/**
+ * Shared/Pipeline records remain immutable. A user may arrange them privately
+ * in their account scope, but portable local Set metadata stays authoritative.
+ */
+export const applyAccountLibraryPrivateOrganization = (
+  items: readonly AccountLibraryItem[],
+  privateOrganization: Readonly<Record<string, AccountLibraryPrivateOrganization | undefined>>,
+): AccountLibraryItem[] => items.map((item) => {
+  if (item.references.localSetId) return item;
+  const override = privateOrganization[item.id];
+  if (!override) return item;
+  const type = normalizeOrganizationText(override.type, 80);
+  const tags = normalizeOrganizationTags(override.tags);
+  if (!type && tags.length === 0) return item;
+  return {
+    ...item,
+    organization: {
+      ...item.organization,
+      type: type ?? item.organization.type,
+      tags,
+      source: 'private',
+    },
+  };
+});
 
 export const getAccountLibrarySourceLabel = (source: AccountLibrarySource): string => {
   switch (source) {
@@ -315,6 +415,8 @@ export const getAccountLibrarySourceLabel = (source: AccountLibrarySource): stri
     case 'google-drive': return 'Google Drive';
     case 'local-folder': return 'Local folder';
     case 'assistant-draft': return 'Private draft';
+    case 'campaign': return 'Marketing workspace';
+    case 'pipeline': return 'CardForge Pipeline';
   }
 };
 
@@ -322,7 +424,14 @@ export const getAccountLibraryAvailableActions = (item: AccountLibraryItem): Acc
   const actions: AccountLibraryAction[] = [];
 
   if (item.references.workingDraftId) actions.push('continue');
-  else if (item.references.localSetId || item.references.localTemplateId || item.references.driveFileId) actions.push('open');
+  else if (
+    item.references.localSetId
+    || item.references.localTemplateId
+    || item.references.driveFileId
+    || item.references.localFolderWorkId
+    || item.references.campaignId
+    || item.references.pipelineLineageId
+  ) actions.push('open');
 
   if (item.kind === 'set') actions.push('save-move');
   if (item.references.localSetId || item.references.localTemplateId) actions.push('duplicate');

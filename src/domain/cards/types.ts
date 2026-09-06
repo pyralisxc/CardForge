@@ -41,8 +41,31 @@ export interface CardSetOrganization {
   positions: Record<string, CardSetCardPosition>;
 }
 
+/**
+ * Portable authored organization for a Set. These labels describe the work;
+ * they never carry permissions, publication authority, or a storage binding.
+ */
+export type CardSetWorkflow = 'card-set';
+
+export interface CardSetMetadata {
+  /** The shipped authoring workflow that owns the Set. */
+  workflow: CardSetWorkflow;
+  /** A built-in descriptive type or a creator-defined label such as “Postcards”. */
+  type?: string;
+  /** Personal, portable labels for this Set only. They do not cascade to cards. */
+  tags: string[];
+}
+
+export const CARD_SET_BUILT_IN_TYPES = [
+  'Card set',
+  'Playing deck',
+  'Reference deck',
+  'Trading card set',
+] as const;
+
 export interface CardSet {
   id: string;
   name: string;
   organization?: CardSetOrganization;
+  metadata?: CardSetMetadata;
 }

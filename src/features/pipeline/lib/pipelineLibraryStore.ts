@@ -72,3 +72,27 @@ export const getPipelineLibraryProgramView = async (
     votingPage,
   });
 };
+
+/**
+ * A contributor's published projection is intentionally narrower than Forge
+ * Review: it reads only that contributor's published lineages and does not
+ * provide voting queues or other contributors' records.
+ */
+export const getOwnPublishedPipelineSubmissions = async (
+  currentUserId: string,
+) => {
+  const context = await getPipelineProgramContext(currentUserId);
+  const pageSize = 50;
+  const loadPage = (page: number) => fetchPipelineSubmissionPage({
+    currentUserId,
+    profiles: context.profiles,
+    includeRegistryRecipePayloads: false,
+    allowSelfVoting: context.settings.allowContributorSelfVoting,
+    query: { scope: 'own', status: 'published', page, pageSize },
+  });
+  const firstPage = await loadPage(1);
+  const pageCount = Math.ceil(firstPage.total / pageSize);
+  if (pageCount <= 1) return firstPage.submissions;
+  const remaining = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => loadPage(index + 2)));
+  return [firstPage, ...remaining].flatMap((page) => page.submissions);
+};

@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import type { CardSetOrganization } from '@/domain/cards';
+import type { CardSetMetadata, CardSetOrganization } from '@/domain/cards';
 
 import type { OrganizationSlice, ProjectState } from './types';
 
@@ -12,6 +12,15 @@ export const DEFAULT_CARD_SET_ORGANIZATION: CardSetOrganization = {
   tags: [],
   positions: {},
 };
+
+const DEFAULT_CARD_SET_METADATA: CardSetMetadata = {
+  workflow: 'card-set',
+  tags: [],
+};
+
+const normalizeMetadataLabels = (labels: readonly string[]) => Array.from(new Set(labels
+  .map((label) => label.trim().replace(/\s+/gu, ' ').slice(0, 60))
+  .filter(Boolean))).slice(0, 40);
 
 const organizationFor = (state: ProjectState, setId: string): CardSetOrganization => (
   state.cardSets.find((set) => set.id === setId)?.organization ?? DEFAULT_CARD_SET_ORGANIZATION
@@ -29,10 +38,40 @@ const updateSet = (
   return { cardSets, activeCardSet };
 };
 
+const updateSetMetadata = (
+  state: ProjectState,
+  setId: string,
+  metadata: CardSetMetadata,
+) => {
+  const cardSets = state.cardSets.map((set) => set.id === setId ? { ...set, metadata } : set);
+  const activeCardSet = state.activeCardSet?.id === setId
+    ? { ...state.activeCardSet, metadata }
+    : state.activeCardSet;
+  return { cardSets, activeCardSet };
+};
+
 export const createOrganizationSlice: StateCreator<ProjectState, [], [], OrganizationSlice> = (set, get) => ({
   updateCardSetOrganization: (setId, patch) => {
     if (!get().cardSets.some((candidate) => candidate.id === setId)) return false;
     set((state) => updateSet(state, setId, { ...organizationFor(state, setId), ...patch }));
+    return true;
+  },
+  updateCardSetMetadata: (setId, patch) => {
+    if (!get().cardSets.some((candidate) => candidate.id === setId)) return false;
+    const nextType = patch.type === undefined
+      ? undefined
+      : patch.type.trim().replace(/\s+/gu, ' ').slice(0, 80) || undefined;
+    const nextTags = patch.tags === undefined ? undefined : normalizeMetadataLabels(patch.tags);
+    set((state) => {
+      const current = state.cardSets.find((candidate) => candidate.id === setId)?.metadata ?? DEFAULT_CARD_SET_METADATA;
+      return updateSetMetadata(state, setId, {
+        ...current,
+        ...(patch.type !== undefined ? (nextType ? { type: nextType } : {}) : {}),
+        ...(patch.type !== undefined && !nextType ? { type: undefined } : {}),
+        ...(nextTags ? { tags: nextTags } : {}),
+        workflow: 'card-set',
+      });
+    });
     return true;
   },
   addCardSetTag: (setId, label) => {
