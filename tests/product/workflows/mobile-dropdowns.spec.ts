@@ -175,7 +175,7 @@ test.describe('mobile Desk controls', () => {
 });
 
 test.describe('desktop Desk return', () => {
-  test.use({ ...devices['Desktop Chrome'], viewport: { width: 1200, height: 900 } });
+  test.use({ viewport: { width: 1200, height: 900 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1, userAgent: devices['Desktop Chrome'].userAgent });
   test.setTimeout(120_000);
 
   test('@golden keeps the Desk camera, search, selection, and artifact node when its zone link is activated', async ({ page }) => {
