@@ -1282,7 +1282,7 @@
 
   .contextActions > button {
     gap: 0.25rem;
-    padding-inline: 0.55rem;
+    padding-inline: 0.4rem;
     font-size: 0.75rem;
   }
 
@@ -1387,7 +1387,8 @@
     min-height: 12.5rem;
   }
 
-  .workTile[data-featured="true"] .sourceFallback {
+  .workTile[data-featured="true"] .sourceFallback,
+  .sourceFallback {
     width: 8.75rem;
     min-height: 10.5rem;
   }
