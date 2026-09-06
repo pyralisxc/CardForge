@@ -239,6 +239,47 @@
   width: 7.75rem;
 }
 
+.deskFilterRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.mobileDeskFilters {
+  display: none;
+}
+
+.deskRestrictionLabel {
+  max-width: 12rem;
+  overflow: hidden;
+  color: var(--cf-text-muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deskSaveViewInput {
+  width: 6.5rem;
+  height: 2.2rem;
+  font-size: 0.75rem;
+}
+
+.workOrganization {
+  color: var(--cf-accent-text);
+}
+
+.deskOrganizer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding-left: 0.2rem;
+  border-left: 1px solid var(--cf-border-subtle);
+}
+
 .spatialControls {
   display: flex;
   align-items: center;
@@ -1330,17 +1371,23 @@
 
   .workSurface {
     display: flex;
+    position: relative;
     min-height: 0;
     flex: 1 1 auto;
     flex-direction: column;
   }
 
   .deskToolbar {
-    position: static;
+    position: absolute;
+    z-index: 12;
+    top: 0;
+    right: 0;
+    left: 0;
     display: grid;
     max-width: none;
     flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1fr) 7rem;
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     padding: 0.35rem 0.5rem 0.5rem;
     border-right: 0;
     border-left: 0;
@@ -1352,13 +1399,96 @@
   }
 
   .sourceSelect {
-    grid-column: 1;
     gap: 0.25rem;
     padding-inline: 0.4rem;
   }
 
-  .spatialControls {
+  .deskFilterRow {
+    display: none;
+  }
+
+  .mobileDeskFilters {
+    position: relative;
+    display: block;
+    min-width: 0;
     grid-column: 2;
+  }
+
+  .mobileDeskFilters > summary {
+    display: flex;
+    min-width: 0;
+    height: 2.75rem;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--cf-border-subtle);
+    background: var(--cf-surface);
+    color: var(--cf-text-strong);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+    list-style: none;
+  }
+
+  .mobileDeskFilters > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDeskFilters > summary > svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex: 0 0 auto;
+  }
+
+  .mobileDeskFilterSummary {
+    max-width: 4.8rem;
+    overflow: hidden;
+    color: var(--cf-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileDeskFilterPanel {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 0.3rem);
+    right: 0;
+    display: flex;
+    width: min(21rem, calc(100vw - 1rem));
+    max-height: min(60dvh, 30rem);
+    min-width: 15rem;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.45rem;
+    border: 1px solid var(--cf-border-subtle);
+    background: var(--cf-surface);
+    box-shadow: var(--cf-panel-shadow);
+    overflow: auto;
+  }
+
+  .mobileDeskFilters:not([open]) .mobileDeskFilterPanel {
+    display: none;
+  }
+
+  .mobileDeskFilterPanel .sourceSelect,
+  .mobileDeskFilterPanel .deskRestrictionLabel {
+    width: 100%;
+  }
+
+  .mobileDeskFilterPanel .deskSaveViewInput {
+    display: inline-flex;
+    min-width: 0;
+    flex: 1 1 7rem;
+  }
+
+  .mobileDeskFilterPanel .deskOrganizer {
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .spatialControls {
+    grid-column: 3;
     justify-content: flex-end;
   }
 
@@ -1366,8 +1496,7 @@
     display: none;
   }
 
-  .searchField,
-  .sourceSelect {
+  .searchField {
     width: 100%;
   }
 
@@ -1380,6 +1509,11 @@
 
   .workGrid::-webkit-scrollbar {
     display: none;
+  }
+
+  .deskWorldSizer {
+    min-height: calc(100% - 3.75rem);
+    margin-top: 3.75rem;
   }
 
   .workVisual,
@@ -1526,8 +1660,8 @@
 }
 
 @media (max-width: 390px) {
-  .deskToolbar {
-    grid-template-columns: minmax(0, 1fr) 6.25rem;
+  .mobileDeskFilterSummary {
+    display: none;
   }
 
 }

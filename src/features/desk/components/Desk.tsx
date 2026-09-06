@@ -49,9 +49,6 @@ const DeskToolLoading = () => (
   </div>
 );
 
-const CampaignDeskShelf = dynamic(() => import(
-  '@/features/marketing-content/client'
-).then((module) => module.CampaignDeskShelf));
 const PipelineContributionPanel = dynamic(() => import(
   '@/features/pipeline/client/contribution-panel'
 ).then((module) => module.PipelineContributionPanel), { loading: DeskToolLoading });
@@ -132,6 +129,7 @@ export function Desk({
     deskPositions,
     deskCamera,
     deskMarquee,
+    deskViewPreferences,
     detail,
     dirtyCloseRequested,
     dirtyCloseToDesk,
@@ -178,6 +176,7 @@ export function Desk({
     query,
     removeGeneratedCards,
     reflectiveGroupings,
+    refreshDeskSources,
     requestHistoryBack,
     requestDeskReturn,
     renameDraft,
@@ -190,6 +189,7 @@ export function Desk({
     selectedCardIndex,
     selectedCards,
     selectedDeskIds,
+    selectedWorkItems,
     selectDeskWork,
     selectionScope,
     setCardPositions,
@@ -217,7 +217,6 @@ export function Desk({
     setSelectedCardIds,
     setShowGrid,
     setSnapToGrid,
-    setSourceFilter,
     setTagDraft,
     setTagFilter,
     undoLastBulkRevision,
@@ -227,8 +226,11 @@ export function Desk({
     showTemplateTool,
     snapToGrid,
     sourceFacets,
+    tagFacets,
+    typeFacets,
+    activeDeskViews,
+    availableDeskViews,
     sortedCards,
-    sourceFilter,
     statuses,
     studioTool,
     surfaceRef,
@@ -237,6 +239,7 @@ export function Desk({
     templates,
     togglePin,
     updateOrganization,
+    updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
     visibleCards,
@@ -395,8 +398,18 @@ export function Desk({
             showGrid={showGrid}
             snapToGrid={snapToGrid}
             query={query}
-            sourceFilter={sourceFilter}
+            sourceFilters={deskViewPreferences.preferences.sources}
             sourceFacets={sourceFacets}
+            typeFilters={deskViewPreferences.preferences.types}
+            typeFacets={typeFacets}
+            tagFilters={deskViewPreferences.preferences.tags}
+            tagFacets={tagFacets}
+            tagMatch={deskViewPreferences.preferences.tagMatch}
+            activeDeskViews={activeDeskViews}
+            availableDeskViews={availableDeskViews}
+            savedViews={deskViewPreferences.preferences.saved}
+            activeRestrictionsLabel={`${activeDeskViews.map((view) => view === 'my-work' ? 'My work' : view === 'campaigns' ? 'Campaigns' : 'My published').join(' + ')}${deskViewPreferences.preferences.sources.length ? ` · ${deskViewPreferences.preferences.sources.length} source${deskViewPreferences.preferences.sources.length === 1 ? '' : 's'}` : ''}${deskViewPreferences.preferences.types.length ? ` · ${deskViewPreferences.preferences.types.length} type${deskViewPreferences.preferences.types.length === 1 ? '' : 's'}` : ''}${deskViewPreferences.preferences.tags.length ? ` · ${deskViewPreferences.preferences.tagMatch === 'all' ? 'all' : 'any'} ${deskViewPreferences.preferences.tags.length} tag${deskViewPreferences.preferences.tags.length === 1 ? '' : 's'}` : ''}`}
+            selectedWorkItems={selectedWorkItems}
             searchRef={searchRef}
             workGridRef={workGridRef}
             workWorldRef={workWorldRef}
@@ -404,7 +417,6 @@ export function Desk({
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
-            campaignShelf={experience.contributor.canDraftCampaigns ? <CampaignDeskShelf onOpen={(campaignId) => projection.router.push(`/account?section=library&scope=campaigns${campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : ''}`)} /> : null}
             renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
@@ -472,7 +484,15 @@ export function Desk({
             shouldSuppressActivation={shouldSuppressActivation}
             onSelectWork={selectDeskWork}
             onQueryChange={setQuery}
-            onSourceFilterChange={setSourceFilter}
+            onSourceFiltersChange={(sources) => deskViewPreferences.update((current) => ({ ...current, sources }))}
+            onTypeFiltersChange={(types) => deskViewPreferences.update((current) => ({ ...current, types }))}
+            onTagFiltersChange={(tags) => deskViewPreferences.update((current) => ({ ...current, tags }))}
+            onTagMatchChange={(tagMatch) => deskViewPreferences.update((current) => ({ ...current, tagMatch }))}
+            onDeskViewsChange={(views) => deskViewPreferences.update((current) => ({ ...current, views: views.length ? views : ['my-work'] }))}
+            onApplySavedView={deskViewPreferences.applySaved}
+            onSaveView={deskViewPreferences.saveCurrent}
+            onResetViews={deskViewPreferences.reset}
+            onUpdateSelectedOrganization={updateSelectedWorkOrganization}
             onShowGridChange={() => setShowGrid((value) => !value)}
             onSnapToGridChange={() => setSnapToGrid((value) => !value)}
             onFocusWork={focusWork}
@@ -484,7 +504,7 @@ export function Desk({
             onInspect={inspectItem}
             onDelete={setPendingDeleteWork}
             onCreate={openCreateMenu}
-            onRetry={projection.refresh}
+            onRetry={refreshDeskSources}
             onNavigate={projection.router.push}
           />
         </div>

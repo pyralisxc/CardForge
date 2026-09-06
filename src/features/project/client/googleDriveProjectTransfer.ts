@@ -93,11 +93,29 @@ export const getGoogleDriveProjectSourceDescriptor = async (): Promise<ProjectSo
 };
 
 export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => {
-  const response = await observeProviderBoundaryResponse('google_drive', 'project_list', () => (
-    fetch('/api/project-sources/google-drive', { cache: 'no-store' })
-  ));
-  if (!response.ok) throw await readApiError(response, 'Unable to load Google Drive projects.');
-  return await response.json() as GoogleDriveProjectListResult;
+  let cursor: string | null = null;
+  let connection: GoogleDriveProjectListResult['connection'] | null = null;
+  const projects: GoogleDriveProjectListResult['projects'] = [];
+  const seenCursors = new Set<string>();
+  do {
+    const params = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    const response = await observeProviderBoundaryResponse('google_drive', 'project_list', () => (
+      fetch(`/api/project-sources/google-drive${params}`, { cache: 'no-store' })
+    ));
+    if (!response.ok) throw await readApiError(response, 'Unable to load Google Drive projects.');
+    const page = await response.json() as GoogleDriveProjectListResult;
+    connection = page.connection;
+    projects.push(...page.projects);
+    const next = page.nextPageToken ?? null;
+    if (!next || seenCursors.has(next)) {
+      cursor = null;
+    } else {
+      seenCursors.add(next);
+      cursor = next;
+    }
+  } while (cursor);
+  if (!connection) throw new ProjectPackageError('Google Drive did not return a project-library connection state.');
+  return { connection, projects, nextPageToken: null };
 };
 
 const createProjectPackage = async (name: string, workId?: string) => {

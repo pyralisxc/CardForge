@@ -14,6 +14,23 @@ const expectTouchTarget = async (control: Locator) => {
 test.describe('mobile Desk controls', () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test('@golden keeps Desk filtering in a compact, touchable disclosure', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
+
+    const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
+    const filters = page.locator('[data-mobile-desk-filters]');
+    await expect(filters).toBeVisible();
+    await expectTouchTarget(filters.locator('summary'));
+    const toolbarBounds = await toolbar.boundingBox();
+    expect(toolbarBounds?.height).toBeLessThanOrEqual(60);
+    await filters.locator('summary').tap();
+    await expect(filters).toHaveAttribute('open', '');
+    await expect(page.getByRole('button', { name: 'Choose Desk views' })).toBeVisible();
+    await test.info().attach('compact-desk-filters', { body: await page.screenshot(), contentType: 'image/png' });
+  });
+
   test('@golden opens, selects, and dismisses shared dropdown controls by touch', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });

@@ -1,4 +1,4 @@
-import type { CardSet, CardSetOrganization, StoredDisplayCard } from './types';
+import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from './types';
 
 const cleanId = (value: unknown): string | null => (
   typeof value === 'string' && value.trim() ? value.trim() : null
@@ -11,6 +11,30 @@ const cleanName = (value: unknown): string => (
 const cleanStringArray = (value: unknown): string[] => Array.isArray(value)
   ? [...new Set(value.flatMap((entry) => typeof entry === 'string' && entry.trim() ? [entry.trim()] : []))]
   : [];
+
+const cleanMetadataText = (value: unknown, limit: number): string | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().replace(/\s+/gu, ' ').slice(0, limit);
+  return normalized || null;
+};
+
+const normalizeMetadata = (value: unknown): CardSetMetadata | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const type = cleanMetadataText(record.type, 80);
+  const tags = cleanStringArray(record.tags)
+    .map((tag) => cleanMetadataText(tag, 60))
+    .filter((tag): tag is string => Boolean(tag))
+    .slice(0, 40);
+  // “card-set” is intentionally the only workflow currently shipped in a
+  // portable CardForge project. Unknown workflow labels never become a
+  // capability, and normalize to the supported authoring model.
+  return {
+    workflow: 'card-set',
+    ...(type ? { type } : {}),
+    tags,
+  };
+};
 
 const normalizeOrganization = (value: unknown): CardSetOrganization | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -52,10 +76,12 @@ export const normalizeCardSet = (value: unknown): CardSet | null => {
   const id = cleanId(record.id);
   if (!id) return null;
   const organization = normalizeOrganization(record.organization);
+  const metadata = normalizeMetadata(record.metadata);
   return {
     id,
     name: cleanName(record.name),
     ...(organization ? { organization } : {}),
+    ...(metadata ? { metadata } : {}),
   };
 };
 

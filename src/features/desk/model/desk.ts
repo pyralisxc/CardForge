@@ -46,9 +46,15 @@ export interface DeskAccountStatus {
 // compatibility reads so existing browser work retains its pins and tab order.
 export const DESK_PINS_KEY = 'home-desk-pins';
 export const DESK_ORDER_KEY = 'home-desk-order';
-export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft']);
+export const visibleWorkKinds = new Set<AccountLibraryItem['kind']>(['set', 'working-draft', 'campaign', 'published-resource']);
 export interface DeskSourceFacet {
   id: AccountLibrarySource;
+  label: string;
+  count: number;
+}
+
+export interface DeskOrganizationFacet {
+  id: string;
   label: string;
   count: number;
 }
@@ -65,6 +71,23 @@ export const getDeskSourceFacets = (items: readonly AccountLibraryItem[]): DeskS
   }));
   return [...facets.values()];
 };
+
+const organizationFacets = (values: readonly string[]): DeskOrganizationFacet[] => {
+  const counts = new Map<string, DeskOrganizationFacet>();
+  values.forEach((value) => {
+    const current = counts.get(value);
+    counts.set(value, { id: value, label: value, count: (current?.count ?? 0) + 1 });
+  });
+  return [...counts.values()].toSorted((left, right) => left.label.localeCompare(right.label));
+};
+
+export const getDeskTypeFacets = (items: readonly AccountLibraryItem[]): DeskOrganizationFacet[] => organizationFacets(
+  items.flatMap((item) => item.organization.type ? [item.organization.type] : []),
+);
+
+export const getDeskTagFacets = (items: readonly AccountLibraryItem[]): DeskOrganizationFacet[] => organizationFacets(
+  items.flatMap((item) => item.organization.tags),
+);
 
 export const normalizeDeskOrder = (
   availableIds: string[],
@@ -214,4 +237,28 @@ export const matchesSourceFilter = (item: AccountLibraryItem, filter: DeskSource
   if (filter === 'temporary') return sources.includes('assistant-draft');
   if (filter === 'connected') return sources.includes('google-drive') || sources.includes('local-folder');
   return sources.includes(filter);
+};
+
+export const matchesDeskSourceFilters = (item: AccountLibraryItem, filters: readonly AccountLibrarySource[]): boolean => (
+  filters.length === 0 || filters.some((filter) => item.locations.some((location) => location.source === filter))
+);
+
+export const matchesDeskTypeFilters = (item: AccountLibraryItem, filters: readonly string[]): boolean => (
+  filters.length === 0 || (item.organization.type !== null && filters.includes(item.organization.type))
+);
+
+export const matchesDeskTagFilters = (
+  item: AccountLibraryItem,
+  filters: readonly string[],
+  match: 'any' | 'all',
+): boolean => {
+  if (filters.length === 0) return true;
+  const tags = new Set(item.organization.tags);
+  return match === 'all' ? filters.every((tag) => tags.has(tag)) : filters.some((tag) => tags.has(tag));
+};
+
+export const matchesDeskViews = (item: AccountLibraryItem, viewIds: readonly string[]): boolean => {
+  if (viewIds.includes('my-work') && item.organization.publicationState === 'working') return true;
+  if (viewIds.includes('campaigns') && item.organization.publicationState === 'campaign') return true;
+  return viewIds.includes('my-published') && item.organization.publicationState === 'published';
 };

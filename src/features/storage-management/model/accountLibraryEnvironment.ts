@@ -18,6 +18,8 @@ const sourceMap: Record<AccountLibrarySource, ActionSource> = {
   'google-drive': 'google-drive',
   'local-folder': 'local-folder',
   'assistant-draft': 'temporary',
+  campaign: 'provider-native',
+  pipeline: 'provider-native',
 };
 
 const human = (owner: 'cardforge' | 'provider' = 'cardforge'): ActionAutomation => ({

@@ -1,6 +1,6 @@
 import {
   disconnectGoogleDriveProjectStorage,
-  listGoogleDriveProjects,
+  listGoogleDriveProjectsPage,
   selectGoogleDriveProjectFolder,
 } from '@/features/project/server';
 import {
@@ -11,10 +11,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { ownerUserId } = await getGoogleDriveProjectAccount();
-    return Response.json(await listGoogleDriveProjects(ownerUserId));
+    const cursor = new URL(request.url).searchParams.get('cursor');
+    return Response.json(await listGoogleDriveProjectsPage({ ownerUserId, pageToken: cursor }));
   } catch (error) {
     return toGoogleDriveProjectErrorResponse(error, 'Unable to load Google Drive project storage.');
   }

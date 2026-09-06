@@ -103,6 +103,9 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       meta: [
         ['Location', item.personal.locations.map((location) => location.label).join(' + ')],
         ['Agent access', agentLabel(item.personal)],
+        ...(item.personal.organization.type ? [['Descriptive type', item.personal.organization.type] as const] : []),
+        ...(item.personal.organization.tags.length ? [['Personal tags', item.personal.organization.tags.join(' · ')] as const] : []),
+        ...(item.personal.organization.publicationState === 'published' ? [['Publication', 'Immutable published revision'] as const] : []),
         ...(item.personal.revision ? [['Revision', item.personal.revision] as const] : []),
         ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
         ['Updated', formatDate(item.updatedAt)],

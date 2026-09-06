@@ -2,18 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import type { AccountLibraryItem } from '@/features/storage-management/client';
+import type { AccountLibraryItem, AccountLibrarySource } from '@/features/storage-management/client';
 
 import {
   DESK_ORDER_KEY,
   DESK_PINS_KEY,
   getDeskSourceFacets,
-  matchesSourceFilter,
+  getDeskTagFacets,
+  getDeskTypeFacets,
+  matchesDeskSourceFilters,
+  matchesDeskTagFilters,
+  matchesDeskTypeFilters,
+  matchesDeskViews,
   normalizeDeskOrder,
   workSourceLabel,
-  type DeskSourceFilter,
 } from '../model/desk';
 import { useDeskSpatialLayout } from './useDeskSpatialLayout';
 
@@ -21,7 +25,11 @@ interface DeskLayoutOptions {
   persistenceScope: ProjectPersistenceScope;
   workItems: AccountLibraryItem[];
   query: string;
-  sourceFilter: DeskSourceFilter;
+  sourceFilters: readonly AccountLibrarySource[];
+  typeFilters: readonly string[];
+  tagFilters: readonly string[];
+  tagMatch: 'any' | 'all';
+  viewIds: readonly string[];
   focused: boolean;
   snapToGrid: boolean;
   selectedIds: readonly string[];
@@ -32,7 +40,11 @@ export function useDeskLayout({
   persistenceScope,
   workItems,
   query,
-  sourceFilter,
+  sourceFilters,
+  typeFilters,
+  tagFilters,
+  tagMatch,
+  viewIds,
   focused,
   snapToGrid,
   selectedIds,
@@ -40,20 +52,34 @@ export function useDeskLayout({
 }: DeskLayoutOptions) {
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
+  const [pinPreferencesWritable, setPinPreferencesWritable] = useState(false);
+  const [orderPreferencesWritable, setOrderPreferencesWritable] = useState(false);
   const pinKey = `${DESK_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${DESK_ORDER_KEY}:${persistenceScope}`;
   useEffect(() => {
     let cancelled = false;
-    void readProjectPreference<unknown>(pinKey).then((value) => {
-      if (!cancelled && Array.isArray(value)) setPinnedIds(value.filter((entry): entry is string => typeof entry === 'string'));
+    setPinPreferencesWritable(false);
+    void readProjectPreferenceSafely<unknown>(pinKey).then((result) => {
+      if (cancelled || result.kind === 'unavailable') return;
+      const value = result.kind === 'available' ? result.value : null;
+      if (Array.isArray(value)) {
+        setPinnedIds(value.filter((entry): entry is string => typeof entry === 'string'));
+      } else setPinnedIds([]);
+      setPinPreferencesWritable(true);
     });
     return () => { cancelled = true; };
   }, [pinKey]);
 
   useEffect(() => {
     let cancelled = false;
-    void readProjectPreference<unknown>(orderKey).then((value) => {
-      if (!cancelled && Array.isArray(value)) setDeskOrderIds(value.filter((entry): entry is string => typeof entry === 'string'));
+    setOrderPreferencesWritable(false);
+    void readProjectPreferenceSafely<unknown>(orderKey).then((result) => {
+      if (cancelled || result.kind === 'unavailable') return;
+      const value = result.kind === 'available' ? result.value : null;
+      if (Array.isArray(value)) {
+        setDeskOrderIds(value.filter((entry): entry is string => typeof entry === 'string'));
+      } else setDeskOrderIds([]);
+      setOrderPreferencesWritable(true);
     });
     return () => { cancelled = true; };
   }, [orderKey]);
@@ -65,18 +91,23 @@ export function useDeskLayout({
   useEffect(() => {
     if (normalizedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
     setDeskOrderIds(normalizedDeskOrder);
-    void writeProjectPreference(orderKey, normalizedDeskOrder);
-  }, [deskOrderIds, normalizedDeskOrder, orderKey]);
+    if (orderPreferencesWritable) void writeProjectPreference(orderKey, normalizedDeskOrder);
+  }, [deskOrderIds, normalizedDeskOrder, orderKey, orderPreferencesWritable]);
 
   const sourceFacets = useMemo(() => getDeskSourceFacets(workItems), [workItems]);
+  const typeFacets = useMemo(() => getDeskTypeFacets(workItems), [workItems]);
+  const tagFacets = useMemo(() => getDeskTagFacets(workItems), [workItems]);
 
   const visibleWork = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
     return workItems.filter((item) => (
-      matchesSourceFilter(item, sourceFilter)
+      matchesDeskViews(item, viewIds)
+      && matchesDeskSourceFilters(item, sourceFilters)
+      && matchesDeskTypeFilters(item, typeFilters)
+      && matchesDeskTagFilters(item, tagFilters, tagMatch)
       && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item)].join(' ').toLocaleLowerCase().includes(normalizedQuery))
     )).toSorted((left, right) => normalizedDeskOrder.indexOf(left.id) - normalizedDeskOrder.indexOf(right.id));
-  }, [normalizedDeskOrder, query, sourceFilter, workItems]);
+  }, [normalizedDeskOrder, query, sourceFilters, tagFilters, tagMatch, typeFilters, viewIds, workItems]);
 
   const {
     beginDrag,
@@ -94,7 +125,10 @@ export function useDeskLayout({
     workWorldRef,
   } = useDeskSpatialLayout({
     positionKey: `${DESK_ORDER_KEY}:positions:${persistenceScope}`,
-    itemIds: visibleWork.map((item) => item.id),
+    // The stored world contains every authorized item, not only the filtered
+    // projection. Filtering or a later-arriving provider therefore cannot
+    // drop positions, pins, or relative order.
+    itemIds: normalizedDeskOrder,
     focused,
     snapToGrid,
     selectedIds,
@@ -104,7 +138,7 @@ export function useDeskLayout({
   const togglePin = (itemId: string) => {
     setPinnedIds((current) => {
       const next = current.includes(itemId) ? current.filter((id) => id !== itemId) : [itemId, ...current];
-      void writeProjectPreference(pinKey, next);
+      if (pinPreferencesWritable) void writeProjectPreference(pinKey, next);
       return next;
     });
   };
@@ -123,6 +157,8 @@ export function useDeskLayout({
     positions,
     shouldSuppressActivation,
     sourceFacets,
+    tagFacets,
+    typeFacets,
     togglePin,
     visibleWork,
     workGridRef,

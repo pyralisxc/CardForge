@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import { readProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
@@ -73,6 +73,7 @@ export function useDeskSpatialLayout({
   const marqueeRef = useRef<DeskMarqueeState | null>(null);
   const suppressedActivationRef = useRef<string | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
+  const [positionsWritable, setPositionsWritable] = useState(false);
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
   const cancelPointerGesture = useCallback(() => {
     const drag = dragRef.current;
@@ -85,8 +86,11 @@ export function useDeskSpatialLayout({
 
   useEffect(() => {
     let cancelled = false;
-    void readProjectPreference<unknown>(positionKey).then((value) => {
-      if (!cancelled) setStoredPositions(normalizeDeskWorldGeometry(value).positions);
+    setPositionsWritable(false);
+    void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
+      if (cancelled || result.kind === 'unavailable') return;
+      setStoredPositions(normalizeDeskWorldGeometry(result.kind === 'available' ? result.value : null).positions);
+      setPositionsWritable(true);
     });
     return () => { cancelled = true; };
   }, [positionKey]);
@@ -108,8 +112,8 @@ export function useDeskSpatialLayout({
   }, [camera.zoom, positions]);
 
   const persistPositions = useCallback((next: Record<string, DeskWorldPosition>) => {
-    void writeProjectPreference(positionKey, { version: 2, positions: next });
-  }, [positionKey]);
+    if (positionsWritable) void writeProjectPreference(positionKey, { version: 2, positions: next });
+  }, [positionKey, positionsWritable]);
 
   const beginDrag = useCallback((itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options: { additive?: boolean } = {}) => {
     if (event.button !== 0) return;

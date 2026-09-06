@@ -8,6 +8,7 @@ import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/client/packa
 
 import {
   buildAccountLibraryItems,
+  applyAccountLibraryPrivateOrganization,
   getAccountLibraryAvailableActions,
   getAccountLibraryMcpWorkflow,
   resolveAccountHomeLibraryProjection,
@@ -160,10 +161,33 @@ describe('account library model', () => {
       }],
     });
 
-    expect(items.map((item) => item.kind)).toEqual(['set', 'asset', 'working-draft']);
+    expect(items.map((item) => item.kind)).toEqual(['set', 'set', 'asset', 'working-draft']);
     expect(items[0]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'attached' });
-    expect(items[1]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'available' });
-    expect(items[2]?.locations[0]).toMatchObject({ source: 'assistant-draft', status: 'temporary' });
+    expect(items[1]).toMatchObject({
+      id: 'local-folder-work:missing-local-work',
+      references: { localFolder: true, localFolderWorkId: 'missing-local-work' },
+      locations: [{ source: 'local-folder', status: 'needs-permission' }],
+    });
+    expect(items[2]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'available' });
+    expect(items[3]?.locations[0]).toMatchObject({ source: 'assistant-draft', status: 'temporary' });
+  });
+
+  it('keeps portable Set classification separate from private labels on shared work', () => {
+    const [set] = buildAccountLibraryItems({
+      localSets: [{ id: 'postcards', name: 'Postcards', cardCount: 3, sizeBytes: null, metadata: {
+        workflow: 'card-set', type: 'Postcards', tags: ['launch', 'print'],
+      } }],
+      driveProjects: [], driveBindingFileId: null, localWorkFolders: [], personalAssets: [], workingDrafts: [],
+    });
+    expect(set?.organization).toEqual({
+      workflow: 'card-set', type: 'Postcards', tags: ['launch', 'print'], source: 'portable', publicationState: 'working',
+    });
+    const shared = applyAccountLibraryPrivateOrganization([{
+      ...set!, id: 'pipeline:published-set', references: { pipelineLineageId: 'lineage-1' },
+      organization: { ...set!.organization, publicationState: 'published', source: 'none' },
+    }], { 'pipeline:published-set': { type: 'My favorites', tags: ['personal'] } });
+    expect(shared[0]?.organization).toMatchObject({ type: 'My favorites', tags: ['personal'], source: 'private', publicationState: 'published' });
+    expect(set?.organization).toMatchObject({ type: 'Postcards', tags: ['launch', 'print'], source: 'portable' });
   });
 
   it('keeps browser actions complete while matching the MCP lifecycle for reachable sources', () => {

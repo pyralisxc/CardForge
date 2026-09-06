@@ -1,4 +1,4 @@
-import type { CardSet, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
+import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
 import type { StudioView } from './workspaceDefaults';
@@ -81,6 +81,7 @@ export interface SettingsSlice {
 
 export interface OrganizationSlice {
   updateCardSetOrganization: (setId: string, patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => boolean;
+  updateCardSetMetadata: (setId: string, patch: Partial<Omit<CardSetMetadata, 'workflow'>>) => boolean;
   addCardSetTag: (setId: string, label: string) => string | null;
   renameCardSetTag: (setId: string, tagId: string, label: string) => boolean;
   removeCardSetTag: (setId: string, tagId: string) => boolean;

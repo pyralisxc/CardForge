@@ -9,16 +9,19 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const account = await getCurrentStudioDocumentAccount();
-    const documentsPage = await listStudioDocumentsPage(account.ownerUserId, account.retentionHours);
-    const deletedDocumentsPage = await listDeletedStudioDocumentsPage(account.ownerUserId);
+    const cursor = Math.max(0, Number(new URL(request.url).searchParams.get('cursor') ?? 0) || 0);
+    const documentsPage = await listStudioDocumentsPage(account.ownerUserId, account.retentionHours, cursor);
+    const deletedDocumentsPage = await listDeletedStudioDocumentsPage(account.ownerUserId, cursor);
     return createNoStoreJsonResponse({
       documents: documentsPage.documents,
       documentsHasMore: documentsPage.hasMore,
+      documentsNextCursor: documentsPage.nextCursor,
       deletedDocuments: deletedDocumentsPage.documents,
       deletedDocumentsHasMore: deletedDocumentsPage.hasMore,
+      deletedDocumentsNextCursor: deletedDocumentsPage.nextCursor,
       retentionHours: account.retentionHours,
       recoveryHours: 24,
       watermark: account.watermark,

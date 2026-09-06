@@ -19,6 +19,7 @@ const localSet: AccountLibraryItem = {
   expiresAt: null,
   webViewLink: null,
   references: { localSetId: 'set-1' },
+  organization: { workflow: 'card-set', type: null, tags: [], source: 'none', publicationState: 'working' },
 };
 
 describe('unified Library view', () => {

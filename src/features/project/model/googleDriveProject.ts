@@ -31,6 +31,8 @@ export interface GoogleDriveProjectSummary {
 export interface GoogleDriveProjectListResult {
   connection: GoogleDriveProjectConnectionSummary;
   projects: GoogleDriveProjectSummary[];
+  /** Native Drive cursor. Clients may follow it until no page remains. */
+  nextPageToken?: string | null;
 }
 
 export interface GoogleDrivePickerConfiguration {

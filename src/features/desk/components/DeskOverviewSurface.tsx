@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { CreditCard, FolderPlus, Hand, HardDrive, LayoutGrid, Link2, Loader2, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { CreditCard, FolderPlus, Hand, HardDrive, LayoutGrid, Link2, Loader2, Search, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
 import type { CardFace } from '@/domain/cards';
-import type { AccountLibraryItem } from '@/features/storage-management/client';
+import type { AccountLibraryItem, AccountLibrarySource } from '@/features/storage-management/client';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import type { DeskAccountStatus, DeskSourceFacet, DeskSourceFilter } from '../model/desk';
+import type { DeskAccountStatus, DeskOrganizationFacet, DeskSourceFacet } from '../model/desk';
+import type { DeskSavedView, DeskTagMatch, DeskViewId } from '../hooks/useDeskViewPreferences';
 import { DeskWorkObject } from './DeskWorkObject';
 import styles from './Desk.module.css';
 
@@ -32,8 +34,18 @@ export interface DeskOverviewSurfaceProps {
   showGrid: boolean;
   snapToGrid: boolean;
   query: string;
-  sourceFilter: DeskSourceFilter;
+  sourceFilters: AccountLibrarySource[];
   sourceFacets: DeskSourceFacet[];
+  typeFilters: string[];
+  typeFacets: DeskOrganizationFacet[];
+  tagFilters: string[];
+  tagFacets: DeskOrganizationFacet[];
+  tagMatch: DeskTagMatch;
+  activeDeskViews: DeskViewId[];
+  availableDeskViews: DeskViewId[];
+  savedViews: DeskSavedView[];
+  activeRestrictionsLabel: string;
+  selectedWorkItems: AccountLibraryItem[];
   searchRef: RefObject<HTMLInputElement>;
   workGridRef: RefObject<HTMLDivElement>;
   workWorldRef: RefObject<HTMLDivElement>;
@@ -41,7 +53,6 @@ export interface DeskOverviewSurfaceProps {
   canUseProjectFiles: boolean;
   canSubmit: boolean;
   statuses: DeskAccountStatus[];
-  campaignShelf: ReactNode;
   renderWorkPreview: (item: AccountLibraryItem, featured: boolean, focused: boolean, face: CardFace) => ReactNode;
   previewArtifactIds: (item: AccountLibraryItem) => string[];
   canFlipWork: (item: AccountLibraryItem) => boolean;
@@ -55,7 +66,15 @@ export interface DeskOverviewSurfaceProps {
   endMarquee: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectWork: (item: AccountLibraryItem, options?: { additive?: boolean; range?: boolean }) => void;
   onQueryChange: (value: string) => void;
-  onSourceFilterChange: (value: DeskSourceFilter) => void;
+  onSourceFiltersChange: (values: AccountLibrarySource[]) => void;
+  onTypeFiltersChange: (values: string[]) => void;
+  onTagFiltersChange: (values: string[]) => void;
+  onTagMatchChange: (value: DeskTagMatch) => void;
+  onDeskViewsChange: (values: DeskViewId[]) => void;
+  onApplySavedView: (id: string) => void;
+  onSaveView: (name: string) => boolean;
+  onResetViews: () => void;
+  onUpdateSelectedOrganization: (patch: { type?: string; tags?: string[] }) => void;
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
   onFocusWork: (item: AccountLibraryItem) => void;
@@ -73,12 +92,47 @@ export interface DeskOverviewSurfaceProps {
 
 export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [arrangeMode, setArrangeMode] = useState(false);
+  const [viewName, setViewName] = useState('');
+  const [organizationType, setOrganizationType] = useState('');
+  const [organizationTag, setOrganizationTag] = useState('');
+  const saveView = () => { if (props.onSaveView(viewName)) setViewName(''); };
+  const renderDeskFilters = () => <>
+    <MultiSelectionFilterMenu allLabel="My work" ariaLabel="Choose Desk views" compactLabel="Views" className={styles.sourceSelect} values={props.activeDeskViews} onChange={props.onDeskViewsChange} options={props.availableDeskViews.map((view) => ({
+      value: view,
+      label: view === 'my-work' ? 'My work' : view === 'campaigns' ? 'Campaigns' : 'My published',
+    }))} />
+    {props.sourceFacets.length ? <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Desk by source" compactLabel="Source" className={styles.sourceSelect} values={props.sourceFilters} onChange={props.onSourceFiltersChange} options={props.sourceFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
+    {props.typeFacets.length ? <MultiSelectionFilterMenu allLabel="All types" ariaLabel="Filter Desk by type" compactLabel="Type" className={styles.sourceSelect} values={props.typeFilters} onChange={props.onTypeFiltersChange} options={props.typeFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
+    {props.tagFacets.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter Desk by tag" compactLabel="Tags" className={styles.sourceSelect} values={props.tagFilters} onChange={props.onTagFiltersChange} options={props.tagFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
+    {props.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose tag matching" compactLabel="Tags" value={props.tagMatch} onChange={(value) => props.onTagMatchChange(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
+    {props.savedViews.length ? <SelectionFilterMenu allLabel="Saved views" ariaLabel="Apply a saved Desk view" compactLabel="Saved" value="all" onChange={(value) => { if (value !== 'all') props.onApplySavedView(value); }} options={props.savedViews.map((view) => ({ value: view.id, label: view.name }))} /> : null}
+    <span className={styles.deskRestrictionLabel} aria-live="polite">{props.activeRestrictionsLabel}</span>
+    <Input value={viewName} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); saveView(); } }} className={styles.deskSaveViewInput} aria-label="Name this Desk view" placeholder="Save view" />
+    <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
+    <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
+    {props.selectedWorkItems.length ? <div className={styles.deskOrganizer} aria-label="Organize selected work">
+      <Input value={organizationType} onChange={(event) => setOrganizationType(event.target.value)} className={styles.deskSaveViewInput} aria-label="Set descriptive type" placeholder="Type, e.g. Postcards" />
+      <Button type="button" size="sm" variant="ghost" onClick={() => { props.onUpdateSelectedOrganization({ type: organizationType }); setOrganizationType(''); }} disabled={!organizationType.trim()}>Set type</Button>
+      <Input value={organizationTag} onChange={(event) => setOrganizationTag(event.target.value)} className={styles.deskSaveViewInput} aria-label="Add personal tag" placeholder="Add tag" />
+      <Button type="button" size="sm" variant="ghost" onClick={() => {
+        const tags = Array.from(new Set([...props.selectedWorkItems.flatMap((item) => item.organization.tags), organizationTag.trim()]));
+        props.onUpdateSelectedOrganization({ tags }); setOrganizationTag('');
+      }} disabled={!organizationTag.trim()}>Add tag</Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => props.onUpdateSelectedOrganization({ type: '', tags: [] })}>Clear labels</Button>
+    </div> : null}
+  </>;
   return <div className={styles.desk} data-desk={props.focusedItemId ? 'focused' : 'overview'} data-focused={Boolean(props.focusedItemId)}>
     {props.failureMessage ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${props.failureMessage} Available work remains unchanged.`} settingsHref="/account?section=library&tool=locations" actionLabel="Retry" onAction={props.onRetry} /> : null}
     <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
-      <div className={styles.deskToolbar}>
+      <div className={styles.deskToolbar} data-desk-toolbar>
         <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Find work" /></label>
-        {props.sourceFacets.length > 1 ? <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter open work by source" compactLabel="Source" className={styles.sourceSelect} value={props.sourceFilter} onChange={(value) => props.onSourceFilterChange(value as DeskSourceFilter)} options={props.sourceFacets.map((facet) => ({ value: facet.id, label: `${facet.label} · ${facet.count}` }))} /> : null}
+        <div className={styles.deskFilterRow} aria-label="Desk views and filters">
+          {renderDeskFilters()}
+        </div>
+        <details className={styles.mobileDeskFilters} data-mobile-desk-filters>
+          <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
+          <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
+        </details>
         <div className={styles.spatialControls} aria-label="Desk positioning">
           <span className={styles.desktopSpatialControls}>
             <Button type="button" size="icon" variant="ghost" aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
@@ -137,11 +191,11 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong>
           <p className={styles.emptyCopy}>
             {props.workItemsCount
-              ? 'Clear the search or change the source filter.'
+              ? 'Clear the search or change the active view and filters.'
               : 'A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.'}
           </p>
           {props.workItemsCount ? (
-            <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onSourceFilterChange('all'); }}>Show all work</Button>
+            <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onResetViews(); }}>Show My work</Button>
           ) : (
             <div className="flex flex-wrap justify-center gap-2">
               <Button type="button" onClick={props.onCreate}>Create your first Set</Button>
@@ -151,7 +205,6 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         </div>
       </div>}
     </section>
-    {props.campaignShelf}
     <div className={styles.utilityStrip} aria-label="Account essentials">{props.statuses.map((status) => { const Icon = statusIcons[status.label as keyof typeof statusIcons] ?? Sparkles; return <button key={status.label} type="button" className={styles.utilityButton} onClick={() => props.onNavigate(status.href)} aria-label={`${status.label}: ${status.value}. ${status.action}`}><Icon className="h-4 w-4" aria-hidden="true" /><span className={styles.utilityText}><strong>{status.label}</strong><span>{status.value}</span></span></button>; })}</div>
   </div>;
 }

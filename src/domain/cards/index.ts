@@ -10,8 +10,11 @@ export type {
   CardSet,
   CardSetArrangement,
   CardSetGrouping,
+  CardSetMetadata,
   CardSetOrganization,
   CardSetSort,
   CardSetTag,
+  CardSetWorkflow,
   StoredDisplayCard,
 } from './types';
+export { CARD_SET_BUILT_IN_TYPES } from './types';

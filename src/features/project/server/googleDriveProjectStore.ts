@@ -456,7 +456,13 @@ const assertOwnedCardForgeProject = (file: GoogleDriveFile, rootFolderId: string
   return summary;
 };
 
-export const listGoogleDriveProjects = async (ownerUserId: string): Promise<GoogleDriveProjectListResult> => {
+export const listGoogleDriveProjectsPage = async ({
+  ownerUserId,
+  pageToken = null,
+}: {
+  ownerUserId: string;
+  pageToken?: string | null;
+}): Promise<GoogleDriveProjectListResult> => {
   const config = getGoogleDriveProjectStorageConfiguration();
   if (!config.configured) {
     return { connection: toConnectionSummary(null, false), projects: [] };
@@ -469,18 +475,46 @@ export const listGoogleDriveProjects = async (ownerUserId: string): Promise<Goog
   url.searchParams.set('spaces', 'drive');
   url.searchParams.set('pageSize', String(GOOGLE_DRIVE_LIST_PAGE_SIZE));
   url.searchParams.set('orderBy', 'modifiedTime desc');
-  url.searchParams.set('fields', `files(${GOOGLE_DRIVE_PROJECT_FIELDS})`);
+  if (pageToken?.trim()) url.searchParams.set('pageToken', pageToken.trim());
+  url.searchParams.set('fields', `nextPageToken,files(${GOOGLE_DRIVE_PROJECT_FIELDS})`);
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not list Google Drive projects.');
-  const payload = await response.json() as { files?: GoogleDriveFile[] };
+  const payload = await response.json() as { files?: GoogleDriveFile[]; nextPageToken?: unknown };
   const projects = (payload.files ?? [])
     .filter((file) => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] === GOOGLE_DRIVE_PROJECT_VALUE)
     .map(toProjectSummary)
     .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary));
-  return { connection: toConnectionSummary(row, true), projects };
+  return {
+    connection: toConnectionSummary(row, true),
+    projects,
+    nextPageToken: typeof payload.nextPageToken === 'string' && payload.nextPageToken.trim()
+      ? payload.nextPageToken
+      : null,
+  };
+};
+
+/** The provider-facing MCP path needs the complete authorized list, not only Drive's first page. */
+export const listGoogleDriveProjects = async (ownerUserId: string): Promise<GoogleDriveProjectListResult> => {
+  let cursor: string | null = null;
+  let connection: GoogleDriveProjectListResult['connection'] | null = null;
+  const projects: GoogleDriveProjectListResult['projects'] = [];
+  const seenCursors = new Set<string>();
+  do {
+    const page = await listGoogleDriveProjectsPage({ ownerUserId, pageToken: cursor });
+    connection = page.connection;
+    projects.push(...page.projects);
+    const next = page.nextPageToken ?? null;
+    if (!next || seenCursors.has(next)) cursor = null;
+    else {
+      seenCursors.add(next);
+      cursor = next;
+    }
+  } while (cursor);
+  if (!connection) throw new ProjectStorageProviderError('Google Drive did not return a project-library connection state.', 503, { kind: 'unavailable' });
+  return { connection, projects, nextPageToken: null };
 };
 
 export const getGoogleDriveProject = async ({

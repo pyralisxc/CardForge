@@ -93,6 +93,7 @@ export {
   getGoogleDriveProjectConnection,
   getGoogleDriveProjectStorageConfiguration,
   listGoogleDriveProjects,
+  listGoogleDriveProjectsPage,
   prepareGoogleDriveProjectUpload,
   ProjectStorageProviderError,
   updateGoogleDriveProjectFromServer,

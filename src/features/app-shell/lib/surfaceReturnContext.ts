@@ -3,7 +3,12 @@ export type DeskSurfaceReturnContext = {
   focusedWorkId: string | null;
   inspectorWorkId: string | null;
   query: string;
-  sourceFilter: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'connected' | 'temporary';
+  sourceFilter: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline' | 'connected' | 'temporary';
+  deskViews?: Array<'my-work' | 'campaigns' | 'my-published'>;
+  deskSources?: Array<'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline'>;
+  deskTypes?: string[];
+  deskTags?: string[];
+  deskTagMatch?: 'any' | 'all';
   sort: 'desk' | 'name' | 'size';
   selectedCardIds: string[];
   cardQuery: string;
@@ -16,8 +21,8 @@ export type LibrarySurfaceReturnContext = {
   scope: 'personal' | 'published' | 'pipeline' | 'campaigns';
   objectId: string | null;
   query: string;
-  source: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft';
-  itemKind: 'all' | 'set' | 'template' | 'asset' | 'working-draft';
+  source: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline';
+  itemKind: 'all' | 'set' | 'template' | 'asset' | 'working-draft' | 'campaign' | 'published-resource';
   sort: 'recent' | 'name' | 'kind';
   density: 'gallery' | 'list' | 'expanded';
   sharedType: string;
@@ -59,7 +64,7 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const focusedWorkId = nullableTextValue(record.focusedWorkId);
     const inspectorWorkId = nullableTextValue(record.inspectorWorkId);
     const query = textValue(record.query);
-    const sourceFilter = oneOf(record.sourceFilter, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'connected', 'temporary'] as const);
+    const sourceFilter = oneOf(record.sourceFilter, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline', 'connected', 'temporary'] as const);
     const sort = oneOf(record.sort, ['desk', 'name', 'size'] as const);
     const cardQuery = textValue(record.cardQuery);
     const tagFilter = textValue(record.tagFilter);
@@ -67,15 +72,24 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
       ? record.selectedCardIds.slice(0, MAX_SELECTION_COUNT).map(textValue).filter((item): item is string => item !== null)
       : null;
     if (focusedWorkId === undefined || inspectorWorkId === undefined || query === null || !sourceFilter || !sort || cardQuery === null || tagFilter === null || !selectedCardIds) return null;
-    return { kind: 'desk', focusedWorkId, inspectorWorkId, query, sourceFilter, sort, selectedCardIds, cardQuery, tagFilter, scrollTop };
+    const deskViews = Array.isArray(record.deskViews)
+      ? record.deskViews.filter((view): view is 'my-work' | 'campaigns' | 'my-published' => typeof view === 'string' && ['my-work', 'campaigns', 'my-published'].includes(view)).slice(0, 3)
+      : undefined;
+    const deskSources = Array.isArray(record.deskSources)
+      ? record.deskSources.filter((source): source is 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline' => typeof source === 'string' && ['device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline'].includes(source)).slice(0, 6)
+      : undefined;
+    const deskTypes = Array.isArray(record.deskTypes) ? record.deskTypes.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
+    const deskTags = Array.isArray(record.deskTags) ? record.deskTags.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
+    const deskTagMatch = oneOf(record.deskTagMatch, ['any', 'all'] as const) ?? undefined;
+    return { kind: 'desk', focusedWorkId, inspectorWorkId, query, sourceFilter, sort, selectedCardIds, cardQuery, tagFilter, scrollTop, ...(deskViews ? { deskViews } : {}), ...(deskSources ? { deskSources } : {}), ...(deskTypes ? { deskTypes } : {}), ...(deskTags ? { deskTags } : {}), ...(deskTagMatch ? { deskTagMatch } : {}) };
   }
 
   if (record.kind === 'library') {
     const scope = oneOf(record.scope, ['personal', 'published', 'pipeline', 'campaigns'] as const);
     const objectId = nullableTextValue(record.objectId);
     const query = textValue(record.query);
-    const source = oneOf(record.source, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft'] as const);
-    const itemKind = oneOf(record.itemKind, ['all', 'set', 'template', 'asset', 'working-draft'] as const);
+    const source = oneOf(record.source, ['all', 'device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline'] as const);
+    const itemKind = oneOf(record.itemKind, ['all', 'set', 'template', 'asset', 'working-draft', 'campaign', 'published-resource'] as const);
     const sort = oneOf(record.sort, ['recent', 'name', 'kind'] as const);
     const density = oneOf(record.density, ['gallery', 'list', 'expanded'] as const);
     const sharedType = textValue(record.sharedType);
