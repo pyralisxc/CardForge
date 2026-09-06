@@ -20,6 +20,12 @@ import {
 import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 import { readLocalLibraryResources, retainLocalLibraryResources, type LocalLibraryResource } from '@/features/project/client/library-resources';
+import {
+  beginScopedSource,
+  settleScopedSourceFailure,
+  settleScopedSourceValue,
+  type ScopedSourceSnapshot,
+} from '@/shared/scopedSource';
 
 import {
   buildAccountLibraryItems,
@@ -41,6 +47,7 @@ interface StudioDocumentSummary {
 }
 
 const EMPTY_STUDIO_DOCUMENT_SUMMARIES: StudioDocumentSummary[] = [];
+const EMPTY_LOCAL_PROJECT_WORK_BINDINGS: LocalProjectWorkBindingStatus[] = [];
 
 const loadAllStudioDocumentSummaries = async (): Promise<StudioDocumentSummary[]> => {
   let cursor: number | null = 0;
@@ -90,16 +97,18 @@ export const retainLastKnownLibrarySource = <Value,>(
   refreshed: Value | null | undefined,
 ): Value | null => refreshed === undefined ? current : refreshed;
 
-interface ScopedLibrarySource<Value> {
+type ScopedLibrarySource<Value> = ScopedSourceSnapshot<ProjectPersistenceScope, Value, AccountLibrarySourceFailure>;
+
+interface ScopedLibrarySourceValue<Value> {
   scope: ProjectPersistenceScope;
   value: Value | null;
 }
 
 export const retainScopedLastKnownLibrarySource = <Value,>(
-  current: ScopedLibrarySource<Value> | null,
+  current: ScopedLibrarySourceValue<Value> | null,
   scope: ProjectPersistenceScope,
   refreshed: Value | null | undefined,
-): ScopedLibrarySource<Value> => ({
+): ScopedLibrarySourceValue<Value> => ({
   scope,
   value: retainLastKnownLibrarySource(current?.scope === scope ? current.value : null, refreshed),
 });
@@ -171,30 +180,41 @@ export function useAccountLibraryProjection({
   const [localResourceSource, setLocalResourceSource] = useState<ScopedLibrarySource<LocalLibraryResource[]> | null>(null);
   const [driveLibrarySource, setDriveLibrarySource] = useState<ScopedLibrarySource<GoogleDriveProjectListResult> | null>(null);
   const [driveBindingSource, setDriveBindingSource] = useState<ScopedLibrarySource<string> | null>(null);
-  const [localFolder, setLocalFolder] = useState<LocalProjectFolderStatus | null>(null);
-  const [localWorkFolders, setLocalWorkFolders] = useState<LocalProjectWorkBindingStatus[]>([]);
+  const [localFolderSource, setLocalFolderSource] = useState<ScopedLibrarySource<LocalProjectFolderStatus> | null>(null);
+  const [localWorkFolderSource, setLocalWorkFolderSource] = useState<ScopedLibrarySource<LocalProjectWorkBindingStatus[]> | null>(null);
   const [personalLibrarySource, setPersonalLibrarySource] = useState<ScopedLibrarySource<PersonalLibraryListResult> | null>(null);
   const [workingDraftSource, setWorkingDraftSource] = useState<ScopedLibrarySource<StudioDocumentSummary[]> | null>(null);
   const [privateOrganization, setPrivateOrganization] = useState<Record<string, AccountLibraryPrivateOrganization>>({});
   const [privateOrganizationReady, setPrivateOrganizationReady] = useState(false);
   const [privateOrganizationUnavailable, setPrivateOrganizationUnavailable] = useState(false);
   const [sourceFailures, setSourceFailures] = useState<AccountLibrarySourceFailure[]>([]);
-  // Restoring local work does not complete the first source bootstrap.
-  const [loadingSources, setLoadingSources] = useState(true);
+  const [loadingSourceIds, setLoadingSourceIds] = useState<Set<string>>(new Set());
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [kind, setKind] = useState<AccountLibraryKind | 'all'>('all');
-  const [source, setSource] = useState<AccountLibrarySource | 'all'>('all');
+  const [kindFilters, setKindFilters] = useState<AccountLibraryKind[]>([]);
+  const [sourceFilters, setSourceFilters] = useState<AccountLibrarySource[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
   const [sort, setSort] = useState<'recent' | 'name' | 'kind'>('recent');
   const deferredQuery = useDeferredValue(query);
   const refreshGeneration = useRef(0);
   const driveLibrary = driveLibrarySource?.scope === persistenceScope ? driveLibrarySource.value : null;
   const driveBindingFileId = driveBindingSource?.scope === persistenceScope ? driveBindingSource.value : null;
+  const localFolder = localFolderSource?.scope === persistenceScope ? localFolderSource.value : null;
+  const localWorkFolders = localWorkFolderSource?.scope === persistenceScope
+    ? localWorkFolderSource.value ?? EMPTY_LOCAL_PROJECT_WORK_BINDINGS
+    : EMPTY_LOCAL_PROJECT_WORK_BINDINGS;
   const personalLibrary = personalLibrarySource?.scope === persistenceScope ? personalLibrarySource.value : null;
   const workingDrafts = workingDraftSource?.scope === persistenceScope
     ? workingDraftSource.value ?? EMPTY_STUDIO_DOCUMENT_SUMMARIES
     : EMPTY_STUDIO_DOCUMENT_SUMMARIES;
   const localResources = useMemo(() => localResourceSource?.scope === persistenceScope ? localResourceSource.value ?? [] : [], [localResourceSource, persistenceScope]);
+  const loadingSources = loadingSourceIds.size > 0;
+  // Compatibility values keep existing deep-link return contexts readable;
+  // the collection itself uses the full multi-select arrays below.
+  const kind = kindFilters[0] ?? 'all';
+  const source = sourceFilters[0] ?? 'all';
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
@@ -204,11 +224,17 @@ export function useAccountLibraryProjection({
   const updateCardSetMetadata = useProjectStore((state) => state.updateCardSetMetadata);
   useEffect(() => {
     let cancelled = false;
+    // Prevent an older account's in-flight source from publishing a value or
+    // failure after the persistence namespace changes.
+    refreshGeneration.current += 1;
     setHydrated(false);
-    setLoadingSources(true);
+    setLoadingSourceIds(new Set());
     setHydrationFailure(null);
-    setLocalFolder(null);
-    setLocalWorkFolders([]);
+    setLocalResourceSource(null);
+    setDriveLibrarySource(null);
+    setDriveBindingSource(null);
+    setLocalFolderSource(null);
+    setLocalWorkFolderSource(null);
     setPersonalLibrarySource(null);
     setWorkingDraftSource(null);
     setSourceFailures([]);
@@ -243,82 +269,161 @@ export function useAccountLibraryProjection({
   const refreshLibrarySources = useCallback(async () => {
     const generation = refreshGeneration.current + 1;
     refreshGeneration.current = generation;
-    setLoadingSources(true);
-    const failures: AccountLibrarySourceFailure[] = [];
-    const deviceAssetsPromise = readLocalLibraryResources();
-    const localFolderPromise = getLocalProjectFolderStatus().catch((error) => {
-      failures.push(sourceFailure('local-folder', error, 'Local-folder status is unavailable.'));
-      return null;
-    });
-    const localWorkFoldersPromise = listLocalProjectWorkBindings().catch((error) => {
-      failures.push(sourceFailure('local-folder', error, 'Saved local-folder locations are unavailable.'));
-      return [] as LocalProjectWorkBindingStatus[];
-    });
-    const studioBootstrapPromise = loadCardForgeStudioBootstrap().catch((error) => {
-      failures.push(sourceFailure('published-library', error, 'CardForge previews are unavailable.'));
-      return null;
-    });
-    const signedInSourcesPromise = isSignedIn
-      ? Promise.all([
-          loadGoogleDriveProjectLibrary().catch((error) => {
-            failures.push(sourceFailure('google-drive', error, 'Google Drive projects are unavailable.'));
-            return undefined;
-          }),
-          getGoogleDriveProjectBinding().catch((error) => {
-            failures.push(sourceFailure('google-drive', error, 'Google Drive project attachment is unavailable.'));
-            return undefined;
-          }),
-          loadPersonalLibrary().catch((error) => {
-            failures.push(sourceFailure('personal-library', error, 'Connected assets are unavailable.'));
-            // `undefined` deliberately means "keep the last value for this
-            // account". `null` is reserved for a known empty/signed-out
-            // source, so a transient provider failure never erases work the
-            // person was already looking at.
-            return undefined;
-          }),
-          loadAllStudioDocumentSummaries()
-            .catch((error) => {
-              failures.push(sourceFailure('assistant-drafts', error, 'Private working drafts are unavailable.'));
-              return undefined;
-            }),
-        ] as const)
-      : Promise.resolve([null, null, null, null] as const);
+    const markLoading = (id: string, loading: boolean) => {
+      setLoadingSourceIds((current) => {
+        const next = new Set(current);
+        if (loading) next.add(id); else next.delete(id);
+        return next;
+      });
+    };
+    const setFailure = (failure: AccountLibrarySourceFailure | null, id: AccountLibrarySourceId) => {
+      setSourceFailures((current) => {
+        const withoutSource = current.filter((entry) => entry.id !== id);
+        return failure ? [...withoutSource, failure] : withoutSource;
+      });
+    };
+    const begin = (id: string, source: AccountLibrarySourceId) => {
+      markLoading(id, true);
+      setFailure(null, source);
+    };
+    const finish = (id: string) => markLoading(id, false);
+    const current = () => generation === refreshGeneration.current;
 
-    const [resourceResult, folderResult, workFolderResults, bootstrapResult, [driveResult, bindingResult, assetsResult, draftsResult]] = await Promise.all([
-      deviceAssetsPromise,
-      localFolderPromise,
-      localWorkFoldersPromise,
-      studioBootstrapPromise,
-      signedInSourcesPromise,
-    ]);
-    if (generation !== refreshGeneration.current) return;
-    resourceResult.failures.forEach(({ collection, error }) => failures.push(sourceFailure('device-assets', error, `Local ${collection} resources are unavailable.`)));
-    setLocalResourceSource((current) => ({
-      scope: persistenceScope,
-      value: retainLocalLibraryResources(current?.scope === persistenceScope ? current.value ?? [] : [], resourceResult.resources, resourceResult.failures.map((failure) => failure.collection)),
-    }));
-    setLocalFolder(folderResult);
-    setLocalWorkFolders(workFolderResults);
-    if (bootstrapResult) {
-      setDefaultTemplatesFromFiles(
-        bootstrapResult.templates.defaults,
-        bootstrapResult.studioDefaults.defaultTemplateId,
-      );
+    begin('device-assets', 'device-assets');
+    setLocalResourceSource((previous) => beginScopedSource(previous, persistenceScope));
+    begin('local-folder-status', 'local-folder');
+    setLocalFolderSource((previous) => beginScopedSource(previous, persistenceScope));
+    begin('local-folder-work', 'local-folder');
+    setLocalWorkFolderSource((previous) => beginScopedSource(previous, persistenceScope));
+    begin('published-library', 'published-library');
+    if (isSignedIn) {
+      begin('google-drive-library', 'google-drive');
+      setDriveLibrarySource((previous) => beginScopedSource(previous, persistenceScope));
+      begin('google-drive-binding', 'google-drive');
+      setDriveBindingSource((previous) => beginScopedSource(previous, persistenceScope));
+      begin('personal-library', 'personal-library');
+      setPersonalLibrarySource((previous) => beginScopedSource(previous, persistenceScope));
+      begin('assistant-drafts', 'assistant-drafts');
+      setWorkingDraftSource((previous) => beginScopedSource(previous, persistenceScope));
+    } else {
+      setDriveLibrarySource(settleScopedSourceValue<ProjectPersistenceScope, GoogleDriveProjectListResult, AccountLibrarySourceFailure>(persistenceScope, null, { empty: true }));
+      setDriveBindingSource(settleScopedSourceValue<ProjectPersistenceScope, string, AccountLibrarySourceFailure>(persistenceScope, null, { empty: true }));
+      setPersonalLibrarySource(settleScopedSourceValue<ProjectPersistenceScope, PersonalLibraryListResult, AccountLibrarySourceFailure>(persistenceScope, null, { empty: true }));
+      setWorkingDraftSource(settleScopedSourceValue<ProjectPersistenceScope, StudioDocumentSummary[], AccountLibrarySourceFailure>(persistenceScope, [], { empty: true }));
     }
-    setDriveLibrarySource((current) => retainScopedLastKnownLibrarySource(current, persistenceScope, driveResult));
-    setDriveBindingSource((current) => retainScopedLastKnownLibrarySource(
-      current,
-      persistenceScope,
-      bindingResult === undefined ? undefined : bindingResult?.fileId ?? null,
-    ));
-    setPersonalLibrarySource((current) => retainScopedLastKnownLibrarySource(current, persistenceScope, assetsResult));
-    setWorkingDraftSource((current) => retainScopedLastKnownLibrarySource(
-      current,
-      persistenceScope,
-      draftsResult,
-    ));
-    setSourceFailures(failures);
-    setLoadingSources(false);
+
+    const deviceAssets = readLocalLibraryResources()
+      .then((result) => {
+        if (!current()) return;
+        const failures = result.failures.map(({ collection, error }) => sourceFailure('device-assets', error, `Local ${collection} resources are unavailable.`));
+        if (failures[0]) setFailure(failures[0], 'device-assets');
+        setLocalResourceSource((previous) => settleScopedSourceValue(
+          persistenceScope,
+          retainLocalLibraryResources(previous?.scope === persistenceScope ? previous.value ?? [] : [], result.resources, result.failures.map((failure) => failure.collection)),
+          { empty: result.resources.length === 0, incomplete: result.failures.length > 0 },
+        ));
+      })
+      .catch((error) => {
+        if (!current()) return;
+        const failure = sourceFailure('device-assets', error, 'This device library is unavailable.');
+        setFailure(failure, 'device-assets');
+        setLocalResourceSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+      })
+      .finally(() => { if (current()) finish('device-assets'); });
+
+    const folderStatus = getLocalProjectFolderStatus()
+      .then((value) => {
+        if (!current()) return;
+        setLocalFolderSource(settleScopedSourceValue(persistenceScope, value));
+      })
+      .catch((error) => {
+        if (!current()) return;
+        const failure = sourceFailure('local-folder', error, 'Local-folder status is unavailable.');
+        setFailure(failure, 'local-folder');
+        setLocalFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+      })
+      .finally(() => { if (current()) finish('local-folder-status'); });
+
+    const folderWork = listLocalProjectWorkBindings()
+      .then((value) => {
+        if (!current()) return;
+        setLocalWorkFolderSource(settleScopedSourceValue(persistenceScope, value, { empty: value.length === 0 }));
+      })
+      .catch((error) => {
+        if (!current()) return;
+        const failure = sourceFailure('local-folder', error, 'Saved local-folder locations are unavailable.');
+        setFailure(failure, 'local-folder');
+        // A failed refresh must not replace reconnectable folder-only work
+        // with an empty list. Browser permission is never requested here.
+        setLocalWorkFolderSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+      })
+      .finally(() => { if (current()) finish('local-folder-work'); });
+
+    const bootstrap = loadCardForgeStudioBootstrap()
+      .then((value) => {
+        if (!current()) return;
+        setDefaultTemplatesFromFiles(value.templates.defaults, value.studioDefaults.defaultTemplateId);
+      })
+      .catch((error) => {
+        if (!current()) return;
+        setFailure(sourceFailure('published-library', error, 'CardForge previews are unavailable.'), 'published-library');
+      })
+      .finally(() => { if (current()) finish('published-library'); });
+
+    const signedInTasks = !isSignedIn ? [] : [
+      loadGoogleDriveProjectLibrary()
+        .then((value) => {
+          if (!current()) return;
+          setDriveLibrarySource(settleScopedSourceValue(persistenceScope, value, { empty: value.projects.length === 0 }));
+        })
+        .catch((error) => {
+          if (!current()) return;
+          const failure = sourceFailure('google-drive', error, 'Google Drive projects are unavailable.');
+          setFailure(failure, 'google-drive');
+          setDriveLibrarySource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+        })
+        .finally(() => { if (current()) finish('google-drive-library'); }),
+      getGoogleDriveProjectBinding()
+        .then((value) => {
+          if (!current()) return;
+          setDriveBindingSource(settleScopedSourceValue(persistenceScope, value?.fileId ?? null, { empty: !value?.fileId }));
+        })
+        .catch((error) => {
+          if (!current()) return;
+          const failure = sourceFailure('google-drive', error, 'Google Drive project attachment is unavailable.');
+          setFailure(failure, 'google-drive');
+          setDriveBindingSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+        })
+        .finally(() => { if (current()) finish('google-drive-binding'); }),
+      loadPersonalLibrary()
+        .then((value) => {
+          if (!current()) return;
+          setPersonalLibrarySource(settleScopedSourceValue(persistenceScope, value, { empty: value.items.length === 0 }));
+        })
+        .catch((error) => {
+          if (!current()) return;
+          const failure = sourceFailure('personal-library', error, 'Connected assets are unavailable.');
+          setFailure(failure, 'personal-library');
+          setPersonalLibrarySource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+        })
+        .finally(() => { if (current()) finish('personal-library'); }),
+      loadAllStudioDocumentSummaries()
+        .then((value) => {
+          if (!current()) return;
+          setWorkingDraftSource(settleScopedSourceValue(persistenceScope, value, { empty: value.length === 0 }));
+        })
+        .catch((error) => {
+          if (!current()) return;
+          const failure = sourceFailure('assistant-drafts', error, 'Private working drafts are unavailable.');
+          setFailure(failure, 'assistant-drafts');
+          setWorkingDraftSource((previous) => settleScopedSourceFailure(previous, persistenceScope, failure));
+        })
+        .finally(() => { if (current()) finish('assistant-drafts'); }),
+    ];
+
+    // This await only lets callers observe that a refresh round has settled.
+    // Each source above applies independently as soon as it resolves.
+    await Promise.allSettled([deviceAssets, folderStatus, folderWork, bootstrap, ...signedInTasks]);
   }, [isSignedIn, persistenceScope, setDefaultTemplatesFromFiles]);
 
   useEffect(() => {
@@ -375,8 +480,14 @@ export function useAccountLibraryProjection({
   const visibleItems = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
     const filtered = items.filter((item) => {
-      if (kind !== 'all' && item.kind !== kind) return false;
-      if (source !== 'all' && !item.locations.some((location) => location.source === source)) return false;
+      if (kindFilters.length && !kindFilters.includes(item.kind)) return false;
+      if (sourceFilters.length && !item.locations.some((location) => sourceFilters.includes(location.source))) return false;
+      if (typeFilters.length && (!item.organization.type || !typeFilters.includes(item.organization.type))) return false;
+      if (tagFilters.length) {
+        const itemTags = new Set(item.organization.tags);
+        if (tagMatch === 'all' && !tagFilters.every((tag) => itemTags.has(tag))) return false;
+        if (tagMatch === 'any' && !tagFilters.some((tag) => itemTags.has(tag))) return false;
+      }
       if (!normalizedQuery) return true;
       return [item.name, ...item.details, ...item.locations.map((location) => location.label)]
         .join(' ')
@@ -388,12 +499,24 @@ export function useAccountLibraryProjection({
       if (sort === 'kind') return left.kind.localeCompare(right.kind) || left.name.localeCompare(right.name);
       return compareRecent(left, right);
     });
-  }, [deferredQuery, items, kind, sort, source]);
+  }, [deferredQuery, items, kindFilters, sort, sourceFilters, tagFilters, tagMatch, typeFilters]);
 
   const sourceCounts = useMemo(() => {
     const counts = new Map<AccountLibrarySource, number>();
     items.forEach((item) => item.locations.forEach((location) => counts.set(location.source, (counts.get(location.source) ?? 0) + 1)));
     return counts;
+  }, [items]);
+  const typeFacets = useMemo(() => {
+    const counts = new Map<string, number>();
+    items.forEach((item) => {
+      if (item.organization.type) counts.set(item.organization.type, (counts.get(item.organization.type) ?? 0) + 1);
+    });
+    return [...counts.entries()].map(([id, count]) => ({ id, label: id, count })).toSorted((left, right) => left.label.localeCompare(right.label));
+  }, [items]);
+  const tagFacets = useMemo(() => {
+    const counts = new Map<string, number>();
+    items.forEach((item) => item.organization.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1)));
+    return [...counts.entries()].map(([id, count]) => ({ id, label: id, count })).toSorted((left, right) => left.label.localeCompare(right.label));
   }, [items]);
 
   const home = useMemo(() => resolveAccountHomeLibraryProjection(items, activeSetId), [activeSetId, items]);
@@ -481,15 +604,27 @@ export function useAccountLibraryProjection({
     query,
     kind,
     source,
+    kindFilters,
+    sourceFilters,
+    typeFilters,
+    tagFilters,
+    tagMatch,
     sort,
     setQuery,
-    setKind,
-    setSource,
+    setKind: (next: AccountLibraryKind | 'all') => setKindFilters(next === 'all' ? [] : [next]),
+    setSource: (next: AccountLibrarySource | 'all') => setSourceFilters(next === 'all' ? [] : [next]),
+    setKindFilters,
+    setSourceFilters,
+    setTypeFilters,
+    setTagFilters,
+    setTagMatch,
     setSort,
     openItem,
     refresh: () => { void refreshLibrarySources(); },
     driveConnection: driveLibrary?.connection ?? null,
     localFolderSupported: localFolder?.supported ?? false,
+    typeFacets,
+    tagFacets,
     router,
   };
 }

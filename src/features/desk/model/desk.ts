@@ -99,6 +99,20 @@ export const normalizeDeskOrder = (
   return [...admitted, ...availableIds.filter((id) => !admittedSet.has(id))];
 };
 
+/**
+ * Persisted Desk order is a durable account preference, not a discovery
+ * result. Keep identities that are temporarily absent while a provider is
+ * loading or unavailable; the visible projection still uses normalizeDeskOrder.
+ */
+export const preserveDeskOrder = (
+  availableIds: string[],
+  storedOrder: string[],
+): string[] => {
+  const stored = storedOrder.filter((id, index) => Boolean(id) && storedOrder.indexOf(id) === index);
+  const known = new Set(stored);
+  return [...stored, ...availableIds.filter((id) => !known.has(id))];
+};
+
 export const workSource = (item: AccountLibraryItem): AccountLibrarySource => (
   item.locations[0]?.source ?? 'device'
 );
@@ -171,8 +185,8 @@ export const getWorkActions = (
     : { kind: 'human-only', owner: 'cardforge' };
   return [
     {
-      id: 'desk.open-set', label: localSet ? 'Open Set' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.kind === 'working-draft' ? 'studio-documents' : 'project',
-      supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
+      id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
+      supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation, result: 'navigation',
     },

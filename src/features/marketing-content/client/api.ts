@@ -6,18 +6,18 @@ import type {
   MarketingContentWorkspaceView,
   MarketingContentPackage as SocialCampaign,
 } from '@/features/marketing-content/model';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import { readApiError, readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export const loadMarketingContentWorkspace = async (): Promise<MarketingContentWorkspaceView> => {
   const response = await fetch('/api/marketing-content', { cache: 'no-store' });
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load marketing content.'));
+  if (!response.ok) throw await readApiError(response, 'Unable to load marketing content.');
   const body = await response.json() as { campaigns: MarketingContentWorkspaceView };
   return body.campaigns;
 };
 
 export const loadCampaignDeskProjection = async (): Promise<CampaignDeskProjection> => {
   const response = await fetch('/api/marketing-content/desk', { cache: 'no-store' });
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load campaign work for Desk.'));
+  if (!response.ok) throw await readApiError(response, 'Unable to load campaign work for Desk.');
   const body = await response.json() as { desk: CampaignDeskProjection };
   return body.desk;
 };

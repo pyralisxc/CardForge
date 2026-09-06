@@ -23,6 +23,11 @@ export type LibrarySurfaceReturnContext = {
   query: string;
   source: 'all' | 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline';
   itemKind: 'all' | 'set' | 'template' | 'asset' | 'working-draft' | 'campaign' | 'published-resource';
+  librarySources?: Array<'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline'>;
+  libraryKinds?: Array<'set' | 'template' | 'asset' | 'working-draft' | 'campaign' | 'published-resource'>;
+  libraryTypes?: string[];
+  libraryTags?: string[];
+  libraryTagMatch?: 'any' | 'all';
   sort: 'recent' | 'name' | 'kind';
   density: 'gallery' | 'list' | 'expanded';
   sharedType: string;
@@ -94,7 +99,16 @@ const normalizeContext = (value: unknown): SurfaceReturnContext | null => {
     const density = oneOf(record.density, ['gallery', 'list', 'expanded'] as const);
     const sharedType = textValue(record.sharedType);
     if (!scope || objectId === undefined || query === null || !source || !itemKind || !sort || !density || sharedType === null) return null;
-    return { kind: 'library', scope, objectId, query, source, itemKind, sort, density, sharedType, scrollTop };
+    const librarySources = Array.isArray(record.librarySources)
+      ? record.librarySources.filter((value): value is 'device' | 'google-drive' | 'local-folder' | 'assistant-draft' | 'campaign' | 'pipeline' => typeof value === 'string' && ['device', 'google-drive', 'local-folder', 'assistant-draft', 'campaign', 'pipeline'].includes(value)).slice(0, 6)
+      : undefined;
+    const libraryKinds = Array.isArray(record.libraryKinds)
+      ? record.libraryKinds.filter((value): value is 'set' | 'template' | 'asset' | 'working-draft' | 'campaign' | 'published-resource' => typeof value === 'string' && ['set', 'template', 'asset', 'working-draft', 'campaign', 'published-resource'].includes(value)).slice(0, 6)
+      : undefined;
+    const libraryTypes = Array.isArray(record.libraryTypes) ? record.libraryTypes.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
+    const libraryTags = Array.isArray(record.libraryTags) ? record.libraryTags.map(textValue).filter((value): value is string => value !== null).slice(0, 40) : undefined;
+    const libraryTagMatch = oneOf(record.libraryTagMatch, ['any', 'all'] as const) ?? undefined;
+    return { kind: 'library', scope, objectId, query, source, itemKind, sort, density, sharedType, scrollTop, ...(librarySources ? { librarySources } : {}), ...(libraryKinds ? { libraryKinds } : {}), ...(libraryTypes ? { libraryTypes } : {}), ...(libraryTags ? { libraryTags } : {}), ...(libraryTagMatch ? { libraryTagMatch } : {}) };
   }
 
   return null;

@@ -16,7 +16,9 @@ import {
   type PipelineLibraryItem,
   type PipelineSubmission,
 } from '@/features/pipeline/client';
-import { readApiError } from '@/infrastructure/http/clientResponses';
+import { ApiClientError, readApiError } from '@/infrastructure/http/clientResponses';
+import { describeAgentBoundaryFailure, type BoundaryFailureKind } from '@/shared/boundaryFailure';
+import { mustClearScopedSourceForFailure } from '@/shared/scopedSource';
 import { shouldLoadLibraryPipelineProgram, type LibraryScope } from '../model/libraryScopes';
 
 export interface PublishedLibraryObject {
@@ -59,8 +61,33 @@ export interface PipelineLibraryObject {
 interface LibrarySharedFailure {
   message: string;
   retryable: boolean;
+  kind: BoundaryFailureKind;
+  code: string;
+  correlationId: string | null;
   nextAction?: string;
 }
+
+const sharedFailure = (error: unknown, fallback: string): LibrarySharedFailure => {
+  const boundary = describeAgentBoundaryFailure(error);
+  if (error instanceof ApiClientError) {
+    return {
+      message: error.message,
+      retryable: error.retryable,
+      kind: error.kind,
+      code: error.code,
+      correlationId: error.correlationId,
+      ...(error.nextAction ? { nextAction: error.nextAction } : {}),
+    };
+  }
+  return {
+    message: error instanceof Error ? error.message : fallback,
+    retryable: boundary.retryable,
+    kind: boundary.kind,
+    code: 'library_source_unavailable',
+    correlationId: null,
+    ...(boundary.nextAction ? { nextAction: boundary.nextAction } : {}),
+  };
+};
 
 export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest): PublishedLibraryObject[] => {
   const pipelineByAssetId = new Map((catalog.pipeline?.items ?? []).map((item) => [item.id, item]));
@@ -280,11 +307,11 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
         return response.json() as Promise<CardForgeCatalogManifest>;
       })
       .then(setCatalog)
-      .catch((error: unknown) => setCatalogFailure({
-        message: error instanceof Error ? error.message : 'The published Library is unavailable.',
-        retryable: typeof error === 'object' && error !== null && 'retryable' in error ? Boolean(error.retryable) : true,
-        ...(typeof error === 'object' && error !== null && 'nextAction' in error && typeof error.nextAction === 'string' ? { nextAction: error.nextAction } : {}),
-      }))
+      .catch((error: unknown) => {
+        const failure = sharedFailure(error, 'The published Library is unavailable.');
+        setCatalogFailure(failure);
+        if (mustClearScopedSourceForFailure(failure.kind)) setCatalog(null);
+      })
       .finally(() => setCatalogLoading(false)) : Promise.resolve();
     const pipelineRequest = needsPipelineProgram
       ? fetch('/api/pipeline/library', { cache: 'no-store' })
@@ -296,11 +323,10 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
             if (pipelineEnabledRef.current) setProgram(payload.program);
           })
           .catch((error: unknown) => {
-            if (pipelineEnabledRef.current) setPipelineFailure({
-              message: error instanceof Error ? error.message : 'Forge Review is unavailable.',
-              retryable: typeof error === 'object' && error !== null && 'retryable' in error ? Boolean(error.retryable) : true,
-              ...(typeof error === 'object' && error !== null && 'nextAction' in error && typeof error.nextAction === 'string' ? { nextAction: error.nextAction } : {}),
-            });
+            if (!pipelineEnabledRef.current) return;
+            const failure = sharedFailure(error, 'Forge Review is unavailable.');
+            setPipelineFailure(failure);
+            if (mustClearScopedSourceForFailure(failure.kind)) setProgram(null);
           })
           .finally(() => {
             if (pipelineEnabledRef.current) setPipelineLoading(false);

@@ -14,3 +14,4 @@ export type {
 export type { CardForgeCatalogManifest } from './lib/catalogManifest';
 export { loadCardForgeStudioBootstrap } from './client/catalog';
 export { loadOwnPublishedPipelineSubmissions } from './client/ownPublished';
+export { OwnPublishedDeskWorkspace } from './components/OwnPublishedDeskWorkspace';

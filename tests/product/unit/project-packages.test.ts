@@ -46,7 +46,11 @@ const createProject = (): ProjectDocumentV1 => ({
       }],
     },
   }],
-  cardSets: [{ id: 'set-1', name: 'Clash of Fists' }],
+  cardSets: [{
+    id: 'set-1',
+    name: 'Clash of Fists',
+    metadata: { workflow: 'card-set', type: 'Postcards', tags: ['Launch', 'Needs artwork'] },
+  }],
   activeCardSetId: 'set-1',
   storedCards: [{
     templateId: 'template-1',
@@ -87,6 +91,9 @@ describe('portable CardForge project packages', () => {
     expect(decoded.manifest.projectRevision).toBe(snapshot.manifest.projectRevision);
     expect(hydrated.storedCards[0]!.data.artwork).toBe(onePixelPng);
     expect(hydrated.userTemplates[0]!.freeformCanvas?.elements[0]?.imageSource).toBe(onePixelPng);
+    expect(hydrated.cardSets[0]!.metadata).toEqual({
+      workflow: 'card-set', type: 'Postcards', tags: ['Launch', 'Needs artwork'],
+    });
   });
 
   it('reads the legacy v1 package while writing only the artifact-based v2 format', async () => {

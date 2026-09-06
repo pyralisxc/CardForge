@@ -266,6 +266,12 @@
   font-size: 0.75rem;
 }
 
+.deskTypeSelect {
+  width: 8.75rem;
+  height: 2.2rem;
+  font-size: 0.75rem;
+}
+
 .workOrganization {
   color: var(--cf-accent-text);
 }
@@ -278,6 +284,14 @@
   gap: 0.2rem;
   padding-left: 0.2rem;
   border-left: 1px solid var(--cf-border-subtle);
+}
+
+.deskOrganizationTags {
+  display: flex;
+  min-width: 0;
+  max-width: 18rem;
+  flex-wrap: wrap;
+  gap: 0.2rem;
 }
 
 .spatialControls {
@@ -493,6 +507,22 @@
 .sourceFallback span {
   color: var(--cf-text-muted);
   font-size: 0.66rem;
+}
+
+.remoteWorkPreview {
+  width: 6.8rem;
+  min-height: 8.4rem;
+  max-height: 10.5rem;
+  border: 1px solid var(--cf-border-strong);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-panel-shadow);
+  object-fit: cover;
+}
+
+.workTile[data-featured="true"] .remoteWorkPreview {
+  width: 10rem;
+  min-height: 12rem;
+  max-height: 14rem;
 }
 
 .workMeta {
@@ -1408,7 +1438,9 @@
   }
 
   .mobileDeskFilters {
-    position: relative;
+    /* The panel is positioned against the toolbar, not the narrow trigger
+       column, so it cannot expand offscreen to the left on compact devices. */
+    position: static;
     display: block;
     min-width: 0;
     grid-column: 2;
@@ -1450,13 +1482,14 @@
 
   .mobileDeskFilterPanel {
     position: absolute;
-    z-index: 2;
+    z-index: 20;
     top: calc(100% + 0.3rem);
-    right: 0;
+    right: 0.5rem;
+    left: 0.5rem;
     display: flex;
-    width: min(21rem, calc(100vw - 1rem));
+    width: auto;
     max-height: min(60dvh, 30rem);
-    min-width: 15rem;
+    min-width: 0;
     flex-wrap: wrap;
     gap: 0.3rem;
     padding: 0.45rem;
@@ -1479,6 +1512,12 @@
     display: inline-flex;
     min-width: 0;
     flex: 1 1 7rem;
+  }
+
+  .mobileDeskFilterPanel .deskTypeSelect,
+  .mobileDeskFilterPanel .deskOrganizationTags {
+    width: 100%;
+    max-width: none;
   }
 
   .mobileDeskFilterPanel .deskOrganizer {
@@ -1522,7 +1561,9 @@
   }
 
   .workTile[data-featured="true"] .sourceFallback,
-  .sourceFallback {
+  .sourceFallback,
+  .workTile[data-featured="true"] .remoteWorkPreview,
+  .remoteWorkPreview {
     width: 8.75rem;
     min-height: 10.5rem;
   }

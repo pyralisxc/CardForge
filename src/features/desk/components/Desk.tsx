@@ -61,6 +61,12 @@ const DeskDesignWorkspace = dynamic(() => import(
 const DeskCardEditor = dynamic(() => import(
   '@/features/card-generator/client/card-editor'
 ).then((module) => module.CardEditor), { ssr: false, loading: DeskToolLoading });
+const DeskCampaignWorkspace = dynamic(() => import(
+  '@/features/marketing-content/client'
+).then((module) => module.CampaignLibraryWorkspace), { ssr: false, loading: DeskToolLoading });
+const DeskPublishedWorkspace = dynamic(() => import(
+  '@/features/pipeline/client'
+).then((module) => module.OwnPublishedDeskWorkspace), { ssr: false, loading: DeskToolLoading });
 
 export type { DeskAccountStatus } from '../model/desk';
 
@@ -116,6 +122,8 @@ export function Desk({
     beginDeskMarquee,
     cardQuery,
     cardStageRef,
+    closeRemoteWorkspace,
+    createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
     closePipelineSubmission,
@@ -183,6 +191,7 @@ export function Desk({
     renaming,
     reorderSelectedCard,
     richTextHighlightColor,
+    remoteWorkspaceItem,
     runAction,
     searchRef,
     selectedCard,
@@ -269,8 +278,10 @@ export function Desk({
   const editingCard = studioTool?.tool === 'design' && editingCardId
     ? focusedCards.find((card) => card.uniqueId === editingCardId) ?? null : null;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
-  const contextDepth = activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const toolName = activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
+  const contextDepth = remoteWorkspaceItem ? 'tool' : activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
+  const toolName = remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
+    : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
+    : activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
     : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
       : activeTool?.toolId === 'output' ? 'Output'
         : activeTool?.toolId === 'pipeline' ? 'Pipeline'
@@ -300,6 +311,7 @@ export function Desk({
     openWorkLane(focusedItem, 'generate', selectedCards[0]);
   };
   const closeActiveTool = () => {
+    if (remoteWorkspaceItem) { closeRemoteWorkspace(); return; }
     if (activeTool?.dirty) {
       setDirtyCloseRequested(true);
       return;
@@ -394,7 +406,7 @@ export function Desk({
             positions={deskPositions}
             marquee={deskMarquee}
             isLoading={projection.isLoading}
-            failureMessage={projection.failures[0]?.message ?? null}
+            failure={projection.failures[0] ?? null}
             showGrid={showGrid}
             snapToGrid={snapToGrid}
             query={query}
@@ -417,7 +429,7 @@ export function Desk({
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
-            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview after opening</span></div>}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : item.webViewLink ? <img src={item.webViewLink} alt="" className={styles.remoteWorkPreview} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview on open</span></div>}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
@@ -520,6 +532,23 @@ export function Desk({
           railOwned
         >
           <PipelineContributionPanel compact initialSubmitSetId={pipelineSubmitSetId} />
+        </EnvironmentToolLayer> : null}
+        {remoteWorkspaceItem ? <EnvironmentToolLayer
+          id="desk-remote-workspace-title"
+          eyebrow="Desk workspace"
+          title={remoteWorkspaceItem.references.campaignId ? `Campaign · ${remoteWorkspaceItem.name}` : `Published work · ${remoteWorkspaceItem.name}`}
+          summary={remoteWorkspaceItem.references.campaignId ? 'This campaign stays in the Desk scene while its native workspace and tools load in context.' : 'This immutable Pipeline publication stays distinct from any working copy while you inspect its exact published identity.'}
+          closeLabel="Return to Desk work"
+          onClose={closeRemoteWorkspace}
+          manageHistory={false}
+          railOwned
+        >
+          {remoteWorkspaceItem.references.campaignId ? <DeskCampaignWorkspace initialCampaignId={remoteWorkspaceItem.references.campaignId} /> : remoteWorkspaceItem.references.pipelineLineageId ? <DeskPublishedWorkspace work={{
+            assetType: remoteWorkspaceItem.references.pipelineAssetType ?? (remoteWorkspaceItem.kind === 'set' ? 'sets' : 'resource'),
+            description: remoteWorkspaceItem.details.join(' · '), name: remoteWorkspaceItem.name,
+            previewUrl: remoteWorkspaceItem.webViewLink, publishedAt: remoteWorkspaceItem.updatedAt,
+            revision: remoteWorkspaceItem.revision, sourceNotes: remoteWorkspaceItem.references.pipelineSourceNotes ?? null,
+          }} onCreateWorkingCopy={remoteWorkspaceItem.references.pipelineAssetType === 'sets' && remoteWorkspaceItem.references.pipelineSourceUrl ? () => void createPublishedWorkingCopy(remoteWorkspaceItem) : undefined} /> : null}
         </EnvironmentToolLayer> : null}
         {generationSet ? <EnvironmentToolLayer
           id="desk-generate-title"

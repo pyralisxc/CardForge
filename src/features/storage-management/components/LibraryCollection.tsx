@@ -9,6 +9,7 @@ import {
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import type { CardFace } from '@/domain/cards';
@@ -43,9 +44,15 @@ export interface LibraryBoundaryFailure {
   correlationId?: string | null;
 }
 
-export const describeLibraryBoundaryFailure = (failure: LibraryBoundaryFailure): string => (
-  `${failure.message}${failure.nextAction ? ` ${failure.nextAction}` : ''}${failure.id === 'google-drive' ? ' Previously loaded Google Drive items remain visible.' : ' Other Library scopes remain unchanged.'}${failure.code ? ` Error code: ${failure.code}.` : ''}${failure.correlationId ? ` Reference: ${failure.correlationId}.` : ''}`
-);
+export const describeLibraryBoundaryFailure = (failure: LibraryBoundaryFailure): string => {
+  const denied = failure.kind === 'authentication' || failure.kind === 'authorization' || failure.kind === 'not_found';
+  const retention = denied
+    ? ' Protected results from this source were removed.'
+    : failure.id === 'google-drive'
+      ? ' Previously loaded Google Drive items remain visible.'
+      : ' Other Library scopes remain unchanged.';
+  return `${failure.message}${failure.nextAction ? ` ${failure.nextAction}` : ''}${retention}${failure.code ? ` Error code: ${failure.code}.` : ''}${failure.correlationId ? ` Reference: ${failure.correlationId}.` : ''}`;
+};
 
 interface LibraryCollectionProps {
   activeFailure: LibraryBoundaryFailure | null;
@@ -98,8 +105,11 @@ export function LibraryCollection({
       <div className={styles.toolbar} aria-label="Library toolbar">
         <label className={styles.searchField}><span className="sr-only">Search Library</span><Search aria-hidden="true" /><Input ref={searchRef} id="library-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} placeholder={`Search ${activeScope}`} /></label>
         {activeScope === 'personal' ? <>
-          <SelectionFilterMenu allLabel="All sources" ariaLabel="Filter by source" compactLabel="Source" className={styles.filterSelect} value={projection.source} onChange={projection.setSource} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
-          <SelectionFilterMenu allLabel="All types" ariaLabel="Filter by type" compactLabel="Type" className={styles.filterSelect} value={projection.kind} onChange={projection.setKind} options={ACCOUNT_LIBRARY_KINDS.map((kind) => ({ value: kind, label: accountLibraryKindLabels[kind] }))} />
+          <MultiSelectionFilterMenu allLabel="All sources" ariaLabel="Filter Library by source" compactLabel="Source" className={styles.filterSelect} values={projection.sourceFilters} onChange={projection.setSourceFilters} options={LIBRARY_SOURCES.map((source) => ({ value: source, label: `${getAccountLibrarySourceLabel(source)} · ${projection.sourceCounts.get(source) ?? 0}` }))} />
+          <MultiSelectionFilterMenu allLabel="All object kinds" ariaLabel="Filter Library by object kind" compactLabel="Kind" className={styles.filterSelect} values={projection.kindFilters} onChange={projection.setKindFilters} options={ACCOUNT_LIBRARY_KINDS.map((kind) => ({ value: kind, label: accountLibraryKindLabels[kind] }))} />
+          {projection.typeFacets.length ? <MultiSelectionFilterMenu allLabel="All Set types" ariaLabel="Filter Library by descriptive type" compactLabel="Type" className={styles.filterSelect} values={projection.typeFilters} onChange={projection.setTypeFilters} options={projection.typeFacets.map((type) => ({ value: type.id, label: `${type.label} · ${type.count}` }))} /> : null}
+          {projection.tagFacets.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter Library by tag" compactLabel="Tags" className={styles.filterSelect} values={projection.tagFilters} onChange={projection.setTagFilters} options={projection.tagFacets.map((tag) => ({ value: tag.id, label: `${tag.label} · ${tag.count}` }))} /> : null}
+          {projection.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose Library tag matching" compactLabel="Tags" className={styles.filterSelect} value={projection.tagMatch} onChange={(value) => projection.setTagMatch(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
         </> : <SelectionFilterMenu allLabel={activeScope === 'pipeline' ? 'All work' : 'All types'} ariaLabel={activeScope === 'pipeline' ? 'Filter Pipeline' : 'Filter by type'} className={styles.filterSelect} value={sharedType} onChange={onSharedTypeChange} options={sharedTypes.map((value) => ({ value, label: value }))} />}
         <Select value={projection.sort} onValueChange={(value) => projection.setSort(value as 'recent' | 'name' | 'kind')}><SelectTrigger aria-label="Sort library" className={styles.sortSelect}><span>{projection.sort === 'name' ? 'Name' : projection.sort === 'kind' ? 'Type' : 'Recent'}</span></SelectTrigger><SelectContent><SelectItem value="recent">Recently updated</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="kind">Type</SelectItem></SelectContent></Select>
         <div className={styles.densityControls} aria-label="Collection view"><button type="button" aria-label="Gallery view" aria-pressed={density === 'gallery'} onClick={() => onDensityChange('gallery')}><Grid2X2 aria-hidden="true" /></button><button type="button" aria-label="Compact list view" aria-pressed={density === 'list'} onClick={() => onDensityChange('list')}><LayoutList aria-hidden="true" /></button><button type="button" aria-label="Expanded view" aria-pressed={density === 'expanded'} onClick={() => onDensityChange('expanded')}><PanelRightOpen aria-hidden="true" /></button></div>
