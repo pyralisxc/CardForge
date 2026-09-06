@@ -8,6 +8,7 @@ export { UnifiedAccountLibrary } from './components/UnifiedAccountLibrary';
 export { DefaultWorkLocationControl, WorkLocationDialog } from './components/WorkLocationDialog';
 export { useAccountLibraryProjection } from './hooks/useAccountLibraryProjection';
 export {
+  applyAccountLibraryOrganizationOperation,
   applyAccountLibraryPrivateOrganization,
   getAccountLibrarySourceLabel,
 } from './model/accountLibrary';
@@ -27,6 +28,7 @@ export type { WorkLocationCapability, WorkLocationContext, WorkLocationId } from
 export type {
   AccountLibraryItem,
   AccountLibraryKind,
+  AccountLibraryOrganizationOperation,
   AccountLibraryPrivateOrganization,
   AccountLibrarySource,
 } from './model/accountLibrary';

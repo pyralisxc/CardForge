@@ -21,7 +21,8 @@ import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { applyAccountLibraryPrivateOrganization, useAccountLibraryProjection, type AccountLibraryItem, type AccountLibrarySource } from '@/features/storage-management/client';
+import { createPublishedSetCopy } from '@/features/project/client/published-sets';
+import { applyAccountLibraryOrganizationOperation, applyAccountLibraryPrivateOrganization, useAccountLibraryProjection, type AccountLibraryItem, type AccountLibraryOrganizationOperation, type AccountLibrarySource } from '@/features/storage-management/client';
 
 import {
   getDeskToolCard,
@@ -147,6 +148,7 @@ export function useDeskController({
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCards, setPendingDeleteCards] = useState<DisplayCard[]>([]);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
+  const [remoteWorkspaceId, setRemoteWorkspaceId] = useState<string | null>(null);
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
   const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
 
@@ -157,6 +159,7 @@ export function useDeskController({
     visibleWorkKinds.has(item.kind)
   )), [discoveredWork.items, projection.items, projection.privateOrganization]);
   const itemById = useMemo(() => new Map(workItems.map((item) => [item.id, item])), [workItems]);
+  const remoteWorkspaceItem = remoteWorkspaceId ? itemById.get(remoteWorkspaceId) ?? null : null;
   const {
     beginDrag: beginDeskDrag,
     beginMarquee: beginDeskMarquee,
@@ -194,6 +197,9 @@ export function useDeskController({
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
+  useEffect(() => {
+    if (remoteWorkspaceId && !remoteWorkspaceItem) setRemoteWorkspaceId(null);
+  }, [remoteWorkspaceId, remoteWorkspaceItem]);
   const activeContextTool = interactionSession.toolStack.at(-1) ?? null;
   const generationContextTool = interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate');
   const setGenerationToolDirty = useCallback((dirty: boolean) => {
@@ -251,7 +257,10 @@ export function useDeskController({
     const missingTemplate = [pendingTool.templateId, pendingTool.backingTemplateId]
       .some((id) => id && !templates.some((template) => template.id === id));
     if (missingTemplate) {
-      if (projection.isLoading) return;
+      // A contextual tool depends on Templates, not the whole Desk. In
+      // particular, a slow Drive/folder/draft request must not block it, while
+      // a delayed catalog response must not be mistaken for a missing design.
+      if (!projection.templateCatalogReady) return;
       toast({
         title: templateSourceFailure ? 'Template source unavailable' : 'Template not found',
         description: templateSourceFailure
@@ -272,7 +281,7 @@ export function useDeskController({
     trackCardForgeEvent('tool_opened', { object_kind: pendingTool.tool, input_method: 'direct' });
     navigateToTool(pendingTool.setId, pendingTool.tool);
     setPendingTool(null);
-  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.isLoading, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
+  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.templateCatalogReady, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
   const focusedItemId = focusedItem?.id ?? null;
@@ -373,8 +382,9 @@ export function useDeskController({
     ));
   };
   const selectedWorkItems = useMemo(() => workItems.filter((item) => selectedDeskIds.includes(item.id)), [selectedDeskIds, workItems]);
-  const updateSelectedWorkOrganization = useCallback((patch: { type?: string; tags?: string[] }) => {
+  const updateSelectedWorkOrganization = useCallback((operation: AccountLibraryOrganizationOperation) => {
     selectedWorkItems.forEach((item) => {
+      const patch = applyAccountLibraryOrganizationOperation(item.organization, operation);
       if (item.references.localSetId) updateCardSetMetadata(item.references.localSetId, patch);
       else projection.updatePersonalOrganization(item, patch);
     });
@@ -472,6 +482,31 @@ export function useDeskController({
     return createDeskReturnHref(workId, returnContext);
   };
 
+  const openRemoteWork = (item: AccountLibraryItem) => {
+    if (item.references.campaignId || item.references.pipelineLineageId) {
+      // The specialized owner is mounted as a contextual Desk tool. It keeps
+      // the focused object and return scene intact instead of routing through
+      // Library or inventing a local Set identity.
+      setRemoteWorkspaceId(item.id);
+      return;
+    }
+    void projection.openItem(item, createDeskStudioReturnTo(item.id));
+  };
+
+  const createPublishedWorkingCopy = useCallback(async (item: AccountLibraryItem) => {
+    const packageUrl = item.references.pipelineSourceUrl;
+    if (item.references.pipelineAssetType !== 'sets' || !packageUrl) return;
+    try {
+      const result = await createPublishedSetCopy({ packageUrl, expectedName: item.name });
+      projection.refresh();
+      setRemoteWorkspaceId(null);
+      focusWorkContext(`set:${result.setId}`, result.setId);
+      toast({ title: 'Editable Set copy created', description: `${result.setName} remains independent browser work while the publication stays immutable.` });
+    } catch (error) {
+      toast({ title: 'Published Set could not be copied', description: error instanceof Error ? error.message : 'CardForge could not create the editable Set copy.', variant: 'destructive' });
+    }
+  }, [focusWorkContext, projection, toast]);
+
   const { actions, detail, runAction } = useDeskActionRuntime({
     experience,
     focusedItem,
@@ -480,7 +515,7 @@ export function useDeskController({
     commands: {
       createWork: openCreateMenu,
       focusWork,
-      openRemoteWork: (item) => projection.openItem(item, createDeskStudioReturnTo(item.id)),
+      openRemoteWork,
       togglePin,
       openGenerate: (setId) => openContextTool(setId, 'generate'),
       openOutput: (setId) => openContextStudio(setId, 'output'),
@@ -503,7 +538,7 @@ export function useDeskController({
 
   const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export', generationCard?: DisplayCard) => {
     if (!item.references.localSetId) {
-      if (lane === 'open') void projection.openItem(item, createDeskStudioReturnTo(item.id));
+      if (lane === 'open') openRemoteWork(item);
       else setLocationItem(item);
       return;
     }
@@ -552,6 +587,8 @@ export function useDeskController({
     beginDeskMarquee,
     cardQuery,
     cardStageRef,
+    closeRemoteWorkspace: () => setRemoteWorkspaceId(null),
+    createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
     closePipelineSubmission,
@@ -607,6 +644,7 @@ export function useDeskController({
     renameDraft,
     renaming,
     richTextHighlightColor,
+    remoteWorkspaceItem,
     runAction,
     searchRef,
     selectedCard,

@@ -64,6 +64,7 @@ export type FeatureOwnerId =
   | 'pipeline'
   | 'experience-settings'
   | 'legal'
+  | 'marketing-content'
   | 'owner'
   | 'personal-library'
   | 'project'

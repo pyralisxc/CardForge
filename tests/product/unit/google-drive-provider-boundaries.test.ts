@@ -264,4 +264,13 @@ describe('Google Drive Library refresh safety', () => {
       correlationId: 'correlation-123',
     })).toContain('Previously loaded Google Drive items remain visible. Error code: google_drive_unavailable. Reference: correlation-123.');
   });
+
+  it.each(['authentication', 'authorization', 'not_found'] as const)('never claims retained results after an authoritative %s failure', (kind) => {
+    expect(describeLibraryBoundaryFailure({
+      id: 'google-drive',
+      message: 'Google Drive access changed.',
+      retryable: false,
+      kind,
+    })).toContain('Protected results from this source were removed.');
+  });
 });

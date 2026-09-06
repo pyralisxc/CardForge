@@ -37,6 +37,9 @@ export interface AccountLibraryReferences {
   workingDraftId?: string;
   campaignId?: string;
   pipelineLineageId?: string;
+  pipelineAssetType?: string;
+  pipelineSourceUrl?: string;
+  pipelineSourceNotes?: string;
 }
 
 export type AccountLibraryPublicationState = 'working' | 'published' | 'campaign' | 'temporary';
@@ -141,6 +144,13 @@ export interface AccountLibraryPrivateOrganization {
   tags: string[];
 }
 
+export type AccountLibraryOrganizationOperation =
+  | { kind: 'set-type'; type: string }
+  | { kind: 'add-tag'; tag: string }
+  | { kind: 'remove-tag'; tag: string }
+  | { kind: 'rename-tag'; from: string; to: string }
+  | { kind: 'clear' };
+
 const normalizeOrganizationText = (value: string | undefined, limit: number): string | null => {
   const normalized = value?.trim().replace(/\s+/gu, ' ').slice(0, limit) ?? '';
   return normalized || null;
@@ -149,6 +159,28 @@ const normalizeOrganizationText = (value: string | undefined, limit: number): st
 const normalizeOrganizationTags = (tags: readonly string[]): string[] => Array.from(new Set(tags
   .map((tag) => normalizeOrganizationText(tag, 60))
   .filter((tag): tag is string => Boolean(tag)))).slice(0, 40);
+
+/** Applies one deliberate label operation to one work object. */
+export const applyAccountLibraryOrganizationOperation = (
+  organization: Pick<AccountLibraryOrganization, 'type' | 'tags'>,
+  operation: AccountLibraryOrganizationOperation,
+): { type: string; tags: string[] } => {
+  switch (operation.kind) {
+    case 'set-type': return { type: operation.type, tags: organization.tags };
+    case 'add-tag': return { type: organization.type ?? '', tags: normalizeOrganizationTags([...organization.tags, operation.tag]) };
+    case 'remove-tag': return {
+      type: organization.type ?? '',
+      tags: organization.tags.filter((tag) => tag.toLocaleLowerCase() !== operation.tag.trim().toLocaleLowerCase()),
+    };
+    case 'rename-tag': return {
+      type: organization.type ?? '',
+      tags: normalizeOrganizationTags(organization.tags.map((tag) => (
+        tag.toLocaleLowerCase() === operation.from.trim().toLocaleLowerCase() ? operation.to : tag
+      ))),
+    };
+    case 'clear': return { type: '', tags: [] };
+  }
+};
 
 const portableSetOrganization = (metadata: CardSetMetadata | undefined): AccountLibraryOrganization => ({
   workflow: 'card-set',

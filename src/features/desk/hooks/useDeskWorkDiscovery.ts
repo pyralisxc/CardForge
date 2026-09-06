@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { loadCampaignDeskProjection, type MarketingContentPackage } from '@/features/marketing-content/client';
@@ -8,6 +8,12 @@ import { getPipelineTypeLabel, loadOwnPublishedPipelineSubmissions, type Pipelin
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
+import {
+  beginScopedSource,
+  settleScopedSourceFailure,
+  settleScopedSourceValue,
+  type ScopedSourceSnapshot,
+} from '@/shared/scopedSource';
 
 type DeskDiscoverySource = 'campaigns' | 'my-published';
 
@@ -16,12 +22,12 @@ export interface DeskDiscoveryFailure {
   message: string;
   kind: ReturnType<typeof describeAgentBoundaryFailure>['kind'];
   retryable: boolean;
+  code: string;
+  correlationId: string | null;
+  nextAction?: string;
 }
 
-interface ScopedDeskDiscovery<Value> {
-  scope: ProjectPersistenceScope;
-  value: Value;
-}
+type ScopedDeskDiscovery<Value> = ScopedSourceSnapshot<ProjectPersistenceScope, Value, DeskDiscoveryFailure>;
 
 const campaignItem = (campaign: MarketingContentPackage): AccountLibraryItem => ({
   id: `campaign:${campaign.id}`,
@@ -66,7 +72,12 @@ const publishedItem = (submission: PipelineSubmission): AccountLibraryItem => {
     updatedAt: submission.publishedAt ?? submission.updatedAt ?? submission.submittedAt,
     expiresAt: null,
     webViewLink: submission.previewUrl || null,
-    references: { pipelineLineageId: lineageId },
+    references: {
+      pipelineLineageId: lineageId,
+      pipelineAssetType: submission.assetType,
+      ...(submission.sourceUrl ? { pipelineSourceUrl: submission.sourceUrl } : {}),
+      ...(submission.sourceNotes ? { pipelineSourceNotes: submission.sourceNotes } : {}),
+    },
     // A Set remains a true published Set; other Pipeline resources retain
     // their resource identity instead of being wrapped in a fake container.
     organization: {
@@ -90,6 +101,13 @@ const sourceFailure = (
     message: error instanceof Error && error.message ? error.message : fallback,
     kind: boundary.kind,
     retryable: boundary.retryable,
+    code: typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : `${id}_unavailable`,
+    correlationId: typeof error === 'object' && error !== null && 'correlationId' in error && (typeof error.correlationId === 'string' || error.correlationId === null)
+      ? error.correlationId
+      : null,
+    ...(boundary.nextAction ? { nextAction: boundary.nextAction } : {}),
   };
 };
 
@@ -107,8 +125,6 @@ export function useDeskWorkDiscovery({
 }) {
   const [campaigns, setCampaigns] = useState<ScopedDeskDiscovery<AccountLibraryItem[]> | null>(null);
   const [published, setPublished] = useState<ScopedDeskDiscovery<AccountLibraryItem[]> | null>(null);
-  const [failures, setFailures] = useState<DeskDiscoveryFailure[]>([]);
-  const [loading, setLoading] = useState(false);
   const generationRef = useRef(0);
   const canLoadCampaigns = experience.signedIn && (experience.owner || experience.contributor.canDraftCampaigns);
   const canLoadPublished = experience.signedIn && (experience.owner || experience.contributor.canSubmit);
@@ -116,34 +132,50 @@ export function useDeskWorkDiscovery({
   const refresh = useCallback(async () => {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
-    const nextFailures: DeskDiscoveryFailure[] = [];
-    setLoading(canLoadCampaigns || canLoadPublished);
+    const refreshSource = async <Value,>(
+      allowed: boolean,
+      id: DeskDiscoverySource,
+      setSource: Dispatch<SetStateAction<ScopedDeskDiscovery<Value> | null>>,
+      load: () => Promise<Value>,
+      fallback: string,
+      isEmpty: (value: Value) => boolean,
+    ) => {
+      if (!allowed) {
+        setSource(null);
+        return;
+      }
+      setSource((current) => beginScopedSource(current, persistenceScope));
+      try {
+        const value = await load();
+        if (generation !== generationRef.current) return;
+        setSource(settleScopedSourceValue(persistenceScope, value, { empty: isEmpty(value) }));
+      } catch (error) {
+        if (generation !== generationRef.current) return;
+        const failure = sourceFailure(id, error, fallback);
+        setSource((current) => settleScopedSourceFailure(current, persistenceScope, failure));
+      }
+    };
 
-    const campaignResult = canLoadCampaigns
-      ? loadCampaignDeskProjection().then((result) => result.campaigns.map(campaignItem)).catch((error) => {
-        nextFailures.push(sourceFailure('campaigns', error, 'Campaign work is unavailable.'));
-        return undefined;
-      })
-      : Promise.resolve(null);
-    const publishedResult = canLoadPublished
-      ? loadOwnPublishedPipelineSubmissions().then((result) => result.map(publishedItem)).catch((error) => {
-        nextFailures.push(sourceFailure('my-published', error, 'Your published Pipeline work is unavailable.'));
-        return undefined;
-      })
-      : Promise.resolve(null);
-    const [nextCampaigns, nextPublished] = await Promise.all([campaignResult, publishedResult]);
-    if (generation !== generationRef.current) return;
-
-    // `null` is an intentional clearing result (signed out or no authorized
-    // capability); `undefined` is an error and preserves the same-scope data.
-    setCampaigns((current) => nextCampaigns === undefined
-      ? current?.scope === persistenceScope ? current : null
-      : nextCampaigns === null ? null : { scope: persistenceScope, value: nextCampaigns });
-    setPublished((current) => nextPublished === undefined
-      ? current?.scope === persistenceScope ? current : null
-      : nextPublished === null ? null : { scope: persistenceScope, value: nextPublished });
-    setFailures(nextFailures);
-    setLoading(false);
+    // The requests begin together, but each completion changes only its own
+    // source. A slow publication query must never hide ready campaign work.
+    await Promise.all([
+      refreshSource(
+        canLoadCampaigns,
+        'campaigns',
+        setCampaigns,
+        async () => (await loadCampaignDeskProjection()).campaigns.map(campaignItem),
+        'Campaign work is unavailable.',
+        (items) => items.length === 0,
+      ),
+      refreshSource(
+        canLoadPublished,
+        'my-published',
+        setPublished,
+        async () => (await loadOwnPublishedPipelineSubmissions()).map(publishedItem),
+        'Your published Pipeline work is unavailable.',
+        (items) => items.length === 0,
+      ),
+    ]);
   }, [canLoadCampaigns, canLoadPublished, persistenceScope]);
 
   useEffect(() => {
@@ -151,14 +183,18 @@ export function useDeskWorkDiscovery({
     // async results are also protected by the scope check above.
     if (!canLoadCampaigns) setCampaigns(null);
     if (!canLoadPublished) setPublished(null);
-    setFailures([]);
     void refresh();
   }, [canLoadCampaigns, canLoadPublished, persistenceScope, refresh]);
 
   const items = useMemo(() => [
-    ...(campaigns?.scope === persistenceScope ? campaigns.value : []),
-    ...(published?.scope === persistenceScope ? published.value : []),
+    ...(campaigns?.scope === persistenceScope ? campaigns.value ?? [] : []),
+    ...(published?.scope === persistenceScope ? published.value ?? [] : []),
   ], [campaigns, persistenceScope, published]);
+
+  const failures = useMemo(() => [campaigns, published].flatMap((source) => (
+    source?.scope === persistenceScope && source.failure ? [source.failure] : []
+  )), [campaigns, persistenceScope, published]);
+  const loading = [campaigns, published].some((source) => source?.scope === persistenceScope && source.phase === 'loading');
 
   return { items, failures, loading, refresh, canLoadCampaigns, canLoadPublished };
 }

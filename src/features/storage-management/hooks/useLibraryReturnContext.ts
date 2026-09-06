@@ -49,6 +49,8 @@ export function useLibraryReturnContext({
     const returnContext = storeSurfaceReturnContext({
       kind: 'library', scope: activeScope, objectId: selection.objectId, query: projection.query,
       source: projection.source, itemKind: projection.kind, sort: projection.sort, density, sharedType,
+      librarySources: projection.sourceFilters, libraryKinds: projection.kindFilters,
+      libraryTypes: projection.typeFilters, libraryTags: projection.tagFilters, libraryTagMatch: projection.tagMatch,
       scrollTop: surfaceRef.current?.scrollTop ?? 0,
     });
     return createLibraryReturnHref(activeScope, returnContext);
@@ -68,6 +70,11 @@ export function useLibraryReturnContext({
     projection.setQuery(context.query);
     projection.setSource(context.source);
     projection.setKind(context.itemKind);
+    projection.setSourceFilters(context.librarySources ?? (context.source === 'all' ? [] : [context.source]));
+    projection.setKindFilters(context.libraryKinds ?? (context.itemKind === 'all' ? [] : [context.itemKind]));
+    projection.setTypeFilters(context.libraryTypes ?? []);
+    projection.setTagFilters(context.libraryTags ?? []);
+    projection.setTagMatch(context.libraryTagMatch ?? 'any');
     projection.setSort(context.sort);
     if (context.objectId && itemMap.has(context.objectId)) {
       setSelection((current) => openEnvironmentDetail({ ...current, listOffset: context.scrollTop }, {

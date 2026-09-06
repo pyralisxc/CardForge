@@ -28,6 +28,17 @@ test.describe('mobile Desk controls', () => {
     await filters.locator('summary').tap();
     await expect(filters).toHaveAttribute('open', '');
     await expect(page.getByRole('button', { name: 'Choose Desk views' })).toBeVisible();
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      const panel = filters.locator('[aria-label="Desk views and filters"]');
+      await expect(panel).toBeInViewport({ ratio: 1 });
+      const bounds = await panel.boundingBox();
+      expect(bounds?.x).toBeGreaterThanOrEqual(0);
+      expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(width);
+      for (const name of ['Choose Desk views', 'Name this Desk view']) {
+        await expect(panel.getByRole(name === 'Name this Desk view' ? 'textbox' : 'button', { name })).toBeInViewport({ ratio: 1 });
+      }
+    }
     await test.info().attach('compact-desk-filters', { body: await page.screenshot(), contentType: 'image/png' });
   });
 

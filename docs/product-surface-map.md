@@ -60,7 +60,7 @@ The separate Developer/Cockpit destination is retired. Its shipped capabilities 
 - Search, persistent pinning/order/world positions, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present. Desk views, types, tags, and sources use multi-select dropdowns; My work is the default and authorized Campaigns/My published views are opt-in and saveable.
 - Browser, Drive, remembered local folders, and temporary Studio documents load independently. Drive and Studio document cursors are exhausted through their native listing contracts; same-scope transient failures retain known results while account/access changes clear protected projections. Folder-only remembered work remains explicit and permission-aware.
 - Set workflow/type/tags are portable package metadata. Shared/public items may receive account-private organization only; labels do not change capability, publication, storage ownership, or contained-card tags.
-- Campaign packages appear as individual authorized Desk objects, while the existing marketing-content package remains the owner. My published projects only the contributor's own published Pipeline lineages through `assets.submit`, never through broader review access.
+- Campaign packages appear as individual authorized Desk objects, while the existing marketing-content package remains the owner. Opening one loads its native campaign workspace in the Desk scene rather than redirecting to a Library shelf. My published projects only the contributor's own published Pipeline lineages through `assets.submit`, never through broader review access; an immutable publication opens in a contextual identity/preview layer while any editable working copy remains separate in My work.
 - Focusing local work expands its contained cards inside the same persistent Desk scene, with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact moves it to a camera-fitted foreground while its Set field remains mounted as dimmed spatial context; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
 - New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
 - Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
@@ -88,7 +88,7 @@ Desk is **more spatial than Library**. Studio is more precise and tool-dense tha
 ### Shipped
 
 - one Set identity pooled across device, Google Drive, and attached-folder copies, plus personal assets/fonts and temporary Studio drafts;
-- search, source/location information, object detail, locations & connections tool;
+- search, source/location information, object detail, locations & connections tool, and the same genuine multi-select source/kind/type/tag filters with any/all tag matching used for personal Desk organization;
 - the same canonical authored-object preview used by Desk, including real published Template rendering;
 - shared reviewed registry feeds Studio and exposes immutable Published Set package revisions without creating another starter registry;
 - Contributor Pipeline loads every authorized shared entry plus the contributor's private work, projects one top-level object per stable lineage, keeps the current published revision primary when present, and expands revision history from the inspector;
@@ -251,7 +251,7 @@ Do not put work inventory or Pipeline queue here.
 | Submit revision | Quick entry on linked owned object | Selected lineage action | **Native selected-object action** | No |
 | Compare revisions | Inspector | **Inspector/detail** | **Inspector/detail** | No |
 | Contributor scopes/limits | Attention only when meaningful | No | Permission resolves actions | **Personal configuration/status** |
-| Campaign packages | Active visual shelf for authorized work | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Contextual editing where useful | Scope/status only |
+| Campaign packages | **Authorized individual work objects; native campaign workspace opens in the same Desk scene** | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Contextual editing where useful | Scope/status only |
 | Site proposals | Retired | Retired | Retired | Historical records only; no active Contributor scope or mutation surface |
 
 ## Pipeline and revision policy

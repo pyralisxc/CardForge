@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
-import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder } from '@/features/desk/model/desk';
+import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder } from '@/features/desk/model/desk';
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
@@ -48,6 +48,22 @@ describe('Desk model', () => {
     });
   });
 
+  it('keeps campaign and immutable publication ownership contextual instead of routing them as local Sets', () => {
+    const remote = (id: string, references: AccountLibraryItem['references']): AccountLibraryItem => ({
+      id,
+      kind: references.campaignId ? 'campaign' : 'published-resource',
+      name: 'Owned remote work', locations: [{ source: references.campaignId ? 'campaign' : 'pipeline', status: 'available', label: 'CardForge' }],
+      details: [], sizeBytes: null, revision: '2', updatedAt: null, expiresAt: null, webViewLink: null, references,
+      organization: { workflow: references.campaignId ? 'campaign' : 'published-resource', type: null, tags: [], source: 'none', publicationState: references.campaignId ? 'campaign' : 'published' },
+    });
+    expect(getWorkActions(remote('campaign:summer', { campaignId: 'summer' }), false, true)[0]).toMatchObject({
+      label: 'Open campaign workspace', ownerFeature: 'marketing-content',
+    });
+    expect(getWorkActions(remote('pipeline:lineage', { pipelineLineageId: 'lineage', pipelineAssetType: 'assets' }), false, true)[0]).toMatchObject({
+      label: 'Open published work', ownerFeature: 'pipeline',
+    });
+  });
+
   it('normalizes unsafe persisted Set geometry without discarding valid organization', () => {
     expect(normalizeCardSet({
       id: 'set:organized', name: 'Organized',
@@ -65,6 +81,11 @@ describe('Desk model', () => {
 
   it('keeps the accessibility/default projection while admitting new and removing stale work', () => {
     expect(normalizeDeskOrder(['set:a', 'set:b', 'set:c'], ['set:c', 'missing', 'set:a'])).toEqual(['set:c', 'set:a', 'set:b']);
+  });
+
+  it('keeps temporarily absent source identities in the persisted Desk order', () => {
+    expect(preserveDeskOrder(['set:a', 'set:b'], ['drive:later', 'set:a'])).toEqual(['drive:later', 'set:a', 'set:b']);
+    expect(normalizeDeskOrder(['set:a', 'set:b'], preserveDeskOrder(['set:a', 'set:b'], ['drive:later', 'set:a']))).toEqual(['set:a', 'set:b']);
   });
 
   it('derives source facets only from sources present on the current Desk', () => {

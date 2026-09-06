@@ -110,7 +110,11 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
         }),
         storedCards: state.storedCards.map((card) => ({
           ...card,
-          tagIds: card.tagIds?.filter((id) => id !== tagId),
+          // Card tag ids are Set-owned. Do not alter another Set merely
+          // because a malformed/legacy document happens to share an id.
+          tagIds: (card.setId === setId || (!card.setId && state.cardSets[0]?.id === setId))
+            ? card.tagIds?.filter((id) => id !== tagId)
+            : card.tagIds,
         })),
       };
     });

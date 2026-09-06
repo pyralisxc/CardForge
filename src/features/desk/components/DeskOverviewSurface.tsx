@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { SelectionFilterMenu } from '@/components/ui/selection-filter-menu';
 import { EnvironmentBoundaryNotice } from '@/features/app-shell/client/environment';
-import type { CardFace } from '@/domain/cards';
-import type { AccountLibraryItem, AccountLibrarySource } from '@/features/storage-management/client';
+import { CARD_SET_BUILT_IN_TYPES, type CardFace } from '@/domain/cards';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import type { AccountLibraryItem, AccountLibraryOrganizationOperation, AccountLibrarySource } from '@/features/storage-management/client';
+import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
@@ -30,7 +32,7 @@ export interface DeskOverviewSurfaceProps {
   positions: Record<string, DeskPosition>;
   marquee: { left: number; top: number; right: number; bottom: number } | null;
   isLoading: boolean;
-  failureMessage: string | null;
+  failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
   showGrid: boolean;
   snapToGrid: boolean;
   query: string;
@@ -74,7 +76,7 @@ export interface DeskOverviewSurfaceProps {
   onApplySavedView: (id: string) => void;
   onSaveView: (name: string) => boolean;
   onResetViews: () => void;
-  onUpdateSelectedOrganization: (patch: { type?: string; tags?: string[] }) => void;
+  onUpdateSelectedOrganization: (operation: AccountLibraryOrganizationOperation) => void;
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
   onFocusWork: (item: AccountLibraryItem) => void;
@@ -95,7 +97,14 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [viewName, setViewName] = useState('');
   const [organizationType, setOrganizationType] = useState('');
   const [organizationTag, setOrganizationTag] = useState('');
+  const [renameFrom, setRenameFrom] = useState('');
+  const [renameTo, setRenameTo] = useState('');
   const saveView = () => { if (props.onSaveView(viewName)) setViewName(''); };
+  const selectedTags = Array.from(new Set(props.selectedWorkItems.flatMap((item) => item.organization.tags))).toSorted((left, right) => left.localeCompare(right));
+  const typeVocabulary = Array.from(new Set([
+    ...CARD_SET_BUILT_IN_TYPES,
+    ...props.typeFacets.map((facet) => facet.label),
+  ])).toSorted((left, right) => left.localeCompare(right));
   const renderDeskFilters = () => <>
     <MultiSelectionFilterMenu allLabel="My work" ariaLabel="Choose Desk views" compactLabel="Views" className={styles.sourceSelect} values={props.activeDeskViews} onChange={props.onDeskViewsChange} options={props.availableDeskViews.map((view) => ({
       value: view,
@@ -111,18 +120,39 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
     <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
     {props.selectedWorkItems.length ? <div className={styles.deskOrganizer} aria-label="Organize selected work">
-      <Input value={organizationType} onChange={(event) => setOrganizationType(event.target.value)} className={styles.deskSaveViewInput} aria-label="Set descriptive type" placeholder="Type, e.g. Postcards" />
-      <Button type="button" size="sm" variant="ghost" onClick={() => { props.onUpdateSelectedOrganization({ type: organizationType }); setOrganizationType(''); }} disabled={!organizationType.trim()}>Set type</Button>
+      <Select value={organizationType || '__choose_type'} onValueChange={(type) => {
+        if (type === '__choose_type') return;
+        props.onUpdateSelectedOrganization({ kind: 'set-type', type });
+        setOrganizationType(type);
+      }}>
+        <SelectTrigger className={styles.deskTypeSelect} aria-label="Choose a supported or reusable Set type"><span>{organizationType || 'Set type'}</span></SelectTrigger>
+        <SelectContent><SelectItem value="__choose_type">Set type</SelectItem>{typeVocabulary.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+      </Select>
+      <Input value={organizationType} onChange={(event) => setOrganizationType(event.target.value)} className={styles.deskSaveViewInput} aria-label="Set custom descriptive type" placeholder="Custom type, e.g. Postcards" />
+      <Button type="button" size="sm" variant="ghost" onClick={() => { props.onUpdateSelectedOrganization({ kind: 'set-type', type: organizationType }); setOrganizationType(''); }} disabled={!organizationType.trim()}>Set type</Button>
+      {props.tagFacets.length ? <Select value="__choose_reusable_tag" onValueChange={(tag) => {
+        if (tag === '__choose_reusable_tag') return;
+        props.onUpdateSelectedOrganization({ kind: 'add-tag', tag });
+      }}><SelectTrigger className={styles.deskTypeSelect} aria-label="Choose a reusable personal tag"><span>Reuse tag</span></SelectTrigger><SelectContent><SelectItem value="__choose_reusable_tag">Reuse tag</SelectItem>{props.tagFacets.map((facet) => <SelectItem key={facet.id} value={facet.id}>{facet.label}</SelectItem>)}</SelectContent></Select> : null}
       <Input value={organizationTag} onChange={(event) => setOrganizationTag(event.target.value)} className={styles.deskSaveViewInput} aria-label="Add personal tag" placeholder="Add tag" />
       <Button type="button" size="sm" variant="ghost" onClick={() => {
-        const tags = Array.from(new Set([...props.selectedWorkItems.flatMap((item) => item.organization.tags), organizationTag.trim()]));
-        props.onUpdateSelectedOrganization({ tags }); setOrganizationTag('');
+        props.onUpdateSelectedOrganization({ kind: 'add-tag', tag: organizationTag }); setOrganizationTag('');
       }} disabled={!organizationTag.trim()}>Add tag</Button>
-      <Button type="button" size="sm" variant="ghost" onClick={() => props.onUpdateSelectedOrganization({ type: '', tags: [] })}>Clear labels</Button>
+      {selectedTags.length ? <span className={styles.deskOrganizationTags} aria-label="Selected work tags">{selectedTags.map((tag) => <Button key={tag} type="button" size="sm" variant="outline" aria-label={`Remove tag ${tag} from selected work`} onClick={() => props.onUpdateSelectedOrganization({ kind: 'remove-tag', tag })}>{tag} ×</Button>)}</span> : null}
+      {selectedTags.length ? <Select value={renameFrom || '__choose_tag'} onValueChange={(tag) => setRenameFrom(tag === '__choose_tag' ? '' : tag)}><SelectTrigger className={styles.deskTypeSelect} aria-label="Choose tag to rename"><span>{renameFrom || 'Rename tag'}</span></SelectTrigger><SelectContent><SelectItem value="__choose_tag">Rename tag</SelectItem>{selectedTags.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}</SelectContent></Select> : null}
+      {renameFrom ? <Input value={renameTo} onChange={(event) => setRenameTo(event.target.value)} className={styles.deskSaveViewInput} aria-label={`New name for ${renameFrom}`} placeholder="New tag name" /> : null}
+      {renameFrom ? <Button type="button" size="sm" variant="ghost" disabled={!renameTo.trim()} onClick={() => { props.onUpdateSelectedOrganization({ kind: 'rename-tag', from: renameFrom, to: renameTo }); setRenameFrom(''); setRenameTo(''); }}>Rename tag</Button> : null}
+      <Button type="button" size="sm" variant="ghost" onClick={() => props.onUpdateSelectedOrganization({ kind: 'clear' })}>Clear labels</Button>
     </div> : null}
   </>;
   return <div className={styles.desk} data-desk={props.focusedItemId ? 'focused' : 'overview'} data-focused={Boolean(props.focusedItemId)}>
-    {props.failureMessage ? <EnvironmentBoundaryNotice title="Some sources are unavailable" message={`${props.failureMessage} Available work remains unchanged.`} settingsHref="/account?section=library&tool=locations" actionLabel="Retry" onAction={props.onRetry} /> : null}
+    {props.failure ? <EnvironmentBoundaryNotice
+      title={props.failure.kind === 'authentication' ? 'A source needs sign-in' : props.failure.kind === 'authorization' ? 'Permission is required for a source' : props.failure.kind === 'not_found' ? 'A source is no longer available' : 'Some sources are unavailable'}
+      message={`${props.failure.message}${props.failure.nextAction ? ` ${props.failure.nextAction}` : ''}${props.failure.kind === 'unavailable' ? ' Previously loaded same-account work remains visible.' : ' Protected results from that source were removed.'}`}
+      settingsHref="/account?section=library&tool=locations"
+      actionLabel={props.failure.retryable ? 'Retry' : undefined}
+      onAction={props.failure.retryable ? props.onRetry : undefined}
+    /> : null}
     <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
       <div className={styles.deskToolbar} data-desk-toolbar>
         <label className={styles.searchField}><span className="sr-only">Search open work</span><Search aria-hidden="true" /><Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Find work" /></label>

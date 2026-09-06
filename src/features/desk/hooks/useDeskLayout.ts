@@ -17,6 +17,7 @@ import {
   matchesDeskTypeFilters,
   matchesDeskViews,
   normalizeDeskOrder,
+  preserveDeskOrder,
   workSourceLabel,
 } from '../model/desk';
 import { useDeskSpatialLayout } from './useDeskSpatialLayout';
@@ -84,15 +85,20 @@ export function useDeskLayout({
     return () => { cancelled = true; };
   }, [orderKey]);
 
-  const normalizedDeskOrder = useMemo(
-    () => normalizeDeskOrder(workItems.map((item) => item.id), deskOrderIds),
+  const persistedDeskOrder = useMemo(
+    () => preserveDeskOrder(workItems.map((item) => item.id), deskOrderIds),
     [deskOrderIds, workItems],
   );
   useEffect(() => {
-    if (normalizedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
-    setDeskOrderIds(normalizedDeskOrder);
-    if (orderPreferencesWritable) void writeProjectPreference(orderKey, normalizedDeskOrder);
-  }, [deskOrderIds, normalizedDeskOrder, orderKey, orderPreferencesWritable]);
+    if (persistedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
+    setDeskOrderIds(persistedDeskOrder);
+    if (orderPreferencesWritable) void writeProjectPreference(orderKey, persistedDeskOrder);
+  }, [deskOrderIds, orderKey, orderPreferencesWritable, persistedDeskOrder]);
+
+  const normalizedDeskOrder = useMemo(
+    () => normalizeDeskOrder(workItems.map((item) => item.id), persistedDeskOrder),
+    [persistedDeskOrder, workItems],
+  );
 
   const sourceFacets = useMemo(() => getDeskSourceFacets(workItems), [workItems]);
   const typeFacets = useMemo(() => getDeskTypeFacets(workItems), [workItems]);
@@ -128,7 +134,7 @@ export function useDeskLayout({
     // The stored world contains every authorized item, not only the filtered
     // projection. Filtering or a later-arriving provider therefore cannot
     // drop positions, pins, or relative order.
-    itemIds: normalizedDeskOrder,
+    itemIds: persistedDeskOrder,
     focused,
     snapToGrid,
     selectedIds,
