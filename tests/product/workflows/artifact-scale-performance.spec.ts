@@ -24,9 +24,7 @@ const attachEvidence = async (testInfo: TestInfo, name: string, value: unknown) 
 };
 
 const prepareScalePage = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number } = {}) => {
-  const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   await installBrowserPerformanceObservers(page);
-  if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await seedGuestScaleWorkspace(page, cardCount, options);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
   await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();

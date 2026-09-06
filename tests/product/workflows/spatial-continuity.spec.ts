@@ -12,6 +12,11 @@ test.describe('persistent Artifact scene', () => {
     await expect(page.locator('[data-scene-depth="stack"]')).toHaveCount(5);
     const original = await visual.elementHandle();
     expect(original).not.toBeNull();
+    await expect.poll(async () => {
+      const title = await page.locator('[data-set-object] strong').first().boundingBox();
+      const bottoms = await page.locator('[data-scene-depth="stack"]').evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().bottom));
+      return Boolean(title && bottoms.every((bottom) => bottom < title.y));
+    }).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('desk.png') });
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await set.click();

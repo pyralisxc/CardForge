@@ -82,6 +82,8 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
 };
 
 export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean } = {}) => {
+  const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
+  if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
   const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates);
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
