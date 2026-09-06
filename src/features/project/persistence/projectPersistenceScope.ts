@@ -7,6 +7,7 @@ import {
   compareAndSetBrowserWorkspaceValue,
   createBrowserKeyValueStorage,
   createIndexedDbStorage,
+  updateBrowserKeyValue,
 } from './indexedDbStorage';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from './workspaceRevision';
 
@@ -167,7 +168,12 @@ export const createScopedProjectStorage = (
             keepRecoverySnapshot: options.keepRecoverySnapshot,
           });
           workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), revision);
-        } else await storage.setItem(key, externalized.storedValue);
+        } else {
+          return await updateBrowserKeyValue(namespace, key, (current) => {
+            if (current === null) throw new Error('The local artwork library changed. Reload it and try again.');
+            return current === rawValue ? externalized.storedValue : current;
+          });
+        }
       }
       if (baseNamespace === 'project-workspace' && isValidWorkspacePayload(externalized.storedValue)) {
         return externalized.storedValue;

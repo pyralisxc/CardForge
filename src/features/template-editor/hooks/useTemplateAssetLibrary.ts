@@ -21,7 +21,7 @@ import {
   type PersonalLibraryRole,
 } from '@/features/personal-library/client';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
-import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, mergeProjectAssetListToStorage } from '@/features/project/client/assets';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
@@ -41,21 +41,8 @@ interface UseTemplateAssetLibraryInput {
 }
 
 const readStoredAssets = async (primaryKey: string): Promise<CardAssetOption[]> => {
-  try {
-    const storage = getProjectAssetStorage();
-    const assets = await readTypedProjectAssetListFromStorage<CardAssetOption>(storage, primaryKey);
-    let changed = false;
-    const normalizedAssets = assets.map((asset) => {
-      if (asset.librarySource !== 'local') return asset;
-      if (asset.registryStatus === 'localOnly' && asset.accessTier === undefined) return asset;
-      changed = true;
-      return normalizeLocalLibraryAsset(asset);
-    });
-    if (changed) await writeProjectAssetListToStorage(storage, primaryKey, normalizedAssets);
-    return normalizedAssets;
-  } catch {
-    return [];
-  }
+  const assets = await readTypedProjectAssetListFromStorage<CardAssetOption>(getProjectAssetStorage(), primaryKey);
+  return assets.map((asset) => asset.librarySource === 'local' ? normalizeLocalLibraryAsset(asset) : asset);
 };
 
 const replaceAssetById = (assets: CardAssetOption[], nextAsset: CardAssetOption) => {
@@ -108,9 +95,11 @@ export function useTemplateAssetLibrary({
       setCustomDividerAssets(dividers);
       setCustomIconAssets(icons);
       setCustomImageAssets(images);
-    })();
+    })().catch((error) => {
+      if (!cancelled) toast({ title: 'Local artwork unavailable', description: error instanceof Error ? error.message : 'The saved artwork could not be read. Try reopening the library.', variant: 'destructive' });
+    });
     return () => { cancelled = true; };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (!canUploadCustomAssets) {
@@ -280,21 +269,14 @@ export function useTemplateAssetLibrary({
           : kind === 'icon'
             ? CUSTOM_ICON_ASSETS_STORAGE_KEY
             : CUSTOM_IMAGE_ASSETS_STORAGE_KEY;
-      const currentAssets = kind === 'texture'
-        ? customTextureAssets
-        : kind === 'divider'
-          ? customDividerAssets
-          : kind === 'icon'
-            ? customIconAssets
-            : customImageAssets;
-      const nextAssets = [...currentAssets, asset];
+      let nextAssets: CardAssetOption[];
       try {
-        await writeProjectAssetListToStorage(getProjectAssetStorage(), storageKey, nextAssets);
+        nextAssets = await mergeProjectAssetListToStorage(getProjectAssetStorage(), storageKey, [asset]);
       } catch (error) {
         console.error('Unable to persist local artwork:', error);
         toast({
           title: 'Artwork Not Saved',
-          description: 'Browser storage rejected the artwork. Download a project backup, free storage, and try again.',
+          description: error instanceof Error ? error.message : 'Browser storage could not safely update the artwork library. Try again.',
           variant: 'destructive',
         });
         return;
@@ -313,7 +295,7 @@ export function useTemplateAssetLibrary({
     reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected asset.', variant: 'destructive' });
     reader.readAsDataURL(storedFile);
     event.target.value = '';
-  }, [canUploadCustomAssets, customDividerAssets, customIconAssets, customImageAssets, customTextureAssets, toast]);
+  }, [canUploadCustomAssets, toast]);
 
   return {
     compatibleDividerAssets,

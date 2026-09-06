@@ -26,6 +26,14 @@ const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const mockedGetContributorProfileReferenceByEmail = vi.mocked(getUniqueActiveContributorProfileReferenceByEmail);
 
 describe('contributor asset registry commands', () => {
+  it('reports publication lock contention as retryable unavailability', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: 'pipeline_publication_unavailable', code: '55P03' } });
+    vi.mocked(getSupabaseServerClient).mockReturnValue({ rpc } as never);
+    await expect(castPipelineVote({ submissionId: 'revision', contributorId: 'voter', voteValue: 'positive' }))
+      .rejects.toMatchObject({ status: 503, code: 'pipeline_publication_unavailable' });
+    await expect(setPipelineOwnerOverride({ submissionId: 'revision', ownerStatusOverride: 'published', ownerNote: '', ownerContributorId: 'owner' }))
+      .rejects.toMatchObject({ status: 503, code: 'pipeline_publication_unavailable' });
+  });
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     mockedGetContributorProfileReferenceByEmail.mockReset();

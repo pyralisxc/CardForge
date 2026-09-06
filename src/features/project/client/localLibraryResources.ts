@@ -1,5 +1,5 @@
 import type { CardAssetOption } from '@/domain/templates';
-import { getProjectAssetStorage, readRequiredTypedProjectAssetListFromStorage, normalizeProjectFontAsset } from '@/features/project/client/assets';
+import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, normalizeProjectFontAsset } from '@/features/project/client/assets';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_FONT_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
 import { projectLocalLibraryAsset, projectLocalLibraryFont, type LocalLibraryCollection, type LocalLibraryResource } from '../model/localLibraryResources';
 
@@ -11,8 +11,8 @@ const assetCollections = [
 ] as const;
 
 export const readLocalLibraryResources = async (dependencies = {
-  readAssets: (key: string) => readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(getProjectAssetStorage(), key),
-  readFonts: async () => (await readRequiredTypedProjectAssetListFromStorage<unknown>(getProjectAssetStorage(), CUSTOM_FONT_ASSETS_STORAGE_KEY)).map((value) => {
+  readAssets: (key: string) => readTypedProjectAssetListFromStorage<CardAssetOption>(getProjectAssetStorage(), key),
+  readFonts: async () => (await readTypedProjectAssetListFromStorage<unknown>(getProjectAssetStorage(), CUSTOM_FONT_ASSETS_STORAGE_KEY)).map((value) => {
     const font = normalizeProjectFontAsset(value);
     if (!font) throw new Error('The local font collection contains an unreadable font record. Restore a backup before changing it.');
     return font;

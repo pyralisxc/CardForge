@@ -30,8 +30,8 @@ const productDomains = [
   ['Shared product boundaries', /.*/],
 ];
 
-// Source reads are allowed only when the file itself is the public, legal,
-// security, or repository contract under test. This explicit inventory keeps
+// File reads are allowed for binary fixtures or when the file itself is the public,
+// legal, security, or repository contract under test. This explicit inventory keeps
 // ordinary component/helper composition pins from quietly returning.
 const sourceReaderContracts = [
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
@@ -45,6 +45,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/mcp-product-hygiene.test.ts', 'published MCP tool, schema, annotation, and skill contract'],
   ['tests/product/unit/showcase-templates.test.ts', 'published showcase Template artifacts'],
   ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
+  ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
 ];
 
 const summarize = (files, classify) => {

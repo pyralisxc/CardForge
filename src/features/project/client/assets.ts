@@ -20,8 +20,6 @@ export {
   getProjectAssetStorage,
   mergeProjectAssetListToStorage,
   readProjectAssetListFromStorage,
-  readRequiredProjectAssetListFromStorage,
-  readRequiredTypedProjectAssetListFromStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';

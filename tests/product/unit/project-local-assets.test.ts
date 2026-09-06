@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mergeProjectAssetListToStorage } from '@/features/project/persistence/projectAssets';
+import { getProjectAssetStorage, mergeProjectAssetListToStorage } from '@/features/project/persistence/projectAssets';
+import { createIndexedDbStorage } from '@/features/project/persistence/indexedDbStorage';
+import { setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 
-import { canUploadCustomLocalAssets, readRequiredProjectAssetListFromStorage, readProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { canUploadCustomLocalAssets, readProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
 
 const createStorage = (initial: Record<string, string | null> = {}) => {
   const values = new Map(Object.entries(initial).filter((entry): entry is [string, string] => entry[1] !== null));
@@ -24,10 +26,10 @@ describe('projectLocalAssets', () => {
       getItem: async () => { throw new Error('Unreadable storage'); },
       setItem: async (_key: string, value: string) => { saved = value; },
     };
-    await expect(mergeProjectAssetListToStorage(storage, 'images', [{ id: 'incoming' }])).rejects.toThrow('Unreadable storage');
+    await expect(readProjectAssetListFromStorage(storage, 'images')).rejects.toThrow('Unreadable storage');
     expect(saved).toBe('[{"id":"existing"}]');
   });
-  it('reads arrays from storage and returns empty arrays for missing or invalid values', async () => {
+  it('distinguishes missing arrays from corrupt or invalid values', async () => {
     const storage = createStorage({
       textures: JSON.stringify([{ id: 'asset-1' }]),
       invalid: '{not json',
@@ -36,8 +38,19 @@ describe('projectLocalAssets', () => {
 
     await expect(readProjectAssetListFromStorage(storage, 'textures')).resolves.toEqual([{ id: 'asset-1' }]);
     await expect(readProjectAssetListFromStorage(storage, 'missing')).resolves.toEqual([]);
-    await expect(readProjectAssetListFromStorage(storage, 'invalid')).resolves.toEqual([]);
-    await expect(readProjectAssetListFromStorage(storage, 'object')).resolves.toEqual([]);
+    await expect(readProjectAssetListFromStorage(storage, 'invalid')).rejects.toThrow();
+    await expect(readProjectAssetListFromStorage(storage, 'object')).rejects.toThrow('invalid');
+  });
+
+  it('preserves additions from separate storage clients in concurrent transactions', async () => {
+    setProjectPersistenceScope('guest');
+    await createIndexedDbStorage('project-assets:guest').removeItem('parallel-assets');
+    await Promise.all([
+      mergeProjectAssetListToStorage(getProjectAssetStorage(), 'parallel-assets', [{ id: 'first' }]),
+      mergeProjectAssetListToStorage(getProjectAssetStorage(), 'parallel-assets', [{ id: 'second' }]),
+    ]);
+    expect(await readProjectAssetListFromStorage(getProjectAssetStorage(), 'parallel-assets'))
+      .toEqual(expect.arrayContaining([{ id: 'first' }, { id: 'second' }]));
   });
 
   it('writes asset arrays back to storage as JSON', async () => {
@@ -51,8 +64,8 @@ describe('projectLocalAssets', () => {
   it('fails strict reads used by exports instead of silently omitting broken assets', async () => {
     const storage = createStorage({ invalid: '{not json' });
 
-    await expect(readRequiredProjectAssetListFromStorage(storage, 'invalid')).rejects.toThrow();
-    await expect(readRequiredProjectAssetListFromStorage(storage, 'missing')).resolves.toEqual([]);
+    await expect(readProjectAssetListFromStorage(storage, 'invalid')).rejects.toThrow();
+    await expect(readProjectAssetListFromStorage(storage, 'missing')).resolves.toEqual([]);
   });
 
   it('surfaces failed writes instead of claiming the asset was saved', async () => {

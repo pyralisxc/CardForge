@@ -125,7 +125,7 @@ Use `.env.example` as the complete variable catalog. `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Verification posture
 
-Agents normally run focused/affected checks locally. The required GitHub `verify` job is authoritative for the complete deterministic non-browser gate, while the existing golden Playwright job runs only when the shared affected-verification router identifies a browser-owned change. Vercel's native successful-deployment event starts a smaller exact-deployment Preview smoke and an immediate production route smoke; the six-hour production health schedule remains the deeper operational check. Provider-backed auth, owner, billing, email, and protected workflows still require a real signed-in production check on `cardforges.com` when affected.
+Agents normally run focused/affected checks locally. The required GitHub `verify` job is authoritative for the complete deterministic non-browser gate, while the existing golden Playwright job runs only when the shared affected-verification router identifies a browser-owned change. Vercel's native successful-deployment event starts a smaller exact-deployment Preview smoke and an immediate production route and starter-catalog smoke; the six-hour production health schedule remains the deeper operational check. Provider-backed auth, owner, billing, email, and protected workflows still require a real signed-in production check on `cardforges.com` when affected.
 
 Persistent tests protect durable security/access/billing/destructive-data/migration/rendering/export contracts and known regressions. Do not accumulate tests or abstractions merely to preserve development history.
 

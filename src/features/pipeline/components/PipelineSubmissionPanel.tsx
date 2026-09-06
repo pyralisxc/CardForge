@@ -78,6 +78,8 @@ export function PipelineSubmissionPanel({
     setFilter: setPersonalLibraryFilter,
     items: personalLibraryItems,
     visibleItems: visiblePersonalLibraryItems,
+    loadError: personalLibraryError,
+    refresh: refreshPersonalLibrary,
   } = usePipelineSubmissionCandidates();
   const submissionGuidance = pipelineSubmissionGuidance[assetType];
   const studioDestinationOptions = getPipelineStudioDestinationOptions(assetType);
@@ -340,7 +342,11 @@ export function PipelineSubmissionPanel({
                   Pull locally saved Sets and art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
                 </p>
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
-                  {visiblePersonalLibraryItems.length === 0 ? (
+                  {personalLibraryError ? <div role="alert" className="text-sm text-[var(--cf-danger)]">
+                    <p>Saved artwork unavailable: {personalLibraryError}</p>
+                    <Button type="button" variant="outline" onClick={() => void refreshPersonalLibrary()}>Retry</Button>
+                  </div> : null}
+                  {visiblePersonalLibraryItems.length === 0 && !personalLibraryError ? (
                     <p className="border border-dashed border-[var(--cf-border-subtle)] p-3 text-xs leading-5 text-[var(--cf-text-subtle)]">
                       {getCandidateSourceEmptyMessage(personalLibraryFilter === 'all' ? assetType : personalLibraryFilter)}
                     </p>

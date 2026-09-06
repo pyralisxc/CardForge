@@ -3,7 +3,7 @@
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
 import { normalizeLocalLibraryAsset } from '@/features/pipeline/client/assets';
 import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
-import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { getProjectAssetStorage, mergeProjectAssetListToStorage } from '@/features/project/client/assets';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import type { StudioAssetDestination } from '@/domain/templates';
 import { materializePersonalLibraryItemContent } from './personalLibraryClient';
@@ -95,11 +95,6 @@ export const importPersonalLibraryItemToLocalAsset = async (
 
   const storage = getProjectAssetStorage();
   const storageKey = storageKeyForKind(kind);
-  const current = await readTypedProjectAssetListFromStorage<CardAssetOption>(storage, storageKey);
-  const existingIndex = current.findIndex((candidate) => candidate.id === stableId);
-  const next = existingIndex >= 0
-    ? current.map((candidate, index) => index === existingIndex ? asset : candidate)
-    : [...current, asset];
-  await writeProjectAssetListToStorage(storage, storageKey, next);
+  await mergeProjectAssetListToStorage(storage, storageKey, [asset]);
   return asset;
 };

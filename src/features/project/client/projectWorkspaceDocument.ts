@@ -17,7 +17,7 @@ import {
 import {
   getProjectAssetStorage,
   mergeProjectAssetListToStorage,
-  readRequiredTypedProjectAssetListFromStorage,
+  readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
 import { readProjectFonts, writeProjectFonts } from '../persistence/projectFonts';
@@ -43,10 +43,10 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   ));
   const assetStorage = getProjectAssetStorage();
   const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets, customFonts] = await Promise.all([
-    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-    readRequiredTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+    readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+    readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+    readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
     readProjectFonts(),
   ]);
 

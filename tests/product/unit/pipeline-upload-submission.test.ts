@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import sharp from 'sharp';
+import { buildCardForgeProjectSnapshot, createCardForgeProjectPackageBlob } from '@/features/project/lib/projectPackageCodec';
+import { createProjectDocumentFromState } from '@/features/project/model/projectDocument';
 
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { createPipelineSubmission, updatePipelineSubmissionDetails } from '@/features/pipeline/lib/pipelineStore';
@@ -50,7 +54,7 @@ const taxonomy = {
   useCaseTags: ['tcg'],
 };
 
-const VALID_PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLJ4QAAAABJRU5ErkJggg==', 'base64');
+const VALID_PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DQAMIMMAYAOOgF/Q/eI6wAAAAASUVORK5CYII=', 'base64');
 const validPng = () => new Blob([VALID_PNG_BYTES], { type: 'image/png' });
 
 const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload = false) => {
@@ -75,7 +79,7 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   databaseQuery.eq.mockReturnValue(databaseQuery);
   const databaseFrom = vi.fn().mockReturnValue(databaseQuery);
   mockedGetSupabaseServerClient.mockReturnValue({ storage: { from }, from: databaseFrom } as never);
-  return { createSignedUploadUrl, list, remove };
+  return { createSignedUploadUrl, list, remove, download };
 };
 
 const uploadedFile = {
@@ -89,6 +93,38 @@ describe('contributor asset upload submission', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     mockedCreatePipelineSubmission.mockReset();
+  });
+
+  it.each(['textures', 'dividers', 'icons', 'imageAssets'] as const)('decodes all supported raster formats for %s', async (assetType) => {
+    for (const extension of ['png', 'jpg', 'webp'] as const) {
+      const bytes = await sharp(VALID_PNG_BYTES).toFormat(extension === 'jpg' ? 'jpeg' : extension).toBuffer();
+      await expect(validateUploadedAssetBytes({ assetType, extension, mimeType: `image/${extension === 'jpg' ? 'jpeg' : extension}` }, new Blob([bytes])))
+        .resolves.toBeUndefined();
+    }
+  });
+
+  it.each([true, false])('validates the complete uploaded Set before registering it (has cards: %s)', async (hasCards) => {
+    const document = createProjectDocumentFromState({
+      cardSets: [{ id: 'set-1', name: 'Test Set' }], activeCardSetId: 'set-1',
+      userTemplates: [{ id: 'template-1', name: 'Test Template', aspectRatio: '63:88', freeformCanvas: { width: 630, height: 880, elements: [] } }],
+      storedCards: hasCards ? [{ uniqueId: 'card-1', setId: 'set-1', templateId: 'template-1', data: { name: 'One' } }] : [],
+      appearanceStyles: [],
+    });
+    const bytes = await createCardForgeProjectPackageBlob(await buildCardForgeProjectSnapshot({ document, name: 'Test Set' }));
+    const storage = setupStorage(bytes.size);
+    storage.download.mockResolvedValue({ data: bytes, error: null });
+    const upload = { storagePath: 'contributor-1/sets/test.cardforge', fileName: 'test.cardforge', fileSizeBytes: bytes.size, mimeType: 'application/vnd.cardforge.project+zip' };
+    const result = createUploadedPipelineSubmission({ contributorId: 'contributor-1', contributorEmail: 'contributor@example.com',
+      maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, name: 'Test Set', description: '', previewUrl: '', uploadedFile: upload });
+    if (hasCards) {
+      await expect(result).resolves.toBeUndefined();
+      expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ assetType: 'sets', sourceMimeType: upload.mimeType }) }));
+      expect(storage.remove).not.toHaveBeenCalled();
+    } else {
+      await expect(result).rejects.toThrow('at least one card');
+      expect(mockedCreatePipelineSubmission).not.toHaveBeenCalled();
+      expect(storage.remove).toHaveBeenCalledWith([upload.storagePath]);
+    }
   });
 
   it('prepares a signed direct-to-storage upload instead of proxying file bytes through Vercel', async () => {
@@ -220,17 +256,30 @@ describe('contributor asset upload submission', () => {
     }, new Blob([Buffer.from('not-an-image')], { type: 'image/png' }))).rejects.toThrow('do not match');
   });
 
+  it('rejects an image whose header is valid but whose pixels cannot be decoded', async () => {
+    const corrupt = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLJ4QAAAABJRU5ErkJggg==', 'base64');
+    await expect(validateUploadedAssetBytes({ assetType: 'icons', extension: 'png', mimeType: 'image/png' }, new Blob([corrupt])))
+      .rejects.toThrow('malformed');
+  });
+
   it.each([
     ['woff2', 'font/woff2', Buffer.from('wOF2font-payload')],
     ['woff', 'font/woff', Buffer.from('wOFFfont-payload')],
     ['otf', 'font/otf', Buffer.from('OTTOfont-payload')],
     ['ttf', 'font/ttf', Buffer.from([0x00, 0x01, 0x00, 0x00, 0x66, 0x6f, 0x6e, 0x74])],
-  ])('accepts the declared %s font signature', async (extension, mimeType, bytes) => {
+  ])('rejects a truncated %s font despite its valid signature', async (extension, mimeType, bytes) => {
     await expect(validateUploadedAssetBytes({
       assetType: 'fonts',
       extension,
       mimeType,
-    }, new Blob([bytes], { type: mimeType }))).resolves.toBeUndefined();
+    }, new Blob([bytes], { type: mimeType }))).rejects.toThrow('malformed');
+  });
+
+  // Original minimal triangle glyphs, encoded in each supported font format.
+  it.each(['woff2', 'woff', 'ttf', 'otf'])('decodes a real %s font', async (extension) => {
+    const bytes = await readFile(`tests/fixtures/fonts/test.${extension}`);
+    await expect(validateUploadedAssetBytes({ assetType: 'fonts', extension, mimeType: `font/${extension}` },
+      new Blob([bytes]))).resolves.toBeUndefined();
   });
 
   it('rejects a mislabeled font before public registration', async () => {

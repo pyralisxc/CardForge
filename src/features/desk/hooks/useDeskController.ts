@@ -423,7 +423,7 @@ export function useDeskController({
     experience,
     focusedItem,
     inspectorItem,
-    pinned: Boolean(inspectorItem && pinnedIds.includes(inspectorItem.id)),
+    pinned: pinnedIds.includes((inspectorItem ?? focusedItem)?.id ?? ''),
     commands: {
       createWork: openCreateMenu,
       focusWork,

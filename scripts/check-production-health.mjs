@@ -2,12 +2,14 @@ const rawOrigin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.co
 const origin = /^https?:\/\//u.test(rawOrigin) ? rawOrigin : `https://${rawOrigin}`;
 const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 const requestedCategory = process.argv.find((argument) => argument.startsWith('--category='))?.split('=')[1] ?? 'all';
-const allowedCategories = new Set(['all', 'route', 'product', 'provider']);
-if (!allowedCategories.has(requestedCategory)) throw new Error('Use --category=route, product, provider, or all.');
+const allowedCategories = new Set(['all', 'route', 'catalog', 'deployment', 'product', 'provider']);
+if (!allowedCategories.has(requestedCategory)) throw new Error('Use --category=route, catalog, deployment, product, provider, or all.');
 
 const failures = [];
 const passes = [];
-const runCategory = (category) => requestedCategory === 'all' || requestedCategory === category;
+const runCategory = (category) => requestedCategory === 'all' || requestedCategory === category
+  || (requestedCategory === 'deployment' && ['route', 'catalog'].includes(category))
+  || (requestedCategory === 'product' && category === 'catalog');
 // Route/provider smoke uses only native fetch; HTML and archive tooling belongs to product health.
 const {
   assertContributorPublicTruth,
@@ -66,10 +68,18 @@ const routeChecks = [
 await Promise.all(routeChecks.map(([path, content]) => check('route', path, () => requireOk(path, content))));
 
 let catalog = null;
-await check('product', 'published catalog contract', async () => {
+await check('catalog', 'published catalog contract', async () => {
   catalog = await requireJson('/api/catalog');
   if (typeof catalog?.version !== 'string' || !catalog.version.startsWith('registry-1:') || !Array.isArray(catalog?.sets?.items) || !Array.isArray(catalog?.pipeline?.items)) {
     throw new Error('catalog shape is incomplete');
+  }
+});
+await check('catalog', 'official starter discovery', async () => {
+  catalog ??= await requireJson('/api/catalog');
+  const starter = catalog.sets?.items?.find((item) => item.id === 'standard-playing-card-deck');
+  const pipeline = catalog.pipeline?.items?.find((item) => item.id === 'standard-playing-card-deck');
+  if (!starter?.packageUrl || starter.access !== 'free' || starter.revision < 1 || pipeline?.assetType !== 'set') {
+    throw new Error('The official starter is missing from Sets or Pipeline, or is not a published free revision.');
   }
 });
 await check('product', 'official 52-card starter package', async () => {
@@ -114,7 +124,8 @@ await check('product', 'public Roadmap provider records', async () => {
 
 await check('provider', 'Supabase catalog boundary', async () => {
   const value = await requireJson('/api/catalog');
-  if (!value?.sets?.items?.length || !value?.templates?.defaults?.length) throw new Error('provider catalog is empty');
+  if (value?.assets?.registry?.configured !== true) throw new Error('The catalog provider is unavailable or not configured.');
+  if (!Array.isArray(value?.sets?.items) || !Array.isArray(value?.templates?.defaults)) throw new Error('The catalog response is incomplete.');
 });
 await check('provider', 'Stripe and Clerk configuration boundary', async () => {
   const value = await requireJson('/api/billing/status');
