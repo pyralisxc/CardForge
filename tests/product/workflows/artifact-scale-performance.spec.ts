@@ -68,9 +68,9 @@ test.describe('large Artifact browser evidence', () => {
 
       const searchMs = await elapsed(async () => {
         await page.getByPlaceholder('Search cards').fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
-        await expect(page.getByText('1 shown', { exact: true })).toBeVisible();
+        await expect(page.locator('summary').filter({ hasText: /^Organize/ })).toContainText('1 card');
         await page.getByPlaceholder('Search cards').fill('');
-        await expect(page.getByText(`${cardCount} shown`, { exact: true })).toBeVisible();
+        await expect(page.locator('summary').filter({ hasText: /^Organize/ })).toContainText(`${cardCount} cards`);
       });
 
       await page.getByText(`Ordered Artifact navigator · ${cardCount}`, { exact: true }).click();
@@ -179,7 +179,7 @@ test.describe('large Artifact browser evidence', () => {
         return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
       });
     })).toBe(true);
-    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('pan-x pan-y');
+    await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).touchAction)).toBe('none');
 
     await viewport.evaluate((node) => node.scrollTo({ left: 0, top: 0 }));
     await setButton.click();
@@ -236,7 +236,8 @@ test.describe('large Artifact browser evidence', () => {
     const zoomBeforePinch = Number(await viewport.getAttribute('data-zoom'));
     const viewportBox = await viewport.boundingBox();
     expect(viewportBox).not.toBeNull();
-    const pinchY = viewportBox!.y + Math.min(180, viewportBox!.height / 2);
+    // Start on the workspace, clear of Set action-menu buttons after moving the group.
+    const pinchY = viewportBox!.y + viewportBox!.height - 100;
     const pinchCenterX = viewportBox!.x + viewportBox!.width / 2;
     await touch('touchStart', [
       { x: pinchCenterX - 40, y: pinchY, id: 3 },

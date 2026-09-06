@@ -18,6 +18,7 @@ test.describe('mobile Desk controls', () => {
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
 
     const arrangement = page.getByRole('combobox', { name: 'Arrange cards' });
+    await page.locator('summary').filter({ hasText: /^Organize/ }).tap();
     await arrangement.tap();
     await expect(page.getByRole('option', { name: 'Arrange as grid', exact: true })).toBeVisible();
     await page.getByRole('option', { name: 'Arrange as grid', exact: true }).tap();

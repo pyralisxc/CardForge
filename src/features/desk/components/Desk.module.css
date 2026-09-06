@@ -120,12 +120,14 @@
 
 .desk[data-focused="true"] .workSurface,
 .desk[data-focused="true"] .workGrid {
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
 }
 
 .desk[data-focused="true"] .workSurface {
-  overflow: visible;
+  overflow: hidden;
 }
+.workGrid[data-focused="true"] { overflow: hidden; touch-action: auto; }
 
 .spatialPlane[data-artifact-focused="true"] .workSurface {
   overflow: clip;
@@ -222,7 +224,7 @@
   overscroll-behavior: contain;
   scrollbar-color: var(--cf-border-strong) transparent;
   scrollbar-width: thin;
-  touch-action: pan-x pan-y;
+  touch-action: none;
 }
 
 .workGrid[data-arrange-mode="true"] {
@@ -364,7 +366,9 @@
   color: inherit;
   text-align: center;
   cursor: pointer;
-  touch-action: pan-x pan-y;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .workGrid[data-arrange-mode="true"] .workTileMain {
@@ -616,7 +620,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.5rem 0;
   border: 0;
   background: var(--cf-surface-inset);
   box-shadow: none;
@@ -660,8 +664,16 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.55rem;
-  margin-top: 0.6rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
 }
+
+.gestureHint { color: var(--cf-text-subtle); font-size: 0.67rem; }
+.setOrganization { margin-left: auto; }
+.setOrganization summary { cursor: pointer; padding: 0.6rem; font-size: 0.75rem; color: var(--cf-text-strong); }
+.setOrganization[open] { flex-basis: 100%; }
+.organizationPanel { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem; max-height: 30dvh; overflow: auto; background: var(--cf-surface); border: 1px solid var(--cf-border-subtle); }
+.spatialPlane [data-spatial-held="true"] { outline: 2px solid var(--cf-accent-strong); outline-offset: 2px; cursor: grabbing; }
 
 .organizationToolbar {
   display: flex;
@@ -714,11 +726,14 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  margin-top: 0.7rem;
+  margin-top: 0.2rem;
   background: var(--cf-canvas);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .contentStage[data-grid="true"] {
@@ -978,7 +993,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.65rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
   color: var(--cf-text-muted);
   font-size: 0.68rem;
 }
@@ -1241,16 +1257,14 @@
   }
 
   .desk[data-desk="overview"] {
-    height: auto;
+    height: 100%;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
-  .desk[data-desk="overview"] > * { flex-shrink: 0; }
-
   .desk[data-desk="overview"] .workSurface {
-    flex: none;
-    height: max(24rem, 55dvh);
+    flex: 1 1 auto;
+    height: 100%;
   }
 
   .workSurface {
@@ -1273,7 +1287,7 @@
   }
 
   .searchField {
-    grid-column: 1 / -1;
+    grid-column: 1;
   }
 
   .sourceSelect {
@@ -1345,15 +1359,15 @@
 
   .focusSurface {
     display: block;
-    min-height: 100%;
+    min-height: 0;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .focusWorkspace {
     width: 100%;
-    min-height: 100%;
-    padding: 0.6rem 0.5rem 0.8rem;
+    min-height: 0;
+    padding: 0.35rem 0.35rem 0;
   }
 
   .focusWorkspace[data-artifact-focused="true"] {
@@ -1384,11 +1398,12 @@
   }
 
   .contentToolbar {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
+    display: flex;
+    align-items: center;
     gap: 0.4rem;
   }
+  .contentToolbar > .searchField { flex: 1; width: auto; }
+  .gestureHint { display: none; }
 
   .contentToolbar > .searchField,
   .contentToolbar > .organizationToolbar,
@@ -1442,9 +1457,7 @@
     display: none;
   }
 
-  .cameraControls > :last-child {
-    display: none;
-  }
+  .cameraControls > * { flex-shrink: 0; }
 
   .cardButton:nth-child(3n + 2) {
     transform: none;

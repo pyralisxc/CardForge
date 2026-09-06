@@ -293,12 +293,8 @@ export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange, 
             data-artifact-edit-stage
             data-scene-viewport
             data-auto-fit={artifactViewport.isAutoFit ? 'true' : 'false'}
-            onWheel={artifactViewport.onWheel}
-            onPointerDown={artifactViewport.onPointerDown}
-            onPointerMove={artifactViewport.onPointerMove}
-            onPointerUp={artifactViewport.onPointerUp}
-            onPointerCancel={artifactViewport.onPointerCancel}
-            style={{ overflow: artifactViewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'pan-x pan-y' }}
+            {...artifactViewport.gestures}
+      style={{ overflow: artifactViewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'none' }}
             aria-label={`${cardIdentifier} editing viewport`}
           >
             <div className="relative flex items-center justify-center" style={{ width: artifactViewport.worldWidth, height: artifactViewport.worldHeight }}>

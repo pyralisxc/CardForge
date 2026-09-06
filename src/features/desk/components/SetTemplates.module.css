@@ -1,4 +1,6 @@
-.templates { flex: 0 0 auto; min-width: 0; }
+.templates { display: flex; align-items: center; gap: 1rem; flex: 0 0 auto; min-width: 0; }
+.templates .heading { flex-direction: column; gap: 0.2rem; margin: 0; }
+.templates .items { flex: 1; min-width: 0; }
 .heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.65rem; margin-bottom: 0.3rem; font-size: 0.7rem; color: var(--cf-text-muted); }
 .heading strong { color: var(--cf-text-strong); }
 .items { display: flex; gap: 0.55rem; overflow-x: auto; padding: 0.15rem 0.2rem 0.45rem; scrollbar-width: thin; }
@@ -8,3 +10,7 @@
 .template strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; }
 .template:hover { background: var(--cf-surface-raised, var(--cf-surface)); }
 .template:focus-visible { outline: 2px solid var(--cf-text-strong); outline-offset: 2px; }
+@media (max-width: 767px) {
+  .templates { display: block; }
+  .templates .heading { flex-direction: row; margin-bottom: 0.2rem; }
+}

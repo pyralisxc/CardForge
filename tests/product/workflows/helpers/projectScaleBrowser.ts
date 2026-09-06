@@ -8,10 +8,19 @@ const BROWSER_DATABASE = 'cardforge-browser-storage';
 const BROWSER_STORE = 'key-value';
 const LOCAL_WORKSPACE_SCOPES = ['guest', 'local'] as const;
 
-const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToolTemplate = false, catalogToolTemplates = false) => {
+const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToolTemplate = false, catalogToolTemplates = false, templateContent = false) => {
   const fixture = createProjectScaleFixture(cardCount);
   const staleTemplate = { ...fixture.userTemplates[0]!, id: 'unrelated-template', name: 'Unrelated Template' };
   const backingTemplate = { ...fixture.userTemplates[0]!, id: 'scale-back', name: 'Scale Fixture Back', templateUsage: 'back-preset' as const };
+  if (templateContent) {
+    for (const template of [fixture.userTemplates[0]!, backingTemplate]) {
+      template.freeformCanvas = { ...template.freeformCanvas!, elements: [{
+        id: `${template.id}-heading`, name: 'Template heading', type: 'text',
+        x: 30, y: 40, width: 570, height: 150, zIndex: 1,
+        content: template.name, fontSizePx: 50, textColor: '#234567',
+      }] };
+    }
+  }
   const initialTemplateId = staleToolTemplate ? staleTemplate.id : fixture.userTemplates[0]?.id ?? null;
   const storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
@@ -81,11 +90,11 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean } = {}) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean; templateContent?: boolean } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-  const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates);
+  const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates, options.templateContent);
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);

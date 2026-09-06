@@ -81,7 +81,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
           props.onSelect(props.item, { additive: touchArrangeSelection });
         }
         if (touchArrangeSelection) suppressTouchSelectionClickRef.current = true;
-        if (!modified && (event.pointerType !== 'touch' || props.arrangeMode)) {
+        if (!modified) {
           props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
         }
       }}

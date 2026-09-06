@@ -7,9 +7,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from 'react';
+import { useSpatialGestures, type SpatialPoint } from './useSpatialGestures';
 
 interface ArtifactViewportOptions {
   aspectRatio: string | undefined;
@@ -23,12 +22,6 @@ const readAspectRatio = (value: string | undefined) => {
   return width > 0 && height > 0 ? { width, height } : { width: 63, height: 88 };
 };
 
-const distanceBetween = (points: Array<{ clientX: number; clientY: number }>) => {
-  const [first, second] = points;
-  if (!first || !second) return 0;
-  return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
-};
-
 export function useArtifactViewport({
   aspectRatio,
   maxWidth = 560,
@@ -36,8 +29,7 @@ export function useArtifactViewport({
   verticalPadding = 96,
 }: ArtifactViewportOptions) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const touchPointersRef = useRef(new Map<number, { clientX: number; clientY: number }>());
-  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pendingScroll = useRef<{ left: number; top: number } | null>(null);
   const [viewport, setViewport] = useState({ width: 900, height: 620 });
   const [zoom, setZoom] = useState(1);
   const [isAutoFit, setIsAutoFit] = useState(true);
@@ -77,70 +69,48 @@ export function useArtifactViewport({
   useEffect(() => {
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
-    viewportNode.scrollTo({
+    const target = pendingScroll.current;
+    pendingScroll.current = null;
+    viewportNode.scrollTo(target ?? {
       left: Math.max(0, (worldWidth - viewport.width) / 2),
       top: Math.max(0, (worldHeight - viewport.height) / 2),
       behavior: 'auto',
     });
-  }, [aspectRatio, viewport.height, viewport.width, worldHeight, worldWidth, zoom]);
+  }, [aspectRatio, isAutoFit, viewport.height, viewport.width, worldHeight, worldWidth, zoom]);
 
-  const changeZoom = useCallback((nextZoom: number) => {
+  const changeZoom = useCallback((nextZoom: number, point?: SpatialPoint, previousPoint = point) => {
+    const node = viewportRef.current;
+    const next = Math.max(0.2, Math.min(3, nextZoom));
+    if (node) {
+      const rect = node.getBoundingClientRect();
+      const local = point ? { x: point.clientX - rect.left, y: point.clientY - rect.top } : { x: node.clientWidth / 2, y: node.clientHeight / 2 };
+      const previous = previousPoint ? { x: previousPoint.clientX - rect.left, y: previousPoint.clientY - rect.top } : local;
+      const width = fitWidth * next, height = width * aspect.height / aspect.width;
+      const nextWorldWidth = Math.max(viewport.width, width + horizontalPadding);
+      const nextWorldHeight = Math.max(viewport.height, height + verticalPadding);
+      pendingScroll.current = {
+        left: Math.max(0, (node.scrollLeft + previous.x - (worldWidth - visualWidth) / 2) / zoom * next + (nextWorldWidth - width) / 2 - local.x),
+        top: Math.max(0, (node.scrollTop + previous.y - (worldHeight - visualHeight) / 2) / zoom * next + (nextWorldHeight - height) / 2 - local.y),
+      };
+      if (next === zoom) { node.scrollTo(pendingScroll.current); pendingScroll.current = null; }
+    }
     setIsAutoFit(false);
-    setZoom(Math.max(0.2, Math.min(3, nextZoom)));
-  }, []);
+    setZoom(next);
+  }, [aspect, fitWidth, horizontalPadding, verticalPadding, viewport, worldWidth, worldHeight, visualWidth, visualHeight, zoom]);
 
   const fit = useCallback(() => {
     setZoom(1);
     setIsAutoFit(true);
   }, []);
 
-  const onWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey && !event.metaKey) return;
-    event.preventDefault();
-    setIsAutoFit(false);
-    setZoom((current) => Math.max(0.2, Math.min(3, current * Math.exp(-event.deltaY * 0.006))));
-  }, []);
-
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch') return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
-    if (touchPointersRef.current.size === 2) {
-      pinchRef.current = {
-        distance: distanceBetween([...touchPointersRef.current.values()]),
-        zoom,
-      };
-    }
-  }, [zoom]);
-
-  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch' || !touchPointersRef.current.has(event.pointerId)) return;
-    touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
-    const pinch = pinchRef.current;
-    if (!pinch || touchPointersRef.current.size < 2 || pinch.distance <= 0) return;
-    event.preventDefault();
-    setIsAutoFit(false);
-    const distance = distanceBetween([...touchPointersRef.current.values()]);
-    setZoom(Math.max(0.2, Math.min(3, pinch.zoom * distance / pinch.distance)));
-  }, []);
-
-  const endPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch') return;
-    touchPointersRef.current.delete(event.pointerId);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (touchPointersRef.current.size < 2) pinchRef.current = null;
-  }, []);
+  const gestures = useSpatialGestures({ viewportRef, zoom, changeZoom, allowHold: false });
 
   return {
     changeZoom,
     fit,
     fitWidth,
     isAutoFit,
-    onPointerCancel: endPointer,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp: endPointer,
-    onWheel,
+    gestures,
     viewportRef,
     visualHeight,
     visualWidth,

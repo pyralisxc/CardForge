@@ -101,6 +101,12 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         onPointerMoveCapture={props.camera.onPointerMoveCapture}
         onPointerUpCapture={props.camera.onPointerUpCapture}
         onPointerCancelCapture={props.camera.onPointerCancelCapture}
+        onClickCapture={props.camera.onClickCapture}
+        onContextMenu={props.camera.onContextMenu}
+        onPointerDown={props.focusedItemId ? undefined : (event) => props.beginMarquee(event, true)}
+        onPointerMove={props.focusedItemId ? undefined : props.moveMarquee}
+        onPointerUp={props.focusedItemId ? undefined : props.endMarquee}
+        onPointerCancel={props.focusedItemId ? undefined : props.endMarquee}
         tabIndex={props.focusedItemId ? -1 : 0}
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
@@ -111,10 +117,6 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             data-focused={Boolean(props.focusedItemId)}
             data-grid={props.showGrid}
             style={{ transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}
-            onPointerDown={props.focusedItemId ? undefined : (event) => props.beginMarquee(event, arrangeMode)}
-            onPointerMove={props.focusedItemId ? undefined : props.moveMarquee}
-            onPointerUp={props.focusedItemId ? undefined : props.endMarquee}
-            onPointerCancel={props.focusedItemId ? undefined : props.endMarquee}
           >
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{
               left: props.marquee.left,

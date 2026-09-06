@@ -60,12 +60,8 @@ export function FocusedArtifactWorkspace({
       data-artifact-focus-exclusive="false"
       data-artifact-scroll-contained
       data-auto-fit={viewport.isAutoFit ? 'true' : 'false'}
-      onWheel={viewport.onWheel}
-      onPointerDown={viewport.onPointerDown}
-      onPointerMove={viewport.onPointerMove}
-      onPointerUp={viewport.onPointerUp}
-      onPointerCancel={viewport.onPointerCancel}
-      style={{ overflow: viewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'pan-x pan-y' }}
+      {...viewport.gestures}
+      style={{ overflow: viewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'none' }}
       aria-label={`${setName} focused Artifact viewport`}
     >
       <div className={styles.focusedArtifactWorld} style={{ width: viewport.worldWidth, height: viewport.worldHeight }}>
