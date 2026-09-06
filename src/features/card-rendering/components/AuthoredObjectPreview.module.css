@@ -16,8 +16,10 @@
 }
 
 .card[data-card-position='0'] { z-index: 3; }
-.card[data-card-position='1'] { z-index: 2; transform: translate(-16%, 7%) rotate(-6deg); opacity: 0.86; }
-.card[data-card-position='2'] { z-index: 1; transform: translate(16%, 8%) rotate(6deg); opacity: 0.72; }
+.card[data-card-position='1'] { z-index: 4; transform: translate(-24%, 7%); }
+.card[data-card-position='2'] { z-index: 3; transform: translate(24%, 8%); }
+.card[data-card-position='3'] { z-index: 2; transform: translate(-45%, 17%); }
+.card[data-card-position='4'] { z-index: 1; transform: translate(45%, 18%); }
 
 .emptyBadge {
   position: absolute;

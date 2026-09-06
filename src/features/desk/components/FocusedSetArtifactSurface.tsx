@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
-import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
+import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
-import type { CardFace, CardSetOrganization } from '@/domain/cards';
-import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import type { CardSetOrganization } from '@/domain/cards';
+import { type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { CardPreview, CardWatermarkOverlay } from '@/features/card-rendering/client';
+import { ArtifactSlot, useArtifactFaces } from '@/features/card-rendering/client';
 
 import {
   buildFocusedArtifactLayout,
@@ -96,7 +96,7 @@ export function FocusedSetArtifactSurface({
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
-  const [faces, setFaces] = useState<Record<string, CardFace>>({});
+  const [faces] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
   const cardById = useMemo(() => new Map(allCards.map((card) => [card.uniqueId, card])), [allCards]);
   const cardIndexById = useMemo(() => new Map(allCards.map((card, index) => [card.uniqueId, index])), [allCards]);
@@ -126,7 +126,7 @@ export function FocusedSetArtifactSurface({
   }), [layout, session.camera, viewportSize]);
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
-  const projectedEntries = visibleEntries;
+  const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
   const useDetailedPreview = session.camera.zoom >= 0.55 && projectedEntries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
@@ -138,9 +138,10 @@ export function FocusedSetArtifactSurface({
     return layout.groups.map((group) => ({ ...group, entries: entriesByGroup.get(group.label) ?? [] }));
   }, [layout.entries, layout.groups]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || typeof ResizeObserver === 'undefined') return;
+    setViewportSize({ width: Math.max(1, viewport.clientWidth), height: Math.max(1, viewport.clientHeight) });
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       setViewportSize({ width: Math.max(1, entry.contentRect.width), height: Math.max(1, entry.contentRect.height) });
@@ -201,9 +202,9 @@ export function FocusedSetArtifactSurface({
       }
     }
     selectionAnchorRef.current = artifactId;
-    updateSelection(session.selection.includes(artifactId)
+    updateSelection(!additive ? [artifactId] : session.selection.includes(artifactId)
       ? session.selection.filter((id) => id !== artifactId)
-      : additive ? [...session.selection, artifactId] : [...session.selection, artifactId]);
+      : [...session.selection, artifactId]);
   };
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' = 'spatial') => {
@@ -392,6 +393,7 @@ export function FocusedSetArtifactSurface({
         tabIndex={-1}
         className={styles.contentStage}
         data-desk-artifact-stage
+        data-scene-viewport
         data-arrangement={organization.arrangement}
         data-grid={showGrid && organization.arrangement === 'manual'}
         data-artifact-focus-exclusive="false"
@@ -432,7 +434,7 @@ export function FocusedSetArtifactSurface({
                   data-card-face={face}
                 >
                 <button
-                  id={`spatial-artifact-${artifactId}`}
+                  id={`artifact-field-${artifactId}`}
                   type="button"
                   className={styles.cardButton}
                   data-artifact-id={artifactId}
@@ -454,12 +456,11 @@ export function FocusedSetArtifactSurface({
                     } else focusArtifact(artifactId);
                   }}
                 >
-                  {useDetailedPreview ? <><CardPreview card={card} face={face} targetWidthPx={132} />{!canExportClean ? <CardWatermarkOverlay /> : null}</> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
+                  {useDetailedPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={132} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : <span className={styles.artifactLodPreview} aria-hidden="true">{entry.index + 1}</span>}
                   <strong>{entry.title}</strong>
                   <span>{entry.subtitle}</span>
                   {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
                 </button>
-                {hasCardBacking(card) ? <button type="button" className={styles.artifactTileFlip} onClick={() => setFaces((current) => ({ ...current, [artifactId]: face === 'front' ? 'back' : 'front' }))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${entry.title}`}><RefreshCcw aria-hidden="true" /></button> : null}
                 </div>
               );
             })}

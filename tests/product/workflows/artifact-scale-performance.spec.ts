@@ -49,12 +49,12 @@ test.describe('large Artifact browser evidence', () => {
 
       const openMs = await openScaleSet(page, cardCount, { expectOpeningMotion: true });
       const visualArtifacts = page.locator('[data-desk-artifact-stage] [data-artifact-id]');
-      const expensivePreviews = page.locator('[data-desk-artifact-stage] [id^="card-preview-"]');
+      const expensivePreviews = page.locator('[data-artifact-scene] [id^="card-preview-"]');
       const mountedVisuals = await visualArtifacts.count();
-      const mountedExpensivePreviews = await expensivePreviews.count();
       expect(mountedVisuals).toBeGreaterThan(0);
       expect(mountedVisuals).toBeLessThan(cardCount);
-      expect(mountedExpensivePreviews).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
+      await expect.poll(() => expensivePreviews.count()).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
+      const mountedExpensivePreviews = await expensivePreviews.count();
 
       const panMs = await elapsed(async () => {
         await page.locator('[data-desk-artifact-stage]').evaluate((stage) => {

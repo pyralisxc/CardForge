@@ -12,7 +12,7 @@ import { hasContributionScope, useContributorAccess, type ContributorAccessSessi
 import { StudioFirstRunGuide } from '@/features/creator-workbench/components/StudioFirstRunGuide';
 import {
   CardTemplateMaker,
-  EditCardDialog,
+  CardEditor,
   GenerationWorkspace,
 } from '@/features/creator-workbench/components/StudioLazyWorkspaces';
 import { createDeskReturnHref, readSurfaceReturnContext, resolveStudioReturnTarget, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
@@ -453,13 +453,11 @@ export function CreatorWorkbench({
       ) : null}
 
       {!isOutput && isEditDialogOpen && editingCardFromStore ? (
-        <EditCardDialog
-          isOpen={isEditDialogOpen}
+        <CardEditor
           card={editingCardFromStore}
           onSave={(card) => { handleSaveEditedCard(card); onCloseTool?.(); }}
           onDuplicate={handleDuplicateCard}
           onClose={() => { handleCloseEditDialog(); onCloseTool?.(); }}
-          presentation="workspace"
           onDirtyChange={onDirtyChange}
         />
       ) : (

@@ -7,7 +7,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Desk: `/account`; one persistent creative scene carries the user from spatial Set stacks into an expanded Set board and then a focused Artifact. A context rail changes its identity and actions at Desk, Set, Artifact, and tool depth without discarding the objects underneath. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
+- Desk: `/account`; one persistent artifact layer carries the same rendered cards from three-to-five-card Set stacks into the expanded Set and focused editing. A context rail changes its identity and actions at Desk, Set, Artifact, and tool depth without discarding the objects underneath. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.

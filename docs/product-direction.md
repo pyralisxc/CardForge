@@ -103,6 +103,8 @@ Desk supports:
 - compact Pipeline state and vote/review actions when an owned object has shared lineage;
 - attention only when meaningful: expiring AI drafts, provider conflicts, failed save/export, review changes, or real limits.
 
+Opening a work container unfolds its three-to-five representative artifacts into the Set spread, with additional artifacts emerging from that same origin. Focus and Edit continue moving the same artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
+
 Opening a work container changes focus rather than changing the mental model:
 
 > Desk → focused work → contained objects
@@ -121,7 +123,7 @@ The focus path is:
 
 Selecting Edit, Generate, Test, Validate, or advanced Output opens the smallest useful Studio tool. Returning restores exact prior Desk or Library context.
 
-Design is the exclusive full-viewport precision workspace while it is open. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
+Editing an individual Artifact preserves its visual identity while card tools appear around it. The Set spread remains recognizable behind the focused artifact; tool controls must not replace it with another preview. Shared Template Design can use the full viewport for element-level precision, with its distinct editing target explicit. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
 
 The focused Studio workbench supports:
 

@@ -6,7 +6,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
 import { Boxes } from 'lucide-react';
 
-import { CardPreview } from './CardPreview';
+import { ArtifactSlot } from './ArtifactScene';
 import styles from './AuthoredObjectPreview.module.css';
 
 export interface AuthoredObjectPreviewProps {
@@ -17,6 +17,8 @@ export interface AuthoredObjectPreviewProps {
   className?: string;
   emptyLabel?: string;
   face?: CardFace;
+  setId?: string;
+  sceneHidden?: boolean;
 }
 
 const widthBySize = {
@@ -46,8 +48,10 @@ export function AuthoredObjectPreview({
   className,
   emptyLabel,
   face = 'front',
+  setId,
+  sceneHidden = false,
 }: AuthoredObjectPreviewProps) {
-  const renderedCards = cards.slice(0, 3);
+  const renderedCards = cards.slice(0, 5);
   const explicitlyEmpty = renderedCards.length === 0 && Boolean(emptyLabel);
   const fallbackCard = !explicitlyEmpty && renderedCards.length === 0 && template
     ? previewCardFromTemplate(template, label)
@@ -64,10 +68,10 @@ export function AuthoredObjectPreview({
   }
 
   return (
-    <span className={cn(styles.stack, className)} data-size={size} aria-label={`${label} preview`}>
+    <span className={cn(styles.stack, className)} data-size={size} data-scene-hidden={sceneHidden} aria-label={`${label} preview`}>
       {visualCards.map((card, index) => (
         <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
-          <CardPreview card={card} face={face} targetWidthPx={widthBySize[size]} isEditorPreview />
+          <ArtifactSlot card={card} face={face} width={widthBySize[size]} depth="stack" setId={setId} rotation={[0, -7, 7, -14, 14][index]} order={5 - index} />
         </span>
       ))}
     </span>

@@ -522,6 +522,11 @@
   overflow: hidden;
 }
 
+.toolLayer[data-scene-visible="true"] .toolPanel {
+  background: transparent;
+  box-shadow: none;
+}
+
 .toolHeaderWorkspace {
   position: absolute;
   z-index: 60;

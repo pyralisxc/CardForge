@@ -4,24 +4,15 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import type { ChangeEvent } from 'react';
-import type { CardData, CardFace } from '@/domain/cards';
+import type { CardData } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { ScrollableDialogBody, ScrollableDialogContent } from '@/components/ui/scrollable-dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers, Minus, Plus, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useProjectStore } from '@/features/project/client/workspace';
-import { CardPreview, useArtifactViewport } from '@/features/card-rendering/client';
+import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import {
   completeCardDataWithTemplateDefaults,
@@ -29,26 +20,24 @@ import {
   initializeCardDataFromTemplate,
 } from '@/features/card-generator/lib/cardDataDefaults';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
-import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 
-interface EditCardDialogProps {
-  isOpen: boolean;
+interface CardEditorProps {
   card: DisplayCard | null;
   onSave: (updatedCard: DisplayCard) => void;
   onDuplicate: (cardToDuplicate: DisplayCard) => void;
   onClose: () => void;
-  presentation?: 'dialog' | 'workspace';
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onDirtyChange, presentation = 'dialog' }: EditCardDialogProps) {
+export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange }: CardEditorProps) {
   const router = useRouter();
   const [pendingLeave, setPendingLeave] = useState<{ href?: string } | null>(null);
-  const [editedData, setEditedData] = useState<CardData>({});
-  const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
-  const [editedBackingData, setEditedBackingData] = useState<CardData>({});
-  const [backingFields, setBackingFields] = useState<TemplateFieldDefinition[]>([]);
-  const [previewFace, setPreviewFace] = useState<CardFace>('front');
+  const [editedData, setEditedData] = useState<CardData>(() => initializeCardDataFromTemplate(card?.template, card?.data, true)[1]);
+  const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>(() => initializeCardDataFromTemplate(card?.template, card?.data, true)[0]);
+  const [editedBackingData, setEditedBackingData] = useState<CardData>(() => initializeCardDataFromTemplate(card?.backingTemplate, card?.backingData, true)[1]);
+  const [backingFields, setBackingFields] = useState<TemplateFieldDefinition[]>(() => initializeCardDataFromTemplate(card?.backingTemplate, card?.backingData, true)[0]);
+  const [previewFace, setPreviewFace] = useArtifactFace(card?.uniqueId ?? '');
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const backingFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -56,8 +45,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
   const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
   const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
   const previewTemplate = previewFace === 'back' ? card?.backingTemplate : card?.template;
+  const previewCanvas = card ? getCardFaceCanvas(card, previewFace) : null;
   const artifactViewport = useArtifactViewport({
-    aspectRatio: previewTemplate?.aspectRatio,
+    aspectRatio: previewCanvas ? `${previewCanvas.width}:${previewCanvas.height}` : previewTemplate?.aspectRatio,
     horizontalPadding: 80,
     maxWidth: 620,
     verticalPadding: 80,
@@ -111,7 +101,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
   useEffect(() => {
     if (!card?.backingTemplate) setPreviewFace('front');
     fitArtifactViewport();
-  }, [card?.backingTemplate, card?.uniqueId, fitArtifactViewport]);
+  }, [card?.backingTemplate, card?.uniqueId, fitArtifactViewport, setPreviewFace]);
 
   const handleImageUpload = useCallback(async (
     event: ChangeEvent<HTMLInputElement>,
@@ -270,9 +260,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
     </Accordion>
   );
 
-  if (presentation === 'workspace' && previewCard) {
+  if (previewCard) {
     return (
-      <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]" data-artifact-edit-workspace aria-labelledby="artifact-edit-heading">
+      <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-transparent text-[var(--cf-text)]" data-artifact-edit-workspace aria-labelledby="artifact-edit-heading">
         <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--cf-border-subtle)] bg-[var(--cf-editor-shell)] py-2 pl-3 pr-16 sm:gap-3 sm:px-4 sm:pr-20">
           <div className="mr-auto min-w-0">
             <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--cf-accent-strong)]">Card editor</p>
@@ -284,6 +274,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
             <Button type="button" size="icon" variant="ghost" onClick={() => artifactViewport.changeZoom(artifactViewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
             <Button type="button" size="sm" variant="ghost" onClick={artifactViewport.fit}>Fit</Button>
           </div>
+          {hasCardBacking(card) ? <Button type="button" size="sm" variant="outline" onClick={() => setPreviewFace(previewFace === 'front' ? 'back' : 'front')} aria-label={`Show ${previewFace === 'front' ? 'back' : 'front'} of ${cardIdentifier}`}><RefreshCcw className="mr-1.5 h-4 w-4" />{previewFace === 'front' ? 'Back' : 'Front'}</Button> : null}
           <span className="hidden text-[0.68rem] text-[var(--cf-text-subtle)] xl:inline">Pinch or scroll to zoom</span>
           <Button type="button" size="sm" variant="outline" onClick={requestClose}>Cancel</Button>
           <Button type="button" size="sm" variant="secondary" onClick={handleDuplicateThisCard}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
@@ -292,8 +283,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
         <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(15rem,42dvh)_minmax(0,1fr)] overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] lg:grid-rows-1">
           <div
             ref={artifactViewport.viewportRef}
-            className="relative min-h-0 min-w-0 overscroll-contain bg-[var(--cf-editor-canvas)]"
+            className="relative min-h-0 min-w-0 overscroll-contain bg-transparent"
             data-artifact-edit-stage
+            data-scene-viewport
             data-auto-fit={artifactViewport.isAutoFit ? 'true' : 'false'}
             onWheel={artifactViewport.onWheel}
             onPointerDown={artifactViewport.onPointerDown}
@@ -305,12 +297,8 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
           >
             <div className="relative flex items-center justify-center" style={{ width: artifactViewport.worldWidth, height: artifactViewport.worldHeight }}>
               <div className="relative shrink-0" style={{ width: artifactViewport.visualWidth, minHeight: artifactViewport.visualHeight }} data-card-face={previewFace}>
-                <CardPreview card={previewCard} face={previewFace} targetWidthPx={artifactViewport.visualWidth} />
-                {hasCardBacking(previewCard) ? (
-                  <Button type="button" size="sm" variant="outline" className="absolute bottom-3 right-3 shadow-lg" onClick={() => setPreviewFace((current) => current === 'front' ? 'back' : 'front')} aria-label={`Show ${previewFace === 'front' ? 'back' : 'front'} of ${cardIdentifier}`}>
-                    <RefreshCcw className="mr-1.5 h-4 w-4" aria-hidden="true" />{previewFace === 'front' ? 'Back' : 'Front'}
-                  </Button>
-                ) : null}
+                <ArtifactSlot card={previewCard} face={previewFace} width={artifactViewport.visualWidth} depth="edit" />
+
               </div>
             </div>
           </div>
@@ -324,33 +312,5 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose, onD
     );
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(openState) => !openState && requestClose()}>
-      {discardDialog}
-      <ScrollableDialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Edit: {cardIdentifier}</DialogTitle>
-          <DialogDescription>
-            Front: {card.template.name || card.template.id?.substring(0,8)}
-            {card.backingTemplate ? ` · Back: ${card.backingTemplate.name || card.backingTemplate.id?.substring(0, 8)}` : ' · No back selected'}
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollableDialogBody className="-mr-6 mb-4 pr-6">
-          {editorFields}
-        </ScrollableDialogBody>
-
-        <DialogFooter className="mt-4 shrink-0 border-t pt-4">
-          <DialogClose asChild>
-            <Button type="button" variant="outline">Cancel</Button>
-          </DialogClose>
-          <Button type="button" variant="secondary" onClick={handleDuplicateThisCard}>
-            <Copy className="mr-2 h-4 w-4" /> Duplicate & Close
-          </Button>
-          <Button type="button" onClick={handleSaveChanges}>
-            <Save className="mr-2 h-4 w-4" /> Save Changes
-          </Button>
-        </DialogFooter>
-      </ScrollableDialogContent>
-    </Dialog>
-  );
+  return null;
 }
