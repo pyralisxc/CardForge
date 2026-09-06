@@ -257,7 +257,10 @@ export function useDeskController({
     const missingTemplate = [pendingTool.templateId, pendingTool.backingTemplateId]
       .some((id) => id && !templates.some((template) => template.id === id));
     if (missingTemplate) {
-      if (projection.isLoading) return;
+      // A contextual tool depends on Templates, not the whole Desk. In
+      // particular, a slow Drive/folder/draft request must not block it, while
+      // a delayed catalog response must not be mistaken for a missing design.
+      if (!projection.templateCatalogReady) return;
       toast({
         title: templateSourceFailure ? 'Template source unavailable' : 'Template not found',
         description: templateSourceFailure
@@ -278,7 +281,7 @@ export function useDeskController({
     trackCardForgeEvent('tool_opened', { object_kind: pendingTool.tool, input_method: 'direct' });
     navigateToTool(pendingTool.setId, pendingTool.tool);
     setPendingTool(null);
-  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.isLoading, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
+  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.templateCatalogReady, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
   const focusedItemId = focusedItem?.id ?? null;

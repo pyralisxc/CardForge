@@ -189,6 +189,11 @@ export function useAccountLibraryProjection({
   const [privateOrganizationUnavailable, setPrivateOrganizationUnavailable] = useState(false);
   const [sourceFailures, setSourceFailures] = useState<AccountLibrarySourceFailure[]>([]);
   const [loadingSourceIds, setLoadingSourceIds] = useState<Set<string>>(new Set());
+  // A deep-linked Design or Generate tool must wait for its one required
+  // catalog source. This deliberately stays separate from the general source
+  // activity indicator: a slow Drive, folder, or draft request must never
+  // hold the tool hostage once Templates are ready.
+  const [templateCatalogReady, setTemplateCatalogReady] = useState(false);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [kindFilters, setKindFilters] = useState<AccountLibraryKind[]>([]);
@@ -238,6 +243,7 @@ export function useAccountLibraryProjection({
     setPersonalLibrarySource(null);
     setWorkingDraftSource(null);
     setSourceFailures([]);
+    setTemplateCatalogReady(false);
     void hydrateProjectWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setHydrated(true); })
       .catch((error) => {
@@ -269,6 +275,7 @@ export function useAccountLibraryProjection({
   const refreshLibrarySources = useCallback(async () => {
     const generation = refreshGeneration.current + 1;
     refreshGeneration.current = generation;
+    setTemplateCatalogReady(false);
     const markLoading = (id: string, loading: boolean) => {
       setLoadingSourceIds((current) => {
         const next = new Set(current);
@@ -368,7 +375,13 @@ export function useAccountLibraryProjection({
         if (!current()) return;
         setFailure(sourceFailure('published-library', error, 'CardForge previews are unavailable.'), 'published-library');
       })
-      .finally(() => { if (current()) finish('published-library'); });
+      .finally(() => {
+        if (!current()) return;
+        // Whether it succeeded or failed, the dependent tool can now make an
+        // honest decision: use the loaded templates or show the source error.
+        setTemplateCatalogReady(true);
+        finish('published-library');
+      });
 
     const signedInTasks = !isSignedIn ? [] : [
       loadGoogleDriveProjectLibrary()
@@ -600,6 +613,7 @@ export function useAccountLibraryProjection({
     failures: [hydrationFailure, ...sourceFailures].filter((failure): failure is AccountLibrarySourceFailure => Boolean(failure)),
     isLoading: !hydrated || loadingSources,
     loadingSources,
+    templateCatalogReady,
     busyItemId,
     query,
     kind,
