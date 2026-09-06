@@ -8,8 +8,9 @@ const PREVIEW_RETENTION_MS = 24 * 60 * 60 * 1000;
 const PRODUCTION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_PAGES = 200;
+const MAX_RATE_LIMIT_RETRIES = 2;
 
-const usage = `CardForge Vercel deployment cleanup\n\nUsage:\n  node scripts/cleanup-vercel-deployments.mjs\n  node scripts/cleanup-vercel-deployments.mjs --execute --confirm=card-forge\n\nEnvironment:\n  VERCEL_TOKEN       Required Vercel access token.\n  VERCEL_PROJECT_ID  Optional override; defaults to CardForge's project ID.\n  VERCEL_TEAM_ID     Optional override; defaults to the pyralis-projects team ID.\n  VERCEL_PROJECT_NAME Optional override; defaults to card-forge.\n\nSafety:\n  Dry-run is the default. Deletion requires both --execute and --confirm=<project name>.\n  The script keeps every deployment that still has an alias and always keeps the newest\n  READY production deployment. Unknown/in-flight deployment states are never deleted.\n`;
+const usage = `CardForge Vercel deployment cleanup\n\nUsage:\n  node scripts/cleanup-vercel-deployments.mjs\n  node scripts/cleanup-vercel-deployments.mjs --execute --confirm=card-forge\n\nEnvironment:\n  VERCEL_TOKEN        Required Vercel access token.\n  VERCEL_PROJECT_ID   Optional override; defaults to CardForge's project ID.\n  VERCEL_TEAM_ID      Optional override; defaults to the pyralis-projects team ID.\n  VERCEL_PROJECT_NAME Optional override; defaults to card-forge.\n\nSafety:\n  Dry-run is the default. Deletion requires both --execute and --confirm=<project name>.\n  The script keeps every deployment that still has an active alias and always keeps the\n  newest READY production deployment. Unknown/in-flight deployment states are never deleted.\n`;
 
 const argv = process.argv.slice(2);
 if (argv.includes('--help') || argv.includes('-h')) {
@@ -52,41 +53,57 @@ const retentionFor = (deployment) => {
   if (state !== 'READY') return null;
   return deployment.target === 'production' ? PRODUCTION_RETENTION_MS : PREVIEW_RETENTION_MS;
 };
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const request = async (pathname, { method = 'GET' } = {}) => {
   const url = new URL(pathname, API_ORIGIN);
   if (!url.searchParams.has('teamId')) url.searchParams.set('teamId', teamId);
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'CardForge deployment cleanup',
-    },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'CardForge deployment cleanup',
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
 
-  const raw = await response.text();
-  let payload = null;
-  if (raw) {
-    try {
-      payload = JSON.parse(raw);
-    } catch {
-      payload = raw;
+    const raw = await response.text();
+    let payload = null;
+    if (raw) {
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        payload = raw;
+      }
     }
-  }
 
-  if (!response.ok) {
+    if (response.ok) return payload;
+
     const message = typeof payload === 'object' && payload?.error?.message
       ? payload.error.message
       : typeof payload === 'object' && payload?.message
         ? payload.message
         : raw || response.statusText;
+
+    if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const retryAfterSeconds = Number(response.headers.get('retry-after'));
+      const minuteMatch = String(message).match(/try again in\s+(\d+)\s+minute/i);
+      const fallbackMs = minuteMatch ? Number(minuteMatch[1]) * 60_000 : 60_000;
+      const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? retryAfterSeconds * 1000
+        : fallbackMs;
+      console.warn(`Vercel rate limit hit for ${url.pathname}; retrying in ${Math.ceil(delayMs / 1000)}s.`);
+      await sleep(delayMs);
+      continue;
+    }
+
     throw new Error(`${method} ${url.pathname} failed with HTTP ${response.status}: ${message}`);
   }
 
-  return payload;
+  throw new Error(`${method} ${url.pathname} exhausted rate-limit retries.`);
 };
 
 const getProject = async () => request(`/v9/projects/${encodeURIComponent(projectId)}`);
@@ -117,9 +134,34 @@ const listDeployments = async () => {
   throw new Error(`Deployment history exceeded the ${MAX_PAGES}-page safety cap.`);
 };
 
-const listAliases = async (deploymentId) => {
-  const payload = await request(`/v2/deployments/${encodeURIComponent(deploymentId)}/aliases`);
-  return Array.isArray(payload?.aliases) ? payload.aliases : [];
+const listProjectAliases = async () => {
+  const aliasesByDeployment = new Map();
+  let until = null;
+
+  for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber += 1) {
+    const url = new URL('/v4/aliases', API_ORIGIN);
+    url.searchParams.set('projectId', projectId);
+    url.searchParams.set('limit', '100');
+    if (until) url.searchParams.set('until', String(until));
+
+    const page = await request(`${url.pathname}${url.search}`);
+    const aliases = Array.isArray(page?.aliases) ? page.aliases : [];
+    for (const alias of aliases) {
+      if (alias?.deletedAt) continue;
+      const deploymentId = alias?.deploymentId ?? alias?.deployment?.id ?? null;
+      if (!deploymentId) continue;
+      const names = aliasesByDeployment.get(deploymentId) ?? [];
+      if (alias?.alias) names.push(alias.alias);
+      aliasesByDeployment.set(deploymentId, names);
+    }
+
+    const next = page?.pagination?.next;
+    if (!next || aliases.length === 0) return aliasesByDeployment;
+    if (String(next) === String(until)) throw new Error('Vercel alias pagination repeated the same cursor; refusing to continue.');
+    until = next;
+  }
+
+  throw new Error(`Alias history exceeded the ${MAX_PAGES}-page safety cap.`);
 };
 
 const deleteDeployment = async (deploymentId) => request(`/v13/deployments/${encodeURIComponent(deploymentId)}`, { method: 'DELETE' });
@@ -133,6 +175,7 @@ if (project?.id !== projectId || project?.name !== expectedProjectName || projec
 }
 
 const deployments = await listDeployments();
+const aliasesByDeployment = await listProjectAliases();
 const now = Date.now();
 const newestReadyProduction = deployments
   .filter((deployment) => deployment.target === 'production' && normalizeState(deployment) === 'READY' && Number.isFinite(createdAtMs(deployment)))
@@ -167,16 +210,9 @@ for (const deployment of deployments) {
     continue;
   }
 
-  let aliases;
-  try {
-    aliases = await listAliases(id);
-  } catch (error) {
-    skipped.push({ id, reason: `alias safety check failed: ${error instanceof Error ? error.message : 'unknown error'}` });
-    continue;
-  }
-
-  if (aliases.length > 0) {
-    skipped.push({ id, reason: `still has alias${aliases.length === 1 ? '' : 'es'}: ${aliases.map((item) => item.alias).filter(Boolean).join(', ') || 'unknown'}` });
+  const aliases = aliasesByDeployment.get(id) ?? [];
+  if (aliasesByDeployment.has(id)) {
+    skipped.push({ id, reason: `still has active alias${aliases.length === 1 ? '' : 'es'}: ${aliases.join(', ') || 'unknown'}` });
     continue;
   }
 
@@ -185,7 +221,7 @@ for (const deployment of deployments) {
 
 console.log(`CardForge Vercel deployment cleanup (${execute ? 'DELETE' : 'DRY RUN'})`);
 console.log(`Project: ${project.name} (${project.id})`);
-console.log('Policy: previews/errors/canceled >= 24h; production >= 7d; aliases and newest READY production are protected.');
+console.log('Policy: previews/errors/canceled >= 24h; production >= 7d; active aliases and newest READY production are protected.');
 console.log(`Scanned ${deployments.length} deployment(s); ${eligible.length} eligible; ${skipped.length} protected/ineligible.`);
 
 if (eligible.length > 0) {
@@ -200,15 +236,21 @@ if (!execute) {
   process.exit(0);
 }
 
+// Refresh all aliases once immediately before the destructive phase. This catches aliases
+// that appeared during the scan without making hundreds of per-deployment alias requests.
+const executionAliasesByDeployment = await listProjectAliases();
 let deleted = 0;
 let failed = 0;
+let reprotected = 0;
 for (const { id } of eligible) {
+  if (executionAliasesByDeployment.has(id)) {
+    const aliases = executionAliasesByDeployment.get(id) ?? [];
+    reprotected += 1;
+    console.log(`SKIP ${id}: active alias appeared during execution (${aliases.join(', ') || 'unknown'}).`);
+    continue;
+  }
+
   try {
-    const aliases = await listAliases(id);
-    if (aliases.length > 0) {
-      console.log(`SKIP ${id}: alias appeared during execution (${aliases.map((item) => item.alias).filter(Boolean).join(', ') || 'unknown'}).`);
-      continue;
-    }
     await deleteDeployment(id);
     deleted += 1;
     console.log(`DELETED ${id}`);
@@ -218,5 +260,5 @@ for (const { id } of eligible) {
   }
 }
 
-console.log(`\nCleanup complete: ${deleted} deleted, ${failed} failed, ${eligible.length - deleted - failed} re-protected during execution.`);
+console.log(`\nCleanup complete: ${deleted} deleted, ${failed} failed, ${reprotected} re-protected during execution.`);
 if (failed > 0) process.exitCode = 1;
