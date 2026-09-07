@@ -61,14 +61,19 @@ export interface DeskOrganizationFacet {
 
 export const getDeskSourceFacets = (items: readonly AccountLibraryItem[]): DeskSourceFacet[] => {
   const facets = new Map<AccountLibrarySource, DeskSourceFacet>();
-  items.forEach((item) => item.locations.forEach((location) => {
-    const current = facets.get(location.source);
-    facets.set(location.source, {
-      id: location.source,
-      label: current?.label ?? location.label,
-      count: (current?.count ?? 0) + 1,
+  items.forEach((item) => {
+    const seenSources = new Set<AccountLibrarySource>();
+    item.locations.forEach((location) => {
+      if (seenSources.has(location.source)) return;
+      seenSources.add(location.source);
+      const current = facets.get(location.source);
+      facets.set(location.source, {
+        id: location.source,
+        label: current?.label ?? location.label,
+        count: (current?.count ?? 0) + 1,
+      });
     });
-  }));
+  });
   return [...facets.values()];
 };
 
@@ -272,7 +277,7 @@ export const matchesDeskTagFilters = (
 };
 
 export const matchesDeskViews = (item: AccountLibraryItem, viewIds: readonly string[]): boolean => {
-  if (viewIds.includes('my-work') && item.organization.publicationState === 'working') return true;
+  if (viewIds.includes('my-work') && (item.organization.publicationState === 'working' || item.organization.publicationState === 'temporary')) return true;
   if (viewIds.includes('campaigns') && item.organization.publicationState === 'campaign') return true;
   return viewIds.includes('my-published') && item.organization.publicationState === 'published';
 };

@@ -10,6 +10,7 @@ export { useAccountLibraryProjection } from './hooks/useAccountLibraryProjection
 export {
   applyAccountLibraryOrganizationOperation,
   applyAccountLibraryPrivateOrganization,
+  getAccountLibraryWorkPreview,
   getAccountLibrarySourceLabel,
 } from './model/accountLibrary';
 export {
@@ -31,4 +32,5 @@ export type {
   AccountLibraryOrganizationOperation,
   AccountLibraryPrivateOrganization,
   AccountLibrarySource,
+  AccountLibraryWorkPreview,
 } from './model/accountLibrary';

@@ -22,8 +22,10 @@ import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 import { readLocalLibraryResources, retainLocalLibraryResources, type LocalLibraryResource } from '@/features/project/client/library-resources';
 import {
   beginScopedSource,
+  sourcePhaseForFailure,
   settleScopedSourceFailure,
   settleScopedSourceValue,
+  type ScopedSourcePhase,
   type ScopedSourceSnapshot,
 } from '@/shared/scopedSource';
 
@@ -90,6 +92,13 @@ export interface AccountLibrarySourceFailure {
   retryable: boolean;
   nextAction?: string;
   correlationId: string | null;
+}
+
+export interface AccountLibrarySourceStatus {
+  id: AccountLibrarySourceId;
+  label: string;
+  phase: ScopedSourcePhase;
+  failure: AccountLibrarySourceFailure | null;
 }
 
 export const retainLastKnownLibrarySource = <Value,>(
@@ -168,6 +177,18 @@ const compareRecent = (left: AccountLibraryItem, right: AccountLibraryItem) => {
   if (Number.isFinite(rightTime)) return 1;
   return left.name.localeCompare(right.name);
 };
+
+const sourceStatus = <Value,>(
+  id: AccountLibrarySourceId,
+  label: string,
+  source: ScopedLibrarySource<Value> | null,
+  persistenceScope: ProjectPersistenceScope,
+): AccountLibrarySourceStatus => ({
+  id,
+  label,
+  phase: source?.scope === persistenceScope ? source.phase : 'loading',
+  failure: source?.scope === persistenceScope ? source.failure : null,
+});
 
 export function useAccountLibraryProjection({
   persistenceScope,
@@ -519,6 +540,21 @@ export function useAccountLibraryProjection({
     items.forEach((item) => item.locations.forEach((location) => counts.set(location.source, (counts.get(location.source) ?? 0) + 1)));
     return counts;
   }, [items]);
+  const sourceStatuses = useMemo<AccountLibrarySourceStatus[]>(() => [
+    {
+      id: 'workspace',
+      label: 'This device',
+      phase: !hydrated ? 'loading' : hydrationFailure ? sourcePhaseForFailure(hydrationFailure.kind) : 'ready',
+      failure: hydrationFailure,
+    },
+    sourceStatus('device-assets', 'Device assets', localResourceSource, persistenceScope),
+    sourceStatus('local-folder', 'Remembered folders', localWorkFolderSource, persistenceScope),
+    ...(isSignedIn ? [
+      sourceStatus('google-drive', 'Google Drive projects', driveLibrarySource, persistenceScope),
+      sourceStatus('personal-library', 'Connected assets', personalLibrarySource, persistenceScope),
+      sourceStatus('assistant-drafts', 'Private Studio drafts', workingDraftSource, persistenceScope),
+    ] : []),
+  ], [driveLibrarySource, hydrationFailure, hydrated, isSignedIn, localResourceSource, localWorkFolderSource, persistenceScope, personalLibrarySource, workingDraftSource]);
   const typeFacets = useMemo(() => {
     const counts = new Map<string, number>();
     items.forEach((item) => {
@@ -606,6 +642,7 @@ export function useAccountLibraryProjection({
     featuredItem: home.featuredItem,
     recentItems: home.moreItems,
     sourceCounts,
+    sourceStatuses,
     privateOrganization,
     privateOrganizationReady,
     privateOrganizationUnavailable,

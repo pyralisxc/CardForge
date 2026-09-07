@@ -17,6 +17,7 @@ import { ConfirmationDialog as WorkflowConfirmationDialog } from '@/components/u
 import { CampaignPackageDetails } from '@/features/marketing-content/components/CampaignPackageDetails';
 import {
   canTransitionCampaign,
+  getCampaignMediaPreviewUrl,
   type MarketingContentPackage as SocialCampaign,
   type MarketingContentWorkspaceView,
 } from '@/features/marketing-content/model';
@@ -148,9 +149,7 @@ export function CampaignQueue({
         const readiness = getCampaignPackageReadiness(campaign);
         const hasMedia = campaign.variants.some((variant) => variant.attachments.length > 0);
         const mediaExpectation = getCampaignMediaExpectation(campaign);
-        const previewUrl = campaign.variants
-          .flatMap((variant) => variant.attachments)
-          .find((attachment) => attachment.media.previewUrl)?.media.previewUrl ?? null;
+        const previewUrl = getCampaignMediaPreviewUrl(campaign);
 
         return (
           <article key={campaign.id} className="border-b border-[var(--cf-border)] py-3">

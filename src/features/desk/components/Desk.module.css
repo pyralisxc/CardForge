@@ -519,6 +519,42 @@
   object-fit: cover;
 }
 
+.sourceStatusNotice {
+  position: absolute;
+  z-index: 11;
+  top: 4.4rem;
+  right: 0.65rem;
+  max-width: min(24rem, calc(100% - 1.3rem));
+  border: 1px solid color-mix(in srgb, var(--cf-warning) 36%, var(--cf-border));
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--cf-surface) 94%, var(--cf-warning));
+  box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 12%);
+  color: var(--cf-text);
+  font-size: 0.78rem;
+}
+
+.sourceStatusNotice summary {
+  cursor: pointer;
+  padding: 0.55rem 0.7rem;
+  font-weight: 650;
+}
+
+.sourceStatusNotice ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.7rem 0.65rem 1.7rem;
+}
+
+.sourceStatusNotice li {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.sourceStatusNotice li span {
+  color: var(--cf-text-muted);
+}
+
 .workTile[data-featured="true"] .remoteWorkPreview {
   width: 10rem;
   min-height: 12rem;
@@ -1422,6 +1458,13 @@
     border-right: 0;
     border-left: 0;
     box-shadow: none;
+  }
+
+  .sourceStatusNotice {
+    top: 4rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
   }
 
   .searchField {

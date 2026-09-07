@@ -109,6 +109,13 @@ describe('Desk model', () => {
       { id: 'device', label: 'This device', count: 1 },
       { id: 'google-drive', label: 'Google Drive', count: 1 },
     ]);
+    expect(getDeskSourceFacets([{
+      ...device,
+      locations: [
+        ...device.locations,
+        { source: 'device', status: 'attached', label: 'This device' },
+      ],
+    }])).toEqual([{ id: 'device', label: 'This device', count: 1 }]);
     expect(matchesSourceFilter(device, 'device')).toBe(true);
     expect(matchesSourceFilter(device, 'google-drive')).toBe(false);
     expect(matchesSourceFilter(drive, 'connected')).toBe(true);
@@ -132,6 +139,18 @@ describe('Desk model', () => {
     expect(matchesDeskTagFilters(item, ['launch', 'archive'], 'all')).toBe(false);
     expect(matchesDeskViews(item, ['my-work'])).toBe(true);
     expect(matchesDeskViews(item, ['campaigns'])).toBe(false);
+  });
+
+  it('keeps resumable temporary Studio work in the quiet My work view', () => {
+    const draft: AccountLibraryItem = {
+      id: 'working-draft:concept', kind: 'working-draft', name: 'Private concept',
+      locations: [{ source: 'assistant-draft', status: 'temporary', label: 'Private working draft' }],
+      details: [], sizeBytes: null, revision: '2', updatedAt: null, expiresAt: '2026-09-08T00:00:00.000Z', webViewLink: null,
+      references: { workingDraftId: 'concept' },
+      organization: { workflow: 'assistant-document', type: null, tags: [], source: 'none', publicationState: 'temporary' },
+    };
+
+    expect(matchesDeskViews(draft, ['my-work'])).toBe(true);
   });
 
   it('defaults saved Desk preferences to quiet My work and preserves custom multi-select values', () => {

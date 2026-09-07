@@ -73,8 +73,9 @@ export function useDeskController({
     failures: [...projection.failures, ...discoveredWork.failures],
     isLoading: projection.isLoading || discoveredWork.loading,
     loadingSources: projection.loadingSources || discoveredWork.loading,
+    sourceStatuses: [...projection.sourceStatuses, ...discoveredWork.sourceStatuses],
     refresh: refreshDeskSources,
-  }), [discoveredWork.failures, discoveredWork.loading, projection, refreshDeskSources]);
+  }), [discoveredWork.failures, discoveredWork.loading, discoveredWork.sourceStatuses, projection, refreshDeskSources]);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const cardStageRef = useRef<HTMLDivElement | null>(null);
