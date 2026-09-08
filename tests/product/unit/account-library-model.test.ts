@@ -11,6 +11,7 @@ import {
   applyAccountLibraryPrivateOrganization,
   getAccountLibraryAvailableActions,
   getAccountLibraryMcpWorkflow,
+  getAccountLibraryWorkPreview,
   resolveAccountHomeLibraryProjection,
 } from '@/features/storage-management/model/accountLibrary';
 import {
@@ -133,6 +134,7 @@ describe('account library model', () => {
         modifiedAt: '2026-08-24T11:00:00.000Z',
         size: 2400,
         webViewLink: 'https://drive.google.com/file/d/drive-project-1/view',
+        thumbnailLink: 'https://lh3.googleusercontent.com/drive-preview-1',
       }],
       driveBindingFileId: 'drive-project-1',
       localWorkFolders: [{
@@ -163,6 +165,7 @@ describe('account library model', () => {
 
     expect(items.map((item) => item.kind)).toEqual(['set', 'set', 'asset', 'working-draft']);
     expect(items[0]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'attached' });
+    expect(items[0]?.workPreview).toEqual({ kind: 'image', url: 'https://lh3.googleusercontent.com/drive-preview-1' });
     expect(items[1]).toMatchObject({
       id: 'local-folder-work:missing-local-work',
       references: { localFolder: true, localFolderWorkId: 'missing-local-work' },
@@ -170,6 +173,25 @@ describe('account library model', () => {
     });
     expect(items[2]?.locations[0]).toMatchObject({ source: 'google-drive', status: 'available' });
     expect(items[3]?.locations[0]).toMatchObject({ source: 'assistant-draft', status: 'temporary' });
+  });
+
+  it('keeps provider navigation distinct from the authorized image-preview contract', () => {
+    const [driveProject] = buildAccountLibraryItems({
+      localSets: [],
+      driveProjects: [{
+        fileId: 'drive-preview-1', name: 'Preview.cardforge', providerRevision: '1', projectRevision: null,
+        modifiedAt: '2026-09-07T00:00:00.000Z', size: 12,
+        webViewLink: 'https://drive.example.test/open/drive-preview-1',
+        thumbnailLink: 'https://drive.example.test/thumbnail/drive-preview-1',
+      }],
+      driveBindingFileId: null, localWorkFolders: [], personalAssets: [], workingDrafts: [],
+    });
+    expect(driveProject?.webViewLink).toBe('https://drive.example.test/open/drive-preview-1');
+    expect(getAccountLibraryWorkPreview(driveProject!)).toEqual({ kind: 'image', url: 'https://drive.example.test/thumbnail/drive-preview-1' });
+    expect(getAccountLibraryWorkPreview({
+      ...driveProject!,
+      locations: [{ source: 'google-drive', status: 'needs-permission', label: 'Google Drive · reconnect' }],
+    })).toEqual({ kind: 'fallback', reason: 'permission-required' });
   });
 
   it('keeps portable Set classification separate from private labels on shared work', () => {

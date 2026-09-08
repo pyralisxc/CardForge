@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Boxes,
   Cloud,
@@ -26,6 +26,7 @@ import type { ContributorAccessSessionState } from '@/features/contributor-acces
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { useProjectStore } from '@/features/project/client/workspace';
 import {
+  getAccountLibraryWorkPreview,
   WorkLocationDialog,
   type AccountLibraryItem,
 } from '@/features/storage-management/client';
@@ -93,6 +94,42 @@ const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; classNa
         ? FileArchive
         : Cloud;
   return <Icon className={className} aria-hidden="true" />;
+};
+
+const workPreviewFallbackLabel = (item: AccountLibraryItem): string => {
+  const preview = getAccountLibraryWorkPreview(item);
+  if (preview.kind !== 'fallback') return '';
+  if (preview.reason === 'permission-required') return 'Permission required for preview';
+  if (preview.reason === 'unavailable') return 'Preview unavailable';
+  return item.references.campaignId ? 'No media attached' : 'No visual preview';
+};
+
+function DeskWorkPreview({
+  item,
+}: {
+  item: AccountLibraryItem;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const preview = getAccountLibraryWorkPreview(item);
+  const previewKey = preview.kind === 'image' ? preview.url : preview.kind === 'fallback' ? preview.reason : preview.kind;
+  useEffect(() => setImageFailed(false), [previewKey]);
+  if (preview.kind === 'image' && !imageFailed) {
+    return <img src={preview.url} alt="" className={styles.remoteWorkPreview} onError={() => setImageFailed(true)} />;
+  }
+  return <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>{imageFailed ? 'Preview unavailable' : workPreviewFallbackLabel(item)}</span></div>;
+}
+
+const deskSourceStatusLabel = (sourceStatuses: readonly { phase: string }[]): string => {
+  const phases = new Set(sourceStatuses.map((source) => source.phase).filter((phase) => phase !== 'ready' && phase !== 'empty'));
+  if (!phases.size) return 'Sources ready';
+  const labels: Record<string, string> = {
+    loading: 'Sources loading',
+    unavailable: 'Source unavailable',
+    'permission-required': 'Source permission required',
+    expired: 'Source sign-in expired',
+    incomplete: 'Source incomplete',
+  };
+  return [...phases].map((phase) => labels[phase] ?? 'Source issue').join(' · ');
 };
 
 export function Desk({
@@ -269,6 +306,8 @@ export function Desk({
     accessStatus,
     securityStatus,
   });
+  const remoteWorkspacePreview = remoteWorkspaceItem ? getAccountLibraryWorkPreview(remoteWorkspaceItem) : null;
+  const sourceStatusLabel = deskSourceStatusLabel(projection.sourceStatuses);
   const activeTool = interactionSession.toolStack.at(-1) ?? null;
   const focusedArtifactId = interactionSession.focusPath.artifactId;
   const focusedArtifact = focusedArtifactId
@@ -379,7 +418,7 @@ export function Desk({
         surfaceRef={surfaceRef}
         statusContent={<>
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open work object${workItems.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} />
-          <EnvironmentStatus label={projection.failures.length ? `${projection.failures.length} source issue${projection.failures.length === 1 ? '' : 's'}` : 'Sources ready'} tone={projection.failures.length ? 'warning' : 'success'} />
+          <EnvironmentStatus label={sourceStatusLabel} tone={projection.failures.length || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete') ? 'warning' : 'success'} />
         </>}
         footerContent={focusedItem ? <span>{focusedItem.name}</span> : isSignedIn ? <span>Private creator desk</span> : (
           <span className="flex items-center gap-3">
@@ -407,6 +446,7 @@ export function Desk({
             marquee={deskMarquee}
             isLoading={projection.isLoading}
             failure={projection.failures[0] ?? null}
+            sourceStatuses={projection.sourceStatuses}
             showGrid={showGrid}
             snapToGrid={snapToGrid}
             query={query}
@@ -429,7 +469,7 @@ export function Desk({
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
             statuses={statuses}
-            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : item.webViewLink ? <img src={item.webViewLink} alt="" className={styles.remoteWorkPreview} /> : <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>Preview on open</span></div>}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
@@ -546,7 +586,10 @@ export function Desk({
           {remoteWorkspaceItem.references.campaignId ? <DeskCampaignWorkspace initialCampaignId={remoteWorkspaceItem.references.campaignId} /> : remoteWorkspaceItem.references.pipelineLineageId ? <DeskPublishedWorkspace work={{
             assetType: remoteWorkspaceItem.references.pipelineAssetType ?? (remoteWorkspaceItem.kind === 'set' ? 'sets' : 'resource'),
             description: remoteWorkspaceItem.details.join(' · '), name: remoteWorkspaceItem.name,
-            previewUrl: remoteWorkspaceItem.webViewLink, publishedAt: remoteWorkspaceItem.updatedAt,
+            previewUrl: remoteWorkspacePreview?.kind === 'image'
+              ? remoteWorkspacePreview.url
+              : null,
+            publishedAt: remoteWorkspaceItem.updatedAt,
             revision: remoteWorkspaceItem.revision, sourceNotes: remoteWorkspaceItem.references.pipelineSourceNotes ?? null,
           }} onCreateWorkingCopy={remoteWorkspaceItem.references.pipelineAssetType === 'sets' && remoteWorkspaceItem.references.pipelineSourceUrl ? () => void createPublishedWorkingCopy(remoteWorkspaceItem) : undefined} /> : null}
         </EnvironmentToolLayer> : null}

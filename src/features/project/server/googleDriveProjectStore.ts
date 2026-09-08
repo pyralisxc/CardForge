@@ -41,7 +41,7 @@ const GOOGLE_USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userin
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const GOOGLE_DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,modifiedTime,size,parents,webViewLink,appProperties';
+const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,modifiedTime,size,parents,webViewLink,thumbnailLink,appProperties';
 const GOOGLE_DRIVE_PROJECT_APP_PROPERTY = 'cardforgeProject';
 const GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY = 'cardforgeProjectRevision';
 const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId';
@@ -108,6 +108,7 @@ type GoogleDriveFile = {
   size?: string;
   parents?: string[];
   webViewLink?: string;
+  thumbnailLink?: string;
   appProperties?: Record<string, string>;
 };
 
@@ -423,6 +424,7 @@ const toProjectSummary = (file: GoogleDriveFile): GoogleDriveProjectSummary | nu
     modifiedAt,
     size: Math.max(0, Number(file.size) || 0),
     webViewLink: file.webViewLink ?? null,
+    thumbnailLink: file.thumbnailLink ?? null,
     workId,
   };
 };

@@ -45,6 +45,15 @@ export interface AccountLibraryReferences {
 export type AccountLibraryPublicationState = 'working' | 'published' | 'campaign' | 'temporary';
 
 /**
+ * A small, already-authorized visual reference for a work object. Provider
+ * source links remain navigation destinations and must never double as images.
+ */
+export type AccountLibraryWorkPreview =
+  | { kind: 'authored-object' }
+  | { kind: 'image'; url: string }
+  | { kind: 'fallback'; reason: 'no-media' | 'permission-required' | 'unavailable' };
+
+/**
  * Each field is deliberately descriptive. Provider locations and Pipeline
  * status remain on their native records; labels cannot unlock an action.
  */
@@ -66,11 +75,27 @@ export interface AccountLibraryItem {
   revision: string | null;
   updatedAt: string | null;
   expiresAt: string | null;
+  /** Optional while legacy browser-local records are hydrated. */
+  workPreview?: AccountLibraryWorkPreview;
+  /** A native provider/browser destination, never an image source. */
   webViewLink: string | null;
   references: AccountLibraryReferences;
   localResource?: LocalLibraryResource;
   organization: AccountLibraryOrganization;
 }
+
+export const getAccountLibraryWorkPreview = (
+  item: Pick<AccountLibraryItem, 'locations' | 'references' | 'workPreview'>,
+): AccountLibraryWorkPreview => {
+  if (item.references.localSetId) return { kind: 'authored-object' };
+  if (item.locations.some((location) => location.status === 'needs-permission')) {
+    return { kind: 'fallback', reason: 'permission-required' };
+  }
+  if (item.locations.some((location) => location.status === 'unavailable')) {
+    return { kind: 'fallback', reason: 'unavailable' };
+  }
+  return item.workPreview ?? { kind: 'fallback', reason: 'no-media' };
+};
 
 export type AccountLibraryAction = 'open' | 'continue' | 'save-move' | 'duplicate' | 'delete-copy' | 'view-source' | 'manage-storage';
 
@@ -128,6 +153,7 @@ interface DriveProjectInput {
   modifiedAt: string;
   size: number;
   webViewLink: string | null;
+  thumbnailLink?: string | null;
   workId?: string | null;
 }
 
@@ -323,6 +349,7 @@ export const buildAccountLibraryItems = ({
       matchingWork.revision = project.projectRevision;
       matchingWork.updatedAt = project.modifiedAt;
       matchingWork.webViewLink = project.webViewLink;
+      if (project.thumbnailLink) matchingWork.workPreview = { kind: 'image', url: project.thumbnailLink };
       matchingWork.sizeBytes = Math.max(matchingWork.sizeBytes ?? 0, project.size);
       continue;
     }
@@ -336,6 +363,9 @@ export const buildAccountLibraryItems = ({
       revision: project.projectRevision,
       updatedAt: project.modifiedAt,
       expiresAt: null,
+      workPreview: project.thumbnailLink
+        ? { kind: 'image', url: project.thumbnailLink }
+        : { kind: 'fallback', reason: 'no-media' },
       webViewLink: project.webViewLink,
       references: {
         driveFileId: project.fileId,

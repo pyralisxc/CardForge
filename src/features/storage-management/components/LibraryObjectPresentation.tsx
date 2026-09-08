@@ -14,7 +14,7 @@ import { LocalLibraryResourcePreview } from '@/features/project/client/library-r
 
 import type { PipelineLibraryObject, PublishedLibraryObject } from '../hooks/useLibrarySharedProjection';
 import { getAccountLibraryActionSources } from '../model/accountLibraryEnvironment';
-import { getAccountLibraryMcpWorkflow, type AccountLibraryItem } from '../model/accountLibrary';
+import { getAccountLibraryMcpWorkflow, getAccountLibraryWorkPreview, type AccountLibraryItem } from '../model/accountLibrary';
 import { formatAccountLibraryBytes, formatAccountLibraryDate } from './AccountLibraryItemRow';
 import styles from './UnifiedAccountLibrary.module.css';
 
@@ -76,11 +76,21 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
 
+function PersonalLibraryVisual({ item }: { item: Extract<LibraryViewItem, { scope: 'personal' }> }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const preview = getAccountLibraryWorkPreview(item.personal);
+  if (preview.kind === 'image' && !previewFailed) {
+    return <img src={preview.url} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
+  }
+  return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
+}
+
 export function LibraryVisual({ item, cards, template, large = false, face = 'front' }: { item: LibraryViewItem; cards: DisplayCard[]; template?: ReturnType<typeof selectAllTemplates>[number] | null; large?: boolean; face?: CardFace }) {
   if (item.scope === 'personal' && item.personal.localResource) return <LocalLibraryResourcePreview resource={item.personal.localResource} className={item.personal.localResource.kind === 'font' ? styles.fontSample : styles.objectImage} />;
   if (item.scope === 'personal' && (item.personal.references.localSetId || item.personal.references.localTemplateId)) {
     return <AuthoredObjectPreview cards={cards} template={template} label={item.name} size={large ? 'large' : 'standard'} emptyLabel={item.personal.references.localSetId && cards.length === 0 ? 'Empty Set' : undefined} face={face} />;
   }
+  if (item.scope === 'personal') return <PersonalLibraryVisual item={item} />;
   return <SharedLibraryVisual key={safePreviewUrl(item.previewUrl) ?? item.id} item={item} previewUrl={safePreviewUrl(item.previewUrl)} />;
 }
 

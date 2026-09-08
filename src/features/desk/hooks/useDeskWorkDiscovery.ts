@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { loadCampaignDeskProjection, type MarketingContentPackage } from '@/features/marketing-content/client';
-import { getPipelineTypeLabel, loadOwnPublishedPipelineSubmissions, type PipelineSubmission } from '@/features/pipeline/client';
+import { getCampaignMediaPreviewUrl, loadCampaignDeskProjection, type MarketingContentPackage } from '@/features/marketing-content/client';
+import { getPipelineImagePreviewUrl, getPipelineTypeLabel, loadOwnPublishedPipelineSubmissions, type PipelineSubmission } from '@/features/pipeline/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
@@ -12,6 +12,7 @@ import {
   beginScopedSource,
   settleScopedSourceFailure,
   settleScopedSourceValue,
+  type ScopedSourcePhase,
   type ScopedSourceSnapshot,
 } from '@/shared/scopedSource';
 
@@ -27,9 +28,18 @@ export interface DeskDiscoveryFailure {
   nextAction?: string;
 }
 
+export interface DeskDiscoverySourceStatus {
+  id: DeskDiscoverySource;
+  label: string;
+  phase: ScopedSourcePhase;
+  failure: DeskDiscoveryFailure | null;
+}
+
 type ScopedDeskDiscovery<Value> = ScopedSourceSnapshot<ProjectPersistenceScope, Value, DeskDiscoveryFailure>;
 
-const campaignItem = (campaign: MarketingContentPackage): AccountLibraryItem => ({
+export const toCampaignDeskItem = (campaign: MarketingContentPackage): AccountLibraryItem => {
+  const previewUrl = getCampaignMediaPreviewUrl(campaign);
+  return {
   id: `campaign:${campaign.id}`,
   kind: 'campaign',
   name: campaign.title,
@@ -42,6 +52,9 @@ const campaignItem = (campaign: MarketingContentPackage): AccountLibraryItem => 
   revision: String(campaign.version),
   updatedAt: campaign.updatedAt,
   expiresAt: null,
+  workPreview: previewUrl
+    ? { kind: 'image', url: previewUrl }
+    : { kind: 'fallback', reason: 'no-media' },
   webViewLink: null,
   references: { campaignId: campaign.id },
   // The Campaign record keeps its own campaign fields and permissions. This
@@ -53,11 +66,13 @@ const campaignItem = (campaign: MarketingContentPackage): AccountLibraryItem => 
     source: 'none',
     publicationState: 'campaign',
   },
-});
+  };
+};
 
-const publishedItem = (submission: PipelineSubmission): AccountLibraryItem => {
+export const toPublishedDeskItem = (submission: PipelineSubmission): AccountLibraryItem => {
   const isSet = submission.assetType === 'sets';
   const lineageId = submission.lineageId ?? submission.id;
+  const previewUrl = getPipelineImagePreviewUrl(submission);
   return {
     id: `pipeline:${lineageId}`,
     kind: isSet ? 'set' : 'published-resource',
@@ -71,6 +86,9 @@ const publishedItem = (submission: PipelineSubmission): AccountLibraryItem => {
     revision: submission.revisionNumber ? String(submission.revisionNumber) : null,
     updatedAt: submission.publishedAt ?? submission.updatedAt ?? submission.submittedAt,
     expiresAt: null,
+    workPreview: previewUrl
+      ? { kind: 'image', url: previewUrl }
+      : { kind: 'fallback', reason: 'no-media' },
     webViewLink: submission.previewUrl || null,
     references: {
       pipelineLineageId: lineageId,
@@ -163,7 +181,7 @@ export function useDeskWorkDiscovery({
         canLoadCampaigns,
         'campaigns',
         setCampaigns,
-        async () => (await loadCampaignDeskProjection()).campaigns.map(campaignItem),
+        async () => (await loadCampaignDeskProjection()).campaigns.map(toCampaignDeskItem),
         'Campaign work is unavailable.',
         (items) => items.length === 0,
       ),
@@ -171,7 +189,7 @@ export function useDeskWorkDiscovery({
         canLoadPublished,
         'my-published',
         setPublished,
-        async () => (await loadOwnPublishedPipelineSubmissions()).map(publishedItem),
+        async () => (await loadOwnPublishedPipelineSubmissions()).map(toPublishedDeskItem),
         'Your published Pipeline work is unavailable.',
         (items) => items.length === 0,
       ),
@@ -195,6 +213,20 @@ export function useDeskWorkDiscovery({
     source?.scope === persistenceScope && source.failure ? [source.failure] : []
   )), [campaigns, persistenceScope, published]);
   const loading = [campaigns, published].some((source) => source?.scope === persistenceScope && source.phase === 'loading');
+  const sourceStatuses = useMemo<DeskDiscoverySourceStatus[]>(() => [
+    ...(canLoadCampaigns ? [{
+      id: 'campaigns' as const,
+      label: 'Campaign work',
+      phase: campaigns?.scope === persistenceScope ? campaigns.phase : 'loading' as const,
+      failure: campaigns?.scope === persistenceScope ? campaigns.failure : null,
+    }] : []),
+    ...(canLoadPublished ? [{
+      id: 'my-published' as const,
+      label: 'My published work',
+      phase: published?.scope === persistenceScope ? published.phase : 'loading' as const,
+      failure: published?.scope === persistenceScope ? published.failure : null,
+    }] : []),
+  ], [campaigns, canLoadCampaigns, canLoadPublished, persistenceScope, published]);
 
-  return { items, failures, loading, refresh, canLoadCampaigns, canLoadPublished };
+  return { items, failures, loading, sourceStatuses, refresh, canLoadCampaigns, canLoadPublished };
 }

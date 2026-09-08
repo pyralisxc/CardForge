@@ -21,6 +21,14 @@ import { DeskWorkObject } from './DeskWorkObject';
 import styles from './Desk.module.css';
 
 const statusIcons = { Access: CreditCard, Storage: HardDrive, Connections: Link2, Security: ShieldCheck };
+const sourcePhaseLabel: Record<string, string> = {
+  loading: 'Loading',
+  empty: 'No work found',
+  unavailable: 'Unavailable',
+  'permission-required': 'Permission required',
+  expired: 'Sign-in expired',
+  incomplete: 'Partially loaded',
+};
 
 export interface DeskOverviewSurfaceProps {
   workItemsCount: number;
@@ -33,6 +41,7 @@ export interface DeskOverviewSurfaceProps {
   marquee: { left: number; top: number; right: number; bottom: number } | null;
   isLoading: boolean;
   failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
+  sourceStatuses: readonly { id: string; label: string; phase: string; failure: { message: string } | null }[];
   showGrid: boolean;
   snapToGrid: boolean;
   query: string;
@@ -105,6 +114,12 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     ...CARD_SET_BUILT_IN_TYPES,
     ...props.typeFacets.map((facet) => facet.label),
   ])).toSorted((left, right) => left.localeCompare(right));
+  const sourceStatusDetails = props.sourceStatuses.filter((source) => source.phase !== 'ready' && source.phase !== 'empty');
+  const sourceStatusSummary = sourceStatusDetails.every((source) => source.phase === 'loading')
+    ? 'Loading work sources'
+    : sourceStatusDetails.length === 1
+      ? 'One work source needs attention'
+      : `${sourceStatusDetails.length} work sources need attention`;
   const renderDeskFilters = () => <>
     <MultiSelectionFilterMenu allLabel="My work" ariaLabel="Choose Desk views" compactLabel="Views" className={styles.sourceSelect} values={props.activeDeskViews} onChange={props.onDeskViewsChange} options={props.availableDeskViews.map((view) => ({
       value: view,
@@ -171,6 +186,15 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <Button type="button" size="sm" variant={arrangeMode ? 'secondary' : 'ghost'} aria-pressed={arrangeMode} onClick={() => setArrangeMode((current) => !current)}><Hand className="mr-1 h-4 w-4" aria-hidden="true" />{arrangeMode ? 'Done' : 'Move'}</Button>
         </div>
       </div>
+      {sourceStatusDetails.length ? <details className={styles.sourceStatusNotice}>
+        <summary>{sourceStatusSummary}</summary>
+        <ul>
+          {sourceStatusDetails.map((source) => <li key={source.id}>
+            <strong>{source.label}</strong>
+            <span>{source.failure?.message ?? sourcePhaseLabel[source.phase] ?? 'Status unavailable'}</span>
+          </li>)}
+        </ul>
+      </details> : null}
       {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.visibleWork.length ? <div
         id="desk-world-viewport"
         ref={props.workGridRef}

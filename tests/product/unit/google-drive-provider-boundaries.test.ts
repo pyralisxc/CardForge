@@ -147,7 +147,7 @@ describe('Google Drive provider boundaries', () => {
     mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
     const project = (id: string, version: string) => ({
       id, name: `${id}.cardforge`, mimeType: 'application/vnd.cardforge.project+zip', version,
-      modifiedTime: '2026-09-01T00:00:00.000Z', size: '12', parents: ['drive_folder_123'],
+      modifiedTime: '2026-09-01T00:00:00.000Z', size: '12', parents: ['drive_folder_123'], thumbnailLink: `https://drive.example.test/${id}.png`,
       appProperties: { cardforgeProject: '1', cardforgeProjectRevision: `${id}-revision` },
     });
     const fetchMock = vi.fn()
@@ -158,10 +158,14 @@ describe('Google Drive provider boundaries', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(listGoogleDriveProjects('user-1')).resolves.toMatchObject({
-      projects: [{ fileId: 'drivefile1' }, { fileId: 'drivefile2' }], nextPageToken: null,
+      projects: [
+        { fileId: 'drivefile1', thumbnailLink: 'https://drive.example.test/drivefile1.png' },
+        { fileId: 'drivefile2', thumbnailLink: 'https://drive.example.test/drivefile2.png' },
+      ], nextPageToken: null,
     });
     const secondListUrl = new URL(String(fetchMock.mock.calls[3]?.[0]));
     expect(secondListUrl.searchParams.get('pageToken')).toBe('page-two');
+    expect(secondListUrl.searchParams.get('fields')).toContain('thumbnailLink');
   });
 
   it('classifies a token-endpoint network failure as unavailable without changing the connection', async () => {

@@ -25,6 +25,8 @@ export interface GoogleDriveProjectSummary {
   modifiedAt: string;
   size: number;
   webViewLink: string | null;
+  /** Short-lived provider thumbnail URL when Drive authorizes one for this binary. */
+  thumbnailLink?: string | null;
   workId: string | null;
 }
 

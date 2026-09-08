@@ -133,6 +133,13 @@ export interface MarketingContentPackage {
   updatedAt: string;
 }
 
+/** The representative attachment used wherever a campaign needs a compact visual reference. */
+export const getCampaignMediaPreviewUrl = (
+  campaign: Pick<MarketingContentPackage, 'variants'>,
+): string | null => campaign.variants
+  .flatMap((variant) => variant.attachments)
+  .find((attachment) => attachment.media.previewUrl)?.media.previewUrl ?? null;
+
 export interface MarketingDelivery {
   id: string; campaignId: string; provider: 'meta' | 'manual'; service: MarketingChannel;
   providerChannelId: string; providerPostId: string | null; status: MarketingDeliveryStatus;
