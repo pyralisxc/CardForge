@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
-import { getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder } from '@/features/desk/model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder } from '@/features/desk/model/desk';
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
@@ -34,6 +34,11 @@ describe('Desk tool template context', () => {
 });
 
 describe('Desk model', () => {
+  it('formats Desk metadata with the intended separator', () => {
+    expect(DESK_METADATA_SEPARATOR).toBe(' · ');
+    expect(joinDeskMetadata(['0 cards', 'Device only'])).toBe('0 cards · Device only');
+  });
+
   it('opens a local Set through its project owner', () => {
     const localSet: AccountLibraryItem = {
       id: 'set:set-alpha', kind: 'set', name: 'Set Alpha',

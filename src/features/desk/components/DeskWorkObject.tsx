@@ -9,7 +9,7 @@ import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import { getDeskWorkKeyboardIntent, workSourceLabel } from '../model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskWorkKeyboardIntent, joinDeskMetadata, workSourceLabel } from '../model/desk';
 import styles from './Desk.module.css';
 
 interface DeskWorkObjectProps {
@@ -113,7 +113,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Press Enter to open.`}
     >
       <div className={styles.workVisual} data-desk-set-stack data-card-face={face}>{props.preview(face)}</div>
-      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{props.item.details.join(' Â· ') || workSourceLabel(props.item)}</span>{props.item.organization.type || props.item.organization.tags.length ? <span className={styles.workOrganization}>{[props.item.organization.type, ...props.item.organization.tags].filter(Boolean).join(' · ')}</span> : null}<span>{workSourceLabel(props.item)}</span></span>
+      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{joinDeskMetadata(props.item.details) || workSourceLabel(props.item)}</span>{props.item.organization.type || props.item.organization.tags.length ? <span className={styles.workOrganization}>{joinDeskMetadata([props.item.organization.type, ...props.item.organization.tags].filter((value): value is string => Boolean(value)))}</span> : null}<span>{workSourceLabel(props.item)}</span></span>
     </button>
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
@@ -122,7 +122,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       <DropdownMenu><DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={openSet}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-        <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : ' Â· Creator Pass'}</DropdownMenuItem>
+        <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
         {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}

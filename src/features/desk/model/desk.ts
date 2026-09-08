@@ -23,6 +23,9 @@ export const getDeskToolCard = (
 );
 export type DeskSourceFilter = 'all' | AccountLibrarySource | LegacyDeskSourceFilter;
 export type DeskWorkKeyboardIntent = 'open' | 'select' | 'select-additive' | 'none';
+export const DESK_METADATA_SEPARATOR = ' · ';
+
+export const joinDeskMetadata = (parts: readonly string[]): string => parts.join(DESK_METADATA_SEPARATOR);
 
 export const getDeskWorkKeyboardIntent = (
   key: string,
@@ -138,7 +141,7 @@ export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRec
   kind: 'set',
   eyebrow: 'Work',
   title: item.name,
-  summary: item.details.join(' Â· ') || 'Ready to continue.',
+  summary: joinDeskMetadata(item.details) || 'Ready to continue.',
   status: item.locations.some((location) => location.status === 'needs-permission')
     ? 'Permission required'
     : item.kind === 'working-draft'
@@ -150,7 +153,7 @@ export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRec
   actionSources: getAccountLibraryActionSources(item),
   meta: [
     ['Source', workSourceLabel(item)],
-    ['Contents', item.details.join(' Â· ') || 'No content summary'],
+    ['Contents', joinDeskMetadata(item.details) || 'No content summary'],
     ...(item.revision ? [['Revision', item.revision] as const] : []),
     ...(item.expiresAt ? [['Expires', new Date(item.expiresAt).toLocaleString()] as const] : []),
   ],
