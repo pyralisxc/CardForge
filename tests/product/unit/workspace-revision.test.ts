@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBrowserWorkspaceSaveStatus } from '@/features/project/persistence/indexedDbStorage';
 
 import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
-import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord, resolveGuestWorkspaceAdoption } from '@/features/project/client/persistence-workspace';
+import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from '@/features/project/client/persistence-workspace';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -61,16 +61,4 @@ describe('browser workspace revisions', () => {
     expect(parseBrowserWorkspaceRecord(raw!).value).toContain('first');
   });
 
-  it('requires an explicit adoption choice', () => {
-    expect(resolveGuestWorkspaceAdoption({
-      choice: 'keep-account-workspace',
-      guestValue: 'guest',
-      accountValue: 'account',
-    })).toBe('account');
-    expect(resolveGuestWorkspaceAdoption({
-      choice: 'replace-with-guest-workspace',
-      guestValue: 'guest',
-      accountValue: 'account',
-    })).toBe('guest');
-  });
 });

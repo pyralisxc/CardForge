@@ -1,29 +1,15 @@
 import type { ReactNode } from 'react';
 
-import {
-  applyGuestWorkspaceAdoption,
-  inspectGuestWorkspaceAdoption,
-  type GuestWorkspaceAdoptionOffer,
-} from '../persistence/guestWorkspaceAdoption';
+import { adoptGuestWorkspaceForAccount } from '../persistence/guestWorkspaceAdoption';
 import {
   BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT,
   type ProjectPersistenceScope,
 } from '../persistence/projectPersistenceScope';
 import { BROWSER_WORKSPACE_CONFLICT_EVENT } from '../persistence/indexedDbStorage';
-import type { GuestWorkspaceAdoptionChoice } from '../persistence/workspaceRevision';
 import { hydrateProjectWorkspaceForScope } from '../store/workspaceStore';
 
-export type AccountProjectWorkspaceBootstrapResult =
-  | { kind: 'ready' }
-  | { kind: 'adoption-required'; offer: GuestWorkspaceAdoptionOffer };
-
 interface AccountProjectWorkspaceBootstrapDependencies {
-  inspectAdoption: typeof inspectGuestWorkspaceAdoption;
-  hydrate: typeof hydrateProjectWorkspaceForScope;
-}
-
-interface AccountProjectWorkspaceResolutionDependencies {
-  applyAdoption: typeof applyGuestWorkspaceAdoption;
+  adopt: typeof adoptGuestWorkspaceForAccount;
   hydrate: typeof hydrateProjectWorkspaceForScope;
 }
 
@@ -42,29 +28,11 @@ export interface AccountProjectWorkspaceBoundaryProps {
 export const prepareAccountProjectWorkspace = async (
   persistenceScope: ProjectPersistenceScope,
   dependencies: AccountProjectWorkspaceBootstrapDependencies = {
-    inspectAdoption: inspectGuestWorkspaceAdoption,
+    adopt: adoptGuestWorkspaceForAccount,
     hydrate: hydrateProjectWorkspaceForScope,
   },
-): Promise<AccountProjectWorkspaceBootstrapResult> => {
-  const offer = await dependencies.inspectAdoption(persistenceScope);
-  if (offer) return { kind: 'adoption-required', offer };
-  await dependencies.hydrate(persistenceScope);
-  return { kind: 'ready' };
-};
-
-export const resolveAccountProjectWorkspaceAdoption = async ({
-  persistenceScope,
-  choice,
-  dependencies = {
-    applyAdoption: applyGuestWorkspaceAdoption,
-    hydrate: hydrateProjectWorkspaceForScope,
-  },
-}: {
-  persistenceScope: ProjectPersistenceScope;
-  choice: GuestWorkspaceAdoptionChoice;
-  dependencies?: AccountProjectWorkspaceResolutionDependencies;
-}): Promise<void> => {
-  await dependencies.applyAdoption({ accountScope: persistenceScope, choice });
+): Promise<void> => {
+  await dependencies.adopt(persistenceScope);
   await dependencies.hydrate(persistenceScope);
 };
 

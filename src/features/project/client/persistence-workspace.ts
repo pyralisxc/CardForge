@@ -9,19 +9,13 @@ export {
   BROWSER_WORKSPACE_RECORD_VERSION,
   BrowserWorkspaceConflictError,
   parseBrowserWorkspaceRecord,
-  resolveGuestWorkspaceAdoption,
   serializeBrowserWorkspaceRecord,
 } from '../persistence/workspaceRevision';
 export type {
   BrowserWorkspaceRecord,
-  GuestWorkspaceAdoptionChoice,
   ParsedBrowserWorkspaceRecord,
 } from '../persistence/workspaceRevision';
-export {
-  applyGuestWorkspaceAdoption,
-  inspectGuestWorkspaceAdoption,
-} from '../persistence/guestWorkspaceAdoption';
-export type { GuestWorkspaceAdoptionOffer } from '../persistence/guestWorkspaceAdoption';
+export { adoptGuestWorkspaceForAccount } from '../persistence/guestWorkspaceAdoption';
 export {
   BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT,
   createProjectPersistenceScope,

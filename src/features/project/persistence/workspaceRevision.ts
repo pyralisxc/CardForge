@@ -62,17 +62,3 @@ export const serializeBrowserWorkspaceRecord = ({
   writerId,
   value,
 } satisfies BrowserWorkspaceRecord);
-
-export type GuestWorkspaceAdoptionChoice = 'keep-account-workspace' | 'replace-with-guest-workspace';
-
-export const resolveGuestWorkspaceAdoption = ({
-  choice,
-  guestValue,
-  accountValue,
-}: {
-  choice: GuestWorkspaceAdoptionChoice;
-  guestValue: string;
-  accountValue: string | null;
-}): string | null => (
-  choice === 'replace-with-guest-workspace' ? guestValue : accountValue
-);

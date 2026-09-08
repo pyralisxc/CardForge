@@ -17,13 +17,10 @@ import { CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation'
 
 import {
   prepareAccountProjectWorkspace,
-  resolveAccountProjectWorkspaceAdoption,
   subscribeToAccountProjectWorkspaceIssues,
   type AccountProjectWorkspaceBoundaryProps,
   type AccountProjectWorkspaceIssue,
 } from '../client/accountProjectWorkspace';
-import type { GuestWorkspaceAdoptionChoice } from '../persistence/workspaceRevision';
-import type { GuestWorkspaceAdoptionOffer } from '../persistence/guestWorkspaceAdoption';
 import { BrowserStorageAlerts } from './BrowserStorageAlerts';
 
 export function AccountProjectWorkspaceBoundary({
@@ -32,22 +29,15 @@ export function AccountProjectWorkspaceBoundary({
   canUseProjectFiles,
 }: AccountProjectWorkspaceBoundaryProps) {
   const [isReady, setIsReady] = useState(false);
-  const [adoptionOffer, setAdoptionOffer] = useState<GuestWorkspaceAdoptionOffer | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
   const [issue, setIssue] = useState<AccountProjectWorkspaceIssue | null>(null);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
 
   const bootstrap = useCallback(async () => {
     setIsReady(false);
-    setAdoptionOffer(null);
     setError(null);
     try {
-      const result = await prepareAccountProjectWorkspace(persistenceScope);
-      if (result.kind === 'adoption-required') {
-        setAdoptionOffer(result.offer);
-        return;
-      }
+      await prepareAccountProjectWorkspace(persistenceScope);
       setIsReady(true);
     } catch (bootstrapError) {
       console.error('Unable to prepare the account workspace.', bootstrapError);
@@ -64,54 +54,19 @@ export function AccountProjectWorkspaceBoundary({
     setIsIssueDialogOpen(true);
   }), []);
 
-  const resolveAdoption = async (choice: GuestWorkspaceAdoptionChoice) => {
-    setIsResolving(true);
-    setError(null);
-    try {
-      await resolveAccountProjectWorkspaceAdoption({ persistenceScope, choice });
-      setAdoptionOffer(null);
-      setIsReady(true);
-    } catch (adoptionError) {
-      setError(adoptionError instanceof Error ? adoptionError.message : 'CardForge could not apply that workspace choice safely.');
-    } finally {
-      setIsResolving(false);
-    }
-  };
-
   const reloadSavedWorkspace = () => window.location.reload();
 
   if (!isReady) {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
         <CardForgeWorkspaceState
-          state={error && !adoptionOffer ? 'error' : 'loading'}
-          message={error && !adoptionOffer
-            ? 'CardForge could not restore this account workspace. Your stored workspace has not been replaced.'
+          state={error ? 'error' : 'loading'}
+          message={error
+            ? 'CardForge could not finish preparing this account workspace. Try again before editing.'
             : 'Restoring the workspace saved for this account before opening your Desk and Library.'}
           className="grid min-h-0 w-full max-w-md place-items-center text-center"
         />
-        {adoptionOffer ? (
-          <AlertDialog open>
-            <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Choose which workspace to open</AlertDialogTitle>
-                <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
-                  This browser has work made before sign-in. You can use that guest work for this account or keep {adoptionOffer.hasAccountWorkspace ? 'the account workspace already saved here' : 'this account workspace empty'}. The guest copy remains stored either way.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isResolving} onClick={() => void resolveAdoption('keep-account-workspace')}>
-                  Keep account workspace
-                </AlertDialogCancel>
-                <AlertDialogAction disabled={isResolving} onClick={() => void resolveAdoption('replace-with-guest-workspace')}>
-                  Use guest work
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null}
-        {error && !adoptionOffer ? (
+        {error ? (
           <div className="grid max-w-md gap-3 text-center">
             <p role="alert" className="text-sm text-destructive">{error}</p>
             <Button type="button" variant="outline" onClick={() => void bootstrap()}>Try again</Button>
