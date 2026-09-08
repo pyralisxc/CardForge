@@ -6,7 +6,11 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '../model/projectDocument';
 import { copyBrowserProjectAssets } from './contentAddressedBrowserAssets';
-import { compareAndSetBrowserWorkspaceValue, createIndexedDbStorage } from './indexedDbStorage';
+import {
+  compareAndSetBrowserWorkspaceValue,
+  createIndexedDbStorage,
+  removeBrowserStorageValues,
+} from './indexedDbStorage';
 import { parseBrowserWorkspaceRecord } from './workspaceRevision';
 
 const WORKSPACE_KEY = 'workspace';
@@ -112,7 +116,9 @@ export const adoptGuestWorkspaceForAccount = async (accountScope: string): Promi
     });
   }
 
-  await guestWorkspaceStorage.removeItem(WORKSPACE_KEY);
-  for (const key of PROJECT_ASSET_KEYS) await guestAssets.removeItem(key);
+  await removeBrowserStorageValues([
+    `${getNamespace('project-workspace', GUEST_SCOPE)}:${WORKSPACE_KEY}`,
+    ...PROJECT_ASSET_KEYS.map((key) => `${getNamespace('project-assets', GUEST_SCOPE)}:${key}`),
+  ]);
   return true;
 };
