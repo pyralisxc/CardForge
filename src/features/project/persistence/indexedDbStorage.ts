@@ -168,6 +168,29 @@ export const createBrowserKeyValueStorage = (
   };
 };
 
+/** Deletes related browser keys in one IndexedDB transaction. */
+export const removeBrowserStorageValues = async (keys: readonly string[]): Promise<void> => {
+  if (keys.length === 0) return;
+  const database = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+    const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
+    for (const key of keys) store.delete(key);
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error ?? new Error('Unable to remove browser storage values.'));
+    };
+    transaction.onabort = () => {
+      database.close();
+      reject(transaction.error ?? new Error('Browser storage removal was aborted.'));
+    };
+  });
+};
+
 // Keep the read and update in the same native transaction so another tab cannot
 // replace the value between them. The updater must remain synchronous.
 export const updateBrowserKeyValue = async (

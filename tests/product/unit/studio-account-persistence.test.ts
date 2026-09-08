@@ -2,9 +2,11 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { applyGuestWorkspaceAdoption, createProjectPersistenceScope, createScopedProjectStorage, getScopedProjectStorageNamespace, inspectGuestWorkspaceAdoption, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { adoptGuestWorkspaceForAccount, createProjectPersistenceScope, createScopedProjectStorage, getScopedProjectStorageNamespace, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { BROWSER_STORAGE_DATABASE, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
 import { getProjectAssetStorage, readTypedProjectAssetListFromStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
+import { CUSTOM_IMAGE_ASSETS_STORAGE_KEY } from '@/features/project/model/projectDocument';
+import { prepareAccountProjectWorkspace } from '@/features/project/client/accountProjectWorkspace';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -112,56 +114,49 @@ describe('Studio account-scoped persistence', () => {
     await expect(legacy.getItem('workspace')).resolves.toContain('legacy-plugin-state');
   });
 
-  it('offers guest work after sign-in and adopts it only after the explicit replace choice', async () => {
-    setProjectPersistenceScope('guest');
-    await createScopedProjectStorage('project-workspace').setItem(
-      'workspace',
-      JSON.stringify({ state: { marker: 'guest-work' }, version: 3 }),
-    );
+  it('adopts current guest work before hydrating the newly signed account without returning a choice', async () => {
+    const calls: string[] = [];
 
-    const offer = await inspectGuestWorkspaceAdoption('account:user-adoption');
-    expect(offer).toEqual({ guestRevision: 1, hasAccountWorkspace: false });
+    await expect(prepareAccountProjectWorkspace('account:continuity', {
+      adopt: async (scope) => {
+        calls.push(`adopt:${scope}`);
+        return true;
+      },
+      hydrate: async (scope) => {
+        calls.push(`hydrate:${scope}`);
+      },
+    })).resolves.toBeUndefined();
 
-    await applyGuestWorkspaceAdoption({
-      accountScope: 'account:user-adoption',
-      choice: 'replace-with-guest-workspace',
-    });
-    setProjectPersistenceScope('account:user-adoption');
-    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
-      .resolves.toContain('guest-work');
-    setProjectPersistenceScope('guest');
-    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
-      .resolves.toContain('guest-work');
-    await expect(inspectGuestWorkspaceAdoption('account:user-adoption')).resolves.toBeNull();
+    expect(calls).toEqual(['adopt:account:continuity', 'hydrate:account:continuity']);
   });
 
-  it('keeps both guest and account work unchanged when the account workspace is chosen', async () => {
-    setProjectPersistenceScope('guest');
-    const guestWorkspace = createScopedProjectStorage('project-workspace');
-    await guestWorkspace.getItem('workspace');
-    await guestWorkspace.setItem(
-      'workspace',
-      JSON.stringify({ state: { marker: 'guest-kept' }, version: 3 }),
-    );
-    setProjectPersistenceScope('account:user-keep');
-    const accountWorkspace = createScopedProjectStorage('project-workspace');
-    await accountWorkspace.getItem('workspace');
-    await accountWorkspace.setItem(
-      'workspace',
-      JSON.stringify({ state: { marker: 'account-kept' }, version: 3 }),
-    );
+  it('moves current guest work into the signed-in account without a choice, preserves recovery, and clears the guest lane', async () => {
+    const guestWorkspace = createIndexedDbStorage('project-workspace:guest');
+    const accountWorkspace = createIndexedDbStorage('project-workspace:account:user-adoption');
+    const guestAssets = createIndexedDbStorage('project-assets:guest');
+    const accountAssets = createIndexedDbStorage('project-assets:account:user-adoption');
+    await guestWorkspace.setItem('workspace', JSON.stringify({ state: { marker: 'guest-current-work' }, version: 3 }));
+    await accountWorkspace.setItem('workspace', JSON.stringify({ state: { marker: 'account-recovery-work' }, version: 3 }));
+    await guestAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'guest-art', name: 'Guest art' }]));
+    await accountAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'account-art', name: 'Account art' }]));
 
-    await applyGuestWorkspaceAdoption({
-      accountScope: 'account:user-keep',
-      choice: 'keep-account-workspace',
-    });
+    await expect(adoptGuestWorkspaceForAccount('account:user-adoption')).resolves.toBe(true);
 
-    setProjectPersistenceScope('guest');
-    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
-      .resolves.toContain('guest-kept');
-    setProjectPersistenceScope('account:user-keep');
-    await expect(createScopedProjectStorage('project-workspace').getItem('workspace'))
-      .resolves.toContain('account-kept');
+    await expect(accountWorkspace.getItem('workspace')).resolves.toContain('guest-current-work');
+    await expect(accountWorkspace.getItem('__recovery__:workspace')).resolves.toContain('account-recovery-work');
+    await expect(accountAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('guest-art');
+    await expect(accountAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('account-art');
+    await expect(guestWorkspace.getItem('workspace')).resolves.toBeNull();
+    await expect(guestAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toBeNull();
+  });
+
+  it('never carries a completed guest handoff into another account scope', async () => {
+    const guestWorkspace = createIndexedDbStorage('project-workspace:guest');
+    await guestWorkspace.setItem('workspace', JSON.stringify({ state: { marker: 'guest-current-work' }, version: 3 }));
+
+    await expect(adoptGuestWorkspaceForAccount('account:first')).resolves.toBe(true);
+    await expect(adoptGuestWorkspaceForAccount('account:second')).resolves.toBe(false);
+    await expect(createIndexedDbStorage('project-workspace:account:second').getItem('workspace')).resolves.toBeNull();
   });
 
   it('quarantines corrupt scoped workspace JSON instead of returning it to Zustand', async () => {
