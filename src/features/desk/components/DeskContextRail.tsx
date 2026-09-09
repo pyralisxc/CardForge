@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   ChevronRight,
+  Cloud,
   Copy,
   Home,
   Info,
@@ -32,6 +33,8 @@ import {
 import { Input } from '@/components/ui/input';
 import type { CardFace } from '@/domain/cards';
 import { useArtifactFace } from '@/features/card-rendering/client';
+import { useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
+import { useProjectStore } from '@/features/project/client/workspace';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
 import styles from './Desk.module.css';
@@ -76,8 +79,22 @@ interface DeskContextRailProps {
   onDeleteSelected: () => void;
 }
 
+const driveNeedsAttention = (phase: string) => (
+  phase === 'offline'
+  || phase === 'read-only'
+  || phase === 'remote-changed'
+  || phase === 'recovery-required'
+  || phase === 'error'
+);
+
 export function DeskContextRail(props: DeskContextRailProps) {
   const [artifactFace] = useArtifactFace(props.artifactId ?? '');
+  const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
+  const driveWorkingSession = useGoogleDriveWorkingSession({
+    setId: props.localSet ? activeSetId : null,
+    name: props.setName ?? 'CardForge Set',
+    enabled: props.localSet && Boolean(activeSetId),
+  });
   const focused = props.depth !== 'desk';
   const artifactFocused = props.depth === 'artifact';
   const toolFocused = props.depth === 'tool';
@@ -97,6 +114,8 @@ export function DeskContextRail(props: DeskContextRailProps) {
     props.onToggleRenaming();
     requestAnimationFrame(() => setActionsRef.current?.focus());
   };
+  const driveState = driveWorkingSession.state;
+  const showDriveState = props.localSet && driveState.phase !== 'unlinked';
 
   return (
     <div className={styles.contextRail} data-depth={props.depth} data-desk-context-rail>
@@ -115,6 +134,17 @@ export function DeskContextRail(props: DeskContextRailProps) {
             {props.toolName ? <><ChevronRight aria-hidden="true" /><strong title={props.toolName}>{props.toolName}</strong></> : null}
           </div>
           {props.toolDirty ? <span className={styles.contextDirty}>Unsaved changes</span> : null}
+          {showDriveState ? <span
+            data-drive-working-state={driveState.phase}
+            role={driveNeedsAttention(driveState.phase) ? 'status' : undefined}
+            aria-live={driveNeedsAttention(driveState.phase) ? 'polite' : undefined}
+            className={`flex min-w-0 items-center gap-1 text-[0.66rem] ${driveNeedsAttention(driveState.phase) ? 'text-[var(--cf-warning)]' : 'text-[var(--cf-text-muted)]'}`}
+          >
+            <Cloud className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="max-w-[22rem] truncate" title={driveState.message}>{driveState.message}</span>
+            {driveState.phase === 'recovery-required' ? <Button type="button" size="sm" variant="ghost" className="h-7 min-h-7 px-2 text-[0.66rem]" onClick={() => void driveWorkingSession.repairLink()}>Repair link</Button> : null}
+            {driveState.phase === 'remote-changed' ? <Button type="button" size="sm" variant="ghost" className="h-7 min-h-7 px-2 text-[0.66rem]" onClick={() => void driveWorkingSession.reconcile()}>Check Drive</Button> : null}
+          </span> : null}
         </div>
       </nav>
 
