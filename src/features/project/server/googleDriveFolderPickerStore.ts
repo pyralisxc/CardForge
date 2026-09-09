@@ -28,6 +28,8 @@ type GoogleDriveFolderMetadata = {
   id?: string;
   name?: string;
   mimeType?: string;
+  driveId?: string;
+  capabilities?: { canAddChildren?: boolean };
 };
 
 const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id';
@@ -153,7 +155,7 @@ export const selectGoogleDriveProjectFolder = async ({
   const row = await getPickerConnection(ownerUserId);
   const accessToken = await refreshPickerAccessToken(row);
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
-  url.searchParams.set('fields', 'id,name,mimeType');
+  url.searchParams.set('fields', 'id,name,mimeType,driveId,capabilities(canAddChildren)');
   url.searchParams.set('supportsAllDrives', 'true');
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -179,7 +181,7 @@ export const selectGoogleDriveProjectFolder = async ({
     .update({
       root_folder_id: verifiedId,
       status: 'active',
-      status_note: '',
+      status_note: folder.capabilities?.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
       last_verified_at: new Date().toISOString(),
     })
     .eq('id', row.id)
@@ -189,5 +191,10 @@ export const selectGoogleDriveProjectFolder = async ({
     console.error('Unable to save selected Google Drive project folder:', error);
     throw new ProjectStorageProviderError('CardForge could not remember the selected Google Drive folder.', 503, { kind: 'unavailable' });
   }
-  return { id: verifiedId, name: name.slice(0, 320) };
+  return {
+    id: verifiedId,
+    name: name.slice(0, 320),
+    driveId: folder.driveId ?? null,
+    canAddChildren: folder.capabilities?.canAddChildren !== false,
+  };
 };
