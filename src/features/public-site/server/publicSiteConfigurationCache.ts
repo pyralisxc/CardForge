@@ -1,6 +1,6 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
-import { getPublicSiteConfiguration } from './siteConfigurationStore';
+import { getPublicSiteConfiguration, PublicSiteConfigurationStoreError } from './siteConfigurationStore';
 import { completePublicSiteConfiguration } from '../model/siteConfiguration';
 
 export const PUBLIC_SITE_CONFIGURATION_TAG = 'public:site-configuration';
@@ -21,5 +21,6 @@ export const revalidatePublicSiteConfiguration = (): void => {
     revalidateTag(PUBLIC_SITE_CONFIGURATION_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public site configuration cache:', error);
+    throw new PublicSiteConfigurationStoreError('Settings were saved, but the public cache could not be refreshed. Retry saving to refresh it.', 503);
   }
 };

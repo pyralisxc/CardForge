@@ -67,6 +67,7 @@ export function PublicSiteMediaLiveEditor({
   const [inputVersion, setInputVersion] = useState(0);
   const [brandSettings, setBrandSettings] = useState(initialSiteConfiguration);
   const [savingBrandSettings, setSavingBrandSettings] = useState(false);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setDrafts(initialAssets);
@@ -128,20 +129,39 @@ export function PublicSiteMediaLiveEditor({
   };
 
   const restore = async (asset: SiteMediaAsset) => {
+    if (restoreNotice) return;
     setBusySlot(asset.slot);
+    let rejected = false;
     try {
       const response = await fetch(`/api/owner/site-media/${asset.slot}/restore`, {
         method: 'POST',
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to restore the previous image.'));
-      const result = await response.json() as { operations: { siteMedia: SiteMediaAsset[] } };
+      if (!response.ok) {
+        rejected = true;
+        throw new Error(await readApiErrorMessage(response, 'Unable to restore the previous image.'));
+      }
+      const result = await response.json() as {
+        restore: { committed: true; refresh: 'complete' | 'unavailable'; message?: string };
+        operations?: { siteMedia: SiteMediaAsset[] };
+      };
+      if (result.restore.refresh === 'unavailable') {
+        const message = result.restore.message ?? 'The image was restored. Reload to verify it before another media action.';
+        setRestoreNotice(message);
+        toast({ title: 'Image restored; reload to verify', description: message });
+        return;
+      }
+      if (!result.operations) throw new Error('The restored image response could not be read.');
       onAssetsChange(result.operations.siteMedia);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
       setInputVersion((current) => current + 1);
       toast({ title: 'Previous image restored', description: `${asset.label} has been rolled back. The version you replaced is still available.` });
     } catch (error) {
-      toast({ title: 'Image not restored', description: error instanceof Error ? error.message : 'Unable to restore the previous image.', variant: 'destructive' });
+      const message = rejected
+        ? error instanceof Error ? error.message : 'Unable to restore the previous image.'
+        : 'The restore result could not be confirmed. Reload to check the current image before trying Restore again.';
+      if (!rejected) setRestoreNotice(message);
+      toast({ title: rejected ? 'Image not restored' : 'Restore result unavailable', description: message, variant: 'destructive' });
     } finally {
       setBusySlot(null);
     }
@@ -149,6 +169,7 @@ export function PublicSiteMediaLiveEditor({
 
   return (
     <section className="border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 sm:p-6">
+      {restoreNotice ? <div role="status" className="mb-4 border border-amber-500/45 p-3 text-sm"><p>{restoreNotice}</p><Button type="button" className="mt-2" variant="outline" onClick={() => window.location.reload()}>Reload media</Button></div> : null}
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cf-text-subtle)]">Visual publishing</p>
         <h2 className="mt-1 font-serif text-2xl text-[var(--cf-text-strong)]">Site media</h2>
@@ -180,7 +201,7 @@ export function PublicSiteMediaLiveEditor({
               file={files[draft.slot]}
               inputVersion={inputVersion}
               busy={busySlot === draft.slot}
-              locked={busySlot !== null}
+              locked={busySlot !== null || restoreNotice !== null}
               onAssetChange={updateDraft}
               onFileChange={(file) => setFiles((current) => ({ ...current, [draft.slot]: file }))}
               onPublish={() => publish(draft)}

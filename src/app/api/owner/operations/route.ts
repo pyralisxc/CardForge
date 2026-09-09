@@ -129,12 +129,9 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'siteContent') {
-      const updatedBlocks = await updateSiteContentBlock(body.siteContentBlock ?? {});
-      const updatedBlock = updatedBlocks.find(({ slug }) => slug === body.siteContentBlock?.slug);
-      if (updatedBlock) {
-        revalidateSiteContentCache();
-        revalidatePath('/', 'layout');
-      }
+      await updateSiteContentBlock(body.siteContentBlock ?? {});
+      revalidateSiteContentCache();
+      revalidatePath('/', 'layout');
       return respond({ action: 'site.copy.publish', targetType: 'site_content', targetId: typeof body.siteContentBlock?.slug === 'string' ? body.siteContentBlock.slug : null, summary: 'Published an owner-authored public site copy block.' });
     }
 

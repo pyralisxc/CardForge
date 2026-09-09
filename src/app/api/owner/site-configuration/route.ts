@@ -50,7 +50,7 @@ export async function PUT(request: Request) {
     return createNoStoreJsonResponse({ settings, activityRecorded });
   } catch (error) {
     if (error instanceof PublicSiteConfigurationStoreError) {
-      return createApiErrorResponse(error.status, 'site_configuration_invalid', error.message);
+      return createApiErrorResponse(error.status, error.status >= 500 ? 'site_configuration_unavailable' : 'site_configuration_invalid', error.message);
     }
     console.error('Failed to update public site configuration:', error);
     return createApiErrorResponse(500, 'site_configuration_unavailable', 'Unable to update public site settings.');

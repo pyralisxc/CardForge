@@ -115,6 +115,8 @@ Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invoke
 
 **CardForge owns:** the canonical public URL policy in `src/infrastructure/http/publicUrl.ts`, deployment gates, and which live provider settings are required. `VERCEL_PROJECT_PRODUCTION_URL` and `VERCEL_URL` are consumed as Vercel-provided facts rather than duplicated deployment records.
 
+Public copy, configuration, media, and founder-profile reads use Next's native cache. Unconfigured local development retains defaults; a configured provider read failure throws so Next can preserve its last successful cached value instead of caching fallback content. Cache invalidation failures remain visible after owner saves. Image restoration returns a committed receipt even when follow-up refresh or owner history is unavailable; the editor requires reload before another media action so retry cannot swap the restored image back.
+
 ### Preview environment boundary
 
 Vercel's branch-specific Preview deployment is CardForge's hosted staging surface. The reusable `vercel-preview` branch points to one exact PR candidate. Its stable review hostname `card-forge-git-vercel-preview-pyralis-projects.vercel.app` is explicitly registered as a Vercel project domain bound to that Git branch, with no redirect or custom environment; native domain assignment owns subsequent routing updates. The URL remains `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`, preserving provider origins and callbacks without a custom alias updater. Ordinary branches remain deployment-disabled; GitHub CI proves code health before the candidate ref moves.

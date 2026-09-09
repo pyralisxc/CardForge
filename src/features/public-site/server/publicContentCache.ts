@@ -1,7 +1,7 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import type { SiteContentBlock, SiteContentGroup } from '../model/siteContent';
-import { getSiteContentBlocks } from './contentStore';
+import { getSiteContentBlocks, PublicSiteStoreError } from './contentStore';
 
 export const SITE_CONTENT_TAG = 'public:site-content';
 
@@ -26,5 +26,6 @@ export const revalidateSiteContentCache = (): void => {
     revalidateTag(SITE_CONTENT_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public site content cache:', error);
+    throw new PublicSiteStoreError('Content was saved, but the public cache could not be refreshed. Retry publishing to refresh it.', 503);
   }
 };
