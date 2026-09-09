@@ -3,16 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
   scope: 'account:creator-1',
   cardSets: [{ id: 'set-1' }],
-  writes: [] as Array<{ namespace: string; key: string; value: unknown }>,
-  attachments: [] as unknown[],
+  writes: [] as Array<{ key: string; value: unknown }>,
   currentBinding: null as null | Record<string, unknown>,
   projects: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
-  writeStructuredBrowserValue: vi.fn(async (namespace: string, key: string, value: unknown) => {
-    mock.writes.push({ namespace, key, value });
-    mock.currentBinding = value as Record<string, unknown>;
+  writeStructuredBrowserValue: vi.fn(async (key: string, value: unknown) => {
+    mock.writes.push({ key, value });
+    if (key.endsWith(':google-drive-work-binding:set-1')) mock.currentBinding = value as Record<string, unknown>;
   }),
 }));
 
@@ -23,10 +22,6 @@ vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({
 
 vi.mock('@/features/project/store/workspaceStore', () => ({
   useProjectStore: { getState: () => ({ cardSets: mock.cardSets }) },
-}));
-
-vi.mock('@/features/project/client/workspaceProjectStorage', () => ({
-  saveCurrentGoogleDriveAttachment: vi.fn(async (value: unknown) => { mock.attachments.push(value); }),
 }));
 
 vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
@@ -41,8 +36,11 @@ const receipt = () => ({
   name: 'Arcane Set.cardforge',
   providerRevision: `head:${'a'.repeat(64)}`,
   projectRevision: 'b'.repeat(64),
+  lastSavedAt: '2026-09-09T00:00:00.000Z',
+  webViewLink: 'https://drive.google.com/file/d/drive-file-12345/view',
   accountId: 'google-user-1',
   workId: 'set-1',
+  packageScope: 'set' as const,
 });
 
 const currentProject = () => ({
@@ -54,7 +52,7 @@ const currentProject = () => ({
   accountId: 'google-user-1',
   modifiedAt: '2026-09-09T00:00:00.000Z',
   size: 100,
-  webViewLink: null,
+  webViewLink: 'https://drive.google.com/file/d/drive-file-12345/view',
   workId: 'set-1',
 });
 
@@ -63,7 +61,6 @@ describe('confirmed Google Drive linkage repair', () => {
     mock.scope = 'account:creator-1';
     mock.cardSets = [{ id: 'set-1' }];
     mock.writes = [];
-    mock.attachments = [];
     mock.currentBinding = null;
     mock.projects = [currentProject()];
   });
@@ -75,15 +72,22 @@ describe('confirmed Google Drive linkage repair', () => {
       accountId: 'google-user-1',
       projectRevision: 'b'.repeat(64),
     });
-    expect(mock.writes).toEqual([{ namespace: 'project-assets:account:creator-1', key: 'google-drive-work:set-1', value: expect.objectContaining({ fileId: 'drive-file-12345' }) }]);
-    expect(mock.attachments).toEqual([expect.objectContaining({ fileId: 'drive-file-12345', workId: 'set-1' })]);
+    expect(mock.writes).toEqual([
+      {
+        key: 'project-assets:account:creator-1:google-drive-work-binding:set-1',
+        value: expect.objectContaining({ fileId: 'drive-file-12345', workId: 'set-1' }),
+      },
+      {
+        key: 'project-assets:account:creator-1:google-drive-project-binding',
+        value: { workId: 'set-1' },
+      },
+    ]);
   });
 
   it('refuses repair if Drive changed after the confirmed save', async () => {
     mock.projects = [{ ...currentProject(), providerRevision: `head:${'c'.repeat(64)}` }];
     await expect(repairConfirmedGoogleDriveLink(receipt())).rejects.toThrow(/changed after the confirmed save/i);
     expect(mock.writes).toHaveLength(0);
-    expect(mock.attachments).toHaveLength(0);
   });
 
   it('refuses repair when the local Set is no longer open', async () => {
