@@ -32,6 +32,7 @@ type ProjectAssetCatalog = {
 export interface RetainedGuestWorkspace {
   accountScope: `account:${string}`;
   guestRaw: string;
+  guestRevision: number;
   workspaceValue: string;
   state: Record<string, unknown>;
   catalogs: Partial<Record<typeof PROJECT_ASSET_KEYS[number], { raw: string; values: unknown[] }>>;
@@ -91,8 +92,6 @@ const mergeAssetCatalog = ({
 export const readRetainedGuestWorkspaceForAccount = async (accountScope: string): Promise<RetainedGuestWorkspace | null> => {
   if (!isAccountScope(accountScope)) return null;
   const accountWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', accountScope));
-  // This handoff exists only for returning accounts. First sign-in still uses
-  // adoptGuestWorkspaceForAccount so there is no duplicate copy or prompt.
   if (await accountWorkspaceStorage.getItem(WORKSPACE_KEY) === null) return null;
   const guestWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', GUEST_SCOPE));
   const guestRaw = await guestWorkspaceStorage.getItem(WORKSPACE_KEY);
@@ -111,6 +110,7 @@ export const readRetainedGuestWorkspaceForAccount = async (accountScope: string)
   return {
     accountScope,
     guestRaw,
+    guestRevision: guest.revision,
     workspaceValue: guest.value,
     state,
     catalogs: Object.fromEntries(catalogEntries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)),
@@ -120,7 +120,6 @@ export const readRetainedGuestWorkspaceForAccount = async (accountScope: string)
   };
 };
 
-/** Copy only content-addressed bytes needed to open the retained guest document. */
 export const prepareRetainedGuestWorkspaceAssetsForAccount = async (
   retained: RetainedGuestWorkspace,
   signal?: AbortSignal,
@@ -133,12 +132,6 @@ export const prepareRetainedGuestWorkspaceAssetsForAccount = async (
   }
 };
 
-/**
- * Consume exactly the guest snapshot that was explicitly imported. The account
- * workspace is rewritten with identical state but a new CAS revision so guest
- * deletion and its catalogs happen atomically. If either side changed, nothing
- * is consumed and the creator can review the newer signed-out work later.
- */
 export const consumeRetainedGuestWorkspaceForAccount = async (
   retained: RetainedGuestWorkspace,
   signal?: AbortSignal,
