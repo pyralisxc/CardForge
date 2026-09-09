@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
-  scope: 'account:creator-1',
+  scope: 'account:creator-1' as string,
   cardSets: [{ id: 'set-1' }],
   writes: [] as Array<{ key: string; value: unknown }>,
   currentBinding: null as null | Record<string, unknown>,
