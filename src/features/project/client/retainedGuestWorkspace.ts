@@ -19,6 +19,7 @@ import { useProjectStore } from '../store/workspaceStore';
 import { applyProjectDocumentToWorkspace } from './projectWorkspaceDocument';
 
 export interface RetainedGuestWorkSummary {
+  guestRevision: number;
   setCount: number;
   cardCount: number;
   templateCount: number;
@@ -29,15 +30,18 @@ const currentAccountScope = (): `account:${string}` | null => {
   return scope.startsWith('account:') ? scope as `account:${string}` : null;
 };
 
+const summarize = (retained: RetainedGuestWorkspace): RetainedGuestWorkSummary => ({
+  guestRevision: retained.guestRevision,
+  setCount: retained.setCount,
+  cardCount: retained.cardCount,
+  templateCount: retained.templateCount,
+});
+
 export const getRetainedGuestWorkSummary = async (): Promise<RetainedGuestWorkSummary | null> => {
   const scope = currentAccountScope();
   if (!scope) return null;
   const retained = await readRetainedGuestWorkspaceForAccount(scope);
-  return retained ? {
-    setCount: retained.setCount,
-    cardCount: retained.cardCount,
-    templateCount: retained.templateCount,
-  } : null;
+  return retained ? summarize(retained) : null;
 };
 
 const buildDocument = (retained: RetainedGuestWorkspace) => {
@@ -73,12 +77,6 @@ const buildDocument = (retained: RetainedGuestWorkspace) => {
   return parsed.document;
 };
 
-/**
- * Import retained signed-out work as independent copies beside a returning
- * account. The account workspace is never replaced. Guest bytes are consumed
- * only after the copy commits; if newer signed-out work arrives concurrently,
- * it remains available for a later review.
- */
 export const importRetainedGuestWorkspaceAsCopy = async (): Promise<{
   summary: RetainedGuestWorkSummary;
   importedSetId: string | null;
@@ -97,7 +95,7 @@ export const importRetainedGuestWorkspaceAsCopy = async (): Promise<{
   const imported = await applyProjectDocumentToWorkspace(document, 'copy', { expectedState });
   const consumed = await consumeRetainedGuestWorkspaceForAccount(retained).catch(() => false);
   return {
-    summary: { setCount: retained.setCount, cardCount: retained.cardCount, templateCount: retained.templateCount },
+    summary: summarize(retained),
     importedSetId: imported.activeSetId,
     consumed,
   };
