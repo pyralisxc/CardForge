@@ -42,5 +42,15 @@ export {
   saveCurrentProjectToGoogleDrive,
   saveCardSetToGoogleDrive,
   getGoogleDriveWorkBinding,
+  GoogleDriveSaveLinkageError,
 } from '../client/googleDriveProjectTransfer';
 export type { GoogleDriveProjectBinding } from '../client/googleDriveProjectTransfer';
+export {
+  revalidateGoogleDriveWorkBinding,
+  useGoogleDriveWorkingSession,
+} from '../client/googleDriveWorkingSession';
+export type {
+  GoogleDriveBindingCheck,
+  GoogleDriveWorkingSessionPhase,
+  GoogleDriveWorkingSessionState,
+} from '../client/googleDriveWorkingSession';
