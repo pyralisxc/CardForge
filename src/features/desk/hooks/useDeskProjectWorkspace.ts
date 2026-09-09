@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from 'react';
-
 import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectState } from '@/features/project/client/workspace';
@@ -20,7 +19,7 @@ interface DeskProjectWorkspaceOptions {
   selectedCardIds: string[];
   latestGeneratedIds: string[];
   cardQuery: string;
-  tagFilter: string;
+  tagFilters: string[];
   moveTargetId: string;
 }
 
@@ -99,7 +98,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
       ...Object.values(card.data),
       ...organization.tags.filter((tag) => card.tagIds?.includes(tag.id)).map((tag) => tag.label),
     ].join(' ').toLocaleLowerCase().includes(normalizedCardQuery))
-    && (options.tagFilter === 'all' || card.tagIds?.includes(options.tagFilter))
+    && (options.tagFilters.length === 0 || options.tagFilters.some((tagId) => card.tagIds?.includes(tagId)))
   ));
   const sortedCards = [...visibleCards].sort((left, right) => {
     if (organization.sort === 'name') return getCardTitle(left, focusedCards.indexOf(left)).localeCompare(getCardTitle(right, focusedCards.indexOf(right)));
