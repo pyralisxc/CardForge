@@ -1,5 +1,6 @@
 import { clerkClient } from '@clerk/nextjs/server';
 import { resolveOwnerAccess } from '@/domain/entitlements';
+import { acquireBillingEntitlementLock, releaseBillingEntitlementLock } from '@/features/billing/server';
 
 import {
   buildOwnerAccountMetadataPatch,
@@ -70,6 +71,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const owner = await requireOwner();
   if (!owner) return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required.');
+  let entitlementLock: { userId: string; token: string; acquiredAt: number } | null = null;
   try {
     const body = await request.json() as {
       action?: unknown;
@@ -82,6 +84,11 @@ export async function PATCH(request: Request) {
     if (!userId) return createApiErrorResponse(400, 'owner_person_invalid', 'Choose an account or retained profile.');
     if (userId === owner.userId && action !== 'update') {
       return createApiErrorResponse(400, 'owner_person_protected', 'The signed-in owner cannot revoke their own access.');
+    }
+    if (action !== 'deactivate_history') {
+      const token = await acquireBillingEntitlementLock({ clerkUserId: userId });
+      if (!token) return createApiErrorResponse(409, 'owner_operations_conflict', 'This account is being updated. Retry in a moment.');
+      entitlementLock = { userId, token, acquiredAt: Date.now() };
     }
     const client = await clerkClient();
     const profile = await findProfile(userId);
@@ -116,18 +123,13 @@ export async function PATCH(request: Request) {
         return createApiErrorResponse(400, 'owner_person_protected', 'This owner is controlled by the Vercel owner-email allowlist. Change that provider setting before removing owner authority.');
       }
       const privateMetadata = buildOwnerAccountMetadataPatch({ existingMetadata: user.privateMetadata ?? {}, input: accountValue });
+      if (!entitlementLock || Date.now() - entitlementLock.acquiredAt >= 30_000) {
+        return createApiErrorResponse(503, 'owner_people_unavailable', 'Account verification took too long. Retry with current state.');
+      }
       await client.users.updateUserMetadata(userId, { privateMetadata });
       account = mapOwnerAccountSummary(await client.users.getUser(userId));
 
       if (profile || accountValue.contributor || accountValue.owner) {
-        if (!profile) {
-          await upsertContributorProfile({
-            contributorId: userId,
-            email: account.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-          });
-        }
         const requestedStatus = body.contributor?.status;
         const status: ContributorProfileStatus = action === 'revoke' || (!accountValue.contributor && !accountValue.owner)
           ? 'inactive'
@@ -135,6 +137,14 @@ export async function PATCH(request: Request) {
             ? requestedStatus as ContributorProfileStatus
             : profile?.status ?? 'active';
         try {
+          if (!profile) {
+            await upsertContributorProfile({
+              contributorId: userId,
+              email: account.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            });
+          }
           await updateContributorProfileControl({
             contributorId: userId,
             status,
@@ -168,10 +178,12 @@ export async function PATCH(request: Request) {
     return createNoStoreJsonResponse({ account, warnings });
   } catch (error) {
     if (error instanceof SyntaxError) return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
-    if (error instanceof ContributorAccessStoreError) return createApiErrorResponse(error.status, 'owner_person_invalid', error.message);
+    if (error instanceof ContributorAccessStoreError) return createApiErrorResponse(error.status, error.status >= 500 ? 'owner_people_unavailable' : 'owner_person_invalid', error.message);
     if (error instanceof Error && error.message.startsWith('Contributor override must be')) return createApiErrorResponse(400, 'owner_person_invalid', error.message);
     console.error('Failed to update owner person:', error);
     return createApiErrorResponse(500, 'owner_people_unavailable', 'Unable to update account and contributor access.');
+  } finally {
+    if (entitlementLock) await releaseBillingEntitlementLock({ clerkUserId: entitlementLock.userId, leaseToken: entitlementLock.token });
   }
 }
 

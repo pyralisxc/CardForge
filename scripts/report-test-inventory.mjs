@@ -38,7 +38,6 @@ const sourceReaderContracts = [
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
-  ['tests/product/unit/billing-webhook-safety.test.ts', 'billing security ordering contract'],
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],

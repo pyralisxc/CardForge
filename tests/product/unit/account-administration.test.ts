@@ -4,6 +4,7 @@ import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
   normalizeOwnerAccountRoleInput,
+  resolveAccountEntitlement,
 } from '@/features/account/server';
 
 describe('account administration', () => {
@@ -54,8 +55,8 @@ describe('account administration', () => {
       },
       input: { commercialPlan: 'free', contributor: true, owner: false, note: '' },
     });
-    expect(patch).not.toHaveProperty('cardforgeAccessExpiresAt');
-    expect(patch).not.toHaveProperty('cardforgeFounderBetaClaimedAt');
+    expect(patch.cardforgeAccessExpiresAt).toBeNull();
+    expect(patch.cardforgeFounderBetaClaimedAt).toBeNull();
   });
 
   it('clears owner role with an empty private metadata value Clerk will persist', () => {
@@ -88,6 +89,7 @@ describe('account administration', () => {
       name: 'Ada Lovelace',
       access: 'paid',
       commercialPlan: 'creator',
+      ownerCommercialPlan: null,
       contributorAuthority: false,
       isOwner: true,
       createdAt: '2026-01-09T23:06:40.000Z',
@@ -96,5 +98,28 @@ describe('account administration', () => {
       stripeSubscriptionId: null,
       note: '',
     });
+  });
+
+  it('removes only the extra grant while preserving the last verified Stripe plan', () => {
+    expect(buildOwnerAccountMetadataPatch({
+      existingMetadata: { cardforgeStripeSubscriptionId: 'sub_creator', cardforgePaidPlan: 'creator', cardforgeOwnerCommercialPlan: 'designer' },
+      input: { commercialPlan: 'free', contributor: false, owner: false, note: '' },
+    })).toMatchObject({ cardforgeAccess: 'paid', cardforgeCommercialPlan: 'creator', cardforgeOwnerCommercialPlan: 'free' });
+  });
+
+  it('clears expired temporary access when Clerk merges a new permanent grant', () => {
+    const existingMetadata = {
+      cardforgeAccess: 'paid',
+      cardforgeAccessExpiresAt: '2025-01-01T00:00:00Z',
+      cardforgeFounderBetaClaimedAt: '2024-12-01T00:00:00Z',
+    };
+    const patch = buildOwnerAccountMetadataPatch({ existingMetadata,
+      input: { commercialPlan: 'designer', contributor: false, owner: false, note: '' },
+    });
+    const merged = { ...existingMetadata, ...patch };
+    const entitlement = resolveAccountEntitlement({ authConfigured: true, isSignedIn: true, privateMetadata: merged });
+    expect(merged.cardforgeAccessExpiresAt).toBeNull();
+    expect(merged.cardforgeFounderBetaClaimedAt).toBeNull();
+    expect(entitlement).toMatchObject({ accessMode: 'paid', commercialPlan: 'designer', accessExpiresAt: null });
   });
 });

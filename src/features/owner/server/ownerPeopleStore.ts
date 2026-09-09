@@ -75,7 +75,8 @@ const loadClerkUsersByIds = async (userIds: string[]): Promise<ClerkUser[]> => {
 };
 
 const needsAttention = (person: OwnerPerson): boolean => (
-  person.identityState === 'history_only'
+  person.ownerCommercialPlan === null
+  || person.identityState === 'history_only'
   || (person.contributorAuthority && person.profileStatus === null)
   || (person.profileStatus === 'active' && !person.contributorAuthority && !person.isOwner)
 );
@@ -108,6 +109,7 @@ const mapPerson = (
     identityState: profile ? 'connected' : 'account_only',
     access: entitlement.accessMode,
     commercialPlan: entitlement.commercialPlan,
+    ownerCommercialPlan: account.ownerCommercialPlan,
     contributorAuthority: entitlement.authorities.contributor,
     isOwner: ownerAccess.isOwner,
     ownerSource: ownerAccess.source,
@@ -135,6 +137,7 @@ const mapHistoryPerson = (
   identityState: 'history_only',
   access: 'free',
   commercialPlan: 'free',
+  ownerCommercialPlan: 'free',
   contributorAuthority: true,
   isOwner: false,
   ownerSource: 'none',

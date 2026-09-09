@@ -1,12 +1,10 @@
 import { clerkClient } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
+import { syncSubscriptionAccess } from './syncSubscriptionAccess';
 
 import {
-  buildStripePaidAccessMetadata,
-  buildStripeRevokedAccessMetadata,
-  getPaidPlanForProductAccessOffering,
+  BillingGrantConfirmationRequiredError,
   shouldGrantAccessForStripeSubscriptionStatus,
-  shouldRevokeAccessForStripeSubscriptionStatus,
   classifySubscriptionBillingPurpose,
 } from '@/features/billing/server';
 import {
@@ -20,10 +18,6 @@ import {
 } from '@/features/billing/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-
-const getObjectId = (value: string | { id: string } | null): string | null => (
-  typeof value === 'string' ? value : value?.id ?? null
-);
 
 export async function reconcileBillingState() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -108,6 +102,7 @@ export async function reconcileBillingState() {
     let mappingRepaired = 0;
     let needsCustomerSignIn = 0;
     let ambiguousClerkUsers = 0;
+    const mappedSubscriptionIds: string[] = [];
     for (const subscription of productSubscriptions) {
       let userId = subscription.metadata?.clerkUserId;
       let user;
@@ -153,36 +148,6 @@ export async function reconcileBillingState() {
         shouldRepairMapping = subscription.metadata?.clerkUserId !== userId;
       }
 
-      const existingMetadata = user.privateMetadata ?? {};
-      let nextMetadata: Record<string, unknown> | null = null;
-      if (shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {
-        const classification = classifySubscriptionBillingPurpose({ subscription, prices });
-        if (classification.offering !== 'creator_pass' && classification.offering !== 'designer_pass') {
-          throw new Error(`Configured product subscription ${subscription.id} has no paid plan mapping.`);
-        }
-        const paidPlan = getPaidPlanForProductAccessOffering(classification.offering);
-        const alreadyAligned = existingMetadata.cardforgeAccess === 'paid'
-          && existingMetadata.cardforgePaidPlan === paidPlan
-          && existingMetadata.cardforgeStripeSubscriptionId === subscription.id;
-        if (!alreadyAligned) {
-          nextMetadata = buildStripePaidAccessMetadata({
-            existingMetadata,
-            paidPlan,
-            stripeCustomerId: getObjectId(subscription.customer),
-            stripeSubscriptionId: subscription.id,
-          });
-        }
-      } else if (shouldRevokeAccessForStripeSubscriptionStatus(subscription.status)) {
-        if (existingMetadata.cardforgeAccess === 'paid') {
-          nextMetadata = buildStripeRevokedAccessMetadata(existingMetadata);
-        }
-      }
-
-      if (nextMetadata) {
-        await clerk.users.updateUserMetadata(userId, { privateMetadata: nextMetadata });
-        repaired += 1;
-      }
-
       if (shouldRepairMapping) {
         await repairStripeSubscriptionClerkMapping({
           stripe,
@@ -196,9 +161,15 @@ export async function reconcileBillingState() {
           updatedAt: new Date(),
         });
         mappingRepaired += 1;
-      } else if (!nextMetadata) {
-        unchanged += 1;
       }
+      mappedSubscriptionIds.push(subscription.id);
+    }
+    // Finish identity repair before projecting any account's plans. Otherwise a
+    // still-unmapped active subscription could be missed while processing an old cancellation.
+    for (const subscriptionId of mappedSubscriptionIds) {
+      const outcome = await syncSubscriptionAccess(subscriptionId, stripe);
+      if (outcome === 'unchanged') unchanged += 1;
+      else repaired += 1;
     }
 
     return createNoStoreJsonResponse({
@@ -221,6 +192,9 @@ export async function reconcileBillingState() {
       hasMore: false,
     });
   } catch (error) {
+    if (error instanceof BillingGrantConfirmationRequiredError) {
+      return createApiErrorResponse(409, 'owner_operations_conflict', error.message);
+    }
     console.error('Failed to reconcile billing state:', error);
     return createApiErrorResponse(500, 'owner_billing_unavailable', 'Unable to reconcile Stripe and account entitlements.');
   }

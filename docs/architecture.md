@@ -120,6 +120,8 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 Current account resolution uses Clerk's current-user identity directly; CardForge does not maintain a second session/profile fallback. Explicit user-id administration uses Clerk's Backend API.
 
+Owner commercial grants are additive. The effective commercial plan is the stronger of an explicit `cardforgeOwnerCommercialPlan` and current valid Stripe access. Choosing Free removes only the owner grant. Ambiguous legacy paid metadata requires owner confirmation instead of timestamp inference or a silent downgrade. Contributor provider failures remain unavailable; they never become an empty roster or a signed-out/Free projection.
+
 The scene measures native layout/scroll viewports in one coordinate system and uses Motion transforms for interruptible depth changes. Wheel/drag motion remains direct, reduced motion skips travel, and the canonical card canvas determines slot dimensions. Scene-owned front/back state follows artifacts through every depth, including stack flipping. The layer order is scene backgrounds, artifact pixels and their flip controls, then tool panels and modal UI. Culling still bounds board rendering; focused artifacts stay pinned through transitions. Geometry slots never own a second card renderer or persistence store.
 
 ## Card and Template model

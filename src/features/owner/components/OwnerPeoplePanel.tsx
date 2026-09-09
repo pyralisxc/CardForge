@@ -15,7 +15,7 @@ import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 type PeopleFilter = 'all' | 'contributors' | 'active' | 'needs_attention';
 
 type PersonDraft = {
-  commercialPlan: OwnerPerson['commercialPlan'];
+  commercialPlan: OwnerPerson['commercialPlan'] | '';
   contributorAuthority: boolean;
   owner: boolean;
   accountNote: string;
@@ -29,7 +29,7 @@ type PersonDraft = {
 const inputClassName = 'min-h-11 w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
 
 const createDraft = (person: OwnerPerson): PersonDraft => ({
-  commercialPlan: person.commercialPlan,
+  commercialPlan: person.ownerCommercialPlan ?? '',
   contributorAuthority: person.contributorAuthority,
   owner: person.isOwner,
   accountNote: person.accountNote,
@@ -162,7 +162,7 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
             {selected.identityState === 'history_only' ? <div className="mt-4 border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3 text-sm leading-6 text-[var(--cf-warning)]"><AlertTriangle className="mr-2 inline h-4 w-4" />This Clerk account no longer exists. Contribution history remains intentionally attributed to this profile.</div> : null}
 
             {selected.identityState !== 'history_only' ? <div className="mt-4 grid gap-3">
-              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Commercial plan<select className={inputClassName} value={draft.commercialPlan} onChange={(event) => setDraft((current) => current ? { ...current, commercialPlan: event.target.value as PersonDraft['commercialPlan'] } : current)}><option value="free">Free</option><option value="creator">Creator Pass</option><option value="designer">Designer Pass</option></select></label>
+              <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Extra access grant<select className={inputClassName} value={draft.commercialPlan} onChange={(event) => setDraft((current) => current ? { ...current, commercialPlan: event.target.value as PersonDraft['commercialPlan'] } : current)}><option value="" disabled>Confirm the previous grant</option><option value="free">No extra access</option><option value="creator">Creator Pass</option><option value="designer">Designer Pass</option></select><span>Paid subscriptions remain active. Removing this grant does not cancel Stripe billing.</span>{selected.ownerCommercialPlan === null ? <span role="status">This older record combined a manual plan with Stripe billing. Confirm the intended extra grant before saving; billing repair will preserve it until confirmed.</span> : null}</label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"><span>Contributor authority<span className="mt-1 block text-[11px] text-[var(--cf-text-subtle)]">Independent from the account's commercial plan.</span></span><input type="checkbox" checked={draft.contributorAuthority} onChange={(event) => setDraft((current) => current ? { ...current, contributorAuthority: event.target.checked } : current)} /></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]"><span>Owner authority<span className="mt-1 block text-[11px] text-[var(--cf-text-subtle)]">{selected.ownerSource === 'environment' ? 'Owned by the Vercel owner-email allowlist.' : 'Owned by Clerk private metadata.'}</span></span><input type="checkbox" checked={draft.owner} disabled={selected.id === currentOwnerId || selected.ownerSource === 'environment'} onChange={(event) => setDraft((current) => current ? { ...current, owner: event.target.checked } : current)} /></label>
               <label className="grid gap-1 text-xs text-[var(--cf-text-muted)]">Account note<textarea className="min-h-20 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]" value={draft.accountNote} onChange={(event) => setDraft((current) => current ? { ...current, accountNote: event.target.value } : current)} /></label>

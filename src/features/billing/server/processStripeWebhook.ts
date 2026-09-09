@@ -1,18 +1,11 @@
-import { clerkClient } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
+import { syncSubscriptionAccess } from './syncSubscriptionAccess';
 
 import {
-  acquireBillingEntitlementLock,
   beginBillingEvent,
   classifyBillingPurpose,
   canBillingPurposeUpdateProductEntitlement,
-  buildStripePaidAccessMetadata,
-  buildStripeRevokedAccessMetadata,
   finishBillingEvent,
-  getPaidPlanForProductAccessOffering,
-  releaseBillingEntitlementLock,
-  resolveCurrentProductEntitlement,
-  shouldRevokeStripePaidAccessForSubscription,
 } from '@/features/billing/server';
 import type { BillingOffering, ClassifiedBillingPurpose } from '@/features/billing/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -119,116 +112,6 @@ const getBillingEventContext = async (event: Stripe.Event, stripe: Stripe): Prom
     };
   }
   return unmatchedContext(`Unsupported Stripe event type: ${event.type}`);
-};
-
-const updateUserPrivateMetadata = async (
-  userId: string,
-  buildMetadata: (existingMetadata: Record<string, unknown>) => Record<string, unknown>
-) => {
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  await client.users.updateUserMetadata(userId, {
-    privateMetadata: buildMetadata(user.privateMetadata ?? {}),
-  });
-};
-
-const revokeSubscriptionAccess = async (userId: string, subscriptionId: string): Promise<boolean> => {
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const existingMetadata = user.privateMetadata ?? {};
-  if (!shouldRevokeStripePaidAccessForSubscription(existingMetadata, subscriptionId)) return false;
-  await client.users.updateUserMetadata(userId, {
-    privateMetadata: buildStripeRevokedAccessMetadata(existingMetadata),
-  });
-  return true;
-};
-
-const resolveProductEntitlementFromCurrentStripeState = async (
-  current: Stripe.Subscription,
-  stripe: Stripe,
-) => {
-  let resolution = resolveCurrentProductEntitlement({
-    current,
-    customerSubscriptions: [current],
-    prices: getBillingPriceConfiguration(),
-  });
-  const customerId = getStripeObjectId(current.customer);
-  if (resolution.action === 'free' && customerId) {
-    const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
-    resolution = resolveCurrentProductEntitlement({
-      current,
-      customerSubscriptions: subscriptions.data,
-      prices: getBillingPriceConfiguration(),
-    });
-  }
-  return resolution;
-};
-
-const syncSubscriptionAccess = async (
-  subscriptionId: string,
-  stripe: Stripe,
-  checkoutSessionId?: string,
-) => {
-  let current = await stripe.subscriptions.retrieve(subscriptionId);
-  let resolution = await resolveProductEntitlementFromCurrentStripeState(current, stripe);
-  if (resolution.action === 'unchanged') return 'unchanged' as const;
-
-  let subscription = resolution.subscription as Stripe.Subscription;
-  const userId = subscription.metadata?.clerkUserId ?? null;
-  if (!userId) {
-    console.warn('Stripe subscription state without Clerk user metadata:', subscriptionId);
-    return 'unchanged' as const;
-  }
-
-  const entitlementLockToken = await acquireBillingEntitlementLock({ clerkUserId: userId });
-  if (!entitlementLockToken) {
-    throw new Error('Another product entitlement update is still processing.');
-  }
-
-  try {
-    current = await stripe.subscriptions.retrieve(subscriptionId);
-    resolution = await resolveProductEntitlementFromCurrentStripeState(current, stripe);
-    if (resolution.action === 'unchanged') return 'unchanged' as const;
-    subscription = resolution.subscription as Stripe.Subscription;
-    if (subscription.metadata?.clerkUserId !== userId) {
-      throw new Error('The product entitlement owner changed while processing.');
-    }
-
-    if (resolution.action === 'paid') {
-      const classification = classifyBillingPurpose({
-        metadata: subscription.metadata,
-        mode: 'subscription',
-        priceIds: subscription.items.data.map(({ price }) => price.id),
-        amountCents: subscription.items.data[0]?.price.unit_amount,
-        currency: subscription.items.data[0]?.price.currency,
-        prices: getBillingPriceConfiguration(),
-      });
-      if (classification.offering !== 'creator_pass' && classification.offering !== 'designer_pass') {
-        throw new Error('The active product subscription no longer matches a configured CardForge plan.');
-      }
-      const paidPlan = getPaidPlanForProductAccessOffering(classification.offering);
-      await updateUserPrivateMetadata(userId, (existingMetadata) => buildStripePaidAccessMetadata({
-        existingMetadata,
-        paidPlan,
-        stripeCustomerId: getStripeObjectId(subscription.customer),
-        stripeSubscriptionId: subscription.id,
-        stripeCheckoutSessionId: checkoutSessionId,
-      }));
-      return 'paid' as const;
-    }
-
-    if (resolution.action === 'free') {
-      return await revokeSubscriptionAccess(userId, subscription.id)
-        ? 'free' as const
-        : 'unchanged' as const;
-    }
-    return 'unchanged' as const;
-  } finally {
-    await releaseBillingEntitlementLock({
-      clerkUserId: userId,
-      leaseToken: entitlementLockToken,
-    });
-  }
 };
 
 const handleStripeEvent = async (

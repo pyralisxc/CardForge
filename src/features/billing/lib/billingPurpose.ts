@@ -152,21 +152,22 @@ export const resolveCurrentProductEntitlement = ({
   if (currentClassification.purpose !== 'product_access' || !clerkUserId) {
     return { action: 'unchanged', subscription: null };
   }
-  if (shouldGrantAccessForStripeSubscriptionStatus(current.status)) {
-    return { action: 'paid', subscription: current };
-  }
-  if (!shouldRevokeAccessForStripeSubscriptionStatus(current.status)) {
-    return { action: 'unchanged', subscription: null };
-  }
-
-  const replacement = customerSubscriptions.find((candidate) => (
-    candidate.id !== current.id
-    && candidate.metadata?.clerkUserId === clerkUserId
+  // Resolve the account, not the arrival order of subscription events. Designer
+  // wins over Creator; stable IDs settle equal plans without metadata churn.
+  const candidates = new Map(customerSubscriptions.map((candidate) => [candidate.id, candidate]));
+  candidates.set(current.id, current);
+  const active = [...candidates.values()].filter((candidate) => (
+    candidate.metadata?.clerkUserId === clerkUserId
     && shouldGrantAccessForStripeSubscriptionStatus(candidate.status)
     && classifySubscriptionBillingPurpose({ subscription: candidate, prices }).purpose === 'product_access'
-  ));
-
-  return replacement
-    ? { action: 'paid', subscription: replacement }
-    : { action: 'free', subscription: current };
+  )).sort((a, b) => {
+    const rank = (candidate: BillingSubscriptionSnapshot) => (
+      classifySubscriptionBillingPurpose({ subscription: candidate, prices }).offering === 'designer_pass' ? 2 : 1
+    );
+    return rank(b) - rank(a) || a.id.localeCompare(b.id);
+  });
+  if (active[0]) return { action: 'paid', subscription: active[0] };
+  return shouldRevokeAccessForStripeSubscriptionStatus(current.status)
+    ? { action: 'free', subscription: current }
+    : { action: 'unchanged', subscription: null };
 };

@@ -48,12 +48,17 @@ export const getCurrentPipelineRequestAccess = async (): Promise<PipelineRequest
   if (!isContributor && !ownerAccess.isOwner) {
     throw new PipelineStoreError('Contributor access is required for Pipeline submissions.', 403);
   }
-  await upsertContributorProfile({
-    contributorId: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-  });
+  try {
+    await upsertContributorProfile({
+      contributorId: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+  } catch (error) {
+    if (error instanceof ContributorAccessStoreError) throw new PipelineStoreError(error.message, error.status);
+    throw error;
+  }
   if (ownerAccess.isOwner) {
     return {
       user,
