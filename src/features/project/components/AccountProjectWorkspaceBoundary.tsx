@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { CardForgeWorkspaceState } from '@/components/ui/cardforge-presentation';
+import { useToast } from '@/components/ui/use-toast';
 
 import {
   prepareAccountProjectWorkspace,
@@ -21,22 +22,34 @@ import {
   type AccountProjectWorkspaceBoundaryProps,
   type AccountProjectWorkspaceIssue,
 } from '../client/accountProjectWorkspace';
+import {
+  getRetainedGuestWorkSummary,
+  importRetainedGuestWorkspaceAsCopy,
+  type RetainedGuestWorkSummary,
+} from '../client/retainedGuestWorkspace';
+import { readProjectPreference, writeProjectPreference } from '../persistence/projectPreferences';
 import { BrowserStorageAlerts } from './BrowserStorageAlerts';
+
+const RETAINED_GUEST_DISMISS_KEY = 'retained-guest-work-dismissed-revision';
 
 export function AccountProjectWorkspaceBoundary({
   children,
   persistenceScope,
   canUseProjectFiles,
 }: AccountProjectWorkspaceBoundaryProps) {
+  const { toast } = useToast();
   const [readyScope, setReadyScope] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [issue, setIssue] = useState<AccountProjectWorkspaceIssue | null>(null);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
+  const [retainedGuestWork, setRetainedGuestWork] = useState<RetainedGuestWorkSummary | null>(null);
+  const [guestImportBusy, setGuestImportBusy] = useState(false);
 
   const bootstrap = useCallback(async (signal: AbortSignal) => {
     setReadyScope(null);
     setError(null);
+    setRetainedGuestWork(null);
     try {
       await prepareAccountProjectWorkspace(persistenceScope, undefined, signal);
       if (!signal.aborted) setReadyScope(persistenceScope);
@@ -53,12 +66,56 @@ export function AccountProjectWorkspaceBoundary({
     return () => controller.abort();
   }, [bootstrap, retry]);
 
+  useEffect(() => {
+    if (readyScope !== persistenceScope || !persistenceScope.startsWith('account:')) return;
+    let cancelled = false;
+    void Promise.all([
+      getRetainedGuestWorkSummary(),
+      readProjectPreference<number | null>(RETAINED_GUEST_DISMISS_KEY),
+    ]).then(([summary, dismissedRevision]) => {
+      if (!cancelled) setRetainedGuestWork(summary && summary.guestRevision !== dismissedRevision ? summary : null);
+    }).catch((guestError) => {
+      if (!cancelled) console.warn('Unable to inspect retained signed-out work:', guestError);
+    });
+    return () => { cancelled = true; };
+  }, [persistenceScope, readyScope]);
+
   useEffect(() => subscribeToAccountProjectWorkspaceIssues((nextIssue) => {
     setIssue(nextIssue);
     setIsIssueDialogOpen(true);
   }), []);
 
   const reloadSavedWorkspace = () => window.location.reload();
+
+  const dismissRetainedGuestWork = () => {
+    if (!retainedGuestWork) return;
+    void writeProjectPreference(RETAINED_GUEST_DISMISS_KEY, retainedGuestWork.guestRevision);
+    setRetainedGuestWork(null);
+  };
+
+  const importRetainedGuestWork = async () => {
+    setGuestImportBusy(true);
+    try {
+      const result = await importRetainedGuestWorkspaceAsCopy();
+      setRetainedGuestWork(null);
+      toast({
+        title: 'Signed-out work added to this account',
+        description: `${result.summary.setCount} Set${result.summary.setCount === 1 ? '' : 's'} opened as independent account copies.${result.consumed ? ' The imported signed-out snapshot was cleared.' : ' Newer signed-out work was detected and left separate for safety.'}`,
+      });
+      if (!result.consumed) {
+        const latest = await getRetainedGuestWorkSummary().catch(() => null);
+        setRetainedGuestWork(latest);
+      }
+    } catch (importError) {
+      toast({
+        title: 'Signed-out work was not imported',
+        description: importError instanceof Error ? importError.message : 'Existing account and signed-out work were left unchanged.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuestImportBusy(false);
+    }
+  };
 
   if (readyScope !== persistenceScope) {
     return (
@@ -85,6 +142,23 @@ export function AccountProjectWorkspaceBoundary({
     <>
       <BrowserStorageAlerts canUseProjectFiles={canUseProjectFiles} />
       {children}
+      {retainedGuestWork ? (
+        <aside
+          data-retained-guest-work
+          className="fixed inset-x-4 bottom-20 z-[85] mx-auto flex max-w-3xl flex-col gap-3 rounded-xl border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-4 text-[var(--cf-text)] shadow-2xl sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p className="font-semibold">Signed-out work is still available</p>
+            <p className="mt-1 text-sm leading-5 text-[var(--cf-text-muted)]">
+              {retainedGuestWork.setCount} Set{retainedGuestWork.setCount === 1 ? '' : 's'}, {retainedGuestWork.cardCount} card{retainedGuestWork.cardCount === 1 ? '' : 's'}, and {retainedGuestWork.templateCount} personal Template{retainedGuestWork.templateCount === 1 ? '' : 's'} were kept separate when this existing account resumed. Add independent copies without replacing the work already in this account.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={guestImportBusy} onClick={dismissRetainedGuestWork}>Keep separate</Button>
+            <Button type="button" disabled={guestImportBusy} onClick={() => void importRetainedGuestWork()}>{guestImportBusy ? 'Adding…' : 'Add to this account'}</Button>
+          </div>
+        </aside>
+      ) : null}
       {issue ? (
         <aside
           role="alert"
