@@ -79,6 +79,32 @@ const persistWorkBinding = async (workId: string, binding: GoogleDriveProjectBin
   await writeStructuredBrowserValue(getWorkBindingStorageKey(workId, namespace), { ...binding, workId });
 };
 
+/** A confirmed provider write must not become an apparently failed upload when local bookkeeping fails. */
+export class GoogleDriveSaveLinkageError extends ProjectPackageError {
+  readonly code = 'source_committed_linkage_refresh_required';
+  readonly sourceCommitted = true;
+  readonly retryable = false;
+  readonly sourceReceipt: Readonly<GoogleDriveProjectBinding>;
+
+  constructor(binding: GoogleDriveProjectBinding, cause: unknown) {
+    super('Drive saved the file, but CardForge could not finish recording its browser link. Keep the browser work. Return to the correct account, check the saved file in Drive, and restore its link before another save; do not repeat the upload blindly.');
+    this.name = 'GoogleDriveSaveLinkageError';
+    this.sourceReceipt = structuredClone(binding);
+    this.cause = cause;
+  }
+}
+
+/** Only used after uploadPackage returned a usable provider receipt. Never retries or deletes source work. */
+const persistSavedDriveBinding = async (binding: GoogleDriveProjectBinding, namespace: string): Promise<void> => {
+  try {
+    if (binding.workId) await persistWorkBinding(binding.workId, binding, namespace);
+    await persistBinding(binding, namespace);
+    assertBindingScope(namespace);
+  } catch (error) {
+    throw new GoogleDriveSaveLinkageError(binding, error);
+  }
+};
+
 const validateBinding = (binding: GoogleDriveProjectBinding | null): GoogleDriveProjectBinding | null => {
   if (binding && (!isGoogleDriveFileId(binding.fileId) || (!isGoogleDriveProviderRevision(binding.providerRevision) && !/^\d{1,80}$/.test(binding.providerRevision)) || !isProjectPackageAssetId(binding.projectRevision))) {
     throw new ProjectPackageError('The saved Set location is unreadable. Reopen the Drive file before saving.');
@@ -288,8 +314,7 @@ export const saveCurrentProjectToGoogleDrive = async ({
     fallbackName: plan.name,
     workId: null,
   });
-  assertBindingScope(namespace);
-  await persistBinding(binding, namespace);
+  await persistSavedDriveBinding(binding, namespace);
   return binding;
 };
 
@@ -338,9 +363,7 @@ export const saveCardSetToGoogleDrive = async ({
     runtimeSetIds: [setId],
     localProjectRevision,
   });
-  assertBindingScope(namespace);
-  await persistWorkBinding(setId, binding, namespace);
-  await persistBinding(binding, namespace);
+  await persistSavedDriveBinding(binding, namespace);
   return binding;
 };
 
