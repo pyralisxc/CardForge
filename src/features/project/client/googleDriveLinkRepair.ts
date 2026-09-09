@@ -1,18 +1,16 @@
 "use client";
 
-import { writeStructuredBrowserValue } from '@/features/project/persistence/structuredBrowserStorage';
-
-import { useProjectStore } from '../store/workspaceStore';
+import { writeStructuredBrowserValue } from '../persistence/structuredBrowserStorage';
 import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
-import { saveCurrentGoogleDriveAttachment } from './workspaceProjectStorage';
+import { useProjectStore } from '../store/workspaceStore';
 import {
   getGoogleDriveWorkBinding,
   loadGoogleDriveProjectLibrary,
   type GoogleDriveProjectBinding,
 } from './googleDriveProjectTransfer';
 
-const GOOGLE_DRIVE_WORK_BINDING_KEY_PREFIX = 'google-drive-work:';
-const driveWorkBindingStorageKey = (workId: string) => `${GOOGLE_DRIVE_WORK_BINDING_KEY_PREFIX}${workId}`;
+const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
+const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
 
 const assertSameScope = (scope: string) => {
   if (getProjectPersistenceScope() !== scope) {
@@ -29,6 +27,7 @@ export const repairConfirmedGoogleDriveLink = async (
   receipt: GoogleDriveProjectBinding,
 ): Promise<GoogleDriveProjectBinding> => {
   const scope = getProjectPersistenceScope();
+  const namespace = getScopedProjectStorageNamespace('project-assets');
   const workId = receipt.workId?.trim() ?? '';
   if (!workId || !useProjectStore.getState().cardSets.some((set) => set.id === workId)) {
     throw new Error('The Set referenced by this Drive receipt is no longer open in this browser. Reopen the Drive document instead of replaying the save.');
@@ -48,27 +47,20 @@ export const repairConfirmedGoogleDriveLink = async (
   }
 
   const repaired: GoogleDriveProjectBinding = {
+    ...receipt,
+    accountId: current.accountId ?? receipt.accountId,
     fileId: current.fileId,
     name: current.name,
     providerRevision: current.providerRevision,
     projectRevision: current.projectRevision,
+    lastSavedAt: current.modifiedAt,
+    webViewLink: current.webViewLink,
     workId,
-    ...(current.accountId ? { accountId: current.accountId } : receipt.accountId ? { accountId: receipt.accountId } : {}),
   };
-  await writeStructuredBrowserValue(
-    getScopedProjectStorageNamespace('project-assets'),
-    driveWorkBindingStorageKey(workId),
-    repaired,
-  );
   assertSameScope(scope);
-  await saveCurrentGoogleDriveAttachment({
-    fileId: repaired.fileId,
-    name: repaired.name,
-    providerRevision: repaired.providerRevision,
-    projectRevision: repaired.projectRevision,
-    accountId: repaired.accountId,
-    workId,
-  });
+  await writeStructuredBrowserValue(`${namespace}:${GOOGLE_DRIVE_WORK_BINDING_KEY}:${workId}`, repaired);
+  assertSameScope(scope);
+  await writeStructuredBrowserValue(`${namespace}:${GOOGLE_DRIVE_BINDING_KEY}`, { workId });
   assertSameScope(scope);
 
   const persisted = await getGoogleDriveWorkBinding(workId);
