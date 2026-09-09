@@ -6,6 +6,7 @@ import { ApiClientError } from '@/infrastructure/http/clientResponses';
 
 import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
 import { useProjectStore } from '../store/workspaceStore';
+import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
 import {
   GoogleDriveSaveLinkageError,
   getGoogleDriveWorkBinding,
@@ -241,6 +242,26 @@ export function useGoogleDriveWorkingSession({
     }
   }, [clearTimer, enabled, scheduleSave, setId]);
 
+  const repairLink = useCallback(async () => {
+    const receipt = state.receipt;
+    if (!receipt || state.phase !== 'recovery-required') return;
+    setState({ phase: 'checking', message: 'Repairing the confirmed Drive link…', receipt });
+    try {
+      const repaired = await repairConfirmedGoogleDriveLink(receipt);
+      bindingRef.current = repaired;
+      writableRef.current = true;
+      queuedRef.current = false;
+      setState({ phase: 'clean', message: 'Drive link repaired · revision already saved', receipt: repaired });
+    } catch (error) {
+      writableRef.current = false;
+      setState({
+        phase: 'recovery-required',
+        message: error instanceof Error ? error.message : 'The Drive link still needs repair. The provider receipt was kept.',
+        receipt,
+      });
+    }
+  }, [state.phase, state.receipt]);
+
   useEffect(() => {
     generationRef.current += 1;
     bindingRef.current = null;
@@ -270,5 +291,5 @@ export function useGoogleDriveWorkingSession({
     };
   }, [clearTimer, enabled, reconcile, scheduleSave, setId]);
 
-  return { state, saveNow, reconcile };
+  return { state, saveNow, reconcile, repairLink };
 }
