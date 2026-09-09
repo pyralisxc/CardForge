@@ -1,6 +1,7 @@
 import type Stripe from 'stripe';
 
 import type { PaidPlan } from '@/domain/entitlements';
+import { readOwnerCommercialPlan, strongestCommercialPlan } from '@/domain/entitlements/commercialPlan';
 import { getSafeLocalReturnPath } from '@/infrastructure/auth/clerk';
 import { getConfiguredPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
@@ -88,6 +89,12 @@ export interface BuildStripePaidAccessMetadataInput {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
+}
+
+export class BillingGrantConfirmationRequiredError extends Error {
+  constructor() {
+    super('Confirm this account\'s extra access grant in Owner People before reconciling billing. Its older owner and Stripe plan records have ambiguous provenance.');
+  }
 }
 
 const readEnvironment = (env?: BillingEnvironment): BillingEnvironment => env ?? {
@@ -404,9 +411,9 @@ export const shouldRevokeStripePaidAccessForSubscription = (
   subscriptionId: string,
 ): boolean => {
   const storedSubscriptionId = existingMetadata.cardforgeStripeSubscriptionId;
-  return typeof storedSubscriptionId !== 'string'
-    || storedSubscriptionId.trim().length === 0
-    || storedSubscriptionId === subscriptionId;
+  // A canceled subscription cannot revoke a manual grant or another document
+  // of billing history merely because no Stripe binding was stored.
+  return storedSubscriptionId === subscriptionId;
 };
 
 export const buildStripePaidAccessMetadata = ({
@@ -421,8 +428,11 @@ export const buildStripePaidAccessMetadata = ({
     ? existingMetadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string')
     : []);
   if (legacyContributor) roles.add('contributor');
-  const commercialPlan = paidPlan
+  const stripePlan = paidPlan
     ?? (existingMetadata.cardforgeCommercialPlan === 'designer' || existingMetadata.cardforgePaidPlan === 'designer' ? 'designer' : 'creator');
+  const ownerPlan = readOwnerCommercialPlan(existingMetadata);
+  if (ownerPlan === null) throw new BillingGrantConfirmationRequiredError();
+  const commercialPlan = strongestCommercialPlan(ownerPlan, stripePlan);
   return {
     ...existingMetadata,
     // Keep the legacy projection readable while no longer allowing a Stripe
@@ -430,7 +440,8 @@ export const buildStripePaidAccessMetadata = ({
     cardforgeAccess: legacyContributor ? 'contributor' : 'paid',
     cardforgeAuthorityRoles: [...roles],
     cardforgeCommercialPlan: commercialPlan,
-    cardforgePaidPlan: commercialPlan,
+    cardforgeOwnerCommercialPlan: ownerPlan,
+    cardforgePaidPlan: stripePlan,
     cardforgeAccessExpiresAt: null,
     cardforgeStripeCustomerId: stripeCustomerId ?? existingMetadata.cardforgeStripeCustomerId ?? null,
     cardforgeStripeSubscriptionId: stripeSubscriptionId ?? existingMetadata.cardforgeStripeSubscriptionId ?? null,
@@ -442,13 +453,16 @@ export const buildStripePaidAccessMetadata = ({
 export const buildStripeRevokedAccessMetadata = (
   existingMetadata: Record<string, unknown> = {}
 ): Record<string, unknown> => {
+  const ownerPlan = readOwnerCommercialPlan(existingMetadata);
+  if (ownerPlan === null) throw new BillingGrantConfirmationRequiredError();
   const nextMetadata = {
     ...existingMetadata,
     cardforgeAccess: existingMetadata.cardforgeAccess === 'paid'
-      ? (Array.isArray(existingMetadata.cardforgeAuthorityRoles) && existingMetadata.cardforgeAuthorityRoles.includes('contributor') ? 'contributor' : 'free')
+      ? (Array.isArray(existingMetadata.cardforgeAuthorityRoles) && existingMetadata.cardforgeAuthorityRoles.includes('contributor') ? 'contributor' : ownerPlan === 'free' ? 'free' : 'paid')
       : existingMetadata.cardforgeAccess,
     cardforgeAccessExpiresAt: null,
-    cardforgeCommercialPlan: null,
+    cardforgeCommercialPlan: ownerPlan,
+    cardforgeOwnerCommercialPlan: ownerPlan,
     cardforgePaidPlan: null,
     cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
   };

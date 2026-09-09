@@ -23,9 +23,10 @@ export const useContributorAccess = (
     isOwner?: boolean;
     sessionKey: string | null;
   },
-): ContributorAccessProjection & { isLoading: boolean } => {
+): ContributorAccessProjection & { isLoading: boolean; error: string | null; retry: () => void } => {
   const [state, setState] = useState<ContributorAccessSessionState>(initialState);
   const [isLoading, setIsLoading] = useState(false);
+  const [failure, setFailure] = useState<{ sessionKey: string; message: string } | null>(null);
   const stateRef = useRef(state);
   const requestIdRef = useRef(0);
   stateRef.current = state;
@@ -37,15 +38,16 @@ export const useContributorAccess = (
       setState({ sessionKey, projection: EMPTY_CONTRIBUTOR_ACCESS_PROJECTION });
     }
     setIsLoading(true);
+    setFailure(null);
     try {
       const response = await fetch('/api/contributor-access', { cache: 'no-store' });
-      const projection = response.ok
-        ? await response.json() as ContributorAccessProjection
-        : EMPTY_CONTRIBUTOR_ACCESS_PROJECTION;
+      if (!response.ok) throw new Error('Contributor access is temporarily unavailable. Retry to verify access.');
+      const projection = await response.json() as ContributorAccessProjection;
       if (requestId === requestIdRef.current) setState({ sessionKey, projection });
     } catch {
       if (requestId === requestIdRef.current) {
         setState({ sessionKey, projection: EMPTY_CONTRIBUTOR_ACCESS_PROJECTION });
+        setFailure({ sessionKey, message: 'Contributor access is temporarily unavailable. Retry to verify access.' });
       }
     } finally {
       if (requestId === requestIdRef.current) setIsLoading(false);
@@ -59,6 +61,7 @@ export const useContributorAccess = (
         setState(EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE);
       }
       setIsLoading(false);
+      setFailure(null);
       return;
     }
     if (stateRef.current.sessionKey !== sessionKey) void loadProjection();
@@ -73,5 +76,7 @@ export const useContributorAccess = (
   return {
     ...resolveContributorAccessProjectionForSession({ eligible, isOwner, sessionKey, state }),
     isLoading: Boolean(sessionKey && eligible && !isOwner && (isLoading || !isCurrentSession)),
+    error: eligible && !isOwner && failure?.sessionKey === sessionKey ? failure?.message ?? null : null,
+    retry: () => { void loadProjection({ clearFirst: true }); },
   };
 };

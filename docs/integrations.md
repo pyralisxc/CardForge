@@ -45,10 +45,12 @@ Forge Review source files and private Studio-document media use server-issued, s
 
 1. `src/app/api/billing/checkout/route.ts` and `src/app/api/billing/portal/route.ts` — thin HTTP composition around Stripe-hosted sessions.
 2. `src/features/billing/lib/billing.ts` and `billingPurpose.ts` — CardForge offering configuration and the mapping from Stripe objects to CardForge product purpose.
-3. `src/features/billing/server/processStripeWebhook.ts` — verified webhook ingress and current-subscription reconciliation.
-4. `src/features/billing/server/reconcileBillingState.ts` — owner recovery/reconciliation when provider mappings drift.
+3. `src/features/billing/server/processStripeWebhook.ts` — verified webhook ingress.
+4. `src/features/billing/server/syncSubscriptionAccess.ts` — shared current-entitlement resolution and serialized Clerk projection, also used by `reconcileBillingState.ts` for owner recovery. Stripe lists are paginated across known account customers; event order does not choose the effective plan.
 
 **CardForge owns:** projecting eligible Creator Pass and Designer Pass subscriptions into paid CardForge access plus a trusted plan marker stored with the Clerk account, and a durable billing event ledger so cross-provider writes are idempotent and auditable. The server chooses configured Stripe Price IDs; clients choose only the named offering. Billing Portal sessions receive a server-sanitized exact local Profile return and Stripe owns the actual provider exit. Designer Pass does not imply contributor access. This bridge is necessary because Stripe owns payment state while Clerk/CardForge own application access. Creator-support payments are deliberately classified separately and never grant product access.
+
+Owner grants use explicit additive metadata and the same account lock. Removing a grant preserves paid Stripe access. Clerk metadata merges clear obsolete expiry fields explicitly. Legacy paid records with unclear grant provenance are surfaced for owner confirmation and preserved until that decision; timestamps do not infer commercial policy.
 
 ## Resend — transactional email
 

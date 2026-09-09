@@ -8,6 +8,6 @@ export async function GET() {
     return createNoStoreJsonResponse(await getCurrentContributorAccessProjection());
   } catch (error) {
     console.error('Failed to resolve Contributor access projection:', error);
-    return createApiErrorResponse(500, 'contributor_access_unavailable', 'Unable to load Contributor access.');
+    return createApiErrorResponse(503, 'contributor_access_unavailable', 'Unable to verify Contributor access. Retry when the service recovers.');
   }
 }

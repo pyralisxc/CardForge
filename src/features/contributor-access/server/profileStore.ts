@@ -49,25 +49,12 @@ const normalizeStatus = (value: unknown): ContributorProfileStatus =>
     ? value as ContributorProfileStatus
     : 'inactive';
 
-const readProfileRows = async (): Promise<ContributorProfileRow[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return [];
-
-  const { data, error } = await supabase
-    .from('cardforge_contributor_profiles')
-    .select(PROFILE_COLUMNS);
-  if (!error) return (data ?? []) as ContributorProfileRow[];
-  console.error('Failed to load Contributor profiles:', error);
-  throw new ContributorAccessStoreError('Contributor profiles are temporarily unavailable.', 503);
-};
-
-export const fetchContributorProfileRows = readProfileRows;
-
 export const fetchContributorProfileRow = async (
   contributorId: string,
 ): Promise<ContributorProfileRow | null> => {
   const supabase = getSupabaseServerClient();
-  if (!supabase || !contributorId) return null;
+  if (!contributorId) return null;
+  if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);
 
   const { data, error } = await supabase
     .from('cardforge_contributor_profiles')
@@ -81,7 +68,7 @@ export const fetchContributorProfileRow = async (
   return (data?.[0] as ContributorProfileRow | undefined) ?? null;
 };
 
-export const fetchContributorProfileRowsForOwner = async (): Promise<ContributorProfileRow[]> => {
+const readProfileRows = async (): Promise<ContributorProfileRow[]> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);
   const rows: ContributorProfileRow[] = [];
@@ -90,10 +77,11 @@ export const fetchContributorProfileRowsForOwner = async (): Promise<Contributor
     const { data, error } = await supabase
       .from('cardforge_contributor_profiles')
       .select(PROFILE_COLUMNS)
+      .order('clerk_user_id')
       .range(from, from + pageSize - 1);
     if (error) {
       console.error('Failed to load Contributor profiles for owner people:', error);
-      throw new ContributorAccessStoreError('Unable to load Contributor profiles.');
+      throw new ContributorAccessStoreError('Contributor profiles are temporarily unavailable.', 503);
     }
     const page = (data ?? []) as unknown as ContributorProfileRow[];
     rows.push(...page);
@@ -101,9 +89,12 @@ export const fetchContributorProfileRowsForOwner = async (): Promise<Contributor
   }
 };
 
+export const fetchContributorProfileRows = readProfileRows;
+export const fetchContributorProfileRowsForOwner = readProfileRows;
+
 export const countActiveContributors = async (): Promise<number> => {
   const supabase = getSupabaseServerClient();
-  if (!supabase) return 1;
+  if (!supabase) throw new ContributorAccessStoreError('Contributor roster capacity is unavailable.', 503);
 
   const { count, error } = await supabase
     .from('cardforge_contributor_profiles')
@@ -120,7 +111,8 @@ export const getContributorProfileIdentity = async (
   contributorId: string,
 ): Promise<ContributorProfileIdentity | null> => {
   const supabase = getSupabaseServerClient();
-  if (!supabase || !contributorId) return null;
+  if (!contributorId) return null;
+  if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);
 
   const { data, error } = await supabase
     .from('cardforge_contributor_profiles')
@@ -129,7 +121,7 @@ export const getContributorProfileIdentity = async (
     .limit(1);
   if (error) {
     console.error('Failed to load Contributor identity profile:', error);
-    return null;
+    throw new ContributorAccessStoreError('Contributor identity is temporarily unavailable.', 503);
   }
   const row = data?.[0] as ContributorProfileRow | undefined;
   return row
@@ -146,7 +138,8 @@ export const getUniqueActiveContributorProfileReferenceByEmail = async (
 ): Promise<ContributorProfileReference | null> => {
   const supabase = getSupabaseServerClient();
   const normalizedEmail = normalizeShortText(email, 320);
-  if (!supabase || !normalizedEmail) return null;
+  if (!normalizedEmail) return null;
+  if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);
 
   const { data, error } = await supabase
     .from('cardforge_contributor_profiles')
@@ -223,7 +216,8 @@ export const upsertContributorProfile = async ({
   lastName?: string | null;
 }): Promise<void> => {
   const supabase = getSupabaseServerClient();
-  if (!supabase || !contributorId) return;
+  if (!contributorId) throw new ContributorAccessStoreError('A Contributor identity is required.', 400);
+  if (!supabase) throw new ContributorAccessStoreError('Contributor profile storage is not configured.', 503);
 
   const { error } = await supabase
     .from('cardforge_contributor_profiles')
@@ -235,6 +229,7 @@ export const upsertContributorProfile = async ({
     }, { onConflict: 'clerk_user_id' });
   if (error) {
     console.error('Failed to upsert Contributor profile:', error);
+    throw new ContributorAccessStoreError('Contributor identity could not be saved.', 503);
   }
 };
 
