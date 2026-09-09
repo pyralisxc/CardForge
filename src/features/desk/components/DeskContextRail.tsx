@@ -151,14 +151,15 @@ export function DeskContextRail(props: DeskContextRailProps) {
           </form> : <>
           {!props.localSet ? <Button type="button" size="sm" onClick={props.onOpenWork}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Open work</Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign()}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={props.onOpenOutput}><Printer className="mr-1 h-4 w-4" aria-hidden="true" />Output</Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" className={styles.mobileSecondarySetAction} onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" className={styles.mobileSecondarySetAction} onClick={props.onOpenOutput}><Printer className="mr-1 h-4 w-4" aria-hidden="true" />Output</Button> : null}
           <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+            {props.localSet ? <DropdownMenuItem onSelect={props.onOpenGenerate}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}
+            {props.localSet ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
             {props.localSet ? <DropdownMenuItem onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.localSet ? <DropdownMenuItem onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={props.onTogglePin}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from Desk' : 'Pin to Desk'}</DropdownMenuItem>
             <DropdownMenuItem onSelect={props.onInspect}><Info aria-hidden="true" />Details</DropdownMenuItem>
             {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
