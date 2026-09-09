@@ -172,7 +172,7 @@ export function useGoogleDriveWorkingSession({
       await run;
     } finally {
       if (inFlightRef.current === run) inFlightRef.current = null;
-      if (queuedRef.current && generation === generationRef.current && writableRef.current !== false) {
+      if (queuedRef.current && generation === generationRef.current) {
         queuedRef.current = false;
         clearTimer();
         timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
