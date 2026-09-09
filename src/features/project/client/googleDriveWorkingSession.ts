@@ -114,6 +114,7 @@ export function useGoogleDriveWorkingSession({
   const inFlightRef = useRef<Promise<void> | null>(null);
   const queuedRef = useRef(false);
   const generationRef = useRef(0);
+  const saveNowRef = useRef<() => Promise<void>>(async () => undefined);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -173,10 +174,11 @@ export function useGoogleDriveWorkingSession({
       if (queuedRef.current && generation === generationRef.current && writableRef.current !== false) {
         queuedRef.current = false;
         clearTimer();
-        timerRef.current = setTimeout(() => { void saveNow(); }, DRIVE_AUTOSAVE_DELAY_MS);
+        timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
       }
     }
   }, [clearTimer, enabled, name, setId]);
+  saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
     if (!enabled || !setId || writableRef.current === false) return;
@@ -184,8 +186,8 @@ export function useGoogleDriveWorkingSession({
     setState((current) => current.phase === 'saving'
       ? current
       : { phase: 'dirty', message: 'Changes waiting for Drive', receipt: current.receipt });
-    timerRef.current = setTimeout(() => { void saveNow(); }, DRIVE_AUTOSAVE_DELAY_MS);
-  }, [clearTimer, enabled, saveNow, setId]);
+    timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
+  }, [clearTimer, enabled, setId]);
 
   const reconcile = useCallback(async () => {
     if (!enabled || !setId) return;
