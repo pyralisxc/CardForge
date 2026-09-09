@@ -184,6 +184,8 @@ Before enabling extended contributors, verify protected source storage, approved
 
 Before enabling native Meta publishing:
 
+Deploy the `marketing_delivery_approved_revision` migration before application code that reads `approved_campaign_version`. Existing jobs deliberately retain NULL because their historical approval revision cannot be inferred. Review and replace those jobs through an explicit owner flow before enablement; do not backfill them from today's campaign. A claimed job must still match its captured approved campaign version and destination. Finalization is conditional on its live claim token; a lost provider receipt or a failed post-send database write requires reconciliation and must not be retried as a new publication.
+
 1. Verify the reviewed Meta Business app/Login for Business configuration and exact callback URI.
 2. Configure only required Page/Instagram publishing scopes and the intended Page/account.
 3. Store Meta/encryption/dispatcher secrets server-side with publishing disabled.
