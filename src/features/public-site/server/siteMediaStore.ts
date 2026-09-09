@@ -8,7 +8,6 @@ import {
   type SiteMediaSlot,
   type SiteMediaVersion,
 } from '@/features/public-site/model/siteMedia';
-import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -87,12 +86,8 @@ export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
     .order('slot', { ascending: true });
 
   if (!error) return mergeRowsWithDefaults((data ?? []) as SiteMediaRow[], mapRow);
-  if (isMissingSupabaseTableError(error)) {
-    return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
-  }
-
   console.error('Failed to load public site media:', error);
-  return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
+  throw new SiteMediaStoreError('Public site images are temporarily unavailable.', 503);
 };
 
 const validateDimensions = (width: unknown, height: unknown): { width: number | null; height: number | null } => {
@@ -128,7 +123,7 @@ export const updateSiteMedia = async (input: {
   width: unknown;
   height: unknown;
   presentation: unknown;
-}): Promise<SiteMediaAsset[]> => {
+}): Promise<void> => {
   if (!isSiteMediaSlot(input.slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
   const storagePath = validateStoragePath(input.slot, input.storagePath);
   const dimensions = validateDimensions(input.width, input.height);
@@ -162,10 +157,9 @@ export const updateSiteMedia = async (input: {
     console.error('Failed to update public site media:', error);
     throw new SiteMediaStoreError('Unable to publish the public image.');
   }
-  return getSiteMedia();
 };
 
-export const restorePreviousSiteMedia = async (slot: unknown): Promise<SiteMediaAsset[]> => {
+export const restorePreviousSiteMedia = async (slot: unknown): Promise<void> => {
   if (!isSiteMediaSlot(slot)) throw new SiteMediaStoreError('Unknown public image.', 400);
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new SiteMediaStoreError('Public image storage is not configured yet.', 503);
@@ -191,5 +185,4 @@ export const restorePreviousSiteMedia = async (slot: unknown): Promise<SiteMedia
     console.error('Failed to restore public site media:', error);
     throw new SiteMediaStoreError('Unable to restore the previous public image.');
   }
-  return getSiteMedia();
 };

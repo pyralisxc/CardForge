@@ -5,7 +5,6 @@ import {
   type SiteContentBlock,
   type SiteContentBlockSlug,
 } from '@/features/public-site/model/siteContent';
-import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -41,10 +40,8 @@ export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
     .order('slug', { ascending: true });
 
   if (error) {
-    if (!isMissingSupabaseTableError(error)) {
-      console.error('Failed to load public site content:', error);
-    }
-    return DEFAULT_SITE_CONTENT_BLOCKS;
+    console.error('Failed to load public site content:', error);
+    throw new PublicSiteStoreError('Public site content is temporarily unavailable.', 503);
   }
 
   return DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
@@ -55,7 +52,7 @@ export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
 
 export const updateSiteContentBlock = async (
   input: { slug?: unknown; body?: unknown },
-): Promise<SiteContentBlock[]> => {
+): Promise<void> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PublicSiteStoreError('Public site database is not configured yet.', 503);
 
@@ -73,5 +70,4 @@ export const updateSiteContentBlock = async (
     throw new PublicSiteStoreError('Unable to update public site content.');
   }
 
-  return getSiteContentBlocks();
 };

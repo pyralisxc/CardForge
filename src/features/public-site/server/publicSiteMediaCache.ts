@@ -1,7 +1,7 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import type { SiteMediaAsset } from '../model/siteMedia';
-import { getSiteMedia } from './siteMediaStore';
+import { getSiteMedia, SiteMediaStoreError } from './siteMediaStore';
 
 export const SITE_MEDIA_TAG = 'public:site-media';
 
@@ -18,5 +18,6 @@ export const revalidateSiteMediaCache = (): void => {
     revalidateTag(SITE_MEDIA_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public site media cache:', error);
+    throw new SiteMediaStoreError('The image was saved, but the public cache could not be refreshed.', 503);
   }
 };
