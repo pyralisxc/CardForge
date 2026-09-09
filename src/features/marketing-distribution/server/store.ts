@@ -172,7 +172,7 @@ export const queueMarketingDelivery = async ({
 }) => {
   const database = requireDatabase();
   const [contentResult, destinationResult] = await Promise.all([
-    database.from('cardforge_social_campaigns').select('id,status,variants').eq('id', contentId).limit(1),
+    database.from('cardforge_social_campaigns').select('id,status,variants,version').eq('id', contentId).limit(1),
     database.from('cardforge_marketing_destinations').select('id,service,provider,publishing_mode,external_account_id,url,active').eq('id', destinationId).limit(1),
   ]);
   const error = contentResult.error ?? destinationResult.error;
@@ -181,6 +181,7 @@ export const queueMarketingDelivery = async ({
     id?: string;
     status?: string;
     variants?: unknown;
+    version?: number;
   } | undefined;
   const destination = destinationResult.data?.[0] as {
     id?: string;
@@ -196,6 +197,9 @@ export const queueMarketingDelivery = async ({
       'Only owner-approved content can be prepared for delivery.',
       409,
     );
+  }
+  if (!Number.isSafeInteger(content.version) || (content.version ?? 0) < 1) {
+    throw new MarketingDistributionStoreError('The approved content revision could not be verified.', 409);
   }
   if (!destination?.id || !destination.active || !destination.service) {
     throw new MarketingDistributionStoreError('Choose an active marketing destination.', 400);
@@ -222,6 +226,7 @@ export const queueMarketingDelivery = async ({
     .from('cardforge_social_publish_jobs')
     .upsert({
       campaign_id: content.id,
+      approved_campaign_version: content.version,
       destination_id: destination.id,
       provider: destination.provider ?? 'manual',
       service: destination.service,
@@ -243,7 +248,7 @@ export const queueMarketingDelivery = async ({
   }
   const { data: existingData, error: existingError } = await database
     .from('cardforge_social_publish_jobs')
-    .select('id,status')
+    .select('id,status,approved_campaign_version')
     .eq('campaign_id', content.id)
     .eq('provider_channel_id', providerChannelId)
     .limit(1);
@@ -258,6 +263,12 @@ export const queueMarketingDelivery = async ({
     throw new MarketingDistributionStoreError(
       'Unable to confirm the existing marketing delivery.',
       503,
+    );
+  }
+  if (existing.approved_campaign_version !== content.version) {
+    throw new MarketingDistributionStoreError(
+      'This destination already has a delivery for another or unverified content revision. Review the existing delivery before preparing a replacement.',
+      409,
     );
   }
   return {
