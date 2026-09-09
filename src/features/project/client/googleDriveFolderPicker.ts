@@ -27,7 +27,8 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
     mimeTypes: [GOOGLE_DRIVE_FOLDER_MIME_TYPE],
     includeFolders: true,
     selectFolders: true,
-    initialFolderId: null,
+    // Omit initialFolderId so Picker reopens at the connection's current
+    // personal/shared folder instead of forcing the Drive root every time.
   });
   if (!selectedItems) return null;
   const selected = selectedItems[0];
