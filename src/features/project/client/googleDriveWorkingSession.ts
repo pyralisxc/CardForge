@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 
+import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
 import { useProjectStore } from '../store/workspaceStore';
 import {
   GoogleDriveSaveLinkageError,
@@ -24,6 +25,7 @@ export type GoogleDriveWorkingSessionPhase =
   | 'dirty'
   | 'saving'
   | 'offline'
+  | 'read-only'
   | 'remote-changed'
   | 'recovery-required'
   | 'error';
@@ -37,6 +39,7 @@ export interface GoogleDriveWorkingSessionState {
 export interface GoogleDriveBindingCheck {
   kind: 'unlinked' | 'current' | 'changed' | 'missing';
   binding: GoogleDriveProjectBinding | null;
+  project: GoogleDriveProjectSummary | null;
 }
 
 const initialState: GoogleDriveWorkingSessionState = {
@@ -45,23 +48,28 @@ const initialState: GoogleDriveWorkingSessionState = {
   receipt: null,
 };
 
+const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
+  !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
+);
+
 /**
  * Reconcile a browser working binding against the provider's current file
  * identity. This is metadata-only: it never imports, overwrites, or saves.
  */
 export const revalidateGoogleDriveWorkBinding = async (workId: string): Promise<GoogleDriveBindingCheck> => {
   const binding = await getGoogleDriveWorkBinding(workId);
-  if (!binding) return { kind: 'unlinked', binding: null };
+  if (!binding) return { kind: 'unlinked', binding: null, project: null };
   const library = await loadGoogleDriveProjectLibrary();
   const project = library.projects.find((candidate) => candidate.fileId === binding.fileId
-    && (!binding.accountId || candidate.accountId === binding.accountId));
-  if (!project) return { kind: 'missing', binding };
+    && (!binding.accountId || candidate.accountId === binding.accountId)) ?? null;
+  if (!project) return { kind: 'missing', binding, project: null };
   return {
     kind: project.providerRevision === binding.providerRevision
       && project.projectRevision === binding.projectRevision
       ? 'current'
       : 'changed',
     binding,
+    project,
   };
 };
 
@@ -75,7 +83,8 @@ const stateForError = (error: unknown): GoogleDriveWorkingSessionState => {
   }
   if (error instanceof ApiClientError) {
     if (error.kind === 'conflict') return { phase: 'remote-changed', message: error.message, receipt: null };
-    if (error.kind === 'authentication' || error.kind === 'authorization') {
+    if (error.kind === 'authorization') return { phase: 'read-only', message: `${error.message}${error.nextAction ? ` ${error.nextAction}` : ''}`, receipt: null };
+    if (error.kind === 'authentication') {
       return { phase: 'error', message: `${error.message}${error.nextAction ? ` ${error.nextAction}` : ''}`, receipt: null };
     }
   }
@@ -104,6 +113,7 @@ export function useGoogleDriveWorkingSession({
 }) {
   const [state, setState] = useState<GoogleDriveWorkingSessionState>(initialState);
   const bindingRef = useRef<GoogleDriveProjectBinding | null>(null);
+  const writableRef = useRef<boolean | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const queuedRef = useRef(false);
@@ -115,7 +125,7 @@ export function useGoogleDriveWorkingSession({
   }, []);
 
   const saveNow = useCallback(async () => {
-    if (!enabled || !setId) return;
+    if (!enabled || !setId || writableRef.current === false) return;
     if (inFlightRef.current) {
       queuedRef.current = true;
       await inFlightRef.current;
@@ -130,7 +140,7 @@ export function useGoogleDriveWorkingSession({
         return;
       }
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: null });
+        setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
         queuedRef.current = true;
         return;
       }
@@ -159,7 +169,7 @@ export function useGoogleDriveWorkingSession({
       await run;
     } finally {
       if (inFlightRef.current === run) inFlightRef.current = null;
-      if (queuedRef.current && generation === generationRef.current) {
+      if (queuedRef.current && generation === generationRef.current && writableRef.current !== false) {
         queuedRef.current = false;
         clearTimer();
         timerRef.current = setTimeout(() => { void saveNow(); }, DRIVE_AUTOSAVE_DELAY_MS);
@@ -168,7 +178,7 @@ export function useGoogleDriveWorkingSession({
   }, [clearTimer, enabled, name, setId]);
 
   const scheduleSave = useCallback(() => {
-    if (!enabled || !setId) return;
+    if (!enabled || !setId || writableRef.current === false) return;
     clearTimer();
     setState((current) => current.phase === 'saving'
       ? current
@@ -184,11 +194,20 @@ export function useGoogleDriveWorkingSession({
       if (generation !== generationRef.current) return;
       bindingRef.current = check.binding;
       if (check.kind === 'unlinked') {
+        writableRef.current = null;
         setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
         return;
       }
       if (check.kind === 'missing') {
+        writableRef.current = false;
         setState({ phase: 'error', message: 'The linked Drive document is unavailable or moved. Check Drive before saving.', receipt: check.binding });
+        return;
+      }
+      writableRef.current = canWriteProject(check.project);
+      if (!writableRef.current) {
+        clearTimer();
+        queuedRef.current = false;
+        setState({ phase: 'read-only', message: 'Drive is read-only for your current role. You can inspect this Set or save an independent copy to a writable location.', receipt: check.binding });
         return;
       }
       if (check.kind === 'changed' && check.binding) {
@@ -217,11 +236,12 @@ export function useGoogleDriveWorkingSession({
     } catch (error) {
       if (generation === generationRef.current) setState(stateForError(error));
     }
-  }, [enabled, scheduleSave, setId]);
+  }, [clearTimer, enabled, scheduleSave, setId]);
 
   useEffect(() => {
     generationRef.current += 1;
     bindingRef.current = null;
+    writableRef.current = null;
     queuedRef.current = false;
     clearTimer();
     if (!enabled || !setId) {
