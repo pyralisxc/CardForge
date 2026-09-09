@@ -1,6 +1,7 @@
 import {
   readStructuredBrowserValue,
   writeStructuredBrowserValue,
+  writeStructuredBrowserValues,
 } from './structuredBrowserStorage';
 import type { ResolvedProjectPackageAssetReference } from '../model/projectPackage';
 
@@ -186,24 +187,22 @@ export const externalizeBrowserProjectAssetJson = async (
   if (!value.includes(';base64,')) return { storedValue: value, changed: false };
   const parsed = JSON.parse(value) as unknown;
   const pending = new Map<string, Promise<string>>();
+  const artwork = new Map<string, Blob>();
   let changed = false;
   const stored = await visitValue(parsed, async (entry) => {
+    const existing = pending.get(entry);
+    if (existing) return existing;
     const decoded = parsePersistableDataUri(entry);
     if (!decoded) return entry;
-    let reference = pending.get(entry);
-    if (!reference) {
-      reference = (async () => {
+    const reference = (async () => {
         const assetId = await hashBytes(decoded.bytes);
-        await writeStructuredBrowserValue(
-          getStorageKey(scope, assetId),
-          new Blob([toArrayBuffer(decoded.bytes)], { type: decoded.mimeType }),
-        );
+        artwork.set(getStorageKey(scope, assetId), new Blob([toArrayBuffer(decoded.bytes)], { type: decoded.mimeType }));
         return getReference(assetId);
-      })();
-      pending.set(entry, reference);
-    }
+    })();
+    pending.set(entry, reference);
     changed = true;
     return reference;
   });
+  await writeStructuredBrowserValues(artwork);
   return { storedValue: changed ? JSON.stringify(stored) : value, changed };
 };

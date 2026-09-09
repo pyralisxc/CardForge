@@ -14,22 +14,23 @@ interface EnvironmentCommandBandProps {
   primaryDisabledReason?: string;
   search?: ReactNode;
   accountControl?: ReactNode;
+  context?: ReactNode;
   onCommand: () => void;
   onAction: (action: ActionDescriptor) => void;
 }
 
-export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisabledReason, search, accountControl, onCommand, onAction }: EnvironmentCommandBandProps) {
+export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisabledReason, search, accountControl, context, onCommand, onAction }: EnvironmentCommandBandProps) {
   const Icon = ZONE_ICONS[zone.id];
   const disabledReason = primaryAction?.availability.kind === 'disabled'
     ? primaryAction.availability.reason
     : primaryDisabledReason;
   return (
-    <header className={styles.commandBand}>
-      <div className={styles.commandIdentity}>
+    <header className={styles.commandBand} data-context={Boolean(context)}>
+      {context ? <div className={styles.contextBand}>{context}</div> : <div className={styles.commandIdentity}>
         {brand ? <Link href="/" prefetch={false} className={styles.mobileBrand} aria-label="Open the CardForge public site" title="CardForge public site"><Image src={brand.src} alt="" width={26} height={26} priority /></Link> : null}
         <Icon size={18} aria-hidden="true" /><strong>{zone.label}</strong>
-      </div>
-      <button type="button" className={styles.commandLauncher} onClick={onCommand} data-tool-safe-action>
+      </div>}
+      <button type="button" className={styles.commandLauncher} aria-label="Search or type a command" title="Search or type a command (Ctrl / ⌘ K)" onClick={onCommand} data-tool-safe-action>
         <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
       </button>
       <div className={styles.commandActions}>

@@ -68,6 +68,7 @@ export function AccountProjectWorkspaceBoundary({
         />
         {error ? (
           <div className="grid max-w-md gap-3 text-center">
+            <BrowserStorageAlerts canUseProjectFiles={canUseProjectFiles} workspaceReady={false} />
             <p role="alert" className="text-sm text-destructive">{error}</p>
             <Button type="button" variant="outline" onClick={() => void bootstrap()}>Try again</Button>
           </div>

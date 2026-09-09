@@ -23,7 +23,7 @@ const resolverForScope = (scope: string) => {
 /** Resolves one mounted binary reference and releases its object URL on change/unmount. */
 export const useProjectBinaryAssetUrl = (source: string | null | undefined): string | undefined => {
   const scope = getProjectPersistenceScope();
-  const [resolution, setResolution] = useState<{ source: string; url: string } | null>(null);
+  const [resolution, setResolution] = useState<{ scope: string; source: string; url: string } | null>(null);
 
   useEffect(() => {
     if (!source || !isProjectBinaryAssetReference(source)) return;
@@ -36,7 +36,7 @@ export const useProjectBinaryAssetUrl = (source: string | null | undefined): str
         return;
       }
       release = handle.release;
-      setResolution({ source, url: handle.url });
+      setResolution({ scope, source, url: handle.url });
     }).catch(() => {
       if (active) setResolution(null);
     });
@@ -48,7 +48,7 @@ export const useProjectBinaryAssetUrl = (source: string | null | undefined): str
 
   if (!source) return undefined;
   if (!isProjectBinaryAssetReference(source)) return source;
-  return resolution?.source === source ? resolution.url : undefined;
+  return resolution?.scope === scope && resolution.source === source ? resolution.url : undefined;
 };
 
 const BINARY_REFERENCE_PATTERN = /cardforge-browser-asset:\/\/[a-f0-9]{64}/gu;
@@ -56,7 +56,7 @@ const BINARY_REFERENCE_PATTERN = /cardforge-browser-asset:\/\/[a-f0-9]{64}/gu;
 /** Resolves references embedded inside CSS values such as url(...). */
 export const useProjectBinaryAssetValue = (value: string | null | undefined): string | undefined => {
   const scope = getProjectPersistenceScope();
-  const [resolution, setResolution] = useState<{ value: string; resolved: string } | null>(null);
+  const [resolution, setResolution] = useState<{ scope: string; value: string; resolved: string } | null>(null);
 
   useEffect(() => {
     if (!value) return;
@@ -75,7 +75,7 @@ export const useProjectBinaryAssetValue = (value: string | null | undefined): st
     })).then((entries) => {
       if (!active) return;
       const resolved = entries.reduce((current, [reference, url]) => current.replaceAll(reference, url), value);
-      setResolution({ value, resolved });
+      setResolution({ scope, value, resolved });
     }).catch(() => {
       if (active) setResolution(null);
     });
@@ -87,5 +87,5 @@ export const useProjectBinaryAssetValue = (value: string | null | undefined): st
 
   if (!value) return undefined;
   if (!value.includes('cardforge-browser-asset://')) return value;
-  return resolution?.value === value ? resolution.resolved : undefined;
+  return resolution?.scope === scope && resolution.value === value ? resolution.resolved : undefined;
 };

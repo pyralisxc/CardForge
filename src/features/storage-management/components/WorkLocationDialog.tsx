@@ -1,5 +1,7 @@
 "use client";
 
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+
 import { DefaultWorkLocationControl, ProjectWorkLocationDialog, type ProjectWorkLocationTarget } from '@/features/project/client/locations';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
@@ -33,5 +35,5 @@ const toProjectTarget = (item: AccountLibraryItem | null): ProjectWorkLocationTa
 export { DefaultWorkLocationControl };
 
 export function WorkLocationDialog({ item, ...props }: WorkLocationDialogProps) {
-  return <ProjectWorkLocationDialog target={toProjectTarget(item)} {...props} />;
+  return <ProjectWorkLocationDialog renderThumbnail={createGoogleDriveProjectThumbnail} target={toProjectTarget(item)} {...props} />;
 }

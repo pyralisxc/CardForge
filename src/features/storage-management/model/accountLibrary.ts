@@ -146,6 +146,7 @@ interface LocalTemplateInput {
 }
 
 interface DriveProjectInput {
+  localWorkId?: string;
   fileId: string;
   name: string;
   providerRevision: string;
@@ -335,7 +336,7 @@ export const buildAccountLibraryItems = ({
 
   for (const project of driveProjects) {
     const attached = project.fileId === driveBindingFileId;
-    const matchingWork = project.workId ? workById.get(project.workId) : null;
+    const matchingWork = project.localWorkId ? workById.get(project.localWorkId) : null;
     const location: AccountLibraryLocation = {
       source: 'google-drive',
       status: attached || Boolean(matchingWork) ? 'attached' : 'available',
@@ -345,9 +346,11 @@ export const buildAccountLibraryItems = ({
       matchingWork.locations.push(location);
       matchingWork.references.driveFileId = project.fileId;
       matchingWork.references.driveProviderRevision = project.providerRevision;
-      if (project.projectRevision) matchingWork.references.driveProjectRevision = project.projectRevision;
+      matchingWork.references.driveProjectRevision = project.projectRevision ?? undefined;
       matchingWork.revision = project.projectRevision;
-      matchingWork.updatedAt = project.modifiedAt;
+      // Provider modifiedAt describes the saved file, not the browser edits.
+      matchingWork.details = matchingWork.details.filter((detail) => detail !== 'Device only');
+      matchingWork.details.push('Google Drive · browser working data', `Drive saved ${project.modifiedAt}`);
       matchingWork.webViewLink = project.webViewLink;
       if (project.thumbnailLink) matchingWork.workPreview = { kind: 'image', url: project.thumbnailLink };
       matchingWork.sizeBytes = Math.max(matchingWork.sizeBytes ?? 0, project.size);
@@ -375,7 +378,6 @@ export const buildAccountLibraryItems = ({
       organization: organization('card-set', 'working'),
     };
     items.push(item);
-    if (project.workId) workById.set(project.workId, item);
   }
 
   for (const localFolder of localWorkFolders) {

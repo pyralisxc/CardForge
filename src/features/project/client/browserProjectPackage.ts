@@ -33,6 +33,7 @@ export const materializeBrowserProjectSnapshot = async (
       bytes,
     });
   }
+  if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed while project artwork was being opened.');
   return referenceCardForgeProjectSnapshotAssets(
     snapshot,
     (descriptor) => getBrowserProjectAssetReference(descriptor.id),
@@ -59,8 +60,10 @@ export const buildBrowserCardForgeProjectSnapshot = async (
   if (scope === 'unscoped-disabled') {
     throw new Error('CardForge cannot package browser artwork before the workspace owner is known.');
   }
-  return buildCardForgeProjectSnapshot({
+  const snapshot = await buildCardForgeProjectSnapshot({
     ...options,
     resolveAssetReference: (reference) => readBrowserProjectAssetSource(reference, scope),
   });
+  if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed while the project package was being prepared.');
+  return snapshot;
 };

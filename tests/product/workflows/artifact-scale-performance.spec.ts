@@ -68,12 +68,12 @@ test.describe('large Artifact browser evidence', () => {
 
       const searchMs = await elapsed(async () => {
         await page.getByPlaceholder('Search cards').fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
-        await expect(page.locator('summary').filter({ hasText: /^Organize/ })).toContainText('1 card');
+        await expect(page.getByRole('button', { name: /^Organize/ })).toContainText('1 card');
         await page.getByPlaceholder('Search cards').fill('');
-        await expect(page.locator('summary').filter({ hasText: /^Organize/ })).toContainText(`${cardCount} cards`);
+        await expect(page.getByRole('button', { name: /^Organize/ })).toContainText(`${cardCount} cards`);
       });
 
-      await page.getByText(`Ordered Artifact navigator · ${cardCount}`, { exact: true }).click();
+      await page.getByRole('button', { name: `Ordered Artifact navigator · ${cardCount}`, exact: true }).click();
       const orderedOptions = page.getByRole('option');
       await expect(orderedOptions).toHaveCount(cardCount);
       await expect(page.locator('[role="listbox"] [role="group"]')).toHaveCount(10);
@@ -129,7 +129,8 @@ test.describe('large Artifact browser evidence', () => {
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
 
     await setButton.click();
-    await page.getByRole('button', { name: 'Move selected Sets right' }).click();
+    await page.getByRole('button', { name: 'Position', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Move selected Sets right' }).click();
     await expect(setObject).toHaveAttribute('data-positioned', 'true');
     const savedX = await setObject.evaluate((node) => node.getAttribute('style')?.match(/--desk-x:\s*([^;]+)/)?.[1] ?? '');
     expect(savedX).not.toBe('');
@@ -356,7 +357,7 @@ test.describe('large Artifact browser evidence', () => {
   test('ordered navigator restores keyboard focus through Back, Escape, and browser Back', async ({ page }) => {
     await prepareScalePage(page, 100);
     await openScaleSet(page, 100);
-    await page.getByText('Ordered Artifact navigator · 100', { exact: true }).click();
+    await page.getByRole('button', { name: 'Ordered Artifact navigator · 100', exact: true }).click();
     const option = page.getByRole('option').nth(12);
     const artifactId = await option.getAttribute('id').then((id) => id?.replace('ordered-artifact-', ''));
     expect(artifactId).toBeTruthy();

@@ -52,6 +52,23 @@ export const writeStructuredBrowserValue = async <T>(key: string, value: T): Pro
   await runStructuredRequest('readwrite', (store) => store.put(value, key));
 };
 
+/** One native transaction for the artwork externalized from one workspace save. */
+export const writeStructuredBrowserValues = async (values: ReadonlyMap<string, Blob>): Promise<void> => {
+  if (!values.size) return;
+  const database = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+      const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('Unable to save project artwork.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Project artwork transaction was aborted.'));
+      try { for (const [key, value] of values) store.put(value, key); }
+      catch (error) { transaction.abort(); reject(error); }
+    });
+  } finally { database.close(); }
+};
+
 export const removeStructuredBrowserValue = async (key: string): Promise<void> => {
   if (typeof indexedDB === 'undefined') return;
   await runStructuredRequest('readwrite', (store) => store.delete(key));

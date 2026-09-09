@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
@@ -7,6 +8,8 @@ import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
 import {
   createScopedProjectStorage,
+  getProjectPersistenceScope,
+  commitBrowserWorkspaceImport,
   setProjectPersistenceScope,
   type ProjectPersistenceScope,
 } from '../persistence/projectPersistenceScope';
@@ -77,6 +80,7 @@ const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersist
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void> } | null = null;
+let workspaceHydrationError: unknown = null;
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -136,17 +140,49 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
   },
 });
 
+const createProjectState: StateCreator<ProjectState> = (...args) => ({
+  ...createTemplateSlice(...args),
+  ...createAppearanceSlice(...args),
+  ...createOutputSlice(...args),
+  ...createOrganizationSlice(...args),
+  ...createSettingsSlice(...args),
+  ...createLifecycleSlice(...args),
+});
+
+/** Run the same feature actions against a detached draft; no UI or autosave side effects. */
+export const createProjectWorkspaceDraft = (expectedState: ProjectState = useProjectStore.getState()) => {
+  if (useProjectStore.getState() !== expectedState) throw new Error('The workspace changed while the project was opening. Retry without discarding your current edits.');
+  const draft = createStore<ProjectState>()(createProjectState);
+  const data = Object.fromEntries(Object.entries(expectedState).filter(([, value]) => typeof value !== 'function'));
+  draft.setState(data);
+  return {
+    getState: draft.getState,
+    setState: draft.setState,
+    commit: async (relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[]) => {
+      const options = useProjectStore.persist.getOptions();
+      const nextState = draft.getState();
+      const controller = new AbortController();
+      const unsubscribe = useProjectStore.subscribe(() => controller.abort());
+      try { await commitBrowserWorkspaceImport({
+        value: JSON.stringify({ state: options.partialize!(nextState), version: options.version }),
+        relatedWrites,
+        signal: controller.signal,
+        beforeCommit: () => {
+          if (useProjectStore.getState() !== expectedState) throw new Error('The workspace changed while the project was opening. Your edits were left unchanged; retry.');
+        },
+      }); } finally { unsubscribe(); }
+      useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      try {
+        useProjectStore.setState(Object.fromEntries(Object.entries(nextState).filter(([, value]) => typeof value !== 'function')));
+      } finally { useProjectStore.persist.setOptions({ storage: options.storage }); }
+    },
+  };
+};
+
 export const useProjectStore = create<ProjectState>()(
   devtools(
     persist(
-      (...args) => ({
-        ...createTemplateSlice(...args),
-        ...createAppearanceSlice(...args),
-        ...createOutputSlice(...args),
-        ...createOrganizationSlice(...args),
-        ...createSettingsSlice(...args),
-        ...createLifecycleSlice(...args),
-      }),
+      createProjectState,
       {
         name: 'workspace',
         storage: createWorkspaceJsonStorage(),
@@ -170,6 +206,7 @@ export const useProjectStore = create<ProjectState>()(
           exportDpi: state.exportDpi,
         }),
         onRehydrateStorage: () => (state, error) => {
+          workspaceHydrationError = error ?? null;
           if (error) console.error('Error rehydrating the project workspace:', error);
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
@@ -201,13 +238,16 @@ export const useProjectStore = create<ProjectState>()(
 );
 
 export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
-  if (hydratedPersistenceScope === scope) return;
+  if (hydratedPersistenceScope === scope && getProjectPersistenceScope() === scope) return;
   if (hydrationTask?.scope === scope) return hydrationTask.promise;
 
   const previousTask = hydrationTask?.promise.catch(() => undefined) ?? Promise.resolve();
   const promise = previousTask.then(async () => {
-    if (hydratedPersistenceScope === scope) return;
-    const isScopeChange = hydratedPersistenceScope !== null && hydratedPersistenceScope !== scope;
+    if (hydratedPersistenceScope === scope && getProjectPersistenceScope() === scope) return;
+    const isScopeChange = getProjectPersistenceScope() !== scope;
+    // Once we leave a hydrated account, it cannot satisfy a later fast path until
+    // its own bytes have been loaded again (including after another account fails).
+    hydratedPersistenceScope = null;
     setProjectPersistenceScope(scope);
 
     if (isScopeChange) {
@@ -216,7 +256,15 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
       useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
     }
 
+    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+    workspaceHydrationError = null;
     await useProjectStore.persist.rehydrate();
+    if (workspaceHydrationError || !useProjectStore.persist.hasHydrated()) {
+      // Zustand reports hydration errors through its callback, not rehydrate's promise.
+      // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
+      useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
+    }
     hydratedPersistenceScope = scope;
   });
   hydrationTask = { scope, promise };

@@ -4,12 +4,16 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import {
   disconnectGoogleDriveProjectStorage,
   listGoogleDriveProjects,
+  getGoogleDriveProjectThumbnail,
+  prepareGoogleDriveProjectUpload,
   parseGoogleError,
+  updateGoogleDriveProjectFromServer,
 } from '@/features/project/server/googleDriveProjectStore';
 import { getGoogleDrivePickerConfiguration } from '@/features/project/server/googleDriveFolderPickerStore';
 import { classifyGoogleProviderFailure } from '@/features/project/server/googleDriveBoundary';
 import { parsePersonalLibraryGoogleError } from '@/features/personal-library/server/personalLibraryStore';
 import { encryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
+import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
 import {
   retainLastKnownLibrarySource,
   retainScopedLastKnownLibrarySource,
@@ -47,10 +51,12 @@ const connectionRow = () => {
 const selectConnectionQuery = () => {
   const query = {
     select: vi.fn(),
+    update: vi.fn(),
     eq: vi.fn(),
     maybeSingle: vi.fn().mockResolvedValue({ data: connectionRow(), error: null }),
   };
   query.select.mockReturnValue(query);
+  query.update.mockReturnValue(query);
   query.eq.mockReturnValue(query);
   return query;
 };
@@ -70,6 +76,57 @@ describe('Google Drive provider boundaries', () => {
     vi.unstubAllEnvs();
   });
 
+  it('reads private native thumbnails without importing the package or exposing credentials to the browser', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip', version: '1', modifiedTime: '2026-09-01',
+        parents: ['drive_folder_123'], appProperties: { cardforgeProject: '1' }, thumbnailLink: 'https://lh3.googleusercontent.com/private-thumb',
+      }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'image/png' } }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await getGoogleDriveProjectThumbnail({ ownerUserId: 'user-1', fileId: 'drive-file-12345' })).toMatchObject({ mimeType: 'image/png' });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch.mock.calls[2]![1]).toMatchObject({ headers: { Authorization: 'Bearer private-access' }, redirect: 'error', cache: 'no-store' });
+    expect(fetch.mock.calls.some(([url]) => String(url).includes('alt=media'))).toBe(false);
+  });
+
+  it('does not forward Drive credentials to an unexpected thumbnail host', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip', version: '1', modifiedTime: '2026-09-01',
+        parents: ['drive_folder_123'], appProperties: { cardforgeProject: '1' }, thumbnailLink: 'https://attacker.test/private-thumb',
+      }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(getGoogleDriveProjectThumbnail({ ownerUserId: 'user-1', fileId: 'drive-file-12345' })).rejects.toMatchObject({ kind: 'unavailable' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a save bound to a different connected Google account before preparing an upload', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(prepareGoogleDriveProjectUpload({ ownerUserId: 'user-1', name: 'Set', size: 3, projectRevision: 'a'.repeat(64), expectedAccountId: 'other-google-account', fileId: 'drive-file-12345' })).rejects.toMatchObject({ status: 409 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('supplies the canonical PNG through native Drive contentHints and rejects invalid thumbnails before provider calls', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
+    vi.stubGlobal('fetch', fetch);
+    const input = { ownerUserId: 'user-1', name: 'Set', size: 3, projectRevision: 'a'.repeat(64) };
+    await expect(prepareGoogleDriveProjectUpload({ ...input, thumbnail: 'not-a-png' })).rejects.toMatchObject({ status: 400 });
+    expect(fetch).not.toHaveBeenCalled();
+    const thumbnail = Buffer.from('89504e470d0a1a0a', 'hex').toString('base64url');
+    await prepareGoogleDriveProjectUpload({ ...input, thumbnail });
+    expect(JSON.parse(fetch.mock.calls[1]![1]!.body as string)).toMatchObject({ contentHints: { thumbnail: { image: thumbnail, mimeType: 'image/png' } } });
+  });
+
   it('keeps Google authentication and permission failures distinct', async () => {
     const authentication = await parseGoogleError(new Response(JSON.stringify({
       error: { message: 'Invalid credentials.' },
@@ -81,6 +138,20 @@ describe('Google Drive provider boundaries', () => {
     expect(authentication).toMatchObject({ status: 401, kind: 'authentication' });
     expect(authorization).toMatchObject({ status: 403, kind: 'authorization' });
     expect(authorization.nextAction).toContain('can access');
+  });
+
+  it.each(['lost response', 'invalid receipt', 'null receipt', 'provider 503'])('does not advise repeating an uncertain server commit: %s', async (failure) => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({ id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip', version: '1', modifiedTime: '2026-09-01', parents: ['drive_folder_123'], appProperties: { cardforgeProject: '1', cardforgeProjectRevision: 'a'.repeat(64) } }))
+      .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
+    if (failure === 'lost response') fetch.mockRejectedValueOnce(new Error('connection reset'));
+    else fetch.mockResolvedValueOnce(failure === 'provider 503' ? new Response(null, { status: 503 }) : Response.json(failure === 'null receipt' ? null : {}));
+    vi.stubGlobal('fetch', fetch);
+    const error = await updateGoogleDriveProjectFromServer({ ownerUserId: 'user-1', fileId: 'drive-file-12345', name: 'Set', blob: new Blob(['new']), projectRevision: 'b'.repeat(64), expectedProviderRevision: '1', expectedProjectRevision: 'a'.repeat(64) }).catch((error: unknown) => error);
+    expect(describeAgentBoundaryFailure(error)).toMatchObject({ status: 503, kind: 'unavailable', retryable: false, nextAction: expect.stringContaining('Do not repeat commit_project') });
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
 
   it('recognizes Google 403 rate-limit reasons as a retryable limit boundary', async () => {

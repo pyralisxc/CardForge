@@ -11,7 +11,10 @@ export interface ActionOperationInput {
 }
 
 export type ActionOperationResult =
-  | { kind: 'navigation'; href: string }
+  | { kind: 'cancelled' }
+  | { kind: 'tool-opened'; toolId: string }
+  | { kind: 'refresh-requested' }
+  | { kind: 'navigation'; href: string; changedIds?: string[] }
   | { kind: 'preview'; previewId: string }
   | { kind: 'mutation'; changedIds: string[] }
   | { kind: 'provider-handoff'; href: string }
@@ -81,7 +84,7 @@ export const createActionRuntime = (definitions: readonly ActionDefinition[]): A
         throw new Error(reason);
       }
       const result = await definition.operation.execute(input);
-      if (result.kind !== definition.descriptor.result) {
+      if (result.kind !== 'cancelled' && result.kind !== definition.descriptor.result) {
         throw new Error(`Action ${id} returned ${result.kind}; ${definition.descriptor.result} was declared.`);
       }
       return result;

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
+  namespace: 'test',
+  onWrite: undefined as (() => void) | undefined,
   values: new Map<string, unknown>(),
   localSets: [] as { id: string }[],
   read: vi.fn(),
@@ -12,10 +14,10 @@ const mock = vi.hoisted(() => ({
 }));
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
   readStructuredBrowserValue: mock.read,
-  writeStructuredBrowserValue: async (key: string, value: unknown) => { mock.values.set(key, value); },
+  writeStructuredBrowserValue: async (key: string, value: unknown) => { mock.values.set(key, value); mock.onWrite?.(); },
   removeStructuredBrowserValue: async (key: string) => { mock.values.delete(key); },
 }));
-vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => 'test' }));
+vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => mock.namespace }));
 vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   captureCardSetProjectDocument: mock.captureSet,
   captureCurrentProjectDocument: mock.captureWorkspace,
@@ -29,9 +31,12 @@ vi.mock('@/features/project/lib/projectPackageCodec', () => ({
   decodeProjectFile: mock.decode,
 }));
 vi.mock('@/features/analytics/client/tracking', () => ({ observeProviderBoundaryResponse: (_provider: string, _action: string, run: () => unknown) => run() }));
-vi.mock('@/features/project/store/workspaceStore', () => ({ useProjectStore: { getState: () => ({ cardSets: mock.localSets }) } }));
+vi.mock('@/features/project/store/workspaceStore', () => {
+  const state = { get cardSets() { return mock.localSets; }, storedCards: [] };
+  return { useProjectStore: { getState: () => state } };
+});
 
-import { deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
@@ -48,6 +53,8 @@ const folder = (name: string) => {
 beforeEach(() => {
   vi.clearAllMocks();
   mock.values.clear();
+  mock.namespace = 'test';
+  mock.onWrite = undefined;
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
   mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64) });
@@ -55,17 +62,47 @@ beforeEach(() => {
 });
 
 describe('one authoritative Set location across save entry points', () => {
+  it('resumes the exact file/account working Set without downloading or importing again', async () => {
+    const binding = { ...driveBinding, accountId: 'account-a', portableWorkId: 'old-set' };
+    mock.localSets = [{ id: 'set-c' }];
+    mock.values.set('test:google-drive-work-binding:set-c', binding);
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    expect(await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C', accountId: 'account-a' })).toEqual(binding);
+    expect(mock.apply).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('refuses refresh of dirty working data before downloading or replacing anything', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(refreshGoogleDriveProject({ ...driveBinding, lastSavedAt: '2026-09-01', webViewLink: null, accountId: 'account-a', packageScope: 'set', identities: {}, localProjectRevision: 'c'.repeat(64) })).rejects.toThrow('browser changes');
+    expect(mock.apply).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('makes intentional copies independent of their source save target', async () => {
+    mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'original' }] } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+      'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a',
+    } })));
+    await copyGoogleDriveProjectToBrowser({ fileId: driveBinding.fileId, name: 'C' });
+    expect(mock.apply).toHaveBeenCalledWith({ cardSets: [{ id: 'original' }] }, 'copy', { expectedState: expect.any(Object) });
+    expect(mock.values.size).toBe(0);
+  });
+
   it.each([1, 2])('retains explicit package scope when opening a %i-Set historical package', async (count) => {
-    const document = { cardSets: Array.from({ length: count }, (_, index) => ({ id: `old-${index}` })) };
+    const document = { cardSets: Array.from({ length: count }, (_, index) => ({ id: `old-${index}` })), userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} };
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
       'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+      'X-CardForge-Provider-Account': 'google-account-1',
     } })));
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
-    expect(mock.apply).toHaveBeenCalledWith(document, 'copy');
-    expect(binding.workId).toBe(count === 1 ? 'set-c' : null);
+    expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }), 'merge', expect.objectContaining({ expectedState: expect.any(Object) }));
+    expect(binding.workId).toBe(binding.runtimeSetIds?.[0]);
     expect(binding.packageScope).toBe(count === 1 ? 'set' : 'workspace');
-    expect(mock.values.has('test:google-drive-work-binding:set-c')).toBe(count === 1);
+    expect(mock.values.has(`test:google-drive-work-binding:${binding.workId}`)).toBe(true);
     expect(await getGoogleDriveProjectBinding()).toEqual(binding);
   });
 
@@ -81,11 +118,14 @@ describe('one authoritative Set location across save entry points', () => {
       }
       return Response.json({ id: driveBinding.fileId, version: String(++version), name: 'C' });
     }));
-    await saveCurrentProjectToGoogleDrive({ name: 'C' });
+    const renderThumbnail = vi.fn(async () => 'canonical-preview');
+    await saveCurrentProjectToGoogleDrive({ name: 'C', renderThumbnail });
     await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' });
     await saveCurrentProjectToGoogleDrive({ name: 'C' });
     expect(mock.captureWorkspace).not.toHaveBeenCalled();
     expect(mock.captureSet).toHaveBeenCalledTimes(3);
+    expect(renderThumbnail).toHaveBeenCalledWith({ cardSets: [{ id: 'set-c' }] });
+    expect(prepare[0]).toMatchObject({ thumbnail: 'canonical-preview' });
     expect(prepare.map((value) => [value.fileId, value.workId, value.expectedProviderRevision])).toEqual([
       [driveBinding.fileId, 'set-c', '1'], [driveBinding.fileId, 'set-c', '2'], [driveBinding.fileId, 'set-c', '3'],
     ]);
@@ -114,6 +154,27 @@ describe('one authoritative Set location across save entry points', () => {
 });
 
 describe('location failure and detach safety', () => {
+  it('rejects a folder attachment read when the account changes before it resolves', async () => {
+    const handle = folder('A');
+    mock.read.mockImplementationOnce(async () => {
+      mock.namespace = 'other';
+      return { handle, folderName: 'A', packageScope: 'workspace' };
+    });
+    await expect(saveProjectToAttachedFolder()).rejects.toThrow('account changed');
+    expect(handle.getFileHandle).not.toHaveBeenCalled();
+    expect(mock.captureWorkspace).not.toHaveBeenCalled();
+    expect(mock.values.size).toBe(0);
+  });
+
+  it('never transfers a verified folder binding to another account during persistence', async () => {
+    const handle = folder('A');
+    mock.values.set('test:local-work-folder-binding:set-c', { handle, folderName: 'A', workId: 'set-c', sourceRevision: 'b'.repeat(64) });
+    mock.onWrite = () => { mock.namespace = 'other'; };
+    await expect(saveCardSetToAttachedFolder('set-c')).rejects.toThrow('account changed');
+    expect([...mock.values.keys()].some((key) => key.startsWith('other:'))).toBe(false);
+    expect(mock.values.has('test:local-work-folder-binding:set-c')).toBe(true);
+  });
+
   it('keeps unscoped historical attachments readable but refuses to overwrite them', async () => {
     const handle = folder('old');
     const drive = { fileId: driveBinding.fileId, name: 'old', providerRevision: '1', projectRevision: driveBinding.projectRevision };
@@ -202,4 +263,33 @@ describe('location failure and detach safety', () => {
     expect(handle.getFileHandle).not.toHaveBeenCalled();
     expect(mock.values.get('test:local-work-folder-binding-index')).toEqual({ damaged: true });
   });
+});
+
+it('does not publish bindings into a newly selected account during a multi-Set open', async () => {
+  mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: {
+    version: 1, cardSets: [{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }], userTemplates: [], storedCards: [], appearanceStyles: [], exportSettings: {}, customAssets: {},
+  } });
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+  } })));
+  mock.onWrite = () => { mock.namespace = 'other-account'; };
+  await expect(openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' })).rejects.toThrow('account changed');
+  expect([...mock.values.keys()].every((key) => key.startsWith('test:'))).toBe(true);
+  expect(mock.apply).not.toHaveBeenCalled();
+});
+it('rejects template-only ordinary Open before materializing or persisting bindings', async () => {
+  mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [] } });
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
+    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+  } })));
+  await expect(openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' })).rejects.toThrow('no Set');
+  expect(mock.values.size).toBe(0);
+  expect(mock.apply).not.toHaveBeenCalled();
+});
+
+it('preserves the prior binding and warns against repeating a null upload receipt', async () => {
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' })).mockResolvedValueOnce(Response.json(null)));
+  await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('do not repeat this upload blindly');
+  expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
 });

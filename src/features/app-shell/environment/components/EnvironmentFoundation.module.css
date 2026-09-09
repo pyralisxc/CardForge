@@ -146,8 +146,32 @@
 
 .contextBand {
   min-width: 0;
-  border-bottom: 1px solid var(--cf-border-subtle);
-  background: color-mix(in srgb, var(--cf-surface-inset) 94%, var(--cf-accent-soft));
+}
+
+.commandBand[data-context="true"] {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.25rem;
+  min-height: 3.25rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.commandBand[data-context="true"] .commandLauncher {
+  display: flex;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+}
+
+.commandBand[data-context="true"] .commandLauncher span,
+.commandBand[data-context="true"] .commandLauncher kbd {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .commandBand[data-context="true"] .contextBand { grid-column: 1 / -1; }
+  .commandBand[data-context="true"] .commandLauncher { grid-column: 2; }
 }
 
 .commandIdentity {

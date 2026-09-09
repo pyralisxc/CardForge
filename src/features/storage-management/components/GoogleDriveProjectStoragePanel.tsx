@@ -1,5 +1,7 @@
 "use client";
 
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -11,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
-import { chooseGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
+import { chooseGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, getGoogleDriveWorkBinding, refreshGoogleDriveProject, copyGoogleDriveProjectToBrowser, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
@@ -204,7 +206,7 @@ export function GoogleDriveProjectStoragePanel({
                 size="sm"
                 disabled={Boolean(busyAction) || !canUseProjectFiles}
                 onClick={() => void run('save-new', async () => {
-                  const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true });
+                  const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
                   toast({ title: 'Project saved to Google Drive', description: `“${saved.name}” is now attached to this browser workspace.` });
                 })}
               >
@@ -220,7 +222,7 @@ export function GoogleDriveProjectStoragePanel({
                   variant="outline"
                   disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
                   onClick={() => void run('update', async () => {
-                    const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name });
+                    const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
                     toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
                   })}
                 >
@@ -271,6 +273,17 @@ export function GoogleDriveProjectStoragePanel({
                       toast({ title: 'Google Drive project opened', description: `Loaded “${opened.name}” into this browser workspace.` });
                       router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
                     })}
+                    onRefreshWorkingCopy={project.localWorkId ? () => void run(`refresh:${project.fileId}`, async () => {
+                      const attached = await getGoogleDriveWorkBinding(project.localWorkId!);
+                      if (!attached || attached.fileId !== project.fileId || attached.accountId !== project.accountId) throw new Error('This document attachment changed. Reload the Library before refreshing.');
+                      await refreshGoogleDriveProject(attached);
+                      toast({ title: 'Working copy refreshed', description: 'The latest Drive revision is ready on your Desk.' });
+                    }) : undefined}
+                    onCopy={() => void run(`copy:${project.fileId}`, async () => {
+                      const copied = await copyGoogleDriveProjectToBrowser(project);
+                      toast({ title: 'Independent copy created', description: 'This new Set has its own identity and does not save over the source Drive file.' });
+                      router.push(copied.workId ? createDeskReturnHref(`set:${copied.workId}`) : '/account');
+                    })}
                     onDelete={() => void run(`delete:${project.fileId}`, async () => {
                       await deleteGoogleDriveProjectFromLibrary(project);
                       toast({ title: 'Google Drive project deleted', description: `Removed “${project.name}” from Google Drive.` });
@@ -293,6 +306,8 @@ function GoogleDriveProjectRow({
   canUseProjectFiles,
   onOpen,
   onDelete,
+  onRefreshWorkingCopy,
+  onCopy,
 }: {
   project: GoogleDriveProjectSummary;
   isAttached: boolean;
@@ -300,6 +315,8 @@ function GoogleDriveProjectRow({
   canUseProjectFiles: boolean;
   onOpen: () => void;
   onDelete: () => void;
+  onRefreshWorkingCopy?: () => void;
+  onCopy: () => void;
 }) {
   const isBusy = busyAction === `open:${project.fileId}` || busyAction === `delete:${project.fileId}`;
   return (
@@ -310,8 +327,10 @@ function GoogleDriveProjectRow({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={onOpen}>
-          {busyAction === `open:${project.fileId}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Open
+          {busyAction === `open:${project.fileId}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {project.localWorkId ? 'Resume on Desk' : 'Open'}
         </Button>
+        {onRefreshWorkingCopy ? <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={onRefreshWorkingCopy}>Refresh working copy</Button> : null}
+        <Button type="button" size="sm" variant="ghost" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={onCopy}>Make independent copy</Button>
         {project.webViewLink ? (
           <Button type="button" size="sm" variant="ghost" asChild>
             <a href={project.webViewLink} target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" /> Drive</a>

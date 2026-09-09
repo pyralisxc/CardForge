@@ -142,10 +142,12 @@ export function useDeskController({
       typeof next === 'function' ? next(current.selection) : next,
     ));
   };
-  const [cardQuery, setCardQuery] = useState('');
+  const cardQuery = interactionSession.lens.query;
+  const setCardQuery = useCallback((value: string) => setInteractionSession((current) => setCreatorLens(current, { ...current.lens, query: value })), [setInteractionSession]);
   const [moveTargetId, setMoveTargetId] = useState('');
   const [tagDraft, setTagDraft] = useState('');
-  const [tagFilter, setTagFilter] = useState('all');
+  const tagFilter = interactionSession.lens.filterIds[0] ?? 'all';
+  const setTagFilter = useCallback((value: string) => setInteractionSession((current) => setCreatorLens(current, { ...current.lens, filterIds: value === 'all' ? [] : [value] })), [setInteractionSession]);
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCards, setPendingDeleteCards] = useState<DisplayCard[]>([]);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
@@ -296,17 +298,11 @@ export function useDeskController({
   useEffect(() => {
     if (!focusedItemId) return;
     setRenameDraft(focusedItemName);
-    setCardQuery('');
-    setTagFilter('all');
-    setLatestGeneratedIds([]);
   }, [focusedItemId, focusedItemName]);
 
   useEffect(() => {
-    setInteractionSession((current) => setCreatorLens(current, {
-      query: cardQuery,
-      filterIds: tagFilter === 'all' ? [] : [tagFilter],
-    }));
-  }, [cardQuery, setInteractionSession, tagFilter]);
+    setLatestGeneratedIds([]);
+  }, [focusedItemId]);
 
   useEffect(() => {
     if (initialToolHandledRef.current || !initialTool) return;
@@ -341,13 +337,11 @@ export function useDeskController({
     restoreFocusedContext({
       focusedWorkId: context.focusedWorkId,
       inspectorWorkId: context.inspectorWorkId && itemById.has(context.inspectorWorkId) ? context.inspectorWorkId : null,
-      session: selectCreatorArtifacts(
+      session: setCreatorLens(selectCreatorArtifacts(
         restoredSetId ? focusCreatorSet(createCreatorInteractionSession(), restoredSetId) : createCreatorInteractionSession(),
         context.selectedCardIds,
-      ),
+      ), { query: context.cardQuery, filterIds: context.tagFilter === 'all' ? [] : [context.tagFilter] }),
     });
-    setCardQuery(context.cardQuery);
-    setTagFilter(context.tagFilter);
     requestAnimationFrame(() => surfaceRef.current?.scrollTo({ top: context.scrollTop }));
   }, [deskViewPreferences, initialReturnContextKey, itemById, restoreFocusedContext]);
 
@@ -399,6 +393,7 @@ export function useDeskController({
     if (item.references.localSetId) setActiveCardSetId(item.references.localSetId);
     setRenaming(false);
     focusWorkContext(item.id, item.references.localSetId ?? null);
+    return { kind: 'navigation' as const, href: createDeskReturnHref(item.id) };
   };
 
   const createWork = (openDesign = false) => {
@@ -412,12 +407,13 @@ export function useDeskController({
   };
 
   const duplicateWork = (item: AccountLibraryItem) => {
-    if (!item.references.localSetId) return;
+    if (!item.references.localSetId) throw new Error('Choose a local Set to duplicate.');
     const duplicateId = duplicateCardSet(item.references.localSetId);
-    if (!duplicateId) return;
+    if (!duplicateId) throw new Error('The Set could not be duplicated.');
     setRenaming(false);
     focusWorkContext(`set:${duplicateId}`, duplicateId);
     toast({ title: 'Work duplicated', description: 'The copied Set and its cards are independently editable.' });
+    return duplicateId;
   };
 
   const openPipelineSubmission = (setId: string) => {
@@ -483,15 +479,15 @@ export function useDeskController({
     return createDeskReturnHref(workId, returnContext);
   };
 
-  const openRemoteWork = (item: AccountLibraryItem) => {
+  const openRemoteWork = async (item: AccountLibraryItem) => {
     if (item.references.campaignId || item.references.pipelineLineageId) {
       // The specialized owner is mounted as a contextual Desk tool. It keeps
       // the focused object and return scene intact instead of routing through
       // Library or inventing a local Set identity.
       setRemoteWorkspaceId(item.id);
-      return;
+      return { kind: 'tool-opened' as const, toolId: item.references.campaignId ? 'campaign' : 'published-work' };
     }
-    void projection.openItem(item, createDeskStudioReturnTo(item.id));
+    return { kind: 'navigation' as const, href: await projection.openItem(item, createDeskStudioReturnTo(item.id)) };
   };
 
   const createPublishedWorkingCopy = useCallback(async (item: AccountLibraryItem) => {
@@ -528,18 +524,17 @@ export function useDeskController({
       },
       duplicateWork,
       deleteWork: setPendingDeleteWork,
-      manageLocation: () => projection.router.push('/account?section=library&tool=locations'),
+      manageLocation: () => {
+        const href = '/account?section=library&tool=locations';
+        projection.router.push(href);
+        return { kind: 'navigation', href };
+      },
     },
-    navigationHref: (actionId, item) => actionId === 'desk.manage-location'
-      ? '/account?section=library&tool=locations'
-      : actionId === 'desk.export-set' && item
-        ? `/account?focus=${encodeURIComponent(item.id)}&tool=output`
-        : item ? createDeskStudioReturnTo(item.id) : '/account',
   });
 
   const openWorkLane = (item: AccountLibraryItem, lane: 'open' | 'generate' | 'export', generationCard?: DisplayCard) => {
     if (!item.references.localSetId) {
-      if (lane === 'open') openRemoteWork(item);
+      if (lane === 'open') void openRemoteWork(item).catch((error: unknown) => toast({ title: 'Work could not be opened', description: error instanceof Error ? error.message : 'The source is unavailable.', variant: 'destructive' }));
       else setLocationItem(item);
       return;
     }

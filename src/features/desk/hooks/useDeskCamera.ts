@@ -76,8 +76,11 @@ export function useDeskCamera({
   }, [viewportRef, hasItems, focused]);
 
   useLayoutEffect(() => {
-    if (focused) return;
-    viewportRef.current?.scrollTo({ left: scrollRef.current.left, top: scrollRef.current.top });
+    // The focused Set owns its own camera. Retained off-camera Desk objects
+    // can keep this outer scroll range alive, so explicitly leave that camera.
+    viewportRef.current?.scrollTo(focused
+      ? { left: 0, top: 0 }
+      : { left: scrollRef.current.left, top: scrollRef.current.top });
   }, [focused, viewportRef]);
 
   const geometry = useMemo(() => getDeskCameraGeometry(viewport, zoom), [viewport, zoom]);

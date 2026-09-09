@@ -22,7 +22,7 @@ const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToo
     }
   }
   const initialTemplateId = staleToolTemplate ? staleTemplate.id : fixture.userTemplates[0]?.id ?? null;
-  const storedCards = fixture.storedCards.map((card, index) => ({
+  const storedCards: typeof fixture.storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
     ...(staleToolTemplate ? { backingTemplateId: backingTemplate.id } : {}),
     data: {
@@ -90,11 +90,22 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean; templateContent?: boolean } = {}) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean; templateContent?: boolean; cardLimit?: number; exportSample?: boolean } = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
   const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates, options.templateContent);
+  if (options.cardLimit !== undefined) state.storedCards = state.storedCards.slice(0, options.cardLimit);
+  if (options.exportSample) {
+    for (const template of state.userTemplates) {
+      template.freeformCanvas!.elements.push({
+        id: `${template.id}-title`, name: 'Card title', type: 'text',
+        x: 25, y: 550, width: 580, height: 100, zIndex: 2,
+        content: '{{cardName}}', fontSizePx: 40, textColor: '#234567',
+      });
+    }
+    state.storedCards = state.storedCards.map((card) => ({ ...card, backingData: { ...card.data, cardName: `Back · ${card.data.cardName}` } }));
+  }
   await page.evaluate(async ({ databaseName, objectStoreName, scopes, stateValue }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(databaseName, 1);

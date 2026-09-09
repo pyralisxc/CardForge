@@ -10,3 +10,5 @@ export {
   createPublicShareSettings,
   type PublicShareSettings,
 } from './model/publicShareSettings';
+
+export { createGoogleDriveProjectThumbnail } from './lib/googleDriveProjectThumbnail';

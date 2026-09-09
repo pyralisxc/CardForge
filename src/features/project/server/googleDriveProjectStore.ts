@@ -53,13 +53,15 @@ export class ProjectStorageProviderError extends Error {
   status: number;
   kind?: BoundaryFailureKind;
   nextAction?: string;
+  retryable?: boolean;
 
-  constructor(message: string, status = 500, options: { kind?: BoundaryFailureKind; nextAction?: string } = {}) {
+  constructor(message: string, status = 500, options: { kind?: BoundaryFailureKind; nextAction?: string; retryable?: boolean } = {}) {
     super(message);
     this.name = 'ProjectStorageProviderError';
     this.status = status;
     this.kind = options.kind;
     this.nextAction = options.nextAction;
+    this.retryable = options.retryable;
   }
 }
 
@@ -488,7 +490,8 @@ export const listGoogleDriveProjectsPage = async ({
   const projects = (payload.files ?? [])
     .filter((file) => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] === GOOGLE_DRIVE_PROJECT_VALUE)
     .map(toProjectSummary)
-    .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary));
+    .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary))
+    .map((summary) => ({ ...summary, accountId: row.external_account_id }));
   return {
     connection: toConnectionSummary(row, true),
     projects,
@@ -560,10 +563,47 @@ export const getGoogleDriveProject = async ({
     throw new ProjectStorageProviderError('The Google Drive project metadata does not match the project package revision.', 409, { kind: 'conflict' });
   }
   return {
-    summary: { ...summary, projectRevision: snapshot.manifest.projectRevision },
+    summary: { ...summary, accountId: row.external_account_id, projectRevision: snapshot.manifest.projectRevision },
     bytes,
     document: hydrateCardForgeProjectSnapshot(snapshot),
   };
+};
+
+/** Private disposable preview; never downloads/imports the editable package. */
+export const getGoogleDriveProjectThumbnail = async ({ ownerUserId, fileId }: { ownerUserId: string; fileId: string }) => {
+  const { row, accessToken } = await requireConnection(ownerUserId);
+  const file = await getDriveFileMetadata({ accessToken, fileId });
+  assertOwnedCardForgeProject(file, row.root_folder_id);
+  if (!file.thumbnailLink) throw new ProjectStorageProviderError('This Drive document has no preview yet.', 404, { kind: 'not_found' });
+  const url = new URL(file.thumbnailLink);
+  if (url.protocol !== 'https:' || url.username || url.password || url.port
+    || !(url.hostname === 'drive.google.com' || url.hostname.endsWith('.googleusercontent.com'))) {
+    throw new ProjectStorageProviderError('Drive returned an unsupported preview location.', 503, { kind: 'unavailable' });
+  }
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw await parseGoogleError(response, 'The Drive preview is unavailable. The document can still be opened.');
+  const mimeType = response.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType) || !response.body) {
+    throw new ProjectStorageProviderError('Drive returned an unreadable preview image.', 503, { kind: 'unavailable' });
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 2 * 1024 * 1024) {
+        await reader.cancel();
+        throw new ProjectStorageProviderError('The Drive preview exceeds the safe image limit.', 413, { kind: 'limit' });
+      }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  return { bytes: Buffer.concat(chunks), mimeType };
 };
 
 export const prepareGoogleDriveProjectUpload = async ({
@@ -574,7 +614,9 @@ export const prepareGoogleDriveProjectUpload = async ({
   fileId = null,
   expectedProviderRevision = null,
   expectedProjectRevision = null,
+  expectedAccountId = null,
   workId = null,
+  thumbnail = null,
 }: {
   ownerUserId: string;
   name: string;
@@ -583,7 +625,9 @@ export const prepareGoogleDriveProjectUpload = async ({
   fileId?: string | null;
   expectedProviderRevision?: string | null;
   expectedProjectRevision?: string | null;
+  expectedAccountId?: string | null;
   workId?: string | null;
+  thumbnail?: string | null;
 }): Promise<GoogleDriveUploadPrepareResult> => {
   if (!Number.isInteger(size) || size <= 0 || size > MAX_ENCODED_PROJECT_BYTES) {
     throw new ProjectStorageProviderError('The CardForge project is empty or exceeds the safe portable-project size limit.', 413, { kind: 'limit' });
@@ -591,7 +635,14 @@ export const prepareGoogleDriveProjectUpload = async ({
   if (!isProjectPackageAssetId(projectRevision)) {
     throw new ProjectStorageProviderError('The CardForge project revision is invalid.', 400, { kind: 'invalid' });
   }
+  if (thumbnail && (!/^[A-Za-z0-9_-]+$/.test(thumbnail) || thumbnail.length > 2_796_203
+    || !Buffer.from(thumbnail, 'base64url').subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))) {
+    throw new ProjectStorageProviderError('The Drive preview must be a PNG no larger than 2 MB.', 400, { kind: 'invalid' });
+  }
   const { row, accessToken } = await requireConnection(ownerUserId);
+  if (expectedAccountId && row.external_account_id !== expectedAccountId) {
+    throw new ProjectStorageProviderError('The connected Google account changed. Reconnect the document’s account before saving; the Drive file was left unchanged.', 409, { kind: 'conflict' });
+  }
   const normalizedName = normalizeDriveProjectName(name);
   const requestedWorkId = workId?.trim() ?? '';
   if (requestedWorkId && !isGoogleDriveWorkId(requestedWorkId)) {
@@ -646,6 +697,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     };
   }
   requestUrl.searchParams.set('uploadType', 'resumable');
+  if (thumbnail) metadata.contentHints = { thumbnail: { mimeType: 'image/png', image: thumbnail } };
   requestUrl.searchParams.set('fields', GOOGLE_DRIVE_PROJECT_FIELDS);
   const response = await fetch(requestUrl, {
     method,
@@ -666,6 +718,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   }
   return {
     uploadSessionUrl,
+    accountId: row.external_account_id,
     provider: GOOGLE_DRIVE_PROJECT_PROVIDER,
     fileId,
     name: normalizedName,
@@ -674,6 +727,12 @@ export const prepareGoogleDriveProjectUpload = async ({
   };
 };
 
+const unknownDriveCommit = () => new ProjectStorageProviderError(
+  'Google Drive may have saved this revision, but CardForge did not receive a usable commit receipt.',
+  503,
+  { kind: 'unavailable', retryable: false, nextAction: 'Do not repeat commit_project. Read the connected file’s current revision and compare it with this working document before another reviewed commit.' },
+);
+
 const completeServerUpload = async ({
   uploadSessionUrl,
   blob,
@@ -681,7 +740,8 @@ const completeServerUpload = async ({
   uploadSessionUrl: string;
   blob: Blob;
 }): Promise<GoogleDriveUploadCompletion> => {
-  const response = await fetch(uploadSessionUrl, {
+  let response: Response;
+  try { response = await fetch(uploadSessionUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
@@ -689,11 +749,13 @@ const completeServerUpload = async ({
     },
     body: blob,
     cache: 'no-store',
-  });
+  }); } catch { throw unknownDriveCommit(); }
+  if (response.status >= 500) throw unknownDriveCommit();
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
-  const result = await response.json() as GoogleDriveUploadCompletion;
-  if (!isGoogleDriveFileId(result.id) || !isGoogleDriveProviderRevision(result.version)) {
-    throw new ProjectStorageProviderError('Google Drive finished the upload without usable revision metadata.', 503, { kind: 'unavailable' });
+  let result: GoogleDriveUploadCompletion;
+  try { result = await response.json() as GoogleDriveUploadCompletion; } catch { throw unknownDriveCommit(); }
+  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || !isGoogleDriveProviderRevision(result.version)) {
+    throw unknownDriveCommit();
   }
   return result;
 };
@@ -739,7 +801,7 @@ export const updateGoogleDriveProjectFromServer = async ({
       ...(plan.workId ? { [GOOGLE_DRIVE_WORK_ID_PROPERTY]: plan.workId } : {}),
     },
   });
-  if (!summary) throw new ProjectStorageProviderError('Google Drive returned invalid project metadata after saving.', 503, { kind: 'unavailable' });
+  if (!summary) throw unknownDriveCommit();
   return { ...summary, projectRevision };
 };
 

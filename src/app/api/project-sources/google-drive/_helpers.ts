@@ -44,6 +44,7 @@ export const toGoogleDriveProjectErrorResponse = (error: unknown, fallback: stri
     return createApiErrorResponse(error.status, code, error.message, {
       kind: error.kind,
       nextAction: error.nextAction,
+      retryable: error.retryable,
     });
   }
   console.error(fallback, error);

@@ -80,6 +80,9 @@ export const canMoveWork = ({
   destination: WorkLocationId;
   capabilities: readonly WorkLocationCapability[];
 }): boolean => {
+  // Drive v3 source deletion has no proven atomic revision condition here.
+  // Keep the remote original; an explicit provider delete is a separate decision.
+  if (source === 'google-drive') return false;
   const sourceCapability = capabilities.find((capability) => capability.id === source);
   return canTransferWork({ source, destination, capabilities }) && Boolean(sourceCapability?.remove);
 };

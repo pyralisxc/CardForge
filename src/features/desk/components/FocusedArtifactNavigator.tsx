@@ -1,8 +1,10 @@
 "use client";
 
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Focus } from 'lucide-react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { ArtifactPosition } from '@/domain/artifacts';
 import type { CardSetOrganization } from '@/domain/cards';
 
@@ -40,9 +42,12 @@ export function FocusedArtifactNavigator({
   onSetNavigatorFocus,
   onToggleArtifact,
 }: FocusedArtifactNavigatorProps) {
+  const [open, setOpen] = useState(false);
   const activeEntry = entries.find((entry) => entry.identity.artifactId === navigatorFocusId) ?? null;
-  return <details className={styles.orderedNavigator} hidden={hidden}>
-    <summary>Ordered Artifact navigator · {entries.length}</summary>
+  return <Popover open={open && !hidden} onOpenChange={(nextOpen) => { if (!hidden) setOpen(nextOpen); }}>
+    <PopoverTrigger asChild><Button type="button" size="sm" variant="outline" hidden={hidden} aria-label={`Ordered Artifact navigator · ${entries.length}`}>Cards · {entries.length}</Button></PopoverTrigger>
+    {!hidden ? <PopoverContent className={styles.orderedNavigator} align="end" onCloseAutoFocus={(event) => { if (hidden) event.preventDefault(); }}>
+    <strong>Cards in {setName}</strong>
     <p>Use Arrow keys to move through the complete Set. Press Space to select and Enter to focus the Artifact on the board.</p>
     <div className={styles.orderedNavigatorControls}>
       <Button type="button" size="sm" variant="outline" disabled={!activeEntry} onClick={() => activeEntry && onFocusArtifact(activeEntry.identity.artifactId)}><Focus className="mr-1.5 h-4 w-4" />Focus on board</Button>
@@ -85,5 +90,6 @@ export function FocusedArtifactNavigator({
         })}
       </div>)}
     </div>
-  </details>;
+    </PopoverContent> : null}
+  </Popover>;
 }

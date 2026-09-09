@@ -10,6 +10,7 @@ import {
   getLocalProjectFolderStatus,
   getLocalProjectWorkBinding,
 } from '../client/localProjectFolder';
+import type { ProjectDocumentV1 } from '../model/projectDocument';
 import type { WorkLocationId } from '../model/workLocations';
 import { ProjectWorkLocationDialog } from './ProjectWorkLocationDialog';
 
@@ -26,6 +27,7 @@ export function StudioSaveMoveDialog({
   canUseProjectFiles,
   setId,
   setName,
+  renderThumbnail,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +35,7 @@ export function StudioSaveMoveDialog({
   canUseProjectFiles: boolean;
   setId: string;
   setName: string;
+  renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }) {
   const [locationState, setLocationState] = useState<StudioLocationState>({
     driveConnected: false,
@@ -66,6 +69,7 @@ export function StudioSaveMoveDialog({
 
   return (
     <ProjectWorkLocationDialog
+      renderThumbnail={renderThumbnail}
       target={{ name: setName, locations: locationState.locations, localSetId: setId }}
       open={open}
       onOpenChange={onOpenChange}

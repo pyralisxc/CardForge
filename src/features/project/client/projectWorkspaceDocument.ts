@@ -3,6 +3,7 @@
 import type { CardAssetOption } from '@/domain/templates';
 
 import {
+  CUSTOM_FONT_ASSETS_STORAGE_KEY,
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
@@ -16,13 +17,15 @@ import {
 } from '../model/projectDocument';
 import {
   getProjectAssetStorage,
-  mergeProjectAssetListToStorage,
   readTypedProjectAssetListFromStorage,
-  writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
-import { readProjectFonts, writeProjectFonts } from '../persistence/projectFonts';
+import { readProjectFonts } from '../persistence/projectFonts';
+import { normalizeProjectFontAssets, MAX_PROJECT_FONTS, PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '../model/projectFont';
+import { createBrowserKeyValueStorage } from '../persistence/indexedDbStorage';
+import { getProjectPersistenceScope, getScopedProjectStorageNamespace } from '../persistence/projectPersistenceScope';
+import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddressedBrowserAssets';
 import { selectAllTemplates } from '../store/selectors';
-import { persistProjectWorkspaceNow, useProjectStore } from '../store/workspaceStore';
+import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
 
 export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy';
 
@@ -34,6 +37,7 @@ export interface ProjectWorkspaceApplySummary {
 }
 
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
+  const scope = getProjectPersistenceScope();
   const state = useProjectStore.getState();
   const referencedTemplateIds = new Set([
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
@@ -49,6 +53,9 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
     readProjectFonts(),
   ]);
+  if (getProjectPersistenceScope() !== scope || useProjectStore.getState() !== state) {
+    throw new Error('The workspace or account changed while the editable snapshot was being prepared. Retry from the current workspace.');
+  }
 
   return createProjectDocumentFromState({
     userTemplates: portableTemplates,
@@ -82,34 +89,53 @@ export const captureCardProjectDocument = async (cardId: string): Promise<Projec
 export const applyProjectDocumentToWorkspace = async (
   document: ProjectDocumentV1,
   mode: ProjectWorkspaceApplyMode,
+  options: { expectedState?: ProjectState; replaceSetIds?: readonly string[] } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
+  const draft = createProjectWorkspaceDraft(options.expectedState);
   const sourceDocument = mode === 'copy'
     ? instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`)
     : document;
   const writeMode = mode === 'copy' ? 'merge' : mode;
   const patch = applyProjectDocumentToState(sourceDocument);
-  const assetStorage = getProjectAssetStorage();
-  const writeAssets = writeMode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
-  const nextFonts = writeMode === 'merge'
-    ? [
-        ...await readProjectFonts(),
-        ...patch.customFonts,
-      ].filter((font, index, fonts) => fonts.findIndex((candidate) => candidate.id === font.id) === index)
-    : patch.customFonts;
-  await Promise.all([
-    writeAssets(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-    writeAssets(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-    writeAssets(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-    writeAssets(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
-    writeProjectFonts(nextFonts),
-  ]);
+  const scope = getProjectPersistenceScope();
+  const assetNamespace = getScopedProjectStorageNamespace('project-assets', scope);
+  const storage = createBrowserKeyValueStorage(assetNamespace);
+  const incomingCatalogs: Record<string, unknown[]> = { ...patch.customAssets, [CUSTOM_FONT_ASSETS_STORAGE_KEY]: patch.customFonts };
+  const relatedWrites = await Promise.all(Object.entries(incomingCatalogs).map(async ([key, incoming]) => {
+    const expectedValue = await storage.getItem(key);
+    // Explicit whole-workspace recovery can replace an unreadable catalog; the
+    // native transaction preserves its exact original bytes in the recovery map.
+    const current: unknown = writeMode === 'replace' || expectedValue === null ? [] : JSON.parse(expectedValue);
+    if (!Array.isArray(current)) throw new Error('The local artwork catalog is unreadable. It was left unchanged.');
+    const entries = writeMode === 'merge' ? [...current, ...incoming] : incoming;
+    const byId = new Map<string, unknown>();
+    entries.forEach((entry, index) => {
+      const id = entry && typeof entry === 'object' && 'id' in entry && typeof entry.id === 'string' ? entry.id : `__asset_${index}`;
+      byId.set(id, entry);
+    });
+    let values = [...byId.values()];
+    if (key === CUSTOM_FONT_ASSETS_STORAGE_KEY) {
+      values = normalizeProjectFontAssets(values);
+      if (values.length > MAX_PROJECT_FONTS) throw new Error(`A CardForge project can use at most ${MAX_PROJECT_FONTS} personal fonts.`);
+    }
+    const externalized = await externalizeBrowserProjectAssetJson(JSON.stringify(values), scope);
+    return { key: `${assetNamespace}:${key}`, value: externalized.storedValue, expectedValue };
+  }));
+  if (options.replaceSetIds?.length) {
+    const replacing = new Set(options.replaceSetIds);
+    draft.setState((current) => ({
+      cardSets: current.cardSets.filter((set) => !replacing.has(set.id)),
+      storedCards: current.storedCards.filter((card) => !card.setId || !replacing.has(card.setId)),
+      activeCardSet: current.activeCardSet && replacing.has(current.activeCardSet.id) ? null : current.activeCardSet,
+    }));
+  }
 
-  const state = useProjectStore.getState();
+  const state = draft.getState();
   const importedTemplateCount = writeMode === 'merge'
     ? state.mergeUserTemplatesFromFiles(patch.userTemplates)
     : state.setUserTemplatesFromFiles(patch.userTemplates);
 
-  const afterTemplates = useProjectStore.getState();
+  const afterTemplates = draft.getState();
   if (writeMode === 'merge') {
     afterTemplates.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
     afterTemplates.setAppearanceStylesFromFiles(patch.appearanceStyles);
@@ -118,7 +144,7 @@ export const applyProjectDocumentToWorkspace = async (
     afterTemplates.replaceAppearanceStylesFromFiles(patch.appearanceStyles);
   }
 
-  const afterSets = useProjectStore.getState();
+  const afterSets = draft.getState();
   if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
   afterSets.setPdfOptions({
     margin: patch.pdfMarginMm,
@@ -130,16 +156,17 @@ export const applyProjectDocumentToWorkspace = async (
   if (patch.exportDpi) afterSets.setExportDpi(patch.exportDpi);
 
   const cardResult = writeMode === 'merge'
-    ? useProjectStore.getState().mergeStoredCardsFromFile(patch.storedCards)
-    : useProjectStore.getState().setStoredCardsFromFile(patch.storedCards);
-  const activeSet = useProjectStore.getState().activeCardSet;
+    ? draft.getState().mergeStoredCardsFromFile(patch.storedCards)
+    : draft.getState().setStoredCardsFromFile(patch.storedCards);
+  const activeSet = draft.getState().activeCardSet;
   const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId ?? null;
   if (activeTemplateId) {
-    useProjectStore.getState().setGeneratorSelectedTemplateId(activeTemplateId);
-    useProjectStore.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
+    draft.getState().setGeneratorSelectedTemplateId(activeTemplateId);
+    draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);
   }
 
-  await persistProjectWorkspaceNow();
+  await draft.commit(relatedWrites);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_FONT_LIBRARY_CHANGE_EVENT));
   return {
     activeSetId: activeSet?.id ?? null,
     importedTemplateCount,

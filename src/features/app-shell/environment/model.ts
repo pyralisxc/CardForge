@@ -107,7 +107,7 @@ export interface ActionDescriptor {
   availability: ActionAvailability;
   commitment: ActionCommitment;
   automation: ActionAutomation;
-  result: 'navigation' | 'preview' | 'mutation' | 'provider-handoff' | 'download';
+  result: 'navigation' | 'preview' | 'mutation' | 'provider-handoff' | 'download' | 'tool-opened' | 'refresh-requested';
 }
 
 export const isActionAvailable = (action: ActionDescriptor): boolean => action.availability.kind === 'available';

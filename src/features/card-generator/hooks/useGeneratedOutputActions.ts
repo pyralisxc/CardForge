@@ -49,7 +49,7 @@ export function useGeneratedOutputActions({
   const handleSaveEditedCard = useCallback((updatedCard: DisplayCard) => {
     updateGeneratedCard(updatedCard);
     closeEditDialog();
-    toast({ title: 'Card updated', description: 'Changes saved.' });
+    toast({ title: 'Card updated', description: 'Your changes are applied to this Set.' });
   }, [closeEditDialog, toast, updateGeneratedCard]);
 
   const handleRemoveCard = useCallback((cardToRemove: DisplayCard) => {

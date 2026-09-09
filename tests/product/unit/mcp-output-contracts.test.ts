@@ -106,7 +106,18 @@ describe('MCP structured output contracts', () => {
         nextActions: [{ action: 'preview_card_set', reason: 'Review first.' }],
       }],
       [commitProjectOutputSchema, {
+        status: 'committed',
+        linkageFailure: null,
         source: { ...project, providerRevision: '8' },
+        documentId: 'a7e209ae-ea44-43ae-a2cb-718a972beef4',
+        documentRevision: 2,
+        previousProviderRevision: '7',
+        previousProjectRevision: 'a'.repeat(64),
+      }],
+      [commitProjectOutputSchema, {
+        status: 'source_committed_linkage_refresh_required',
+        linkageFailure: { kind: 'conflict', status: 409, retryable: false, nextAction: 'Do not repeat commit_project. Read the current source and preserve working edits.' },
+        source: { ...project, providerRevision: '8', projectRevision: 'b'.repeat(64) },
         documentId: 'a7e209ae-ea44-43ae-a2cb-718a972beef4',
         documentRevision: 2,
         previousProviderRevision: '7',

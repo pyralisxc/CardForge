@@ -28,6 +28,7 @@ export async function GET(
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(project.summary.name)}`,
         'Cache-Control': 'private, no-store',
         'X-CardForge-Provider-Revision': project.summary.providerRevision,
+        'X-CardForge-Provider-Account': project.summary.accountId ?? '',
         'X-CardForge-Project-Revision': project.summary.projectRevision ?? '',
         'X-CardForge-Project-Modified-At': project.summary.modifiedAt,
       },

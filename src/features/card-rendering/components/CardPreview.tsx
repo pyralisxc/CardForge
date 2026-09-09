@@ -318,9 +318,6 @@ export function CardPreview({
                   display: 'block',
                 }}
                 data-ai-hint={dataAiHintKeywords}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = `https://placehold.co/${Math.max(80, Math.round(renderElement.width || 300))}x${Math.max(80, Math.round(renderElement.height || 200))}.png?text=${encodeURIComponent(descriptiveArtworkText || 'Image')}`;
-                }}
               />
             </ProjectBinaryFrame>
           );

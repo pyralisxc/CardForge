@@ -17,6 +17,9 @@ export interface GoogleDriveProjectConnectionSummary {
 }
 
 export interface GoogleDriveProjectSummary {
+  accountId?: string;
+  /** Browser projection only: exact provider binding, never portable workId. */
+  localWorkId?: string;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   fileId: string;
   name: string;
@@ -50,6 +53,7 @@ export interface GoogleDriveFolderSelection {
 }
 
 export interface GoogleDriveUploadPrepareResult {
+  accountId?: string;
   uploadSessionUrl: string;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   fileId: string | null;

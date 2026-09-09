@@ -12,7 +12,6 @@ export {
   getConstrainedImageSize,
   MAX_LOCAL_ASSET_DIMENSION,
   optimizeLocalAssetFile,
-  quarantineBrowserStorageValue,
   subscribeToBrowserWorkspaceSaveStatus,
   validateLocalAssetFile,
 } from '../persistence/indexedDbStorage';

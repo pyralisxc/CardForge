@@ -166,21 +166,20 @@ describe('Studio account-scoped persistence', () => {
     await rawStorage.setItem('workspace', '{ definitely-not-json');
 
     const scopedStorage = createScopedProjectStorage('project-workspace');
-    await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
+    await expect(scopedStorage.getItem('workspace')).rejects.toThrow('unreadable');
+    await expect(rawStorage.getItem('workspace')).resolves.toBe('{ definitely-not-json');
     await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe('{ definitely-not-json');
   });
 
-  it('quarantines pathological workspace payloads before Zustand parses them', async () => {
+  it('round-trips valid workspace JSON beyond the former read-only ceiling', async () => {
     setProjectPersistenceScope('account:user-large');
     const namespace = getScopedProjectStorageNamespace('project-workspace');
     const rawStorage = createIndexedDbStorage(namespace);
-    const oversized = JSON.stringify({ data: 'x'.repeat(8 * 1024 * 1024) });
-    await rawStorage.setItem('workspace', oversized);
+    const oversized = JSON.stringify({ state: { data: 'x'.repeat(8 * 1024 * 1024) }, version: 4 });
+    await createScopedProjectStorage('project-workspace').setItem('workspace', oversized);
 
     const scopedStorage = createScopedProjectStorage('project-workspace');
-    await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe(oversized);
+    expect((await scopedStorage.getItem('workspace')) === oversized).toBe(true);
+    await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBeNull();
   });
 });

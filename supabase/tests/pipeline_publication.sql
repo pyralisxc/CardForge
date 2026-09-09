@@ -1,5 +1,8 @@
--- Run inside a transaction after applying the candidate migration; roll back
--- afterward. Uses temporary fixture identities with the native lineage triggers.
+-- Run against staging after applying the candidate migrations. Every fixture
+-- is rolled back; no existing publication or contributor data is modified.
+begin;
+set local lock_timeout = '5s';
+set local statement_timeout = '30s';
 do $$
 declare
   kind text;
@@ -10,8 +13,7 @@ declare
   author_id text;
   old_pointer uuid;
 begin
-  select contributor_id into author_id from public.cardforge_contributor_asset_submissions limit 1;
-  if author_id is null then raise exception 'Publication test requires a seeded contributor'; end if;
+  author_id := 'publication-proof-' || gen_random_uuid()::text;
   foreach kind in array array['templates','elementPresets','textures','dividers','icons','imageAssets','fonts','sets'] loop
     first_id := gen_random_uuid();
     second_id := gen_random_uuid();
@@ -57,6 +59,43 @@ begin
     if not exists(select 1 from public.cardforge_asset_registry where asset_id=registry_id and status='archived' and access_tier='hidden') then
       raise exception '% current publication could not be retired', kind;
     end if;
+    if not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=first_id and source_url='https://example.invalid/test' and revision_number=1)
+      or not exists(select 1 from public.cardforge_contributor_asset_submissions
+      where id=second_id and source_url='https://example.invalid/revision' and revision_number=2) then
+      raise exception '% retirement changed or deleted immutable revision sources', kind;
+    end if;
   end loop;
 end;
 $$;
+
+do $$
+begin
+  execute 'set local role anon';
+  begin
+    perform public.cardforge_sync_contributor_asset_registry(gen_random_uuid());
+    raise exception 'Anonymous publication unexpectedly accepted';
+  exception when insufficient_privilege then null;
+  end;
+  execute 'reset role';
+  execute 'set local role authenticated';
+  begin
+    perform public.cardforge_sync_contributor_asset_registry(gen_random_uuid());
+    raise exception 'Authenticated direct publication unexpectedly accepted';
+  exception when insufficient_privilege then null;
+  end;
+  execute 'reset role';
+end;
+$$;
+
+rollback;
+
+-- Concurrency acceptance needs TWO independent staging database connections.
+-- Session A: BEGIN; SELECT pg_advisory_xact_lock(hashtextextended(
+--   'hardening-publication-lock-proof',0));
+-- Session B: in a rolled-back transaction create a fixture submission with
+-- target_registry_asset_id='hardening-publication-lock-proof' and call the
+-- native publication function. It must raise SQLSTATE 55P03 without moving
+-- the active registry pointer. Then ROLLBACK both sessions.
+-- Check pg_locks in B first to prove A still holds the competing lock. A tool
+-- transport that serializes execute_sql requests cannot certify concurrency.

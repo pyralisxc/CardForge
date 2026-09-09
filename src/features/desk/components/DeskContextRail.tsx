@@ -2,9 +2,6 @@
 
 import {
   ArrowLeft,
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
   ChevronRight,
   Copy,
   Home,
@@ -125,12 +122,12 @@ export function DeskContextRail(props: DeskContextRailProps) {
         {props.depth === 'desk' ? <>
           <span className={styles.contextStatus}>{props.selectedDeskCount ? `${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected` : `${props.openWorkCount} open Set${props.openWorkCount === 1 ? '' : 's'}`}</span>
           {props.selectedDeskCount ? <Button type="button" size="sm" onClick={props.onOpenSelectedSet}>Open</Button> : null}
-          {props.selectedDeskCount ? <span className={styles.contextNudge} role="group" aria-label="Move selected Sets">
-            <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets left" onClick={() => props.onNudgeDeskSelection({ x: -24, y: 0 })}><ArrowLeft aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets up" onClick={() => props.onNudgeDeskSelection({ x: 0, y: -24 })}><ArrowUp aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets down" onClick={() => props.onNudgeDeskSelection({ x: 0, y: 24 })}><ArrowDown aria-hidden="true" /></Button>
-            <Button type="button" size="icon" variant="ghost" aria-label="Move selected Sets right" onClick={() => props.onNudgeDeskSelection({ x: 24, y: 0 })}><ArrowRight aria-hidden="true" /></Button>
-          </span> : null}
+          {props.selectedDeskCount ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost">Position</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => props.onNudgeDeskSelection({ x: -24, y: 0 })}>Move selected Sets left</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => props.onNudgeDeskSelection({ x: 0, y: -24 })}>Move selected Sets up</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => props.onNudgeDeskSelection({ x: 0, y: 24 })}>Move selected Sets down</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => props.onNudgeDeskSelection({ x: 24, y: 0 })}>Move selected Sets right</DropdownMenuItem>
+          </DropdownMenuContent></DropdownMenu> : null}
           <Button type="button" size="icon" variant="ghost" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
           <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
           <Button type="button" size="icon" variant="ghost" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>

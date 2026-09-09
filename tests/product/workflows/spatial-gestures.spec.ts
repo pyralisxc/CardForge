@@ -111,10 +111,10 @@ test('@golden desktop uses the full viewport and zoom leaves card positions stab
   await expect(card.locator('..')).toHaveAttribute('style', position!);
   await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('desktop-set.png') });
-  await page.locator('summary').filter({ hasText: /^Organize/ }).click();
+  await page.getByRole('button', { name: /^Organize/ }).click();
   await page.getByRole('combobox', { name: 'Arrange cards' }).click();
   await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
-  await page.locator('summary').filter({ hasText: /^Organize/ }).click();
+  await page.getByRole('button', { name: /^Organize/ }).click();
   await expect(stage).toHaveAttribute('data-arrangement', 'grid');
   await page.getByRole('button', { name: 'Reset view', exact: true }).click();
   await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(0);
