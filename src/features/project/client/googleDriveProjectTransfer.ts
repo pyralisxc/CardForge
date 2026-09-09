@@ -308,7 +308,9 @@ export const saveCardSetToGoogleDrive = async ({
   if (existing?.packageScope === 'workspace') {
     throw new ProjectPackageError('This Set came from a multi-Set workspace file. Use Save as new to create its own Drive document; the workspace file was left unchanged.');
   }
-  const identities = existing?.identities ? structuredClone(existing.identities) : undefined;
+  // A first save keeps the existing local IDs as portable IDs. Record that
+  // identity map while encoding so the saved document can refresh in place.
+  const identities = structuredClone(existing?.identities ?? {});
   const { document, snapshot, blob, localProjectRevision } = await createProjectPackage(name, setId, identities);
   const thumbnail = await renderThumbnail?.(document) ?? null;
   assertBindingScope(namespace);
