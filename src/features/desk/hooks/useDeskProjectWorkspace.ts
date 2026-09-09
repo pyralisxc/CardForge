@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
-import { useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
 import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectState } from '@/features/project/client/workspace';
 
 import { getArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -65,11 +64,6 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const templates = useMemo(() => selectAllTemplates({ defaultTemplates, userTemplates } as ProjectState), [defaultTemplates, userTemplates]);
 
   const focusedSet = options.focusedSetId ? cardSets.find((set) => set.id === options.focusedSetId) ?? null : null;
-  const driveWorkingSession = useGoogleDriveWorkingSession({
-    setId: focusedSet?.id ?? null,
-    name: focusedSet?.name ?? 'CardForge Set',
-    enabled: Boolean(focusedSet),
-  });
   const generationSet = options.generationSetId ? cardSets.find((set) => set.id === options.generationSetId) ?? null : null;
   const storedOrganization = focusedSet?.organization ?? DEFAULT_FOCUSED_ORGANIZATION;
   const focusedCards = options.focusedSetId
@@ -145,7 +139,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
     state: {
       activeCardSet, activeCardSetId, allArtifactsSelected: focusedCards.length > 0 && focusedCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),
       allVisibleCardsSelected: visibleCards.length > 0 && visibleCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),
-      availableFields, reflectiveGroupings: reflectiveOrganization.groupings, cardSets, displayCards, driveWorkingSession,
+      availableFields, reflectiveGroupings: reflectiveOrganization.groupings, cardSets, displayCards,
       effectiveMoveTargetId: otherSets.some((set) => set.id === options.moveTargetId) ? options.moveTargetId : otherSets[0]?.id ?? '',
       focusedCards, generationCards, generationSet, generatorSelectedBackingTemplateId, generatorSelectedTemplateId,
       organization, organizedGroups: [...groups.entries()], otherSets, richTextHighlightColor,
