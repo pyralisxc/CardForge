@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+const headToken = (version: string) => 'head:' + createHash('sha256').update('native-' + version).digest('hex');
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
@@ -84,7 +86,7 @@ describe('one authoritative Set location across save entry points', () => {
   it('makes intentional copies independent of their source save target', async () => {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [{ id: 'original' }] } });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
-      'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a',
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a',
     } })));
     await copyGoogleDriveProjectToBrowser({ fileId: driveBinding.fileId, name: 'C' });
     expect(mock.apply).toHaveBeenCalledWith({ cardSets: [{ id: 'original' }] }, 'copy', { expectedState: expect.any(Object) });
@@ -95,7 +97,7 @@ describe('one authoritative Set location across save entry points', () => {
     const document = { cardSets: Array.from({ length: count }, (_, index) => ({ id: `old-${index}` })), userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} };
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
-      'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+      'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64),
       'X-CardForge-Provider-Account': 'google-account-1',
     } })));
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
@@ -116,7 +118,7 @@ describe('one authoritative Set location across save entry points', () => {
         prepare.push(JSON.parse(options.body as string));
         return Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' });
       }
-      return Response.json({ id: driveBinding.fileId, version: String(++version), name: 'C' });
+      return Response.json({ id: driveBinding.fileId, version: String(++version), headRevisionId: `native-${version}`, name: 'C' });
     }));
     const renderThumbnail = vi.fn(async () => 'canonical-preview');
     await saveCurrentProjectToGoogleDrive({ name: 'C', renderThumbnail });
@@ -127,10 +129,10 @@ describe('one authoritative Set location across save entry points', () => {
     expect(renderThumbnail).toHaveBeenCalledWith(expect.objectContaining({ cardSets: [{ id: 'set-c', name: 'C' }] }));
     expect(prepare[0]).toMatchObject({ thumbnail: 'canonical-preview' });
     expect(prepare.map((value) => [value.fileId, value.workId, value.expectedProviderRevision])).toEqual([
-      [driveBinding.fileId, 'set-c', '1'], [driveBinding.fileId, 'set-c', '2'], [driveBinding.fileId, 'set-c', '3'],
+      [driveBinding.fileId, 'set-c', '1'], [driveBinding.fileId, 'set-c', headToken('2')], [driveBinding.fileId, 'set-c', headToken('3')],
     ]);
     expect(mock.values.get('test:google-drive-project-binding')).toEqual({ workId: 'set-c' });
-    expect(await getGoogleDriveProjectBinding()).toMatchObject({ providerRevision: '4' });
+    expect(await getGoogleDriveProjectBinding()).toMatchObject({ providerRevision: headToken('4') });
   });
 
   it('saves a folder attachment using its canonical Set revision and scope', async () => {
@@ -270,7 +272,7 @@ it('does not publish bindings into a newly selected account during a multi-Set o
     version: 1, cardSets: [{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }], userTemplates: [], storedCards: [], appearanceStyles: [], exportSettings: {}, customAssets: {},
   } });
   vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
-    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64),
   } })));
   mock.onWrite = () => { mock.namespace = 'other-account'; };
   await expect(openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' })).rejects.toThrow('account changed');
@@ -280,7 +282,7 @@ it('does not publish bindings into a newly selected account during a multi-Set o
 it('rejects template-only ordinary Open before materializing or persisting bindings', async () => {
   mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document: { cardSets: [] } });
   vi.stubGlobal('fetch', vi.fn(async () => new Response('package', { headers: {
-    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': '1', 'X-CardForge-Project-Revision': 'b'.repeat(64),
+    'X-CardForge-Provider-Account': 'account-a', 'X-CardForge-Provider-Revision': headToken('1'), 'X-CardForge-Project-Revision': 'b'.repeat(64),
   } })));
   await expect(openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' })).rejects.toThrow('no Set');
   expect(mock.values.size).toBe(0);
@@ -297,7 +299,7 @@ it('preserves the prior binding and warns against repeating a null upload receip
 it.each([false, true])('initializes a newly saved Set for safe refresh (locally changed: %s)', async (dirty) => {
   const document = { cardSets: [{ id: 'set-c', name: 'C' }], userTemplates: [], storedCards: [], appearanceStyles: [], customAssets: {} };
   const fetch = vi.fn().mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }))
-    .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '1', name: 'C' }));
+    .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '1', headRevisionId: 'native-1', name: 'C' }));
   vi.stubGlobal('fetch', fetch);
   const saved = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C', asNew: true });
   expect(saved).toMatchObject({ accountId: 'account-a', workId: 'set-c', portableWorkId: 'set-c', runtimeSetIds: ['set-c'],
@@ -311,11 +313,19 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
     expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(saved);
   } else {
     mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64), document });
-    fetch.mockResolvedValueOnce(new Response('package', { headers: { 'X-CardForge-Provider-Revision': '2',
+    fetch.mockResolvedValueOnce(new Response('package', { headers: { 'X-CardForge-Provider-Revision': headToken('2'),
       'X-CardForge-Project-Revision': 'b'.repeat(64), 'X-CardForge-Provider-Account': 'account-a' } }));
     const refreshed = await refreshGoogleDriveProject(saved);
-    expect(refreshed).toMatchObject({ workId: 'set-c', providerRevision: '2', identities: saved.identities });
+    expect(refreshed).toMatchObject({ workId: 'set-c', providerRevision: headToken('2'), identities: saved.identities });
     expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: document.cardSets }), 'merge',
       { expectedState: expect.any(Object), replaceSetIds: ['set-c'] });
   }
+});
+
+it('preserves the prior binding when a successful upload omits the native content head', async () => {
+  mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+    .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '2', name: 'C' })));
+  await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('do not repeat this upload blindly');
+  expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
 });

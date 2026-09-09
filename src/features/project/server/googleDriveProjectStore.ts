@@ -13,7 +13,7 @@ import {
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   GOOGLE_DRIVE_ROOT_FOLDER_NAME,
   isGoogleDriveFileId,
-  isGoogleDriveProviderRevision,
+  createGoogleDriveProviderRevision,
   isGoogleDriveWorkId,
   hasGoogleDriveProjectRevisionConflict,
   type GoogleDriveProjectConnectionSummary,
@@ -41,7 +41,7 @@ const GOOGLE_USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userin
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const GOOGLE_DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,modifiedTime,size,parents,webViewLink,thumbnailLink,appProperties';
+const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,headRevisionId,modifiedTime,size,parents,webViewLink,thumbnailLink,appProperties';
 const GOOGLE_DRIVE_PROJECT_APP_PROPERTY = 'cardforgeProject';
 const GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY = 'cardforgeProjectRevision';
 const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId';
@@ -106,6 +106,7 @@ type GoogleDriveFile = {
   name?: string;
   mimeType?: string;
   version?: string;
+  headRevisionId?: string;
   modifiedTime?: string;
   size?: string;
   parents?: string[];
@@ -409,11 +410,12 @@ const normalizeDriveProjectName = (value: string): string => {
   return `${normalizeProjectFileName(withoutExtension)}${CARDFORGE_PROJECT_FILE_EXTENSION}`;
 };
 
-const toProjectSummary = (file: GoogleDriveFile): GoogleDriveProjectSummary | null => {
+const toProjectSummary = async (file: GoogleDriveFile): Promise<GoogleDriveProjectSummary | null> => {
   const fileId = file.id ?? '';
-  const version = file.version ?? '';
+  const headRevisionId = file.headRevisionId;
+  if (typeof headRevisionId !== 'string' || !headRevisionId.trim()) throw new ProjectStorageProviderError('Drive did not provide a binary content revision. Reload this file before saving; no write was attempted.', 503, { kind: 'unavailable' });
   const modifiedAt = file.modifiedTime ?? '';
-  if (!isGoogleDriveFileId(fileId) || !isGoogleDriveProviderRevision(version) || Number.isNaN(Date.parse(modifiedAt))) return null;
+  if (!isGoogleDriveFileId(fileId) || Number.isNaN(Date.parse(modifiedAt))) return null;
   const projectRevision = file.appProperties?.[GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY] ?? null;
   const rawWorkId = file.appProperties?.[GOOGLE_DRIVE_WORK_ID_PROPERTY]?.trim() ?? '';
   const workId = isGoogleDriveWorkId(rawWorkId) ? rawWorkId : null;
@@ -421,7 +423,7 @@ const toProjectSummary = (file: GoogleDriveFile): GoogleDriveProjectSummary | nu
     provider: GOOGLE_DRIVE_PROJECT_PROVIDER,
     fileId,
     name: normalizeDriveProjectName(file.name ?? 'CardForge Project'),
-    providerRevision: version,
+    providerRevision: await createGoogleDriveProviderRevision(headRevisionId),
     projectRevision: projectRevision && isProjectPackageAssetId(projectRevision) ? projectRevision : null,
     modifiedAt,
     size: Math.max(0, Number(file.size) || 0),
@@ -449,8 +451,8 @@ const getDriveFileMetadata = async ({
   return await response.json() as GoogleDriveFile;
 };
 
-const assertOwnedCardForgeProject = (file: GoogleDriveFile, rootFolderId: string): GoogleDriveProjectSummary => {
-  const summary = toProjectSummary(file);
+const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: string): Promise<GoogleDriveProjectSummary> => {
+  const summary = await toProjectSummary(file);
   if (!summary
     || file.mimeType !== GOOGLE_DRIVE_PROJECT_MIME_TYPE
     || file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] !== GOOGLE_DRIVE_PROJECT_VALUE
@@ -487,9 +489,9 @@ export const listGoogleDriveProjectsPage = async ({
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not list Google Drive projects.');
   const payload = await response.json() as { files?: GoogleDriveFile[]; nextPageToken?: unknown };
-  const projects = (payload.files ?? [])
+  const projects = (await Promise.all((payload.files ?? [])
     .filter((file) => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] === GOOGLE_DRIVE_PROJECT_VALUE)
-    .map(toProjectSummary)
+    .map(toProjectSummary)))
     .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary))
     .map((summary) => ({ ...summary, accountId: row.external_account_id }));
   return {
@@ -531,7 +533,7 @@ export const getGoogleDriveProject = async ({
 }): Promise<GoogleDriveProjectDownload & { document: ProjectDocumentV1 }> => {
   const { row, accessToken } = await requireConnection(ownerUserId);
   const file = await getDriveFileMetadata({ accessToken, fileId });
-  const summary = assertOwnedCardForgeProject(file, row.root_folder_id);
+  const summary = await assertOwnedCardForgeProject(file, row.root_folder_id);
   if (summary.size > MAX_ENCODED_PROJECT_BYTES) {
     throw new ProjectStorageProviderError('That Google Drive project exceeds CardForge’s safe portable-project size limit.', 413, { kind: 'limit' });
   }
@@ -573,7 +575,7 @@ export const getGoogleDriveProject = async ({
 export const getGoogleDriveProjectThumbnail = async ({ ownerUserId, fileId }: { ownerUserId: string; fileId: string }) => {
   const { row, accessToken } = await requireConnection(ownerUserId);
   const file = await getDriveFileMetadata({ accessToken, fileId });
-  assertOwnedCardForgeProject(file, row.root_folder_id);
+  await assertOwnedCardForgeProject(file, row.root_folder_id);
   if (!file.thumbnailLink) throw new ProjectStorageProviderError('This Drive document has no preview yet.', 404, { kind: 'not_found' });
   const url = new URL(file.thumbnailLink);
   if (url.protocol !== 'https:' || url.username || url.password || url.port
@@ -655,7 +657,7 @@ export const prepareGoogleDriveProjectUpload = async ({
 
   if (fileId) {
     const current = await getDriveFileMetadata({ accessToken, fileId });
-    const currentSummary = assertOwnedCardForgeProject(current, row.root_folder_id);
+    const currentSummary = await assertOwnedCardForgeProject(current, row.root_folder_id);
     effectiveWorkId = effectiveWorkId ?? currentSummary.workId;
     if (hasGoogleDriveProjectRevisionConflict({
       currentProviderRevision: currentSummary.providerRevision,
@@ -665,7 +667,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     })) {
       throw new ProjectStorageProviderError(
         expectedProviderRevision && expectedProjectRevision
-          ? `The Google Drive project changed after revision ${expectedProviderRevision}. Reload it before saving so CardForge does not overwrite newer work.`
+          ? 'The Drive content revision differs from this saved binding. Refresh a clean working copy before saving, or use Save as new to preserve local changes.'
           : 'Updating a Google Drive project requires the exact provider and CardForge revisions previously read.',
         409,
         { kind: 'conflict' },
@@ -754,7 +756,7 @@ const completeServerUpload = async ({
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
   let result: GoogleDriveUploadCompletion;
   try { result = await response.json() as GoogleDriveUploadCompletion; } catch { throw unknownDriveCommit(); }
-  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || !isGoogleDriveProviderRevision(result.version)) {
+  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || typeof result.headRevisionId !== 'string' || !result.headRevisionId.trim()) {
     throw unknownDriveCommit();
   }
   return result;
@@ -787,11 +789,12 @@ export const updateGoogleDriveProjectFromServer = async ({
     expectedProjectRevision,
   });
   const completed = await completeServerUpload({ uploadSessionUrl: plan.uploadSessionUrl, blob });
-  const summary = toProjectSummary({
+  const summary = await toProjectSummary({
     id: completed.id,
     name: completed.name,
     mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE,
     version: completed.version,
+    headRevisionId: completed.headRevisionId,
     modifiedTime: completed.modifiedTime ?? new Date().toISOString(),
     size: completed.size ?? String(blob.size),
     webViewLink: completed.webViewLink,
@@ -818,7 +821,7 @@ export const deleteGoogleDriveProject = async ({
 }): Promise<GoogleDriveProjectSummary> => {
   const { row, accessToken } = await requireConnection(ownerUserId);
   const current = await getDriveFileMetadata({ accessToken, fileId });
-  const summary = assertOwnedCardForgeProject(current, row.root_folder_id);
+  const summary = await assertOwnedCardForgeProject(current, row.root_folder_id);
   if (summary.providerRevision !== expectedProviderRevision || summary.projectRevision !== expectedProjectRevision) {
     throw new ProjectStorageProviderError('The Google Drive project changed after it was loaded. Reload it before deleting.', 409, { kind: 'conflict' });
   }

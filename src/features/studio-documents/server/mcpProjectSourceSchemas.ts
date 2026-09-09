@@ -34,8 +34,8 @@ const projectIdSchema = {
 
 const providerRevisionSchema = {
   type: 'string',
-  pattern: '^\\d{1,80}$',
-  description: 'Exact provider revision previously read from the connected storage provider.',
+  pattern: '^head:[a-f0-9]{64}$',
+  description: 'Exact opaque binary-content revision token previously read from Drive, derived from its native headRevisionId.',
 } as const;
 
 const projectRevisionSchema = {

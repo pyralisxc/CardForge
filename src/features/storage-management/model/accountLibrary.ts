@@ -361,7 +361,7 @@ export const buildAccountLibraryItems = ({
       kind: 'set',
       name: project.name,
       locations: [location],
-      details: [`Provider revision ${project.providerRevision}`, project.projectRevision ? 'Verified CardForge revision' : 'Revision needs refresh'],
+      details: ['Verified Drive content revision', project.projectRevision ? 'Verified CardForge revision' : 'Revision needs refresh'],
       sizeBytes: project.size,
       revision: project.projectRevision,
       updatedAt: project.modifiedAt,

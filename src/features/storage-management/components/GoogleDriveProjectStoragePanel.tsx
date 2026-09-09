@@ -251,7 +251,7 @@ export function GoogleDriveProjectStoragePanel({
 
           {binding ? (
             <p className="mt-3 text-xs text-[var(--cf-text-subtle)]">
-              Attached here: <span className="font-semibold text-[var(--cf-text-muted)]">{binding.name}</span>{attachedProject ? ` · Drive revision ${attachedProject.providerRevision}` : ''}
+              Attached here: <span className="font-semibold text-[var(--cf-text-muted)]">{binding.name}</span>{attachedProject ? ' · Drive content revision verified' : ''}
             </p>
           ) : null}
 
@@ -323,7 +323,7 @@ function GoogleDriveProjectRow({
     <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{project.name}{isAttached ? ' · attached' : ''}</p>
-        <p className="mt-1 text-xs text-[var(--cf-text-muted)]">{formatBytes(project.size)} · Drive revision {project.providerRevision} · modified {new Date(project.modifiedAt).toLocaleString()}</p>
+        <p className="mt-1 text-xs text-[var(--cf-text-muted)]">{formatBytes(project.size)} · Drive content revision verified · modified {new Date(project.modifiedAt).toLocaleString()}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={onOpen}>

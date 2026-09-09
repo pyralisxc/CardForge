@@ -12,6 +12,7 @@ import {
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   isGoogleDriveFileId,
   isGoogleDriveProviderRevision,
+  createGoogleDriveProviderRevision,
   type GoogleDriveProjectListResult,
   type GoogleDriveProjectSummary,
   type GoogleDriveUploadCompletion,
@@ -79,7 +80,7 @@ const persistWorkBinding = async (workId: string, binding: GoogleDriveProjectBin
 };
 
 const validateBinding = (binding: GoogleDriveProjectBinding | null): GoogleDriveProjectBinding | null => {
-  if (binding && (!isGoogleDriveFileId(binding.fileId) || !isGoogleDriveProviderRevision(binding.providerRevision) || !isProjectPackageAssetId(binding.projectRevision))) {
+  if (binding && (!isGoogleDriveFileId(binding.fileId) || (!isGoogleDriveProviderRevision(binding.providerRevision) && !/^\d{1,80}$/.test(binding.providerRevision)) || !isProjectPackageAssetId(binding.projectRevision))) {
     throw new ProjectPackageError('The saved Set location is unreadable. Reopen the Drive file before saving.');
   }
   return binding;
@@ -220,13 +221,13 @@ const uploadPackage = async (
   try { result = await response.json() as GoogleDriveUploadCompletion; } catch {
     throw new ProjectPackageError('Drive may have saved the file, but its receipt was unreadable. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
   }
-  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || !isGoogleDriveProviderRevision(result.version)) {
+  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || typeof result.headRevisionId !== 'string' || !result.headRevisionId.trim()) {
     throw new ProjectPackageError('Drive may have saved the file, but its receipt has no usable revision. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
   }
   return result;
 };
 
-const toBinding = ({
+const toBinding = async ({
   completed,
   projectRevision,
   fallbackName,
@@ -236,10 +237,10 @@ const toBinding = ({
   projectRevision: string;
   fallbackName: string;
   workId?: string | null;
-}): GoogleDriveProjectBinding => ({
+}): Promise<GoogleDriveProjectBinding> => ({
   fileId: completed.id,
   name: completed.name || fallbackName,
-  providerRevision: completed.version,
+  providerRevision: await createGoogleDriveProviderRevision(completed.headRevisionId!),
   projectRevision,
   lastSavedAt: completed.modifiedTime && !Number.isNaN(Date.parse(completed.modifiedTime))
     ? completed.modifiedTime
@@ -281,7 +282,7 @@ export const saveCurrentProjectToGoogleDrive = async ({
   });
   assertBindingScope(namespace);
   const completed = await uploadPackage(plan, blob);
-  const binding = toBinding({
+  const binding = await toBinding({
     completed,
     projectRevision: snapshot.manifest.projectRevision,
     fallbackName: plan.name,
@@ -324,7 +325,7 @@ export const saveCardSetToGoogleDrive = async ({
   });
   assertBindingScope(namespace);
   const completed = await uploadPackage(plan, blob);
-  const binding = toBinding({
+  const binding = await toBinding({
     completed,
     projectRevision: snapshot.manifest.projectRevision,
     fallbackName: plan.name,
