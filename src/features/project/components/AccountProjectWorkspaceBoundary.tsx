@@ -27,7 +27,7 @@ import {
   importRetainedGuestWorkspaceAsCopy,
   type RetainedGuestWorkSummary,
 } from '../client/retainedGuestWorkspace';
-import { readProjectPreference, writeProjectPreference } from '../persistence/projectPreferences';
+import { readProjectPreference, writeProjectPreference } from '../persistence/preferences';
 import { BrowserStorageAlerts } from './BrowserStorageAlerts';
 
 const RETAINED_GUEST_DISMISS_KEY = 'retained-guest-work-dismissed-revision';
@@ -71,7 +71,7 @@ export function AccountProjectWorkspaceBoundary({
     let cancelled = false;
     void Promise.all([
       getRetainedGuestWorkSummary(),
-      readProjectPreference<number | null>(RETAINED_GUEST_DISMISS_KEY),
+      readProjectPreference<number>(RETAINED_GUEST_DISMISS_KEY),
     ]).then(([summary, dismissedRevision]) => {
       if (!cancelled) setRetainedGuestWork(summary && summary.guestRevision !== dismissedRevision ? summary : null);
     }).catch((guestError) => {
