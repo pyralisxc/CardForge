@@ -238,6 +238,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   recoveryKeys = [],
   beforeCommit,
   signal,
+  requireAbsent = false,
 }: {
   namespace: string;
   key: string;
@@ -249,6 +250,7 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   recoveryKeys?: readonly string[];
   beforeCommit?: () => void;
   signal?: AbortSignal;
+  requireAbsent?: boolean;
 }): Promise<number> => {
   const namespacedKey = `${namespace}:${key}`;
   beginWorkspaceWrite();
@@ -266,6 +268,11 @@ export const compareAndSetBrowserWorkspaceValue = async ({
       let nextRevision: number | null = null;
       let conflict: BrowserWorkspaceConflictError | null = null;
       request.onsuccess = () => {
+        if (requireAbsent && request.result !== undefined) {
+          transaction.abort();
+          reject(new Error('The account workspace was created while guest work was opening. Both copies were left unchanged; retry sign-in.'));
+          return;
+        }
         const previousRaw = typeof request.result === 'string' ? request.result : null;
         const previous = previousRaw === null
           ? { revision: 0 }

@@ -56,7 +56,7 @@ Preview provider ownership:
 
 The former reusable QA accounts are retired. Do not recreate them or treat an old browser session as the intended acceptance identity. Verify the signed-in account and environment before testing. The real owner has a separate account in Clerk's development instance; production sign-in does not establish a Preview session.
 
-Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. A disconnected Drive account does not imply that Preview OAuth is unsupported. Vercel Authentication, Clerk sign-in, and Drive consent are separate boundaries.
+Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. Vercel Authentication, Clerk sign-in, and Drive consent are separate boundaries. Changing the Google app's publishing status affects its clients and is a separate provider decision.
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
 

@@ -27,7 +27,7 @@ const workspaceBytes = (page: Page) => page.evaluate(async () => {
   } finally { database.close(); }
 });
 
-test('native quota failure preserves saved work and permits emergency editable recovery', async ({ page, context }, testInfo) => {
+test('@golden native quota failure preserves saved work and permits emergency editable recovery', async ({ page, context }, testInfo) => {
   test.setTimeout(180_000);
   await page.addInitScript(() => {
     const nativeTransaction = IDBDatabase.prototype.transaction;
@@ -123,7 +123,7 @@ test('native quota failure preserves saved work and permits emergency editable r
   }
 });
 
-test('an unreadable native workspace preserves original bytes through explicit backup replacement', async ({ page }, testInfo) => {
+test('@golden an unreadable native workspace preserves original bytes through explicit backup replacement', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });

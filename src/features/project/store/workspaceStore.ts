@@ -77,9 +77,13 @@ const createWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedSta
 ));
 
 const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => inertStorage);
+const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => ({
+  ...inertStorage,
+  getItem: createScopedProjectStorage('project-workspace', WORKSPACE_STORAGE_OPTIONS).getItem,
+}));
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
-let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void> } | null = null;
+let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
 let workspaceHydrationError: unknown = null;
 
 const getCompatibleGeneratorBackingId = (
@@ -208,7 +212,10 @@ export const useProjectStore = create<ProjectState>()(
         onRehydrateStorage: () => (state, error) => {
           workspaceHydrationError = error ?? null;
           if (error) console.error('Error rehydrating the project workspace:', error);
-          if (state) setTimeout(() => state._rehydrateCallback(), 0);
+          const scope = getProjectPersistenceScope();
+          if (state) setTimeout(() => {
+            if (hydratedPersistenceScope === scope && getProjectPersistenceScope() === scope) state._rehydrateCallback();
+          }, 0);
         },
         skipHydration: true,
         version: 4,
@@ -237,12 +244,14 @@ export const useProjectStore = create<ProjectState>()(
   ),
 );
 
-export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
+export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope, signal?: AbortSignal) => {
+  signal?.throwIfAborted();
   if (hydratedPersistenceScope === scope && getProjectPersistenceScope() === scope) return;
-  if (hydrationTask?.scope === scope) return hydrationTask.promise;
+  if (hydrationTask?.scope === scope && !hydrationTask.signal?.aborted) return hydrationTask.promise;
 
   const previousTask = hydrationTask?.promise.catch(() => undefined) ?? Promise.resolve();
   const promise = previousTask.then(async () => {
+    signal?.throwIfAborted();
     if (hydratedPersistenceScope === scope && getProjectPersistenceScope() === scope) return;
     const isScopeChange = getProjectPersistenceScope() !== scope;
     // Once we leave a hydrated account, it cannot satisfy a later fast path until
@@ -256,18 +265,22 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
       useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
     }
 
-    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+    // Native reads remain available, while callbacks/default-catalog startup
+    // cannot autosave initial state over a workspace still being restored.
+    useProjectStore.persist.setOptions({ storage: createHydratingWorkspaceJsonStorage() });
     workspaceHydrationError = null;
     await useProjectStore.persist.rehydrate();
-    if (workspaceHydrationError || !useProjectStore.persist.hasHydrated()) {
+    if (signal?.aborted || workspaceHydrationError || !useProjectStore.persist.hasHydrated()) {
       // Zustand reports hydration errors through its callback, not rehydrate's promise.
       // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      signal?.throwIfAborted();
       throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
     }
     hydratedPersistenceScope = scope;
+    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
   });
-  hydrationTask = { scope, promise };
+  hydrationTask = { scope, promise, signal };
   try {
     await promise;
   } finally {

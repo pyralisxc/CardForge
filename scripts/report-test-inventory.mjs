@@ -48,6 +48,7 @@ const sourceReaderContracts = [
   ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
   ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
   ['tests/product/workflows/output-artifacts.spec.ts', 'actual browser-downloaded PNG, ZIP, PDF and Tabletop output bytes; no implementation source reads'],
+  ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];
 
 const summarize = (files, classify) => {

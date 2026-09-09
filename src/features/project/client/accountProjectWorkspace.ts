@@ -31,9 +31,13 @@ export const prepareAccountProjectWorkspace = async (
     adopt: adoptGuestWorkspaceForAccount,
     hydrate: hydrateProjectWorkspaceForScope,
   },
+  signal?: AbortSignal,
 ): Promise<void> => {
-  await dependencies.adopt(persistenceScope);
-  await dependencies.hydrate(persistenceScope);
+  signal?.throwIfAborted();
+  await dependencies.adopt(persistenceScope, signal);
+  signal?.throwIfAborted();
+  await dependencies.hydrate(persistenceScope, signal);
+  signal?.throwIfAborted();
 };
 
 const getWorkspaceIssue = (eventName: string): AccountProjectWorkspaceIssue => eventName === BROWSER_WORKSPACE_CONFLICT_EVENT

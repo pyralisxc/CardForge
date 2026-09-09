@@ -28,26 +28,30 @@ export function AccountProjectWorkspaceBoundary({
   persistenceScope,
   canUseProjectFiles,
 }: AccountProjectWorkspaceBoundaryProps) {
-  const [isReady, setIsReady] = useState(false);
+  const [readyScope, setReadyScope] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [issue, setIssue] = useState<AccountProjectWorkspaceIssue | null>(null);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
 
-  const bootstrap = useCallback(async () => {
-    setIsReady(false);
+  const bootstrap = useCallback(async (signal: AbortSignal) => {
+    setReadyScope(null);
     setError(null);
     try {
-      await prepareAccountProjectWorkspace(persistenceScope);
-      setIsReady(true);
+      await prepareAccountProjectWorkspace(persistenceScope, undefined, signal);
+      if (!signal.aborted) setReadyScope(persistenceScope);
     } catch (bootstrapError) {
+      if (signal.aborted) return;
       console.error('Unable to prepare the account workspace.', bootstrapError);
       setError(bootstrapError instanceof Error ? bootstrapError.message : 'The browser workspace could not be restored.');
     }
   }, [persistenceScope]);
 
   useEffect(() => {
-    void bootstrap();
-  }, [bootstrap]);
+    const controller = new AbortController();
+    void bootstrap(controller.signal);
+    return () => controller.abort();
+  }, [bootstrap, retry]);
 
   useEffect(() => subscribeToAccountProjectWorkspaceIssues((nextIssue) => {
     setIssue(nextIssue);
@@ -56,7 +60,7 @@ export function AccountProjectWorkspaceBoundary({
 
   const reloadSavedWorkspace = () => window.location.reload();
 
-  if (!isReady) {
+  if (readyScope !== persistenceScope) {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
         <CardForgeWorkspaceState
@@ -70,7 +74,7 @@ export function AccountProjectWorkspaceBoundary({
           <div className="grid max-w-md gap-3 text-center">
             <BrowserStorageAlerts canUseProjectFiles={canUseProjectFiles} workspaceReady={false} />
             <p role="alert" className="text-sm text-destructive">{error}</p>
-            <Button type="button" variant="outline" onClick={() => void bootstrap()}>Try again</Button>
+            <Button type="button" variant="outline" onClick={() => setRetry((value) => value + 1)}>Try again</Button>
           </div>
         ) : null}
       </main>
