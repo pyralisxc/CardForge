@@ -46,13 +46,14 @@ export const repairConfirmedGoogleDriveLink = async (
     throw new Error('The Drive file changed after the confirmed save. Linkage was not repaired; refresh or compare the newer Drive revision first.');
   }
 
+  const accountId = current.accountId ?? receipt.accountId;
   const repaired: GoogleDriveProjectBinding = {
     ...receipt,
-    accountId: current.accountId ?? receipt.accountId,
+    ...(accountId ? { accountId } : {}),
     fileId: current.fileId,
     name: current.name,
     providerRevision: current.providerRevision,
-    projectRevision: current.projectRevision,
+    projectRevision: receipt.projectRevision,
     lastSavedAt: current.modifiedAt,
     webViewLink: current.webViewLink,
     workId,
