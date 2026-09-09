@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import type { CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
-import type { CreatorInteractionSession } from '@/features/app-shell/client/environment';
+import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -43,7 +43,8 @@ export interface FocusedWorkSurfaceProps {
   otherSets: CardSet[];
   moveTargetId: string;
   cardQuery: string;
-  tagFilters: string[];
+  /** Legacy single-value surface prop; the interaction session now owns the full filter selection. */
+  tagFilter: string;
   tagDraft: string;
   latestGeneratedIds: string[];
   showGrid: boolean;
@@ -58,7 +59,8 @@ export interface FocusedWorkSurfaceProps {
   onOpenGenerate: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
-  onTagFiltersChange: (values: string[]) => void;
+  /** Kept for old callers/return contexts; multi-select updates use setSession directly. */
+  onTagFilterChange: (value: string) => void;
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
   onSelectionChange: (next: SetStateAction<string[]>) => void;
@@ -80,6 +82,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
+  const setTagFilters = (filterIds: string[]) => props.setSession((current) => setCreatorLens(current, { ...current.lens, filterIds }));
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
     <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
       {props.localSetId ? <>
@@ -95,7 +98,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
             {props.organization.groupBy === 'field' && groupFields.length ? <Select value={props.organization.groupField ?? groupFields[0]?.id} onValueChange={(groupField) => props.onOrganizationChange({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{groupFields.find((field) => field.id === props.organization.groupField)?.label ?? groupFields[0]?.label}</span></SelectTrigger><SelectContent>{groupFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label} · {field.valueCount} values</SelectItem>)}</SelectContent></Select> : null}
             <Select value={props.organization.sort} onValueChange={(value) => props.onOrganizationChange({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? props.organization.sortField ?? sortFields[0]?.id : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{props.organization.sort === 'manual' ? 'Manual order' : props.organization.sort === 'field-value' ? 'Sort by field' : props.organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{sortFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recent</SelectItem></SelectContent></Select>
             {props.organization.sort === 'field-value' && sortFields.length ? <Select value={props.organization.sortField ?? sortFields[0]?.id} onValueChange={(sortField) => props.onOrganizationChange({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{sortFields.find((field) => field.id === props.organization.sortField)?.label ?? sortFields[0]?.label}</span></SelectTrigger><SelectContent>{sortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent></Select> : null}
-            {props.organization.tags.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter cards by tag" compactLabel="Tags" values={props.tagFilters} onChange={props.onTagFiltersChange} options={props.organization.tags.map((tag) => ({ value: tag.id, label: tag.label }))} /> : null}
+            {props.organization.tags.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter cards by tag" compactLabel="Tags" values={props.session.lens.filterIds} onChange={setTagFilters} options={props.organization.tags.map((tag) => ({ value: tag.id, label: tag.label }))} /> : null}
             <Button type="button" size="sm" variant="ghost" aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button><Button type="button" size="sm" variant="ghost" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
           </div>
           {props.visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange((current) => props.allVisibleSelected ? current.filter((id) => !props.visibleCards.some((card) => card.uniqueId === id)) : [...new Set([...current, ...props.visibleCards.map((card) => card.uniqueId)])])}>{props.allVisibleSelected ? 'Clear shown' : 'Select shown'}</Button> : null}
