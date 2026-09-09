@@ -88,9 +88,15 @@ test.describe('mobile Desk controls', () => {
     await expect(rail).toContainText(longName);
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const label of ['Back to Desk', 'Design', 'Generate', 'Output', 'More Set actions']) {
+      for (const label of ['Back to Desk', 'Design', 'More Set actions']) {
         await expectTouchTarget(rail.getByRole('button', { name: label, exact: true }));
       }
+      await expect(rail.getByRole('button', { name: 'Generate', exact: true })).toBeHidden();
+      await expect(rail.getByRole('button', { name: 'Output', exact: true })).toBeHidden();
+      await moreActions.tap();
+      await expectTouchTarget(page.getByRole('menuitem', { name: 'Generate', exact: true }));
+      await expectTouchTarget(page.getByRole('menuitem', { name: 'Output', exact: true }));
+      await page.keyboard.press('Escape');
       await test.info().attach(`first-use-set-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
     }
     await rail.getByRole('button', { name: 'Back to Desk', exact: true }).tap({ position: { x: 3, y: 3 } });
@@ -166,7 +172,6 @@ test.describe('mobile Desk controls', () => {
     const iconBounds = await close.locator('svg').boundingBox();
     expect(iconBounds?.width).toBeLessThanOrEqual(24);
     expect(iconBounds?.height).toBeLessThanOrEqual(24);
-    // A tap outside the small icon must still activate the full close target.
     await close.tap({ position: { x: 3, y: 3 } });
     await expect(toolsSheet).toBeHidden();
     await expect(editorTools).toBeFocused();
