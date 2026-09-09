@@ -17,6 +17,15 @@ test('does not download a success artifact when authored artwork fails to load',
   await page.getByTestId('single-card-export-png-front').click();
   await expect(page.getByText(/A card image could not be loaded/)).toBeVisible();
   expect(downloads).toBe(0);
+  for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
+    if (await close.isVisible()) await close.click();
+  }
+  await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+  await page.getByText('Print PDF', { exact: true }).click();
+  await page.getByRole('button', { name: 'Save as PDF', exact: true }).click();
+  await expect(page.getByText('PDF export failed', { exact: true })).toBeVisible();
+  expect(downloads).toBe(0);
 });
 
 test('downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ page }, testInfo) => {
@@ -54,6 +63,7 @@ test('downloads actual card PNG, Set ZIP, PDF and Tabletop sheets', async ({ pag
   const pdf = await save(await pdfDownload);
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   expect(pdf.toString('latin1')).toContain('/Subtype /Image');
+  expect(pdf.length).toBeLessThan(5_000_000);
   for (const close of await page.getByRole('button', { name: 'Close notification', exact: true }).all()) {
     if (await close.isVisible()) await close.click();
   }
