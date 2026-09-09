@@ -12,7 +12,7 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100);
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).dblclick();
+      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).click();
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
       const artwork = page.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
       const original = await artwork.inputValue();
@@ -26,14 +26,17 @@ for (const mobile of [false, true]) {
       await page.keyboard.press('Escape');
       await expect(artwork).toHaveValue('https://example.com/draft.png');
       await page.getByRole('button', { name: 'Review & close', exact: true }).click();
-      await page.getByRole('button', { name: 'Close Design', exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Close Edit card', exact: true }).click();
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
       await expect(artwork).toHaveValue(original);
       await page.getByRole('button', { name: 'Done', exact: true }).click();
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
-      await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
-      await expect(page.getByRole('menuitem', { name: 'Save & move', exact: true })).toBeVisible();
-      await page.getByRole('menuitem', { name: 'Output', exact: true }).click();
+      if (mobile) {
+        await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
+        await expect(page.getByRole('menuitem', { name: 'Save & move', exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
+      } else await expect(page.getByRole('button', { name: 'Save & move', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Output', exact: true }).click();
       await expect(page.getByRole('region', { name: 'Output 100 Card Scale Set', exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Template canvas', exact: true })).toHaveCount(0);
       await expect(artwork).toHaveCount(0);
@@ -77,7 +80,8 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      const templateRow = page.getByRole('region', { name: 'Templates used in this Set' });
+      await page.getByRole('button', { name: /^Templates ·/ }).click();
+      const templateRow = page.getByRole('dialog', { name: 'Templates used in this Set' });
       const frontTemplate = templateRow.getByRole('button', { name: 'Design template Scale Fixture Template, used by 100 cards in this Set', exact: true });
       const backTemplate = templateRow.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 100 cards in this Set', exact: true });
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
@@ -132,8 +136,10 @@ for (const mobile of [false, true]) {
       await expect(editor).toContainText('Front: Scale Fixture Template');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      await page.getByRole('button', { name: /^Templates ·/ }).click();
       await expect(templateRow.getByRole('button', { name: 'Design back template Copy of Scale Fixture Back, used by 1 card in this Set', exact: true })).toBeVisible();
       await expect(templateRow.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 99 cards in this Set', exact: true })).toBeVisible();
+      await templateRow.press('Escape');
       await page.locator('button[data-artifact-id="scale-card-2"]').click();
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       await expect(editor).toContainText('Back: Scale Fixture Back');
