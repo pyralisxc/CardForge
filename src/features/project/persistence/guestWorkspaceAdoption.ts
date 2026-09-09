@@ -29,6 +29,17 @@ type ProjectAssetCatalog = {
   mergedValue: string;
 };
 
+export interface RetainedGuestWorkspace {
+  accountScope: `account:${string}`;
+  guestRaw: string;
+  workspaceValue: string;
+  state: Record<string, unknown>;
+  catalogs: Partial<Record<typeof PROJECT_ASSET_KEYS[number], { raw: string; values: unknown[] }>>;
+  setCount: number;
+  cardCount: number;
+  templateCount: number;
+}
+
 const getNamespace = (base: 'project-workspace' | 'project-assets', scope: string) => `${base}:${scope}`;
 
 const isAccountScope = (scope: string): scope is `account:${string}` => scope.startsWith('account:');
@@ -39,6 +50,16 @@ const parseAssetCatalog = (value: string | null, key: string): unknown[] => {
   if (!Array.isArray(parsed)) throw new Error(`Local asset storage “${key}” is invalid.`);
   return parsed;
 };
+
+const parseGuestState = (workspaceValue: string): Record<string, unknown> => {
+  const payload = JSON.parse(workspaceValue) as { state?: unknown } | null;
+  if (!payload || typeof payload.state !== 'object' || payload.state === null || Array.isArray(payload.state)) {
+    throw new Error('The guest workspace is unreadable. Original browser data was left unchanged.');
+  }
+  return payload.state as Record<string, unknown>;
+};
+
+const getArrayCount = (state: Record<string, unknown>, key: string) => Array.isArray(state[key]) ? state[key].length : 0;
 
 const mergeAssetCatalog = ({
   accountValue,
@@ -66,6 +87,91 @@ const mergeAssetCatalog = ({
   return JSON.stringify(Array.from(merged.values()));
 };
 
+/** Read signed-out authored work that was deliberately kept beside a returning account. */
+export const readRetainedGuestWorkspaceForAccount = async (accountScope: string): Promise<RetainedGuestWorkspace | null> => {
+  if (!isAccountScope(accountScope)) return null;
+  const accountWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', accountScope));
+  // This handoff exists only for returning accounts. First sign-in still uses
+  // adoptGuestWorkspaceForAccount so there is no duplicate copy or prompt.
+  if (await accountWorkspaceStorage.getItem(WORKSPACE_KEY) === null) return null;
+  const guestWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', GUEST_SCOPE));
+  const guestRaw = await guestWorkspaceStorage.getItem(WORKSPACE_KEY);
+  if (!guestRaw) return null;
+  const guest = parseBrowserWorkspaceRecord(guestRaw);
+  const state = parseGuestState(guest.value);
+  const setCount = getArrayCount(state, 'cardSets');
+  const cardCount = getArrayCount(state, 'storedCards');
+  const templateCount = getArrayCount(state, 'userTemplates');
+  if (setCount === 0 && cardCount === 0 && templateCount === 0) return null;
+  const guestAssets = createIndexedDbStorage(getNamespace('project-assets', GUEST_SCOPE));
+  const catalogEntries = await Promise.all(PROJECT_ASSET_KEYS.map(async (key) => {
+    const raw = await guestAssets.getItem(key);
+    return raw === null ? null : [key, { raw, values: parseAssetCatalog(raw, key) }] as const;
+  }));
+  return {
+    accountScope,
+    guestRaw,
+    workspaceValue: guest.value,
+    state,
+    catalogs: Object.fromEntries(catalogEntries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)),
+    setCount,
+    cardCount,
+    templateCount,
+  };
+};
+
+/** Copy only content-addressed bytes needed to open the retained guest document. */
+export const prepareRetainedGuestWorkspaceAssetsForAccount = async (
+  retained: RetainedGuestWorkspace,
+  signal?: AbortSignal,
+): Promise<void> => {
+  signal?.throwIfAborted();
+  await copyBrowserProjectAssets({ value: retained.workspaceValue, sourceScope: GUEST_SCOPE, destinationScope: retained.accountScope });
+  for (const catalog of Object.values(retained.catalogs)) {
+    signal?.throwIfAborted();
+    if (catalog) await copyBrowserProjectAssets({ value: catalog.raw, sourceScope: GUEST_SCOPE, destinationScope: retained.accountScope });
+  }
+};
+
+/**
+ * Consume exactly the guest snapshot that was explicitly imported. The account
+ * workspace is rewritten with identical state but a new CAS revision so guest
+ * deletion and its catalogs happen atomically. If either side changed, nothing
+ * is consumed and the creator can review the newer signed-out work later.
+ */
+export const consumeRetainedGuestWorkspaceForAccount = async (
+  retained: RetainedGuestWorkspace,
+  signal?: AbortSignal,
+): Promise<boolean> => {
+  signal?.throwIfAborted();
+  const accountStorage = createIndexedDbStorage(getNamespace('project-workspace', retained.accountScope));
+  const accountRaw = await accountStorage.getItem(WORKSPACE_KEY);
+  if (!accountRaw) return false;
+  const account = parseBrowserWorkspaceRecord(accountRaw);
+  const guestWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', GUEST_SCOPE));
+  if (await guestWorkspaceStorage.getItem(WORKSPACE_KEY) !== retained.guestRaw) return false;
+  const guestAssets = createIndexedDbStorage(getNamespace('project-assets', GUEST_SCOPE));
+  const relatedWrites: Array<{ key: string; value: null; expectedValue: string | null }> = [
+    { key: `${getNamespace('project-workspace', GUEST_SCOPE)}:${WORKSPACE_KEY}`, value: null, expectedValue: retained.guestRaw },
+  ];
+  for (const [key, catalog] of Object.entries(retained.catalogs)) {
+    if (!catalog) continue;
+    if (await guestAssets.getItem(key) !== catalog.raw) return false;
+    relatedWrites.push({ key: `${getNamespace('project-assets', GUEST_SCOPE)}:${key}`, value: null, expectedValue: catalog.raw });
+  }
+  await compareAndSetBrowserWorkspaceValue({
+    namespace: getNamespace('project-workspace', retained.accountScope),
+    key: WORKSPACE_KEY,
+    value: account.value,
+    expectedRevision: account.revision,
+    writerId: `guest-import-consume-${retained.accountScope}`,
+    signal,
+    beforeCommit: () => signal?.throwIfAborted(),
+    relatedWrites,
+  });
+  return true;
+};
+
 /**
  * First sign-in can adopt guest work into an account with no saved workspace.
  * Returning accounts always resume their own saved work; the guest lane stays
@@ -77,16 +183,11 @@ export const adoptGuestWorkspaceForAccount = async (accountScope: string, signal
 
   const guestWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', GUEST_SCOPE));
   const accountWorkspaceStorage = createIndexedDbStorage(getNamespace('project-workspace', accountScope));
-  // Guest startup may persist an empty/default-only state after sign-out. Even
-  // authored guest work is not permission to replace a returning account.
   if (await accountWorkspaceStorage.getItem(WORKSPACE_KEY) !== null) return false;
   const guestRaw = await guestWorkspaceStorage.getItem(WORKSPACE_KEY);
   if (!guestRaw) return false;
   const guest = parseBrowserWorkspaceRecord(guestRaw);
-  const payload = JSON.parse(guest.value) as { state?: unknown } | null;
-  if (!payload || typeof payload.state !== 'object' || payload.state === null || Array.isArray(payload.state)) {
-    throw new Error('The guest workspace is unreadable. Original browser data was left unchanged.');
-  }
+  parseGuestState(guest.value);
 
   const guestAssets = createIndexedDbStorage(getNamespace('project-assets', GUEST_SCOPE));
   const accountAssets = createIndexedDbStorage(getNamespace('project-assets', accountScope));
@@ -112,9 +213,6 @@ export const adoptGuestWorkspaceForAccount = async (accountScope: string, signal
     await copyBrowserProjectAssets({ value: catalog.guestValue, sourceScope: GUEST_SCOPE, destinationScope: accountScope });
   }
 
-  // Publish the first account workspace, transfer its catalogs, and consume the
-  // exact guest source in one native transaction. A concurrent guest/account
-  // writer rejects the handoff instead of losing either side's latest work.
   await compareAndSetBrowserWorkspaceValue({
     namespace: getNamespace('project-workspace', accountScope),
     key: WORKSPACE_KEY,
