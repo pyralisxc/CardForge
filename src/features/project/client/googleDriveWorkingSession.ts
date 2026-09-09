@@ -52,10 +52,6 @@ const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
   !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
 );
 
-/**
- * Reconcile a browser working binding against the provider's current file
- * identity. This is metadata-only: it never imports, overwrites, or saves.
- */
 export const revalidateGoogleDriveWorkBinding = async (workId: string): Promise<GoogleDriveBindingCheck> => {
   const binding = await getGoogleDriveWorkBinding(workId);
   if (!binding) return { kind: 'unlinked', binding: null, project: null };
@@ -161,6 +157,11 @@ export function useGoogleDriveWorkingSession({
         bindingRef.current = saved;
         if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
       } catch (error) {
+        if (error instanceof GoogleDriveSaveLinkageError) {
+          writableRef.current = false;
+          queuedRef.current = false;
+          clearTimer();
+        }
         if (generation === generationRef.current) setState(stateForError(error));
       }
     })();
