@@ -30,9 +30,11 @@ export async function POST(request: Request) {
       name,
       size,
       projectRevision,
+      thumbnail: optionalString(body.thumbnail),
       fileId: optionalString(body.fileId),
       expectedProviderRevision: optionalString(body.expectedProviderRevision),
       expectedProjectRevision: optionalString(body.expectedProjectRevision),
+      expectedAccountId: optionalString(body.expectedAccountId),
       workId,
     });
     return Response.json(result);

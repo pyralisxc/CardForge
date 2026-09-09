@@ -16,7 +16,7 @@ import {
   normalizeProjectProductionPlan,
   type ProjectProductionPlan,
 } from './projectProductionPlan';
-import { normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
+import { getProjectFontValue, remapProjectTemplateFonts, normalizeProjectFontAssets, type ProjectFontAsset } from './projectFont';
 
 const PROJECT_DOCUMENT_VERSION = 1;
 
@@ -385,6 +385,13 @@ export const instantiateProjectDocumentCopy = (
   document: ProjectDocumentV1,
   createId: (kind: 'set' | 'card' | 'template' | 'style' | 'asset') => string,
 ): ProjectDocumentV1 => {
+  const fontValues = new Map<string, string>();
+  const customFonts = document.customFonts?.map((font) => {
+    const id = createId('asset');
+    const value = getProjectFontValue(id);
+    fontValues.set(font.value, value);
+    return { ...font, id, value };
+  });
   const templateIds = new Map(document.userTemplates.flatMap((template) => (
     template.id ? [[template.id, createId('template')] as const] : []
   )));
@@ -414,8 +421,9 @@ export const instantiateProjectDocumentCopy = (
 
   return {
     ...document,
+    ...(customFonts ? { customFonts } : {}),
     userTemplates: document.userTemplates.map((template) => ({
-      ...template,
+      ...remapProjectTemplateFonts(template, fontValues),
       id: template.id ? templateIds.get(template.id)! : createId('template'),
       templateSource: 'user',
       templateLibrarySource: 'personal',

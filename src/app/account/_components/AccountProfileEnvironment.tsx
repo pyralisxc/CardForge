@@ -262,6 +262,10 @@ export function AccountProfileEnvironment({
             onAction={() => { void entitlement.refreshEntitlement({ force: true }); }}
           />
         ) : null}
+        {contributorAccess.error ? (
+          <EnvironmentBoundaryNotice title="Contributor access is unavailable"
+            message={contributorAccess.error} actionLabel="Retry" onAction={contributorAccess.retry} />
+        ) : null}
         {!activeUtility && isSignedIn ? (
           <div className="mt-4">
             <AccountMcpUsageSection presentation="summary" onOpenDetails={openBilling} />

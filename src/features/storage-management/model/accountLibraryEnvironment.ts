@@ -125,9 +125,9 @@ export const getAccountLibraryEnvironmentActions = (
       scope: 'object',
       hierarchy: 'supporting',
       availability: projectFileAvailability,
-      commitment: 'permission',
+      commitment: 'none',
       automation: human(),
-      result: 'mutation',
+      result: 'tool-opened',
     });
   }
 
@@ -184,7 +184,7 @@ export const getAccountLibraryEnvironmentActions = (
       supportedSources: sources,
       revisionPolicy: item.references.driveFileId && !item.references.localSetId ? 'conflict-safe' : 'none',
       requiredPermission: item.references.localSetId || item.references.localTemplateId ? 'guest' : 'member',
-      scope: 'object', hierarchy: 'overflow', availability, commitment: 'destructive', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'mutation',
+      scope: 'object', hierarchy: 'overflow', availability, commitment: 'none', automation: human(item.references.driveFileId && !item.references.localSetId && !item.references.localTemplateId ? 'provider' : 'cardforge'), result: 'tool-opened',
     });
   }
 

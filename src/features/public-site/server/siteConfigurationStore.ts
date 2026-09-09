@@ -41,7 +41,7 @@ export const getPublicSiteConfiguration = async (): Promise<PublicSiteConfigurat
     .limit(1);
   if (error) {
     console.error('Failed to load public site configuration:', error);
-    return DEFAULT_PUBLIC_SITE_CONFIGURATION;
+    throw new PublicSiteConfigurationStoreError('Public site settings are temporarily unavailable.', 503);
   }
   return hydratePublicSiteConfiguration(data?.[0] as unknown as Record<string, unknown> | undefined);
 };

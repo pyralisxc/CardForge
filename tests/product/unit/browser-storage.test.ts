@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BROWSER_STORAGE_DATABASE, BROWSER_STORAGE_SAVE_STATUS_EVENT, createBrowserKeyValueStorage, createIndexedDbStorage, getBrowserRecoverySnapshot, getBrowserWorkspaceSaveStatus, getBrowserStorageHealth, getConstrainedImageSize, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
-import { getBrowserWorkspaceRecoveryState, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { parseBrowserWorkspaceRecord, getBrowserWorkspaceRecoveryState, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   getBrowserStoragePersistenceState,
@@ -118,8 +118,8 @@ describe('browser IndexedDB storage', () => {
   it('offers a reversible restore of the previous scoped workspace copy', async () => {
     setProjectPersistenceScope('guest');
     const storage = createBrowserKeyValueStorage('project-workspace:guest', { keepRecoverySnapshot: true });
-    await storage.setItem('workspace', '{"version":1}');
-    await storage.setItem('workspace', '{"version":2}');
+    await storage.setItem('workspace', '{"state":{"name":"first"},"version":4}');
+    await storage.setItem('workspace', '{"state":{"name":"second"},"version":4}');
 
     expect(await getBrowserWorkspaceRecoveryState()).toEqual({
       currentAvailable: true,
@@ -127,8 +127,8 @@ describe('browser IndexedDB storage', () => {
       quarantinedAvailable: false,
     });
     expect(await restoreBrowserWorkspaceRecovery('previous')).toBe(true);
-    expect(await storage.getItem('workspace')).toBe('{"version":1}');
-    expect(await storage.getItem('__recovery__:workspace')).toBe('{"version":2}');
+    expect(parseBrowserWorkspaceRecord((await storage.getItem('workspace'))!).value).toBe('{"state":{"name":"first"},"version":4}');
+    expect(await storage.getItem('__recovery__:workspace')).toBe('{"state":{"name":"second"},"version":4}');
   });
 
   it('round-trips typed browser preferences through the Project namespace', async () => {

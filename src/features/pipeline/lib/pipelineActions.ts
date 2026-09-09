@@ -27,9 +27,9 @@ export const createSendToPipelineActionDescriptor = ({
   scope: 'object' as const,
   hierarchy: 'supporting' as const,
   availability: { kind: 'available' as const },
-  commitment: 'publication' as const,
+  commitment: 'none' as const,
   automation: { kind: 'human-only' as const, owner: 'cardforge' as const },
-  result: 'mutation' as const,
+  result: 'tool-opened' as const,
 });
 
 export const createSendToPipelineActionDefinition = ({
@@ -47,7 +47,7 @@ export const createSendToPipelineActionDefinition = ({
       result: descriptor.result,
       execute: async (operationInput: PipelineActionOperationInput) => {
         await execute(operationInput);
-        return { kind: 'mutation' as const, changedIds: [...operationInput.targetIds] };
+        return { kind: 'tool-opened' as const, toolId: 'pipeline' };
       },
     },
   };

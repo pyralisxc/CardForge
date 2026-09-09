@@ -7,6 +7,7 @@ import type { AccountExperienceProjection } from '@/features/account/client/expe
 import {
   createActionRuntime,
   type ActionDescriptor,
+  type ActionOperationResult,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
@@ -103,16 +104,15 @@ export function useAccountLibraryActions({
       : currentItem?.scope === 'published' || currentItem?.scope === 'pipeline' ? sharedActions(currentItem)
         : [zoneAction('library.refresh', activeLoading ? 'Refreshing' : 'Refresh Library', activeLoading)];
 
-  const openPersonalItem = (item: AccountLibraryItem) => {
+  const openPersonalItem = async (item: AccountLibraryItem): Promise<ActionOperationResult> => {
     if (item.references.localSetId) {
       const href = createDeskReturnHref(`set:${item.references.localSetId}`, null, createCompatibilityReturnTo());
       projection.router.push(href);
-      return href;
+      return { kind: 'navigation', href };
     }
-    if (item.references.localTemplateId) return openDesignTool(item.references.localTemplateId, `library-object-${item.id}`);
+    if (item.references.localTemplateId) return { kind: 'navigation', href: openDesignTool(item.references.localTemplateId, `library-object-${item.id}`) };
     const returnTo = createCompatibilityReturnTo();
-    void projection.openItem(item, returnTo);
-    return returnTo;
+    return { kind: 'navigation', href: await projection.openItem(item, returnTo) };
   };
 
   const duplicatePersonalItem = (item: AccountLibraryItem) => {
@@ -123,6 +123,7 @@ export function useAccountLibraryActions({
     if (!duplicateId) throw new Error('CardForge could not create an independent device copy.');
     toast({ title: `${item.kind === 'template' ? 'Template' : 'Set'} duplicated`, description: `${item.name} now has an independent device copy.` });
     projection.refresh();
+    return { kind: 'mutation' as const, changedIds: [duplicateId] };
   };
 
   const openPublishedSet = async (packageUrl: string, name: string) => {
@@ -131,7 +132,7 @@ export function useAccountLibraryActions({
       projection.refresh();
       const href = createDeskReturnHref(`set:${result.setId}`, null, createCompatibilityReturnTo());
       projection.router.push(href);
-      return href;
+      return { kind: 'navigation' as const, href, changedIds: [result.setId] };
   };
 
   const runPublishedAction = async (item: Extract<LibraryViewItem, { scope: 'published' }>, copyTemplate: boolean) => {
@@ -146,7 +147,7 @@ export function useAccountLibraryActions({
     const selectedTemplateId = copyTemplate ? store.cloneTemplate(publishedTemplateId) : publishedTemplateId;
     if (!selectedTemplateId) throw new Error('CardForge could not prepare this Template for Design.');
     if (copyTemplate) toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
-    return openDesignTool(selectedTemplateId, `library-object-${item.id}`);
+    return { kind: 'navigation' as const, href: openDesignTool(selectedTemplateId, `library-object-${item.id}`), ...(copyTemplate ? { changedIds: [selectedTemplateId] } : {}) };
   };
 
   const closeLibraryTool = (locations: boolean) => {
@@ -179,7 +180,7 @@ export function useAccountLibraryActions({
     const consequence = action === 'withdraw'
       ? `Withdraw revision ${submission.revisionNumber ?? 1} from active review? Its immutable history remains visible, and it will not be published automatically.`
       : `Retire published revision ${submission.revisionNumber ?? 1}? It will leave new Library discovery, while existing downloaded or installed copies remain usable.`;
-    if (!window.confirm(consequence)) return;
+    if (!window.confirm(consequence)) return { kind: 'cancelled' as const };
     const response = await fetch(`/api/pipeline/${encodeURIComponent(submission.id)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -195,6 +196,7 @@ export function useAccountLibraryActions({
     });
     closeDetail();
     refresh();
+    return { kind: 'mutation' as const, changedIds: [submission.id] };
   };
 
   const commandsFor = (target: CommandTarget): AccountLibraryActionCommands => {
@@ -205,35 +207,37 @@ export function useAccountLibraryActions({
     const requirePublished = () => { if (!published) throw new Error('Choose a Published Library object first.'); return published; };
     const requirePipeline = () => { if (!pipeline) throw new Error('Choose a Pipeline revision first.'); return pipeline; };
     return {
-      closeLocations: () => closeLibraryTool(true),
-      closeTool: () => closeLibraryTool(false),
+      closeLocations: () => ({ kind: 'navigation', href: closeLibraryTool(true) }),
+      closeTool: () => ({ kind: 'navigation', href: closeLibraryTool(false) }),
       continuePersonal: () => openPersonalItem(requirePersonal()),
       openPersonal: () => openPersonalItem(requirePersonal()),
       sendPipeline: () => {
         const item = requirePersonal();
         if (!item.references.localSetId) throw new Error('Choose a local Set before sending work to Pipeline.');
         openContributionTool({ setId: item.references.localSetId });
+        return { kind: 'tool-opened', toolId: 'pipeline' };
       },
-      saveMove: () => { setLocationItem(requirePersonal()); },
+      saveMove: () => { setLocationItem(requirePersonal()); return { kind: 'tool-opened', toolId: 'locations' }; },
       duplicate: () => duplicatePersonalItem(requirePersonal()),
-      deleteCopy: () => { setPendingDeleteItem(requirePersonal()); },
+      deleteCopy: () => { setPendingDeleteItem(requirePersonal()); return { kind: 'tool-opened', toolId: 'delete-copy-confirmation' }; },
       viewSource: () => {
         const item = requirePersonal();
         if (!item.webViewLink) throw new Error('This Library object has no provider source link.');
         window.open(item.webViewLink, '_blank', 'noopener,noreferrer');
-        return item.webViewLink;
+        return { kind: 'provider-handoff', href: item.webViewLink };
       },
-      manageLocation: openLocations,
-      usePublished: () => pipeline?.pipeline.packageUrl
-        ? openPublishedSet(pipeline.pipeline.packageUrl, pipeline.name)
-        : runPublishedAction(requirePublished(), false),
-      copyPublishedTemplate: () => runPublishedAction(requirePublished(), true),
+      manageLocation: () => ({ kind: 'navigation', href: openLocations() }),
+      usePublished: async () => pipeline?.pipeline.packageUrl
+        ? await openPublishedSet(pipeline.pipeline.packageUrl, pipeline.name)
+        : await runPublishedAction(requirePublished(), false),
+      copyPublishedTemplate: async () => runPublishedAction(requirePublished(), true),
       editPipeline: () => {
         const item = requirePipeline();
         if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no editable revision.');
         setEditingSubmission(item.pipeline.editableSubmission);
         setActiveTool('edit-contribution');
         closeDetail();
+        return { kind: 'tool-opened', toolId: 'edit-contribution' };
       },
       testPipeline: () => {
         const item = requirePipeline();
@@ -241,19 +245,19 @@ export function useAccountLibraryActions({
         const templateId = useProjectStore.getState().addOrUpdateTemplate({ ...item.pipeline.template, id: null }, 'user');
         if (!templateId) throw new Error('CardForge could not prepare this exact revision for Design.');
         toast({ title: 'Exact Pipeline revision prepared', description: `${item.name} is open as a local test copy. The shared revision is unchanged.` });
-        return openDesignTool(templateId, `library-object-${item.id}`);
+        return { kind: 'navigation', href: openDesignTool(templateId, `library-object-${item.id}`), changedIds: [templateId] };
       },
       withdrawPipeline: async () => {
         const item = requirePipeline();
         if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no active unpublished candidate to withdraw.');
-        await runPipelineLifecycle(item.pipeline.editableSubmission, 'withdraw');
+        return runPipelineLifecycle(item.pipeline.editableSubmission, 'withdraw');
       },
       retirePipeline: async () => {
         const item = requirePipeline();
         if (!item.pipeline.retirableSubmission) throw new Error('This Pipeline lineage has no owned published revision to retire.');
-        await runPipelineLifecycle(item.pipeline.retirableSubmission, 'retire');
+        return runPipelineLifecycle(item.pipeline.retirableSubmission, 'retire');
       },
-      refresh: () => { refresh(); },
+      refresh: () => { refresh(); return { kind: 'refresh-requested' }; },
     };
   };
 

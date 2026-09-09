@@ -41,6 +41,7 @@ const publishWorkspaceSaveStatus = (status: BrowserStorageSaveStatus) => {
 };
 
 export const getBrowserWorkspaceSaveStatus = () => workspaceSaveStatus;
+export const markBrowserWorkspaceSaveFailed = () => publishWorkspaceSaveStatus('failed');
 
 export const subscribeToBrowserWorkspaceSaveStatus = (listener: () => void) => {
   if (typeof window === 'undefined') return () => undefined;
@@ -233,6 +234,11 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   expectedRevision,
   writerId,
   keepRecoverySnapshot = false,
+  relatedWrites = [],
+  recoveryKeys = [],
+  beforeCommit,
+  signal,
+  requireAbsent = false,
 }: {
   namespace: string;
   key: string;
@@ -240,6 +246,11 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   expectedRevision: number;
   writerId: string;
   keepRecoverySnapshot?: boolean;
+  relatedWrites?: readonly { key: string; value: string | null; expectedValue: string | null }[];
+  recoveryKeys?: readonly string[];
+  beforeCommit?: () => void;
+  signal?: AbortSignal;
+  requireAbsent?: boolean;
 }): Promise<number> => {
   const namespacedKey = `${namespace}:${key}`;
   beginWorkspaceWrite();
@@ -249,11 +260,19 @@ export const compareAndSetBrowserWorkspaceValue = async ({
     const openedDatabase = database;
     const revision = await new Promise<number>((resolve, reject) => {
       const transaction = openedDatabase.transaction(BROWSER_STORAGE_OBJECT_STORE, 'readwrite');
+      const abort = () => { transaction.abort(); reject(new Error('The workspace changed while the project was opening. Your edits were left unchanged; retry.')); };
+      if (signal?.aborted) { abort(); return; }
+      signal?.addEventListener('abort', abort, { once: true });
       const store = transaction.objectStore(BROWSER_STORAGE_OBJECT_STORE);
       const request = store.get(namespacedKey);
       let nextRevision: number | null = null;
       let conflict: BrowserWorkspaceConflictError | null = null;
       request.onsuccess = () => {
+        if (requireAbsent && request.result !== undefined) {
+          transaction.abort();
+          reject(new Error('The account workspace was created while guest work was opening. Both copies were left unchanged; retry sign-in.'));
+          return;
+        }
         const previousRaw = typeof request.result === 'string' ? request.result : null;
         const previous = previousRaw === null
           ? { revision: 0 }
@@ -262,20 +281,45 @@ export const compareAndSetBrowserWorkspaceValue = async ({
           conflict = new BrowserWorkspaceConflictError(expectedRevision, previous.revision);
           return;
         }
-        nextRevision = previous.revision + 1;
-        if (keepRecoverySnapshot && previousRaw !== null) {
-          store.put(previousRaw, `${namespace}:__recovery__:${key}`);
+        const relatedKeys = [...new Set([...recoveryKeys, ...relatedWrites.map((entry) => entry.key)])];
+        const priorValues: Record<string, string | null> = {};
+        const commit = () => {
+          try {
+            beforeCommit?.();
+            if (relatedWrites.some((entry) => priorValues[entry.key] !== entry.expectedValue)) {
+              throw new Error('The local artwork library changed while this project was opening. Your workspace was left unchanged; retry.');
+            }
+            nextRevision = previous.revision + 1;
+            if (keepRecoverySnapshot && previousRaw !== null) {
+              store.put(previousRaw, `${namespace}:__recovery__:${key}`);
+              store.put(JSON.stringify(Object.fromEntries(recoveryKeys.map((entry) => [entry, priorValues[entry]]))), `${namespace}:__recovery_assets__:${key}`);
+            }
+            for (const entry of relatedWrites) {
+              if (entry.value === null) store.delete(entry.key);
+              else store.put(entry.value, entry.key);
+            }
+            store.put(serializeBrowserWorkspaceRecord({ revision: nextRevision, writerId, value }), namespacedKey);
+          } catch (error) { transaction.abort(); reject(error); }
+        };
+        if (!relatedKeys.length) { commit(); return; }
+        let remaining = relatedKeys.length;
+        for (const relatedKey of relatedKeys) {
+          const relatedRequest = store.get(relatedKey);
+          relatedRequest.onsuccess = () => {
+            priorValues[relatedKey] = relatedRequest.result ?? null;
+            if (--remaining === 0) commit();
+          };
         }
-        store.put(serializeBrowserWorkspaceRecord({ revision: nextRevision, writerId, value }), namespacedKey);
       };
       request.onerror = () => reject(request.error ?? new Error('Unable to read the current browser workspace revision.'));
       transaction.oncomplete = () => {
+        signal?.removeEventListener('abort', abort);
         if (conflict) reject(conflict);
         else if (nextRevision !== null) resolve(nextRevision);
         else reject(new Error('The browser workspace transaction did not produce a revision.'));
       };
-      transaction.onerror = () => reject(transaction.error ?? new Error('Unable to save browser data.'));
-      transaction.onabort = () => reject(transaction.error ?? new Error('Browser storage transaction was aborted.'));
+      transaction.onerror = () => { signal?.removeEventListener('abort', abort); reject(transaction.error ?? new Error('Unable to save browser data.')); };
+      transaction.onabort = () => { signal?.removeEventListener('abort', abort); reject(transaction.error ?? new Error('Browser storage transaction was aborted.')); };
     });
     finishWorkspaceWrite(false);
     return revision;
@@ -288,25 +332,6 @@ export const compareAndSetBrowserWorkspaceValue = async ({
   } finally {
     database?.close();
   }
-};
-
-export const quarantineBrowserStorageValue = async ({
-  namespace,
-  key,
-  quarantineNamespace,
-}: {
-  namespace: string;
-  key: string;
-  quarantineNamespace: string;
-}): Promise<boolean> => {
-  const source = createBrowserKeyValueStorage(namespace);
-  const value = await source.getItem(key);
-  if (typeof value !== 'string') return false;
-
-  const quarantine = createBrowserKeyValueStorage(quarantineNamespace);
-  await quarantine.setItem(`${Date.now()}:${key}`, value);
-  await source.removeItem(key);
-  return true;
 };
 
 export const getBrowserRecoverySnapshot = async (namespace: string, key: string): Promise<string | null> => {

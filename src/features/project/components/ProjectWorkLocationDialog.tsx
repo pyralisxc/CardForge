@@ -16,12 +16,13 @@ import { useToast } from '@/components/ui/use-toast';
 
 import {
   copyGoogleDriveProjectToBrowser,
-  deleteGoogleDriveProjectCopy,
   saveCardSetToGoogleDrive,
 } from '../client/googleDriveProjectTransfer';
 import { saveCardSetToAttachedFolder } from '../client/localProjectFolder';
 import { readProjectPreference, writeProjectPreference } from '../persistence/preferences';
 import { useProjectStore } from '../store/workspaceStore';
+import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
+import { removeDeviceWorkAfterVerifiedCopy } from '../client/workLocationTransfer';
 import {
   canMoveWork,
   canTransferWork,
@@ -48,11 +49,14 @@ export interface ProjectWorkLocationContextProps {
   localFolderSupported: boolean;
 }
 
+import type { ProjectDocumentV1 } from '../model/projectDocument';
+
 interface ProjectWorkLocationDialogProps extends ProjectWorkLocationContextProps {
   target: ProjectWorkLocationTarget | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
+  renderThumbnail?: (document: ProjectDocumentV1) => Promise<string | null>;
 }
 
 const locationIcon = {
@@ -118,6 +122,7 @@ export function ProjectWorkLocationDialog({
   driveConnected,
   localFolderSupported,
   onChanged,
+  renderThumbnail,
 }: ProjectWorkLocationDialogProps) {
   const { toast } = useToast();
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -133,32 +138,28 @@ export function ProjectWorkLocationDialog({
   )), [capabilities, defaultLocation]);
   const source = target?.localSetId ? 'device' : target?.locations[0] ?? null;
 
-  const removeDeviceCopy = (setId: string) => {
-    if (!useProjectStore.getState().deleteCardSet(setId)) {
-      throw new Error('CardForge could not remove the device copy after verifying the destination.');
-    }
-  };
-
   const transfer = async (destination: WorkLocationId, move: boolean) => {
     if (!target || !source) return;
     const actionKey = `${destination}:${move ? 'move' : 'copy'}`;
+    const expectedState = useProjectStore.getState();
+    const scope = getProjectPersistenceScope();
+    let destinationCreated = false;
     setBusyAction(actionKey);
     try {
       if (source === 'device' && target.localSetId) {
         if (destination === 'google-drive') {
-          await saveCardSetToGoogleDrive({ setId: target.localSetId, name: target.name });
+          await saveCardSetToGoogleDrive({ setId: target.localSetId, name: target.name, renderThumbnail });
         } else if (destination === 'local-folder') {
           await saveCardSetToAttachedFolder(target.localSetId);
         } else {
           throw new Error('This Set already lives on this device.');
         }
-        if (move) removeDeviceCopy(target.localSetId);
+        destinationCreated = true;
+        if (move) await removeDeviceWorkAfterVerifiedCopy({ setId: target.localSetId, expectedState, scope });
       } else if (source === 'google-drive' && destination === 'device' && target.driveFileId) {
+        if (move) throw new Error('Copy this document to the device, then manage the original in Drive. Automatic Drive source removal is unavailable.');
         await copyGoogleDriveProjectToBrowser({ fileId: target.driveFileId, name: target.name });
-        if (move) {
-          if (!target.driveProviderRevision || !target.driveProjectRevision) throw new Error('Reload this Drive copy before moving it so CardForge has its exact revisions.');
-          await deleteGoogleDriveProjectCopy({ fileId: target.driveFileId, providerRevision: target.driveProviderRevision, projectRevision: target.driveProjectRevision });
-        }
+        destinationCreated = true;
       } else {
         throw new Error('Open this source on the device before sending it to that location.');
       }
@@ -172,10 +173,11 @@ export function ProjectWorkLocationDialog({
       onOpenChange(false);
     } catch (error) {
       toast({
-        title: move ? 'Set was not moved' : 'Set was not copied',
-        description: error instanceof Error ? error.message : 'CardForge could not complete this location change. The source copy was left unchanged.',
+        title: destinationCreated ? 'Copy saved · source retained' : 'Location change needs review',
+        description: `${destinationCreated ? 'The verified destination copy is available, and the device source was kept. ' : ''}${error instanceof Error ? error.message : 'CardForge could not confirm this location change. Check the destination before repeating the action.'}`,
         variant: 'destructive',
       });
+      if (destinationCreated) onChanged?.();
     } finally {
       setBusyAction(null);
     }
@@ -188,6 +190,7 @@ export function ProjectWorkLocationDialog({
           <DialogTitle className={styles.title}>Save &amp; move {target?.name ?? 'Set'}</DialogTitle>
           <DialogDescription className={styles.description}>
             A move always writes and verifies the destination first. If verification fails, the source stays unchanged.
+            {' '}Drive documents can be copied here; remove the original separately in Drive when you are ready.
           </DialogDescription>
         </DialogHeader>
 

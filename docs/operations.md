@@ -49,21 +49,14 @@ Preview provider ownership:
 
 - Vercel project: `card-forge`, Preview environment scoped to `vercel-preview`.
 - Supabase project: `Card Forge Staging`, project ref `mjdugheniazuiqoefnnb`; the official GitHub integration applies migrations from `vercel-preview`.
-- Clerk: development instance and development-mode test identities only.
+- Clerk: development instance; use the existing real owner/developer account for authenticated acceptance.
 - Stripe: sandbox account, Creator Price `price_1U7nTi9l4G37K6th7Amjpayw`, Designer Price `price_1U7oS19l4G37K6thK4ncrkkA`, and webhook `we_1U7nfP9l4G37K6thc6b6VJYR`.
 - Google Drive: `CardForge Connected Storage Preview` OAuth Web client, a branch-only token-encryption key, and the shared Picker key restricted to Google Picker API plus the stable Preview/production origins.
 - GitHub: public `pyralisxc/CardForge`; the active `Updates` ruleset protects `main` with PRs, resolved threads, strict `verify`, deletion protection, and force-push protection.
 
-Preview test identities are durable environment fixtures, not production users:
+The former reusable QA accounts are retired. Do not recreate them or treat an old browser session as the intended acceptance identity. Verify the signed-in account and environment before testing. The real owner has a separate account in Clerk's development instance; production sign-in does not establish a Preview session.
 
-| Journey | Clerk development identity | Expected state |
-| --- | --- | --- |
-| Free | `qa+clerk_test_free@cardforges.com` | Free access and the Free temporary-working-document retention policy |
-| Creator | `qa+clerk_test_creator@cardforges.com` | Active Creator Pass from Stripe sandbox |
-| Designer | `qa+clerk_test_designer@cardforges.com` | Active Designer Pass from Stripe sandbox |
-| Contributor | `qa+clerk_test_contributor@cardforges.com` | Active contributor with asset, campaign, and private MCP scopes |
-| Owner | `qa+clerk_test_owner@cardforges.com` | Profile owner operations and owner review scopes through the branch-only owner allowlist |
-| Inactive contributor | `qa+clerk_test_inactive@cardforges.com` | Signed-in contributor entitlement with an inactive profile; contribution tools denied |
+Google's dedicated Preview OAuth client authorizes the stable Preview origin and its `/api/project-sources/google-drive/callback` redirect. The Google app is in Testing, so the selected Google account must also be an allowed test user. Google limits refresh tokens for this external Testing app's Drive grant to seven days; reconnect through the native flow when required ([OAuth app states](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)). A disconnected Drive account does not imply that Preview OAuth is unsupported. Vercel Authentication, Clerk sign-in, and Drive consent are separate boundaries. Changing the Google app's publishing status affects its clients and is a separate provider decision.
 
 No password, verification secret, API key, OAuth token, or bypass value belongs in the repository. Use Clerk's provider-defined development testing path and the provider dashboards when a fresh authenticated browser session is required.
 
@@ -106,7 +99,7 @@ Reset through the owning product/provider path:
 - Remove temporary assistant drafts through Account Library. Browser-local Sets and provider-owned projects remain independent.
 - Cancel or change test subscriptions only in Stripe sandbox/Portal; retain CardForge billing ledgers as idempotency evidence.
 - Remove temporary assistant drafts through their revision-safe MCP tools or allow the staging retention lifecycle to expire them.
-- Keep the six Clerk development identities and their intentional Supabase profiles stable between releases. Re-provisioning the staging project is destructive and requires explicit approval.
+- Preserve existing real account profiles. Re-provisioning the staging project is destructive and requires explicit approval.
 
 ### Solo-maintainer branch rule
 
@@ -183,6 +176,8 @@ For Pipeline/catalog changes, apply required forward migrations before a bundle 
 Before enabling extended contributors, verify protected source storage, approved-only public derivatives, canonical media/attachment relationships, private preview authorization, owner-only approval/provider mutations, current legal publications, and scoped contributor grants.
 
 Before enabling native Meta publishing:
+
+Deploy the `marketing_delivery_approved_revision` migration before application code that reads `approved_campaign_version`. Existing jobs deliberately retain NULL because their historical approval revision cannot be inferred. Review and replace those jobs through an explicit owner flow before enablement; do not backfill them from today's campaign. A claimed job must still match its captured approved campaign version and destination. Finalization is conditional on its live claim token; a lost provider receipt or a failed post-send database write requires reconciliation and must not be retried as a new publication.
 
 1. Verify the reviewed Meta Business app/Login for Business configuration and exact callback URI.
 2. Configure only required Page/Instagram publishing scopes and the intended Page/account.

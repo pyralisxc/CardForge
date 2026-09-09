@@ -38,7 +38,6 @@ const sourceReaderContracts = [
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
-  ['tests/product/unit/billing-webhook-safety.test.ts', 'billing security ordering contract'],
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],
   ['tests/product/unit/clerk-config.test.ts', 'Clerk middleware security configuration'],
   ['tests/product/unit/element-recipe-catalog.test.ts', 'published recipe catalog artifacts'],
@@ -47,6 +46,8 @@ const sourceReaderContracts = [
   ['tests/product/unit/catalog-modernization.test.ts', 'published bootstrap classification, Template and portable Set artifacts'],
   ['tests/product/unit/pipeline-upload-submission.test.ts', 'binary font fixtures for behavioral upload validation; no implementation source reads'],
   ['tests/product/workflows/template-canvas-handoff.spec.ts', 'published official starter Set and Template assets used by the native package builder and browser installation flow'],
+  ['tests/product/workflows/output-artifacts.spec.ts', 'actual browser-downloaded PNG, ZIP, PDF and Tabletop output bytes; no implementation source reads'],
+  ['tests/product/workflows/browser-workspace-recovery.spec.ts', 'native browser recovery downloads and verified package artwork; no implementation source reads'],
 ];
 
 const summarize = (files, classify) => {

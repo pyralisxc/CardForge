@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useToast } from '@/components/ui/use-toast';
 import { createDeskReturnHref, createLibraryReturnHref, createStudioHref } from '@/features/app-shell/client/navigation';
 import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
@@ -195,7 +194,6 @@ export function useAccountLibraryProjection({
   isSignedIn,
 }: UseAccountLibraryProjectionOptions) {
   const router = useRouter();
-  const { toast } = useToast();
   const [hydrated, setHydrated] = useState(false);
   const [hydrationFailure, setHydrationFailure] = useState<AccountLibrarySourceFailure | null>(null);
   const [localResourceSource, setLocalResourceSource] = useState<ScopedLibrarySource<LocalLibraryResource[]> | null>(null);
@@ -586,54 +584,44 @@ export function useAccountLibraryProjection({
     return true;
   }, [organizationPreferenceKey, privateOrganizationReady, updateCardSetMetadata]);
 
-  const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) => {
+  const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) : Promise<string> => {
+    const navigate = (href: string) => { router.push(href); return href; };
     setBusyItemId(item.id);
     try {
       if (item.references.workingDraftId) {
-        router.push(createStudioHref({ documentId: item.references.workingDraftId, revision: item.revision, returnTo }));
-        return;
+        return navigate(createStudioHref({ documentId: item.references.workingDraftId, revision: item.revision, returnTo }));
       }
       if (item.references.localSetId) {
         useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
-        router.push(createDeskReturnHref(`set:${item.references.localSetId}`));
-        return;
+        return navigate(createDeskReturnHref(`set:${item.references.localSetId}`));
       }
       if (item.references.localTemplateId) {
         const store = useProjectStore.getState();
         store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
         store.setStudioView('template');
         const params = new URLSearchParams({ section: 'library', scope: 'personal', tool: 'design', artifact: item.references.localTemplateId });
-        router.push(`/account?${params.toString()}`);
-        return;
+        return navigate(`/account?${params.toString()}`);
       }
       if (item.references.campaignId) {
-        router.push(`/account?section=library&scope=campaigns&campaign=${encodeURIComponent(item.references.campaignId)}`);
-        return;
+        return navigate(`/account?section=library&scope=campaigns&campaign=${encodeURIComponent(item.references.campaignId)}`);
       }
       if (item.references.pipelineLineageId) {
-        router.push(`/account?section=library&scope=published&lineage=${encodeURIComponent(item.references.pipelineLineageId)}`);
-        return;
+        return navigate(`/account?section=library&scope=published&lineage=${encodeURIComponent(item.references.pipelineLineageId)}`);
       }
       if (item.references.localFolderWorkId) {
         // A remembered directory handle cannot be elevated in the background.
         // The Library location tool makes the user-triggered reconnect choice.
-        router.push('/account?section=library&tool=locations');
-        return;
+        return navigate('/account?section=library&tool=locations');
       }
       if (item.references.driveFileId) {
         const binding = await openGoogleDriveProject({ fileId: item.references.driveFileId, name: item.name });
-        router.push(binding.workId ? createDeskReturnHref(`set:${binding.workId}`) : '/account');
+        return navigate(binding.workId ? createDeskReturnHref(`set:${binding.workId}`) : '/account');
       }
-    } catch (error) {
-      toast({
-        title: 'Library item could not be opened',
-        description: error instanceof Error ? error.message : 'CardForge could not open that library item.',
-        variant: 'destructive',
-      });
+      throw new Error('This Library item has no available open action.');
     } finally {
       setBusyItemId(null);
     }
-  }, [router, toast]);
+  }, [router]);
 
   return {
     items,

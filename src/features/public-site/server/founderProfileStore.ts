@@ -5,7 +5,6 @@ import {
   type FounderProfile,
   type FounderProfileInput,
 } from '../model/founderProfile';
-import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 interface FounderProfileRow {
@@ -78,17 +77,15 @@ export const getFounderProfile = async (): Promise<FounderProfile> => {
     .eq('id', FOUNDER_PROFILE_ID)
     .maybeSingle<FounderProfileRow>();
 
-  if (error || !data) {
-    if (error && !isMissingSupabaseTableError(error)) {
-      console.error('Failed to load founder profile:', error);
-    }
-    return DEFAULT_FOUNDER_PROFILE;
+  if (error) {
+    console.error('Failed to load founder profile:', error);
+    throw new FounderProfileStoreError('Founder profile is temporarily unavailable.', 503);
   }
+  if (!data) return DEFAULT_FOUNDER_PROFILE;
 
   const normalized = normalizeFounderProfileInput(rowToInput(data));
-  return normalized.ok
-    ? { ...normalized.value, updatedAt: data.updated_at }
-    : DEFAULT_FOUNDER_PROFILE;
+  if (!normalized.ok) throw new FounderProfileStoreError('The saved founder profile could not be read.', 503);
+  return { ...normalized.value, updatedAt: data.updated_at };
 };
 
 export const updateFounderProfile = async (value: unknown): Promise<FounderProfile> => {

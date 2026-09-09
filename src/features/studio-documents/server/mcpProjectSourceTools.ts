@@ -175,9 +175,12 @@ export const registerProjectSourceTools = ({
         return {
           content: [{
             type: 'text',
-            text: `Committed working document revision ${result.documentRevision} to “${result.source.name}”. The connected source advanced from provider revision ${result.previousProviderRevision} to ${result.source.providerRevision}.`,
+            text: `Committed working document revision ${result.documentRevision} to “${result.source.name}”. The connected source advanced from provider revision ${result.previousProviderRevision} to ${result.source.providerRevision}.`
+              + (result.linkageFailure ? ` Working-document linkage needs refresh. ${result.linkageFailure.nextAction}` : ''),
           }],
           structuredContent: {
+            status: result.status,
+            linkageFailure: result.linkageFailure,
             source: result.source,
             documentId: result.documentId,
             documentRevision: result.documentRevision,

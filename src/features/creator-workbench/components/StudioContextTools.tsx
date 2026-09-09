@@ -1,5 +1,7 @@
 "use client";
 
+import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+
 import type { ComponentProps } from 'react';
 
 import {
@@ -69,7 +71,7 @@ export function StudioContextTools({
         </SheetContent>
       </Sheet>
 
-      {saveMoveOpen ? <StudioSaveMoveDialog open={saveMoveOpen} onOpenChange={onSaveMoveOpenChange} {...saveMoveDialogProps} /> : null}
+      {saveMoveOpen ? <StudioSaveMoveDialog open={saveMoveOpen} onOpenChange={onSaveMoveOpenChange} {...saveMoveDialogProps} renderThumbnail={createGoogleDriveProjectThumbnail} /> : null}
     </>
   );
 }

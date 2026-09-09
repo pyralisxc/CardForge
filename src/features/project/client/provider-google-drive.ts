@@ -36,6 +36,8 @@ export {
   getGoogleDriveProjectSourceDescriptor,
   loadGoogleDriveProjectLibrary,
   openGoogleDriveProject,
+  refreshGoogleDriveProject,
+  hasGoogleDriveWorkingChanges,
   copyGoogleDriveProjectToBrowser,
   saveCurrentProjectToGoogleDrive,
   saveCardSetToGoogleDrive,

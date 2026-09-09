@@ -356,13 +356,13 @@ describe('account library model', () => {
     expect(getAccountLibraryEnvironmentActions(driveProject!)[0]).toMatchObject({ requiredPermission: 'member' });
   });
 
-  it('pools copies of one Set into one Library object with multiple locations', () => {
+  it('projects the exact bound Drive document with its local working Set', () => {
     const items = buildAccountLibraryItems({
       localSets: [{ id: 'set-1', name: 'Arcane Deck', cardCount: 52, sizeBytes: 1200 }],
       driveProjects: [{
         fileId: 'drive-project', name: 'Arcane Deck.cardforge', providerRevision: '7',
         projectRevision: 'project-revision', modifiedAt: '2026-08-24T11:00:00.000Z', size: 2400,
-        webViewLink: null, workId: 'set-1',
+        webViewLink: null, workId: 'portable-set-1', localWorkId: 'set-1',
       }],
       driveBindingFileId: null,
       localWorkFolders: [{
@@ -378,5 +378,18 @@ describe('account library model', () => {
       references: { localSetId: 'set-1', driveFileId: 'drive-project', localFolder: true },
     });
     expect(items[0]?.locations.map((location) => location.source)).toEqual(['device', 'google-drive', 'local-folder']);
+  });
+
+  it.each([false, true])('keeps files sharing portable work identity independent regardless of list order (%s)', (reverse) => {
+    const driveProjects = [
+      { fileId: 'drive-a', name: 'Same name', providerRevision: '1', projectRevision: 'revision-a', modifiedAt: '2026-09-01', size: 100, webViewLink: null, workId: 'portable', localWorkId: 'local-a' },
+      { fileId: 'drive-b', name: 'Same name', providerRevision: '2', projectRevision: null, modifiedAt: '2026-09-02', size: 200, webViewLink: null, workId: 'portable' },
+    ];
+    const items = buildAccountLibraryItems({ localSets: [{ id: 'local-a', name: 'A', cardCount: 1, sizeBytes: null }], driveProjects: reverse ? driveProjects.reverse() : driveProjects, driveBindingFileId: null, localWorkFolders: [], personalAssets: [], workingDrafts: [] });
+    expect(items).toHaveLength(2);
+    expect(items.find((item) => item.references.localSetId === 'local-a')?.references).toMatchObject({ driveFileId: 'drive-a', driveProjectRevision: 'revision-a' });
+    const second = items.find((item) => item.references.driveFileId === 'drive-b');
+    expect(second?.references.localSetId).toBeUndefined();
+    expect(second?.references.driveProjectRevision).toBeUndefined();
   });
 });

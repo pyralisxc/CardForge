@@ -156,7 +156,7 @@ test.describe('account contribution surfaces', () => {
     await page.getByRole('button', { name: 'View cards on Desk' }).click();
     await page.getByRole('button', { name: 'Clear all', exact: true }).click();
     await expect(page.getByText('10 shown', { exact: true })).toBeVisible();
-    await page.getByText('Ordered Artifact navigator · 10', { exact: true }).click();
+    await page.getByRole('button', { name: 'Ordered Artifact navigator · 10', exact: true }).click();
     await expect(page.getByRole('option')).toHaveCount(10);
     await expect(page.getByRole('option').filter({ hasText: 'Ember Template' })).toHaveCount(5);
     await expect(page.getByRole('option').filter({ hasText: 'Tide Template' })).toHaveCount(5);

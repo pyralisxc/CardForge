@@ -157,6 +157,7 @@ export function SaveAsPdfButton({
         }
 
         const pdf = new jsPDF({
+          compress: true,
           orientation: selectedPaperSize.widthMm < selectedPaperSize.heightMm ? 'p' : 'l',
           unit: 'mm',
           format: [selectedPaperSize.widthMm, selectedPaperSize.heightMm],
@@ -233,30 +234,16 @@ export function SaveAsPdfButton({
     pageCards: PdfCardPlacement[],
     exportProfile: ReturnType<typeof getExportProfile>
   ) {
-    let renderErrorCount = 0;
-
     for (const { card, face, x, y, w, h } of pageCards) {
-      try {
-          const canvas = await renderCardToCanvasWithProfile(
-            card,
-            exportProfile,
-            face,
-            richTextHighlightColor,
-            resolveCardExportWatermark(canExportClean, brand),
-          );
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
-          if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
-      } catch (e) {
-          renderErrorCount += 1;
-          if (renderErrorCount <= 5) {
-            console.warn('Error processing card for PDF:', card.uniqueId, e);
-          }
-          pdf.text(`Error rendering: ${card.uniqueId.substring(0,5)}`, x, y + h/2);
-      }
-    }
-
-    if (renderErrorCount > 0) {
-      console.warn(`PDF page completed with ${renderErrorCount} render error(s).`);
+      const canvas = await renderCardToCanvasWithProfile(
+        card,
+        exportProfile,
+        face,
+        richTextHighlightColor,
+        resolveCardExportWatermark(canExportClean, brand),
+      );
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
+      if (pdfIncludeCutLines) drawCutLines(pdf, x, y, w, h);
     }
   }
 

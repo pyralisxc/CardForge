@@ -1,6 +1,7 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 
 import { GOOGLE_DRIVE_PROJECT_PROVIDER } from '@/features/project/server';
+import { BOUNDARY_FAILURE_KINDS } from '@/shared/boundaryFailure';
 
 export interface CheckoutProjectInput {
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
@@ -33,8 +34,8 @@ const projectIdSchema = {
 
 const providerRevisionSchema = {
   type: 'string',
-  pattern: '^\\d{1,80}$',
-  description: 'Exact provider revision previously read from the connected storage provider.',
+  pattern: '^head:[a-f0-9]{64}$',
+  description: 'Exact opaque binary-content revision token previously read from Drive, derived from its native headRevisionId.',
 } as const;
 
 const projectRevisionSchema = {
@@ -99,6 +100,8 @@ const projectSummarySchema = {
     'webViewLink',
   ],
   properties: {
+    accountId: { type: 'string' },
+    thumbnailLink: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     provider: providerSchema,
     fileId: { type: 'string' },
     workId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
@@ -162,8 +165,22 @@ export const checkoutProjectOutputSchema = fromJsonSchema<Record<string, unknown
 export const commitProjectOutputSchema = fromJsonSchema<Record<string, unknown>>({
   type: 'object',
   additionalProperties: false,
-  required: ['source', 'documentId', 'documentRevision', 'previousProviderRevision', 'previousProjectRevision'],
+  required: ['status', 'linkageFailure', 'source', 'documentId', 'documentRevision', 'previousProviderRevision', 'previousProjectRevision'],
   properties: {
+    status: { type: 'string', enum: ['committed', 'source_committed_linkage_refresh_required'] },
+    linkageFailure: {
+      anyOf: [{ type: 'null' }, {
+        type: 'object',
+        additionalProperties: false,
+        required: ['kind', 'status', 'retryable', 'nextAction'],
+        properties: {
+          kind: { type: 'string', enum: [...BOUNDARY_FAILURE_KINDS] },
+          status: { type: 'integer', minimum: 400, maximum: 599 },
+          retryable: { const: false },
+          nextAction: { type: 'string' },
+        },
+      }],
+    },
     source: projectSummarySchema,
     documentId: { type: 'string' },
     documentRevision: { type: 'integer' },

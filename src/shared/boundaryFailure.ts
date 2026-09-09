@@ -99,7 +99,9 @@ export const describeAgentBoundaryFailure = (error: unknown): AgentBoundaryFailu
   return {
     status,
     kind: suppliedKind ?? inferBoundaryFailureKind(status),
-    retryable: isRetryableBoundaryStatus(status),
+    retryable: typeof record.retryable === 'boolean' ? record.retryable
+      : typeof nestedBoundary.retryable === 'boolean' ? nestedBoundary.retryable
+        : isRetryableBoundaryStatus(status),
     nextAction: suppliedNextAction ?? nextActionForStatus(status),
     ...(suppliedRetryAfterSeconds !== null ? { retryAfterSeconds: suppliedRetryAfterSeconds } : {}),
     ...(suppliedLimit ? { limit: suppliedLimit } : {}),

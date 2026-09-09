@@ -165,7 +165,7 @@
 .desk[data-focused="true"] .workSurface {
   overflow: hidden;
 }
-.workGrid[data-focused="true"] { overflow: hidden; touch-action: auto; }
+.workGrid[data-focused="true"] { overflow: clip; touch-action: auto; }
 
 .spatialPlane[data-artifact-focused="true"] .workSurface {
   overflow: clip;
@@ -813,11 +813,7 @@
   flex-shrink: 0;
 }
 
-.gestureHint { color: var(--cf-text-subtle); font-size: 0.67rem; }
-.setOrganization { margin-left: auto; }
-.setOrganization summary { cursor: pointer; padding: 0.6rem; font-size: 0.75rem; color: var(--cf-text-strong); }
-.setOrganization[open] { flex-basis: 100%; }
-.organizationPanel { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem; max-height: 30dvh; overflow: auto; background: var(--cf-surface); border: 1px solid var(--cf-border-subtle); }
+.organizationPanel { display: flex; width: min(42rem, calc(100vw - 2rem)); flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem; max-height: min(70dvh, var(--radix-popover-content-available-height)); overflow: auto; background: var(--cf-surface); border: 1px solid var(--cf-border-subtle); }
 .spatialPlane [data-spatial-held="true"] { outline: 2px solid var(--cf-accent-strong); outline-offset: 2px; cursor: grabbing; }
 
 .organizationToolbar {
@@ -1149,10 +1145,9 @@
 }
 
 .orderedNavigator {
-  flex-shrink: 0;
-  max-height: 40%;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: min(70dvh, var(--radix-popover-content-available-height));
   overflow: auto;
-  margin-top: 0.7rem;
   border: 1px solid var(--cf-border-subtle);
   background: var(--cf-surface-inset);
 }
@@ -1170,11 +1165,10 @@
   color: var(--cf-text-strong);
 }
 
-.orderedNavigator > summary {
-  min-height: 2.75rem;
-  padding: 0.75rem;
+.orderedNavigator > strong {
+  display: block;
+  padding-bottom: 0.75rem;
   color: var(--cf-text-strong);
-  cursor: pointer;
   font-weight: 700;
 }
 
@@ -1682,7 +1676,6 @@
     gap: 0.4rem;
   }
   .contentToolbar > .searchField { flex: 1; width: auto; }
-  .gestureHint { display: none; }
 
   .contentToolbar > .searchField,
   .contentToolbar > .organizationToolbar,
@@ -1698,13 +1691,7 @@
 
   .organizationToolbar {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .organizationToolbar::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
   }
 
   .compactSelect {
@@ -1727,13 +1714,7 @@
   }
 
   .cameraControls {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .cameraControls::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
   }
 
   .cameraControls > * { flex-shrink: 0; }

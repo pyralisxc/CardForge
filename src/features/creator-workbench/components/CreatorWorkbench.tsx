@@ -452,6 +452,12 @@ export function CreatorWorkbench({
         </div>
       ) : null}
 
+      {contributorAccess.error ? (
+        <div role="alert" className="flex shrink-0 items-center gap-3 border-b border-amber-500/45 bg-amber-500/10 p-2 text-sm">
+          <span>{contributorAccess.error}</span>
+          <Button type="button" variant="outline" size="sm" onClick={contributorAccess.retry}>Retry access</Button>
+        </div>
+      ) : null}
       {!isOutput && isEditDialogOpen && editingCardFromStore ? (
         <CardEditor
           card={editingCardFromStore}

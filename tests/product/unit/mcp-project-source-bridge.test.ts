@@ -180,4 +180,37 @@ describe('MCP connected-project revision bridge', () => {
 
     expect(projectMocks.updateGoogleDriveProjectFromServer).not.toHaveBeenCalled();
   });
+
+  it.each([409, 503])('returns exact committed revisions when lineage recording fails with %s', async (status) => {
+    documentMocks.getStudioDocument.mockResolvedValue({
+      revision: 3, document,
+      sourceProjectProvider: 'google-drive', sourceProjectExternalId: 'drive_file_source',
+      sourceProviderRevision: '8', sourceProjectRevision: sourceRevision,
+      sourceProjectName: 'Source Set.cardforge',
+    });
+    projectMocks.updateGoogleDriveProjectFromServer.mockResolvedValue({
+      ...driveSource.summary, providerRevision: '9', projectRevision: 'b'.repeat(64),
+    });
+    documentMocks.recordStudioDocumentProjectSourceCommit.mockRejectedValue({ status });
+    const input = {
+      access, documentId: 'working-source', expectedDocumentRevision: 3,
+      provider: 'google-drive' as const, projectId: 'drive_file_source',
+      expectedProviderRevision: '8', expectedProjectRevision: sourceRevision,
+    };
+    const result = await commitAgentWorkingProjectToSource(input);
+    expect(result).toMatchObject({
+      status: 'source_committed_linkage_refresh_required',
+      documentRevision: 3,
+      source: { providerRevision: '9', projectRevision: 'b'.repeat(64) },
+      lineage: null,
+      linkageFailure: { status, kind: status === 409 ? 'conflict' : 'unavailable', retryable: false },
+    });
+    expect(result.linkageFailure?.nextAction).toContain('Do not repeat commit_project');
+    expect(projectMocks.updateGoogleDriveProjectFromServer).toHaveBeenCalledOnce();
+    // Even an incorrectly replayed request must retain the old expected provider
+    // revision, allowing the provider's concurrency owner to reject it.
+    projectMocks.updateGoogleDriveProjectFromServer.mockRejectedValue({ status: 409 });
+    await expect(commitAgentWorkingProjectToSource(input)).rejects.toMatchObject({ status: 409 });
+    expect(documentMocks.recordStudioDocumentProjectSourceCommit).toHaveBeenCalledOnce();
+  });
 });

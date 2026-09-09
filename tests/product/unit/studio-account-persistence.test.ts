@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as browserAssets from '@/features/project/persistence/contentAddressedBrowserAssets';
+import { compareAndSetBrowserWorkspaceValue } from '@/features/project/persistence/indexedDbStorage';
 
 import { adoptGuestWorkspaceForAccount, createProjectPersistenceScope, createScopedProjectStorage, getScopedProjectStorageNamespace, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { BROWSER_STORAGE_DATABASE, createIndexedDbStorage } from '@/features/project/client/persistence-storage';
@@ -15,6 +17,7 @@ const deleteDatabase = () => new Promise<void>((resolve, reject) => {
 });
 
 describe('Studio account-scoped persistence', () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(async () => {
     await deleteDatabase();
     setProjectPersistenceScope('local');
@@ -130,7 +133,7 @@ describe('Studio account-scoped persistence', () => {
     expect(calls).toEqual(['adopt:account:continuity', 'hydrate:account:continuity']);
   });
 
-  it('moves current guest work into the signed-in account without a choice, preserves recovery, and clears the guest lane', async () => {
+  it('resumes existing account work without replacing it or transferring guest catalogs', async () => {
     const guestWorkspace = createIndexedDbStorage('project-workspace:guest');
     const accountWorkspace = createIndexedDbStorage('project-workspace:account:user-adoption');
     const guestAssets = createIndexedDbStorage('project-assets:guest');
@@ -140,23 +143,80 @@ describe('Studio account-scoped persistence', () => {
     await guestAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'guest-art', name: 'Guest art' }]));
     await accountAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'account-art', name: 'Account art' }]));
 
-    await expect(adoptGuestWorkspaceForAccount('account:user-adoption')).resolves.toBe(true);
+    await expect(adoptGuestWorkspaceForAccount('account:user-adoption')).resolves.toBe(false);
 
-    await expect(accountWorkspace.getItem('workspace')).resolves.toContain('guest-current-work');
-    await expect(accountWorkspace.getItem('__recovery__:workspace')).resolves.toContain('account-recovery-work');
-    await expect(accountAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('guest-art');
+    await expect(accountWorkspace.getItem('workspace')).resolves.toContain('account-recovery-work');
+    await expect(accountWorkspace.getItem('__recovery__:workspace')).resolves.toBeNull();
+    await expect(accountAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.not.toContain('guest-art');
     await expect(accountAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('account-art');
-    await expect(guestWorkspace.getItem('workspace')).resolves.toBeNull();
-    await expect(guestAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toBeNull();
+    await expect(guestWorkspace.getItem('workspace')).resolves.toContain('guest-current-work');
+    await expect(guestAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('guest-art');
   });
 
   it('never carries a completed guest handoff into another account scope', async () => {
     const guestWorkspace = createIndexedDbStorage('project-workspace:guest');
+    const guestAssets = createIndexedDbStorage('project-assets:guest');
     await guestWorkspace.setItem('workspace', JSON.stringify({ state: { marker: 'guest-current-work' }, version: 3 }));
+    await guestAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'guest-art' }]));
 
     await expect(adoptGuestWorkspaceForAccount('account:first')).resolves.toBe(true);
     await expect(adoptGuestWorkspaceForAccount('account:second')).resolves.toBe(false);
     await expect(createIndexedDbStorage('project-workspace:account:second').getItem('workspace')).resolves.toBeNull();
+    await expect(createIndexedDbStorage('project-assets:account:first').getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('guest-art');
+    await expect(guestAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toBeNull();
+  });
+
+  it('leaves an unreadable existing account workspace untouched for recovery', async () => {
+    const guest = createIndexedDbStorage('project-workspace:guest');
+    const account = createIndexedDbStorage('project-workspace:account:unreadable');
+    await guest.setItem('workspace', JSON.stringify({ state: { marker: 'guest-work' }, version: 4 }));
+    await account.setItem('workspace', '{original unreadable authored bytes');
+    await expect(adoptGuestWorkspaceForAccount('account:unreadable')).resolves.toBe(false);
+    await expect(account.getItem('workspace')).resolves.toBe('{original unreadable authored bytes');
+    await expect(guest.getItem('workspace')).resolves.toContain('guest-work');
+  });
+
+  it.each(['revisioned', 'unreadable'])('rejects guest adoption if another tab creates %s account work during preparation', async (format) => {
+    const guest = createIndexedDbStorage('project-workspace:guest');
+    const namespace = 'project-workspace:account:concurrent';
+    await guest.setItem('workspace', JSON.stringify({ state: { marker: 'guest-work' }, version: 4 }));
+    vi.spyOn(browserAssets, 'copyBrowserProjectAssets').mockImplementationOnce(async () => {
+      if (format === 'revisioned') await compareAndSetBrowserWorkspaceValue({ namespace, key: 'workspace', value: JSON.stringify({ state: { marker: 'new-owner-work' }, version: 4 }), expectedRevision: 0, writerId: 'other-tab' });
+      else await createIndexedDbStorage(namespace).setItem('workspace', '{new-owner-work original corrupt bytes');
+      return 0;
+    });
+    await expect(adoptGuestWorkspaceForAccount('account:concurrent')).rejects.toThrow('workspace was created');
+    await expect(createIndexedDbStorage(namespace).getItem('workspace')).resolves.toContain('new-owner-work');
+    await expect(guest.getItem('workspace')).resolves.toContain('guest-work');
+  });
+
+  it('rolls back account publication and guest consumption when a catalog write fails', async () => {
+    const guest = createIndexedDbStorage('project-workspace:guest');
+    const guestAssets = createIndexedDbStorage('project-assets:guest');
+    const account = createIndexedDbStorage('project-workspace:account:quota');
+    await guest.setItem('workspace', JSON.stringify({ state: { marker: 'guest-work' }, version: 4 }));
+    await guestAssets.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify([{ id: 'guest-art' }]));
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
+      if (String(key).startsWith('project-assets:account:quota:')) throw new DOMException('No space', 'QuotaExceededError');
+      return put.call(this, value, key);
+    });
+    await expect(adoptGuestWorkspaceForAccount('account:quota')).rejects.toThrow('No space');
+    await expect(account.getItem('workspace')).resolves.toBeNull();
+    await expect(guest.getItem('workspace')).resolves.toContain('guest-work');
+    await expect(guestAssets.getItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY)).resolves.toContain('guest-art');
+  });
+
+  it('does not consume guest work edited while its first account handoff was preparing', async () => {
+    const guest = createIndexedDbStorage('project-workspace:guest');
+    await guest.setItem('workspace', JSON.stringify({ state: { marker: 'guest-before' }, version: 4 }));
+    vi.spyOn(browserAssets, 'copyBrowserProjectAssets').mockImplementationOnce(async () => {
+      await guest.setItem('workspace', JSON.stringify({ state: { marker: 'guest-newer' }, version: 4 }));
+      return 0;
+    });
+    await expect(adoptGuestWorkspaceForAccount('account:guest-race')).rejects.toThrow('changed');
+    await expect(guest.getItem('workspace')).resolves.toContain('guest-newer');
+    await expect(createIndexedDbStorage('project-workspace:account:guest-race').getItem('workspace')).resolves.toBeNull();
   });
 
   it('quarantines corrupt scoped workspace JSON instead of returning it to Zustand', async () => {
@@ -166,21 +226,20 @@ describe('Studio account-scoped persistence', () => {
     await rawStorage.setItem('workspace', '{ definitely-not-json');
 
     const scopedStorage = createScopedProjectStorage('project-workspace');
-    await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
+    await expect(scopedStorage.getItem('workspace')).rejects.toThrow('unreadable');
+    await expect(rawStorage.getItem('workspace')).resolves.toBe('{ definitely-not-json');
     await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe('{ definitely-not-json');
   });
 
-  it('quarantines pathological workspace payloads before Zustand parses them', async () => {
+  it('round-trips valid workspace JSON beyond the former read-only ceiling', async () => {
     setProjectPersistenceScope('account:user-large');
     const namespace = getScopedProjectStorageNamespace('project-workspace');
     const rawStorage = createIndexedDbStorage(namespace);
-    const oversized = JSON.stringify({ data: 'x'.repeat(8 * 1024 * 1024) });
-    await rawStorage.setItem('workspace', oversized);
+    const oversized = JSON.stringify({ state: { data: 'x'.repeat(8 * 1024 * 1024) }, version: 4 });
+    await createScopedProjectStorage('project-workspace').setItem('workspace', oversized);
 
     const scopedStorage = createScopedProjectStorage('project-workspace');
-    await expect(scopedStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('workspace')).resolves.toBeNull();
-    await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBe(oversized);
+    expect((await scopedStorage.getItem('workspace')) === oversized).toBe(true);
+    await expect(rawStorage.getItem('__quarantine__:workspace')).resolves.toBeNull();
   });
 });

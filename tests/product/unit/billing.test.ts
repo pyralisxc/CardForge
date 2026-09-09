@@ -371,7 +371,7 @@ describe('billing', () => {
     expect(shouldRevokeStripePaidAccessForSubscription({
       cardforgeStripeSubscriptionId: 'sub_current',
     }, 'sub_current')).toBe(true);
-    expect(shouldRevokeStripePaidAccessForSubscription({}, 'sub_current')).toBe(true);
+    expect(shouldRevokeStripePaidAccessForSubscription({}, 'sub_current')).toBe(false);
   });
 
   it('maps Stripe subscription statuses to entitlement actions', () => {

@@ -185,7 +185,7 @@ export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-l
   id, label, ownerFeature: 'storage-management', supportedObjectKinds: [], supportedSources: [], revisionPolicy: 'none',
   requiredPermission: 'guest', scope: 'zone', hierarchy: 'primary',
   availability: loading ? { kind: 'disabled', reason: 'Library sources are already refreshing.' } : { kind: 'available' },
-  commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'mutation' : 'navigation',
+  commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: id === 'library.refresh' ? 'refresh-requested' : 'navigation',
 });
 
 export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 'published' | 'pipeline' }>): ActionDescriptor[] => {
@@ -198,7 +198,7 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
     ...(item.pipeline.editableSubmission ? [{
       id: 'library.edit-pipeline' as const, label: `Edit revision ${item.pipeline.editableSubmission.revisionNumber ?? 1}`, ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
       supportedSources: ['provider-native'] as const, revisionPolicy: 'current-required' as const, requiredPermission: 'contributor' as const, scope: 'object' as const, hierarchy: 'primary' as const,
-      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+      availability: { kind: 'available' as const }, commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
     }] : []),
     ...(item.pipeline.template ? [{
       id: 'library.test-pipeline' as const, label: 'Test exact revision in Design', ownerFeature: 'pipeline' as const, supportedObjectKinds: ['pipeline-asset'],
@@ -227,7 +227,7 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
   if (item.published.template) actions.push({
     id: 'library.copy-published-template', label: 'Make editable copy', ownerFeature: 'template-editor', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'supporting',
-    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'copy a published Template into personal work' }, result: 'mutation',
+    availability: { kind: 'available' }, commitment: 'none', automation: { kind: 'planned-mcp', capability: 'copy a published Template into personal work' }, result: 'navigation',
   });
   return actions;
 };

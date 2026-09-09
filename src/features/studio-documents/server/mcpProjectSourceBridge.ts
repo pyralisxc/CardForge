@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { StudioAgentAccess } from './studioAgentAccess';
+import { describeAgentBoundaryFailure, type AgentBoundaryFailureMetadata } from '@/shared/boundaryFailure';
 import {
   buildCardForgeProjectSnapshot,
   createCardForgeProjectPackageBlob,
@@ -198,16 +199,32 @@ export const commitAgentWorkingProjectToSource = async ({
     expectedProjectRevision,
   });
   const nextProjectRevision = updated.projectRevision ?? snapshot.manifest.projectRevision;
-  const lineage = await recordStudioDocumentProjectSourceCommit({
-    ownerUserId: access.user.id,
-    documentId,
-    expectedDocumentRevision,
-    sourceProject,
-    nextProviderRevision: updated.providerRevision,
-    nextProjectRevision,
-    nextProjectName: updated.name,
-  });
+  let linkageFailure: AgentBoundaryFailureMetadata | null = null;
+  let lineage = null;
+  try {
+    lineage = await recordStudioDocumentProjectSourceCommit({
+      ownerUserId: access.user.id,
+      documentId,
+      expectedDocumentRevision,
+      sourceProject,
+      nextProviderRevision: updated.providerRevision,
+      nextProjectRevision,
+      nextProjectName: updated.name,
+    });
+  } catch (error) {
+    // The provider already committed. Never turn this into an invitation to repeat
+    // that write, or overwrite a concurrently edited temporary document.
+    const failure = describeAgentBoundaryFailure(error);
+    linkageFailure = {
+      kind: failure.kind,
+      status: failure.status,
+      retryable: false,
+      nextAction: 'Do not repeat commit_project. Read the current connected source and working document, preserve any newer working edits, and check out the current source before a new reviewed commit.',
+    };
+  }
   return {
+    status: linkageFailure ? 'source_committed_linkage_refresh_required' as const : 'committed' as const,
+    linkageFailure,
     documentId,
     documentRevision: workingDocument.revision,
     previousProviderRevision: expectedProviderRevision,

@@ -1,3 +1,4 @@
+import type { TCGCardTemplate } from '@/domain/templates';
 import { getProjectPackageAssetIdFromReference } from './projectPackage';
 
 export const PROJECT_FONT_MIME_TYPES = [
@@ -95,3 +96,15 @@ export const normalizeProjectFontAssets = (value: unknown): ProjectFontAsset[] =
   }
   return [...byId.values()];
 };
+
+/** Remap only typed font references; authored text is never searched or replaced. */
+export const remapProjectTemplateFonts = (template: TCGCardTemplate, values: ReadonlyMap<string, string>): TCGCardTemplate => ({
+  ...template,
+  ...(template.freeformCanvas ? { freeformCanvas: {
+    ...template.freeformCanvas,
+    elements: template.freeformCanvas.elements.map((element) => element.fontFamily && values.has(element.fontFamily)
+      ? { ...element, fontFamily: values.get(element.fontFamily)! } : element),
+  } } : {}),
+  ...(template.fieldContracts ? { fieldContracts: template.fieldContracts.map((field) => field.fontFamily && values.has(field.fontFamily)
+    ? { ...field, fontFamily: values.get(field.fontFamily)! } : field) } : {}),
+});

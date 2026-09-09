@@ -1,3 +1,5 @@
+import { readOwnerCommercialPlan, strongestCommercialPlan } from '@/domain/entitlements/commercialPlan';
+
 export type OwnerManagedAccess = 'free' | 'paid' | 'contributor';
 export type OwnerManagedCommercialPlan = 'free' | 'creator' | 'designer';
 
@@ -26,6 +28,7 @@ export interface OwnerAccountSummary {
   name: string;
   access: OwnerManagedAccess;
   commercialPlan: OwnerManagedCommercialPlan;
+  ownerCommercialPlan: OwnerManagedCommercialPlan | null;
   contributorAuthority: boolean;
   isOwner: boolean;
   createdAt: string | null;
@@ -74,19 +77,23 @@ export const buildOwnerAccountMetadataPatch = ({
   existingMetadata?: Record<string, unknown>;
   input: NormalizedOwnerAccountRole;
 }): Record<string, unknown> => {
-  const nextMetadata = { ...existingMetadata };
   const existingRoles = Array.isArray(existingMetadata.cardforgeAuthorityRoles)
     ? existingMetadata.cardforgeAuthorityRoles.filter((role): role is string => typeof role === 'string' && role !== 'contributor')
     : [];
   const authorityRoles = input.contributor ? [...existingRoles, 'contributor'] : existingRoles;
-  delete nextMetadata.cardforgeAccessExpiresAt;
-  delete nextMetadata.cardforgeFounderBetaClaimedAt;
+  const stripePlan = existingMetadata.cardforgeStripeSubscriptionId
+    ? normalizeCommercialPlan(existingMetadata.cardforgePaidPlan) ?? 'free' : 'free';
+  const commercialPlan = strongestCommercialPlan(input.commercialPlan, stripePlan);
   return {
-    ...nextMetadata,
+    ...existingMetadata,
+    // Clerk merges metadata; null explicitly removes an obsolete grant expiry.
+    cardforgeAccessExpiresAt: null,
+    cardforgeFounderBetaClaimedAt: null,
     cardforgeAccess: input.owner || input.contributor
       ? 'contributor'
-      : input.commercialPlan === 'free' ? 'free' : 'paid',
-    cardforgeCommercialPlan: input.commercialPlan,
+      : commercialPlan === 'free' ? 'free' : 'paid',
+    cardforgeCommercialPlan: commercialPlan,
+    cardforgeOwnerCommercialPlan: input.commercialPlan,
     cardforgeAuthorityRoles: authorityRoles,
     cardforgeRole: input.owner ? 'owner' : '',
     cardforgeOwnerNote: input.note,
@@ -122,6 +129,7 @@ export const mapOwnerAccountSummary = (user: {
     name,
     access,
     commercialPlan,
+    ownerCommercialPlan: readOwnerCommercialPlan(metadata),
     contributorAuthority,
     isOwner: metadata.cardforgeRole === 'owner',
     createdAt: toIsoFromMs(user.createdAt),

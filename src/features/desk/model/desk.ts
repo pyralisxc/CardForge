@@ -196,7 +196,7 @@ export const getWorkActions = (
       id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
       supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
-      automation: openAutomation, result: 'navigation',
+      automation: openAutomation, result: item.references.campaignId || item.references.pipelineLineageId ? 'tool-opened' : 'navigation',
     },
     {
       id: 'desk.pin-set', label: pinned ? 'Unpin from desk' : 'Pin to desk', ownerFeature: 'project',
@@ -208,21 +208,21 @@ export const getWorkActions = (
       id: 'desk.generate-set', label: 'Generate cards', ownerFeature: 'card-generator',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before generating cards.' }, commitment: 'none',
-      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     {
       id: 'desk.export-set', label: 'Output', ownerFeature: 'card-generator',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'overflow', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before exporting it.' }, commitment: 'none',
-      automation: { kind: 'planned-mcp', capability: 'export a selected Set with explicit output settings' }, result: 'navigation',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     {
       id: 'desk.save-move-set', label: 'Save & move', ownerFeature: 'storage-management',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: canUseProjectFiles
         ? { kind: 'available' }
-        : { kind: 'disabled', reason: 'Creator Pass is required to save or move portable Set files.' }, commitment: 'permission',
-      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
+        : { kind: 'disabled', reason: 'Creator Pass is required to save or move portable Set files.' }, commitment: 'none',
+      automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     ...(localSet && canContribute ? [createSendToPipelineActionDescriptor({
       id: 'desk.send-pipeline', objectKind: 'set', sources,
@@ -231,7 +231,7 @@ export const getWorkActions = (
       id: 'desk.rename-set' as const, label: 'Rename', ownerFeature: 'project' as const,
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
       scope: 'object' as const, hierarchy: 'overflow' as const, availability: { kind: 'available' as const }, commitment: 'none' as const,
-      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+      automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
     }, {
       id: 'desk.duplicate-set' as const, label: 'Duplicate', ownerFeature: 'project' as const,
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
@@ -242,7 +242,7 @@ export const getWorkActions = (
       supportedObjectKinds: ['set'], supportedSources: ['browser-local'] as const, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,
       scope: 'object' as const, hierarchy: 'overflow' as const,
       availability: canDelete ? { kind: 'available' as const } : { kind: 'disabled' as const, reason: 'This Set cannot be deleted right now.' },
-      commitment: 'destructive' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
+      commitment: 'none' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'tool-opened' as const,
     }] : [{
       id: 'desk.manage-location' as const, label: 'Manage source', ownerFeature: 'storage-management' as const,
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none' as const, requiredPermission: 'guest' as const,

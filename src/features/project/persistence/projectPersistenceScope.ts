@@ -1,6 +1,7 @@
 import type { StateStorage } from 'zustand/middleware';
 
 import type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
+import { CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_FONT_ASSETS_STORAGE_KEY } from '../model/projectDocument';
 import { externalizeBrowserProjectAssetJson } from './contentAddressedBrowserAssets';
 import {
   BROWSER_STORAGE_FAILURE_EVENT,
@@ -8,6 +9,7 @@ import {
   createBrowserKeyValueStorage,
   createIndexedDbStorage,
   updateBrowserKeyValue,
+  markBrowserWorkspaceSaveFailed,
 } from './indexedDbStorage';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from './workspaceRevision';
 
@@ -15,10 +17,10 @@ export { createProjectPersistenceScope } from '../lib/projectPersistenceIdentity
 export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
 
 const DISABLED_SCOPE = 'unscoped-disabled';
-const MAX_WORKSPACE_JSON_LENGTH = 8 * 1024 * 1024;
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
 const workspaceRevisions = new Map<string, number>();
 const workspaceWriteQueues = new Map<string, Promise<void>>();
+const restoredWorkspaces = new Set<string>();
 const workspaceWriterId = typeof globalThis.crypto?.randomUUID === 'function'
   ? globalThis.crypto.randomUUID()
   : `writer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -83,6 +85,10 @@ export interface BrowserWorkspaceRecoveryState {
 }
 
 const WORKSPACE_STORAGE_KEY = 'workspace';
+const workspaceAssetKeys = (scope: ProjectPersistenceScope | typeof DISABLED_SCOPE) => [
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_FONT_ASSETS_STORAGE_KEY,
+].map((key) => `${getScopedProjectStorageNamespace('project-assets', scope)}:${key}`);
 const workspaceRecoveryKey = (source: BrowserWorkspaceRecoverySource) => (
   source === 'previous' ? `__recovery__:${WORKSPACE_STORAGE_KEY}` : `__quarantine__:${WORKSPACE_STORAGE_KEY}`
 );
@@ -103,16 +109,41 @@ export const getBrowserWorkspaceRecoveryState = async (): Promise<BrowserWorkspa
 };
 
 export const restoreBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRecoverySource): Promise<boolean> => {
-  const namespace = getScopedProjectStorageNamespace('project-workspace');
-  const storage = createBrowserKeyValueStorage(namespace);
-  const recoveryValue = await storage.getItem(workspaceRecoveryKey(source));
-  if (typeof recoveryValue !== 'string') return false;
-  // The canonical current value becomes the new previous snapshot, so restore
-  // remains reversible after the required reload.
-  await createBrowserKeyValueStorage(namespace, { keepRecoverySnapshot: true })
-    .setItem(WORKSPACE_STORAGE_KEY, recoveryValue);
-  if (source === 'quarantine') await storage.removeItem(workspaceRecoveryKey(source));
-  return true;
+  const scope = activeProjectPersistenceScope;
+  const namespace = getScopedProjectStorageNamespace('project-workspace', scope);
+  const revisionKey = getWorkspaceRevisionKey(namespace, WORKSPACE_STORAGE_KEY);
+  return enqueueWorkspaceWrite(revisionKey, async () => {
+    const storage = createBrowserKeyValueStorage(namespace);
+    const recoveryValue = await storage.getItem(workspaceRecoveryKey(source));
+    if (typeof recoveryValue !== 'string') return false;
+    const value = parseBrowserWorkspaceRecord(recoveryValue).value;
+    if (!isValidWorkspacePayload(value)) throw new Error('This recovery copy is not readable workspace JSON. Download the preserved bytes instead.');
+    const current = await storage.getItem(WORKSPACE_STORAGE_KEY);
+    const recoveryAssets = source === 'previous' ? await storage.getItem('__recovery_assets__:workspace') : null;
+    const assetNamespace = getScopedProjectStorageNamespace('project-assets', scope);
+    const assetStorage = createBrowserKeyValueStorage(assetNamespace);
+    const allowedKeys = workspaceAssetKeys(scope);
+    const assetValues = recoveryAssets === null ? {} : JSON.parse(recoveryAssets) as Record<string, unknown>;
+    const relatedWrites = await Promise.all(Object.entries(assetValues).map(async ([key, value]) => {
+      if (!allowedKeys.includes(key) || (value !== null && typeof value !== 'string')) throw new Error('The recovery artwork catalog is invalid. Original copies were left unchanged.');
+      return { key, value: value as string | null, expectedValue: await assetStorage.getItem(key.slice(assetNamespace.length + 1)) };
+    }));
+    const expectedRevision = workspaceRevisions.get(revisionKey)
+      ?? (current === null ? 0 : parseBrowserWorkspaceRecord(current).revision);
+    const revision = await compareAndSetBrowserWorkspaceValue({
+      namespace, key: WORKSPACE_STORAGE_KEY, value, expectedRevision,
+      writerId: workspaceWriterId, keepRecoverySnapshot: true,
+      relatedWrites, recoveryKeys: allowedKeys,
+      beforeCommit: () => {
+        if (activeProjectPersistenceScope !== scope) throw new Error('The workspace account changed while recovery was opening. No copy was restored.');
+      },
+    });
+    workspaceRevisions.set(revisionKey, revision);
+    restoredWorkspaces.add(revisionKey);
+    getWorkspaceRevisionChannel()?.postMessage({ namespace, key: WORKSPACE_STORAGE_KEY, revision, writerId: workspaceWriterId });
+    // Quarantine is retained until explicitly discarded, including after restore.
+    return true;
+  });
 };
 
 export const discardBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRecoverySource): Promise<void> => {
@@ -120,11 +151,18 @@ export const discardBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRe
   await createBrowserKeyValueStorage(namespace).removeItem(workspaceRecoveryKey(source));
 };
 
+/** Exact preservation export; this is recovery data, not an editable project package. */
+export const readBrowserWorkspaceRecovery = async (source: BrowserWorkspaceRecoverySource | 'current'): Promise<string | null> => (
+  createBrowserKeyValueStorage(getScopedProjectStorageNamespace('project-workspace'))
+    .getItem(source === 'current' ? WORKSPACE_STORAGE_KEY : workspaceRecoveryKey(source))
+);
+
 const isValidWorkspacePayload = (value: string) => {
-  if (value.length > MAX_WORKSPACE_JSON_LENGTH) return false;
   try {
     const parsed = JSON.parse(value) as unknown;
-    return typeof parsed === 'object' && parsed !== null;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false;
+    const state = (parsed as Record<string, unknown>).state;
+    return typeof state === 'object' && state !== null && !Array.isArray(state);
   } catch {
     return false;
   }
@@ -154,44 +192,37 @@ export const createScopedProjectStorage = (
       getWorkspaceRevisionChannel();
     }
     const value = record?.value ?? rawValue;
-    try {
-      const externalized = await externalizeBrowserProjectAssetJson(value, scope);
-      if (externalized.changed) {
-        if (baseNamespace === 'project-workspace') {
-          const expectedRevision = workspaceRevisions.get(getWorkspaceRevisionKey(namespace, key)) ?? 0;
+    if (baseNamespace === 'project-workspace' && !isValidWorkspacePayload(value)) {
+      // Never delete the source or overwrite an earlier unreadable recovery copy.
+      // This write deliberately bypasses the autosave adapter's error suppression.
+      await updateBrowserKeyValue(namespace, `__quarantine__:${key}`, (existing) => existing ?? rawValue);
+      throw new Error('The saved browser workspace is unreadable. Its original bytes are preserved; restore a previous copy or download recovery data.');
+    }
+    // Asset I/O, invalid artwork and revision conflicts are not JSON corruption.
+    // Propagate them without changing the current or quarantined workspace.
+    const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+    if (externalized.changed) {
+      if (baseNamespace === 'project-workspace') {
+        const revisionKey = getWorkspaceRevisionKey(namespace, key);
+        await enqueueWorkspaceWrite(revisionKey, async () => {
           const revision = await compareAndSetBrowserWorkspaceValue({
-            namespace,
-            key,
-            value: externalized.storedValue,
-            expectedRevision,
+            namespace, key, value: externalized.storedValue,
+            expectedRevision: record?.revision ?? 0,
             writerId: workspaceWriterId,
             keepRecoverySnapshot: options.keepRecoverySnapshot,
+            recoveryKeys: workspaceAssetKeys(scope),
           });
-          workspaceRevisions.set(getWorkspaceRevisionKey(namespace, key), revision);
-        } else {
-          return await updateBrowserKeyValue(namespace, key, (current) => {
-            if (current === null) throw new Error('The local artwork library changed. Reload it and try again.');
-            return current === rawValue ? externalized.storedValue : current;
-          });
-        }
+          workspaceRevisions.set(revisionKey, revision);
+          getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
+        });
+      } else {
+        return await updateBrowserKeyValue(namespace, key, (current) => {
+          if (current === null) throw new Error('The local artwork library changed. Reload it and try again.');
+          return current === rawValue ? externalized.storedValue : current;
+        });
       }
-      if (baseNamespace === 'project-workspace' && isValidWorkspacePayload(externalized.storedValue)) {
-        return externalized.storedValue;
-      }
-      if (baseNamespace === 'project-assets') {
-        return externalized.storedValue;
-      }
-    } catch (error) {
-      if (baseNamespace === 'project-assets') throw error;
-      // The recovery copy below is authoritative when structured artwork or JSON
-      // cannot be read safely. Never hydrate a partial/empty replacement.
     }
-
-    // Preserve a recovery copy, but never let corrupt or pathological workspace JSON
-    // enter Zustand hydration. The editor can then boot with clean defaults.
-    await storage.setItem(`__quarantine__:${key}`, value);
-    await storage.removeItem(key);
-    return null;
+    return externalized.storedValue;
   },
   setItem: async (key, value) => {
     const scope = activeProjectPersistenceScope;
@@ -204,6 +235,8 @@ export const createScopedProjectStorage = (
     const revisionKey = getWorkspaceRevisionKey(namespace, key);
     try {
       await enqueueWorkspaceWrite(revisionKey, async () => {
+        if (restoredWorkspaces.has(revisionKey)) throw new Error('This workspace was restored. Reload before editing or saving again.');
+        if (!isValidWorkspacePayload(value)) throw new Error('Browser workspace must contain readable JSON before it can be saved.');
         const externalized = await externalizeBrowserProjectAssetJson(value, scope);
         const expectedRevision = workspaceRevisions.get(revisionKey) ?? 0;
         const revision = await compareAndSetBrowserWorkspaceValue({
@@ -213,11 +246,13 @@ export const createScopedProjectStorage = (
           expectedRevision,
           writerId: workspaceWriterId,
           keepRecoverySnapshot: options.keepRecoverySnapshot,
+          recoveryKeys: workspaceAssetKeys(scope),
         });
         workspaceRevisions.set(revisionKey, revision);
         getWorkspaceRevisionChannel()?.postMessage({ namespace, key, revision, writerId: workspaceWriterId });
       });
     } catch (error) {
+      markBrowserWorkspaceSaveFailed();
       if (!options.suppressWriteErrors) throw error;
       if (typeof window !== 'undefined' && !(error instanceof BrowserWorkspaceConflictError)) {
         window.dispatchEvent(new CustomEvent(BROWSER_STORAGE_FAILURE_EVENT, {
@@ -231,6 +266,36 @@ export const createScopedProjectStorage = (
     options,
   ).removeItem(key),
 });
+
+/** One native commit for imported workspace state and its asset catalogs. */
+export const commitBrowserWorkspaceImport = async ({ value, relatedWrites, beforeCommit, signal }: {
+  value: string;
+  relatedWrites: readonly { key: string; value: string; expectedValue: string | null }[];
+  beforeCommit: () => void;
+  signal: AbortSignal;
+}): Promise<void> => {
+  const scope = activeProjectPersistenceScope;
+  const namespace = getScopedProjectStorageNamespace('project-workspace', scope);
+  const revisionKey = getWorkspaceRevisionKey(namespace, WORKSPACE_STORAGE_KEY);
+  await enqueueWorkspaceWrite(revisionKey, async () => {
+    if (!isValidWorkspacePayload(value)) throw new Error('The imported workspace is not readable JSON.');
+    if (restoredWorkspaces.has(revisionKey)) throw new Error('Reload the restored workspace before opening another project.');
+    const externalized = await externalizeBrowserProjectAssetJson(value, scope);
+    const revision = await compareAndSetBrowserWorkspaceValue({
+      namespace, key: WORKSPACE_STORAGE_KEY, value: externalized.storedValue,
+      expectedRevision: workspaceRevisions.get(revisionKey) ?? 0,
+      writerId: workspaceWriterId, keepRecoverySnapshot: true,
+      relatedWrites, recoveryKeys: workspaceAssetKeys(scope),
+      signal,
+      beforeCommit: () => {
+        if (activeProjectPersistenceScope !== scope) throw new Error('The workspace account changed while this project was opening.');
+        beforeCommit();
+      },
+    });
+    workspaceRevisions.set(revisionKey, revision);
+    getWorkspaceRevisionChannel()?.postMessage({ namespace, key: WORKSPACE_STORAGE_KEY, revision, writerId: workspaceWriterId });
+  });
+};
 
 export const LEGACY_PROJECT_WORKSPACE_NAMESPACE = 'project-workspace';
 export const LEGACY_PROJECT_ASSETS_NAMESPACE = 'project-assets';

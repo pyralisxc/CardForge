@@ -17,6 +17,9 @@ export interface GoogleDriveProjectConnectionSummary {
 }
 
 export interface GoogleDriveProjectSummary {
+  accountId?: string;
+  /** Browser projection only: exact provider binding, never portable workId. */
+  localWorkId?: string;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   fileId: string;
   name: string;
@@ -50,6 +53,7 @@ export interface GoogleDriveFolderSelection {
 }
 
 export interface GoogleDriveUploadPrepareResult {
+  accountId?: string;
   uploadSessionUrl: string;
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;
   fileId: string | null;
@@ -62,6 +66,7 @@ export interface GoogleDriveUploadCompletion {
   id: string;
   name: string;
   version: string;
+  headRevisionId?: string;
   modifiedTime?: string;
   size?: string;
   webViewLink?: string;
@@ -75,7 +80,14 @@ export interface GoogleDriveProjectDownload {
 
 export const isGoogleDriveFileId = (value: string): boolean => /^[A-Za-z0-9_-]{8,255}$/u.test(value);
 
-export const isGoogleDriveProviderRevision = (value: string): boolean => /^\d{1,80}$/u.test(value);
+export const isGoogleDriveProviderRevision = (value: string): boolean => /^head:[a-f0-9]{64}$/u.test(value);
+
+/** Native content identity, bounded to the existing 80-character storage contract. */
+export const createGoogleDriveProviderRevision = async (headRevisionId: string): Promise<string> => {
+  if (!headRevisionId || !headRevisionId.trim()) throw new Error('Drive did not return its binary content head revision.');
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(headRevisionId));
+  return 'head:' + Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
 
 export const isGoogleDriveWorkId = (value: string): boolean => {
   const normalized = value.trim();

@@ -18,6 +18,8 @@ describe('work location policy', () => {
     const capabilities = getWorkLocationCapabilities({ signedIn: true, canUseProjectFiles: true, driveConnected: true, localFolderSupported: true });
     expect(canTransferWork({ source: 'device', destination: 'google-drive', capabilities })).toBe(true);
     expect(canMoveWork({ source: 'device', destination: 'google-drive', capabilities })).toBe(true);
+    expect(canTransferWork({ source: 'google-drive', destination: 'device', capabilities })).toBe(true);
+    expect(canMoveWork({ source: 'google-drive', destination: 'device', capabilities })).toBe(false);
     expect(canTransferWork({ source: 'local-folder', destination: 'google-drive', capabilities })).toBe(true);
     expect(canMoveWork({ source: 'local-folder', destination: 'google-drive', capabilities })).toBe(false);
   });

@@ -17,12 +17,22 @@ const waitForFrame = () => new Promise<void>((resolve) => requestAnimationFrame(
 
 const waitForImages = async (element: HTMLElement) => {
   const images = Array.from(element.querySelectorAll('img'));
-  await Promise.all(images.map((image) => {
-    if (image.complete) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      image.addEventListener('load', () => resolve(), { once: true });
-      image.addEventListener('error', () => resolve(), { once: true });
-    });
+  const started = performance.now();
+  while (images.some((image) => !image.getAttribute('src'))) {
+    if (performance.now() - started > RENDER_WAIT_TIMEOUT_MS) {
+      throw new Error('A card image is unavailable. Restore its browser artwork before exporting or saving its preview.');
+    }
+    await waitForFrame();
+  }
+  await Promise.all(images.map(async (image) => {
+    try {
+      await image.decode();
+    } catch {
+      throw new Error('A card image could not be loaded. Restore the missing image before exporting or saving its preview.');
+    }
+    if (!image.naturalWidth || !image.naturalHeight) {
+      throw new Error('A card image is empty. Restore the image before exporting or saving its preview.');
+    }
   }));
 };
 

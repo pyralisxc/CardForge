@@ -12,7 +12,7 @@ export const createLibraryLocationsHref = (scope: LibraryScope): string => {
   return `/account?${params.toString()}`;
 };
 
-type LibraryCommand = (input: ActionOperationInput) => string | void | Promise<string | void>;
+type LibraryCommand = (input: ActionOperationInput) => ActionOperationResult | Promise<ActionOperationResult>;
 
 export interface AccountLibraryActionCommands {
   closeLocations: LibraryCommand;
@@ -57,23 +57,11 @@ const commandFor = (id: ActionDescriptor['id'], commands: AccountLibraryActionCo
   return commandMap[id] ?? null;
 };
 
-const operationResult = (
-  descriptor: ActionDescriptor,
-  input: ActionOperationInput,
-  href: string | void,
-): ActionOperationResult => {
-  if (descriptor.result === 'navigation') return { kind: 'navigation', href: href ?? '' };
-  if (descriptor.result === 'provider-handoff') return { kind: 'provider-handoff', href: href ?? '' };
-  if (descriptor.result === 'mutation') return { kind: 'mutation', changedIds: [...input.targetIds] };
-  if (descriptor.result === 'preview') return { kind: 'preview', previewId: input.targetIds[0] ?? '' };
-  return { kind: 'download', fileName: href ?? '' };
-};
-
 export const createAccountLibraryActionDefinitions = (
   descriptors: readonly ActionDescriptor[],
   commands: AccountLibraryActionCommands,
 ): ActionDefinition[] => descriptors.map((descriptor) => {
   const command = commandFor(descriptor.id, commands);
   if (!command) throw new Error(`Library action ${descriptor.id} has no feature-owned operation.`);
-  return createActionDefinition(descriptor, async (input) => operationResult(descriptor, input, await command(input)));
+  return createActionDefinition(descriptor, async (input) => command(input));
 });
