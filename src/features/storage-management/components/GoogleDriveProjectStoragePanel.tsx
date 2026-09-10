@@ -3,7 +3,7 @@
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cloud, ExternalLink, FolderCog, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Cloud, ExternalLink, FolderCog, FolderPlus, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
-import { chooseGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, getGoogleDriveWorkBinding, refreshGoogleDriveProject, copyGoogleDriveProjectToBrowser, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
+import { chooseGoogleDriveProjectFolder, createGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, getGoogleDriveWorkBinding, refreshGoogleDriveProject, copyGoogleDriveProjectToBrowser, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
@@ -120,6 +120,18 @@ export function GoogleDriveProjectStoragePanel({
     }
   }), [run, toast]);
 
+  const createProjectFolder = useCallback(() => {
+    const proposed = window.prompt('Create a new Google Drive project folder in My Drive:', 'CardForge Projects');
+    if (proposed === null) return;
+    void run('create-folder', async () => {
+      const created = await createGoogleDriveProjectFolder(proposed);
+      toast({
+        title: 'Google Drive folder created',
+        description: `Created “${created.name}” in My Drive and made it the active CardForge project location.`,
+      });
+    });
+  }, [run, toast]);
+
   const projects = useMemo(() => library?.projects ?? [], [library?.projects]);
   const attachedProject = useMemo(() => (
     binding ? projects.find((project) => project.fileId === binding.fileId) ?? null : null
@@ -165,10 +177,16 @@ export function GoogleDriveProjectStoragePanel({
           ) : (
             <div className="flex flex-wrap gap-2">
               {canReplaceUnavailableFolder ? (
-                <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
-                  {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
-                  Choose project folder
-                </Button>
+                <>
+                  <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                    {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
+                    Choose project folder
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={createProjectFolder}>
+                    {busyAction === 'create-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
+                    Create project folder
+                  </Button>
+                </>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>
             </div>
@@ -218,6 +236,16 @@ export function GoogleDriveProjectStoragePanel({
               <Button
                 type="button"
                 size="sm"
+                variant="outline"
+                disabled={Boolean(busyAction) || !canUseProjectFiles}
+                onClick={createProjectFolder}
+              >
+                {busyAction === 'create-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
+                Create project folder
+              </Button>
+              <Button
+                type="button"
+                size="sm"
                 disabled={Boolean(busyAction) || !canUseProjectFiles}
                 onClick={() => void run('save-new', async () => {
                   const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
@@ -229,20 +257,20 @@ export function GoogleDriveProjectStoragePanel({
               </Button>
               {binding ? (
                 <div className="space-y-2">
-                {!binding.workId && binding.packageScope !== 'workspace' ? <p className="text-sm">Reopen this file from the list below to verify its saved Set or workspace scope before updating it.</p> : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
-                  onClick={() => void run('update', async () => {
-                    const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
-                    toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
-                  })}
-                >
-                  {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  {!binding.workId && binding.packageScope !== 'workspace' ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
-                </Button>
+                  {!binding.workId && binding.packageScope !== 'workspace' ? <p className="text-sm">Reopen this file from the list below to verify its saved Set or workspace scope before updating it.</p> : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
+                    onClick={() => void run('update', async () => {
+                      const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
+                      toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
+                    })}
+                  >
+                    {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    {!binding.workId && binding.packageScope !== 'workspace' ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
+                  </Button>
                 </div>
               ) : null}
               <Button
