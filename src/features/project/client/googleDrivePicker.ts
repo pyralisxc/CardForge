@@ -13,7 +13,7 @@ export interface GoogleDrivePickerItem {
   id: string;
   name: string;
   mimeType: string | null;
-  resourceKey: string | null;
+  resourceKey?: string | null;
 }
 
 export interface GoogleDrivePickerRequest {
