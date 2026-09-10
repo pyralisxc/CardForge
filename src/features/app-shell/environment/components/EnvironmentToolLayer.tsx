@@ -73,7 +73,7 @@ export function EnvironmentToolLayer({
   const workspace = presentation === 'floating' || presentation === 'inline';
   const modal = presentation === 'provider-handoff';
   const headerOwnedByRail = railOwned && !modal;
-  const mobileToolAboveNavigation = !modal;
+  const mobileToolAboveNavigation = presentation === 'sheet';
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
