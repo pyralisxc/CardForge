@@ -27,8 +27,10 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
     mimeTypes: [GOOGLE_DRIVE_FOLDER_MIME_TYPE],
     includeFolders: true,
     selectFolders: true,
-    // Omit initialFolderId so Picker reopens at the connection's current
-    // personal/shared folder instead of forcing the Drive root every time.
+    // Folder selection is a destination change, so start from My Drive rather than
+    // trapping the user inside the current CardForge destination (which may be empty,
+    // moved, revoked, or read-only).
+    initialFolderId: null,
   });
   if (!selectedItems) return null;
   const selected = selectedItems[0];
