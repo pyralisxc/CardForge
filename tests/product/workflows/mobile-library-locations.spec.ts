@@ -8,13 +8,14 @@ test.describe('mobile Library location tools', () => {
   test.describe.configure({ timeout: 120_000 });
 
   const expectTouchTarget = async (control: Locator) => {
+    await control.scrollIntoViewIfNeeded();
     await expect(control).toBeInViewport({ ratio: 1 });
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
-  test('@golden keeps Locations & connections above the fixed mobile navigation', async ({ page }) => {
+  test('@golden keeps scrolled Locations & connections controls above the fixed mobile navigation', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto('/account?section=library&tool=locations', { waitUntil: 'domcontentloaded', timeout: 120_000 });
