@@ -14,7 +14,10 @@ vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
 }));
 
 import { GOOGLE_DRIVE_FOLDER_MIME_TYPE } from '@/features/project/model/googleDriveProject';
-import { chooseGoogleDriveProjectFolder } from '@/features/project/client/googleDriveFolderPicker';
+import {
+  chooseGoogleDriveProjectFolder,
+  createGoogleDriveProjectFolder,
+} from '@/features/project/client/googleDriveFolderPicker';
 
 describe('Google Drive project-folder selection', () => {
   beforeEach(() => {
@@ -26,21 +29,25 @@ describe('Google Drive project-folder selection', () => {
     vi.unstubAllGlobals();
   });
 
-  it('starts a destination change from My Drive instead of the current project folder', async () => {
+  it('starts a destination change from My Drive and forwards a Picker resource key', async () => {
     mocks.pickItems.mockResolvedValue([{
       id: 'drive_folder_456',
       name: 'New CardForge destination',
       mimeType: GOOGLE_DRIVE_FOLDER_MIME_TYPE,
+      resourceKey: 'resource-key-456',
     }]);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
       id: 'drive_folder_456',
       name: 'New CardForge destination',
+      resourceKey: 'resource-key-456',
       canAddChildren: true,
-    })));
+    }));
+    vi.stubGlobal('fetch', fetchMock);
 
     await expect(chooseGoogleDriveProjectFolder()).resolves.toMatchObject({
       id: 'drive_folder_456',
       name: 'New CardForge destination',
+      resourceKey: 'resource-key-456',
     });
 
     expect(mocks.pickItems).toHaveBeenCalledWith(expect.objectContaining({
@@ -49,6 +56,30 @@ describe('Google Drive project-folder selection', () => {
       selectFolders: true,
       initialFolderId: null,
     }));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
+      folderId: 'drive_folder_456',
+      resourceKey: 'resource-key-456',
+    });
+    expect(mocks.disconnectBinding).toHaveBeenCalledOnce();
+  });
+
+  it('creates a project folder through CardForge and makes it the active location', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: 'drive_folder_created',
+      name: 'CardForge Shared QA',
+      resourceKey: null,
+      canAddChildren: true,
+    }), { status: 201, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createGoogleDriveProjectFolder('CardForge Shared QA')).resolves.toMatchObject({
+      id: 'drive_folder_created',
+      name: 'CardForge Shared QA',
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/project-sources/google-drive', expect.objectContaining({
+      method: 'POST',
+    }));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({ folderName: 'CardForge Shared QA' });
     expect(mocks.disconnectBinding).toHaveBeenCalledOnce();
   });
 });
