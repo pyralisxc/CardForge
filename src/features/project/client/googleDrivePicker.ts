@@ -13,6 +13,7 @@ export interface GoogleDrivePickerItem {
   id: string;
   name: string;
   mimeType: string | null;
+  resourceKey: string | null;
 }
 
 export interface GoogleDrivePickerRequest {
@@ -28,6 +29,7 @@ type PickerDocument = {
   id?: string;
   name?: string;
   mimeType?: string;
+  resourceKey?: string;
 };
 
 type PickerResponse = {
@@ -177,7 +179,12 @@ export const pickGoogleDriveItems = async ({
           const id = document.id?.trim() ?? '';
           const name = document.name?.trim() ?? '';
           if (!id || !name) return [];
-          return [{ id, name, mimeType: document.mimeType?.trim() || null }];
+          return [{
+            id,
+            name,
+            mimeType: document.mimeType?.trim() || null,
+            resourceKey: document.resourceKey?.trim() || null,
+          }];
         });
         if (selected.length === 0) {
           reject(new Error('Google Drive returned no usable selection.'));
