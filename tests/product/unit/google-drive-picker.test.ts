@@ -7,8 +7,8 @@ describe('Google Drive Picker browser bridge', () => {
     vi.unstubAllGlobals();
   });
 
-  it('passes the restricted API key through Google Picker setDeveloperKey', async () => {
-    let callback: ((response: { action?: string; docs?: Array<{ id?: string; name?: string; mimeType?: string }> }) => void) | null = null;
+  it('passes the restricted API key through Google Picker and preserves resource keys', async () => {
+    let callback: ((response: { action?: string; docs?: Array<{ id?: string; name?: string; mimeType?: string; resourceKey?: string }> }) => void) | null = null;
     const builder = {} as Record<string, ReturnType<typeof vi.fn>>;
     builder.addView = vi.fn(() => builder);
     builder.enableFeature = vi.fn(() => builder);
@@ -23,7 +23,12 @@ describe('Google Drive Picker browser bridge', () => {
     builder.build = vi.fn(() => ({
       setVisible: vi.fn(() => callback?.({
         action: 'picked',
-        docs: [{ id: 'drive-file-12345', name: 'Selected project', mimeType: 'application/vnd.cardforge.project+zip' }],
+        docs: [{
+          id: 'drive-file-12345',
+          name: 'Selected project',
+          mimeType: 'application/vnd.cardforge.project+zip',
+          resourceKey: 'resource-key-12345',
+        }],
       })),
     }));
 
@@ -58,7 +63,12 @@ describe('Google Drive Picker browser bridge', () => {
     })));
 
     await expect(pickGoogleDriveItems({ title: 'Choose Drive project' })).resolves.toEqual([
-      { id: 'drive-file-12345', name: 'Selected project', mimeType: 'application/vnd.cardforge.project+zip' },
+      {
+        id: 'drive-file-12345',
+        name: 'Selected project',
+        mimeType: 'application/vnd.cardforge.project+zip',
+        resourceKey: 'resource-key-12345',
+      },
     ]);
     expect(builder.setDeveloperKey).toHaveBeenCalledWith('restricted-picker-key');
     expect(builder.setOAuthToken).toHaveBeenCalledWith('drive-access-token');
