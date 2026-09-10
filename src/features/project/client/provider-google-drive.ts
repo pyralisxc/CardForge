@@ -18,7 +18,10 @@ export type {
   GoogleDriveUploadCompletion,
   GoogleDriveUploadPrepareResult,
 } from '../model/googleDriveProject';
-export { chooseGoogleDriveProjectFolder } from '../client/googleDriveFolderPicker';
+export {
+  chooseGoogleDriveProjectFolder,
+  createGoogleDriveProjectFolder,
+} from '../client/googleDriveFolderPicker';
 export {
   loadGoogleDrivePickerConfiguration,
   pickGoogleDriveItems,
