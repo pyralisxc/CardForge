@@ -15,7 +15,7 @@ const persistSelectedFolder = async (
   const response = await observeProviderBoundaryResponse('google_drive', 'folder_select', () => fetch('/api/project-sources/google-drive', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ folderId: selected.id }),
+    body: JSON.stringify({ folderId: selected.id, resourceKey: selected.resourceKey ?? null }),
   }));
   if (!response.ok) throw await readApiError(response, 'Unable to use that Google Drive folder for CardForge projects.');
   return await response.json() as GoogleDriveFolderSelection;
@@ -37,7 +37,23 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
   if (!selected || (selected.mimeType && selected.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE)) {
     throw new Error('Choose a Google Drive folder rather than an individual file.');
   }
-  const persisted = await persistSelectedFolder({ id: selected.id, name: selected.name });
+  const persisted = await persistSelectedFolder({
+    id: selected.id,
+    name: selected.name,
+    resourceKey: selected.resourceKey,
+  });
   await disconnectGoogleDriveProjectBinding();
   return persisted;
+};
+
+export const createGoogleDriveProjectFolder = async (name: string): Promise<GoogleDriveFolderSelection> => {
+  const response = await observeProviderBoundaryResponse('google_drive', 'folder_create', () => fetch('/api/project-sources/google-drive', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folderName: name }),
+  }));
+  if (!response.ok) throw await readApiError(response, 'Unable to create a Google Drive folder for CardForge projects.');
+  const created = await response.json() as GoogleDriveFolderSelection;
+  await disconnectGoogleDriveProjectBinding();
+  return created;
 };
