@@ -23,6 +23,11 @@ const RATE_LIMIT_REASONS = new Set([
   'userRateLimitExceeded',
 ]);
 
+const GOOGLE_CLIENT_CONFIGURATION_ERRORS = new Set([
+  'invalid_client',
+  'unauthorized_client',
+]);
+
 export const classifyGoogleProviderFailure = (
   responseStatus: number,
   payload: GoogleProviderErrorPayload,
@@ -36,6 +41,7 @@ export const classifyGoogleProviderFailure = (
     : [];
   const errorCode = typeof payload.error === 'string' ? payload.error : '';
   const reconnectRequired = context === 'token' && errorCode === 'invalid_grant';
+  const ownerConfigurationRequired = context === 'token' && GOOGLE_CLIENT_CONFIGURATION_ERRORS.has(errorCode);
   const transientRateLimit = responseStatus === 429 || (
     responseStatus === 403 && reasons.some((reason) => RATE_LIMIT_REASONS.has(reason))
   );
@@ -49,17 +55,19 @@ export const classifyGoogleProviderFailure = (
         ? responseStatus === 429 ? 429 : 503
         : [400, 401, 403, 404, 409, 413].includes(responseStatus) ? responseStatus : 503;
   const kind = permanentLimit ? 'limit' : inferBoundaryFailureKind(status);
-  const nextAction = reconnectRequired || status === 401
-    ? 'Reconnect Google Drive in Library → Locations.'
-    : permanentLimit
-      ? 'Review the Google account storage or Google Cloud project quota before retrying.'
-      : status === 403
-        ? 'Confirm this Google account can access the requested Drive file or folder.'
-        : status === 429
-          ? 'Wait briefly, then retry the same Google Drive action without reconnecting.'
-          : status >= 500
-            ? 'Retry without reconnecting Google Drive. Your saved connection remains unchanged.'
-            : undefined;
+  const nextAction = ownerConfigurationRequired
+    ? 'CardForge owner must verify that this environment uses one matching Google OAuth client ID and client secret before retrying.'
+    : reconnectRequired || status === 401
+      ? 'Reconnect Google Drive in Library → Locations.'
+      : permanentLimit
+        ? 'Review the Google account storage or Google Cloud project quota before retrying.'
+        : status === 403
+          ? 'Confirm this Google account can access the requested Drive file or folder.'
+          : status === 429
+            ? 'Wait briefly, then retry the same Google Drive action without reconnecting.'
+            : status >= 500
+              ? 'Retry without reconnecting Google Drive. Your saved connection remains unchanged.'
+              : undefined;
   return { status, kind, providerMessage, nextAction, reconnectRequired };
 };
 
