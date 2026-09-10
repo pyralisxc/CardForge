@@ -87,7 +87,7 @@ const driveNeedsAttention = (phase: string) => (
   || phase === 'error'
 );
 
-const compactMenuItemClassName = 'min-h-11';
+const compactMenuItemClassName = 'min-h-12';
 
 export function DeskContextRail(props: DeskContextRailProps) {
   const [artifactFace] = useArtifactFace(props.artifactId ?? '');
