@@ -303,6 +303,52 @@ const createCardForgeRootFolder = async (accessToken: string): Promise<string> =
   return file.id;
 };
 
+const resolveGoogleDriveRootOnConnect = async ({
+  ownerUserId,
+  externalAccountId,
+  accessToken,
+}: {
+  ownerUserId: string;
+  externalAccountId: string;
+  accessToken: string;
+}): Promise<{ rootFolderId: string; status: 'active' | 'error'; statusNote: string }> => {
+  const existing = await getConnectionRow(ownerUserId);
+  if (!existing || existing.external_account_id !== externalAccountId) {
+    return {
+      rootFolderId: await createCardForgeRootFolder(accessToken),
+      status: 'active',
+      statusNote: '',
+    };
+  }
+
+  const rootFolderId = existing.root_folder_id;
+  if (!isGoogleDriveFileId(rootFolderId)) {
+    return {
+      rootFolderId,
+      status: 'error',
+      statusNote: 'The previously selected Drive project folder has invalid saved metadata. Choose a project folder before saving.',
+    };
+  }
+
+  try {
+    const folder = await getDriveFolderMetadata({ accessToken, folderId: rootFolderId });
+    return {
+      rootFolderId,
+      status: 'active',
+      statusNote: folder.capabilities?.canAddChildren === false
+        ? 'This Drive folder is read-only for the connected account.'
+        : '',
+    };
+  } catch (error) {
+    console.warn('Google Drive reconnected, but the previous project folder could not be verified:', error);
+    return {
+      rootFolderId,
+      status: 'error',
+      statusNote: 'Google Drive reconnected, but CardForge could not verify the previously selected project folder. Choose a project folder before saving.',
+    };
+  }
+};
+
 export const connectGoogleDriveProjectStorage = async ({
   ownerUserId,
   code,
@@ -326,7 +372,11 @@ export const connectGoogleDriveProjectStorage = async ({
       { kind: 'conflict' },
     );
   }
-  const rootFolderId = await createCardForgeRootFolder(tokens.access_token!);
+  const root = await resolveGoogleDriveRootOnConnect({
+    ownerUserId,
+    externalAccountId,
+    accessToken: tokens.access_token!,
+  });
   const encrypted = encryptProjectStorageToken(refreshToken);
   const now = new Date().toISOString();
   const grantedScopes = tokens.scope?.split(/\s+/gu).filter(Boolean) ?? [...GOOGLE_DRIVE_IDENTITY_SCOPES, GOOGLE_DRIVE_FILE_SCOPE];
@@ -341,9 +391,9 @@ export const connectGoogleDriveProjectStorage = async ({
       refresh_token_iv: encrypted.iv,
       refresh_token_auth_tag: encrypted.authTag,
       granted_scopes: grantedScopes,
-      root_folder_id: rootFolderId,
-      status: 'active',
-      status_note: '',
+      root_folder_id: root.rootFolderId,
+      status: root.status,
+      status_note: root.statusNote,
       last_verified_at: now,
     }, { onConflict: 'owner_user_id,provider' })
     .select(CONNECTION_COLUMNS)

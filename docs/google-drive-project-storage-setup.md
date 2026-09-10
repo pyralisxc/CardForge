@@ -188,6 +188,7 @@ After deployment:
 12. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
 13. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
 14. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
+15. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
 
 ## Privacy boundary
 
