@@ -16,6 +16,13 @@ export interface GoogleDriveProjectConnectionSummary {
   lastVerifiedAt: string | null;
 }
 
+export interface GoogleDriveProjectCapabilities {
+  canDownload: boolean;
+  canEdit: boolean;
+  canModifyContent: boolean;
+  canDelete: boolean;
+}
+
 export interface GoogleDriveProjectSummary {
   accountId?: string;
   /** Browser projection only: exact provider binding, never portable workId. */
@@ -31,6 +38,10 @@ export interface GoogleDriveProjectSummary {
   /** Short-lived provider thumbnail URL when Drive authorizes one for this binary. */
   thumbnailLink?: string | null;
   workId: string | null;
+  /** Present when the native file belongs to a Workspace shared drive. */
+  driveId?: string | null;
+  resourceKey?: string | null;
+  capabilities?: GoogleDriveProjectCapabilities;
 }
 
 export interface GoogleDriveProjectListResult {
@@ -50,6 +61,8 @@ export interface GoogleDrivePickerConfiguration {
 export interface GoogleDriveFolderSelection {
   id: string;
   name: string;
+  driveId?: string | null;
+  canAddChildren?: boolean;
 }
 
 export interface GoogleDriveUploadPrepareResult {

@@ -41,7 +41,8 @@ const GOOGLE_USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userin
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const GOOGLE_DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,headRevisionId,modifiedTime,size,parents,webViewLink,thumbnailLink,appProperties';
+const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,headRevisionId,modifiedTime,size,parents,driveId,resourceKey,webViewLink,thumbnailLink,capabilities(canDownload,canEdit,canModifyContent,canDelete),appProperties';
+const GOOGLE_DRIVE_FOLDER_FIELDS = 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren,canEdit)';
 const GOOGLE_DRIVE_PROJECT_APP_PROPERTY = 'cardforgeProject';
 const GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY = 'cardforgeProjectRevision';
 const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId';
@@ -110,8 +111,17 @@ type GoogleDriveFile = {
   modifiedTime?: string;
   size?: string;
   parents?: string[];
+  driveId?: string;
+  resourceKey?: string;
   webViewLink?: string;
   thumbnailLink?: string;
+  capabilities?: {
+    canDownload?: boolean;
+    canEdit?: boolean;
+    canModifyContent?: boolean;
+    canDelete?: boolean;
+    canAddChildren?: boolean;
+  };
   appProperties?: Record<string, string>;
 };
 
@@ -430,6 +440,14 @@ const toProjectSummary = async (file: GoogleDriveFile): Promise<GoogleDriveProje
     webViewLink: file.webViewLink ?? null,
     thumbnailLink: file.thumbnailLink ?? null,
     workId,
+    driveId: file.driveId ?? null,
+    resourceKey: file.resourceKey ?? null,
+    capabilities: {
+      canDownload: file.capabilities?.canDownload === true,
+      canEdit: file.capabilities?.canEdit === true,
+      canModifyContent: file.capabilities?.canModifyContent === true,
+      canDelete: file.capabilities?.canDelete === true,
+    },
   };
 };
 
@@ -443,6 +461,7 @@ const getDriveFileMetadata = async ({
   if (!isGoogleDriveFileId(fileId)) throw new ProjectStorageProviderError('Google Drive project id is invalid.', 400, { kind: 'invalid' });
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
   url.searchParams.set('fields', GOOGLE_DRIVE_PROJECT_FIELDS);
+  url.searchParams.set('supportsAllDrives', 'true');
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
@@ -451,13 +470,24 @@ const getDriveFileMetadata = async ({
   return await response.json() as GoogleDriveFile;
 };
 
+const getDriveFolderMetadata = async ({ accessToken, folderId }: { accessToken: string; folderId: string }): Promise<GoogleDriveFile> => {
+  const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
+  url.searchParams.set('fields', GOOGLE_DRIVE_FOLDER_FIELDS);
+  url.searchParams.set('supportsAllDrives', 'true');
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+  if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read the selected Google Drive folder.');
+  const folder = await response.json() as GoogleDriveFile;
+  if (folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE) throw new ProjectStorageProviderError('The configured Drive location is no longer a folder.', 409, { kind: 'conflict' });
+  return folder;
+};
+
 const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: string): Promise<GoogleDriveProjectSummary> => {
   const summary = await toProjectSummary(file);
   if (!summary
     || file.mimeType !== GOOGLE_DRIVE_PROJECT_MIME_TYPE
     || file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] !== GOOGLE_DRIVE_PROJECT_VALUE
     || !file.parents?.includes(rootFolderId)) {
-    throw new ProjectStorageProviderError('That Google Drive file is not a CardForge project owned by this connection.', 404, { kind: 'not_found' });
+    throw new ProjectStorageProviderError('That Google Drive file is not a CardForge project in this connected folder.', 404, { kind: 'not_found' });
   }
   return summary;
 };
@@ -476,9 +506,16 @@ export const listGoogleDriveProjectsPage = async ({
   const row = await getConnectionRow(ownerUserId);
   if (!row) return { connection: toConnectionSummary(null, true), projects: [] };
   const accessToken = await refreshGoogleAccessToken(row);
+  const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id });
   const url = new URL(`${GOOGLE_DRIVE_API}/files`);
   url.searchParams.set('q', `'${row.root_folder_id}' in parents and trashed = false`);
   url.searchParams.set('spaces', 'drive');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  if (folder.driveId) {
+    url.searchParams.set('corpora', 'drive');
+    url.searchParams.set('driveId', folder.driveId);
+  }
   url.searchParams.set('pageSize', String(GOOGLE_DRIVE_LIST_PAGE_SIZE));
   url.searchParams.set('orderBy', 'modifiedTime desc');
   if (pageToken?.trim()) url.searchParams.set('pageToken', pageToken.trim());
@@ -534,10 +571,16 @@ export const getGoogleDriveProject = async ({
   const { row, accessToken } = await requireConnection(ownerUserId);
   const file = await getDriveFileMetadata({ accessToken, fileId });
   const summary = await assertOwnedCardForgeProject(file, row.root_folder_id);
+  if (summary.capabilities && !summary.capabilities.canDownload) {
+    throw new ProjectStorageProviderError('Your current Drive role cannot download this project.', 403, { kind: 'authorization', nextAction: 'Ask the Drive owner for file access or choose another project.' });
+  }
   if (summary.size > MAX_ENCODED_PROJECT_BYTES) {
     throw new ProjectStorageProviderError('That Google Drive project exceeds CardForge’s safe portable-project size limit.', 413, { kind: 'limit' });
   }
-  const response = await fetch(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`, {
+  const mediaUrl = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
+  mediaUrl.searchParams.set('alt', 'media');
+  mediaUrl.searchParams.set('supportsAllDrives', 'true');
+  const response = await fetch(mediaUrl, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   });
@@ -658,6 +701,9 @@ export const prepareGoogleDriveProjectUpload = async ({
   if (fileId) {
     const current = await getDriveFileMetadata({ accessToken, fileId });
     const currentSummary = await assertOwnedCardForgeProject(current, row.root_folder_id);
+    if (currentSummary.capabilities && (!currentSummary.capabilities.canEdit || !currentSummary.capabilities.canModifyContent)) {
+      throw new ProjectStorageProviderError('Your current Drive role is read-only for this project.', 403, { kind: 'authorization', nextAction: 'Ask the Drive owner for edit access or use Save as new in a writable folder.' });
+    }
     effectiveWorkId = effectiveWorkId ?? currentSummary.workId;
     if (hasGoogleDriveProjectRevisionConflict({
       currentProviderRevision: currentSummary.providerRevision,
@@ -685,6 +731,10 @@ export const prepareGoogleDriveProjectUpload = async ({
       },
     };
   } else {
+    const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id });
+    if (folder.capabilities?.canAddChildren !== true) {
+      throw new ProjectStorageProviderError('Your current Drive role cannot add files to this folder.', 403, { kind: 'authorization', nextAction: 'Choose a writable Drive folder or ask its owner for content-manager/editor access.' });
+    }
     requestUrl = new URL(`${GOOGLE_DRIVE_UPLOAD_API}/files`);
     method = 'POST';
     metadata = {
@@ -699,6 +749,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     };
   }
   requestUrl.searchParams.set('uploadType', 'resumable');
+  requestUrl.searchParams.set('supportsAllDrives', 'true');
   if (thumbnail) metadata.contentHints = { thumbnail: { mimeType: 'image/png', image: thumbnail } };
   requestUrl.searchParams.set('fields', GOOGLE_DRIVE_PROJECT_FIELDS);
   const response = await fetch(requestUrl, {
@@ -798,6 +849,7 @@ export const updateGoogleDriveProjectFromServer = async ({
     modifiedTime: completed.modifiedTime ?? new Date().toISOString(),
     size: completed.size ?? String(blob.size),
     webViewLink: completed.webViewLink,
+    capabilities: { canDownload: true, canEdit: true, canModifyContent: true, canDelete: true },
     appProperties: completed.appProperties ?? {
       [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
       [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
@@ -822,10 +874,15 @@ export const deleteGoogleDriveProject = async ({
   const { row, accessToken } = await requireConnection(ownerUserId);
   const current = await getDriveFileMetadata({ accessToken, fileId });
   const summary = await assertOwnedCardForgeProject(current, row.root_folder_id);
+  if (summary.capabilities && !summary.capabilities.canDelete) {
+    throw new ProjectStorageProviderError('Your current Drive role cannot delete this project.', 403, { kind: 'authorization' });
+  }
   if (summary.providerRevision !== expectedProviderRevision || summary.projectRevision !== expectedProjectRevision) {
     throw new ProjectStorageProviderError('The Google Drive project changed after it was loaded. Reload it before deleting.', 409, { kind: 'conflict' });
   }
-  const response = await fetch(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
+  const deleteUrl = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
+  deleteUrl.searchParams.set('supportsAllDrives', 'true');
+  const response = await fetch(deleteUrl, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',

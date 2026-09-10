@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 import {
   copyGoogleDriveProjectToBrowser,
+  GoogleDriveSaveLinkageError,
   saveCardSetToGoogleDrive,
 } from '../client/googleDriveProjectTransfer';
 import { saveCardSetToAttachedFolder } from '../client/localProjectFolder';
@@ -144,6 +145,7 @@ export function ProjectWorkLocationDialog({
     const expectedState = useProjectStore.getState();
     const scope = getProjectPersistenceScope();
     let destinationCreated = false;
+    let sourceReceiptKnown = false;
     setBusyAction(actionKey);
     try {
       if (source === 'device' && target.localSetId) {
@@ -172,9 +174,13 @@ export function ProjectWorkLocationDialog({
       onChanged?.();
       onOpenChange(false);
     } catch (error) {
+      if (error instanceof GoogleDriveSaveLinkageError) {
+        destinationCreated = true;
+        sourceReceiptKnown = true;
+      }
       toast({
         title: destinationCreated ? 'Copy saved · source retained' : 'Location change needs review',
-        description: `${destinationCreated ? 'The verified destination copy is available, and the device source was kept. ' : ''}${error instanceof Error ? error.message : 'CardForge could not confirm this location change. Check the destination before repeating the action.'}`,
+        description: `${destinationCreated ? 'The destination copy is confirmed, and the device source was kept. ' : ''}${error instanceof Error ? error.message : 'CardForge could not confirm this location change. Check the destination before repeating the action.'}${sourceReceiptKnown ? ' Use the Drive status on the open Set to repair its browser link without repeating the upload.' : ''}`,
         variant: 'destructive',
       });
       if (destinationCreated) onChanged?.();

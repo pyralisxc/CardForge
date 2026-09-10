@@ -15,10 +15,13 @@ import {
   selectCreatorDeskSets,
   setCreatorLens,
   setCreatorToolDirty,
+  type ActionOperationResult,
   type EnvironmentViewer,
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { openGoogleDriveProject } from '@/features/project/client/provider-google-drive';
+import { openRememberedLocalProject } from '@/features/project/client/provider-local-folder';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
@@ -103,6 +106,7 @@ export function useDeskController({
   }, [deskViewPreferences]);
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
+  const [preparingWorkId, setPreparingWorkId] = useState<string | null>(null);
   const {
     closeContextTool,
     confirmDirtyClose,
@@ -146,8 +150,10 @@ export function useDeskController({
   const setCardQuery = useCallback((value: string) => setInteractionSession((current) => setCreatorLens(current, { ...current.lens, query: value })), [setInteractionSession]);
   const [moveTargetId, setMoveTargetId] = useState('');
   const [tagDraft, setTagDraft] = useState('');
-  const tagFilter = interactionSession.lens.filterIds[0] ?? 'all';
-  const setTagFilter = useCallback((value: string) => setInteractionSession((current) => setCreatorLens(current, { ...current.lens, filterIds: value === 'all' ? [] : [value] })), [setInteractionSession]);
+  const tagFilters = interactionSession.lens.filterIds;
+  const tagFilter = tagFilters[0] ?? 'all';
+  const setTagFilters = useCallback((values: string[]) => setInteractionSession((current) => setCreatorLens(current, { ...current.lens, filterIds: values })), [setInteractionSession]);
+  const setTagFilter = useCallback((value: string) => setTagFilters(value === 'all' ? [] : [value]), [setTagFilters]);
   const [pendingDeleteWork, setPendingDeleteWork] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteCards, setPendingDeleteCards] = useState<DisplayCard[]>([]);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
@@ -222,7 +228,7 @@ export function useDeskController({
     selectedCardIds,
     latestGeneratedIds,
     cardQuery,
-    tagFilter,
+    tagFilters,
     moveTargetId,
   });
   const {
@@ -260,9 +266,6 @@ export function useDeskController({
     const missingTemplate = [pendingTool.templateId, pendingTool.backingTemplateId]
       .some((id) => id && !templates.some((template) => template.id === id));
     if (missingTemplate) {
-      // A contextual tool depends on Templates, not the whole Desk. In
-      // particular, a slow Drive/folder/draft request must not block it, while
-      // a delayed catalog response must not be mistaken for a missing design.
       if (!projection.templateCatalogReady) return;
       toast({
         title: templateSourceFailure ? 'Template source unavailable' : 'Template not found',
@@ -385,15 +388,83 @@ export function useDeskController({
     });
   }, [projection, selectedWorkItems, updateCardSetMetadata]);
 
-  const focusWork = (item: AccountLibraryItem) => {
+  const createDeskStudioReturnTo = (workId: string, nextSelectedCardIds: string[] = selectedCardIds) => {
+    const returnContext = storeSurfaceReturnContext({
+      kind: 'desk',
+      focusedWorkId: workId,
+      inspectorWorkId,
+      query,
+      sourceFilter,
+      deskViews: deskViewPreferences.preferences.views,
+      deskSources: deskViewPreferences.preferences.sources,
+      deskTypes: deskViewPreferences.preferences.types,
+      deskTags: deskViewPreferences.preferences.tags,
+      deskTagMatch: deskViewPreferences.preferences.tagMatch,
+      sort: 'desk',
+      selectedCardIds: nextSelectedCardIds,
+      cardQuery,
+      tagFilter,
+      scrollTop: surfaceRef.current?.scrollTop ?? 0,
+    });
+    return createDeskReturnHref(workId, returnContext);
+  };
+
+  const openRemoteWork = async (item: AccountLibraryItem): Promise<ActionOperationResult> => {
+    if (preparingWorkId && preparingWorkId !== item.id) {
+      throw new Error('Another work source is still opening. Let it finish before opening a different source.');
+    }
+    setPreparingWorkId(item.id);
+    try {
+      if (item.references.campaignId || item.references.pipelineLineageId) {
+        focusWorkContext(item.id, null);
+        setRemoteWorkspaceId(item.id);
+        return { kind: 'tool-opened', toolId: item.references.campaignId ? 'campaign' : 'published-work' };
+      }
+      if (item.references.driveFileId) {
+        const binding = await openGoogleDriveProject({
+          fileId: item.references.driveFileId,
+          name: item.name,
+        });
+        const workId = binding.workId;
+        if (!workId) throw new Error('This Drive document has no Set that CardForge can focus.');
+        setActiveCardSetId(workId);
+        projection.refresh();
+        focusWorkContext(`set:${workId}`, workId);
+        return { kind: 'navigation', href: createDeskReturnHref(`set:${workId}`) };
+      }
+      if (item.references.localFolderWorkId) {
+        const opened = await openRememberedLocalProject(item.references.localFolderWorkId);
+        setActiveCardSetId(opened.setId);
+        projection.refresh();
+        focusWorkContext(`set:${opened.setId}`, opened.setId);
+        return { kind: 'navigation', href: createDeskReturnHref(`set:${opened.setId}`) };
+      }
+      const href = await projection.openItem(item, createDeskStudioReturnTo(item.id));
+      return { kind: 'navigation', href };
+    } finally {
+      setPreparingWorkId((current) => current === item.id ? null : current);
+    }
+  };
+
+  const focusWork = (item: AccountLibraryItem): ActionOperationResult => {
     trackCardForgeEvent('set_opened', { object_kind: 'set', input_method: 'direct' });
     if (!selectedDeskIds.includes(item.id)) {
       setInteractionSession((current) => selectCreatorDeskSets(current, [item.id], item.id));
     }
-    if (item.references.localSetId) setActiveCardSetId(item.references.localSetId);
     setRenaming(false);
-    focusWorkContext(item.id, item.references.localSetId ?? null);
-    return { kind: 'navigation' as const, href: createDeskReturnHref(item.id) };
+    if (item.references.localSetId) {
+      setActiveCardSetId(item.references.localSetId);
+      focusWorkContext(item.id, item.references.localSetId);
+      return { kind: 'navigation', href: createDeskReturnHref(item.id) };
+    }
+    void openRemoteWork(item).catch((error: unknown) => {
+      toast({
+        title: 'Work could not be prepared',
+        description: error instanceof Error ? error.message : 'The connected source is unavailable.',
+        variant: 'destructive',
+      });
+    });
+    return { kind: 'tool-opened', toolId: item.references.driveFileId ? 'drive-working-set' : item.references.localFolderWorkId ? 'folder-working-set' : 'source-work' };
   };
 
   const createWork = (openDesign = false) => {
@@ -456,38 +527,6 @@ export function useDeskController({
   const inspectItem = (item: AccountLibraryItem) => {
     setInspectorWorkId(item.id);
     requestAnimationFrame(() => document.getElementById(`set-${item.id}`)?.focus());
-  };
-
-  const createDeskStudioReturnTo = (workId: string, nextSelectedCardIds: string[] = selectedCardIds) => {
-    const returnContext = storeSurfaceReturnContext({
-      kind: 'desk',
-      focusedWorkId: workId,
-      inspectorWorkId,
-      query,
-      sourceFilter,
-      deskViews: deskViewPreferences.preferences.views,
-      deskSources: deskViewPreferences.preferences.sources,
-      deskTypes: deskViewPreferences.preferences.types,
-      deskTags: deskViewPreferences.preferences.tags,
-      deskTagMatch: deskViewPreferences.preferences.tagMatch,
-      sort: 'desk',
-      selectedCardIds: nextSelectedCardIds,
-      cardQuery,
-      tagFilter,
-      scrollTop: surfaceRef.current?.scrollTop ?? 0,
-    });
-    return createDeskReturnHref(workId, returnContext);
-  };
-
-  const openRemoteWork = async (item: AccountLibraryItem) => {
-    if (item.references.campaignId || item.references.pipelineLineageId) {
-      // The specialized owner is mounted as a contextual Desk tool. It keeps
-      // the focused object and return scene intact instead of routing through
-      // Library or inventing a local Set identity.
-      setRemoteWorkspaceId(item.id);
-      return { kind: 'tool-opened' as const, toolId: item.references.campaignId ? 'campaign' : 'published-work' };
-    }
-    return { kind: 'navigation' as const, href: await projection.openItem(item, createDeskStudioReturnTo(item.id)) };
   };
 
   const createPublishedWorkingCopy = useCallback(async (item: AccountLibraryItem) => {
@@ -565,7 +604,7 @@ export function useDeskController({
     const focusedSession = focusCreatorSet(closeCreatorContext(interactionSession).session, targetSetId);
     closeContextTool(selectCreatorArtifacts(focusedSession, ids));
     setCardQuery('');
-    setTagFilter('all');
+    setTagFilters([]);
     setLatestGeneratedIds(ids);
     requestAnimationFrame(() => cardStageRef.current?.focus());
   };
@@ -632,6 +671,7 @@ export function useDeskController({
     pendingDeleteWork,
     pinnedIds,
     pipelineSubmitSetId,
+    preparingWorkId,
     projection: deskProjection,
     refreshDeskSources,
     query,
@@ -674,6 +714,8 @@ export function useDeskController({
     setSourceFilter,
     setTagDraft,
     setTagFilter,
+    setTagFilters,
+    tagFilters,
     undoLastBulkRevision,
     requestHistoryBack,
     requestDeskReturn,

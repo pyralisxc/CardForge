@@ -63,6 +63,20 @@ const selectConnectionQuery = () => {
   return query;
 };
 
+const writableDriveFolder = () => ({
+  id: 'drive_folder_123',
+  name: 'CardForge',
+  mimeType: 'application/vnd.google-apps.folder',
+  capabilities: { canAddChildren: true },
+});
+
+const writableProjectCapabilities = {
+  canDownload: true,
+  canEdit: true,
+  canModifyContent: true,
+  canDelete: true,
+};
+
 describe('Google Drive provider boundaries', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
@@ -119,6 +133,7 @@ describe('Google Drive provider boundaries', () => {
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
     const fetch = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json(writableDriveFolder()))
       .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
     vi.stubGlobal('fetch', fetch);
     const input = { ownerUserId: 'user-1', name: 'Set', size: 3, projectRevision: 'a'.repeat(64) };
@@ -126,7 +141,7 @@ describe('Google Drive provider boundaries', () => {
     expect(fetch).not.toHaveBeenCalled();
     const thumbnail = Buffer.from('89504e470d0a1a0a', 'hex').toString('base64url');
     await prepareGoogleDriveProjectUpload({ ...input, thumbnail });
-    expect(JSON.parse(fetch.mock.calls[1]![1]!.body as string)).toMatchObject({ contentHints: { thumbnail: { image: thumbnail, mimeType: 'image/png' } } });
+    expect(JSON.parse(fetch.mock.calls[2]![1]!.body as string)).toMatchObject({ contentHints: { thumbnail: { image: thumbnail, mimeType: 'image/png' } } });
   });
 
   it('keeps Google authentication and permission failures distinct', async () => {
@@ -146,7 +161,11 @@ describe('Google Drive provider boundaries', () => {
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
     const fetch = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
-      .mockResolvedValueOnce(Response.json({ id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip', version: '1', headRevisionId: 'native-1', modifiedTime: '2026-09-01', parents: ['drive_folder_123'], appProperties: { cardforgeProject: '1', cardforgeProjectRevision: 'a'.repeat(64) } }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip', version: '1', headRevisionId: 'native-1', modifiedTime: '2026-09-01',
+        parents: ['drive_folder_123'], capabilities: writableProjectCapabilities,
+        appProperties: { cardforgeProject: '1', cardforgeProjectRevision: 'a'.repeat(64) },
+      }))
       .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
     if (failure === 'lost response') fetch.mockRejectedValueOnce(new Error('connection reset'));
     else fetch.mockResolvedValueOnce(failure === 'provider 503' ? new Response(null, { status: 503 }) : Response.json(failure === 'null receipt' ? null : failure === 'missing head' ? { id: 'drive-file-12345', version: '3', name: 'Saved' } : {}));
@@ -225,8 +244,10 @@ describe('Google Drive provider boundaries', () => {
     });
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'first-token' }), { status: 200 }))
+      .mockResolvedValueOnce(Response.json(writableDriveFolder()))
       .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile1', '1')], nextPageToken: 'page-two' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'second-token' }), { status: 200 }))
+      .mockResolvedValueOnce(Response.json(writableDriveFolder()))
       .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile2', '2')] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -236,7 +257,7 @@ describe('Google Drive provider boundaries', () => {
         { fileId: 'drivefile2', thumbnailLink: 'https://drive.example.test/drivefile2.png' },
       ], nextPageToken: null,
     });
-    const secondListUrl = new URL(String(fetchMock.mock.calls[3]?.[0]));
+    const secondListUrl = new URL(String(fetchMock.mock.calls[5]?.[0]));
     expect(secondListUrl.searchParams.get('pageToken')).toBe('page-two');
     expect(secondListUrl.searchParams.get('fields')).toContain('thumbnailLink');
   });
@@ -307,32 +328,35 @@ describe('Google Drive provider boundaries', () => {
     await expect(disconnectGoogleDriveProjectStorage('user-1')).resolves.toBeUndefined();
     expect(deleteQuery.delete).toHaveBeenCalledOnce();
   });
-it.each([
-  { head: 'native-1', expected: headToken('1'), status: null },
-  { head: 'native-2', expected: headToken('1'), status: 409 },
-  { head: 'native-1', expected: headToken('1'), status: 409, hash: 'c' },
-  { head: undefined, expected: headToken('1'), status: 503 },
-  { head: 'native-1', expected: '1', status: 409 },
-])('uses native content identity for preflight: %j', async ({ head, expected, status, hash = 'a' }) => {
-  mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
-  const fetch = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
-    .mockResolvedValueOnce(Response.json({ id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip',
-      version: '2', headRevisionId: head, modifiedTime: '2026-09-01', parents: ['drive_folder_123'],
-      appProperties: { cardforgeProject: '1', cardforgeProjectRevision: hash.repeat(64) } }))
-    .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
-  vi.stubGlobal('fetch', fetch);
-  const action = prepareGoogleDriveProjectUpload({ ownerUserId: 'user-1', fileId: 'drive-file-12345', name: 'Renamed', size: 3,
-    projectRevision: 'b'.repeat(64), expectedProviderRevision: expected, expectedProjectRevision: 'a'.repeat(64) });
-  if (status) {
-    await expect(action).rejects.toMatchObject({ status });
-    expect(fetch).toHaveBeenCalledTimes(2);
-  } else {
-    await expect(action).resolves.toMatchObject({ projectRevision: 'b'.repeat(64) });
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2]![1]).toMatchObject({ method: 'PATCH' });
-  }
-});
 
+  it.each([
+    { head: 'native-1', expected: headToken('1'), status: null },
+    { head: 'native-2', expected: headToken('1'), status: 409 },
+    { head: 'native-1', expected: headToken('1'), status: 409, hash: 'c' },
+    { head: undefined, expected: headToken('1'), status: 503 },
+    { head: 'native-1', expected: '1', status: 409 },
+  ])('uses native content identity for preflight: %j', async ({ head, expected, status, hash = 'a' }) => {
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(selectConnectionQuery()) } as never);
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive-file-12345', name: 'Set.cardforge', mimeType: 'application/vnd.cardforge.project+zip',
+        version: '2', headRevisionId: head, modifiedTime: '2026-09-01', parents: ['drive_folder_123'],
+        capabilities: writableProjectCapabilities,
+        appProperties: { cardforgeProject: '1', cardforgeProjectRevision: hash.repeat(64) },
+      }))
+      .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
+    vi.stubGlobal('fetch', fetch);
+    const action = prepareGoogleDriveProjectUpload({ ownerUserId: 'user-1', fileId: 'drive-file-12345', name: 'Renamed', size: 3,
+      projectRevision: 'b'.repeat(64), expectedProviderRevision: expected, expectedProjectRevision: 'a'.repeat(64) });
+    if (status) {
+      await expect(action).rejects.toMatchObject({ status });
+      expect(fetch).toHaveBeenCalledTimes(2);
+    } else {
+      await expect(action).resolves.toMatchObject({ projectRevision: 'b'.repeat(64) });
+      expect(fetch).toHaveBeenCalledTimes(3);
+      expect(fetch.mock.calls[2]![1]).toMatchObject({ method: 'PATCH' });
+    }
+  });
 });
 
 describe('Google Drive Library refresh safety', () => {
@@ -376,5 +400,4 @@ describe('Google Drive Library refresh safety', () => {
       kind,
     })).toContain('Protected results from this source were removed.');
   });
-
 });

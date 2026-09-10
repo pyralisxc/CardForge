@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
   namespace: 'test',
   onWrite: undefined as (() => void) | undefined,
+  failWriteKey: null as string | null,
   values: new Map<string, unknown>(),
   localSets: [] as { id: string }[],
   read: vi.fn(),
@@ -16,7 +17,11 @@ const mock = vi.hoisted(() => ({
 }));
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
   readStructuredBrowserValue: mock.read,
-  writeStructuredBrowserValue: async (key: string, value: unknown) => { mock.values.set(key, value); mock.onWrite?.(); },
+  writeStructuredBrowserValue: async (key: string, value: unknown) => {
+    if (key === mock.failWriteKey) throw new Error('Browser storage rejected the binding');
+    mock.values.set(key, value);
+    mock.onWrite?.();
+  },
   removeStructuredBrowserValue: async (key: string) => { mock.values.delete(key); },
 }));
 vi.mock('@/features/project/persistence/projectPersistenceScope', () => ({ getScopedProjectStorageNamespace: () => mock.namespace }));
@@ -38,7 +43,7 @@ vi.mock('@/features/project/store/workspaceStore', () => {
   return { useProjectStore: { getState: () => state } };
 });
 
-import { copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
+import { GoogleDriveSaveLinkageError, copyGoogleDriveProjectToBrowser, deleteGoogleDriveProjectCopy, getGoogleDriveProjectBinding, openGoogleDriveProject, refreshGoogleDriveProject, saveCardSetToGoogleDrive, saveCurrentProjectToGoogleDrive } from '@/features/project/client/googleDriveProjectTransfer';
 import { disconnectLocalProjectFolder, getLocalProjectFolderStatus, saveCardSetToAttachedFolder, saveProjectToAttachedFolder } from '@/features/project/client/localProjectFolder';
 
 const driveBinding = { fileId: 'drive-file-12345', name: 'C', providerRevision: '1', projectRevision: 'a'.repeat(64), workId: 'set-c' };
@@ -57,6 +62,7 @@ beforeEach(() => {
   mock.values.clear();
   mock.namespace = 'test';
   mock.onWrite = undefined;
+  mock.failWriteKey = null;
   mock.localSets = [];
   mock.read.mockImplementation(async (key: string) => mock.values.get(key) ?? null);
   mock.decode.mockResolvedValue({ format: 'cardforge-package', sourceRevision: 'b'.repeat(64) });
@@ -328,4 +334,73 @@ it('preserves the prior binding when a successful upload omits the native conten
     .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '2', name: 'C' })));
   await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('do not repeat this upload blindly');
   expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
+});
+
+
+describe('confirmed Drive save receipts survive browser-link failures', () => {
+  const uploadResponse = () => Response.json({
+    id: driveBinding.fileId, headRevisionId: 'native-2', name: 'C', modifiedTime: '2026-09-09T00:00:00Z',
+  });
+
+  it.each(['set-binding', 'set-pointer', 'workspace-pointer'] as const)(
+    'preserves the receipt and source when %s persistence fails', async (failure) => {
+      mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
+      mock.failWriteKey = failure === 'set-binding'
+        ? 'test:google-drive-work-binding:set-c' : 'test:google-drive-project-binding';
+      const fetch = vi.fn()
+        .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C', accountId: 'account-a' }))
+        .mockResolvedValueOnce(uploadResponse());
+      vi.stubGlobal('fetch', fetch);
+      const result = await (failure === 'workspace-pointer'
+        ? saveCurrentProjectToGoogleDrive({ name: 'C', asNew: true })
+        : saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).catch((error: unknown) => error);
+      expect(result).toBeInstanceOf(GoogleDriveSaveLinkageError);
+      if (!(result instanceof GoogleDriveSaveLinkageError)) throw new Error('Expected a confirmed-save receipt');
+      expect(result).toMatchObject({
+        code: 'source_committed_linkage_refresh_required', sourceCommitted: true, retryable: false,
+        sourceReceipt: { fileId: driveBinding.fileId, providerRevision: headToken('2'), projectRevision: 'b'.repeat(64),
+          packageScope: failure === 'workspace-pointer' ? 'workspace' : 'set' },
+      });
+      expect(result.message).toContain('Drive saved the file');
+      expect(result.message).toContain('do not repeat the upload');
+      expect(result.cause).toBeInstanceOf(Error);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(fetch.mock.calls[1]?.[1]).toMatchObject({ method: 'PUT' });
+      expect(mock.apply).not.toHaveBeenCalled();
+      if (failure === 'set-binding') expect(mock.values.get(mock.failWriteKey)).toEqual(driveBinding);
+      else if (failure === 'set-pointer') {
+        expect(mock.values.get('test:google-drive-work-binding:set-c')).toMatchObject({ providerRevision: headToken('2') });
+        expect(mock.values.has('test:google-drive-project-binding')).toBe(false);
+      }
+    },
+  );
+
+  it('keeps a completed save explicit when the account changes during upload, without writing to the new scope', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+      .mockImplementationOnce(async () => { mock.namespace = 'other-account'; return uploadResponse(); });
+    vi.stubGlobal('fetch', fetch);
+    const result = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch((error: unknown) => error);
+    expect(result).toMatchObject({ code: 'source_committed_linkage_refresh_required', sourceCommitted: true,
+      retryable: false, sourceReceipt: { fileId: driveBinding.fileId, providerRevision: headToken('2') } });
+    expect(mock.values.size).toBe(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mock.apply).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 2])('does not report complete local linkage after an account switch at write %i', async (switchAt) => {
+    let writes = 0;
+    mock.onWrite = () => { if (++writes === switchAt) mock.namespace = 'other-account'; };
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+      .mockResolvedValueOnce(uploadResponse());
+    vi.stubGlobal('fetch', fetch);
+    const result = await saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' }).catch((error: unknown) => error);
+    expect(result).toMatchObject({ code: 'source_committed_linkage_refresh_required', sourceCommitted: true,
+      retryable: false, sourceReceipt: { fileId: driveBinding.fileId, providerRevision: headToken('2') } });
+    expect(writes).toBe(switchAt);
+    expect([...mock.values.keys()].every((key) => key.startsWith('test:'))).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mock.apply).not.toHaveBeenCalled();
+  });
 });
