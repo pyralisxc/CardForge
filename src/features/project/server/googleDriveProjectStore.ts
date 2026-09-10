@@ -446,9 +446,11 @@ const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<
       nextAction: token.failure.nextAction,
     });
   }
+  // Credential refresh proves OAuth health only. The selected folder's status and
+  // capability note are owned by folder verification/selection and must survive.
   await requireStore()
     .from('cardforge_project_storage_connections')
-    .update({ status: 'active', status_note: '', last_verified_at: new Date().toISOString() })
+    .update({ last_verified_at: new Date().toISOString() })
     .eq('id', row.id);
   return token.accessToken;
 };
