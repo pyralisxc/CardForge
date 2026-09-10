@@ -45,7 +45,7 @@ function StorageToolDetail({ location, onClose }: { location: StorageToolLocatio
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, [location.id]);
   return (
-    <div id="environment-detail-panel" className="min-w-0">
+    <div id="environment-detail-panel" className="min-w-0 pb-2">
       <div className="flex items-start justify-between gap-3 border-b border-[var(--cf-border)] pb-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">{location.eyebrow}</p>
@@ -76,6 +76,11 @@ export function LibraryStorageConnectionsTool({
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!mobileDetail) return;
+    containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [mobileDetail, selectedId]);
 
   const locations = useMemo<StorageToolLocation[]>(() => [
     {
@@ -128,7 +133,12 @@ export function LibraryStorageConnectionsTool({
   };
 
   return (
-    <section ref={containerRef} aria-label="Storage and connections">
+    <section
+      ref={containerRef}
+      aria-label="Storage and connections"
+      data-storage-connections-scroll
+      className="h-full min-h-0 min-w-0 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-4"
+    >
       {mobileDetail && selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className={`grid min-w-0 gap-5 ${mobileDetail ? '' : 'grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]'}`}>
         <div className="min-w-0">
           <EnvironmentSectionHeading id="storage-location-list-heading" title="Owners & locations" meta={`${locations.length} locations`} />
