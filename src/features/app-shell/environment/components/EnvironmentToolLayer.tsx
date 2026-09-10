@@ -198,7 +198,7 @@ export function EnvironmentToolLayer({
   }, [closeFromControl, id, manageHistory, modal, requestClose]);
 
   return (
-    <><div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''}`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-scene-visible={sceneVisible} data-desk-tool-surface>
+    <><div className={`${styles.toolLayer} ${workspace ? styles.toolLayerWorkspace : ''} max-md:!z-[70]`} role={modal ? 'dialog' : 'region'} aria-modal={modal || undefined} aria-labelledby={id} data-presentation={presentation} data-scene-visible={sceneVisible} data-desk-tool-surface>
       {modal ? <button type="button" className={styles.toolScrim} aria-hidden="true" tabIndex={-1} onClick={closeFromControl} /> : <div className={styles.toolSceneReveal} aria-hidden="true" />}
       <section ref={panelRef} className={`${styles.toolPanel} ${workspace ? styles.toolPanelWorkspace : ''}`}>
         <header className={`${styles.toolHeader} ${workspace ? styles.toolHeaderWorkspace : ''} ${headerOwnedByRail ? styles.toolHeaderRailOwned : ''}`}>
