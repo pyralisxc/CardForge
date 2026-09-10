@@ -110,11 +110,23 @@ export function GoogleDriveProjectStoragePanel({
     }
   }, [refresh, toast]);
 
+  const chooseProjectFolder = useCallback(() => void run('choose-folder', async () => {
+    const selected = await chooseGoogleDriveProjectFolder();
+    if (selected) {
+      toast({
+        title: 'Google Drive folder selected',
+        description: `New CardForge projects will be stored in “${selected.name}”. Existing files were left where they are.`,
+      });
+    }
+  }), [run, toast]);
+
   const projects = useMemo(() => library?.projects ?? [], [library?.projects]);
   const attachedProject = useMemo(() => (
     binding ? projects.find((project) => project.fileId === binding.fileId) ?? null : null
   ), [binding, projects]);
   const connection = library?.connection ?? null;
+  const canReplaceUnavailableFolder = loadError instanceof ApiClientError
+    && ['authorization', 'conflict', 'not_found'].includes(loadError.kind);
 
   return (
     <section className={embedded ? 'py-1' : 'border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5'} aria-labelledby={embedded ? undefined : 'google-drive-storage-title'}>
@@ -150,7 +162,17 @@ export function GoogleDriveProjectStoragePanel({
           <p>{loadError.message}</p>
           {loadError instanceof ApiClientError && loadError.kind === 'authentication' ? (
             <Button size="sm" disabled={!canUseProjectFiles} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
-          ) : <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>}
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {canReplaceUnavailableFolder ? (
+                <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                  {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
+                  Choose project folder
+                </Button>
+              ) : null}
+              <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>
+            </div>
+          )}
         </div>
       ) : !connection ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading Google Drive storage…</p>
@@ -178,7 +200,7 @@ export function GoogleDriveProjectStoragePanel({
             <div>
               <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
               <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                {connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : connection.statusNote || 'This connection needs attention.'}
+                {connection.statusNote || (connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : 'This connection needs attention.')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -188,15 +210,7 @@ export function GoogleDriveProjectStoragePanel({
                 size="sm"
                 variant="outline"
                 disabled={Boolean(busyAction) || !canUseProjectFiles}
-                onClick={() => void run('choose-folder', async () => {
-                  const selected = await chooseGoogleDriveProjectFolder();
-                  if (selected) {
-                    toast({
-                      title: 'Google Drive folder selected',
-                      description: `New CardForge projects will be stored in “${selected.name}”. Existing files were left where they are.`,
-                    });
-                  }
-                })}
+                onClick={chooseProjectFolder}
               >
                 {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
                 Choose project folder
