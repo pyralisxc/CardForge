@@ -62,6 +62,7 @@ export interface GoogleDriveFolderSelection {
   id: string;
   name: string;
   driveId?: string | null;
+  resourceKey?: string | null;
   canAddChildren?: boolean;
 }
 
