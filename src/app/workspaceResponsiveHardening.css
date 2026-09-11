@@ -1,0 +1,116 @@
+/*
+ * Shared private-workspace responsive contract.
+ *
+ * Feature CSS can still own the visual language of its objects, but viewport,
+ * rail compression, and scroll ownership belong to the shell. Attribute and
+ * ARIA selectors intentionally target stable product boundaries rather than
+ * CSS-module implementation names.
+ */
+
+[aria-label="CardForge Desk"],
+[aria-label="CardForge Library"] {
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[aria-label="CardForge Desk"] > div:first-child,
+[aria-label="CardForge Library"] > div:first-child {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[aria-label="CardForge Desk"] main,
+[aria-label="CardForge Library"] main {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+/* Desk controls are one compact action rail below the contextual top rail. */
+[data-desk-toolbar] {
+  top: 0 !important;
+  right: 0 !important;
+  left: 0 !important;
+  max-width: none !important;
+  min-height: 2.75rem;
+  flex-wrap: nowrap !important;
+  gap: 0.2rem !important;
+  padding: 0.2rem 0.4rem !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+[data-desk-toolbar]::-webkit-scrollbar {
+  display: none;
+}
+
+/* The focused Set is a camera depth, not a narrower page nested in the Desk. */
+[data-desk="focused"],
+[data-desk-set-board] {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* The shell owns page height; work panes own their own scrolling. */
+[data-storage-connections-scroll],
+[data-scene-viewport] {
+  overscroll-behavior: contain;
+}
+
+/* Context actions should compress before they wrap into a second header. */
+[data-desk-context-rail] {
+  flex-wrap: nowrap !important;
+  min-height: 2.85rem !important;
+  gap: 0.3rem !important;
+  padding-block: 0.15rem !important;
+  overflow: hidden;
+}
+
+[data-desk-context-rail] nav,
+[data-desk-context-rail] nav > div {
+  min-width: 0;
+}
+
+/* Controls keep icon hit targets and lose prose before the rail wraps. */
+@media (max-width: 1120px) {
+  [data-desk-context-rail] button {
+    min-width: 2.6rem !important;
+    min-height: 2.6rem !important;
+    padding-inline: 0.55rem !important;
+  }
+
+  [data-desk-context-rail] button > span {
+    display: none;
+  }
+}
+
+/* Mobile and narrow windows are the same product hierarchy, more compressed. */
+@media (max-width: 767px) {
+  [aria-label="CardForge Desk"],
+  [aria-label="CardForge Library"] {
+    height: 100dvh;
+  }
+
+  [data-desk-context-rail] {
+    min-height: 2.7rem !important;
+  }
+
+  [data-desk-toolbar] {
+    min-height: 2.7rem;
+  }
+
+  [data-storage-connections-scroll] {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem) !important;
+  }
+}
