@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+import { PROJECT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import {
   cacheGoogleDriveProjectPreview,
   loadGoogleDriveProjectLibrary,
@@ -16,8 +17,6 @@ import {
 const MAX_AUTOMATIC_PREVIEW_PROJECTS = 3;
 const MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES = 12 * 1024 * 1024;
 const MAX_AUTOMATIC_PREVIEW_TOTAL_BYTES = 24 * 1024 * 1024;
-
-export const GOOGLE_DRIVE_PREVIEW_CACHE_CHANGE_EVENT = 'cardforge-google-drive-preview-cache-change';
 
 const base64UrlPngToDataUrl = (value: string): string => {
   const base64 = value.replace(/-/gu, '+').replace(/_/gu, '/');
@@ -118,10 +117,11 @@ const warmMissingPreviews = async (): Promise<boolean> => {
 
 /**
  * Older CardForge Drive files may predate native contentHints thumbnails.
- * Warm a small revision-keyed visual cache in the background, then notify the
- * existing projection to repaint only its Drive pixels. This never imports
- * those files into editable browser work, blocks the workspace, or refreshes
- * unrelated Library sources. Data-saver/hidden pages skip the optional read.
+ * Warm a small revision-keyed visual cache in the background, then reuse the
+ * established project-Library refresh signal so Desk and Library repaint
+ * without importing those files into editable browser work or blocking the
+ * workspace. Concurrent list consumers are coalesced at the provider client.
+ * Data-saver/hidden pages skip this optional compatibility read entirely.
  */
 export function GoogleDrivePreviewWarmupBoundary({
   enabled,
@@ -134,7 +134,7 @@ export function GoogleDrivePreviewWarmupBoundary({
     let cancelled = false;
     if (!enabled) return () => { cancelled = true; };
     void warmMissingPreviews().then((changed) => {
-      if (!cancelled && changed) window.dispatchEvent(new Event(GOOGLE_DRIVE_PREVIEW_CACHE_CHANGE_EVENT));
+      if (!cancelled && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
     });
     return () => { cancelled = true; };
   }, [enabled]);
