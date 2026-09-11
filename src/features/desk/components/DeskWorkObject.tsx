@@ -52,6 +52,12 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
+  const requestDelete = () => {
+    // Let Radix finish closing the menu and restoring trigger focus before opening
+    // the destructive confirmation. This avoids focus-dismiss races between two
+    // independently portalled surfaces.
+    window.setTimeout(() => props.onDelete(props.item), 0);
+  };
   return <article
     className={styles.workTile}
     style={positionStyle}
@@ -68,7 +74,8 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     <button
       id={`set-${props.item.id}`}
       type="button"
-      className={`${styles.workTileMain} cursor-grab active:cursor-grabbing`}
+      className={styles.workTileMain}
+      style={{ cursor: 'grab' }}
       disabled={props.focused}
       tabIndex={props.focused ? -1 : undefined}
       aria-hidden={props.focused || undefined}
@@ -77,6 +84,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       onDragStart={(event) => event.preventDefault()}
       onPointerDown={(event) => {
         lastPointerTypeRef.current = event.pointerType;
+        event.currentTarget.style.cursor = 'grabbing';
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
         const touchArrangeSelection = event.pointerType === 'touch' && props.arrangeMode && !props.selected && !modified;
         if (!props.selected && !modified && !touchArrangeSelection) {
@@ -88,8 +96,14 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         }
       }}
       onPointerMove={props.moveDrag}
-      onPointerUp={props.endDrag}
-      onPointerCancel={props.endDrag}
+      onPointerUp={(event) => {
+        event.currentTarget.style.cursor = 'grab';
+        props.endDrag(event);
+      }}
+      onPointerCancel={(event) => {
+        event.currentTarget.style.cursor = 'grab';
+        props.endDrag(event);
+      }}
       onClick={(event) => {
         if (props.shouldSuppressActivation(props.item.id)) return;
         if (suppressTouchSelectionClickRef.current) {
@@ -129,7 +143,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => props.onDelete(props.item)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={requestDelete}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
       </DropdownMenuContent></DropdownMenu>
       </div>
     </>}
