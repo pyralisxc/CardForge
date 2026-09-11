@@ -45,6 +45,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
   const mobileNavigationPersistent = focusDepth !== 'tool';
+  const containedMobileNavigation = viewportPolicy === 'desk' && mobileNavigationPersistent;
 
   useEffect(() => {
     if (primaryScroll !== 'contained') return;
@@ -81,7 +82,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
       <div
-        className={`${styles.shell} ${mobileNavigationPersistent ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
+        className={`${styles.shell} ${containedMobileNavigation ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
         data-detail-open={Boolean(detail)}
         data-viewport={viewportPolicy}
         data-focus-depth={focusDepth}
