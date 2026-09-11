@@ -9,8 +9,17 @@ const pinch = (points: SpatialPoint[]) => ({
   center: { clientX: (points[0].clientX + points[1].clientX) / 2, clientY: (points[0].clientY + points[1].clientY) / 2 },
 });
 
+const originatesInsideViewport = (event: { currentTarget: HTMLElement; target: EventTarget | null }) => (
+  event.target instanceof Node && event.currentTarget.contains(event.target)
+);
+
 /** Viewports own pan/pinch intent; their existing object handlers own authored moves.
  * Keep touch-action:none on this viewport so the browser cannot cancel a hold or pinch.
+ *
+ * React portal events still propagate through their component ancestors even though the
+ * popup/dialog is not a DOM descendant of the viewport. Spatial ownership is physical:
+ * only events whose DOM target is actually inside this viewport may start or suppress a
+ * gesture. This keeps menus, dialogs, and tool overlays from being captured as canvas input.
  */
 export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, disabled = false, allowHold = true }: {
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -59,7 +68,7 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, 
   const stop = (event: ReactPointerEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); };
   return {
     onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (disabled) return;
+      if (disabled || !originatesInsideViewport(event)) return;
       if (event.pointerType !== 'touch') { suppressClick.current = false; return; }
       const point = { clientX: event.clientX, clientY: event.clientY };
       points.current.set(event.pointerId, point);
@@ -133,13 +142,13 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, 
       stop(event);
     },
     onClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!suppressClick.current || event.detail === 0) return;
+      if (!originatesInsideViewport(event) || !suppressClick.current || event.detail === 0) return;
       suppressClick.current = false;
       event.preventDefault();
       event.stopPropagation();
     },
     onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (gesture.current) event.preventDefault();
+      if (originatesInsideViewport(event) && gesture.current) event.preventDefault();
     },
   };
 }
