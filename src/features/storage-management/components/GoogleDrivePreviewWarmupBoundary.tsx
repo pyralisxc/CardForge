@@ -150,9 +150,16 @@ export function GoogleDrivePreviewWarmupBoundary({
   useEffect(() => {
     const controller = new AbortController();
     if (!enabled) return () => controller.abort();
-    void warmMissingPreviews(controller.signal).then((changed) => {
-      if (!controller.signal.aborted && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
-    });
+    void warmMissingPreviews(controller.signal)
+      .then((changed) => {
+        if (!controller.signal.aborted && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
+        // Compatibility preview work is optional. The normal Drive projection
+        // owns provider availability and will surface its own source status.
+        console.info('CardForge skipped optional Drive preview warming:', error);
+      });
     return () => controller.abort();
   }, [enabled]);
 
