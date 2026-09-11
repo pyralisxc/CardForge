@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -43,28 +43,26 @@ interface DeskWorkObjectProps {
   onDelete: (item: AccountLibraryItem) => void;
 }
 
+const menuItemClassName = 'min-h-11 md:min-h-9';
+const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
+
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [faces, setFace] = useArtifactFaces();
+  const [actionsOpen, setActionsOpen] = useState(false);
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
-  const pendingMenuActionRef = useRef<(() => void) | null>(null);
   const openSet = () => props.onFocus(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
 
-  const selectMenuAction = (action: () => void) => () => {
-    pendingMenuActionRef.current = action;
-  };
-  const finishMenuActionHandoff = (event: Event) => {
-    const action = pendingMenuActionRef.current;
-    if (!action) return;
-    pendingMenuActionRef.current = null;
-    // A menu action that reveals another surface must not restore focus to the
-    // old trigger first. Let Radix close its portal, then reveal the new owner.
+  const selectMenuAction = (action: () => void) => (event: Event) => {
+    // Own the ordering instead of asking a newly opened dialog/tool to race the
+    // menu's focus portal. Radix stays responsible for Escape/click-away focus.
     event.preventDefault();
-    requestAnimationFrame(action);
+    setActionsOpen(false);
+    window.setTimeout(action, 0);
   };
 
   return <article
@@ -125,20 +123,20 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-        <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onCloseAutoFocus={finishMenuActionHandoff}>
+        <button type="button" className={`${styles.iconButton} ${tileActionClassName}`} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
+        <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+          <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             {props.item.references.localSetId
-              ? <DropdownMenuItem onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem>
-              : <DropdownMenuItem onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'generate'))}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-            <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={selectMenuAction(() => props.onOpenLocation(props.item))}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
-            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={selectMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+              ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem>
+              : <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
+            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'generate'))}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
+            <DropdownMenuItem className={menuItemClassName} disabled={!props.canUseProjectFiles} onSelect={selectMenuAction(() => props.onOpenLocation(props.item))}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
+            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
+            <DropdownMenuItem className={menuItemClassName} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
+            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${menuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
