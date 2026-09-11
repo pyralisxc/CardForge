@@ -83,7 +83,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
     await storage.click();
-    await expect(page.getByRole('heading', { name: 'Locations & connections' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Storage and connections' })).toBeVisible();
     await expect(page).toHaveURL(/\/account(?:\?|$)/);
   });
 
@@ -112,7 +112,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const board = page.locator('[data-desk-set-board]');
     await expect(board).toBeVisible();
     await expect(page.getByPlaceholder('Search cards in this Set')).toBeVisible();
-    await expect(page.getByPlaceholder('Search cards')).toBeHidden();
+    await expect(page.getByPlaceholder('Search cards', { exact: true })).toBeHidden();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     const boardBox = await board.boundingBox();
