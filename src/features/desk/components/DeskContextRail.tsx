@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minus,
   MoreHorizontal,
+  Move,
   Pencil,
   Pin,
   Plus,
@@ -52,6 +53,7 @@ interface DeskContextRailProps {
   renameDraft: string;
   selectedDeskCount: number;
   selectedArtifactCount: number;
+  /** Kept for compatibility with older callers; open-project count now lives in the bottom status rail. */
   openWorkCount: number;
   camera: DeskCamera;
   onBack: () => void;
@@ -122,10 +124,10 @@ export function DeskContextRail(props: DeskContextRailProps) {
   return (
     <div className={styles.contextRail} data-depth={props.depth} data-desk-context-rail>
       <nav className={styles.contextPath} aria-label="Creative context">
-        {focused && !toolFocused ? <Button type="button" size="sm" variant="outline" className={styles.contextReturn} onClick={artifactFocused ? props.onBack : props.onReturnToDesk}>
+        {focused && !toolFocused ? <Button type="button" size="sm" variant="outline" className={styles.contextReturn} title={backLabel} onClick={artifactFocused ? props.onBack : props.onReturnToDesk}>
           <ArrowLeft aria-hidden="true" /><span>{backLabel}</span>
         </Button> : null}
-        {artifactFocused || toolFocused ? <Button type="button" size="sm" variant="ghost" className={styles.contextReturn} onClick={props.onReturnToDesk} aria-label="Return to Desk">
+        {artifactFocused || toolFocused ? <Button type="button" size="sm" variant="ghost" className={styles.contextReturn} onClick={props.onReturnToDesk} aria-label="Return to Desk" title="Return to Desk">
           <Home aria-hidden="true" /><span>Desk</span>
         </Button> : null}
         <div className={styles.contextIdentity}>
@@ -152,19 +154,19 @@ export function DeskContextRail(props: DeskContextRailProps) {
 
       <div className={styles.contextActions}>
         {props.depth === 'desk' ? <>
-          <span className={styles.contextStatus}>{props.selectedDeskCount ? `${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected` : `${props.openWorkCount} open Set${props.openWorkCount === 1 ? '' : 's'}`}</span>
-          {props.selectedDeskCount ? <Button type="button" size="sm" onClick={props.onOpenSelectedSet}>Open</Button> : null}
-          {props.selectedDeskCount ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost">Position</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          {props.selectedDeskCount ? <span className={styles.contextStatus}>{`${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected`}</span> : null}
+          {props.selectedDeskCount ? <Button type="button" size="sm" title="Open selected Set" onClick={props.onOpenSelectedSet}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Open</span></Button> : null}
+          {props.selectedDeskCount ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" title="Position selected Sets"><Move className="h-4 w-4" aria-hidden="true" /><span>Position</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: -24, y: 0 })}>Move selected Sets left</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: -24 })}>Move selected Sets up</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: 24 })}>Move selected Sets down</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 24, y: 0 })}>Move selected Sets right</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu> : null}
-          <Button type="button" size="icon" variant="ghost" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
+          <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
           <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
-          <Button type="button" size="icon" variant="ghost" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
-          <Button type="button" size="sm" variant="ghost" aria-label="Fit the whole Desk in view" onClick={props.camera.fit}><Maximize2 className="mr-1 h-4 w-4" aria-hidden="true" />Fit</Button>
-          {props.selectedDeskCount ? <Button type="button" size="icon" variant="ghost" onClick={props.onClearDeskSelection} aria-label="Clear Desk selection"><X aria-hidden="true" /></Button> : null}
+          <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
+          <Button type="button" size="sm" variant="ghost" aria-label="Fit the whole Desk in view" title="Fit the whole Desk in view" onClick={props.camera.fit}><Maximize2 className="h-4 w-4" aria-hidden="true" /><span>Fit</span></Button>
+          {props.selectedDeskCount ? <Button type="button" size="icon" variant="ghost" onClick={props.onClearDeskSelection} aria-label="Clear Desk selection" title="Clear Desk selection"><X aria-hidden="true" /></Button> : null}
         </> : null}
 
         {props.depth === 'set' ? <>
@@ -181,12 +183,12 @@ export function DeskContextRail(props: DeskContextRailProps) {
             <Button type="submit" size="sm">Save</Button>
             <Button type="button" size="sm" variant="ghost" onClick={cancelRename} aria-label="Cancel rename">Cancel</Button>
           </form> : <>
-          {!props.localSet ? <Button type="button" size="sm" onClick={props.onOpenWork}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Open work</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign()}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" onClick={props.onOpenGenerate}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Generate</Button> : null}
-          {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" onClick={props.onOpenOutput}><Printer className="mr-1 h-4 w-4" aria-hidden="true" />Output</Button> : null}
-          <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} onClick={props.onOpenLocation}><Save className="mr-1 h-4 w-4" aria-hidden="true" />Save &amp; move</Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          {!props.localSet ? <Button type="button" size="sm" title="Open work" onClick={props.onOpenWork}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Open work</span></Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" title="Design" onClick={() => props.onOpenDesign()}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Design</span></Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" title="Generate" onClick={props.onOpenGenerate}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Generate</span></Button> : null}
+          {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" title="Output" onClick={props.onOpenOutput}><Printer className="h-4 w-4" aria-hidden="true" /><span>Output</span></Button> : null}
+          <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} title="Save & move" onClick={props.onOpenLocation}><Save className="h-4 w-4" aria-hidden="true" /><span>Save &amp; move</span></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions" title="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenGenerate}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}
             {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
@@ -201,10 +203,10 @@ export function DeskContextRail(props: DeskContextRailProps) {
 
         {props.depth === 'artifact' ? <>
           {props.selectedArtifactCount > 1 ? <span className={styles.contextStatus}>{props.selectedArtifactCount} selected</span> : null}
-          <Button type="button" size="sm" onClick={props.onEditArtifact}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Edit</Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="mr-1 h-4 w-4" aria-hidden="true" />Design</Button>
-          <Button type="button" size="sm" variant="outline" onClick={props.onReviseSelected}><WandSparkles className="mr-1 h-4 w-4" aria-hidden="true" />Revise</Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          <Button type="button" size="sm" title="Edit card content" onClick={props.onEditArtifact}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Edit</span></Button>
+          <Button type="button" size="sm" variant="outline" title="Design Template" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Design</span></Button>
+          <Button type="button" size="sm" variant="outline" title="Revise selected Artifacts" onClick={props.onReviseSelected}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Revise</span></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions" title="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onDesignArtifactCopy(artifactFace)}><Pencil aria-hidden="true" />Design a copy for this card</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onDuplicateSelected}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -212,7 +214,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
           </DropdownMenuContent></DropdownMenu>
         </> : null}
 
-        {props.depth === 'tool' ? <Button type="button" size="sm" variant="outline" onClick={props.onCloseTool}>{props.toolDirty ? 'Review & close' : 'Done'}</Button> : null}
+        {props.depth === 'tool' ? <Button type="button" size="sm" variant="outline" title={props.toolDirty ? 'Review & close' : 'Done'} onClick={props.onCloseTool}><X className="h-4 w-4" aria-hidden="true" /><span>{props.toolDirty ? 'Review & close' : 'Done'}</span></Button> : null}
       </div>
     </div>
   );
