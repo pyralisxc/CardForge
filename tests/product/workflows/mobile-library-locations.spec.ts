@@ -1,6 +1,6 @@
 import { devices, expect, test, type Locator } from '@playwright/test';
 
-import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test.use({ ...devices['Pixel 7'] });
 
@@ -42,6 +42,35 @@ test.describe('mobile Library location tools', () => {
     await signIn.click({ trial: true });
 
     await test.info().attach('mobile-library-locations', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
+
+  test('@golden keeps Desk navigation, commands, and Locations available while focusing work', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+
+    const command = page.getByRole('button', { name: 'Open commands', exact: true });
+    await expectTouchTarget(command);
+
+    const storageStatus = page.getByTitle('Open Locations & connections');
+    await expectTouchTarget(storageStatus);
+    await storageStatus.tap();
+    const locations = page.getByRole('region', { name: 'Locations & connections', exact: true });
+    await expect(locations).toBeVisible();
+    await page.getByRole('button', { name: 'Close locations and connections', exact: true }).tap();
+    await expect(locations).toBeHidden();
+
+    await openScaleSet(page, 100);
+    const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
+    await expect(mobileNav).toBeVisible();
+    await expect(mobileNav.getByRole('link', { name: 'Desk', exact: true })).toBeVisible();
+    await expect(mobileNav.getByRole('link', { name: 'Library', exact: true })).toBeVisible();
+    await expect(mobileNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+
+    await test.info().attach('mobile-desk-capability-parity', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
