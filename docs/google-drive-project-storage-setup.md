@@ -144,11 +144,14 @@ CardForge initiates resumable Drive uploads on the server so refresh/access cred
 
 ## Database migration
 
-Apply the repository migration that creates the server-only provider connection table and generic Studio-document source lineage:
+Apply the repository migrations that create the server-only provider connection table/source lineage and preserve Google resource-key metadata for selected shared folders:
 
-`supabase/migrations/20260823154500_google_drive_project_storage.sql`
+- `supabase/migrations/20260823154500_google_drive_project_storage.sql`
+- `supabase/migrations/20260911213000_google_drive_folder_resource_keys.sql`
 
-The table is RLS-enabled and revoked from `public`, `anon`, and `authenticated`; CardForge's server/service-role boundary owns provider credentials.
+The connection table is RLS-enabled and revoked from `public`, `anon`, and `authenticated`; CardForge's server/service-role boundary owns provider credentials. `root_folder_resource_key` is nullable provider metadata, not an OAuth credential. CardForge stores it because some link-shared Drive folders require the same resource key on later verification, listing, reconnect, and child-creation requests even after the Picker handoff is over.
+
+Preview uses the repository's `vercel-preview` migration flow against **Card Forge Staging**. Do not deploy the application code that selects `root_folder_resource_key` to an environment until that environment has the forward migration. Production receives the migration only through the normal production release process.
 
 ## Production publishing gate
 
@@ -175,7 +178,7 @@ After deployment:
 4. Open **Choose project folder** and confirm the native Google Picker starts at My Drive rather than inside the current CardForge destination.
 5. Select an existing personal/shared folder that the connected Google account can write to. CardForge must accept that existing folder; creating a new folder is not a prerequisite.
 6. Confirm the selected folder replaces the destination only, existing files are not moved, and Desk/Library refresh immediately without a page reload.
-7. Confirm Drive-backed Set previews/artwork appear after the destination refresh when Google exposes a thumbnail; a stale previous-folder projection must not remain visible.
+7. Confirm Drive-backed Set previews/artwork appear after the destination refresh. Native Drive thumbnails are authoritative. Older `.cardforge` packages without one may receive a bounded, revision-keyed, memory-only compatibility preview generated in the background without importing the Set into editable browser work; Data Saver and hidden pages skip that optional compatibility read.
 8. Use **Create project folder** and confirm CardForge can also create a new My Drive destination when that is what the creator wants.
 9. Save a current CardForge project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
 10. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
@@ -186,6 +189,7 @@ After deployment:
 15. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
 16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
 17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
+18. For a link-shared folder whose Picker result includes a `resourceKey`, select it, reload the page, close/reopen the browser, reconnect the same Google account, list existing CardForge projects, and save a new Set into the folder. Every later folder-referencing request must continue to work from the persisted resource key; success only during the initial Picker callback is not sufficient acceptance.
 
 If Picker visibly selects an item but CardForge immediately receives an app-authorization failure, verify the environment's Picker API key belongs to the same Google Cloud project as the active OAuth Web client. CardForge derives `setAppId(...)` from that OAuth client specifically to eliminate a second mutable project-number source of truth.
 
