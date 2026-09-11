@@ -109,18 +109,18 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(menu.getByRole('menuitem', { name: 'Delete device copy' })).toBeVisible();
 
     await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
+    await expect(menu).toBeHidden();
     await expect(actionsTrigger).toBeFocused();
 
     await actionsTrigger.click();
     await page.getByRole('menuitem', { name: 'Details' }).click();
-    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(page.getByRole('menu')).toBeHidden();
     await expect(page.getByRole('complementary', { name: 'Details for 100 Card Scale Set' })).toBeVisible();
     await page.getByRole('button', { name: 'Close details for 100 Card Scale Set' }).click();
 
     await actionsTrigger.click();
     await page.getByRole('menuitem', { name: 'Delete device copy' }).click();
-    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(page.getByRole('menu')).toBeHidden();
     await expect(page.getByRole('alertdialog')).toContainText('Delete this Set from this device?');
     await page.getByRole('button', { name: 'Delete local Set' }).click();
     await expect(setObject).toHaveCount(0);
