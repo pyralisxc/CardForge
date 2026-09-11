@@ -24,24 +24,27 @@ const base64UrlPngToDataUrl = (value: string): string => {
   return `data:image/png;base64,${base64}${padding}`;
 };
 
-const loadTemporaryPreviewDocument = async (project: GoogleDriveProjectSummary) => {
+const loadTemporaryPreviewDocument = async (project: GoogleDriveProjectSummary, signal: AbortSignal) => {
   const response = await fetch(`/api/project-sources/google-drive/${encodeURIComponent(project.fileId)}`, {
     cache: 'no-store',
+    signal,
   });
-  if (!response.ok) return null;
+  if (!response.ok || signal.aborted) return null;
 
   const responseRevision = response.headers.get('X-CardForge-Project-Revision');
   if (project.projectRevision && responseRevision && responseRevision !== project.projectRevision) return null;
 
   const snapshot = await decodeCardForgeProjectPackage(await response.blob());
-  if (project.projectRevision && snapshot.manifest.projectRevision !== project.projectRevision) return null;
+  if (signal.aborted || (project.projectRevision && snapshot.manifest.projectRevision !== project.projectRevision)) return null;
 
   const urls = new Map<string, string>();
   try {
     for (const descriptor of snapshot.manifest.assets) {
+      if (signal.aborted) return null;
       const source = snapshot.assets.get(descriptor.id);
       if (!source) return null;
       const bytes = source instanceof Uint8Array ? source : await source.load();
+      if (signal.aborted) return null;
       const copy = new Uint8Array(bytes.byteLength);
       copy.set(bytes);
       urls.set(descriptor.id, URL.createObjectURL(new Blob([copy.buffer], { type: descriptor.mimeType })));
@@ -56,12 +59,12 @@ const loadTemporaryPreviewDocument = async (project: GoogleDriveProjectSummary) 
   }
 };
 
-const createCompatibilityPreview = async (project: GoogleDriveProjectSummary): Promise<string | null> => {
-  const temporary = await loadTemporaryPreviewDocument(project);
-  if (!temporary) return null;
+const createCompatibilityPreview = async (project: GoogleDriveProjectSummary, signal: AbortSignal): Promise<string | null> => {
+  const temporary = await loadTemporaryPreviewDocument(project, signal);
+  if (!temporary || signal.aborted) return null;
   try {
     const encoded = await createGoogleDriveProjectThumbnail(temporary.document);
-    return encoded ? base64UrlPngToDataUrl(encoded) : null;
+    return !signal.aborted && encoded ? base64UrlPngToDataUrl(encoded) : null;
   } finally {
     temporary.release();
   }
@@ -89,10 +92,10 @@ const shouldWarmCompatibilityPreviews = (): boolean => {
   return connection?.saveData !== true;
 };
 
-const warmMissingPreviews = async (): Promise<boolean> => {
-  if (!shouldWarmCompatibilityPreviews()) return false;
+const warmMissingPreviews = async (signal: AbortSignal): Promise<boolean> => {
+  if (signal.aborted || !shouldWarmCompatibilityPreviews()) return false;
   const library = await loadGoogleDriveProjectLibrary();
-  if (!library.connection.connected) return false;
+  if (signal.aborted || !library.connection.connected) return false;
 
   const candidates = automaticPreviewCandidates(library.projects);
   if (!candidates.length) return false;
@@ -101,12 +104,14 @@ const warmMissingPreviews = async (): Promise<boolean> => {
   // Serialize package reads. Native Drive thumbnails remain the fast path; this
   // compatibility work must stay gentle enough for a phone or metered network.
   for (const project of candidates) {
+    if (signal.aborted) break;
     try {
-      const dataUrl = await createCompatibilityPreview(project);
-      if (!dataUrl) continue;
+      const dataUrl = await createCompatibilityPreview(project, signal);
+      if (!dataUrl || signal.aborted) continue;
       cacheGoogleDriveProjectPreview(project, dataUrl);
       changed = true;
     } catch (error) {
+      if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) break;
       // Preview compatibility must never turn a readable Drive source into a
       // failed source. The native provider fallback remains available.
       console.info('CardForge could not prepare a compatibility Drive preview:', error);
@@ -121,7 +126,8 @@ const warmMissingPreviews = async (): Promise<boolean> => {
  * established project-Library refresh signal so Desk and Library repaint
  * without importing those files into editable browser work or blocking the
  * workspace. Concurrent list consumers are coalesced at the provider client.
- * Data-saver/hidden pages skip this optional compatibility read entirely.
+ * Data-saver/hidden pages skip this optional compatibility read entirely, and
+ * leaving the workspace aborts any optional package download still in flight.
  */
 export function GoogleDrivePreviewWarmupBoundary({
   enabled,
@@ -131,12 +137,12 @@ export function GoogleDrivePreviewWarmupBoundary({
   children: ReactNode;
 }) {
   useEffect(() => {
-    let cancelled = false;
-    if (!enabled) return () => { cancelled = true; };
-    void warmMissingPreviews().then((changed) => {
-      if (!cancelled && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
+    const controller = new AbortController();
+    if (!enabled) return () => controller.abort();
+    void warmMissingPreviews(controller.signal).then((changed) => {
+      if (!controller.signal.aborted && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
     });
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, [enabled]);
 
   return children;
