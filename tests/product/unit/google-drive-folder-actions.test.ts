@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   createGoogleDriveProjectFolder,
+  getGoogleDrivePickerConfiguration,
+  getGoogleDriveSelectedProjectFolder,
   selectGoogleDriveProjectFolder,
 } from '@/features/project/server/googleDriveFolderPickerStore';
 import { classifyGoogleProviderFailure } from '@/features/project/server/googleDriveBoundary';
@@ -42,9 +44,10 @@ const connectionQuery = () => {
 describe('Google Drive folder actions', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
-    vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_ID', 'google-client');
+    vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_ID', '123456789012-cardforgepreview.apps.googleusercontent.com');
     vi.stubEnv('CARDFORGE_GOOGLE_STORAGE_CLIENT_SECRET', 'google-secret');
     vi.stubEnv('CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY', encryptionKey);
+    vi.stubEnv('CARDFORGE_GOOGLE_PICKER_API_KEY', 'picker-key');
   });
 
   afterEach(() => {
@@ -77,6 +80,38 @@ describe('Google Drive folder actions', () => {
         Authorization: 'Bearer private-access',
         'X-Goog-Drive-Resource-Keys': 'shared_folder_123/resource-key-123',
       },
+    });
+  });
+
+  it('derives Picker App ID from the active OAuth client instead of a stale project-number variable', async () => {
+    vi.stubEnv('CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER', '999999999999');
+    const query = connectionQuery();
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' })));
+
+    await expect(getGoogleDrivePickerConfiguration('user-1')).resolves.toMatchObject({
+      appId: '123456789012',
+      contributorKey: 'picker-key',
+      initialFolderId: 'drive_folder_123',
+    });
+  });
+
+  it('returns the selected folder name and capability for Locations', async () => {
+    const query = connectionQuery();
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive_folder_123',
+        name: 'CardForge Preview',
+        mimeType: 'application/vnd.google-apps.folder',
+        capabilities: { canAddChildren: true },
+      })));
+
+    await expect(getGoogleDriveSelectedProjectFolder('user-1')).resolves.toMatchObject({
+      id: 'drive_folder_123',
+      name: 'CardForge Preview',
+      canAddChildren: true,
     });
   });
 
