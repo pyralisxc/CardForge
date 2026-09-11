@@ -224,6 +224,7 @@ export default async function AccountPage({
               initialReturnContextKey={initialReturnContextKey}
               accessStatus={deskAccessStatus}
               securityStatus={deskSecurityStatus}
+              storageConnections={storageConnections}
             />
           </AccountDeskBoundary>
       </AccountProjectWorkspaceBoundary>}
