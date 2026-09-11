@@ -14,8 +14,9 @@ vi.mock('@/features/project/client/googleDriveProjectTransfer', () => ({
 }));
 
 import { PROJECT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
-import { GOOGLE_DRIVE_FOLDER_MIME_TYPE } from '@/features/project/model/googleDriveProject';
+import { GOOGLE_DRIVE_FOLDER_MIME_TYPE, GOOGLE_DRIVE_PROJECT_MIME_TYPE } from '@/features/project/model/googleDriveProject';
 import {
+  authorizeExistingGoogleDriveProjects,
   chooseGoogleDriveProjectFolder,
   createGoogleDriveProjectFolder,
 } from '@/features/project/client/googleDriveFolderPicker';
@@ -67,6 +68,39 @@ describe('Google Drive project-folder selection', () => {
     });
     expect(mocks.disconnectBinding).toHaveBeenCalledOnce();
     expect(refreshListener).toHaveBeenCalledOnce();
+  });
+
+  it('opens a folder-scoped multiselect Picker to authorize existing CardForge projects without broad Drive access', async () => {
+    mocks.pickItems.mockResolvedValue([
+      { id: 'drive_project_1', name: 'One.cardforge', mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE },
+      { id: 'drive_project_2', name: 'Two.cardforge', mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE },
+    ]);
+    const windowTarget = new EventTarget();
+    const refreshListener = vi.fn();
+    windowTarget.addEventListener(PROJECT_LIBRARY_CHANGE_EVENT, refreshListener);
+    vi.stubGlobal('window', windowTarget);
+
+    await expect(authorizeExistingGoogleDriveProjects('drive_folder_456')).resolves.toBe(2);
+    expect(mocks.pickItems).toHaveBeenCalledWith({
+      title: 'Add existing CardForge projects from this folder',
+      mimeTypes: [GOOGLE_DRIVE_PROJECT_MIME_TYPE],
+      includeFolders: false,
+      selectFolders: false,
+      multiselect: true,
+      initialFolderId: 'drive_folder_456',
+    });
+    expect(refreshListener).toHaveBeenCalledOnce();
+  });
+
+  it('does not refresh discovery when the creator cancels existing-project authorization', async () => {
+    mocks.pickItems.mockResolvedValue(null);
+    const windowTarget = new EventTarget();
+    const refreshListener = vi.fn();
+    windowTarget.addEventListener(PROJECT_LIBRARY_CHANGE_EVENT, refreshListener);
+    vi.stubGlobal('window', windowTarget);
+
+    await expect(authorizeExistingGoogleDriveProjects('drive_folder_456')).resolves.toBeNull();
+    expect(refreshListener).not.toHaveBeenCalled();
   });
 
   it('creates a project folder through CardForge, makes it active, and refreshes project discovery', async () => {
