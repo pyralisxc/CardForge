@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { HardDrive } from 'lucide-react';
+import { HardDrive, Search } from 'lucide-react';
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
@@ -321,7 +322,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   return <>
   <EnvironmentShell
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
-    zones={zones} activeZone="library" viewportPolicy="desk" detail={activeTool ? null : currentRecord}
+    zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
@@ -334,16 +335,27 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         && shared.program.currentContributorIds.includes(contributorId)
       )}
     /> : undefined}
-    actions={actions} accountControl={<PublicAuthControls />} focusReturnId={selection.focusReturnId ?? undefined} surfaceRef={surfaceRef}
-    statusContent={<><EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' || activeStatus.kind === 'partial' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} /><EnvironmentStatus label={activeScope === 'campaigns' ? 'Access-gated marketing work' : `${unfilteredScopeItemCount} ${activeScope} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone="neutral" /></>}
+    actions={actions}
+    accountControl={<PublicAuthControls />}
+    search={<label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
+      <span className="sr-only">Search {activeScope}</span>
+      <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
+      <Input ref={searchRef} id="library-global-search" value={projection.query} onChange={(event) => projection.setQuery(event.target.value)} className="h-10 w-full pl-9" placeholder={`Search ${activeScope}`} />
+    </label>}
+    focusReturnId={selection.focusReturnId ?? undefined}
+    surfaceRef={surfaceRef}
+    statusContent={<>
+      <EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' || activeStatus.kind === 'partial' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} />
+      <EnvironmentStatus label="Storage" icon={HardDrive} tone={projection.failures.length ? 'warning' : 'success'} onClick={openLocations} title="Open Locations & connections" />
+      <EnvironmentStatus label={activeScope === 'campaigns' ? 'Marketing work' : `${unfilteredScopeItemCount} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone="neutral" />
+    </>}
     footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onCommand={() => searchRef.current?.focus()}
     onAction={runAction} onCloseDetail={closeDetail}
   >
-    <div className={styles.library} data-density={density} data-tool-open={Boolean(activeTool)}>
+    <div className={styles.library} data-library-surface data-density={density} data-tool-open={Boolean(activeTool)}>
       <header className={styles.libraryHeader}>
         <div><p>Library</p><h1>Your materials and work</h1><span>Browse what you own, what CardForge publishes, and what is moving through review.</span></div>
-        <button id="library-locations-trigger" type="button" className={styles.locationsButton} onClick={openLocations}><HardDrive size={16} aria-hidden="true" />Locations</button>
       </header>
       <nav className={styles.scopeTabs} aria-label="Library scopes">
         {scopeDefinitions.map((definition) => <button key={definition.id} type="button" aria-current={activeScope === definition.id ? 'page' : undefined} onClick={() => chooseScope(definition.id)}><span>{definition.label}</span><small>{definition.owner}</small></button>)}
