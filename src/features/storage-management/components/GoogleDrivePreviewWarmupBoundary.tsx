@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
+import { PROJECT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import {
   cacheGoogleDriveProjectPreview,
   loadGoogleDriveProjectLibrary,
@@ -66,9 +67,9 @@ const createCompatibilityPreview = async (project: GoogleDriveProjectSummary): P
   }
 };
 
-const warmMissingPreviews = async (): Promise<void> => {
+const warmMissingPreviews = async (): Promise<boolean> => {
   const library = await loadGoogleDriveProjectLibrary();
-  if (!library.connection.connected) return;
+  if (!library.connection.connected) return false;
 
   const candidates = library.projects
     .filter((project) => !project.thumbnailLink
@@ -76,16 +77,19 @@ const warmMissingPreviews = async (): Promise<void> => {
       && project.size > 0
       && project.size <= MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES)
     .slice(0, MAX_AUTOMATIC_PREVIEW_PROJECTS);
-  if (!candidates.length) return;
+  if (!candidates.length) return false;
 
   let nextIndex = 0;
+  let changed = false;
   const worker = async () => {
     while (nextIndex < candidates.length) {
       const project = candidates[nextIndex++];
       if (!project) continue;
       try {
         const dataUrl = await createCompatibilityPreview(project);
-        if (dataUrl) cacheGoogleDriveProjectPreview(project, dataUrl);
+        if (!dataUrl) continue;
+        cacheGoogleDriveProjectPreview(project, dataUrl);
+        changed = true;
       } catch (error) {
         // Preview compatibility must never turn a readable Drive source into a
         // failed source. The native provider fallback remains available.
@@ -94,12 +98,14 @@ const warmMissingPreviews = async (): Promise<void> => {
     }
   };
   await Promise.all(Array.from({ length: Math.min(PREVIEW_WORKERS, candidates.length) }, () => worker()));
+  return changed;
 };
 
 /**
  * Older CardForge Drive files may predate native contentHints thumbnails.
- * Warm a small bounded visual cache before Desk/Library discovery so those
- * files look ready without importing them into editable browser work.
+ * Warm a small bounded visual cache in the background, then reuse the existing
+ * project-Library refresh signal so Desk and Library repaint without importing
+ * those files into editable browser work or blocking the workspace.
  */
 export function GoogleDrivePreviewWarmupBoundary({
   enabled,
@@ -108,30 +114,14 @@ export function GoogleDrivePreviewWarmupBoundary({
   enabled: boolean;
   children: ReactNode;
 }) {
-  const [ready, setReady] = useState(!enabled);
-
   useEffect(() => {
     let cancelled = false;
-    if (!enabled) {
-      setReady(true);
-      return () => { cancelled = true; };
-    }
-    setReady(false);
-    void warmMissingPreviews().finally(() => {
-      if (!cancelled) setReady(true);
+    if (!enabled) return () => { cancelled = true; };
+    void warmMissingPreviews().then((changed) => {
+      if (!cancelled && changed) window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
     });
     return () => { cancelled = true; };
   }, [enabled]);
-
-  if (!ready) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[var(--cf-canvas)] px-5 py-12 text-[var(--cf-text)]">
-        <div className="cardforge-surface grid min-h-0 w-full max-w-md place-items-center border p-5 text-center text-sm text-[var(--cf-text-muted)]" role="status">
-          <p>Preparing your saved project previews before opening the workspace.</p>
-        </div>
-      </main>
-    );
-  }
 
   return children;
 }
