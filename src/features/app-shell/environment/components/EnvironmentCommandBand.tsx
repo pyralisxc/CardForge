@@ -32,21 +32,16 @@ export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisa
         <Icon size={18} aria-hidden="true" /><strong>{zone.label}</strong>
       </div>}
       {search ? <div className="min-w-0">{search}</div> : (
-        <button
-          type="button"
-          className={`${styles.commandLauncher} max-[900px]:!flex max-[900px]:!h-11 max-[900px]:!w-11 max-[900px]:!min-w-11 max-[900px]:!items-center max-[900px]:!justify-center max-[900px]:!p-0`}
-          aria-label="Search or type a command"
-          title="Search or type a command (Ctrl / ⌘ K)"
-          onClick={onCommand}
-          data-tool-safe-action
-        >
-          <Search size={16} aria-hidden="true" />
-          <span className="max-[900px]:hidden">Search or type a command…</span>
-          <kbd className="max-[900px]:hidden">Ctrl / ⌘ K</kbd>
+        <button type="button" className={`${styles.commandLauncher} max-[900px]:!hidden`} aria-label="Search or type a command" title="Search or type a command (Ctrl / ⌘ K)" onClick={onCommand} data-tool-safe-action>
+          <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
         </button>
       )}
       <div className={styles.commandActions}>
-        {search ? <button type="button" className={`${styles.iconButton} max-md:!inline-flex`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button> : null}
+        {search ? (
+          <button type="button" className={`${styles.iconButton} max-md:!inline-flex`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button>
+        ) : (
+          <button type="button" className={`${styles.iconButton} hidden max-[900px]:!inline-flex`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button>
+        )}
         {primaryAction ? (
           <button type="button" className={styles.primaryButton} data-environment-action={primaryAction.id} disabled={!isActionAvailable(primaryAction) || Boolean(disabledReason)} title={disabledReason ?? primaryAction.label} onClick={() => { if (isActionAvailable(primaryAction) && !disabledReason) onAction(primaryAction); }}>
             <span>{primaryAction.label}</span>
