@@ -47,13 +47,17 @@ test.describe('mobile Library location tools', () => {
     });
   });
 
-  test('@golden keeps Desk navigation, commands, and Locations available while focusing work', async ({ page }) => {
+  test('@golden keeps Desk navigation, commands, status truth, and Locations available while focusing work', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+
+    const status = page.getByRole('contentinfo', { name: 'Environment status', exact: true });
+    await expect(status).toBeVisible();
+    await expect(status.getByText('Saved', { exact: true })).toBeVisible();
 
     const storageStatus = page.getByTitle('Open Locations & connections');
     await expectTouchTarget(storageStatus);
