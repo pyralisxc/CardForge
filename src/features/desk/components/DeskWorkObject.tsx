@@ -49,15 +49,21 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
+  const deleteRequestedRef = useRef(false);
   const openSet = () => props.onFocus(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
   const requestDelete = () => {
+    if (deleteRequestedRef.current) return;
+    deleteRequestedRef.current = true;
     // Destructive confirmation is a separate modal owner. Close the action menu
     // explicitly first so focus restoration cannot dismiss the confirmation.
     setActionsOpen(false);
-    window.setTimeout(() => props.onDelete(props.item), 0);
+    window.setTimeout(() => {
+      deleteRequestedRef.current = false;
+      props.onDelete(props.item);
+    }, 0);
   };
   return <article
     className={styles.workTile}
@@ -144,7 +150,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={requestDelete}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={requestDelete} onSelect={(event) => event.preventDefault()}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
       </DropdownMenuContent></DropdownMenu>
       </div>
     </>}
