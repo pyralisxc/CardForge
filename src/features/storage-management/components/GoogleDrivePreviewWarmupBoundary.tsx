@@ -5,7 +5,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 import {
   cacheGoogleDriveProjectPreview,
-  GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   loadGoogleDriveProjectLibrary,
   type GoogleDriveProjectSummary,
 } from '@/features/project/client/provider-google-drive';
