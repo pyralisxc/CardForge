@@ -57,8 +57,6 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const requestDelete = () => {
     if (deleteRequestedRef.current) return;
     deleteRequestedRef.current = true;
-    // Destructive confirmation is a separate modal owner. Close the action menu
-    // explicitly first so focus restoration cannot dismiss the confirmation.
     setActionsOpen(false);
     window.setTimeout(() => {
       deleteRequestedRef.current = false;
@@ -94,29 +92,16 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         event.currentTarget.style.cursor = 'grabbing';
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
         const touchArrangeSelection = event.pointerType === 'touch' && props.arrangeMode && !props.selected && !modified;
-        if (!props.selected && !modified && !touchArrangeSelection) {
-          props.onSelect(props.item, { additive: touchArrangeSelection });
-        }
+        if (!props.selected && !modified && !touchArrangeSelection) props.onSelect(props.item, { additive: touchArrangeSelection });
         if (touchArrangeSelection) suppressTouchSelectionClickRef.current = true;
-        if (!modified) {
-          props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
-        }
+        if (!modified) props.beginDrag(props.item.id, event, { additive: touchArrangeSelection });
       }}
       onPointerMove={props.moveDrag}
-      onPointerUp={(event) => {
-        event.currentTarget.style.cursor = 'grab';
-        props.endDrag(event);
-      }}
-      onPointerCancel={(event) => {
-        event.currentTarget.style.cursor = 'grab';
-        props.endDrag(event);
-      }}
+      onPointerUp={(event) => { event.currentTarget.style.cursor = 'grab'; props.endDrag(event); }}
+      onPointerCancel={(event) => { event.currentTarget.style.cursor = 'grab'; props.endDrag(event); }}
       onClick={(event) => {
         if (props.shouldSuppressActivation(props.item.id)) return;
-        if (suppressTouchSelectionClickRef.current) {
-          suppressTouchSelectionClickRef.current = false;
-          return;
-        }
+        if (suppressTouchSelectionClickRef.current) { suppressTouchSelectionClickRef.current = false; return; }
         props.onSelect(props.item, {
           additive: event.metaKey || event.ctrlKey || (props.arrangeMode && lastPointerTypeRef.current === 'touch'),
           range: event.shiftKey,
@@ -125,13 +110,8 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       onDoubleClick={openSet}
       onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
         const intent = getDeskWorkKeyboardIntent(event.key, event.shiftKey || event.metaKey || event.ctrlKey);
-        if (intent === 'open') {
-          event.preventDefault();
-          openSet();
-        } else if (intent === 'select' || intent === 'select-additive') {
-          event.preventDefault();
-          props.onSelect(props.item, { additive: intent === 'select-additive' });
-        }
+        if (intent === 'open') { event.preventDefault(); openSet(); }
+        else if (intent === 'select' || intent === 'select-additive') { event.preventDefault(); props.onSelect(props.item, { additive: intent === 'select-additive' }); }
       }}
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Drag to move; press Enter to open.`}
     >
@@ -141,17 +121,20 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
-      <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-      <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}><DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
-        {props.item.references.localSetId ? <DropdownMenuItem onSelect={openSet}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
-        {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-        <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
-        {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
-        {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-        {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
-        <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={requestDelete} onSelect={(event) => event.preventDefault()}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
-      </DropdownMenuContent></DropdownMenu>
+        <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
+        <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+          <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {props.item.references.localSetId ? <DropdownMenuItem onSelect={openSet}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
+            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
+            <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
+            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
+            <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
+            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onPointerDown={(event) => { if (event.button === 0) requestDelete(); }} onSelect={requestDelete}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </>}
   </article>;
