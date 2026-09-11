@@ -83,9 +83,12 @@ const readNativeGoogleDriveProjectLibrary = (): Promise<GoogleDriveProjectListRe
   const request = loadNativeGoogleDriveProjectLibrary();
   const entry: InFlightLibraryRead = { scope, request };
   inFlightLibraryRead = entry;
-  void request.finally(() => {
+  const clearIfCurrent = () => {
     if (inFlightLibraryRead === entry) inFlightLibraryRead = null;
-  });
+  };
+  // Use both settlement handlers instead of an ignored `finally()` promise;
+  // otherwise a provider rejection would create a second unhandled rejection.
+  void request.then(clearIfCurrent, clearIfCurrent);
   return request;
 };
 
