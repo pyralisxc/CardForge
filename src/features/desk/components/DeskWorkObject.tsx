@@ -49,20 +49,31 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
-  const deleteRequestedRef = useRef(false);
+  const menuActionPendingRef = useRef(false);
   const openSet = () => props.onFocus(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
-  const requestDelete = () => {
-    if (deleteRequestedRef.current) return;
-    deleteRequestedRef.current = true;
+
+  const runMenuAction = (action: () => void) => {
+    if (menuActionPendingRef.current) return;
+    menuActionPendingRef.current = true;
     setActionsOpen(false);
     window.setTimeout(() => {
-      deleteRequestedRef.current = false;
-      props.onDelete(props.item);
+      menuActionPendingRef.current = false;
+      action();
     }, 0);
   };
+  const pointerMenuAction = (action: () => void) => (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    runMenuAction(action);
+  };
+  const selectMenuAction = (action: () => void) => (event: Event) => {
+    event.preventDefault();
+    runMenuAction(action);
+  };
+
   return <article
     className={styles.workTile}
     style={positionStyle}
@@ -124,15 +135,17 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
         <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={openSet}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
-            <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
-            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenPipeline(props.item.references.localSetId!)}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onPointerDown={(event) => { if (event.button === 0) requestDelete(); }} onSelect={requestDelete}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+          <DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (menuActionPendingRef.current) event.preventDefault(); }}>
+            {props.item.references.localSetId
+              ? <DropdownMenuItem onPointerUp={pointerMenuAction(openSet)} onSelect={selectMenuAction(openSet)}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem>
+              : <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onOpenLane(props.item, 'open'))} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'open'))}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
+            {props.item.references.localSetId ? <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onOpenLane(props.item, 'generate'))} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'generate'))}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
+            <DropdownMenuItem disabled={!props.canUseProjectFiles} onPointerUp={pointerMenuAction(() => props.onOpenLocation(props.item))} onSelect={selectMenuAction(() => props.onOpenLocation(props.item))}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
+            {props.canSubmit && props.item.references.localSetId ? <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))} onSelect={selectMenuAction(() => props.onOpenPipeline(props.item.references.localSetId!))}><UploadCloud aria-hidden="true" />Send to Pipeline</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onDuplicate(props.item))} onSelect={selectMenuAction(() => props.onDuplicate(props.item))}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+            {props.item.references.localSetId ? <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onOpenLane(props.item, 'export'))} onSelect={selectMenuAction(() => props.onOpenLane(props.item, 'export'))}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
+            <DropdownMenuItem onPointerUp={pointerMenuAction(() => props.onInspect(props.item))} onSelect={selectMenuAction(() => props.onInspect(props.item))}><Info aria-hidden="true" />Details</DropdownMenuItem>
+            {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onPointerUp={pointerMenuAction(() => props.onDelete(props.item))} onSelect={selectMenuAction(() => props.onDelete(props.item))}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
