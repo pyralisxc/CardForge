@@ -6,8 +6,18 @@ import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   type GoogleDriveFolderSelection,
 } from '../model/googleDriveProject';
+import { PROJECT_LIBRARY_CHANGE_EVENT } from './assets';
 import { disconnectGoogleDriveProjectBinding } from './googleDriveProjectTransfer';
 import { pickGoogleDriveItems } from './googleDrivePicker';
+
+const notifyProjectLibraryChanged = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECT_LIBRARY_CHANGE_EVENT));
+};
+
+const finishDestinationChange = async () => {
+  await disconnectGoogleDriveProjectBinding();
+  notifyProjectLibraryChanged();
+};
 
 const persistSelectedFolder = async (
   selected: GoogleDriveFolderSelection,
@@ -42,7 +52,7 @@ export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolde
     name: selected.name,
     resourceKey: selected.resourceKey,
   });
-  await disconnectGoogleDriveProjectBinding();
+  await finishDestinationChange();
   return persisted;
 };
 
@@ -54,6 +64,6 @@ export const createGoogleDriveProjectFolder = async (name: string): Promise<Goog
   }));
   if (!response.ok) throw await readApiError(response, 'Unable to create a Google Drive folder for CardForge projects.');
   const created = await response.json() as GoogleDriveFolderSelection;
-  await disconnectGoogleDriveProjectBinding();
+  await finishDestinationChange();
   return created;
 };
