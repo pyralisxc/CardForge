@@ -111,22 +111,38 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
   return token.accessToken;
 };
 
+const projectNumberFromOAuthClientId = (clientId: string): string => {
+  const match = /^(\d{4,32})-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/u.exec(clientId.trim());
+  if (!match?.[1]) {
+    throw new ProjectStorageProviderError(
+      'The configured Google OAuth client ID does not expose a usable Google Cloud project number.',
+      503,
+      {
+        kind: 'unavailable',
+        nextAction: 'CardForge owner must replace this environment with the intended Google OAuth web client before using Picker.',
+      },
+    );
+  }
+  return match[1];
+};
+
 const requirePickerEnvironment = () => {
   const contributorKey = process.env.CARDFORGE_GOOGLE_PICKER_API_KEY?.trim() ?? '';
-  const appId = process.env.CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ?? '';
-  const missing = [
-    !contributorKey ? 'CARDFORGE_GOOGLE_PICKER_API_KEY' : null,
-    !appId ? 'CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER' : null,
-  ].filter((value): value is string => Boolean(value));
-  if (missing.length > 0) {
+  if (!contributorKey) {
     throw new ProjectStorageProviderError(
-      `Google Drive folder picking is not configured yet: ${missing.join(', ')}.`,
+      'Google Drive folder picking is not configured yet: CARDFORGE_GOOGLE_PICKER_API_KEY.',
       503,
       { kind: 'unavailable' },
     );
   }
-  if (!/^\d{4,32}$/u.test(appId)) {
-    throw new ProjectStorageProviderError('Google Drive Picker project number is invalid.', 503, { kind: 'unavailable' });
+  const config = getGoogleDriveProjectStorageConfiguration();
+  if (!config.configured) {
+    throw new ProjectStorageProviderError('Google Drive project storage is not configured yet.', 503, { kind: 'unavailable' });
+  }
+  const appId = projectNumberFromOAuthClientId(config.clientId);
+  const legacyConfiguredAppId = process.env.CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ?? '';
+  if (legacyConfiguredAppId && legacyConfiguredAppId !== appId) {
+    console.warn('Ignoring mismatched CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER; Picker now derives its App ID from the active OAuth client.');
   }
   return { contributorKey, appId };
 };
@@ -145,6 +161,55 @@ const folderHeaders = (accessToken: string, folderId: string, resourceKey?: stri
   ...(resourceKey ? { 'X-Goog-Drive-Resource-Keys': `${folderId}/${resourceKey}` } : {}),
 });
 
+const toFolderSelection = (folder: GoogleDriveFolderMetadata): GoogleDriveFolderSelection => {
+  const verifiedId = folder.id ?? '';
+  const name = folder.name?.trim() ?? '';
+  if (!isGoogleDriveFileId(verifiedId) || folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE || !name) {
+    throw new ProjectStorageProviderError('Choose a Google Drive folder rather than an individual file.', 400, { kind: 'invalid' });
+  }
+  return {
+    id: verifiedId,
+    name: name.slice(0, 320),
+    driveId: folder.driveId ?? null,
+    resourceKey: folder.resourceKey?.trim() || null,
+    canAddChildren: folder.capabilities?.canAddChildren !== false,
+  };
+};
+
+const readDriveFolder = async ({
+  accessToken,
+  folderId,
+  resourceKey = null,
+}: {
+  accessToken: string;
+  folderId: string;
+  resourceKey?: string | null;
+}): Promise<GoogleDriveFolderMetadata> => {
+  const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
+  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  const response = await fetch(url, {
+    headers: folderHeaders(accessToken, folderId, resourceKey),
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const failure = await readGoogleProviderFailure(response);
+    throw new ProjectStorageProviderError(
+      failure.providerMessage ? `Google Drive could not verify the selected project folder. ${failure.providerMessage}` : 'Google Drive could not verify the selected project folder.',
+      failure.status,
+      {
+        kind: failure.kind,
+        nextAction: failure.status === 404
+          ? 'CardForge selected this folder in Google Picker, but the active OAuth app still cannot read it. The CardForge owner should verify the Picker API key belongs to the same Google Cloud project as the OAuth client.'
+          : failure.nextAction,
+      },
+    );
+  }
+  const folder = await response.json() as GoogleDriveFolderMetadata;
+  if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
+  return folder;
+};
+
 const persistFolder = async ({
   ownerUserId,
   row,
@@ -154,17 +219,13 @@ const persistFolder = async ({
   row: PickerConnectionRow;
   folder: GoogleDriveFolderMetadata;
 }): Promise<GoogleDriveFolderSelection> => {
-  const verifiedId = folder.id ?? '';
-  const name = folder.name?.trim() ?? '';
-  if (!isGoogleDriveFileId(verifiedId) || folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE || !name) {
-    throw new ProjectStorageProviderError('Choose a Google Drive folder rather than an individual file.', 400, { kind: 'invalid' });
-  }
+  const selection = toFolderSelection(folder);
   const { error } = await requireStore()
     .from('cardforge_project_storage_connections')
     .update({
-      root_folder_id: verifiedId,
+      root_folder_id: selection.id,
       status: 'active',
-      status_note: folder.capabilities?.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
+      status_note: selection.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
       last_verified_at: new Date().toISOString(),
     })
     .eq('id', row.id)
@@ -174,13 +235,7 @@ const persistFolder = async ({
     console.error('Unable to save selected Google Drive project folder:', error);
     throw new ProjectStorageProviderError('CardForge could not remember the selected Google Drive folder.', 503, { kind: 'unavailable' });
   }
-  return {
-    id: verifiedId,
-    name: name.slice(0, 320),
-    driveId: folder.driveId ?? null,
-    resourceKey: folder.resourceKey?.trim() || null,
-    canAddChildren: folder.capabilities?.canAddChildren !== false,
-  };
+  return selection;
 };
 
 export const getGoogleDrivePickerConfiguration = async (
@@ -195,6 +250,17 @@ export const getGoogleDrivePickerConfiguration = async (
     appId: picker.appId,
     initialFolderId: isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
   };
+};
+
+export const getGoogleDriveSelectedProjectFolder = async (
+  ownerUserId: string,
+): Promise<GoogleDriveFolderSelection> => {
+  const row = await getPickerConnection(ownerUserId);
+  if (!isGoogleDriveFileId(row.root_folder_id)) {
+    throw new ProjectStorageProviderError('The selected Google Drive project folder id is invalid.', 409, { kind: 'conflict' });
+  }
+  const accessToken = await refreshPickerAccessToken(row);
+  return toFolderSelection(await readDriveFolder({ accessToken, folderId: row.root_folder_id }));
 };
 
 export const selectGoogleDriveProjectFolder = async ({
@@ -212,23 +278,11 @@ export const selectGoogleDriveProjectFolder = async ({
   const normalizedResourceKey = normalizeResourceKey(resourceKey);
   const row = await getPickerConnection(ownerUserId);
   const accessToken = await refreshPickerAccessToken(row);
-  const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
-  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren)');
-  url.searchParams.set('supportsAllDrives', 'true');
-  const response = await fetch(url, {
-    headers: folderHeaders(accessToken, folderId, normalizedResourceKey),
-    cache: 'no-store',
+  const folder = await readDriveFolder({
+    accessToken,
+    folderId,
+    resourceKey: normalizedResourceKey,
   });
-  if (!response.ok) {
-    const failure = await readGoogleProviderFailure(response);
-    throw new ProjectStorageProviderError(
-      failure.providerMessage ? `Google Drive could not verify the selected project folder. ${failure.providerMessage}` : 'Google Drive could not verify the selected project folder.',
-      failure.status,
-      { kind: failure.kind, nextAction: failure.nextAction },
-    );
-  }
-  const folder = await response.json() as GoogleDriveFolderMetadata;
-  if (!folder.resourceKey && normalizedResourceKey) folder.resourceKey = normalizedResourceKey;
   return await persistFolder({ ownerUserId, row, folder });
 };
 
