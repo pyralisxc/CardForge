@@ -23,6 +23,7 @@ type PickerConnectionRow = {
   refresh_token_iv: string;
   refresh_token_auth_tag: string;
   root_folder_id: string;
+  root_folder_resource_key: string | null;
 };
 
 type GoogleDriveFolderMetadata = {
@@ -34,7 +35,7 @@ type GoogleDriveFolderMetadata = {
   capabilities?: { canAddChildren?: boolean };
 };
 
-const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id';
+const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id,root_folder_resource_key';
 
 const requireStore = () => {
   const database = getSupabaseServerClient();
@@ -224,6 +225,7 @@ const persistFolder = async ({
     .from('cardforge_project_storage_connections')
     .update({
       root_folder_id: selection.id,
+      root_folder_resource_key: normalizeResourceKey(selection.resourceKey),
       status: 'active',
       status_note: selection.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
       last_verified_at: new Date().toISOString(),
@@ -260,7 +262,11 @@ export const getGoogleDriveSelectedProjectFolder = async (
     throw new ProjectStorageProviderError('The selected Google Drive project folder id is invalid.', 409, { kind: 'conflict' });
   }
   const accessToken = await refreshPickerAccessToken(row);
-  return toFolderSelection(await readDriveFolder({ accessToken, folderId: row.root_folder_id }));
+  return toFolderSelection(await readDriveFolder({
+    accessToken,
+    folderId: row.root_folder_id,
+    resourceKey: normalizeResourceKey(row.root_folder_resource_key),
+  }));
 };
 
 export const selectGoogleDriveProjectFolder = async ({
