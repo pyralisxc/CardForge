@@ -68,11 +68,13 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     <button
       id={`set-${props.item.id}`}
       type="button"
-      className={styles.workTileMain}
+      className={`${styles.workTileMain} cursor-grab active:cursor-grabbing`}
       disabled={props.focused}
       tabIndex={props.focused ? -1 : undefined}
       aria-hidden={props.focused || undefined}
       aria-pressed={props.selected}
+      title="Drag to move · Double-click to open"
+      onDragStart={(event) => event.preventDefault()}
       onPointerDown={(event) => {
         lastPointerTypeRef.current = event.pointerType;
         const modified = event.metaKey || event.ctrlKey || event.shiftKey;
@@ -110,7 +112,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
           props.onSelect(props.item, { additive: intent === 'select-additive' });
         }
       }}
-      aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Press Enter to open.`}
+      aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Drag to move; press Enter to open.`}
     >
       <div className={styles.workVisual} data-desk-set-stack data-card-face={face}>{props.preview(face)}</div>
       <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{joinDeskMetadata(props.item.details) || workSourceLabel(props.item)}</span>{props.item.organization.type || props.item.organization.tags.length ? <span className={styles.workOrganization}>{joinDeskMetadata([props.item.organization.type, ...props.item.organization.tags].filter((value): value is string => Boolean(value)))}</span> : null}<span>{workSourceLabel(props.item)}</span></span>
