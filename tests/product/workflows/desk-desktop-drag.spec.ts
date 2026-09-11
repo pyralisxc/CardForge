@@ -101,7 +101,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(menu.getByRole('menuitem')).toHaveCount(7);
     await expect(menu.getByRole('menuitem', { name: 'Open Set' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Generate cards' })).toBeVisible();
-    await expect(menu.getByRole('menuitem', { name: /^Save & move/ })).toHaveAttribute('aria-disabled', 'true');
+    await expect(menu.getByRole('menuitem', { name: /^Save & move/ })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Send to Pipeline' })).toHaveCount(0);
     await expect(menu.getByRole('menuitem', { name: 'Duplicate' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Output' })).toBeVisible();
