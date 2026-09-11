@@ -17,7 +17,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const encryptionKey = Buffer.alloc(32, 7).toString('base64');
 
-const connectionRow = () => {
+const connectionRow = (rootFolderResourceKey: string | null = null) => {
   const encrypted = encryptProjectStorageToken('refresh-token-example', encryptionKey);
   return {
     id: 'connection-1',
@@ -25,15 +25,16 @@ const connectionRow = () => {
     refresh_token_iv: encrypted.iv,
     refresh_token_auth_tag: encrypted.authTag,
     root_folder_id: 'drive_folder_123',
+    root_folder_resource_key: rootFolderResourceKey,
   };
 };
 
-const connectionQuery = () => {
+const connectionQuery = (rootFolderResourceKey: string | null = null) => {
   const query = {
     select: vi.fn(),
     update: vi.fn(),
     eq: vi.fn(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: connectionRow(), error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: connectionRow(rootFolderResourceKey), error: null }),
   };
   query.select.mockReturnValue(query);
   query.update.mockReturnValue(query);
@@ -55,7 +56,7 @@ describe('Google Drive folder actions', () => {
     vi.unstubAllEnvs();
   });
 
-  it('forwards a Picker resource key when verifying a shared folder', async () => {
+  it('forwards and persists a Picker resource key when verifying a shared folder', async () => {
     const query = connectionQuery();
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
     const fetchMock = vi.fn()
@@ -79,6 +80,36 @@ describe('Google Drive folder actions', () => {
       headers: {
         Authorization: 'Bearer private-access',
         'X-Goog-Drive-Resource-Keys': 'shared_folder_123/resource-key-123',
+      },
+    });
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
+      root_folder_id: 'shared_folder_123',
+      root_folder_resource_key: 'resource-key-123',
+    }));
+  });
+
+  it('reuses the persisted resource key when reading the selected folder later', async () => {
+    const query = connectionQuery('persisted-resource-key');
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'drive_folder_123',
+        name: 'CardForge Preview',
+        mimeType: 'application/vnd.google-apps.folder',
+        capabilities: { canAddChildren: true },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getGoogleDriveSelectedProjectFolder('user-1')).resolves.toMatchObject({
+      id: 'drive_folder_123',
+      name: 'CardForge Preview',
+      resourceKey: 'persisted-resource-key',
+    });
+    expect(fetchMock.mock.calls[1]![1]).toMatchObject({
+      headers: {
+        Authorization: 'Bearer private-access',
+        'X-Goog-Drive-Resource-Keys': 'drive_folder_123/persisted-resource-key',
       },
     });
   });
@@ -116,7 +147,7 @@ describe('Google Drive folder actions', () => {
   });
 
   it('creates a new My Drive project folder and selects it without broader Drive access', async () => {
-    const query = connectionQuery();
+    const query = connectionQuery('old-resource-key');
     mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
@@ -141,6 +172,10 @@ describe('Google Drive folder actions', () => {
       name: 'CardForge QA',
       mimeType: 'application/vnd.google-apps.folder',
     });
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
+      root_folder_id: 'created_folder_123',
+      root_folder_resource_key: null,
+    }));
   });
 
   it('rejects invalid project-folder names before any provider request', async () => {
