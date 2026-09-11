@@ -111,7 +111,9 @@ header[data-context="true"][data-has-search="true"] > :nth-child(2) {
   min-width: 0;
 }
 
-/* Controls keep icon hit targets and lose prose before the rail wraps. */
+/* Controls keep icon hit targets and lose visible prose before the rail wraps.
+   The label remains in the accessibility tree so compressed icon controls keep
+   the same semantic name for keyboard, assistive technology, and automation. */
 @media (max-width: 1120px) {
   [data-desk-context-rail] button {
     min-width: 2.6rem !important;
@@ -120,7 +122,16 @@ header[data-context="true"][data-has-search="true"] > :nth-child(2) {
   }
 
   [data-desk-context-rail] button > span {
-    display: none;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
   }
 }
 
@@ -159,8 +170,12 @@ header[data-context="true"][data-has-search="true"] > :nth-child(2) {
     min-height: 2.7rem !important;
   }
 
+  /* The mobile toolbar already compresses to Filters + positioning controls.
+     Let its disclosure escape the rail instead of clipping inside horizontal
+     overflow; the panel itself remains bounded to the viewport. */
   [data-desk-toolbar] {
     min-height: 2.7rem;
+    overflow: visible !important;
   }
 
   [data-storage-connections-scroll] {
