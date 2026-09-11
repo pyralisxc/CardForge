@@ -1,6 +1,7 @@
 import { getCachedGoogleDriveProjectPreview } from '../client/googleDriveProjectPreviewCache';
 import { loadGoogleDriveProjectLibrary as loadNativeGoogleDriveProjectLibrary } from '../client/googleDriveProjectTransfer';
 import type { GoogleDriveProjectListResult } from '../model/googleDriveProject';
+import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 
 export {
   GOOGLE_DRIVE_FILE_SCOPE,
@@ -68,15 +69,24 @@ export type {
   GoogleDriveWorkingSessionState,
 } from '../client/googleDriveWorkingSession';
 
-let inFlightLibraryRead: Promise<GoogleDriveProjectListResult> | null = null;
+type InFlightLibraryRead = {
+  scope: ReturnType<typeof getProjectPersistenceScope>;
+  request: Promise<GoogleDriveProjectListResult>;
+};
+
+let inFlightLibraryRead: InFlightLibraryRead | null = null;
 
 const readNativeGoogleDriveProjectLibrary = (): Promise<GoogleDriveProjectListResult> => {
-  if (!inFlightLibraryRead) {
-    inFlightLibraryRead = loadNativeGoogleDriveProjectLibrary().finally(() => {
-      inFlightLibraryRead = null;
-    });
-  }
-  return inFlightLibraryRead;
+  const scope = getProjectPersistenceScope();
+  if (inFlightLibraryRead?.scope === scope) return inFlightLibraryRead.request;
+
+  const request = loadNativeGoogleDriveProjectLibrary();
+  const entry: InFlightLibraryRead = { scope, request };
+  inFlightLibraryRead = entry;
+  void request.finally(() => {
+    if (inFlightLibraryRead === entry) inFlightLibraryRead = null;
+  });
+  return request;
 };
 
 /** Apply only ephemeral compatibility pixels; source identity remains provider-owned. */
@@ -93,8 +103,9 @@ export const applyCachedGoogleDriveProjectPreviews = (
  * Provider thumbnails stay authoritative. A browser-only compatibility preview
  * may fill the visual gap for older Drive packages that predate native
  * contentHints thumbnails; it never changes source identity or editable work.
- * Concurrent consumers share the same provider read, but no result is cached
- * after that request settles, so an explicit later refresh still reaches Drive.
+ * Concurrent consumers for the same browser owner share one provider read,
+ * but the promise is cleared after settlement so a later refresh still reaches
+ * Drive. Account changes never reuse an older owner's in-flight request.
  */
 export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => (
   applyCachedGoogleDriveProjectPreviews(await readNativeGoogleDriveProjectLibrary())
