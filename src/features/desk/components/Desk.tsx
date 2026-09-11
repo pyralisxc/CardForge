@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Boxes,
   Cloud,
   FileArchive,
+  HardDrive,
+  Search,
   Sparkles,
 } from 'lucide-react';
 import {
   ENVIRONMENT_ZONES,
+  EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
   EnvironmentToolLayer,
@@ -19,11 +22,14 @@ import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/cre
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
+import { useBrowserWorkspaceSaveStatus } from '@/features/project/client/ui';
 import { useProjectStore } from '@/features/project/client/workspace';
 import {
   getAccountLibraryWorkPreview,
@@ -82,6 +88,7 @@ export interface DeskProps {
   initialReturnContextKey?: string | null;
   accessStatus?: DeskAccountStatus;
   securityStatus?: DeskAccountStatus;
+  storageConnections?: ReactNode;
 }
 
 const WorkSourceIcon = ({ item, className }: { item: AccountLibraryItem; className?: string }) => {
@@ -104,11 +111,7 @@ const workPreviewFallbackLabel = (item: AccountLibraryItem): string => {
   return item.references.campaignId ? 'No media attached' : 'No visual preview';
 };
 
-function DeskWorkPreview({
-  item,
-}: {
-  item: AccountLibraryItem;
-}) {
+function DeskWorkPreview({ item }: { item: AccountLibraryItem }) {
   const [imageFailed, setImageFailed] = useState(false);
   const preview = getAccountLibraryWorkPreview(item);
   const previewKey = preview.kind === 'image' ? preview.url : preview.kind === 'fallback' ? preview.reason : preview.kind;
@@ -119,17 +122,17 @@ function DeskWorkPreview({
   return <div className={styles.sourceFallback}><WorkSourceIcon item={item} /><span>{imageFailed ? 'Preview unavailable' : workPreviewFallbackLabel(item)}</span></div>;
 }
 
-const deskSourceStatusLabel = (sourceStatuses: readonly { phase: string }[]): string => {
+const deskStorageStatusLabel = (sourceStatuses: readonly { phase: string }[]): string => {
   const phases = new Set(sourceStatuses.map((source) => source.phase).filter((phase) => phase !== 'ready' && phase !== 'empty'));
-  if (!phases.size) return 'Sources ready';
+  if (!phases.size) return 'Storage ready';
   const labels: Record<string, string> = {
-    loading: 'Sources loading',
-    unavailable: 'Source unavailable',
-    'permission-required': 'Source permission required',
-    expired: 'Source sign-in expired',
-    incomplete: 'Source incomplete',
+    loading: 'Storage checking',
+    unavailable: 'Storage unavailable',
+    'permission-required': 'Storage permission required',
+    expired: 'Storage sign-in expired',
+    incomplete: 'Storage partially loaded',
   };
-  return [...phases].map((phase) => labels[phase] ?? 'Source issue').join(' · ');
+  return [...phases].map((phase) => labels[phase] ?? 'Storage needs attention').join(' · ');
 };
 
 export function Desk({
@@ -143,9 +146,13 @@ export function Desk({
   initialReturnContextKey,
   accessStatus,
   securityStatus,
+  storageConnections,
 }: DeskProps) {
+  const { toast } = useToast();
+  const browserSaveStatus = useBrowserWorkspaceSaveStatus();
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
+  const [storageOpen, setStorageOpen] = useState(false);
   const {
     actions,
     activeWorkId,
@@ -277,7 +284,6 @@ export function Desk({
     activeDeskViews,
     availableDeskViews,
     sortedCards,
-    statuses,
     studioTool,
     surfaceRef,
     tagDraft,
@@ -307,7 +313,7 @@ export function Desk({
     securityStatus,
   });
   const remoteWorkspacePreview = remoteWorkspaceItem ? getAccountLibraryWorkPreview(remoteWorkspaceItem) : null;
-  const sourceStatusLabel = deskSourceStatusLabel(projection.sourceStatuses);
+  const storageStatusLabel = deskStorageStatusLabel(projection.sourceStatuses);
   const activeTool = interactionSession.toolStack.at(-1) ?? null;
   const focusedArtifactId = interactionSession.focusPath.artifactId;
   const focusedArtifact = focusedArtifactId
@@ -317,14 +323,15 @@ export function Desk({
   const editingCard = studioTool?.tool === 'design' && editingCardId
     ? focusedCards.find((card) => card.uniqueId === editingCardId) ?? null : null;
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
-  const contextDepth = remoteWorkspaceItem ? 'tool' : activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const toolName = remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
-    : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
-    : activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
-    : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
-      : activeTool?.toolId === 'output' ? 'Output'
-        : activeTool?.toolId === 'pipeline' ? 'Pipeline'
-          : undefined;
+  const contextDepth = storageOpen || remoteWorkspaceItem || activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
+  const toolName = storageOpen ? 'Locations & connections'
+    : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
+      : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
+        : activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
+          : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
+            : activeTool?.toolId === 'output' ? 'Output'
+              : activeTool?.toolId === 'pipeline' ? 'Pipeline'
+                : undefined;
   const designCard = (card: DisplayCard, face: CardFace = 'front', copy = false) => {
     const template = face === 'back' ? card.backingTemplate : card.template;
     if (!template?.id || !focusedLocalSetId) return;
@@ -350,6 +357,7 @@ export function Desk({
     openWorkLane(focusedItem, 'generate', selectedCards[0]);
   };
   const closeActiveTool = () => {
+    if (storageOpen) { setStorageOpen(false); return; }
     if (remoteWorkspaceItem) { closeRemoteWorkspace(); return; }
     if (activeTool?.dirty) {
       setDirtyCloseRequested(true);
@@ -359,6 +367,13 @@ export function Desk({
     else if (activeTool?.toolId === 'generate') { setGenerationRevisionScopeIds([]); closeGenerate(); }
     else closeContextStudio();
   };
+  const searchValue = focusedItem ? cardQuery : query;
+  const setSearchValue = focusedItem ? setCardQuery : setQuery;
+  const searchPlaceholder = focusedItem ? 'Search cards in this Set' : 'Search Desk work';
+  const storageNeedsAttention = projection.failures.length > 0
+    || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
+  const saveStatusLabel = browserSaveStatus === 'saving' ? 'Saving…' : browserSaveStatus === 'failed' ? 'Not saved' : 'Saved';
+
   return (
     <ArtifactScene activeSetId={focusedLocalSetId}>
       <EnvironmentShell
@@ -373,6 +388,11 @@ export function Desk({
         detail={detail}
         actions={actions}
         accountControl={<PublicAuthControls />}
+        search={<label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
+          <span className="sr-only">{searchPlaceholder}</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
+          <Input ref={searchRef} value={searchValue} onChange={(event) => setSearchValue(event.target.value)} className="h-10 w-full pl-9" placeholder={searchPlaceholder} />
+        </label>}
         showPrimaryAction={!focusedItem}
         contextBand={<DeskContextRail
           depth={contextDepth}
@@ -417,8 +437,9 @@ export function Desk({
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>
-          <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open work object${workItems.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} />
-          <EnvironmentStatus label={sourceStatusLabel} tone={projection.failures.length || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete') ? 'warning' : 'success'} />
+          <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open project${workItems.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} />
+          <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
+          <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} />
         </>}
         footerContent={focusedItem ? <span>{focusedItem.name}</span> : isSignedIn ? <span>Private creator desk</span> : (
           <span className="flex items-center gap-3">
@@ -427,10 +448,7 @@ export function Desk({
             <Link className="font-semibold text-[var(--cf-accent-strong)] underline-offset-4 hover:underline" href={createAuthRouteHref('/sign-up', '/account')} prefetch={false} onClick={markSignUpIntent}>Create account</Link>
           </span>
         )}
-        onCommand={() => {
-          if (!focusedItem) { searchRef.current?.focus(); return; }
-          requestHistoryBack();
-        }}
+        onCommand={() => searchRef.current?.focus()}
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
@@ -462,13 +480,11 @@ export function Desk({
             savedViews={deskViewPreferences.preferences.saved}
             activeRestrictionsLabel={`${activeDeskViews.map((view) => view === 'my-work' ? 'My work' : view === 'campaigns' ? 'Campaigns' : 'My published').join(' + ')}${deskViewPreferences.preferences.sources.length ? ` · ${deskViewPreferences.preferences.sources.length} source${deskViewPreferences.preferences.sources.length === 1 ? '' : 's'}` : ''}${deskViewPreferences.preferences.types.length ? ` · ${deskViewPreferences.preferences.types.length} type${deskViewPreferences.preferences.types.length === 1 ? '' : 's'}` : ''}${deskViewPreferences.preferences.tags.length ? ` · ${deskViewPreferences.preferences.tagMatch === 'all' ? 'all' : 'any'} ${deskViewPreferences.preferences.tags.length} tag${deskViewPreferences.preferences.tags.length === 1 ? '' : 's'}` : ''}`}
             selectedWorkItems={selectedWorkItems}
-            searchRef={searchRef}
             workGridRef={workGridRef}
             workWorldRef={workWorldRef}
             camera={deskCamera}
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
-            statuses={statuses}
             renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
@@ -517,9 +533,7 @@ export function Desk({
               onMoveSelected={moveSelectedCards}
               onEditSelected={editSelectedCard}
               onDuplicateSelected={duplicateSelectedCards}
-              onReviseSelected={() => {
-                openSelectedRevision();
-              }}
+              onReviseSelected={openSelectedRevision}
               onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
               onSetCardsTag={setCardsTag}
               onTagDraftChange={setTagDraft}
@@ -560,6 +574,18 @@ export function Desk({
             onNavigate={projection.router.push}
           />
         </div>
+        {storageOpen ? <EnvironmentToolLayer
+          id="desk-storage-title"
+          eyebrow="Desk tool"
+          title="Locations & connections"
+          summary="Inspect storage health and choose project locations without leaving the Desk."
+          closeLabel="Close locations and connections"
+          onClose={() => setStorageOpen(false)}
+          manageHistory={false}
+          railOwned
+        >
+          {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
+        </EnvironmentToolLayer> : null}
         {pipelineSubmitSetId ? <EnvironmentToolLayer
           id="desk-pipeline-submit-title"
           eyebrow="Desk tool"
@@ -586,9 +612,7 @@ export function Desk({
           {remoteWorkspaceItem.references.campaignId ? <DeskCampaignWorkspace initialCampaignId={remoteWorkspaceItem.references.campaignId} /> : remoteWorkspaceItem.references.pipelineLineageId ? <DeskPublishedWorkspace work={{
             assetType: remoteWorkspaceItem.references.pipelineAssetType ?? (remoteWorkspaceItem.kind === 'set' ? 'sets' : 'resource'),
             description: remoteWorkspaceItem.details.join(' · '), name: remoteWorkspaceItem.name,
-            previewUrl: remoteWorkspacePreview?.kind === 'image'
-              ? remoteWorkspacePreview.url
-              : null,
+            previewUrl: remoteWorkspacePreview?.kind === 'image' ? remoteWorkspacePreview.url : null,
             publishedAt: remoteWorkspaceItem.updatedAt,
             revision: remoteWorkspaceItem.revision, sourceNotes: remoteWorkspaceItem.references.pipelineSourceNotes ?? null,
           }} onCreateWorkingCopy={remoteWorkspaceItem.references.pipelineAssetType === 'sets' && remoteWorkspaceItem.references.pipelineSourceUrl ? () => void createPublishedWorkingCopy(remoteWorkspaceItem) : undefined} /> : null}
@@ -695,7 +719,24 @@ export function Desk({
         onCreatePublishedSet={(set) => { void createFromPublishedSet(set); }}
         onRetryPublishedSets={() => { setPublishedSets([]); setPublishedSetsFailure(null); setPublishedSetsLoading(false); openCreateMenu(); }}
         onDeleteWorkOpenChange={(open) => { if (!open) setPendingDeleteWork(null); }}
-        onConfirmDeleteWork={() => { const localId = pendingDeleteWork?.references.localSetId; if (localId && deleteCardSet(localId)) resetToDesk(); setPendingDeleteWork(null); }}
+        onConfirmDeleteWork={() => {
+          const target = pendingDeleteWork;
+          const localId = target?.references.localSetId;
+          if (!target || !localId) {
+            toast({ title: 'Set was not deleted', description: 'This Desk object is not a device-owned Set. Reload its source before trying again.', variant: 'destructive' });
+            setPendingDeleteWork(null);
+            return;
+          }
+          if (!deleteCardSet(localId)) {
+            toast({ title: 'Set was not deleted', description: 'The device Set could not be found. Reload the Desk before trying again.', variant: 'destructive' });
+            setPendingDeleteWork(null);
+            return;
+          }
+          setPendingDeleteWork(null);
+          resetToDesk();
+          projection.refresh();
+          toast({ title: 'Device copy deleted', description: `“${target.name}” was removed from this browser. Other named locations remain unchanged.` });
+        }}
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
