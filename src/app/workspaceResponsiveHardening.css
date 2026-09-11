@@ -46,13 +46,16 @@
   overscroll-behavior: contain;
 }
 
-/* The shell owns search. Feature toolbars keep filters/actions, not a second search. */
-label:has(> #library-search),
-label:has(input[placeholder="Search cards"]) {
+/* The shell owns search. Feature toolbars keep filters/actions, not a second search.
+   Keep these retirement selectors inside the private workspace shells so future
+   features can reuse the same placeholder text without disappearing globally. */
+[aria-label="CardForge Library"] label:has(> #library-search),
+[aria-label="CardForge Desk"] label:has(input[placeholder="Search cards"]) {
   display: none !important;
 }
 
-header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :nth-child(2),
+[aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :nth-child(2) {
   width: min(32rem, 42vw);
   min-width: 10rem;
 }
@@ -142,28 +145,28 @@ header[data-context="true"][data-has-search="true"] > :nth-child(2) {
     height: 100dvh;
   }
 
-  header[data-context="true"][data-has-search="true"] {
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"],
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] {
     grid-template-columns: minmax(0, 1fr) auto !important;
     gap: 0.25rem !important;
   }
 
-  header[data-context="true"][data-has-search="true"] > :first-child {
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :first-child,
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :first-child {
     grid-column: 1 / -1;
   }
 
-  header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :nth-child(2),
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :nth-child(2) {
     grid-column: 1;
     width: 100%;
     min-width: 0;
   }
 
-  header[data-context="true"][data-has-search="true"] > :last-child {
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :last-child,
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :last-child {
     grid-column: 2;
     min-width: 0;
-  }
-
-  header[data-has-search="true"] button[aria-label="Open commands"] {
-    display: inline-flex !important;
   }
 
   [data-desk-context-rail] {
