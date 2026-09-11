@@ -44,6 +44,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
+  const mobileNavigationPersistent = focusDepth !== 'tool';
 
   useEffect(() => {
     if (primaryScroll !== 'contained') return;
@@ -79,8 +80,13 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     : null;
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
-      <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy} data-focus-depth={focusDepth}>
-        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} />
+      <div
+        className={`${styles.shell} ${mobileNavigationPersistent ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
+        data-detail-open={Boolean(detail)}
+        data-viewport={viewportPolicy}
+        data-focus-depth={focusDepth}
+      >
+        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>
           <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} context={contextBand} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
         </div>
