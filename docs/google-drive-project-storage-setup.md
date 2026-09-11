@@ -105,15 +105,11 @@ Deploy the environment-specific browser-visible key as:
 
 This key is expected to reach the authenticated browser. Its security boundary is the Google Cloud website/API restriction, not secrecy.
 
-## Google Cloud project number / Picker App ID
+## Google Picker App ID
 
-Copy the numeric **Project number** from each environment's matching Google Cloud project. This is not the textual project id.
+`PickerBuilder.setAppId(...)` must use the numeric Google Cloud project number that owns the active OAuth client. CardForge now derives that number directly from `CARDFORGE_GOOGLE_STORAGE_CLIENT_ID` instead of requiring a second project-number environment variable. This prevents a stale Picker App ID from silently pointing at a different Google Cloud project than the OAuth token.
 
-Deploy it as:
-
-- `CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER`
-
-The Picker passes this value to `PickerBuilder.setAppId`. The OAuth client and App ID used by one deployed environment must come from the same Google Cloud project.
+The Picker API key and OAuth Web client still need to belong to the same environment-specific Google Cloud project. A stale `CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER` value may remain in an older hosting environment temporarily, but CardForge ignores it and logs the mismatch rather than using it as runtime authority. Remove that obsolete variable during the next environment cleanup.
 
 ## CardForge provider-token encryption key
 
@@ -133,17 +129,16 @@ Production and Preview must use different token-encryption keys.
 
 ## Hosting environment
 
-Production and the branch-scoped `vercel-preview` environment each need all five variables:
+Production and the branch-scoped `vercel-preview` environment each need these four variables:
 
 - `CARDFORGE_GOOGLE_STORAGE_CLIENT_ID`
 - `CARDFORGE_GOOGLE_STORAGE_CLIENT_SECRET`
 - `CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY`
 - `CARDFORGE_GOOGLE_PICKER_API_KEY`
-- `CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER`
 
-OAuth client secret and storage-token encryption key are server secrets. Picker API key is browser-visible but restricted in Google Cloud. Project number is non-secret metadata.
+OAuth client secret and storage-token encryption key are server secrets. Picker API key is browser-visible but restricted in Google Cloud.
 
-Production uses values from the production Google Cloud project. `vercel-preview` uses values from the Preview/testing Google Cloud project. Do not share the OAuth client, Picker key, project number, or token-encryption key across these environment projects, and never scope Preview credentials to all Vercel Preview deployments.
+Production uses values from the production Google Cloud project. `vercel-preview` uses values from the Preview/testing Google Cloud project. Do not share the OAuth client, Picker key, or token-encryption key across these environment projects, and never scope Preview credentials to all Vercel Preview deployments.
 
 CardForge initiates resumable Drive uploads on the server so refresh/access credentials remain private, then the authenticated browser streams the project bytes directly to Google's session URI. The initiation request must carry the same canonical application origin that performs the browser upload; otherwise Google's upload response cannot satisfy that browser origin and the project remains unchanged.
 
@@ -163,7 +158,7 @@ Before changing the production Google Auth Platform project from Testing to In p
 2. Confirm Drive API and Picker API are enabled in that production project.
 3. Confirm the production OAuth Web client uses only the canonical production callback.
 4. Confirm the production Picker key is restricted to the production CardForge website origin, `https://docs.google.com/*`, and Google Picker API.
-5. Confirm `CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER` is the production project's number and therefore matches the production OAuth client/App ID boundary.
+5. Confirm the production Picker key belongs to the same Google Cloud project as `CARDFORGE_GOOGLE_STORAGE_CLIENT_ID`; CardForge derives the Picker App ID from that OAuth client automatically.
 6. Confirm the public homepage and Privacy Policy are reachable on the owned production domain and the Privacy Policy describes Google Drive authorization, use, storage, and disconnect behavior accurately.
 7. Complete Google's production branding/domain verification flow as required by the Google Auth Platform console.
 8. Only then publish the production app and verify authorization with an account that is **not** a Preview test user.
@@ -174,21 +169,25 @@ Do not broaden scopes, copy Preview credentials into production, or change the p
 
 After deployment:
 
-1. Open Account → Storage & connections while signed in.
+1. Open Account → Library → Locations while signed in.
 2. Connect Google Drive and complete Google's consent flow.
-3. Open **Choose project folder** and confirm the native Google Picker starts at My Drive rather than inside the newly created empty CardForge folder.
-4. Confirm CardForge can create/use its initial Drive project destination.
-5. Choose **Choose project folder** and select a different Drive folder through the native Picker.
-6. Confirm CardForge verifies the folder server-side and only changes the destination; existing files are not moved.
-7. Save a current CardForge project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
-8. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
-9. Modify and save the attached project; verify Drive provider revision advances.
-10. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
-11. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
-12. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
-13. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
-14. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
-15. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
+3. Confirm Locations names the currently selected project folder so the creator always knows where new Drive saves will go.
+4. Open **Choose project folder** and confirm the native Google Picker starts at My Drive rather than inside the current CardForge destination.
+5. Select an existing personal/shared folder that the connected Google account can write to. CardForge must accept that existing folder; creating a new folder is not a prerequisite.
+6. Confirm the selected folder replaces the destination only, existing files are not moved, and Desk/Library refresh immediately without a page reload.
+7. Confirm Drive-backed Set previews/artwork appear after the destination refresh when Google exposes a thumbnail; a stale previous-folder projection must not remain visible.
+8. Use **Create project folder** and confirm CardForge can also create a new My Drive destination when that is what the creator wants.
+9. Save a current CardForge project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
+10. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
+11. Modify and save the attached project; verify Drive provider revision advances.
+12. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
+13. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
+14. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
+15. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
+16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
+17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
+
+If Picker visibly selects an item but CardForge immediately receives an app-authorization failure, verify the environment's Picker API key belongs to the same Google Cloud project as the active OAuth Web client. CardForge derives `setAppId(...)` from that OAuth client specifically to eliminate a second mutable project-number source of truth.
 
 ## Privacy boundary
 
