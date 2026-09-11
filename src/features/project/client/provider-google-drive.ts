@@ -19,6 +19,7 @@ export type {
   GoogleDriveUploadPrepareResult,
 } from '../model/googleDriveProject';
 export {
+  authorizeExistingGoogleDriveProjects,
   chooseGoogleDriveProjectFolder,
   createGoogleDriveProjectFolder,
 } from '../client/googleDriveFolderPicker';
