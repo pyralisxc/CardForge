@@ -81,14 +81,48 @@ export interface GoogleDriveUploadPrepareResult {
 export interface GoogleDriveUploadCompletion {
   id: string;
   name: string;
-  providerRevision: string;
-  projectRevision: string;
-  modifiedAt: string;
-  size: number;
-  workId: string | null;
+  version: string;
+  headRevisionId?: string;
+  modifiedTime?: string;
+  size?: string;
+  webViewLink?: string;
+  appProperties?: Record<string, string>;
 }
 
 export interface GoogleDriveProjectDownload {
   summary: GoogleDriveProjectSummary;
   bytes: Uint8Array;
 }
+
+export const isGoogleDriveFileId = (value: string): boolean => /^[A-Za-z0-9_-]{8,255}$/u.test(value);
+
+export const isGoogleDriveProviderRevision = (value: string): boolean => /^head:[a-f0-9]{64}$/u.test(value);
+
+/** Native content identity, bounded to the existing 80-character storage contract. */
+export const createGoogleDriveProviderRevision = async (headRevisionId: string): Promise<string> => {
+  if (!headRevisionId || !headRevisionId.trim()) throw new Error('Drive did not return its binary content head revision.');
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(headRevisionId));
+  return 'head:' + Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
+export const isGoogleDriveWorkId = (value: string): boolean => {
+  const normalized = value.trim();
+  return normalized.length > 0 && normalized.length <= 128 && !/[\u0000-\u001f]/u.test(normalized);
+};
+
+export const hasGoogleDriveProjectRevisionConflict = ({
+  currentProviderRevision,
+  currentProjectRevision,
+  expectedProviderRevision,
+  expectedProjectRevision,
+}: {
+  currentProviderRevision: string;
+  currentProjectRevision: string | null;
+  expectedProviderRevision: string | null;
+  expectedProjectRevision: string | null;
+}): boolean => (
+  !expectedProviderRevision
+  || !expectedProjectRevision
+  || currentProviderRevision !== expectedProviderRevision
+  || currentProjectRevision !== expectedProjectRevision
+);
