@@ -102,6 +102,7 @@ export {
 export {
   createGoogleDriveProjectFolder,
   getGoogleDrivePickerConfiguration,
+  getGoogleDriveSelectedProjectFolder,
   selectGoogleDriveProjectFolder,
 } from './server/googleDriveFolderPickerStore';
 export {
