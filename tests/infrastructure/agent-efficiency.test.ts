@@ -91,7 +91,22 @@ describe('agent verification routing', () => {
       'npm run build',
     ].join(' && '));
     expect(scripts['test:inventory:check']).toBe('node scripts/report-test-inventory.mjs --check');
-    expect(scripts['smoke:golden']).toBe('playwright test --grep @golden --workers=1');
+
+    const golden = scripts['smoke:golden'];
+    expect(golden).toContain('playwright test');
+    expect(golden).toContain('--grep @golden');
+    expect(golden).toContain('--workers=1');
+    for (const representativeDeskWorkflow of [
+      'tests/product/workflows/desk-desktop-drag.spec.ts',
+      'tests/product/workflows/desk-tool-context.spec.ts',
+      'tests/product/workflows/spatial-gestures.spec.ts',
+    ]) expect(golden).toContain(representativeDeskWorkflow);
+    for (const extendedWorkflow of [
+      'artifact-scale-performance.spec.ts',
+      'browser-workspace-recovery.spec.ts',
+      'mobile-dropdowns.spec.ts',
+    ]) expect(golden).not.toContain(extendedWorkflow);
+
     expect(scripts['smoke:hosted']).toBe('playwright test --config playwright.hosted.config.ts --workers=1');
     expect(scripts['verify:full']).not.toContain('playwright');
     expect(ci).toContain('browser-golden:');
