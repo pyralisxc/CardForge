@@ -30,6 +30,8 @@ type PickerDocument = {
   name?: string;
   mimeType?: string;
   resourceKey?: string;
+  driveSuccess?: boolean;
+  driveError?: string;
 };
 
 type PickerResponse = {
@@ -175,6 +177,16 @@ export const pickGoogleDriveItems = async ({
           return;
         }
         if (response.action !== picker.Action.PICKED) return;
+
+        const authorizationFailure = (response.docs ?? []).find((document) => document.driveSuccess === false);
+        if (authorizationFailure) {
+          const detail = authorizationFailure.driveError?.trim();
+          reject(new Error(detail
+            ? `Google Picker selected the item but did not authorize CardForge to open it. ${detail}`
+            : 'Google Picker selected the item but did not authorize CardForge to open it. The CardForge owner should verify the Picker API key and OAuth client use the same Google Cloud project.'));
+          return;
+        }
+
         const selected = (response.docs ?? []).flatMap((document) => {
           const id = document.id?.trim() ?? '';
           const name = document.name?.trim() ?? '';
