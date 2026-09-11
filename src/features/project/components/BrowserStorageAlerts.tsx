@@ -22,6 +22,11 @@ import type { ProjectDocumentV1 } from '../model/projectDocument';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT = 'cardforge:browser-workspace-recovery-open';
+
+export const requestBrowserWorkspaceRecovery = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT));
+};
 
 export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true }: { canUseProjectFiles: boolean; workspaceReady?: boolean }) {
   const { toast } = useToast();
@@ -41,7 +46,17 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
     });
   }, []);
 
+  const openRecovery = useCallback(() => {
+    refreshRecovery();
+    setRecoveryOpen(true);
+  }, [refreshRecovery]);
+
   useEffect(() => { refreshRecovery(); }, [refreshRecovery, saveStatus]);
+
+  useEffect(() => {
+    window.addEventListener(BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT, openRecovery);
+    return () => window.removeEventListener(BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT, openRecovery);
+  }, [openRecovery]);
 
   useEffect(() => {
     const available = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
@@ -199,7 +214,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
     <BrowserStoragePersistencePrompt />
     {showAttentionStatus ? <button
       type="button"
-      onClick={() => { refreshRecovery(); setRecoveryOpen(true); }}
+      onClick={openRecovery}
       className={`fixed bottom-4 right-4 z-40 border px-3 py-2 text-xs shadow-lg ${saveStatus === 'failed' || !workspaceReady ? 'border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] text-[var(--cf-warning)]'}`}
       aria-live="polite"
     >
