@@ -105,6 +105,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
   const backLabel = artifactFocused ? 'Back to Set' : 'Back to Desk';
   const renameInputRef = useRef<HTMLInputElement>(null);
   const setActionsRef = useRef<HTMLButtonElement>(null);
+  const pendingMenuActionRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!props.renaming || !props.localSet || props.depth !== 'set') return;
     const frame = requestAnimationFrame(() => {
@@ -117,6 +118,16 @@ export function DeskContextRail(props: DeskContextRailProps) {
     props.onRenameDraftChange(props.setName ?? '');
     props.onToggleRenaming();
     requestAnimationFrame(() => setActionsRef.current?.focus());
+  };
+  const selectMenuAction = (action: () => void) => () => {
+    pendingMenuActionRef.current = action;
+  };
+  const finishMenuActionHandoff = (event: Event) => {
+    const action = pendingMenuActionRef.current;
+    if (!action) return;
+    pendingMenuActionRef.current = null;
+    event.preventDefault();
+    requestAnimationFrame(action);
   };
   const driveState = driveWorkingSession.state;
   const showDriveState = props.localSet && driveState.phase !== 'unlinked';
@@ -188,15 +199,15 @@ export function DeskContextRail(props: DeskContextRailProps) {
           {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" title="Generate" onClick={props.onOpenGenerate}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Generate</span></Button> : null}
           {props.localSet ? <Button type="button" size="sm" variant="outline" className="max-[390px]:hidden" title="Output" onClick={props.onOpenOutput}><Printer className="h-4 w-4" aria-hidden="true" /><span>Output</span></Button> : null}
           <Button type="button" size="sm" variant="ghost" className={styles.desktopSaveAction} title="Save & move" onClick={props.onOpenLocation}><Save className="h-4 w-4" aria-hidden="true" /><span>Save &amp; move</span></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions" title="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
-            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenGenerate}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}
-            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenOutput}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onOpenLocation}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
-            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onToggleRenaming}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
-            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onDuplicateWork}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onTogglePin}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from Desk' : 'Pin to Desk'}</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onInspect}><Info aria-hidden="true" />Details</DropdownMenuItem>
-            {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={props.onDeleteWork}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={setActionsRef} type="button" size="icon" variant="ghost" aria-label="More Set actions" title="More Set actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" onCloseAutoFocus={finishMenuActionHandoff}>
+            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onOpenGenerate)}><WandSparkles aria-hidden="true" />Generate</DropdownMenuItem> : null}
+            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onOpenOutput)}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onOpenLocation)}><Save aria-hidden="true" />Save &amp; move</DropdownMenuItem>
+            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onToggleRenaming)}><Pencil aria-hidden="true" />Rename</DropdownMenuItem> : null}
+            {props.localSet ? <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDuplicateWork)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onTogglePin)}><Pin aria-hidden="true" />{props.pinned ? 'Unpin from Desk' : 'Pin to Desk'}</DropdownMenuItem>
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onInspect)}><Info aria-hidden="true" />Details</DropdownMenuItem>
+            {props.localSet ? <><DropdownMenuSeparator /><DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteWork)}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
           </DropdownMenuContent></DropdownMenu>
           </>}
         </> : null}
@@ -206,11 +217,11 @@ export function DeskContextRail(props: DeskContextRailProps) {
           <Button type="button" size="sm" title="Edit card content" onClick={props.onEditArtifact}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Edit</span></Button>
           <Button type="button" size="sm" variant="outline" title="Design Template" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Design</span></Button>
           <Button type="button" size="sm" variant="outline" title="Revise selected Artifacts" onClick={props.onReviseSelected}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Revise</span></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions" title="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onDesignArtifactCopy(artifactFace)}><Pencil aria-hidden="true" />Design a copy for this card</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onDuplicateSelected}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions" title="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" onCloseAutoFocus={finishMenuActionHandoff}>
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(() => props.onDesignArtifactCopy(artifactFace))}><Pencil aria-hidden="true" />Design a copy for this card</DropdownMenuItem>
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(props.onDuplicateSelected)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={props.onDeleteSelected}><Trash2 aria-hidden="true" />Remove from Set</DropdownMenuItem>
+            <DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteSelected)}><Trash2 aria-hidden="true" />Remove from Set</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>
         </> : null}
 
