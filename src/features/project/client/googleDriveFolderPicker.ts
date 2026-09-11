@@ -4,6 +4,8 @@ import { readApiError } from '@/infrastructure/http/clientResponses';
 import { observeProviderBoundaryResponse } from '@/features/analytics/client/tracking';
 import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
+  GOOGLE_DRIVE_PROJECT_MIME_TYPE,
+  isGoogleDriveFileId,
   type GoogleDriveFolderSelection,
 } from '../model/googleDriveProject';
 import { PROJECT_LIBRARY_CHANGE_EVENT } from './assets';
@@ -29,6 +31,27 @@ const persistSelectedFolder = async (
   }));
   if (!response.ok) throw await readApiError(response, 'Unable to use that Google Drive folder for CardForge projects.');
   return await response.json() as GoogleDriveFolderSelection;
+};
+
+/**
+ * `drive.file` intentionally does not turn folder ACL access into blanket app access
+ * for every pre-existing child. Open a Picker rooted at the chosen project folder so
+ * the creator can explicitly authorize the existing CardForge projects they want the
+ * app to discover. Newly created CardForge files do not need this extra handoff.
+ */
+export const authorizeExistingGoogleDriveProjects = async (folderId: string): Promise<number | null> => {
+  if (!isGoogleDriveFileId(folderId)) throw new Error('The selected Google Drive folder is invalid.');
+  const selectedItems = await pickGoogleDriveItems({
+    title: 'Add existing CardForge projects from this folder',
+    mimeTypes: [GOOGLE_DRIVE_PROJECT_MIME_TYPE],
+    includeFolders: false,
+    selectFolders: false,
+    multiselect: true,
+    initialFolderId: folderId,
+  });
+  if (!selectedItems) return null;
+  notifyProjectLibraryChanged();
+  return selectedItems.length;
 };
 
 export const chooseGoogleDriveProjectFolder = async (): Promise<GoogleDriveFolderSelection | null> => {
