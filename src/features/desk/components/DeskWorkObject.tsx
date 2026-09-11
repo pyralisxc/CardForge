@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -45,18 +45,21 @@ interface DeskWorkObjectProps {
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [faces, setFace] = useArtifactFaces();
+  const [actionsOpen, setActionsOpen] = useState(false);
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
+  const deleteAfterMenuCloseRef = useRef(false);
   const openSet = () => props.onFocus(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
-  const requestDelete = () => {
-    // Let Radix finish closing the menu and restoring trigger focus before opening
-    // the destructive confirmation. This avoids focus-dismiss races between two
-    // independently portalled surfaces.
-    window.setTimeout(() => props.onDelete(props.item), 0);
+  const changeActionsOpen = (open: boolean) => {
+    setActionsOpen(open);
+    if (!open && deleteAfterMenuCloseRef.current) {
+      deleteAfterMenuCloseRef.current = false;
+      queueMicrotask(() => props.onDelete(props.item));
+    }
   };
   return <article
     className={styles.workTile}
@@ -135,7 +138,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
       <button type="button" className={styles.iconButton} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-      <DropdownMenu><DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
+      <DropdownMenu open={actionsOpen} onOpenChange={changeActionsOpen}><DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={styles.iconButton} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={openSet}><Pencil aria-hidden="true" />Open Set</DropdownMenuItem> : <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'open')}><Pencil aria-hidden="true" />Open in Studio</DropdownMenuItem>}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'generate')}><WandSparkles aria-hidden="true" />Generate cards</DropdownMenuItem> : null}
         <DropdownMenuItem disabled={!props.canUseProjectFiles} onSelect={() => props.onOpenLocation(props.item)}><Save aria-hidden="true" />Save & move{props.canUseProjectFiles ? '' : `${DESK_METADATA_SEPARATOR}Creator Pass`}</DropdownMenuItem>
@@ -143,7 +146,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onDuplicate(props.item)}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem> : null}
         {props.item.references.localSetId ? <DropdownMenuItem onSelect={() => props.onOpenLane(props.item, 'export')}><Printer aria-hidden="true" />Output</DropdownMenuItem> : null}
         <DropdownMenuItem onSelect={() => props.onInspect(props.item)}><Info aria-hidden="true" />Details</DropdownMenuItem>
-        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={requestDelete}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
+        {props.item.references.localSetId ? <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => { deleteAfterMenuCloseRef.current = true; }}><Trash2 aria-hidden="true" />Delete device copy</DropdownMenuItem></> : null}
       </DropdownMenuContent></DropdownMenu>
       </div>
     </>}
