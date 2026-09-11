@@ -169,6 +169,14 @@
     min-width: 0;
   }
 
+  /* Feature CSS used to drop the third status item on phones. The compact
+     status rail now scrolls horizontally, so preserve every status truth
+     instead of silently removing save/object state from the mobile product. */
+  [aria-label="CardForge Desk"] footer[aria-label="Environment status"] > div:first-child > span,
+  [aria-label="CardForge Library"] footer[aria-label="Environment status"] > div:first-child > span {
+    display: inline-flex !important;
+  }
+
   [data-desk-context-rail] {
     min-height: 2.7rem !important;
   }
