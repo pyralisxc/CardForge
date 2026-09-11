@@ -41,7 +41,9 @@ const loadTemporaryPreviewDocument = async (project: GoogleDriveProjectSummary) 
       const source = snapshot.assets.get(descriptor.id);
       if (!source) return null;
       const bytes = source instanceof Uint8Array ? source : await source.load();
-      urls.set(descriptor.id, URL.createObjectURL(new Blob([bytes], { type: descriptor.mimeType })));
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(bytes);
+      urls.set(descriptor.id, URL.createObjectURL(new Blob([copy.buffer], { type: descriptor.mimeType })));
     }
     return {
       document: referenceCardForgeProjectSnapshotAssets(snapshot, (descriptor) => urls.get(descriptor.id) ?? ''),
