@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  cacheGoogleDriveProjectPreview,
+  clearCachedGoogleDriveProjectPreviews,
+  getCachedGoogleDriveProjectPreview,
+} from '@/features/project/client/provider-google-drive';
 import { hasGoogleDriveProjectRevisionConflict } from '@/features/project/model/googleDriveProject';
 import {
   GOOGLE_DRIVE_FILE_SCOPE,
@@ -29,6 +34,21 @@ describe('Google Drive project storage', () => {
     const encrypted = encryptProjectStorageToken('refresh-token-example', key);
     expect(encrypted.ciphertext).not.toContain('refresh-token-example');
     expect(decryptProjectStorageToken(encrypted, key)).toBe('refresh-token-example');
+  });
+
+  it('keys compatibility previews to the exact Drive content identity', () => {
+    clearCachedGoogleDriveProjectPreviews();
+    const summary = {
+      fileId: 'drive_preview_123',
+      projectRevision: 'a'.repeat(64),
+      providerRevision: `head:${'b'.repeat(64)}`,
+    };
+    const dataUrl = 'data:image/png;base64,ZmFrZQ==';
+    cacheGoogleDriveProjectPreview(summary, dataUrl);
+    expect(getCachedGoogleDriveProjectPreview(summary)).toBe(dataUrl);
+    expect(getCachedGoogleDriveProjectPreview({ ...summary, projectRevision: 'c'.repeat(64) })).toBeNull();
+    expect(getCachedGoogleDriveProjectPreview({ ...summary, providerRevision: `head:${'d'.repeat(64)}` })).toBeNull();
+    clearCachedGoogleDriveProjectPreviews();
   });
 
   it.each([
