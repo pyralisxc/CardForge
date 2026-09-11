@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Copy, Info, MoreHorizontal, Pencil, Pin, Printer, RefreshCcw, Save, Trash2, UploadCloud, WandSparkles } from 'lucide-react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -48,7 +48,6 @@ const tileActionClassName = 'min-h-11 min-w-11 md:min-h-9 md:min-w-9';
 
 export function DeskWorkObject(props: DeskWorkObjectProps) {
   const [faces, setFace] = useArtifactFaces();
-  const [actionsOpen, setActionsOpen] = useState(false);
   const face = faces[props.artifactIds[0]] ?? 'front';
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
@@ -57,11 +56,11 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
 
-  const selectMenuAction = (action: () => void) => (event: Event) => {
-    // Own the ordering instead of asking a newly opened dialog/tool to race the
-    // menu's focus portal. Radix stays responsible for Escape/click-away focus.
-    event.preventDefault();
-    setActionsOpen(false);
+  const selectMenuAction = (action: () => void) => () => {
+    // Radix owns selection dismissal and focus restoration. Deferring the next
+    // surface by one task lets that lifecycle finish before a dialog, inspector,
+    // or focused workspace takes ownership. Do not prevent onSelect: Radix uses
+    // preventDefault specifically to mean "keep this menu open".
     window.setTimeout(action, 0);
   };
 
@@ -124,7 +123,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}
       <div className={styles.tileActions}>
         <button type="button" className={`${styles.iconButton} ${tileActionClassName}`} data-active={props.pinned} onClick={() => props.onTogglePin(props.item.id)} aria-label={`${props.pinned ? 'Unpin' : 'Pin'} ${props.item.name}`} title={props.pinned ? 'Unpin from desk' : 'Pin to desk'}><Pin size={15} aria-hidden="true" /></button>
-        <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild><button id={`set-info-${props.item.id}`} type="button" className={`${styles.iconButton} ${tileActionClassName}`} aria-label={`Actions for ${props.item.name}`} title="Actions"><MoreHorizontal size={15} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {props.item.references.localSetId
