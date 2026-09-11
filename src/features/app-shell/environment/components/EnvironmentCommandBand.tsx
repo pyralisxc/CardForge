@@ -31,13 +31,13 @@ export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisa
         {brand ? <Link href="/" prefetch={false} className={styles.mobileBrand} aria-label="Open the CardForge public site" title="CardForge public site"><Image src={brand.src} alt="" width={26} height={26} priority /></Link> : null}
         <Icon size={18} aria-hidden="true" /><strong>{zone.label}</strong>
       </div>}
-      {search ? <div className={styles.commandSearchSlot}>{search}</div> : (
+      {search ? <div className="min-w-0">{search}</div> : (
         <button type="button" className={styles.commandLauncher} aria-label="Search or type a command" title="Search or type a command (Ctrl / ⌘ K)" onClick={onCommand} data-tool-safe-action>
           <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
         </button>
       )}
       <div className={styles.commandActions}>
-        {search ? <button type="button" className={`${styles.iconButton} ${styles.commandPaletteButton}`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button> : null}
+        {search ? <button type="button" className={styles.iconButton} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button> : null}
         {primaryAction ? (
           <button type="button" className={styles.primaryButton} data-environment-action={primaryAction.id} disabled={!isActionAvailable(primaryAction) || Boolean(disabledReason)} title={disabledReason ?? primaryAction.label} onClick={() => { if (isActionAvailable(primaryAction) && !disabledReason) onAction(primaryAction); }}>
             <span>{primaryAction.label}</span>
