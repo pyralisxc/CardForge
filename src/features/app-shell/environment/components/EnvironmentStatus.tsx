@@ -25,6 +25,6 @@ export function EnvironmentStatus({
         : <ShieldCheck size={14} aria-hidden="true" />;
   const content = <>{Icon ? <Icon size={14} aria-hidden="true" /> : fallbackIcon}<span>{label}</span></>;
   return onClick
-    ? <button type="button" className={`${styles.status} ${styles.statusAction}`} data-tone={tone} onClick={onClick} title={title ?? label}>{content}</button>
+    ? <button type="button" className={`${styles.status} border-0 bg-transparent p-0 font-inherit cursor-pointer hover:text-[var(--cf-accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cf-accent-strong)]`} data-tone={tone} onClick={onClick} title={title ?? label}>{content}</button>
     : <span className={styles.status} data-tone={tone}>{content}</span>;
 }
