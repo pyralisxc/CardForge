@@ -3,17 +3,35 @@
 import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cloud, ExternalLink, FolderCog, FolderPlus, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Cloud, ExternalLink, FilePlus2, FolderCog, FolderPlus, HardDriveUpload, Link2, Link2Off, Loader2, LogIn, RefreshCw, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
-import { chooseGoogleDriveProjectFolder, createGoogleDriveProjectFolder, deleteGoogleDriveProjectFromLibrary, disconnectGoogleDriveStorage, getGoogleDriveProjectBinding, getGoogleDriveWorkBinding, refreshGoogleDriveProject, copyGoogleDriveProjectToBrowser, loadGoogleDriveProjectLibrary, openGoogleDriveProject, saveCurrentProjectToGoogleDrive, type GoogleDriveProjectBinding, type GoogleDriveProjectListResult, type GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
+import {
+  authorizeExistingGoogleDriveProjects,
+  chooseGoogleDriveProjectFolder,
+  createGoogleDriveProjectFolder,
+  deleteGoogleDriveProjectFromLibrary,
+  disconnectGoogleDriveStorage,
+  getGoogleDriveProjectBinding,
+  getGoogleDriveWorkBinding,
+  refreshGoogleDriveProject,
+  copyGoogleDriveProjectToBrowser,
+  loadGoogleDriveProjectLibrary,
+  openGoogleDriveProject,
+  saveCurrentProjectToGoogleDrive,
+  type GoogleDriveProjectBinding,
+  type GoogleDriveProjectListResult,
+  type GoogleDriveProjectSummary,
+} from '@/features/project/client/provider-google-drive';
 import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
@@ -44,6 +62,8 @@ export function GoogleDriveProjectStoragePanel({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [bindingError, setBindingError] = useState<string | null>(null);
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [folderName, setFolderName] = useState('CardForge Projects');
 
   useEffect(() => {
     let cancelled = false;
@@ -110,27 +130,62 @@ export function GoogleDriveProjectStoragePanel({
     }
   }, [refresh, toast]);
 
-  const chooseProjectFolder = useCallback(() => void run('choose-folder', async () => {
-    const selected = await chooseGoogleDriveProjectFolder();
-    if (selected) {
+  const authorizeExistingProjects = useCallback(async (folderId: string) => {
+    try {
+      const count = await authorizeExistingGoogleDriveProjects(folderId);
+      if (count === null) {
+        toast({
+          title: 'Project folder connected',
+          description: 'Existing-project selection was skipped. New CardForge projects will still appear automatically, and you can add existing projects at any time.',
+        });
+        return;
+      }
       toast({
-        title: 'Google Drive folder selected',
-        description: `New CardForge projects will be stored in “${selected.name}”. Existing files were left where they are.`,
+        title: count ? 'Existing Drive projects added' : 'No projects selected',
+        description: count
+          ? `${count} existing CardForge project${count === 1 ? '' : 's'} can now be discovered from this folder.`
+          : 'No existing CardForge projects were selected. New projects created by CardForge will appear automatically.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Folder connected; existing projects still need approval',
+        description: error instanceof Error ? error.message : 'Open Add existing projects and select the existing files CardForge should access.',
+        variant: 'destructive',
       });
     }
-  }), [run, toast]);
+  }, [toast]);
+
+  const chooseProjectFolder = useCallback(() => void run('choose-folder', async () => {
+    const selected = await chooseGoogleDriveProjectFolder();
+    if (!selected) return;
+    toast({
+      title: 'Google Drive folder selected',
+      description: `“${selected.name}” is now the CardForge project folder. Choose any existing projects in the next Picker so CardForge can authorize them without broad Drive access.`,
+    });
+    await authorizeExistingProjects(selected.id);
+  }), [authorizeExistingProjects, run, toast]);
+
+  const addExistingProjects = useCallback(() => {
+    const folderId = library?.selectedFolder?.id ?? library?.connection.rootFolderId;
+    if (!folderId) return;
+    void run('authorize-existing', async () => {
+      await authorizeExistingProjects(folderId);
+    });
+  }, [authorizeExistingProjects, library, run]);
 
   const createProjectFolder = useCallback(() => {
-    const proposed = window.prompt('Create a new Google Drive project folder in My Drive:', 'CardForge Projects');
-    if (proposed === null) return;
+    const normalized = folderName.trim();
+    if (!normalized) return;
     void run('create-folder', async () => {
-      const created = await createGoogleDriveProjectFolder(proposed);
+      const created = await createGoogleDriveProjectFolder(normalized);
+      setCreateFolderOpen(false);
+      setFolderName('CardForge Projects');
       toast({
         title: 'Google Drive folder created',
         description: `Created “${created.name}” in My Drive and made it the active CardForge project location.`,
       });
     });
-  }, [run, toast]);
+  }, [folderName, run, toast]);
 
   const projects = useMemo(() => library?.projects ?? [], [library?.projects]);
   const attachedProject = useMemo(() => (
@@ -139,205 +194,227 @@ export function GoogleDriveProjectStoragePanel({
   const connection = library?.connection ?? null;
   const canReplaceUnavailableFolder = loadError instanceof ApiClientError
     && ['authorization', 'conflict', 'not_found'].includes(loadError.kind);
+  const selectedFolderName = library?.selectedFolder?.name ?? null;
 
   return (
-    <section className={embedded ? 'py-1' : 'border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5'} aria-labelledby={embedded ? undefined : 'google-drive-storage-title'}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        {!embedded ? (
-          <div>
-            <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
-              <Cloud className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected storage</span>
-            </div>
-            <h2 id="google-drive-storage-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive projects</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
-              Keep durable .cardforge projects in your own Google Drive. CardForge stores only the encrypted connection credential and temporary AI working copies; the project files use your Google storage quota.
-            </p>
-          </div>
-        ) : <span className="text-xs leading-5 text-[var(--cf-text-muted)]">Drive remains authoritative for files and permissions.</span>}
-        <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={Boolean(busyAction) || !isSignedIn}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-        </Button>
-      </div>
-
-      {!isSignedIn ? (
-        <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
-          <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
-          <Button asChild className="mt-3" size="sm">
-            <Link href={createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')} prefetch={false}>
-              <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
-            </Link>
-          </Button>
-        </div>
-      ) : loadError ? (
-        <div role="alert" className="mt-4 space-y-3 border border-[var(--cf-border)] p-3 text-sm">
-          <p>{loadError.message}</p>
-          {loadError instanceof ApiClientError && loadError.kind === 'authentication' ? (
-            <Button size="sm" disabled={!canUseProjectFiles} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {canReplaceUnavailableFolder ? (
-                <>
-                  <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
-                    {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
-                    Choose project folder
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={createProjectFolder}>
-                    {busyAction === 'create-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
-                    Create project folder
-                  </Button>
-                </>
-              ) : null}
-              <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>
-            </div>
-          )}
-        </div>
-      ) : !connection ? (
-        <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading Google Drive storage…</p>
-      ) : !connection.configured ? (
-        <div className="mt-4 border border-[#8b6c35] bg-[#251d0d] p-3 text-sm text-[#e8c98f]">
-          Google Drive support is installed in CardForge, but the production Google OAuth credentials and storage-encryption key still need to be configured by the CardForge owner.
-        </div>
-      ) : !connection.connected ? (
-        <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
-          <p className="text-sm text-[var(--cf-text-muted)]">Connect only the Google Drive files CardForge creates or you explicitly choose for CardForge. The integration uses Google’s per-file <code>drive.file</code> permission rather than broad Drive access.</p>
-          <Button
-            type="button"
-            className="mt-3"
-            size="sm"
-            disabled={!canUseProjectFiles}
-            onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}
-          >
-            <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
-          </Button>
-          {!canUseProjectFiles ? <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Creator Pass currently unlocks portable and connected project storage.</p> : null}
-        </div>
-      ) : (
-        <>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+    <>
+      <section className={embedded ? 'py-1' : 'border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4 md:p-5'} aria-labelledby={embedded ? undefined : 'google-drive-storage-title'}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          {!embedded ? (
             <div>
-              <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
-              <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                {connection.statusNote || (connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : 'This connection needs attention.')}
+              <div className="flex items-center gap-2 text-[var(--cf-accent-strong)]">
+                <Cloud className="h-5 w-5" />
+                <span className="text-xs font-semibold uppercase tracking-[0.18em]">Connected storage</span>
+              </div>
+              <h2 id="google-drive-storage-title" className="mt-2 font-serif text-2xl text-[var(--cf-text-strong)]">Google Drive projects</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
+                Keep durable .cardforge projects in your own Google Drive. CardForge stores only the encrypted connection credential and temporary AI working copies; the project files use your Google storage quota.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {bindingError ? <p role="alert" className="w-full text-sm text-[var(--cf-warning)]">{bindingError} Your Drive files remain available below.</p> : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={Boolean(busyAction) || !canUseProjectFiles}
-                onClick={chooseProjectFolder}
-              >
-                {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
-                Choose project folder
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={Boolean(busyAction) || !canUseProjectFiles}
-                onClick={createProjectFolder}
-              >
-                {busyAction === 'create-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
-                Create project folder
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={Boolean(busyAction) || !canUseProjectFiles}
-                onClick={() => void run('save-new', async () => {
-                  const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
-                  toast({ title: 'Project saved to Google Drive', description: `“${saved.name}” is now attached to this browser workspace.` });
-                })}
-              >
-                {busyAction === 'save-new' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveUpload className="mr-2 h-4 w-4" />}
-                Save workspace backup as new
-              </Button>
-              {binding ? (
-                <div className="space-y-2">
-                  {!binding.workId && binding.packageScope !== 'workspace' ? <p className="text-sm">Reopen this file from the list below to verify its saved Set or workspace scope before updating it.</p> : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
-                    onClick={() => void run('update', async () => {
-                      const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
-                      toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
-                    })}
-                  >
-                    {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {!binding.workId && binding.packageScope !== 'workspace' ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
-                  </Button>
-                </div>
-              ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={Boolean(busyAction)}
-                onClick={() => {
-                  if (!window.confirm('Disconnect Google Drive from CardForge? Your files will remain in Google Drive.')) return;
-                  void run('disconnect', async () => {
-                    await disconnectGoogleDriveStorage();
-                    toast({ title: 'Google Drive disconnected', description: 'Your Google Drive project files were left untouched.' });
-                  });
-                }}
-              >
-                <Link2Off className="mr-2 h-4 w-4" /> Disconnect
-              </Button>
-            </div>
+          ) : <span className="text-xs leading-5 text-[var(--cf-text-muted)]">Drive remains authoritative for files and permissions.</span>}
+          <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={Boolean(busyAction) || !isSignedIn}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          </Button>
+        </div>
+
+        {!isSignedIn ? (
+          <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+            <p className="text-sm text-[var(--cf-text-muted)]">Sign in to connect your Google Drive.</p>
+            <Button asChild className="mt-3" size="sm">
+              <Link href={createAuthRouteHref('/sign-in', '/account?section=library&tool=locations')} prefetch={false}>
+                <LogIn className="mr-2 h-4 w-4" /> Sign in to connect
+              </Link>
+            </Button>
           </div>
-
-          {binding ? (
-            <p className="mt-3 text-xs text-[var(--cf-text-subtle)]">
-              Attached here: <span className="font-semibold text-[var(--cf-text-muted)]">{binding.name}</span>{attachedProject ? ' · Drive content revision verified' : ''}
-            </p>
-          ) : null}
-
-          <div className="mt-5">
-            <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Projects in your selected Drive folder</h3>
-            {projects.length === 0 ? (
-              <p className="mt-2 text-sm text-[var(--cf-text-muted)]">No CardForge projects are visible in this folder yet. Save the current workspace as a new project to create the first one.</p>
+        ) : loadError ? (
+          <div role="alert" className="mt-4 space-y-3 border border-[var(--cf-border)] p-3 text-sm">
+            <p>{loadError.message}</p>
+            {loadError instanceof ApiClientError && loadError.kind === 'authentication' ? (
+              <Button size="sm" disabled={!canUseProjectFiles} onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}>Reconnect Google Drive</Button>
             ) : (
-              <div className="mt-3 space-y-2">
-                {projects.map((project) => (
-                  <GoogleDriveProjectRow
-                    key={project.fileId}
-                    project={project}
-                    isAttached={binding?.fileId === project.fileId}
-                    busyAction={busyAction}
-                    canUseProjectFiles={canUseProjectFiles}
-                    onOpen={() => void run(`open:${project.fileId}`, async () => {
-                      const opened = await openGoogleDriveProject(project);
-                      toast({ title: 'Google Drive project opened', description: `Loaded “${opened.name}” into this browser workspace.` });
-                      router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
-                    })}
-                    onRefreshWorkingCopy={project.localWorkId ? () => void run(`refresh:${project.fileId}`, async () => {
-                      const attached = await getGoogleDriveWorkBinding(project.localWorkId!);
-                      if (!attached || attached.fileId !== project.fileId || attached.accountId !== project.accountId) throw new Error('This document attachment changed. Reload the Library before refreshing.');
-                      await refreshGoogleDriveProject(attached);
-                      toast({ title: 'Working copy refreshed', description: 'The latest Drive revision is ready on your Desk.' });
-                    }) : undefined}
-                    onCopy={() => void run(`copy:${project.fileId}`, async () => {
-                      const copied = await copyGoogleDriveProjectToBrowser(project);
-                      toast({ title: 'Independent copy created', description: 'This new Set has its own identity and does not save over the source Drive file.' });
-                      router.push(copied.workId ? createDeskReturnHref(`set:${copied.workId}`) : '/account');
-                    })}
-                    onDelete={() => void run(`delete:${project.fileId}`, async () => {
-                      await deleteGoogleDriveProjectFromLibrary(project);
-                      toast({ title: 'Google Drive project deleted', description: `Removed “${project.name}” from Google Drive.` });
-                    })}
-                  />
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {canReplaceUnavailableFolder ? (
+                  <>
+                    <Button type="button" size="sm" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                      {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
+                      Choose project folder
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
+                      <FolderPlus className="mr-2 h-4 w-4" /> Create project folder
+                    </Button>
+                  </>
+                ) : null}
+                <Button size="sm" variant="outline" onClick={() => void refresh()}>Try again</Button>
               </div>
             )}
           </div>
-        </>
-      )}
-    </section>
+        ) : !connection ? (
+          <p className="mt-4 flex items-center gap-2 text-sm text-[var(--cf-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Loading Google Drive storage…</p>
+        ) : !connection.configured ? (
+          <div className="mt-4 border border-[#8b6c35] bg-[#251d0d] p-3 text-sm text-[#e8c98f]">
+            Google Drive support is installed in CardForge, but the production Google OAuth credentials and storage-encryption key still need to be configured by the CardForge owner.
+          </div>
+        ) : !connection.connected ? (
+          <div className="mt-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+            <p className="text-sm text-[var(--cf-text-muted)]">Connect only the Google Drive files CardForge creates or you explicitly choose for CardForge. The integration uses Google’s per-file <code>drive.file</code> permission rather than broad Drive access.</p>
+            <Button
+              type="button"
+              className="mt-3"
+              size="sm"
+              disabled={!canUseProjectFiles}
+              onClick={() => router.push(`/api/project-sources/google-drive/connect?returnTo=${encodeURIComponent(returnTo)}`)}
+            >
+              <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
+            </Button>
+            {!canUseProjectFiles ? <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Creator Pass currently unlocks portable and connected project storage.</p> : null}
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
+                {selectedFolderName ? <p className="mt-1 truncate text-sm font-semibold text-[var(--cf-accent-text)]" title={selectedFolderName}>Project folder: “{selectedFolderName}”</p> : null}
+                <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
+                  {connection.statusNote || (connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : 'This connection needs attention.')}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {bindingError ? <p role="alert" className="w-full text-sm text-[var(--cf-warning)]">{bindingError} Your Drive files remain available below.</p> : null}
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={chooseProjectFolder}>
+                  {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
+                  Choose project folder
+                </Button>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={addExistingProjects}>
+                  {busyAction === 'authorize-existing' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
+                  Add existing projects
+                </Button>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={() => setCreateFolderOpen(true)}>
+                  <FolderPlus className="mr-2 h-4 w-4" /> Create project folder
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={Boolean(busyAction) || !canUseProjectFiles}
+                  onClick={() => void run('save-new', async () => {
+                    const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
+                    toast({ title: 'Project saved to Google Drive', description: `“${saved.name}” is now attached to this browser workspace.` });
+                  })}
+                >
+                  {busyAction === 'save-new' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveUpload className="mr-2 h-4 w-4" />}
+                  Save workspace backup as new
+                </Button>
+                {binding ? (
+                  <div className="space-y-2">
+                    {!binding.workId && binding.packageScope !== 'workspace' ? <p className="text-sm">Reopen this file from the list below to verify its saved Set or workspace scope before updating it.</p> : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
+                      onClick={() => void run('update', async () => {
+                        const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
+                        toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });
+                      })}
+                    >
+                      {busyAction === 'update' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {!binding.workId && binding.packageScope !== 'workspace' ? 'Reopen before saving' : binding.workId ? 'Save attached Set' : 'Save workspace backup'}
+                    </Button>
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => {
+                    if (!window.confirm('Disconnect Google Drive from CardForge? Your files will remain in Google Drive.')) return;
+                    void run('disconnect', async () => {
+                      await disconnectGoogleDriveStorage();
+                      toast({ title: 'Google Drive disconnected', description: 'Your Google Drive project files were left untouched.' });
+                    });
+                  }}
+                >
+                  <Link2Off className="mr-2 h-4 w-4" /> Disconnect
+                </Button>
+              </div>
+            </div>
+
+            {binding ? (
+              <p className="mt-3 text-xs text-[var(--cf-text-subtle)]">
+                Attached here: <span className="font-semibold text-[var(--cf-text-muted)]">{binding.name}</span>{attachedProject ? ' · Drive content revision verified' : ''}
+              </p>
+            ) : null}
+
+            <div className="mt-5">
+              <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Projects in {selectedFolderName ? `“${selectedFolderName}”` : 'your selected Drive folder'}</h3>
+              {projects.length === 0 ? (
+                <div className="mt-2 space-y-3 text-sm text-[var(--cf-text-muted)]">
+                  <p>No CardForge projects are authorized in this folder yet. New projects CardForge creates here appear automatically; existing projects need one explicit Picker selection because CardForge keeps Google’s least-privilege <code>drive.file</code> access.</p>
+                  <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={addExistingProjects}>
+                    <FilePlus2 className="mr-2 h-4 w-4" /> Add existing projects
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {projects.map((project) => (
+                    <GoogleDriveProjectRow
+                      key={project.fileId}
+                      project={project}
+                      isAttached={binding?.fileId === project.fileId}
+                      busyAction={busyAction}
+                      canUseProjectFiles={canUseProjectFiles}
+                      onOpen={() => void run(`open:${project.fileId}`, async () => {
+                        const opened = await openGoogleDriveProject(project);
+                        toast({ title: 'Google Drive project opened', description: `Loaded “${opened.name}” into this browser workspace.` });
+                        router.push(opened.workId ? createDeskReturnHref(`set:${opened.workId}`) : '/account');
+                      })}
+                      onRefreshWorkingCopy={project.localWorkId ? () => void run(`refresh:${project.fileId}`, async () => {
+                        const attached = await getGoogleDriveWorkBinding(project.localWorkId!);
+                        if (!attached || attached.fileId !== project.fileId || attached.accountId !== project.accountId) throw new Error('This document attachment changed. Reload the Library before refreshing.');
+                        await refreshGoogleDriveProject(attached);
+                        toast({ title: 'Working copy refreshed', description: 'The latest Drive revision is ready on your Desk.' });
+                      }) : undefined}
+                      onCopy={() => void run(`copy:${project.fileId}`, async () => {
+                        const copied = await copyGoogleDriveProjectToBrowser(project);
+                        toast({ title: 'Independent copy created', description: 'This new Set has its own identity and does not save over the source Drive file.' });
+                        router.push(copied.workId ? createDeskReturnHref(`set:${copied.workId}`) : '/account');
+                      })}
+                      onDelete={() => void run(`delete:${project.fileId}`, async () => {
+                        await deleteGoogleDriveProjectFromLibrary(project);
+                        toast({ title: 'Google Drive project deleted', description: `Removed “${project.name}” from Google Drive.` });
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
+      <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
+        <DialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
+          <DialogHeader>
+            <DialogTitle>Create Google Drive project folder</DialogTitle>
+            <DialogDescription>CardForge will create this folder in My Drive and make it the active project destination. Existing Drive files are not moved.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={folderName}
+            onChange={(event) => setFolderName(event.target.value)}
+            aria-label="Google Drive project folder name"
+            placeholder="CardForge Projects"
+            onKeyDown={(event) => { if (event.key === 'Enter' && folderName.trim() && !busyAction) { event.preventDefault(); createProjectFolder(); } }}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCreateFolderOpen(false)} disabled={Boolean(busyAction)}>Cancel</Button>
+            <Button type="button" onClick={createProjectFolder} disabled={!folderName.trim() || Boolean(busyAction)}>
+              {busyAction === 'create-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
+              Create folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
