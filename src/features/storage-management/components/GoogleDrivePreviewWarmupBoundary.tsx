@@ -38,31 +38,42 @@ const loadTemporaryPreviewDocument = async (project: GoogleDriveProjectSummary, 
   if (signal.aborted || (project.projectRevision && snapshot.manifest.projectRevision !== project.projectRevision)) return null;
 
   const urls = new Map<string, string>();
+  const release = () => urls.forEach((url) => URL.revokeObjectURL(url));
   try {
     for (const descriptor of snapshot.manifest.assets) {
-      if (signal.aborted) return null;
+      if (signal.aborted) {
+        release();
+        return null;
+      }
       const source = snapshot.assets.get(descriptor.id);
-      if (!source) return null;
+      if (!source) {
+        release();
+        return null;
+      }
       const bytes = source instanceof Uint8Array ? source : await source.load();
-      if (signal.aborted) return null;
+      if (signal.aborted) {
+        release();
+        return null;
+      }
       const copy = new Uint8Array(bytes.byteLength);
       copy.set(bytes);
       urls.set(descriptor.id, URL.createObjectURL(new Blob([copy.buffer], { type: descriptor.mimeType })));
     }
     return {
       document: referenceCardForgeProjectSnapshotAssets(snapshot, (descriptor) => urls.get(descriptor.id) ?? ''),
-      release: () => urls.forEach((url) => URL.revokeObjectURL(url)),
+      release,
     };
   } catch (error) {
-    urls.forEach((url) => URL.revokeObjectURL(url));
+    release();
     throw error;
   }
 };
 
 const createCompatibilityPreview = async (project: GoogleDriveProjectSummary, signal: AbortSignal): Promise<string | null> => {
   const temporary = await loadTemporaryPreviewDocument(project, signal);
-  if (!temporary || signal.aborted) return null;
+  if (!temporary) return null;
   try {
+    if (signal.aborted) return null;
     const encoded = await createGoogleDriveProjectThumbnail(temporary.document);
     return !signal.aborted && encoded ? base64UrlPngToDataUrl(encoded) : null;
   } finally {
