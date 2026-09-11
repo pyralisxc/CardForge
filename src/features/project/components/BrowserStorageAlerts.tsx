@@ -135,8 +135,6 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
       const document = await captureCurrentProjectDocument();
       const snapshot = await buildBrowserCardForgeProjectSnapshot({ document, name: 'CardForge emergency backup' });
       if (getProjectPersistenceScope() !== scope) throw new Error('The workspace account changed while the backup was being prepared. Retry from the current account.');
-      // The ordinary package writer verifies/materializes required artwork. A failure
-      // must not be presented as a successful or complete editable backup.
       await saveCardForgeProjectPackageToDevice({ fileName: 'CardForge emergency backup.cardforge', snapshot, pickerWindow: {} });
       toast({ title: 'Emergency backup downloaded', description: 'The editable workspace and its packaged artwork are in your downloads. Your browser workspace was not replaced.' });
     } catch (error) {
@@ -194,18 +192,19 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   };
 
   const hasRecovery = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
-  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'saving' ? 'Saving in this browser…' : saveStatus === 'failed' ? 'Latest change not saved' : 'Saved in this browser';
+  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'failed' ? 'Latest change not saved' : 'Recovery available';
+  const showAttentionStatus = !workspaceReady || saveStatus === 'failed' || hasRecovery;
 
   return <>
     <BrowserStoragePersistencePrompt />
-    <button
+    {showAttentionStatus ? <button
       type="button"
       onClick={() => { refreshRecovery(); setRecoveryOpen(true); }}
-      className={`fixed bottom-4 right-4 z-40 border px-3 py-2 text-xs shadow-lg ${saveStatus === 'failed' ? 'border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]' : 'border-[var(--cf-border)] bg-[var(--cf-surface)] text-[var(--cf-text-muted)]'}`}
+      className={`fixed bottom-4 right-4 z-40 border px-3 py-2 text-xs shadow-lg ${saveStatus === 'failed' || !workspaceReady ? 'border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] text-[var(--cf-warning)]'}`}
       aria-live="polite"
     >
-      {statusLabel}{hasRecovery ? ' · Recovery available' : ''}
-    </button>
+      {statusLabel}
+    </button> : null}
     <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
       <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); closeButton.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
         <DialogHeader>
@@ -233,7 +232,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
           {recovery?.quarantinedAvailable ? <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] p-3"><strong>Unreadable copy preserved</strong><p className="mt-1 text-[var(--cf-text-muted)]">CardForge isolated a workspace it could not safely open. Restoring may reproduce the read failure; the current workspace is preserved first.</p><div className="mt-3 flex gap-2"><Button disabled={recoveryBusy} onClick={() => void restore('quarantine')}>Try restore &amp; reload</Button><Button disabled={recoveryBusy} variant="outline" onClick={() => void discard('quarantine')}>Discard</Button></div></div> : null}
           {!hasRecovery && !recoveryError ? <p className="border border-dashed border-[var(--cf-border)] p-3 text-[var(--cf-text-muted)]">No previous or quarantined browser copy is available for this workspace yet.</p> : null}
         </div>
-          {hasRecovery ? <div className="grid gap-2"><p className="text-[var(--cf-text-muted)]">Raw recovery JSON preserves saved workspace bytes for repair. It is not a complete portable package: referenced artwork remains in this browser.</p>{recovery?.previousAvailable ? <Button disabled={recoveryBusy} variant="outline" onClick={() => void downloadRecovery('previous')}>Download previous recovery data</Button> : null}{recovery?.quarantinedAvailable ? <Button disabled={recoveryBusy} variant="outline" onClick={() => void downloadRecovery('quarantine')}>Download unreadable recovery data</Button> : null}</div> : null}
+        {hasRecovery ? <div className="grid gap-2"><p className="text-[var(--cf-text-muted)]">Raw recovery JSON preserves saved workspace bytes for repair. It is not a complete portable package: referenced artwork remains in this browser.</p>{recovery?.previousAvailable ? <Button disabled={recoveryBusy} variant="outline" onClick={() => void downloadRecovery('previous')}>Download previous recovery data</Button> : null}{recovery?.quarantinedAvailable ? <Button disabled={recoveryBusy} variant="outline" onClick={() => void downloadRecovery('quarantine')}>Download unreadable recovery data</Button> : null}</div> : null}
         <DialogFooter><Button ref={closeButton} type="button" variant="outline" onClick={() => setRecoveryOpen(false)}>Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
