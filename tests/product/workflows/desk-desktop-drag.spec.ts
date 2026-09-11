@@ -87,14 +87,40 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page).toHaveURL(/\/account(?:\?|$)/);
   });
 
-  test('@golden Desk delete menu removes the exact device Set and persists after reload', async ({ page }) => {
+  test('@golden Desk action menu exposes truthful actions, hands off focus cleanly, and persists deletion', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
 
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
+    const actionsTrigger = page.getByRole('button', { name: 'Actions for 100 Card Scale Set' });
     await expect(setObject).toBeVisible();
-    await page.getByRole('button', { name: 'Actions for 100 Card Scale Set' }).click();
+
+    await actionsTrigger.click();
+    const menu = page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem')).toHaveCount(7);
+    await expect(menu.getByRole('menuitem', { name: 'Open Set' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Generate cards' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /^Save & move/ })).toHaveAttribute('aria-disabled', 'true');
+    await expect(menu.getByRole('menuitem', { name: 'Send to Pipeline' })).toHaveCount(0);
+    await expect(menu.getByRole('menuitem', { name: 'Duplicate' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Output' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Details' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Delete device copy' })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(actionsTrigger).toBeFocused();
+
+    await actionsTrigger.click();
+    await page.getByRole('menuitem', { name: 'Details' }).click();
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(page.getByRole('complementary', { name: 'Details for 100 Card Scale Set' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close details for 100 Card Scale Set' }).click();
+
+    await actionsTrigger.click();
     await page.getByRole('menuitem', { name: 'Delete device copy' }).click();
+    await expect(page.getByRole('menu')).toHaveCount(0);
     await expect(page.getByRole('alertdialog')).toContainText('Delete this Set from this device?');
     await page.getByRole('button', { name: 'Delete local Set' }).click();
     await expect(setObject).toHaveCount(0);
