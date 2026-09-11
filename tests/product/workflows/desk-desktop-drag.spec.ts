@@ -21,6 +21,7 @@ test.describe('Desk desktop spatial interaction', () => {
 
     await expect(setButton).toBeVisible();
     await expect(viewport).not.toHaveAttribute('data-arrange-mode', 'true');
+    await expect(page.getByRole('button', { name: /^Move$/ })).toHaveCount(0);
     await expect(setButton).toHaveAttribute('title', /Drag to move/);
     await expect.poll(() => setButton.evaluate((node) => getComputedStyle(node).cursor)).toBe('grab');
 
@@ -66,5 +67,58 @@ test.describe('Desk desktop spatial interaction', () => {
         y: Number.parseFloat(style.getPropertyValue('--desk-y')),
       };
     })).toEqual(after);
+  });
+
+  test('@golden Desk shell removes duplicate account tiles and opens Storage in context', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 12);
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    await expect(page.getByPlaceholder('Search Desk work')).toBeVisible();
+    await expect(page.getByPlaceholder('Find work')).toHaveCount(0);
+    await expect(page.getByText('Access', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Connections', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Security', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/12 open projects/)).toBeVisible();
+
+    const storage = page.getByRole('button', { name: /Storage/ }).first();
+    await expect(storage).toBeVisible();
+    await storage.click();
+    await expect(page.getByRole('heading', { name: 'Locations & connections' })).toBeVisible();
+    await expect(page).toHaveURL(/\/account(?:\?|$)/);
+  });
+
+  test('@golden Desk delete menu removes the exact device Set and persists after reload', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 8);
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    const setObject = page.locator('[data-desk-set-object-id="set:scale-set-8"]');
+    await expect(setObject).toBeVisible();
+    await page.getByRole('button', { name: 'Actions for 8 Card Scale Set' }).click();
+    await page.getByRole('menuitem', { name: 'Delete device copy' }).click();
+    await expect(page.getByRole('alertdialog')).toContainText('Delete this Set from this device?');
+    await page.getByRole('button', { name: 'Delete local Set' }).click();
+    await expect(setObject).toHaveCount(0);
+
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+    await expect(page.locator('[data-desk-set-object-id="set:scale-set-8"]')).toHaveCount(0);
+  });
+
+  test('@golden focused Set fills narrow desktop viewport without document overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 929, height: 650 });
+    await seedGuestScaleWorkspace(page, 10);
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    await page.getByRole('button', { name: /^(Select|Selected) 10 Card Scale Set/ }).dblclick();
+    const board = page.locator('[data-desk-set-board]');
+    await expect(board).toBeVisible();
+    await expect(page.getByPlaceholder('Search cards in this Set')).toBeVisible();
+    await expect(page.getByPlaceholder('Search cards')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+
+    const boardBox = await board.boundingBox();
+    const mainBox = await page.locator('main[data-scene-viewport]').boundingBox();
+    expect(boardBox).not.toBeNull();
+    expect(mainBox).not.toBeNull();
+    expect(boardBox!.width).toBeGreaterThan(mainBox!.width * 0.92);
   });
 });
