@@ -14,9 +14,9 @@ import {
   referenceCardForgeProjectSnapshotAssets,
 } from '@/features/project/client/package-core';
 
-const MAX_AUTOMATIC_PREVIEW_PROJECTS = 6;
-const MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES = 32 * 1024 * 1024;
-const PREVIEW_WORKERS = 2;
+const MAX_AUTOMATIC_PREVIEW_PROJECTS = 3;
+const MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES = 12 * 1024 * 1024;
+const MAX_AUTOMATIC_PREVIEW_TOTAL_BYTES = 24 * 1024 * 1024;
 
 const base64UrlPngToDataUrl = (value: string): string => {
   const base64 = value.replace(/-/gu, '+').replace(/_/gu, '/');
@@ -67,45 +67,60 @@ const createCompatibilityPreview = async (project: GoogleDriveProjectSummary): P
   }
 };
 
+const automaticPreviewCandidates = (projects: readonly GoogleDriveProjectSummary[]): GoogleDriveProjectSummary[] => {
+  const candidates: GoogleDriveProjectSummary[] = [];
+  let totalBytes = 0;
+  for (const project of projects) {
+    if (project.thumbnailLink
+      || project.capabilities?.canDownload === false
+      || project.size <= 0
+      || project.size > MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES
+      || totalBytes + project.size > MAX_AUTOMATIC_PREVIEW_TOTAL_BYTES) continue;
+    candidates.push(project);
+    totalBytes += project.size;
+    if (candidates.length >= MAX_AUTOMATIC_PREVIEW_PROJECTS) break;
+  }
+  return candidates;
+};
+
+const shouldWarmCompatibilityPreviews = (): boolean => {
+  if (document.visibilityState === 'hidden') return false;
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  return connection?.saveData !== true;
+};
+
 const warmMissingPreviews = async (): Promise<boolean> => {
+  if (!shouldWarmCompatibilityPreviews()) return false;
   const library = await loadGoogleDriveProjectLibrary();
   if (!library.connection.connected) return false;
 
-  const candidates = library.projects
-    .filter((project) => !project.thumbnailLink
-      && project.capabilities?.canDownload !== false
-      && project.size > 0
-      && project.size <= MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES)
-    .slice(0, MAX_AUTOMATIC_PREVIEW_PROJECTS);
+  const candidates = automaticPreviewCandidates(library.projects);
   if (!candidates.length) return false;
 
-  let nextIndex = 0;
   let changed = false;
-  const worker = async () => {
-    while (nextIndex < candidates.length) {
-      const project = candidates[nextIndex++];
-      if (!project) continue;
-      try {
-        const dataUrl = await createCompatibilityPreview(project);
-        if (!dataUrl) continue;
-        cacheGoogleDriveProjectPreview(project, dataUrl);
-        changed = true;
-      } catch (error) {
-        // Preview compatibility must never turn a readable Drive source into a
-        // failed source. The native provider fallback remains available.
-        console.info('CardForge could not prepare a compatibility Drive preview:', error);
-      }
+  // Serialize package reads. Native Drive thumbnails remain the fast path; this
+  // compatibility work must stay gentle enough for a phone or metered network.
+  for (const project of candidates) {
+    try {
+      const dataUrl = await createCompatibilityPreview(project);
+      if (!dataUrl) continue;
+      cacheGoogleDriveProjectPreview(project, dataUrl);
+      changed = true;
+    } catch (error) {
+      // Preview compatibility must never turn a readable Drive source into a
+      // failed source. The native provider fallback remains available.
+      console.info('CardForge could not prepare a compatibility Drive preview:', error);
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(PREVIEW_WORKERS, candidates.length) }, () => worker()));
+  }
   return changed;
 };
 
 /**
  * Older CardForge Drive files may predate native contentHints thumbnails.
- * Warm a small bounded visual cache in the background, then reuse the existing
- * project-Library refresh signal so Desk and Library repaint without importing
- * those files into editable browser work or blocking the workspace.
+ * Warm a small revision-keyed visual cache in the background, then reuse the
+ * existing project-Library refresh signal so Desk and Library repaint without
+ * importing those files into editable browser work or blocking the workspace.
+ * Data-saver/hidden pages skip this optional compatibility read entirely.
  */
 export function GoogleDrivePreviewWarmupBoundary({
   enabled,
