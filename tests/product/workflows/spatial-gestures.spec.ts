@@ -13,6 +13,11 @@ test.describe('spatial touch workspace', () => {
       const b = (await locator.boundingBox())!;
       return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
     };
+    const storage = page.getByTitle('Open Locations & connections');
+    await expect(storage).toBeVisible();
+    await storage.tap();
+    await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Done', exact: true }).tap();
     const desk = page.locator('[data-desk-viewport]');
     await expect(desk).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
