@@ -156,6 +156,14 @@
   flex: 1 1 auto;
 }
 
+/* Mobile feature CSS used to reserve 3.75rem inside the world for the old
+   overlaid toolbar. The toolbar now lives outside the camera, so the world
+   begins at the viewport origin on every device. */
+[data-desk-viewport] > div:first-child {
+  min-height: 100% !important;
+  margin-top: 0 !important;
+}
+
 /* The logical world and viewport share one visual surface. World bounds still
    constrain placement and camera math, but they are not drawn as a second Desk
    floating inside the workspace. */
