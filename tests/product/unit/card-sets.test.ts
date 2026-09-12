@@ -29,20 +29,21 @@ const card: StoredDisplayCard = {
 const set: CardSet = {
   id: 'set-clash',
   name: 'Clash of Fists',
+  templateIds: ['template-front'],
 };
 
 describe('first-class local card sets', () => {
   it('promotes legacy card membership into set records without duplicating ids', () => {
     const result = reconcileCardSets({
       cardSets: [],
-      activeCardSet: set,
+      activeCardSet: { id: set.id, name: set.name },
       storedCards: [card, { ...card, uniqueId: 'card-2' }],
     });
     expect(result).toEqual([set]);
     expect(resolveActiveCardSet({ cardSets: result, preferredId: set.id })).toEqual(set);
   });
 
-  it('upgrades legacy version-1 project files by deriving their set registry', () => {
+  it('upgrades legacy version-1 project files by deriving their set registry and Template references', () => {
     const parsed = parseProjectDocumentValue({
       version: 1,
       userTemplates: [template],
