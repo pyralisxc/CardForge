@@ -87,7 +87,7 @@ test.describe('mobile Library location tools', () => {
     const status = page.getByRole('contentinfo', { name: 'Environment status', exact: true });
     await expect(status).toBeVisible();
     await expect(status.getByText('Saved', { exact: true })).toBeVisible();
-    await expect(status.getByText('Private creator desk', { exact: true })).toHaveCount(0);
+    await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
 
     const storageStatus = page.getByTitle('Open Locations & connections');
     await expectTouchTarget(storageStatus);
