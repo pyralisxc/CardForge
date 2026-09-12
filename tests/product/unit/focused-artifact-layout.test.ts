@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { ArtifactIdentity } from '@/domain/artifacts';
 import {
   buildFocusedArtifactLayout,
+  FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH,
   getArtifactSelectionScope,
+  getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
@@ -56,6 +58,25 @@ describe('focused Artifact spatial layout', () => {
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 100, availableWidth: 1_000 })).toMatchObject({
       density: 'dense', width: 112, height: 164,
     });
+  });
+
+  it('keeps fitted large Sets readable instead of shrinking every Artifact into the viewport', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'grid',
+      minimumWidth: 960,
+      minimumHeight: 640,
+      groups: [{ label: 'All Artifacts', artifacts: artifacts(100) }],
+    });
+    const fitZoom = getFocusedArtifactFitZoom({
+      layout,
+      viewportWidth: 320,
+      viewportHeight: 640,
+    });
+
+    expect(layout.density).toBe('dense');
+    expect(layout.artifactWidth * fitZoom).toBeGreaterThanOrEqual(FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH);
+    expect(layout.width * fitZoom).toBeGreaterThan(320);
+    expect(layout.height * fitZoom).toBeGreaterThan(640);
   });
 
   it('compacts stacks one density step and consolidates them by overlap', () => {
