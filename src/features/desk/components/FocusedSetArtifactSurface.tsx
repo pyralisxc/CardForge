@@ -97,6 +97,7 @@ export function FocusedSetArtifactSurface({
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
   const fittedSetIdRef = useRef<string | null>(null);
   const cameraModeRef = useRef<SetCameraMode>('fit');
+  const relativeZoomRef = useRef(1);
   const suppressCameraScrollRef = useRef(false);
   const undoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const redoStackRef = useRef<SpatialHistoryEntry[]>([]);
@@ -139,7 +140,10 @@ export function FocusedSetArtifactSurface({
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
   const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  const useDetailedPreview = projectedEntries.length <= 48 || relativeZoom >= 1.3;
+  // Projection already bounds mounted work. Preserve real previews for a normal
+  // Set-sized viewport so visual/template identity does not disappear merely
+  // because the camera is fitted; very large projections still fall back to LOD.
+  const useDetailedPreview = projectedEntries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -179,6 +183,7 @@ export function FocusedSetArtifactSurface({
     if (fittedSetIdRef.current !== setId) {
       fittedSetIdRef.current = setId;
       cameraModeRef.current = 'fit';
+      relativeZoomRef.current = 1;
     }
 
     if (cameraModeRef.current === 'fit') {
@@ -193,9 +198,14 @@ export function FocusedSetArtifactSurface({
       return;
     }
 
+    const customZoom = Math.max(fitZoom, Math.min(Math.max(2, fitZoom * 3), fitZoom * relativeZoomRef.current));
+    if (!nearlyEqual(customZoom, session.camera.zoom)) {
+      setSession((current) => setCreatorCamera(current, { ...current.camera, zoom: customZoom }));
+      return;
+    }
     viewport.scrollTo({
-      left: session.camera.x * session.camera.zoom,
-      top: session.camera.y * session.camera.zoom,
+      left: session.camera.x * customZoom,
+      top: session.camera.y * customZoom,
       behavior: 'auto',
     });
     // Scroll is the camera's physical owner. Do not write each scroll event back
@@ -395,6 +405,7 @@ export function FocusedSetArtifactSurface({
   const applyFit = () => {
     const node = viewportRef.current;
     cameraModeRef.current = 'fit';
+    relativeZoomRef.current = 1;
     setSession((current) => setCreatorCamera(current, { x: 0, y: 0, zoom: fitZoom }));
     if (node) {
       suppressCameraScrollRef.current = true;
@@ -417,6 +428,7 @@ export function FocusedSetArtifactSurface({
     const x = (node.scrollLeft + previous.x) / session.camera.zoom - local.x / normalized;
     const y = (node.scrollTop + previous.y) / session.camera.zoom - local.y / normalized;
     cameraModeRef.current = nearlyEqual(normalized, fitZoom) ? 'fit' : 'custom';
+    relativeZoomRef.current = normalized / fitZoom;
     if (normalized === session.camera.zoom) node.scrollTo({ left: Math.max(0, x) * normalized, top: Math.max(0, y) * normalized });
     setSession((current) => setCreatorCamera(current, { x: Math.max(0, x), y: Math.max(0, y), zoom: normalized }));
   };
@@ -508,6 +520,7 @@ export function FocusedSetArtifactSurface({
         onScroll={(event) => {
           if (suppressCameraScrollRef.current) return;
           cameraModeRef.current = 'custom';
+          relativeZoomRef.current = session.camera.zoom / fitZoom;
           const viewport = event.currentTarget;
           setSession((current) => setCreatorCamera(current, {
             ...current.camera,
@@ -557,6 +570,7 @@ export function FocusedSetArtifactSurface({
                   onDoubleClick={() => focusArtifact(artifactId)}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
+                    if (event.detail >= 2) { focusArtifact(artifactId); return; }
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
