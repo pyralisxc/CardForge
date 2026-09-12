@@ -10,9 +10,30 @@ export interface TemplateSaveImpact {
   requiresReview: boolean;
 }
 
-const contractFields = (template: TCGCardTemplate | null | undefined) => (
-  template ? extractTemplateFieldDefinitions(template).filter((field) => !field.isStaticBaseText) : []
-);
+type ContractField = { key: string; required: boolean };
+
+/**
+ * Save impact follows the Template contract, not only the fields currently
+ * discoverable from rendered canvas bindings. Older Templates can infer fields
+ * from placeholders while newer authored Templates may already carry an
+ * explicit contract before a canvas element is bound. The union keeps both
+ * representations safe while letting resolved field definitions override the
+ * raw contract when both exist.
+ */
+const contractFields = (template: TCGCardTemplate | null | undefined): ContractField[] => {
+  if (!template) return [];
+  const fields = new Map<string, ContractField>();
+  for (const contract of template.fieldContracts ?? []) {
+    const key = contract.key?.trim();
+    if (!key) continue;
+    fields.set(key, { key, required: contract.required === true });
+  }
+  for (const field of extractTemplateFieldDefinitions(template)) {
+    if (field.isStaticBaseText) continue;
+    fields.set(field.key, { key: field.key, required: field.required });
+  }
+  return [...fields.values()];
+};
 
 export const buildTemplateSaveImpact = ({
   previous,
