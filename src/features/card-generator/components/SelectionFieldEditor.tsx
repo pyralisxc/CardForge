@@ -51,9 +51,9 @@ export function SelectionFieldEditor({
 
   if (!cards.length) return null;
   if (!sameFront) {
-    return <section className="space-y-4 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
-      <div><h3 className="font-semibold text-[var(--cf-text-strong)]">Edit one design group at a time</h3><p className="mt-1 text-sm text-[var(--cf-text-muted)]">The selection uses more than one front Template. CardForge will not guess that same-named fields across different designs mean the same thing.</p></div>
-      <Button type="button" variant="outline" onClick={onUpdateFromData}><Database className="mr-2 h-4 w-4" />Update from data instead</Button>
+    return <section className="space-y-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
+      <h3 className="font-semibold text-[var(--cf-text-strong)]">Edit one design group at a time</h3>
+      <p className="text-sm leading-6 text-[var(--cf-text-muted)]">The selection uses more than one front Template. CardForge will not guess that same-named fields across different designs mean the same thing. Select Artifacts using one Template, then Edit selected.</p>
     </section>;
   }
 
