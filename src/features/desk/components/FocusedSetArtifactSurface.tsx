@@ -17,6 +17,7 @@ import { ArtifactSlot, getTemplateAccent, useArtifactFaces, useSpatialGestures, 
 
 import {
   buildFocusedArtifactLayout,
+  getFocusedArtifactFitZoom,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
   type FocusedArtifactLayoutEntry,
@@ -125,10 +126,14 @@ export function FocusedSetArtifactSurface({
   const layout = useMemo(() => buildFocusedArtifactLayout({
     arrangement: organization.arrangement,
     groups: layoutGroups,
-    minimumWidth: Math.max(1, viewportSize.width),
+    minimumWidth: Math.max(960, viewportSize.width),
     minimumHeight: Math.max(1, viewportSize.height),
   }), [layoutGroups, organization.arrangement, viewportSize.height, viewportSize.width]);
-  const fitZoom = useMemo(() => Math.max(0.2, Math.min(1, viewportSize.width / layout.width, viewportSize.height / layout.height)), [layout.height, layout.width, viewportSize.height, viewportSize.width]);
+  const fitZoom = useMemo(() => getFocusedArtifactFitZoom({
+    layout,
+    viewportWidth: viewportSize.width,
+    viewportHeight: viewportSize.height,
+  }), [layout, viewportSize.height, viewportSize.width]);
   const relativeZoom = session.camera.zoom / fitZoom;
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
   const visibleEntries = useMemo(() => projectVisibleArtifacts(layout, {
