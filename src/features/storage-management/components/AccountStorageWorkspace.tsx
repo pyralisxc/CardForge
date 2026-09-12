@@ -77,11 +77,6 @@ export function LibraryStorageConnectionsTool({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!mobileDetail) return;
-    containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [mobileDetail, selectedId]);
-
   const locations = useMemo<StorageToolLocation[]>(() => [
     {
       id: 'browser-workspace', kind: 'storage-location', eyebrow: 'Browser-owned', title: 'This device',
@@ -137,7 +132,7 @@ export function LibraryStorageConnectionsTool({
       ref={containerRef}
       aria-label="Storage and connections"
       data-storage-connections-scroll
-      className="h-full min-h-0 min-w-0 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] [&_a]:min-h-11 [&_button]:min-h-11 md:pb-4"
+      className="min-h-full min-w-0 p-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] [&_a]:min-h-11 [&_button]:min-h-11 md:pb-4"
     >
       {mobileDetail && selected ? <StorageToolDetail location={selected} onClose={closeDetail} /> : <div className={`grid min-w-0 gap-5 ${mobileDetail ? '' : 'grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]'}`}>
         <div className="min-w-0">
