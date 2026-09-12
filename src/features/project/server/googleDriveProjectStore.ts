@@ -554,12 +554,22 @@ const getDriveFolderMetadata = async ({
   return folder;
 };
 
+/**
+ * The exact CardForge MIME type and selected-folder parent establish the provider
+ * boundary for an explicitly authorized Drive file. `cardforgeProject=1` is
+ * metadata written by modern CardForge saves, but older valid packages predate
+ * that marker. Requiring it here made Picker-authorized legacy projects vanish
+ * from a shared folder even though Drive had already granted per-file access.
+ * The package decoder remains authoritative before editable content is opened.
+ */
+export const isGoogleDriveProjectFileInFolder = (
+  file: Pick<GoogleDriveFile, 'mimeType' | 'parents'>,
+  rootFolderId: string,
+): boolean => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.parents?.includes(rootFolderId) === true;
+
 const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: string): Promise<GoogleDriveProjectSummary> => {
   const summary = await toProjectSummary(file);
-  if (!summary
-    || file.mimeType !== GOOGLE_DRIVE_PROJECT_MIME_TYPE
-    || file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] !== GOOGLE_DRIVE_PROJECT_VALUE
-    || !file.parents?.includes(rootFolderId)) {
+  if (!summary || !isGoogleDriveProjectFileInFolder(file, rootFolderId)) {
     throw new ProjectStorageProviderError('That Google Drive file is not a CardForge project in this connected folder.', 404, { kind: 'not_found' });
   }
   return summary;
@@ -600,7 +610,7 @@ export const listGoogleDriveProjectsPage = async ({
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not list Google Drive projects.');
   const payload = await response.json() as { files?: GoogleDriveFile[]; nextPageToken?: unknown };
   const projects = (await Promise.all((payload.files ?? [])
-    .filter((file) => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] === GOOGLE_DRIVE_PROJECT_VALUE)
+    .filter((file) => isGoogleDriveProjectFileInFolder(file, row.root_folder_id))
     .map(toProjectSummary)))
     .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary))
     .map((summary) => ({ ...summary, accountId: row.external_account_id }));
