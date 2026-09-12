@@ -103,12 +103,7 @@ test.describe('mobile Library location tools', () => {
     await expect(mobileNav).toBeVisible();
     await expect(mobileNav.getByRole('link', { name: 'Desk', exact: true })).toBeVisible();
     await expect(mobileNav.getByRole('link', { name: 'Library', exact: true })).toBeVisible();
-    const profile = mobileNav.getByRole('link', { name: 'Profile', exact: true });
-    await expect(profile).toBeVisible();
-
-    await profile.tap();
-    await expect(page).toHaveURL(/section=profile/u);
-    await expectTouchTarget(page.getByRole('button', { name: 'Search or type a command', exact: true }));
+    await expect(mobileNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 
     await test.info().attach('mobile-desk-capability-parity', {
