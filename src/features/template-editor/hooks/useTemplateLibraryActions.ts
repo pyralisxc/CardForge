@@ -12,8 +12,7 @@ import {
   type AppearanceStylePreset,
   type TCGCardTemplate,
 } from '@/domain/templates';
-import type { TemplateCommitChangeInput } from '@/features/project/store/types';
-import { useProjectStore, selectAllTemplates } from '@/features/project/client/workspace';
+import { useProjectStore, selectAllTemplates, type TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
 import { requireOkResponse } from '@/infrastructure/http/clientResponses';
 import { buildTemplateSaveImpact, type TemplateSaveImpact } from '../lib/templateSaveImpact';
