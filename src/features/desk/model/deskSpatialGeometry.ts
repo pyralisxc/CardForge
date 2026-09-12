@@ -1,9 +1,6 @@
 export const DESK_WORLD_WIDTH = 1200;
 export const DESK_WORLD_HEIGHT = 720;
-export const DESK_WORLD_TOOLBAR_CLEARANCE = 86;
-export const DESK_MIN_ZOOM = 0.25;
-export const DESK_MAX_ZOOM = 1.25;
-export const DESK_MOBILE_EXPLORATION_ZOOM = 0.68;
+export const DESK_MAX_RELATIVE_ZOOM = 3;
 
 export interface DeskWorldPosition {
   x: number;
@@ -48,7 +45,7 @@ export const normalizeDeskWorldPosition = (value: unknown, fallbackZ = 0): DeskW
   if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return null;
   return {
     x: clamp(Math.round(finite(candidate.x)), 0, DESK_WORLD_WIDTH),
-    y: clamp(Math.round(finite(candidate.y)), DESK_WORLD_TOOLBAR_CLEARANCE, DESK_WORLD_HEIGHT),
+    y: clamp(Math.round(finite(candidate.y)), 0, DESK_WORLD_HEIGHT),
     z: clamp(Math.round(finite(candidate.z, fallbackZ)), 0, 10_000),
   };
 };
@@ -80,15 +77,24 @@ export const getDeskWorldProjection = (viewport: DeskViewport) => {
   return { scale, offsetX, offsetY };
 };
 
+/**
+ * The Desk has one bounded world. Fit is its minimum useful camera scale: the
+ * whole Desk is visible and panning is unnecessary. Custom zoom only moves
+ * inward from that fitted state, so there is never an off-Desk exploration
+ * area to navigate into.
+ */
 export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: number) => {
   const width = Math.max(1, viewport.width);
   const height = Math.max(1, viewport.height);
-  const zoom = clamp(requestedZoom, DESK_MIN_ZOOM, DESK_MAX_ZOOM);
+  const projection = getDeskWorldProjection(viewport);
+  const fitZoom = Math.max(Number.EPSILON, projection.scale);
+  const zoom = clamp(requestedZoom, fitZoom, fitZoom * DESK_MAX_RELATIVE_ZOOM);
   const worldWidth = DESK_WORLD_WIDTH * zoom;
   const worldHeight = DESK_WORLD_HEIGHT * zoom;
   return {
     zoom,
-    fitZoom: clamp(getDeskWorldProjection(viewport).scale, DESK_MIN_ZOOM, DESK_MAX_ZOOM),
+    fitZoom,
+    relativeZoom: zoom / fitZoom,
     offsetX: Math.max(0, (width - worldWidth) / 2),
     offsetY: Math.max(0, (height - worldHeight) / 2),
     surfaceWidth: Math.max(width, worldWidth),
@@ -118,7 +124,7 @@ export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition =>
   const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
   return {
     x: clamp(slot.x + pile * 18, 0, DESK_WORLD_WIDTH),
-    y: clamp(slot.y + pile * 16, DESK_WORLD_TOOLBAR_CLEARANCE, DESK_WORLD_HEIGHT),
+    y: clamp(slot.y + pile * 16, 0, DESK_WORLD_HEIGHT),
     z: safeIndex,
   };
 };
@@ -150,7 +156,7 @@ export const collectDeskWorldItems = ({
   return [{
     id,
     x: stored?.x ?? Math.round((rect.left - bounds.left - projection.offsetX) / projection.scale),
-    y: stored?.y ?? Math.max(DESK_WORLD_TOOLBAR_CLEARANCE, Math.round((rect.top - bounds.top - projection.offsetY) / projection.scale)),
+    y: stored?.y ?? Math.max(0, Math.round((rect.top - bounds.top - projection.offsetY) / projection.scale)),
     z: stored?.z ?? index,
     width: Math.max(1, Math.round(rect.width / projection.scale)),
     height: Math.max(1, Math.round(rect.height / projection.scale)),
@@ -176,7 +182,7 @@ export const moveDeskWorldSelection = ({
   const maximumY = Math.max(...selected.map((item) => item.y + item.height));
   const place = (value: number) => Math.round(value / Math.max(1, snap)) * Math.max(1, snap);
   const dx = clamp(place(delta.x), -minimumX, DESK_WORLD_WIDTH - maximumX);
-  const dy = clamp(place(delta.y), DESK_WORLD_TOOLBAR_CLEARANCE - minimumY, DESK_WORLD_HEIGHT - maximumY);
+  const dy = clamp(place(delta.y), -minimumY, DESK_WORLD_HEIGHT - maximumY);
   return Object.fromEntries(selected.map((item) => [item.id, {
     x: Math.round(item.x + dx),
     y: Math.round(item.y + dy),
