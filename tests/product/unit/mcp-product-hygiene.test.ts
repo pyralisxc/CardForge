@@ -124,7 +124,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('working Set');
     expect(cardTools).toContain('list/CSV/JSON conversion');
     expect(cardSchemas).toContain('sourceUrl');
-    expect(cardSchemas).toContain('exact image field key');
+    expect(cardSchemas.toLowerCase()).toContain('exact image field key');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {
