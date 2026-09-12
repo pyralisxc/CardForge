@@ -136,7 +136,6 @@ export function CardTemplateMaker({
     && Boolean(currentTemplate.templateLineageId)
     && currentTemplate.templateLineageId === currentTemplate.templateOriginLineageId;
   const canSubmitExistingRevision = (isSharedTemplate || isSharedLineageDraft) && canSubmitSharedTemplateRevision;
-  const publishesSharedTemplateDirectly = canSubmitExistingRevision && canPublishSharedLibrary;
   const canSubmitNewTemplate = !isSharedTemplate && !isSharedLineageDraft && canSubmitSharedTemplateRevision;
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
