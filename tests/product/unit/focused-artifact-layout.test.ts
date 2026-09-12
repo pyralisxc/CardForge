@@ -4,6 +4,7 @@ import type { ArtifactIdentity } from '@/domain/artifacts';
 import {
   buildFocusedArtifactLayout,
   getArtifactSelectionScope,
+  getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
 } from '@/features/desk/model/focusedArtifactLayout';
@@ -14,18 +15,17 @@ const identity = (index: number): ArtifactIdentity => ({
   setId: 'set-scale',
 });
 
+const artifacts = (count: number) => Array.from({ length: count }, (_, index) => ({
+  identity: identity(index),
+  title: `Artifact ${index + 1}`,
+  subtitle: 'Card',
+  groupLabel: 'All Artifacts',
+}));
+
 const buildLayout = (count: number) => buildFocusedArtifactLayout({
   arrangement: 'grid',
   minimumWidth: 1_000,
-  groups: [{
-    label: 'All Artifacts',
-    artifacts: Array.from({ length: count }, (_, index) => ({
-      identity: identity(index),
-      title: `Artifact ${index + 1}`,
-      subtitle: 'Card',
-      groupLabel: 'All Artifacts',
-    })),
-  }],
+  groups: [{ label: 'All Artifacts', artifacts: artifacts(count) }],
 });
 
 describe('focused Artifact spatial layout', () => {
@@ -44,6 +44,36 @@ describe('focused Artifact spatial layout', () => {
       width: 900,
       height: 520,
     }).some((entry) => entry.identity.artifactId === last?.identity.artifactId)).toBe(true);
+  });
+
+  it('uses discrete presentation density instead of one hard-coded Artifact size', () => {
+    expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 8, availableWidth: 1_920 })).toMatchObject({
+      density: 'comfortable', width: 176, height: 256,
+    });
+    expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 30, availableWidth: 1_000 })).toMatchObject({
+      density: 'compact', width: 144, height: 210,
+    });
+    expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 100, availableWidth: 1_000 })).toMatchObject({
+      density: 'dense', width: 112, height: 164,
+    });
+  });
+
+  it('compacts stacks one density step and consolidates them by overlap', () => {
+    const grid = buildFocusedArtifactLayout({
+      arrangement: 'grid',
+      minimumWidth: 1_920,
+      groups: [{ label: 'All Artifacts', artifacts: artifacts(12) }],
+    });
+    const stack = buildFocusedArtifactLayout({
+      arrangement: 'stack',
+      minimumWidth: 1_920,
+      groups: [{ label: 'All Artifacts', artifacts: artifacts(12) }],
+    });
+
+    expect(grid.density).toBe('comfortable');
+    expect(stack.density).toBe('compact');
+    expect(stack.artifactWidth).toBeLessThan(grid.artifactWidth);
+    expect((stack.entries[1]?.position.x ?? 0) - (stack.entries[0]?.position.x ?? 0)).toBeLessThan(stack.artifactWidth);
   });
 
   it('moves a manual multi-selection together using camera-independent world coordinates', () => {
