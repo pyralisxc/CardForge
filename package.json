@@ -29,7 +29,7 @@
     "verify:affected": "npm run verify:focused",
     "verify:focused": "node scripts/report-affected-verification.mjs --run",
     "verify:full": "npm run lint && npm run typecheck && npm run test:product && npm run test:infrastructure && npm run test:inventory:check && npm run architecture:check && npm run migrations:check && npm run build",
-    "smoke:golden": "playwright test tests/product/workflows/desk-desktop-drag.spec.ts tests/product/workflows/desk-tool-context.spec.ts tests/product/workflows/spatial-gestures.spec.ts --grep @golden --workers=1",
+    "smoke:golden": "playwright test tests/product/workflows/desk-desktop-drag.spec.ts tests/product/workflows/desk-tool-context.spec.ts tests/product/workflows/mobile-library-locations.spec.ts tests/product/workflows/spatial-gestures.spec.ts --grep @golden --workers=1",
     "smoke:hosted": "playwright test --config playwright.hosted.config.ts --workers=1",
     "smoke:ui": "playwright test --workers=1",
     "smoke:scale": "playwright test artifact-scale-performance.spec.ts --workers=1",
