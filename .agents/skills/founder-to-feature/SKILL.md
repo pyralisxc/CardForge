@@ -11,6 +11,8 @@ Translate founder-level product intent into an implementation-ready behavioral c
 
 Cameron normally communicates through desired experience, analogy, frustration with current behavior, visual/use feedback, and short approvals. That is valid product input. Do not require him to specify state machines, persistence ownership, failure semantics, concurrency behavior, provider edge cases, or implementation structure when those can be derived from CardForge's current authorities.
 
+This skill is CardForge's **repo-local specialization** of the reusable Founder-to-Feature method. Cameron may also have a global/account-level version installed, but CardForge must not depend on it. When global and repo-local guidance differ, follow `AGENTS.md`, this repo skill, current CardForge code/provider state, and the canonical CardForge docs.
+
 This skill is a **pre-execution resolution gate**, not a second execution workflow. Once the feature is ready to build, hand the accepted contract to `.agents/skills/lean-repository-execution/SKILL.md`, which remains CardForge's sole execution workflow.
 
 Do not create a permanent feature-spec layer. Work inline by default. Durable truth belongs only in CardForge's existing canonical docs after the behavior is verified.
@@ -98,15 +100,16 @@ Implementation agents may choose local engineering details inside the contract, 
 
 Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the canonical authorities:
 
-- `docs/product-direction.md` — intended product model;
+- `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
+- `docs/product-surface-map.md` — canonical placement and shipped-versus-direction surface status;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.
 
 Use current code and live provider state where they are authoritative. Git history is evidence, not current specification.
 
-Do not reconstruct a feature contract from old PR prose when current truth answers the question.
+Do not reconstruct a feature contract from old PR prose or historical audit reports when current truth answers the question.
 
 ### 2. Prove ownership before adding state
 
@@ -232,6 +235,7 @@ Promote only verified durable truth into its existing canonical owner:
 
 - `docs/product-direction.md` for durable product meaning or intended model;
 - `docs/architecture.md` for shipped ownership, identity, persistence, and architectural invariants;
+- `docs/product-surface-map.md` for canonical placement and shipped-versus-direction surface status;
 - `docs/integrations.md` for intentional provider seams and supported provider journeys;
 - `docs/operations.md` for durable operational/release procedure;
 - `docs/risk-register.md` for unresolved material risk;
@@ -242,7 +246,7 @@ Use **promote, consolidate, replace**:
 1. update the existing canonical section where the truth belongs;
 2. merge overlapping rules instead of appending another version;
 3. remove or revise superseded language so current docs do not contradict themselves;
-4. do not preserve temporary alternatives, implementation diaries, rejected approaches, or feature-specific reasoning as permanent doctrine;
+4. do not preserve temporary alternatives, implementation diaries, audit reports, rejected approaches, or feature-specific reasoning as permanent doctrine;
 5. do not create a new permanent document when an existing authority can own the information.
 
 Git history preserves archaeology. Living documentation must describe current truth.
