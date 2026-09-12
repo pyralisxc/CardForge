@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { PendingTemplateRetarget } from '@/features/creator-workbench/hooks/useTemplateStudioHandoffs';
-import type { PendingTemplateSaveImpact } from '@/features/template-editor/hooks/useTemplateLibraryActions';
+import type { PendingTemplateSaveImpact } from '@/features/template-editor/client';
 import type { ProjectImportMode, ProjectImportPreview } from '@/features/project/client/ui';
 
 interface StudioConfirmationDialogsProps {
