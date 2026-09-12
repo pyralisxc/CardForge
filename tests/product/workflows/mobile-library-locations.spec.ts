@@ -80,8 +80,9 @@ test.describe('mobile Library location tools', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
-    await expect(toolbar.getByRole('button', { name: 'Open Desk filters', exact: true })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
+    const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
+    await expectTouchTarget(filters);
+    await expectTouchTarget(toolbar.getByRole('button', { name: 'Desk view controls', exact: true }));
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
 
     const status = page.locator('footer[aria-label="Environment status"]');
