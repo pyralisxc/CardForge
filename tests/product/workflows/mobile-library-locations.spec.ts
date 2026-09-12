@@ -84,7 +84,7 @@ test.describe('mobile Library location tools', () => {
     await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
 
-    const status = page.getByRole('contentinfo', { name: 'Environment status', exact: true });
+    const status = page.locator('footer[aria-label="Environment status"]');
     await expect(status).toBeVisible();
     await expect(status.getByText('Saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
@@ -107,7 +107,7 @@ test.describe('mobile Library location tools', () => {
 
     await profile.tap();
     await expect(page).toHaveURL(/section=profile/u);
-    await expectTouchTarget(page.getByRole('button', { name: 'Open commands', exact: true }));
+    await expectTouchTarget(page.getByRole('button', { name: 'Search or type a command', exact: true }));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 
     await test.info().attach('mobile-desk-capability-parity', {
