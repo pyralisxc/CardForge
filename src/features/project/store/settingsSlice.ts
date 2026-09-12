@@ -61,14 +61,10 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
   createCardSet: (name) => {
     const id = `set-${nanoid()}`;
-    set((state) => {
-      const nextSet: CardSet = {
-        id,
-        name: name?.trim() || 'Untitled Set',
-        templateIds: [],
-      };
-      return activateCardSet(state, nextSet);
-    });
+    set((state) => activateCardSet(state, {
+      id,
+      name: name?.trim() || 'Untitled Set',
+    }));
     return id;
   },
   setActiveCardSetId: (id) => set((state) => {
@@ -224,32 +220,20 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     });
     return true;
   },
-  setGeneratorSelectedTemplateId: (id) => set((state) => {
-    const nextState: Partial<ProjectState> = {
-      generatorSelectedTemplateId: id,
-      generatorSelectedBackingTemplateId: getCompatibleBackingId(
-        state,
-        id,
-        state.generatorSelectedBackingTemplateId,
-      ),
-    };
-    if (id && state.activeCardSet) {
-      const activeCardSet = withTemplateReference(state.activeCardSet, id);
-      nextState.activeCardSet = activeCardSet;
-      nextState.cardSets = upsertCardSet(state.cardSets, activeCardSet);
-    }
-    return nextState;
-  }),
-  setGeneratorSelectedBackingTemplateId: (id) => set((state) => {
-    const compatibleId = getCompatibleBackingId(state, state.generatorSelectedTemplateId, id);
-    const nextState: Partial<ProjectState> = { generatorSelectedBackingTemplateId: compatibleId };
-    if (compatibleId && state.activeCardSet) {
-      const activeCardSet = withTemplateReference(state.activeCardSet, compatibleId);
-      nextState.activeCardSet = activeCardSet;
-      nextState.cardSets = upsertCardSet(state.cardSets, activeCardSet);
-    }
-    return nextState;
-  }),
+  // Choosing a Generator option is only transient tool state. A Set begins
+  // referencing a Template when the design is actually saved into that Set or
+  // an Artifact using it is generated/moved there.
+  setGeneratorSelectedTemplateId: (id) => set((state) => ({
+    generatorSelectedTemplateId: id,
+    generatorSelectedBackingTemplateId: getCompatibleBackingId(
+      state,
+      id,
+      state.generatorSelectedBackingTemplateId,
+    ),
+  })),
+  setGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
+    generatorSelectedBackingTemplateId: getCompatibleBackingId(state, state.generatorSelectedTemplateId, id),
+  })),
   setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),
   setPdfOptions: (options) => set((state) => ({
     pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
