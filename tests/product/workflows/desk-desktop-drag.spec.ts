@@ -95,7 +95,7 @@ test.describe('Desk desktop spatial interaction', () => {
 
     await page.setViewportSize({ width: 800, height: 720 });
     await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
+    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   });
 
