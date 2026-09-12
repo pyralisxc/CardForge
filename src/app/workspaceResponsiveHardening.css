@@ -217,11 +217,20 @@
     min-height: 2.7rem !important;
   }
 
-  /* The mobile toolbar is Filters + one compact View menu. Its disclosure may
-     escape the rail; view/camera/grid controls collapse rather than overflowing. */
+  /* The visible local search was retired, so the old three-column toolbar was
+     leaving an empty first column. Compact Desk is now exactly Filters + View. */
   [data-desk-toolbar] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
     min-height: 2.7rem;
     overflow: visible !important;
+  }
+
+  [data-mobile-desk-filters] {
+    grid-column: 1 !important;
+  }
+
+  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+    grid-column: 2 !important;
   }
 
   [data-storage-connections-scroll] {
