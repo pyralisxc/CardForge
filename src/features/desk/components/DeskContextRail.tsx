@@ -7,13 +7,10 @@ import {
   Copy,
   Home,
   Info,
-  Maximize2,
-  Minus,
   MoreHorizontal,
   Move,
   Pencil,
   Pin,
-  Plus,
   Printer,
   Save,
   Trash2,
@@ -55,6 +52,7 @@ interface DeskContextRailProps {
   selectedArtifactCount: number;
   /** Kept for compatibility with older callers; open-project count now lives in the bottom status rail. */
   openWorkCount: number;
+  /** Desk camera controls live in the overview action rail, not the contextual header. */
   camera: DeskCamera;
   onBack: () => void;
   onReturnToDesk: () => void;
@@ -127,6 +125,11 @@ export function DeskContextRail(props: DeskContextRailProps) {
   const driveState = driveWorkingSession.state;
   const showDriveState = props.localSet && driveState.phase !== 'unlinked';
 
+  // The overview header is owned by search/account/primary action. Selection
+  // context appears here only when there is actual selected work to act on.
+  // Camera controls belong to the Desk action rail across every viewport size.
+  if (props.depth === 'desk' && props.selectedDeskCount === 0) return null;
+
   return (
     <div className={styles.contextRail} data-depth={props.depth} data-desk-context-rail>
       <nav className={styles.contextPath} aria-label="Creative context">
@@ -160,19 +163,15 @@ export function DeskContextRail(props: DeskContextRailProps) {
 
       <div className={styles.contextActions}>
         {props.depth === 'desk' ? <>
-          {props.selectedDeskCount ? <span className={styles.contextStatus}>{`${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected`}</span> : null}
-          {props.selectedDeskCount ? <Button type="button" size="sm" title="Open selected Set" onClick={props.onOpenSelectedSet}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Open</span></Button> : null}
-          {props.selectedDeskCount ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" title="Position selected Sets"><Move className="h-4 w-4" aria-hidden="true" /><span>Position</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          <span className={styles.contextStatus}>{`${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected`}</span>
+          <Button type="button" size="sm" title="Open selected Set" onClick={props.onOpenSelectedSet}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Open</span></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" title="Position selected Sets"><Move className="h-4 w-4" aria-hidden="true" /><span>Position</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: -24, y: 0 })}>Move selected Sets left</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: -24 })}>Move selected Sets up</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: 24 })}>Move selected Sets down</DropdownMenuItem>
             <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 24, y: 0 })}>Move selected Sets right</DropdownMenuItem>
-          </DropdownMenuContent></DropdownMenu> : null}
-          <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
-          <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
-          <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
-          <Button type="button" size="sm" variant="ghost" aria-label="Fit the whole Desk in view" title="Fit the whole Desk in view" onClick={props.camera.fit}><Maximize2 className="h-4 w-4" aria-hidden="true" /><span>Fit</span></Button>
-          {props.selectedDeskCount ? <Button type="button" size="icon" variant="ghost" onClick={props.onClearDeskSelection} aria-label="Clear Desk selection" title="Clear Desk selection"><X aria-hidden="true" /></Button> : null}
+          </DropdownMenuContent></DropdownMenu>
+          <Button type="button" size="icon" variant="ghost" onClick={props.onClearDeskSelection} aria-label="Clear Desk selection" title="Clear Desk selection"><X aria-hidden="true" /></Button>
         </> : null}
 
         {props.depth === 'set' ? <>
