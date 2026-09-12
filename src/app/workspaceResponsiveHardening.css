@@ -83,16 +83,60 @@
   grid-column: 2;
 }
 
-/* Desk controls are one compact action rail below the contextual top rail. */
+/* Desk selection is object state, not shell navigation. Selecting one or many
+   Sets must not manufacture a new top rail. Direct drag, keyboard commands,
+   double-click/open, and each Set's overflow menu own those interactions. */
+[data-desk-context-rail][data-depth="desk"] {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 0.4rem !important;
+  min-height: 3.4rem;
+  padding: 0.3rem 0.55rem;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :nth-child(2) {
+  grid-column: 1;
+  width: min(32rem, 100%);
+  min-width: 0;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :last-child {
+  grid-column: 2;
+}
+
+/* The whole remaining center rectangle is the Desk. Controls sit outside the
+   camera viewport instead of occupying logical world coordinates or covering
+   movable Sets. */
+[aria-label="CardForge Desk"] section[aria-label="Open Sets on Desk"] {
+  display: flex !important;
+  min-height: 0 !important;
+  flex: 1 1 auto;
+  flex-direction: column;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Desk controls are one compact action rail immediately above the camera. */
 [data-desk-toolbar] {
-  top: 0 !important;
-  right: 0 !important;
-  left: 0 !important;
+  position: relative !important;
+  z-index: 12;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
   max-width: none !important;
   min-height: 2.75rem;
+  flex: 0 0 auto;
   flex-wrap: nowrap !important;
   gap: 0.2rem !important;
   padding: 0.2rem 0.4rem !important;
+  border-top: 0 !important;
   border-right: 0 !important;
   border-left: 0 !important;
   box-shadow: none !important;
@@ -103,6 +147,21 @@
 
 [data-desk-toolbar]::-webkit-scrollbar {
   display: none;
+}
+
+[data-desk-viewport] {
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: 1 1 auto;
+}
+
+/* The logical world and viewport share one visual surface. World bounds still
+   constrain placement and camera math, but they are not drawn as a second Desk
+   floating inside the workspace. */
+[data-desk-viewport] > div > div[data-grid] {
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 /* There is one view-control capability with two presentations. Full controls
@@ -212,6 +271,12 @@
   [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :last-child {
     grid-column: 2;
     min-width: 0;
+  }
+
+  /* Desk-depth selection is intentionally rail-less on every viewport. Undo
+     the generic mobile first-column placement when that hidden rail is present. */
+  [aria-label="CardForge Desk"] header[data-context="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
+    display: none !important;
   }
 
   /* Feature CSS used to drop the third status item on phones. The compact
