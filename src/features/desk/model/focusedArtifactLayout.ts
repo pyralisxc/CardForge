@@ -104,10 +104,12 @@ export const buildFocusedArtifactLayout = ({
   arrangement,
   groups,
   minimumWidth,
+  minimumHeight = 360,
 }: {
   arrangement: FocusedArtifactArrangement;
   groups: readonly FocusedArtifactGroup[];
   minimumWidth: number;
+  minimumHeight?: number;
 }): FocusedArtifactLayout => {
   const artifactCount = groups.reduce((total, group) => total + group.artifacts.length, 0);
   const presentation = getFocusedArtifactPresentation({ arrangement, artifactCount, availableWidth: minimumWidth });
@@ -161,7 +163,7 @@ export const buildFocusedArtifactLayout = ({
   }
 
   const contentWidth = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.x + entry.width + 24), width);
-  const contentHeight = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.y + entry.height + 30), Math.max(360, groupTop));
+  const contentHeight = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.y + entry.height + 30), Math.max(minimumHeight, 360, groupTop));
   return {
     entries,
     groups: groupLayouts,
