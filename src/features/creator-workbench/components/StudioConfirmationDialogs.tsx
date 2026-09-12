@@ -11,9 +11,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { PendingTemplateRetarget } from '@/features/creator-workbench/hooks/useTemplateStudioHandoffs';
+import type { PendingTemplateSaveImpact } from '@/features/template-editor/hooks/useTemplateLibraryActions';
 import type { ProjectImportMode, ProjectImportPreview } from '@/features/project/client/ui';
 
 interface StudioConfirmationDialogsProps {
@@ -22,6 +24,11 @@ interface StudioConfirmationDialogsProps {
   storedCards: StoredDisplayCard[];
   onCloseTemplateDelete: () => void;
   onConfirmTemplateDelete: () => void;
+  pendingTemplateSaveImpact: PendingTemplateSaveImpact | null;
+  onCancelTemplateSave: () => void;
+  onConfirmTemplateSaveShared: () => void;
+  onConfirmTemplateSaveFork: () => void;
+  onTemplateSaveVariantNameChange: (name: string) => void;
   pendingTemplateRetarget: PendingTemplateRetarget | null;
   onDismissTemplateRetarget: () => void;
   onApplyTemplateRetarget: () => void;
@@ -36,6 +43,11 @@ export function StudioConfirmationDialogs({
   storedCards,
   onCloseTemplateDelete,
   onConfirmTemplateDelete,
+  pendingTemplateSaveImpact,
+  onCancelTemplateSave,
+  onConfirmTemplateSaveShared,
+  onConfirmTemplateSaveFork,
+  onTemplateSaveVariantNameChange,
   pendingTemplateRetarget,
   onDismissTemplateRetarget,
   onApplyTemplateRetarget,
@@ -62,34 +74,38 @@ export function StudioConfirmationDialogs({
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmTemplateDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Template</AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={onConfirmTemplateDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Template</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {pendingTemplateRetarget ? (
-        <AlertDialog open onOpenChange={(open) => !open && onDismissTemplateRetarget()}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{pendingTemplateRetarget.side === 'back' ? 'Use the saved back for this set?' : 'Use the saved design on existing cards?'}</AlertDialogTitle>
-              <AlertDialogDescription>
-                &quot;{pendingTemplateRetarget.name}&quot; is saved.{' '}
-                {pendingTemplateRetarget.side === 'back'
-                  ? pendingTemplateRetarget.count > 0
-                    ? <>Apply it to the current set and {pendingTemplateRetarget.count} existing card{pendingTemplateRetarget.count === 1 ? '' : 's'}?</>
-                    : 'Apply it to the current set?'
-                  : <>{pendingTemplateRetarget.count} existing card{pendingTemplateRetarget.count === 1 ? '' : 's'} still use the protected built-in design.</>}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={onDismissTemplateRetarget}>{pendingTemplateRetarget.side === 'back' ? 'Keep current back' : 'New cards only'}</AlertDialogCancel>
-              <AlertDialogAction onClick={onApplyTemplateRetarget}>{pendingTemplateRetarget.side === 'back' ? 'Use saved back' : 'Update existing cards'}</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      ) : null}
+      {pendingTemplateSaveImpact ? <AlertDialog open onOpenChange={(open) => !open && onCancelTemplateSave()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save “{pendingTemplateSaveImpact.templateName}”?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm leading-6">
+                <p>{pendingTemplateSaveImpact.affectedArtifactCount} linked Artifact{pendingTemplateSaveImpact.affectedArtifactCount === 1 ? '' : 's'} currently use this design.</p>
+                {pendingTemplateSaveImpact.removedFieldKeys.length ? <p><strong>Remove:</strong> {pendingTemplateSaveImpact.removedFieldKeys.join(', ')}. Those stored values will be removed from the Artifacts that adopt this saved design.</p> : null}
+                {pendingTemplateSaveImpact.addedRequiredFieldKeys.length ? <p><strong>Needs work:</strong> {pendingTemplateSaveImpact.addedRequiredFieldKeys.join(', ')} will be required after this Save. Existing Artifacts without values stay visible and are marked as needing work.</p> : null}
+                {pendingTemplateSaveImpact.selectedArtifactCount > 0 ? <p>The current selection contains {pendingTemplateSaveImpact.selectedArtifactCount} Artifact{pendingTemplateSaveImpact.selectedArtifactCount === 1 ? '' : 's'}.</p> : null}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingTemplateSaveImpact.canFork ? <div className="space-y-2"><label htmlFor="template-variant-name" className="text-sm font-medium">Variant name</label><Input id="template-variant-name" value={pendingTemplateSaveImpact.variantName} onChange={(event) => onTemplateSaveVariantNameChange(event.target.value)} /></div> : null}
+          <AlertDialogFooter className="flex-wrap">
+            <AlertDialogCancel onClick={onCancelTemplateSave}>Keep editing</AlertDialogCancel>
+            {pendingTemplateSaveImpact.canFork ? <Button type="button" variant={pendingTemplateSaveImpact.canSaveShared ? 'outline' : 'default'} disabled={!pendingTemplateSaveImpact.variantName.trim()} onClick={onConfirmTemplateSaveFork}>{pendingTemplateSaveImpact.selectedArtifactCount > 0 ? `Save variant for ${pendingTemplateSaveImpact.selectedArtifactCount}` : 'Save personal variant'}</Button> : null}
+            {pendingTemplateSaveImpact.canSaveShared ? <AlertDialogAction onClick={onConfirmTemplateSaveShared}>Save shared changes</AlertDialogAction> : null}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog> : null}
+
+      {pendingTemplateRetarget ? <AlertDialog open onOpenChange={(open) => !open && onDismissTemplateRetarget()}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Use the saved back for this set?</AlertDialogTitle><AlertDialogDescription>&quot;{pendingTemplateRetarget.name}&quot; is saved. {pendingTemplateRetarget.count > 0 ? <>Apply it to the current set and {pendingTemplateRetarget.count} existing card{pendingTemplateRetarget.count === 1 ? '' : 's'}?</> : 'Apply it to the current set?'}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel onClick={onDismissTemplateRetarget}>Keep current back</AlertDialogCancel><AlertDialogAction onClick={onApplyTemplateRetarget}>Use saved back</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog> : null}
 
       <AlertDialog open={Boolean(pendingProjectImport)} onOpenChange={(open) => !open && onClearProjectImport()}>
         <AlertDialogContent>
@@ -103,11 +119,7 @@ export function StudioConfirmationDialogs({
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button type="button" variant="outline" onClick={() => onApplyProjectImport('merge')}>Merge Into Current</Button>
-            <AlertDialogAction onClick={() => onApplyProjectImport('replace')}>Replace Project</AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><Button type="button" variant="outline" onClick={() => onApplyProjectImport('merge')}>Merge Into Current</Button><AlertDialogAction onClick={() => onApplyProjectImport('replace')}>Replace Project</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

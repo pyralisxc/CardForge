@@ -1,12 +1,24 @@
-import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
+import type { CardFace, CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
 import type { StudioView } from './workspaceDefaults';
+
+export interface TemplateCommitChangeInput {
+  template: TCGCardTemplate;
+  source?: TemplateSource;
+  sourceTemplateId?: string | null;
+  artifactIds?: readonly string[];
+  face?: CardFace;
+  removedFieldKeys?: readonly string[];
+  setId?: string | null;
+}
 
 export interface TemplateSlice {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
   addOrUpdateTemplate: (template: TCGCardTemplate, source?: TemplateSource) => string;
+  commitTemplateChange: (input: TemplateCommitChangeInput) => string;
+  clearPersonalTemplateOverride: (templateId: string) => void;
   setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => number;
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;

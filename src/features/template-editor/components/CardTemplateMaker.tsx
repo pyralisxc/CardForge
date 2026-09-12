@@ -38,10 +38,12 @@ import { useTemplateEditorViewport } from '@/features/template-editor/hooks/useT
 import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 import { createTemplateEditorActions } from '@/features/template-editor/lib/templateEditorActions';
+
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
+  onSubmitTemplateRevision: (template: TCGCardTemplate) => Promise<void>;
   onContinueNewTemplateInPipeline: (template: TCGCardTemplate) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
@@ -69,10 +71,12 @@ interface CardTemplateMakerProps {
   onRequestedBackFormatConsumed?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
+
 export function CardTemplateMaker({
   canUseProjectFiles,
   showCardWatermark,
   onSaveTemplate,
+  onSubmitTemplateRevision,
   onContinueNewTemplateInPipeline,
   templates,
   defaultTemplates,
@@ -112,14 +116,8 @@ export function CardTemplateMaker({
     retryFonts,
     isDirty,
     isHydrated: draftPersistenceHydrated,
-  } = useTemplateEditorSession({
-    isActive,
-    selectedTemplateId: selectedTemplateIdForEditing,
-    templates,
-  });
-  useEffect(() => {
-    if (isActive) onDirtyChange?.(isDirty);
-  }, [isActive, isDirty, onDirtyChange]);
+  } = useTemplateEditorSession({ isActive, selectedTemplateId: selectedTemplateIdForEditing, templates });
+  useEffect(() => { if (isActive) onDirtyChange?.(isDirty); }, [isActive, isDirty, onDirtyChange]);
   const {
     canvas,
     currentTemplate,
@@ -133,9 +131,13 @@ export function CardTemplateMaker({
     undo,
   } = controller;
   const isSharedTemplate = currentTemplate.templateSource === 'default';
-  const isSharedTemplateRevision = isSharedTemplate && canSubmitSharedTemplateRevision;
-  const publishesSharedTemplateDirectly = isSharedTemplateRevision && canPublishSharedLibrary;
-  const canSubmitNewTemplate = !isSharedTemplate && canSubmitSharedTemplateRevision;
+  const isSharedLineageDraft = currentTemplate.templateSource === 'user'
+    && currentTemplate.templateRegistryStatus === 'draft'
+    && Boolean(currentTemplate.templateLineageId)
+    && currentTemplate.templateLineageId === currentTemplate.templateOriginLineageId;
+  const canSubmitExistingRevision = (isSharedTemplate || isSharedLineageDraft) && canSubmitSharedTemplateRevision;
+  const publishesSharedTemplateDirectly = canSubmitExistingRevision && canPublishSharedLibrary;
+  const canSubmitNewTemplate = !isSharedTemplate && !isSharedLineageDraft && canSubmitSharedTemplateRevision;
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [requestedLibrarySectionId, setRequestedLibrarySectionId] = useState<string | null>(null);
@@ -143,32 +145,17 @@ export function CardTemplateMaker({
   const [saveName, setSaveName] = useState('');
   const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
   const [isCreatingPipelineDraft, setIsCreatingPipelineDraft] = useState(false);
+  const [isSubmittingSharedRevision, setIsSubmittingSharedRevision] = useState(false);
   const wasActiveRef = useRef(isActive);
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
-    if (id !== null) {
-      requestAnimationFrame(() => {
-        canvasRef.current?.focus();
-      });
-    }
+    if (id !== null) requestAnimationFrame(() => { canvasRef.current?.focus(); });
   }, [selectElementInController]);
   const gridSize = canvas.gridSize || 20;
   const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
   const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
-  const elements = useTemplateEditorElements({
-    appearanceStyles,
-    canUploadCustomAssets,
-    controller,
-    gridSize,
-    onSaveAppearanceStyle,
-    selectElement,
-    toast,
-  });
-  const {
-    addElement,
-    deleteSelected,
-    duplicateSelected,
-  } = elements;
+  const elements = useTemplateEditorElements({ appearanceStyles, canUploadCustomAssets, controller, gridSize, onSaveAppearanceStyle, selectElement, toast });
+  const { addElement, deleteSelected, duplicateSelected } = elements;
   const {
     autoFitCanvas,
     clearDepthSelection,
@@ -197,36 +184,12 @@ export function CardTemplateMaker({
     snapToGrid,
     stageRef,
     zoom,
-  } = useTemplateEditorViewport({
-    addElement,
-    canvasRef,
-    controller,
-    deleteSelected,
-    selectElement,
-  });
-  const openLibrary = useCallback(() => {
-    setRequestedLibrarySectionId(null);
-    setMobilePanel('library');
-  }, [setMobilePanel]);
-  const openLibrarySection = useCallback((sectionId: string) => {
-    setRequestedLibrarySectionId(sectionId);
-    setMobilePanel('library');
-  }, [setMobilePanel]);
-  const openElementActions = useCallback((element: FreeformCardElement) => {
-    selectElement(element.id);
-    setContextElement(element);
-  }, [selectElement]);
-  const openElementInspector = useCallback((element: FreeformCardElement) => {
-    selectElement(element.id);
-    setMobilePanel('inspector');
-  }, [selectElement, setMobilePanel]);
-  const requestTemplateChange = useCallback((action: () => void) => {
-    if (!isDirty) {
-      action();
-      return;
-    }
-    setPendingTemplateChange(() => action);
-  }, [isDirty]);
+  } = useTemplateEditorViewport({ addElement, canvasRef, controller, deleteSelected, selectElement });
+  const openLibrary = useCallback(() => { setRequestedLibrarySectionId(null); setMobilePanel('library'); }, [setMobilePanel]);
+  const openLibrarySection = useCallback((sectionId: string) => { setRequestedLibrarySectionId(sectionId); setMobilePanel('library'); }, [setMobilePanel]);
+  const openElementActions = useCallback((element: FreeformCardElement) => { selectElement(element.id); setContextElement(element); }, [selectElement]);
+  const openElementInspector = useCallback((element: FreeformCardElement) => { selectElement(element.id); setMobilePanel('inspector'); }, [selectElement, setMobilePanel]);
+  const requestTemplateChange = useCallback((action: () => void) => { if (!isDirty) action(); else setPendingTemplateChange(() => action); }, [isDirty]);
   const commands = useTemplateEditorCommands({
     acceptTemplate,
     beginDraft,
@@ -258,72 +221,35 @@ export function CardTemplateMaker({
     setPendingTemplateChange(null);
     action?.();
   }, [commands, currentTemplate, pendingTemplateChange, saveName]);
-  const discardAndContinue = useCallback(() => {
-    const action = pendingTemplateChange;
-    setPendingTemplateChange(null);
-    action?.();
-  }, [pendingTemplateChange]);
+  const discardAndContinue = useCallback(() => { const action = pendingTemplateChange; setPendingTemplateChange(null); action?.(); }, [pendingTemplateChange]);
+  useEffect(() => { if (pendingTemplateChange !== null) setSaveName(currentTemplate.name ?? ''); }, [currentTemplate.name, pendingTemplateChange]);
   useEffect(() => {
-    if (pendingTemplateChange !== null) setSaveName(currentTemplate.name ?? '');
-  }, [currentTemplate.name, pendingTemplateChange]);
-  useEffect(() => {
-    if (wasActiveRef.current && !isActive && isDirty) {
-      setPendingTemplateChange(() => () => undefined);
-    }
+    if (wasActiveRef.current && !isActive && isDirty) setPendingTemplateChange(() => () => undefined);
     wasActiveRef.current = isActive;
   }, [isActive, isDirty]);
-  const {
-    commandPaletteOpen,
-    isSavingTemplate,
-    saveTemplate: handleSave,
-    setCommandPaletteOpen,
-  } = commands;
+  const { commandPaletteOpen, isSavingTemplate, saveTemplate: handleSave, setCommandPaletteOpen } = commands;
   const handleContinueInPipeline = useCallback(async () => {
     if (isCreatingPipelineDraft) return;
     if (!await commands.saveTemplate()) return;
     setIsCreatingPipelineDraft(true);
-    try {
-      const pipelineUrl = await onContinueNewTemplateInPipeline(currentTemplate);
-      window.location.assign(pipelineUrl);
-    } catch (error) {
-      toast({
-        title: 'Pipeline draft not created',
-        description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingPipelineDraft(false);
-    }
-  }, [
-    commands,
-    currentTemplate,
-    isCreatingPipelineDraft,
-    onContinueNewTemplateInPipeline,
-    toast,
-  ]);
-  const savePresentation = publishesSharedTemplateDirectly
-    ? {
-        label: `Publish Template revision ${nextTemplateRevision}`,
-        shortLabel: isSavingTemplate ? 'Publishing...' : 'Publish changes',
-        description: `Save this browser draft and publish revision ${nextTemplateRevision} directly to the shared CardForge Library. (Ctrl+S)`,
-      }
-    : isSharedTemplateRevision
-    ? {
-        label: `Submit Template revision ${nextTemplateRevision}`,
-        shortLabel: isSavingTemplate ? 'Submitting…' : 'Submit revision',
-        description: `Save this browser draft and submit revision ${nextTemplateRevision} in Forge Review. The shared Template stays unchanged until publication. (Ctrl+S)`,
-      }
-    : isSharedTemplate
-      ? {
-          label: 'Save a personal Template copy',
-          shortLabel: isSavingTemplate ? 'Saving…' : 'Save copy',
-          description: 'Save your changes as a personal browser Template. The CardForge Library original stays unchanged. (Ctrl+S)',
-        }
-      : {
-          label: 'Save Template in this browser',
-          shortLabel: isSavingTemplate ? 'Saving…' : 'Save',
-          description: 'Save this personal Template in your browser library. (Ctrl+S)',
-        };
+    try { window.location.assign(await onContinueNewTemplateInPipeline(currentTemplate)); }
+    catch (error) { toast({ title: 'Pipeline draft not created', description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.', variant: 'destructive' }); }
+    finally { setIsCreatingPipelineDraft(false); }
+  }, [commands, currentTemplate, isCreatingPipelineDraft, onContinueNewTemplateInPipeline, toast]);
+  const handleSubmitSharedRevision = useCallback(async () => {
+    if (!canSubmitExistingRevision || isSubmittingSharedRevision) return;
+    if (isDirty && !await commands.saveTemplate()) return;
+    setIsSubmittingSharedRevision(true);
+    try { await onSubmitTemplateRevision(currentTemplate); }
+    catch (error) { toast({ title: canPublishSharedLibrary ? 'Template revision not published' : 'Template revision not submitted', description: error instanceof Error ? error.message : 'Unable to send this Template revision to the Pipeline.', variant: 'destructive' }); }
+    finally { setIsSubmittingSharedRevision(false); }
+  }, [canPublishSharedLibrary, canSubmitExistingRevision, commands, currentTemplate, isDirty, isSubmittingSharedRevision, onSubmitTemplateRevision, toast]);
+
+  const savePresentation = isSharedTemplate && !canSubmitSharedTemplateRevision
+    ? { label: 'Save a personal Template copy', shortLabel: isSavingTemplate ? 'Saving…' : 'Save copy', description: 'Save your changes as a personal browser Template. The CardForge Library original stays unchanged. (Ctrl+S)' }
+    : canSubmitExistingRevision
+      ? { label: 'Save Template draft', shortLabel: isSavingTemplate ? 'Saving…' : 'Save', description: 'Commit this design draft to your browser work. Pipeline submission is a separate action. (Ctrl+S)' }
+      : { label: 'Save Template in this browser', shortLabel: isSavingTemplate ? 'Saving…' : 'Save', description: 'Save this personal Template in your browser library. (Ctrl+S)' };
   const editorActions = createTemplateEditorActions({
     canUndo: history.length > 0,
     canRedo: future.length > 0,
@@ -332,14 +258,8 @@ export function CardTemplateMaker({
     previewMode,
     onUndo: undo,
     onRedo: redo,
-    onZoomOut: () => {
-      setAutoFitCanvas(false);
-      setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
-    },
-    onZoomIn: () => {
-      setAutoFitCanvas(false);
-      setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
-    },
+    onZoomOut: () => { setAutoFitCanvas(false); setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max)); },
+    onZoomIn: () => { setAutoFitCanvas(false); setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max)); },
     onFitToScreen: fitCanvasToViewport,
     onActualSize: resetCanvasZoom,
     onCenterCanvas: centerCanvasViewport,
@@ -366,247 +286,47 @@ export function CardTemplateMaker({
       onResizePointerDown={handleResizePointerDown}
     />
   ), [handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
-  const canvasFrameStyle: React.CSSProperties = {
-    width: canvas.width,
-    height: canvas.height,
-    transform: `scale(${zoom})`,
-    transformOrigin: 'top left',
-  };
-  if (!draftPersistenceHydrated) {
-    return (
-      <div
-        className="flex min-h-[60vh] items-center justify-center rounded border border-[var(--cf-editor-border)] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]"
-        role="status"
-        aria-live="polite"
-      >
-        Loading editor workspace…
-      </div>
-    );
-  }
+  const canvasFrameStyle: React.CSSProperties = { width: canvas.width, height: canvas.height, transform: `scale(${zoom})`, transformOrigin: 'top left' };
+  if (!draftPersistenceHydrated) return <div className="flex min-h-[60vh] items-center justify-center rounded border border-[var(--cf-editor-border)] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]" role="status" aria-live="polite">Loading editor workspace…</div>;
+
   return (
     <TooltipProvider>
-      <div
-        className={cn('cardforge-maker-shell min-h-0 overflow-hidden rounded-[10px] border', makerTheme.shell)}
-        data-mobile-panel={mobilePanel}
-      >
-        {fontFailure ? <div role="alert" className="border-b border-amber-500/40 p-2 text-sm">
-          {fontFailure} <button type="button" className="underline" onClick={retryFonts}>Retry fonts</button>
-        </div> : null}
-        <TemplateEditorTopBar
-          actions={editorActions}
-          isDirty={isDirty}
-          toolButtonClassName={makerTheme.toolButton}
-          activeButtonClassName={makerTheme.activeButton}
-        />
-        {isSharedTemplate ? (
+      <div className={cn('cardforge-maker-shell min-h-0 overflow-hidden rounded-[10px] border', makerTheme.shell)} data-mobile-panel={mobilePanel}>
+        {fontFailure ? <div role="alert" className="border-b border-amber-500/40 p-2 text-sm">{fontFailure} <button type="button" className="underline" onClick={retryFonts}>Retry fonts</button></div> : null}
+        <TemplateEditorTopBar actions={editorActions} isDirty={isDirty} toolButtonClassName={makerTheme.toolButton} activeButtonClassName={makerTheme.activeButton} />
+        {isSharedTemplate || isSharedLineageDraft ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-2">
-              {isSharedTemplateRevision
-                ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
-                : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
+              {canSubmitExistingRevision ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" /> : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
               <div>
-                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">
-                  {isSharedTemplateRevision
-                    ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is live`
-                    : 'CardForge Library Template'}
-                </p>
-                <p className="cardforge-template-status-description mt-0.5 leading-5">
-                  {publishesSharedTemplateDirectly
-                    ? `Publish changes saves this browser draft and makes revision ${nextTemplateRevision} live in the shared CardForge Library. Revision history is retained automatically.`
-                    : isSharedTemplateRevision
-                    ? `Submit revision saves this browser draft, then creates revision ${nextTemplateRevision} in Forge Review. The live Template changes only after owner publication.`
-                    : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}
-                </p>
+                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">{canSubmitExistingRevision ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is the base` : 'CardForge Library Template'}</p>
+                <p className="cardforge-template-status-description mt-0.5 leading-5">{canSubmitExistingRevision ? `Save commits your browser draft. ${canPublishSharedLibrary ? 'Publish revision' : 'Submit revision'} ${nextTemplateRevision} is a separate Pipeline action, so saving never changes shared truth by itself.` : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}</p>
               </div>
             </div>
-            {isSharedTemplateRevision ? (
-              <Link
-                href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/account?section=library&scope=pipeline'}
-                className="cardforge-template-status-action shrink-0 font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]"
-              >
-                {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}
-              </Link>
-            ) : null}
+            {canSubmitExistingRevision ? <div className="flex shrink-0 flex-wrap items-center gap-2"><Button type="button" size="sm" disabled={isSavingTemplate || isSubmittingSharedRevision} onClick={() => void handleSubmitSharedRevision()}>{isSubmittingSharedRevision ? canPublishSharedLibrary ? 'Publishing…' : 'Submitting…' : canPublishSharedLibrary ? `Publish revision ${nextTemplateRevision}` : `Submit revision ${nextTemplateRevision}`}</Button><Link href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/account?section=library&scope=pipeline'} className="cardforge-template-status-action font-medium text-[var(--cf-accent-strong)] underline decoration-[#7f6225] underline-offset-4 hover:text-[var(--cf-accent-text)]">{canPublishSharedLibrary ? 'Review revisions' : 'Open Forge Review'}</Link></div> : null}
           </div>
         ) : canSubmitNewTemplate ? (
           <div className="cardforge-template-status flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[var(--cf-text-muted)] sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-2">
-              <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
-              <div>
-                <p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">
-                  Personal Template · not shared
-                </p>
-                <p className="cardforge-template-status-description mt-0.5 leading-5">
-                  Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]"
-              disabled={isCreatingPipelineDraft || isSavingTemplate}
-              onClick={() => void handleContinueInPipeline()}
-            >
-              {isCreatingPipelineDraft ? 'Opening Pipeline…' : 'Continue in Pipeline'}
-            </Button>
+            <div className="flex min-w-0 items-start gap-2"><GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" /><div><p className="cardforge-template-status-title font-medium text-[var(--cf-accent-text)]">Personal Template · not shared</p><p className="cardforge-template-status-description mt-0.5 leading-5">Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.</p></div></div>
+            <Button type="button" size="sm" className="cardforge-template-status-action shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[var(--cf-accent-strong)]" disabled={isCreatingPipelineDraft || isSavingTemplate} onClick={() => void handleContinueInPipeline()}>{isCreatingPipelineDraft ? 'Opening Pipeline…' : 'Continue in Pipeline'}</Button>
           </div>
         ) : null}
-        <TemplateCommandPalette
-          open={commandPaletteOpen}
-          selectedElement={selectedElement}
-          showGrid={showGrid}
-          snapToGrid={snapToGrid}
-          previewMode={previewMode}
-          onOpenChange={setCommandPaletteOpen}
-          onAddElement={(type, preset) => {
-            addElement(type, undefined, preset);
-            setMobilePanel('canvas');
-          }}
-          onDuplicateSelected={duplicateSelected}
-          onDeleteSelected={deleteSelected}
-          saveAction={saveAction!}
-          onShowLibrary={openLibrary}
-          onShowInspector={() => setMobilePanel('inspector')}
-          onShowTemplateSettings={() => openLibrarySection('setup')}
-          onToggleGrid={() => setShowGrid(value => !value)}
-          onToggleSnap={() => setSnapToGrid(value => !value)}
-          onTogglePreview={() => setPreviewMode(value => !value)}
-        />
-        <MobileCanvasControls
-          actions={editorActions}
-          isDirty={isDirty}
-          templateName={currentTemplate.name}
-          onOpenInspector={() => setMobilePanel('inspector')}
-          onOpenMenu={openLibrary}
-        />
+        <TemplateCommandPalette open={commandPaletteOpen} selectedElement={selectedElement} showGrid={showGrid} snapToGrid={snapToGrid} previewMode={previewMode} onOpenChange={setCommandPaletteOpen} onAddElement={(type, preset) => { addElement(type, undefined, preset); setMobilePanel('canvas'); }} onDuplicateSelected={duplicateSelected} onDeleteSelected={deleteSelected} saveAction={saveAction!} onShowLibrary={openLibrary} onShowInspector={() => setMobilePanel('inspector')} onShowTemplateSettings={() => openLibrarySection('setup')} onToggleGrid={() => setShowGrid(value => !value)} onToggleSnap={() => setSnapToGrid(value => !value)} onTogglePreview={() => setPreviewMode(value => !value)} />
+        <MobileCanvasControls actions={editorActions} isDirty={isDirty} templateName={currentTemplate.name} onOpenInspector={() => setMobilePanel('inspector')} onOpenMenu={openLibrary} />
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {contributorFontFaceCss && <style>{contributorFontFaceCss}</style>}
-          <TemplateEditorLibrarySidebar
-            backFaceTemplates={backFaceTemplates}
-            canUseProjectFiles={canUseProjectFiles}
-            commands={commands}
-            controller={controller}
-            defaultTemplates={defaultTemplates}
-            elements={elements}
-            fileInputRef={fileInputRef}
-            isCheckoutStarting={isCheckoutStarting}
-            onDeleteTemplate={onDeleteTemplate}
-            onElementAdded={() => setMobilePanel('canvas')}
-            onExportProject={onExportProject}
-            onImportProject={onImportProject}
-            onLoadProject={onLoadProject}
-            onSelectElement={selectElement}
-            onSelectTemplateId={onSelectTemplateForEditing}
-            onStartCheckout={onStartCheckout}
-            projectFileGateMessage={projectFileGateMessage}
-            richTextHighlightColor={richTextHighlightColor}
-            showCardWatermark={showCardWatermark}
-            templates={templates}
-            userTemplates={userTemplates}
-            requestedSectionId={requestedLibrarySectionId}
-            onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)}
-            onClose={() => setMobilePanel('canvas')}
-          />
-          <TemplateCanvasStage
-            autoFitCanvas={autoFitCanvas}
-            canvas={canvas}
-            canvasFrameStyle={canvasFrameStyle}
-            canvasRef={canvasRef}
-            currentTemplate={currentTemplate}
-            gridSize={gridSize}
-            livePreviewData={livePreviewData}
-            previewMode={previewMode}
-            richTextHighlightColor={richTextHighlightColor}
-            selectedElement={selectedElement}
-            showCardWatermark={showCardWatermark}
-            showGrid={showGrid}
-            stageRef={stageRef}
-            zoom={zoom}
-            onCanvasKeyDown={handleCanvasKeyDown}
-            onClearDepthSelection={clearDepthSelection}
-            onDeselectCanvas={() => setSelectedElementId(null)}
-            onDrop={handleDrop}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onStagePointerDownCapture={handleStagePointerDownCapture}
-            onStagePointerMoveCapture={handleStagePointerMoveCapture}
-            onStagePointerUpCapture={handleStagePointerUpCapture}
-            onStageWheel={handleStageWheel}
-            renderEditableElement={renderEditableElement}
-          />
-          <TemplateEditorInspectorSidebar
-            availableFonts={availableFonts}
-            canUploadCustomAssets={canUploadCustomAssets}
-            commands={commands}
-            controller={controller}
-            elements={elements}
-            onRichTextHighlightColorChange={setRichTextHighlightColorAction}
-            richTextHighlightColor={richTextHighlightColor}
-            variables={variables}
-            onClose={() => setMobilePanel('canvas')}
-          />
+          <TemplateEditorLibrarySidebar backFaceTemplates={backFaceTemplates} canUseProjectFiles={canUseProjectFiles} commands={commands} controller={controller} defaultTemplates={defaultTemplates} elements={elements} fileInputRef={fileInputRef} isCheckoutStarting={isCheckoutStarting} onDeleteTemplate={onDeleteTemplate} onElementAdded={() => setMobilePanel('canvas')} onExportProject={onExportProject} onImportProject={onImportProject} onLoadProject={onLoadProject} onSelectElement={selectElement} onSelectTemplateId={onSelectTemplateForEditing} onStartCheckout={onStartCheckout} projectFileGateMessage={projectFileGateMessage} richTextHighlightColor={richTextHighlightColor} showCardWatermark={showCardWatermark} templates={templates} userTemplates={userTemplates} requestedSectionId={requestedLibrarySectionId} onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)} onClose={() => setMobilePanel('canvas')} />
+          <TemplateCanvasStage autoFitCanvas={autoFitCanvas} canvas={canvas} canvasFrameStyle={canvasFrameStyle} canvasRef={canvasRef} currentTemplate={currentTemplate} gridSize={gridSize} livePreviewData={livePreviewData} previewMode={previewMode} richTextHighlightColor={richTextHighlightColor} selectedElement={selectedElement} showCardWatermark={showCardWatermark} showGrid={showGrid} stageRef={stageRef} zoom={zoom} onCanvasKeyDown={handleCanvasKeyDown} onClearDepthSelection={clearDepthSelection} onDeselectCanvas={() => setSelectedElementId(null)} onDrop={handleDrop} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onStagePointerDownCapture={handleStagePointerDownCapture} onStagePointerMoveCapture={handleStagePointerMoveCapture} onStagePointerUpCapture={handleStagePointerUpCapture} onStageWheel={handleStageWheel} renderEditableElement={renderEditableElement} />
+          <TemplateEditorInspectorSidebar availableFonts={availableFonts} canUploadCustomAssets={canUploadCustomAssets} commands={commands} controller={controller} elements={elements} onRichTextHighlightColorChange={setRichTextHighlightColorAction} richTextHighlightColor={richTextHighlightColor} variables={variables} onClose={() => setMobilePanel('canvas')} />
         </div>
-        <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
-          <span className="text-[#d5ad54]">Shortcuts</span>
-          <span>Ctrl+S {publishesSharedTemplateDirectly ? 'Publish changes' : isSharedTemplateRevision ? 'Submit revision' : 'Save'}</span>
-          <span>Ctrl+Z Undo</span>
-          <span>Ctrl+D Duplicate</span>
-          <span>Del Remove</span>
-          <span>G Grid</span>
-          <span>P Preview</span>
-          <span>+/- Zoom</span>
-          <span>Esc Deselect</span>
-        </div>
+        <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]"><span className="text-[#d5ad54]">Shortcuts</span><span>Ctrl+S Save</span><span>Ctrl+Z Undo</span><span>Ctrl+D Duplicate</span><span>Del Remove</span><span>G Grid</span><span>P Preview</span><span>+/- Zoom</span><span>Esc Deselect</span></div>
         <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />
-        <NewCardDesignDialog
-          open={commands.newTemplateRequest !== null}
-          usage={commands.newTemplateRequest?.usage ?? 'standard'}
-          initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate}
-          canClone={Boolean(currentTemplate.id)}
-          brandedBackFormatIds={defaultTemplates
-            .filter((template) => template.templateUsage === 'back-preset' && template.templateRegistryStatus === 'published')
-            .map((template) => template.formatId)
-            .filter((formatId): formatId is NonNullable<typeof formatId> => Boolean(formatId))}
-          onOpenChange={(open) => {
-            if (!open) commands.setNewTemplateRequest(null);
-          }}
-          onCreate={commands.createNewTemplate}
-        />
+        <NewCardDesignDialog open={commands.newTemplateRequest !== null} usage={commands.newTemplateRequest?.usage ?? 'standard'} initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate} canClone={Boolean(currentTemplate.id)} brandedBackFormatIds={defaultTemplates.filter((template) => template.templateUsage === 'back-preset' && template.templateRegistryStatus === 'published').map((template) => template.formatId).filter((formatId): formatId is NonNullable<typeof formatId> => Boolean(formatId))} onOpenChange={(open) => { if (!open) commands.setNewTemplateRequest(null); }} onCreate={commands.createNewTemplate} />
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled Template'}”?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {currentTemplate.templateSource === 'default'
-                  ? publishesSharedTemplateDirectly
-                    ? `Publishing keeps this draft in your browser and makes Template revision ${nextTemplateRevision} live immediately. Revision history is retained without a self-review step.`
-                    : canSubmitSharedTemplateRevision
-                    ? `Submitting keeps this draft in your browser and creates Template revision ${nextTemplateRevision} in Forge Review. The shared Template changes only after owner publication.`
-                    : 'This is a CardForge Library Template. Saving creates a personal browser copy and keeps the shared original unchanged.'
-                  : 'Your Template changes are not saved in this browser yet.'}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="space-y-2">
-              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Template name</label>
-              <Input
-                id="template-save-name"
-                value={saveName}
-                onChange={(event) => setSaveName(event.target.value)}
-                placeholder="Name this Template"
-              />
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
-              <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
-              <AlertDialogAction disabled={isSavingTemplate} onClick={() => void saveAndContinue()}>
-                {isSavingTemplate
-                  ? publishesSharedTemplateDirectly ? 'Publishing...' : isSharedTemplateRevision ? 'Submitting…' : 'Saving…'
-                  : currentTemplate.templateSource === 'default'
-                  ? publishesSharedTemplateDirectly ? 'Publish Template changes' : canSubmitSharedTemplateRevision ? 'Submit Template revision' : 'Save as personal Template'
-                  : 'Save changes'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
+            <AlertDialogHeader><AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled Template'}”?</AlertDialogTitle><AlertDialogDescription>{currentTemplate.templateSource === 'default' && !canSubmitSharedTemplateRevision ? 'This is a CardForge Library Template. Saving creates a personal browser copy and keeps the shared original unchanged.' : 'Save commits this design draft to your browser work. Pipeline submission and publication are separate actions.'}</AlertDialogDescription></AlertDialogHeader>
+            <div className="space-y-2"><label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Template name</label><Input id="template-save-name" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="Name this Template" /></div>
+            <AlertDialogFooter><AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel><Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button><AlertDialogAction disabled={isSavingTemplate} onClick={() => void saveAndContinue()}>{isSavingTemplate ? 'Saving…' : currentTemplate.templateSource === 'default' && !canSubmitSharedTemplateRevision ? 'Save as personal Template' : 'Save changes'}</AlertDialogAction></AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>

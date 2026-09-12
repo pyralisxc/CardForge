@@ -328,33 +328,38 @@ export function Desk({
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
         : activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
-          : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Revise' : 'Generate')
+          : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Edit selected' : 'Generate')
             : activeTool?.toolId === 'output' ? 'Output'
               : activeTool?.toolId === 'pipeline' ? 'Pipeline'
                 : undefined;
-  const designCard = (card: DisplayCard, face: CardFace = 'front', copy = false) => {
+  const designCard = (card: DisplayCard, face: CardFace = 'front') => {
     const template = face === 'back' ? card.backingTemplate : card.template;
     if (!template?.id || !focusedLocalSetId) return;
     const project = useProjectStore.getState();
-    let templateId = template.id;
-    if (copy) {
-      const copiedId = project.cloneTemplate(templateId);
-      if (!copiedId) return;
-      const copiedTemplate = useProjectStore.getState().userTemplates.find((candidate) => candidate.id === copiedId);
-      if (!copiedTemplate) return;
-      templateId = copiedId;
-      project.updateGeneratedCard(face === 'back'
-        ? { ...card, backingTemplate: copiedTemplate, backingTemplateId: copiedId }
-        : { ...card, template: copiedTemplate });
+    const selected = selectedCards.some((candidate) => candidate.uniqueId === card.uniqueId) ? selectedCards : [card];
+    const compatibleSelection = selected.every((candidate) => (
+      face === 'back' ? candidate.backingTemplate?.id === template.id : candidate.template.id === template.id
+    ));
+    const artifactIds = compatibleSelection ? selected.map((candidate) => candidate.uniqueId) : [card.uniqueId];
+    if (!compatibleSelection && selected.length > 1) {
+      toast({
+        title: 'Designing the focused Template',
+        description: 'The selection uses different Templates, so this Design scope starts with the focused Artifact only. Edit one design group at a time to avoid changing unrelated layouts.',
+      });
     }
     project.closeEditDialog();
-    if (activeTool?.toolId === 'design') project.setTemplateEditorSelectedTemplateId(templateId);
-    else openContextStudio(focusedLocalSetId, 'design', templateId);
+    project.setTemplateEditorSelectedTemplateId(template.id);
+    setDesignIntent({ kind: 'artifact-design', artifactIds, face });
+    if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
   const openSelectedRevision = () => {
     if (!focusedItem || !selectedCards.length) return;
     setGenerationRevisionScopeIds(selectedCards.map((card) => card.uniqueId));
     openWorkLane(focusedItem, 'generate', selectedCards[0]);
+  };
+  const closeDesignContext = () => {
+    setDesignIntent(null);
+    closeContextStudio();
   };
   const closeActiveTool = () => {
     if (storageOpen) { setStorageOpen(false); return; }
@@ -365,14 +370,18 @@ export function Desk({
     }
     if (activeTool?.toolId === 'pipeline') closePipelineSubmission();
     else if (activeTool?.toolId === 'generate') { setGenerationRevisionScopeIds([]); closeGenerate(); }
-    else closeContextStudio();
+    else closeDesignContext();
   };
   const searchValue = focusedItem ? cardQuery : query;
   const setSearchValue = focusedItem ? setCardQuery : setQuery;
   const searchPlaceholder = focusedItem ? 'Search cards in this Set' : 'Search Desk work';
   const storageNeedsAttention = projection.failures.length > 0
     || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
-  const saveStatusLabel = browserSaveStatus === 'saving' ? 'Saving…' : browserSaveStatus === 'failed' ? 'Not saved' : 'Saved';
+  const saveStatusLabel = browserSaveStatus === 'saving'
+    ? 'Saving working copy…'
+    : browserSaveStatus === 'failed'
+      ? 'Working copy not saved'
+      : 'Working copy saved';
 
   return (
     <ArtifactScene activeSetId={focusedLocalSetId}>
@@ -420,7 +429,7 @@ export function Desk({
           onOpenWork={() => { if (focusedItem) openWorkLane(focusedItem, 'open'); }}
           artifactId={focusedArtifactId ?? undefined}
           onOpenDesign={(face) => focusedArtifact ? designCard(focusedArtifact, face) : focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
-          onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face, true); }}
+          onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face); }}
           onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
           onDuplicateWork={() => { if (focusedItem) duplicateWork(focusedItem); }}
@@ -620,9 +629,9 @@ export function Desk({
         {generationSet ? <EnvironmentToolLayer
           id="desk-generate-title"
           eyebrow="Desk tool"
-          title={generationRevisionScopeIds.length ? `Revise ${generationRevisionScopeIds.length} selected Artifact${generationRevisionScopeIds.length === 1 ? '' : 's'}` : `Generate into ${generationSet.name}`}
-          summary={generationRevisionScopeIds.length ? 'The selected stable Artifact identities stay scoped while you revise values or map Library resources.' : 'The Set stays open behind this tool. Generated cards return here as the active selection.'}
-          closeLabel="Close Generate"
+          title={generationRevisionScopeIds.length ? `Edit ${generationRevisionScopeIds.length} selected Artifact${generationRevisionScopeIds.length === 1 ? '' : 's'}` : `Generate into ${generationSet.name}`}
+          summary={generationRevisionScopeIds.length ? 'Only fields you touch are changed across this stable selection. Use Update from data when you want to reconcile a structured list.' : 'The Set stays open behind this tool. Generated cards return here as the active selection.'}
+          closeLabel={generationRevisionScopeIds.length ? 'Close selection editor' : 'Close Generate'}
           onClose={() => { setGenerationRevisionScopeIds([]); closeGenerate(); }}
           manageHistory={false}
           dirty={interactionSession.toolStack.findLast((tool) => tool.toolId === 'generate')?.dirty ?? false}
@@ -657,10 +666,10 @@ export function Desk({
         {studioTool ? <EnvironmentToolLayer
           id="desk-design-tool-title"
           eyebrow="Desk tool"
-          title={studioTool.tool === 'output' ? 'Output Set' : editingCard ? 'Edit card content' : 'Design Artifacts'}
-          summary="The focused Set remains on the Desk while this reusable Studio tool operates on it."
+          title={studioTool.tool === 'output' ? 'Output Set' : editingCard ? 'Edit card content' : 'Design'}
+          summary="The focused Set remains on the Desk while this Studio tool operates on the current object and selection context."
           closeLabel="Close Studio tool"
-          onClose={closeContextStudio}
+          onClose={closeDesignContext}
           manageHistory={false}
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
@@ -685,6 +694,7 @@ export function Desk({
             designIntent={designIntent}
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
+            contextSetId={studioTool.setId}
           />}
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>

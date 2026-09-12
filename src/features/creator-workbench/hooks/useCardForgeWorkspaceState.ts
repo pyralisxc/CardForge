@@ -30,6 +30,8 @@ export function useCardForgeWorkspaceState() {
   const isEditDialogOpen = useProjectStore((state) => state.isEditDialogOpen);
 
   const addOrUpdateTemplateAction = useProjectStore((state) => state.addOrUpdateTemplate);
+  const commitTemplateChangeAction = useProjectStore((state) => state.commitTemplateChange);
+  const clearPersonalTemplateOverrideAction = useProjectStore((state) => state.clearPersonalTemplateOverride);
   const setDefaultTemplatesFromFilesAction = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
   const setUserTemplatesFromFilesAction = useProjectStore((state) => state.setUserTemplatesFromFiles);
   const mergeUserTemplatesFromFilesAction = useProjectStore((state) => state.mergeUserTemplatesFromFiles);
@@ -61,19 +63,12 @@ export function useCardForgeWorkspaceState() {
   const openEditDialogAction = useProjectStore((state) => state.openEditDialog);
   const closeEditDialogAction = useProjectStore((state) => state.closeEditDialog);
 
-  const {
-    backFacePresetTemplates,
-    freeformTemplatesForGenerator,
-    standardDefaultTemplates,
-  } = useMemo(() => splitTemplatesForWorkspace({
+  const { backFacePresetTemplates, freeformTemplatesForGenerator, standardDefaultTemplates } = useMemo(() => splitTemplatesForWorkspace({
     allTemplates: templatesFromStore,
     defaultTemplates: defaultTemplatesFromStore,
   }), [defaultTemplatesFromStore, templatesFromStore]);
 
-  const generatorSelectedTemplateId = useMemo(() => resolveGeneratorFrontTemplateId(
-    freeformTemplatesForGenerator,
-    requestedGeneratorTemplateId,
-  ), [freeformTemplatesForGenerator, requestedGeneratorTemplateId]);
+  const generatorSelectedTemplateId = useMemo(() => resolveGeneratorFrontTemplateId(freeformTemplatesForGenerator, requestedGeneratorTemplateId), [freeformTemplatesForGenerator, requestedGeneratorTemplateId]);
 
   return {
     actions: {
@@ -81,6 +76,8 @@ export function useCardForgeWorkspaceState() {
       createCardSetAction,
       addOrUpdateAppearanceStyleAction,
       addOrUpdateTemplateAction,
+      commitTemplateChangeAction,
+      clearPersonalTemplateOverrideAction,
       cloneTemplateAction,
       closeEditDialogAction,
       deleteAppearanceStyleAction,

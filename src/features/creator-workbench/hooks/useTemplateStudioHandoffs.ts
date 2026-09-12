@@ -14,7 +14,7 @@ export type PendingTemplateRetarget = {
   count: number;
   fromTemplateId: string | null;
   name: string;
-  side: 'front' | 'back';
+  side: 'back';
   toTemplateId: string;
 };
 
@@ -22,6 +22,7 @@ type TemplateStudioHandoffOptions = {
   activeBackingTemplateId: string | null;
   focusStudioRegion: (selector: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
+  /** Kept while the generator-back path is migrated; front retargeting is now Save-impact owned. */
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   saveTemplateToLibrary: (template: TCGCardTemplate) => Promise<string>;
   setGeneratorBackingTemplateId: (templateId: string | null) => void;
@@ -35,7 +36,6 @@ export function useTemplateStudioHandoffs({
   activeBackingTemplateId,
   focusStudioRegion,
   retargetGeneratedCardsBackingTemplate,
-  retargetGeneratedCardsTemplate,
   saveTemplateToLibrary,
   setGeneratorBackingTemplateId,
   setStudioView,
@@ -43,84 +43,41 @@ export function useTemplateStudioHandoffs({
   storedCards,
   toast,
 }: TemplateStudioHandoffOptions) {
-  const [matchingBackRequest, setMatchingBackRequest] = useState<{
-    key: number;
-    formatSource: TemplateCardFormatSource;
-  } | null>(null);
+  const [matchingBackRequest, setMatchingBackRequest] = useState<{ key: number; formatSource: TemplateCardFormatSource } | null>(null);
   const [pendingTemplateRetarget, setPendingTemplateRetarget] = useState<PendingTemplateRetarget | null>(null);
-  const [pendingGeneratorBackSave, setPendingGeneratorBackSave] = useState<{
-    previousBackingTemplateId: string | null;
-  } | null>(null);
+  const [pendingGeneratorBackSave, setPendingGeneratorBackSave] = useState<{ previousBackingTemplateId: string | null } | null>(null);
   const [generatorBackWorkflow, setGeneratorBackWorkflow] = useState<GeneratorBackWorkflowMode | null>(null);
   const matchingBackSequenceRef = useRef(0);
 
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate) => {
     const sourceTemplateId = template.id;
     const savedTemplateId = await saveTemplateToLibrary(template);
-
     if (template.templateUsage === 'back-preset') {
       const previousBackingTemplateId = pendingGeneratorBackSave?.previousBackingTemplateId
         ?? (activeBackingTemplateId === sourceTemplateId ? sourceTemplateId : null);
       const shouldOfferSetUpdate = pendingGeneratorBackSave !== null
         || (sourceTemplateId !== savedTemplateId && activeBackingTemplateId === sourceTemplateId);
-
       if (shouldOfferSetUpdate) {
-        const dependentCardCount = previousBackingTemplateId
-          ? storedCards.filter((card) => card.backingTemplateId === previousBackingTemplateId).length
-          : 0;
-        setPendingTemplateRetarget({
-          count: dependentCardCount,
-          fromTemplateId: previousBackingTemplateId,
-          name: template.name || 'this card back',
-          side: 'back',
-          toTemplateId: savedTemplateId,
-        });
+        const dependentCardCount = previousBackingTemplateId ? storedCards.filter((card) => card.backingTemplateId === previousBackingTemplateId).length : 0;
+        setPendingTemplateRetarget({ count: dependentCardCount, fromTemplateId: previousBackingTemplateId, name: template.name || 'this card back', side: 'back', toTemplateId: savedTemplateId });
       }
       setPendingGeneratorBackSave(null);
-    } else if (sourceTemplateId && savedTemplateId !== sourceTemplateId) {
-      const dependentCardCount = storedCards.filter((card) => card.templateId === sourceTemplateId).length;
-      if (dependentCardCount > 0) {
-        setPendingTemplateRetarget({
-          count: dependentCardCount,
-          fromTemplateId: sourceTemplateId,
-          name: template.name || 'this Template',
-          side: 'front',
-          toTemplateId: savedTemplateId,
-        });
-      }
     }
-
     return savedTemplateId;
   }, [activeBackingTemplateId, pendingGeneratorBackSave, saveTemplateToLibrary, storedCards]);
 
   const applyPendingTemplateRetarget = useCallback(() => {
     if (!pendingTemplateRetarget) return;
-
-    if (pendingTemplateRetarget.side === 'back') {
-      setGeneratorBackingTemplateId(pendingTemplateRetarget.toTemplateId);
-      if (pendingTemplateRetarget.fromTemplateId) {
-        retargetGeneratedCardsBackingTemplate(
-          pendingTemplateRetarget.fromTemplateId,
-          pendingTemplateRetarget.toTemplateId,
-        );
-      }
-    } else if (pendingTemplateRetarget.fromTemplateId) {
-      retargetGeneratedCardsTemplate(
-        pendingTemplateRetarget.fromTemplateId,
-        pendingTemplateRetarget.toTemplateId,
-      );
-    }
-
+    setGeneratorBackingTemplateId(pendingTemplateRetarget.toTemplateId);
+    if (pendingTemplateRetarget.fromTemplateId) retargetGeneratedCardsBackingTemplate(pendingTemplateRetarget.fromTemplateId, pendingTemplateRetarget.toTemplateId);
     toast({
-      title: pendingTemplateRetarget.side === 'back' ? 'Saved back applied' : 'Existing cards updated',
-      description: pendingTemplateRetarget.side === 'back'
-        ? pendingTemplateRetarget.count > 0
-          ? `The Generator and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved back.`
-          : 'The Generator now uses the saved back.'
-        : `${pendingTemplateRetarget.count} card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved design.`,
+      title: 'Saved back applied',
+      description: pendingTemplateRetarget.count > 0
+        ? `The Generator and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved back.`
+        : 'The Generator now uses the saved back.',
     });
     setPendingTemplateRetarget(null);
-  }, [pendingTemplateRetarget, retargetGeneratedCardsBackingTemplate, retargetGeneratedCardsTemplate, setGeneratorBackingTemplateId, toast]);
+  }, [pendingTemplateRetarget, retargetGeneratedCardsBackingTemplate, setGeneratorBackingTemplateId, toast]);
 
   const dismissPendingTemplateRetarget = useCallback(() => setPendingTemplateRetarget(null), []);
   const clearMatchingBackRequest = useCallback(() => setMatchingBackRequest(null), []);
@@ -151,10 +108,7 @@ export function useTemplateStudioHandoffs({
     focusStudioRegion('[data-workflow-step="setup"]');
   }, [focusStudioRegion, setStudioView]);
   const handleStudioViewChange = useCallback((view: StudioView) => {
-    if (view !== 'template') {
-      setGeneratorBackWorkflow(null);
-      setPendingGeneratorBackSave(null);
-    }
+    if (view !== 'template') { setGeneratorBackWorkflow(null); setPendingGeneratorBackSave(null); }
     setStudioView(view);
   }, [setStudioView]);
 
