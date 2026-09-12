@@ -230,6 +230,10 @@ export const scaleCanvasToSize = (
   });
 };
 
+const optionalIdentityText = (value: unknown): string | undefined => (
+  typeof value === 'string' && value.trim() ? value.trim() : undefined
+);
+
 export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplate>): TCGCardTemplate => {
   const loaded = { ...partial };
   const validatedId = loaded.id && loaded.id.trim() !== '' ? loaded.id : nanoid();
@@ -247,6 +251,12 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateAccessTier: loaded.templateAccessTier,
     templateRegistryStatus: loaded.templateRegistryStatus,
     templateContributorName: loaded.templateContributorName,
+    templateLineageId: optionalIdentityText(loaded.templateLineageId),
+    templateRevision: Number.isInteger(loaded.templateRevision) && Number(loaded.templateRevision) >= 0 ? Number(loaded.templateRevision) : undefined,
+    templateRevisionId: optionalIdentityText(loaded.templateRevisionId),
+    templateParentRevisionId: optionalIdentityText(loaded.templateParentRevisionId),
+    templateOriginLineageId: optionalIdentityText(loaded.templateOriginLineageId),
+    templateOriginRevisionId: optionalIdentityText(loaded.templateOriginRevisionId),
     templateUsage: loaded.templateUsage === 'back-preset' ? 'back-preset' : 'standard',
     templateCategory: loaded.templateCategory,
     templateDescription: loaded.templateDescription,

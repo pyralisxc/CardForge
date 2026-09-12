@@ -242,8 +242,17 @@ export interface TCGCardTemplate {
   templateAccessTier?: 'free' | 'paid' | 'contributor' | 'hidden';
   templateRegistryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   templateContributorName?: string;
+  /** Stable identity shared by revisions of the same reusable design. */
+  templateLineageId?: string;
+  /** Human-friendly monotonic revision within one lineage when known. */
   templateRevision?: number;
+  /** Exact immutable revision identity. */
   templateRevisionId?: string;
+  /** Exact parent revision for ancestry/conflict comparison. */
+  templateParentRevisionId?: string;
+  /** Provenance for an independent personal fork/copy; never implies ownership. */
+  templateOriginLineageId?: string;
+  templateOriginRevisionId?: string;
   templateUsage?: TemplateUsage;
   templateCategory?: string;
   templateDescription?: string;

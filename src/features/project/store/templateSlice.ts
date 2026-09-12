@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
+import { createPersonalTemplateFork, reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 
 import { selectAllTemplates } from './selectors';
 import type { ProjectState, TemplateSlice } from './types';
@@ -155,12 +155,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
   cloneTemplate: (templateId) => {
     const source = selectAllTemplates(get()).find((template) => template.id === templateId);
     if (!source) return null;
-    const cloned = reconstructMinimalTemplateObject({
-      ...JSON.parse(JSON.stringify(source)),
-      id: nanoid(),
+    const cloned = reconstructMinimalTemplateObject(createPersonalTemplateFork(source, {
       name: `Copy of ${source.name}`,
-      templateSource: 'user',
-    });
+    }));
     set((state) => ({ userTemplates: [...state.userTemplates, cloned] }));
     return cloned.id!;
   },
@@ -181,6 +178,13 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       .map((card) => card.backingTemplateId === templateId
         ? { ...card, backingTemplateId: null, backingData: undefined }
         : card);
+    const cardSets = state.cardSets.map((set) => ({
+      ...set,
+      templateIds: set.templateIds?.filter((id) => id !== templateId),
+    }));
+    const activeCardSet = state.activeCardSet
+      ? cardSets.find((set) => set.id === state.activeCardSet?.id) ?? state.activeCardSet
+      : null;
     const selectedId = state.generatorSelectedTemplateId === templateId
       ? (allTemplates.find((template) => Boolean(template.id?.trim()))?.id ?? null)
       : state.generatorSelectedTemplateId;
@@ -196,6 +200,8 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       defaultTemplates,
       userTemplates,
       storedCards,
+      cardSets,
+      activeCardSet,
       generatorSelectedTemplateId: selectedId,
       templateEditorSelectedTemplateId: editorSelectedId,
       editingCardUniqueId,
