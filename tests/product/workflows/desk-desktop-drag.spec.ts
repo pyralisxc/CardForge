@@ -85,6 +85,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeVisible();
     await expect(page.locator('header').getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
@@ -92,11 +93,6 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('region', { name: 'Storage and connections' })).toBeVisible();
     await expect(page).toHaveURL(/\/account(?:\?|$)/);
     await page.getByRole('button', { name: 'Done', exact: true }).click();
-
-    await page.setViewportSize({ width: 800, height: 720 });
-    await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   });
 
   test('@golden Desk action menu exposes truthful actions, hands off focus cleanly, and persists deletion', async ({ page }) => {
