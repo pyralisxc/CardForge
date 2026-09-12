@@ -105,6 +105,22 @@
   display: none;
 }
 
+/* There is one view-control capability with two presentations. Full controls
+   are used while they fit; the single View menu takes over below 901px. */
+[data-desk-toolbar] > button[aria-label="Desk view controls"] {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  [data-desk-toolbar] > div[aria-label="Desk view controls"] {
+    display: none !important;
+  }
+
+  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
+    display: inline-flex !important;
+  }
+}
+
 /* The focused Set is a camera depth, not a narrower page nested in the Desk. */
 [data-desk="focused"],
 [data-desk-set-board] {
@@ -229,7 +245,7 @@
     grid-column: 1 !important;
   }
 
-  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
     grid-column: 2 !important;
   }
 
