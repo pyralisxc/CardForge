@@ -77,6 +77,7 @@ type GoogleDriveConnectionRow = {
   refresh_token_auth_tag: string;
   granted_scopes: string[] | null;
   root_folder_id: string;
+  root_folder_resource_key: string | null;
   status: 'active' | 'error';
   status_note: string;
   last_verified_at: string | null;
@@ -125,7 +126,7 @@ type GoogleDriveFile = {
   appProperties?: Record<string, string>;
 };
 
-const CONNECTION_COLUMNS = 'id,owner_user_id,provider,external_account_id,display_name,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,granted_scopes,root_folder_id,status,status_note,last_verified_at,created_at,updated_at';
+const CONNECTION_COLUMNS = 'id,owner_user_id,provider,external_account_id,display_name,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,granted_scopes,root_folder_id,root_folder_resource_key,status,status_note,last_verified_at,created_at,updated_at';
 const MAX_ENCODED_PROJECT_BYTES = MAX_PROJECT_PACKAGE_BYTES + MAX_PROJECT_PACKAGE_METADATA_BYTES;
 
 export const getGoogleDriveProjectStorageConfiguration = () => {
@@ -311,29 +312,33 @@ const resolveGoogleDriveRootOnConnect = async ({
   ownerUserId: string;
   externalAccountId: string;
   accessToken: string;
-}): Promise<{ rootFolderId: string; status: 'active' | 'error'; statusNote: string }> => {
+}): Promise<{ rootFolderId: string; rootFolderResourceKey: string | null; status: 'active' | 'error'; statusNote: string }> => {
   const existing = await getConnectionRow(ownerUserId);
   if (!existing || existing.external_account_id !== externalAccountId) {
     return {
       rootFolderId: await createCardForgeRootFolder(accessToken),
+      rootFolderResourceKey: null,
       status: 'active',
       statusNote: '',
     };
   }
 
   const rootFolderId = existing.root_folder_id;
+  const rootFolderResourceKey = existing.root_folder_resource_key?.trim() || null;
   if (!isGoogleDriveFileId(rootFolderId)) {
     return {
       rootFolderId,
+      rootFolderResourceKey,
       status: 'error',
       statusNote: 'The previously selected Drive project folder has invalid saved metadata. Choose a project folder before saving.',
     };
   }
 
   try {
-    const folder = await getDriveFolderMetadata({ accessToken, folderId: rootFolderId });
+    const folder = await getDriveFolderMetadata({ accessToken, folderId: rootFolderId, resourceKey: rootFolderResourceKey });
     return {
       rootFolderId,
+      rootFolderResourceKey: folder.resourceKey?.trim() || rootFolderResourceKey,
       status: 'active',
       statusNote: folder.capabilities?.canAddChildren === false
         ? 'This Drive folder is read-only for the connected account.'
@@ -343,6 +348,7 @@ const resolveGoogleDriveRootOnConnect = async ({
     console.warn('Google Drive reconnected, but the previous project folder could not be verified:', error);
     return {
       rootFolderId,
+      rootFolderResourceKey,
       status: 'error',
       statusNote: 'Google Drive reconnected, but CardForge could not verify the previously selected project folder. Choose a project folder before saving.',
     };
@@ -392,6 +398,7 @@ export const connectGoogleDriveProjectStorage = async ({
       refresh_token_auth_tag: encrypted.authTag,
       granted_scopes: grantedScopes,
       root_folder_id: root.rootFolderId,
+      root_folder_resource_key: root.rootFolderResourceKey,
       status: root.status,
       status_note: root.statusNote,
       last_verified_at: now,
@@ -522,23 +529,47 @@ const getDriveFileMetadata = async ({
   return await response.json() as GoogleDriveFile;
 };
 
-const getDriveFolderMetadata = async ({ accessToken, folderId }: { accessToken: string; folderId: string }): Promise<GoogleDriveFile> => {
+const folderHeaders = (accessToken: string, folderId: string, resourceKey?: string | null): Record<string, string> => ({
+  Authorization: `Bearer ${accessToken}`,
+  ...(resourceKey ? { 'X-Goog-Drive-Resource-Keys': `${folderId}/${resourceKey}` } : {}),
+});
+
+const getDriveFolderMetadata = async ({
+  accessToken,
+  folderId,
+  resourceKey = null,
+}: {
+  accessToken: string;
+  folderId: string;
+  resourceKey?: string | null;
+}): Promise<GoogleDriveFile> => {
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
   url.searchParams.set('fields', GOOGLE_DRIVE_FOLDER_FIELDS);
   url.searchParams.set('supportsAllDrives', 'true');
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+  const response = await fetch(url, { headers: folderHeaders(accessToken, folderId, resourceKey), cache: 'no-store' });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read the selected Google Drive folder.');
   const folder = await response.json() as GoogleDriveFile;
+  if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
   if (folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE) throw new ProjectStorageProviderError('The configured Drive location is no longer a folder.', 409, { kind: 'conflict' });
   return folder;
 };
 
+/**
+ * The exact CardForge MIME type and selected-folder parent establish the provider
+ * boundary for an explicitly authorized Drive file. `cardforgeProject=1` is
+ * metadata written by modern CardForge saves, but older valid packages predate
+ * that marker. Requiring it here made Picker-authorized legacy projects vanish
+ * from a shared folder even though Drive had already granted per-file access.
+ * The package decoder remains authoritative before editable content is opened.
+ */
+export const isGoogleDriveProjectFileInFolder = (
+  file: Pick<GoogleDriveFile, 'mimeType' | 'parents'>,
+  rootFolderId: string,
+): boolean => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.parents?.includes(rootFolderId) === true;
+
 const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: string): Promise<GoogleDriveProjectSummary> => {
   const summary = await toProjectSummary(file);
-  if (!summary
-    || file.mimeType !== GOOGLE_DRIVE_PROJECT_MIME_TYPE
-    || file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] !== GOOGLE_DRIVE_PROJECT_VALUE
-    || !file.parents?.includes(rootFolderId)) {
+  if (!summary || !isGoogleDriveProjectFileInFolder(file, rootFolderId)) {
     throw new ProjectStorageProviderError('That Google Drive file is not a CardForge project in this connected folder.', 404, { kind: 'not_found' });
   }
   return summary;
@@ -558,7 +589,7 @@ export const listGoogleDriveProjectsPage = async ({
   const row = await getConnectionRow(ownerUserId);
   if (!row) return { connection: toConnectionSummary(null, true), projects: [] };
   const accessToken = await refreshGoogleAccessToken(row);
-  const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id });
+  const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id, resourceKey: row.root_folder_resource_key });
   const url = new URL(`${GOOGLE_DRIVE_API}/files`);
   url.searchParams.set('q', `'${row.root_folder_id}' in parents and trashed = false`);
   url.searchParams.set('spaces', 'drive');
@@ -573,13 +604,13 @@ export const listGoogleDriveProjectsPage = async ({
   if (pageToken?.trim()) url.searchParams.set('pageToken', pageToken.trim());
   url.searchParams.set('fields', `nextPageToken,files(${GOOGLE_DRIVE_PROJECT_FIELDS})`);
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: folderHeaders(accessToken, row.root_folder_id, row.root_folder_resource_key),
     cache: 'no-store',
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not list Google Drive projects.');
   const payload = await response.json() as { files?: GoogleDriveFile[]; nextPageToken?: unknown };
   const projects = (await Promise.all((payload.files ?? [])
-    .filter((file) => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.appProperties?.[GOOGLE_DRIVE_PROJECT_APP_PROPERTY] === GOOGLE_DRIVE_PROJECT_VALUE)
+    .filter((file) => isGoogleDriveProjectFileInFolder(file, row.root_folder_id))
     .map(toProjectSummary)))
     .filter((summary): summary is GoogleDriveProjectSummary => Boolean(summary))
     .map((summary) => ({ ...summary, accountId: row.external_account_id }));
@@ -749,6 +780,7 @@ export const prepareGoogleDriveProjectUpload = async ({
   let requestUrl: URL;
   let method: 'POST' | 'PATCH';
   let metadata: Record<string, unknown>;
+  let rootFolderResourceKey: string | null = null;
 
   if (fileId) {
     const current = await getDriveFileMetadata({ accessToken, fileId });
@@ -783,7 +815,12 @@ export const prepareGoogleDriveProjectUpload = async ({
       },
     };
   } else {
-    const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id });
+    rootFolderResourceKey = row.root_folder_resource_key?.trim() || null;
+    const folder = await getDriveFolderMetadata({
+      accessToken,
+      folderId: row.root_folder_id,
+      resourceKey: rootFolderResourceKey,
+    });
     if (folder.capabilities?.canAddChildren !== true) {
       throw new ProjectStorageProviderError('Your current Drive role cannot add files to this folder.', 403, { kind: 'authorization', nextAction: 'Choose a writable Drive folder or ask its owner for content-manager/editor access.' });
     }
@@ -812,6 +849,7 @@ export const prepareGoogleDriveProjectUpload = async ({
       'Content-Type': 'application/json; charset=UTF-8',
       'X-Upload-Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
       'X-Upload-Content-Length': String(size),
+      ...(rootFolderResourceKey ? { 'X-Goog-Drive-Resource-Keys': `${row.root_folder_id}/${rootFolderResourceKey}` } : {}),
     },
     body: JSON.stringify(metadata),
     cache: 'no-store',

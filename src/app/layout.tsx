@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import './cardforgePresentation.css';
+import './workspaceResponsiveHardening.css';
 
 import { AnalyticsProvider } from '@/features/analytics/client';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/server';

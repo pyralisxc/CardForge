@@ -1,4 +1,4 @@
-import { ChevronRight, Search } from 'lucide-react';
+import { Command, Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -24,20 +24,27 @@ export function EnvironmentCommandBand({ zone, brand, primaryAction, primaryDisa
   const disabledReason = primaryAction?.availability.kind === 'disabled'
     ? primaryAction.availability.reason
     : primaryDisabledReason;
+  const commandLabel = 'Open commands';
   return (
-    <header className={styles.commandBand} data-context={Boolean(context)}>
+    <header className={styles.commandBand} data-context={Boolean(context)} data-has-search={Boolean(search)}>
       {context ? <div className={styles.contextBand}>{context}</div> : <div className={styles.commandIdentity}>
         {brand ? <Link href="/" prefetch={false} className={styles.mobileBrand} aria-label="Open the CardForge public site" title="CardForge public site"><Image src={brand.src} alt="" width={26} height={26} priority /></Link> : null}
         <Icon size={18} aria-hidden="true" /><strong>{zone.label}</strong>
       </div>}
-      <button type="button" className={styles.commandLauncher} aria-label="Search or type a command" title="Search or type a command (Ctrl / ⌘ K)" onClick={onCommand} data-tool-safe-action>
-        <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
-      </button>
+      {search ? <div className="min-w-0">{search}</div> : (
+        <button type="button" className={`${styles.commandLauncher} max-[900px]:!hidden`} aria-label="Search or type a command" title="Search or type a command (Ctrl / ⌘ K)" onClick={onCommand} data-tool-safe-action>
+          <Search size={16} aria-hidden="true" /><span>Search or type a command…</span><kbd>Ctrl / ⌘ K</kbd>
+        </button>
+      )}
       <div className={styles.commandActions}>
-        {search}
+        {search ? (
+          <button type="button" className={`${styles.iconButton} max-md:!inline-flex`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button>
+        ) : (
+          <button type="button" className={`${styles.iconButton} hidden max-[900px]:!inline-flex`} aria-label={commandLabel} title={`${commandLabel} (Ctrl / ⌘ K)`} onClick={onCommand} data-tool-safe-action><Command size={17} aria-hidden="true" /></button>
+        )}
         {primaryAction ? (
-          <button type="button" className={styles.primaryButton} data-environment-action={primaryAction.id} disabled={!isActionAvailable(primaryAction) || Boolean(disabledReason)} title={disabledReason} onClick={() => { if (isActionAvailable(primaryAction) && !disabledReason) onAction(primaryAction); }}>
-            <ChevronRight size={17} aria-hidden="true" /><span>{primaryAction.label}</span>
+          <button type="button" className={styles.primaryButton} data-environment-action={primaryAction.id} disabled={!isActionAvailable(primaryAction) || Boolean(disabledReason)} title={disabledReason ?? primaryAction.label} onClick={() => { if (isActionAvailable(primaryAction) && !disabledReason) onAction(primaryAction); }}>
+            <span>{primaryAction.label}</span>
           </button>
         ) : null}
         {accountControl}

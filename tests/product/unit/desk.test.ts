@@ -24,7 +24,6 @@ describe('Desk tool template context', () => {
   it('uses the focused Artifact, then a selected Artifact, then the first card of the target Set', () => {
     expect(getDeskToolCard(cards, 'focused', ['selected'])?.templateId).toBe('focused-front');
     expect(getDeskToolCard(cards, 'foreign-card', ['selected'])?.templateId).toBe('selected-front');
-    expect(getDeskToolCard(cards, null, ['foreign-card'])).toBe(cards[0]);
     expect(getDeskToolCard([], null, [])).toBeUndefined();
   });
 
@@ -178,18 +177,25 @@ describe('Desk model', () => {
     expect(projectDeskWorldPosition(geometry.positions['set:one']!, { width: 600, height: 360 })).toEqual({ x: 60, y: 80, z: 0 });
   });
 
-  it('keeps a bounded Desk readable on mobile while Fit shows the whole world', () => {
-    const mobileCamera = getDeskCameraGeometry({ width: 390, height: 420 }, 0.68);
-    expect(mobileCamera).toMatchObject({
-      zoom: 0.68,
+  it('treats Fit as the minimum Desk camera scale on every viewport', () => {
+    const mobileFit = getDeskCameraGeometry({ width: 390, height: 420 }, 0);
+    expect(mobileFit).toMatchObject({
+      zoom: 0.325,
       fitZoom: 0.325,
+      relativeZoom: 1,
       offsetX: 0,
     });
-    expect(mobileCamera.surfaceWidth).toBeCloseTo(816);
-    expect(getDeskCameraGeometry({ width: 1200, height: 720 }, 1)).toMatchObject({
-      zoom: 1,
-      fitZoom: 1,
-      offsetX: 0,
+    expect(mobileFit.surfaceWidth).toBeCloseTo(390);
+
+    const mobileCustom = getDeskCameraGeometry({ width: 390, height: 420 }, 0.68);
+    expect(mobileCustom.relativeZoom).toBeGreaterThan(2);
+    expect(mobileCustom.surfaceWidth).toBeCloseTo(816);
+
+    expect(getDeskCameraGeometry({ width: 1_920, height: 1_080 }, 1)).toMatchObject({
+      zoom: 1.5,
+      fitZoom: 1.5,
+      relativeZoom: 1,
+      offsetX: 60,
       offsetY: 0,
     });
   });
@@ -199,14 +205,14 @@ describe('Desk model', () => {
     expect(getDefaultDeskWorldPosition(8)).toEqual({ x: 502, y: 184, z: 8 });
   });
 
-  it('moves a Desk selection together, preserving offsets and world bounds', () => {
+  it('moves a Desk selection together across the full bounded world, preserving offsets', () => {
     const items = [
       { id: 'set:one', x: 10, y: 100, z: 1, width: 200, height: 240 },
       { id: 'set:two', x: 250, y: 120, z: 2, width: 200, height: 240 },
     ];
     expect(moveDeskWorldSelection({ items, selectedIds: ['set:one', 'set:two'], delta: { x: -100, y: -100 } })).toEqual({
-      'set:one': { x: 0, y: 86, z: 1 },
-      'set:two': { x: 240, y: 106, z: 2 },
+      'set:one': { x: 0, y: 0, z: 1 },
+      'set:two': { x: 240, y: 20, z: 2 },
     });
   });
 

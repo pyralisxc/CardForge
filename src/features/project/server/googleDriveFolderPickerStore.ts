@@ -15,6 +15,7 @@ import { readGoogleProviderFailure, requestGoogleAccessToken } from './googleDri
 
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const MAX_PROJECT_FOLDER_NAME_LENGTH = 120;
 
 type PickerConnectionRow = {
   id: string;
@@ -22,6 +23,7 @@ type PickerConnectionRow = {
   refresh_token_iv: string;
   refresh_token_auth_tag: string;
   root_folder_id: string;
+  root_folder_resource_key: string | null;
 };
 
 type GoogleDriveFolderMetadata = {
@@ -29,10 +31,11 @@ type GoogleDriveFolderMetadata = {
   name?: string;
   mimeType?: string;
   driveId?: string;
+  resourceKey?: string;
   capabilities?: { canAddChildren?: boolean };
 };
 
-const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id';
+const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id,root_folder_resource_key';
 
 const requireStore = () => {
   const database = getSupabaseServerClient();
@@ -102,30 +105,139 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
       {
         kind: token.failure.kind,
         nextAction: token.failure.nextAction,
+        retryable: token.failure.status === 429 || token.failure.status >= 500,
       },
     );
   }
   return token.accessToken;
 };
 
+const projectNumberFromOAuthClientId = (clientId: string): string => {
+  const match = /^(\d{4,32})-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/u.exec(clientId.trim());
+  if (!match?.[1]) {
+    throw new ProjectStorageProviderError(
+      'The configured Google OAuth client ID does not expose a usable Google Cloud project number.',
+      503,
+      {
+        kind: 'unavailable',
+        nextAction: 'CardForge owner must replace this environment with the intended Google OAuth web client before using Picker.',
+      },
+    );
+  }
+  return match[1];
+};
+
 const requirePickerEnvironment = () => {
   const contributorKey = process.env.CARDFORGE_GOOGLE_PICKER_API_KEY?.trim() ?? '';
-  const appId = process.env.CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ?? '';
-  const missing = [
-    !contributorKey ? 'CARDFORGE_GOOGLE_PICKER_API_KEY' : null,
-    !appId ? 'CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER' : null,
-  ].filter((value): value is string => Boolean(value));
-  if (missing.length > 0) {
+  if (!contributorKey) {
     throw new ProjectStorageProviderError(
-      `Google Drive folder picking is not configured yet: ${missing.join(', ')}.`,
+      'Google Drive folder picking is not configured yet: CARDFORGE_GOOGLE_PICKER_API_KEY.',
       503,
       { kind: 'unavailable' },
     );
   }
-  if (!/^\d{4,32}$/u.test(appId)) {
-    throw new ProjectStorageProviderError('Google Drive Picker project number is invalid.', 503, { kind: 'unavailable' });
+  const config = getGoogleDriveProjectStorageConfiguration();
+  if (!config.configured) {
+    throw new ProjectStorageProviderError('Google Drive project storage is not configured yet.', 503, { kind: 'unavailable' });
+  }
+  const appId = projectNumberFromOAuthClientId(config.clientId);
+  const legacyConfiguredAppId = process.env.CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ?? '';
+  if (legacyConfiguredAppId && legacyConfiguredAppId !== appId) {
+    console.warn('Ignoring mismatched CARDFORGE_GOOGLE_CLOUD_PROJECT_NUMBER; Picker now derives its App ID from the active OAuth client.');
   }
   return { contributorKey, appId };
+};
+
+const normalizeResourceKey = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) return null;
+  if (normalized.length > 255 || /[\u0000-\u001f\u007f]/u.test(normalized)) {
+    throw new ProjectStorageProviderError('Google Drive returned an invalid resource key for that folder.', 400, { kind: 'invalid' });
+  }
+  return normalized;
+};
+
+const folderHeaders = (accessToken: string, folderId: string, resourceKey?: string | null): Record<string, string> => ({
+  Authorization: `Bearer ${accessToken}`,
+  ...(resourceKey ? { 'X-Goog-Drive-Resource-Keys': `${folderId}/${resourceKey}` } : {}),
+});
+
+const toFolderSelection = (folder: GoogleDriveFolderMetadata): GoogleDriveFolderSelection => {
+  const verifiedId = folder.id ?? '';
+  const name = folder.name?.trim() ?? '';
+  if (!isGoogleDriveFileId(verifiedId) || folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE || !name) {
+    throw new ProjectStorageProviderError('Choose a Google Drive folder rather than an individual file.', 400, { kind: 'invalid' });
+  }
+  return {
+    id: verifiedId,
+    name: name.slice(0, 320),
+    driveId: folder.driveId ?? null,
+    resourceKey: folder.resourceKey?.trim() || null,
+    canAddChildren: folder.capabilities?.canAddChildren !== false,
+  };
+};
+
+const readDriveFolder = async ({
+  accessToken,
+  folderId,
+  resourceKey = null,
+}: {
+  accessToken: string;
+  folderId: string;
+  resourceKey?: string | null;
+}): Promise<GoogleDriveFolderMetadata> => {
+  const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
+  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  const response = await fetch(url, {
+    headers: folderHeaders(accessToken, folderId, resourceKey),
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const failure = await readGoogleProviderFailure(response);
+    throw new ProjectStorageProviderError(
+      failure.providerMessage ? `Google Drive could not verify the selected project folder. ${failure.providerMessage}` : 'Google Drive could not verify the selected project folder.',
+      failure.status,
+      {
+        kind: failure.kind,
+        nextAction: failure.status === 404
+          ? 'CardForge selected this folder in Google Picker, but the active OAuth app still cannot read it. The CardForge owner should verify the Picker API key belongs to the same Google Cloud project as the OAuth client.'
+          : failure.nextAction,
+      },
+    );
+  }
+  const folder = await response.json() as GoogleDriveFolderMetadata;
+  if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
+  return folder;
+};
+
+const persistFolder = async ({
+  ownerUserId,
+  row,
+  folder,
+}: {
+  ownerUserId: string;
+  row: PickerConnectionRow;
+  folder: GoogleDriveFolderMetadata;
+}): Promise<GoogleDriveFolderSelection> => {
+  const selection = toFolderSelection(folder);
+  const { error } = await requireStore()
+    .from('cardforge_project_storage_connections')
+    .update({
+      root_folder_id: selection.id,
+      root_folder_resource_key: normalizeResourceKey(selection.resourceKey),
+      status: 'active',
+      status_note: selection.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
+      last_verified_at: new Date().toISOString(),
+    })
+    .eq('id', row.id)
+    .eq('owner_user_id', ownerUserId)
+    .eq('provider', GOOGLE_DRIVE_PROJECT_PROVIDER);
+  if (error) {
+    console.error('Unable to save selected Google Drive project folder:', error);
+    throw new ProjectStorageProviderError('CardForge could not remember the selected Google Drive folder.', 503, { kind: 'unavailable' });
+  }
+  return selection;
 };
 
 export const getGoogleDrivePickerConfiguration = async (
@@ -142,59 +254,80 @@ export const getGoogleDrivePickerConfiguration = async (
   };
 };
 
+export const getGoogleDriveSelectedProjectFolder = async (
+  ownerUserId: string,
+): Promise<GoogleDriveFolderSelection> => {
+  const row = await getPickerConnection(ownerUserId);
+  if (!isGoogleDriveFileId(row.root_folder_id)) {
+    throw new ProjectStorageProviderError('The selected Google Drive project folder id is invalid.', 409, { kind: 'conflict' });
+  }
+  const accessToken = await refreshPickerAccessToken(row);
+  return toFolderSelection(await readDriveFolder({
+    accessToken,
+    folderId: row.root_folder_id,
+    resourceKey: normalizeResourceKey(row.root_folder_resource_key),
+  }));
+};
+
 export const selectGoogleDriveProjectFolder = async ({
   ownerUserId,
   folderId,
+  resourceKey = null,
 }: {
   ownerUserId: string;
   folderId: string;
+  resourceKey?: string | null;
 }): Promise<GoogleDriveFolderSelection> => {
   if (!isGoogleDriveFileId(folderId)) {
     throw new ProjectStorageProviderError('The selected Google Drive folder id is invalid.', 400, { kind: 'invalid' });
   }
+  const normalizedResourceKey = normalizeResourceKey(resourceKey);
   const row = await getPickerConnection(ownerUserId);
   const accessToken = await refreshPickerAccessToken(row);
-  const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
-  url.searchParams.set('fields', 'id,name,mimeType,driveId,capabilities(canAddChildren)');
+  const folder = await readDriveFolder({
+    accessToken,
+    folderId,
+    resourceKey: normalizedResourceKey,
+  });
+  return await persistFolder({ ownerUserId, row, folder });
+};
+
+export const createGoogleDriveProjectFolder = async ({
+  ownerUserId,
+  name,
+}: {
+  ownerUserId: string;
+  name: string;
+}): Promise<GoogleDriveFolderSelection> => {
+  const normalizedName = name.trim();
+  if (!normalizedName || normalizedName.length > MAX_PROJECT_FOLDER_NAME_LENGTH || /[\u0000-\u001f\u007f]/u.test(normalizedName)) {
+    throw new ProjectStorageProviderError(`Folder name must be between 1 and ${MAX_PROJECT_FOLDER_NAME_LENGTH} visible characters.`, 400, { kind: 'invalid' });
+  }
+  const row = await getPickerConnection(ownerUserId);
+  const accessToken = await refreshPickerAccessToken(row);
+  const url = new URL(`${GOOGLE_DRIVE_API}/files`);
+  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren)');
   url.searchParams.set('supportsAllDrives', 'true');
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: normalizedName,
+      mimeType: GOOGLE_DRIVE_FOLDER_MIME_TYPE,
+    }),
     cache: 'no-store',
   });
   if (!response.ok) {
     const failure = await readGoogleProviderFailure(response);
     throw new ProjectStorageProviderError(
-      failure.providerMessage ? `Google Drive could not verify the selected project folder. ${failure.providerMessage}` : 'Google Drive could not verify the selected project folder.',
+      failure.providerMessage ? `Google Drive could not create the project folder. ${failure.providerMessage}` : 'Google Drive could not create the project folder.',
       failure.status,
       { kind: failure.kind, nextAction: failure.nextAction },
     );
   }
   const folder = await response.json() as GoogleDriveFolderMetadata;
-  const verifiedId = folder.id ?? '';
-  const name = folder.name?.trim() ?? '';
-  if (!isGoogleDriveFileId(verifiedId) || folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE || !name) {
-    throw new ProjectStorageProviderError('Choose a Google Drive folder rather than an individual file.', 400, { kind: 'invalid' });
-  }
-
-  const { error } = await requireStore()
-    .from('cardforge_project_storage_connections')
-    .update({
-      root_folder_id: verifiedId,
-      status: 'active',
-      status_note: folder.capabilities?.canAddChildren === false ? 'This Drive folder is read-only for the connected account.' : '',
-      last_verified_at: new Date().toISOString(),
-    })
-    .eq('id', row.id)
-    .eq('owner_user_id', ownerUserId)
-    .eq('provider', GOOGLE_DRIVE_PROJECT_PROVIDER);
-  if (error) {
-    console.error('Unable to save selected Google Drive project folder:', error);
-    throw new ProjectStorageProviderError('CardForge could not remember the selected Google Drive folder.', 503, { kind: 'unavailable' });
-  }
-  return {
-    id: verifiedId,
-    name: name.slice(0, 320),
-    driveId: folder.driveId ?? null,
-    canAddChildren: folder.capabilities?.canAddChildren !== false,
-  };
+  return await persistFolder({ ownerUserId, row, folder });
 };

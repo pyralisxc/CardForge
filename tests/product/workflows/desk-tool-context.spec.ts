@@ -12,7 +12,10 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100);
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
-      await page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true }).click();
+      const firstCard = page.getByRole('button', { name: 'Scale Card 0001. Scale Fixture Template', exact: true });
+      await firstCard.click();
+      await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
+      await firstCard.press('Enter');
       await page.getByRole('button', { name: 'Edit', exact: true }).click();
       const artwork = page.getByRole('textbox', { name: /Artwork \(Image URL or Upload\)/ });
       const original = await artwork.inputValue();
@@ -102,6 +105,9 @@ for (const mobile of [false, true]) {
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
       if (mobile) await firstCard.tap(); else await firstCard.click();
+      await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
+      await firstCard.focus();
+      await firstCard.press('Enter');
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
@@ -140,7 +146,10 @@ for (const mobile of [false, true]) {
       await expect(templateRow.getByRole('button', { name: 'Design back template Copy of Scale Fixture Back, used by 1 card in this Set', exact: true })).toBeVisible();
       await expect(templateRow.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 99 cards in this Set', exact: true })).toBeVisible();
       await templateRow.press('Escape');
-      await page.locator('button[data-artifact-id="scale-card-2"]').click();
+      const secondCard = page.locator('button[data-artifact-id="scale-card-2"]');
+      await secondCard.click();
+      await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
+      await secondCard.press('Enter');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       await expect(editor).toContainText('Back: Scale Fixture Back');
       await expect(editor).not.toContainText('Copy of');

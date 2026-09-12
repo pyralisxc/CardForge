@@ -12,6 +12,7 @@ import { getTemplateAccent } from '../model/templateAccent';
 type Depth = 'stack' | 'board' | 'focus' | 'edit';
 const priority: Record<Depth, number> = { stack: 0, board: 1, focus: 2, edit: 3 };
 const RENDER_WIDTH = 560;
+const INLINE_FLIP_MIN_SCREEN_WIDTH = 128;
 
 interface SceneSlot {
   node: HTMLElement;
@@ -54,6 +55,7 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
   const travelling = !immediate && (!present || settledDepth !== item.depth);
   const template = getCardFaceTemplate(item.card, item.face);
   const screenScale = RENDER_WIDTH / item.width;
+  const canOwnInlineFlip = item.width >= INLINE_FLIP_MIN_SCREEN_WIDTH;
   return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
     <motion.div
       data-scene-artifact={item.card.uniqueId}
@@ -70,7 +72,7 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
     >
       <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>
       {item.depth !== 'stack' ? <span data-artifact-template-border aria-hidden="true" style={{ position: 'absolute', inset: -3 * screenScale, border: `${2 * screenScale}px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4 * screenScale, pointerEvents: 'none' }} /> : null}
-      {item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
+      {canOwnInlineFlip && item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
         type="button"
         onClick={() => onFlip(item.card.uniqueId, item.face === 'front' ? 'back' : 'front')}
         aria-label={`Show ${item.face === 'front' ? 'back' : 'front'} of ${item.flipLabel}`}

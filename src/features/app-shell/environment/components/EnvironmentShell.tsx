@@ -44,6 +44,8 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
+  const mobileNavigationPersistent = focusDepth !== 'tool';
+  const containedMobileNavigation = viewportPolicy === 'desk' && mobileNavigationPersistent;
 
   useEffect(() => {
     if (primaryScroll !== 'contained') return;
@@ -79,16 +81,21 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     : null;
   return (
     <section className={styles.lab} data-primary-scroll={primaryScroll} aria-label={ariaLabel}>
-      <div className={styles.shell} data-detail-open={Boolean(detail)} data-viewport={viewportPolicy} data-focus-depth={focusDepth}>
-        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} />
+      <div
+        className={`${styles.shell} ${containedMobileNavigation ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
+        data-detail-open={Boolean(detail)}
+        data-viewport={viewportPolicy}
+        data-focus-depth={focusDepth}
+      >
+        <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>
           <EnvironmentCommandBand zone={activeDefinition} brand={brand} primaryAction={primaryAction} primaryDisabledReason={primaryDisabledReason} search={search} accountControl={accountControl} context={contextBand} onCommand={() => { if (visibleActions.length) setCommandOpen(true); else onCommand(); }} onAction={onAction} />
         </div>
         <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scene-viewport data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
-        <footer className={styles.statusBar} aria-label="Environment status">
-          <div className={styles.statusItems}>{statusContent}</div>
-          <div className={styles.selectionDock}>{footerContent}</div>
+        <footer className={`${styles.statusBar} max-md:!flex max-md:!min-h-10 max-md:!gap-2 max-md:!overflow-hidden max-md:!px-2 max-md:!py-1`} aria-label="Environment status">
+          <div className={`${styles.statusItems} max-md:!gap-3 max-md:flex-1 max-md:overflow-x-auto max-md:whitespace-nowrap`}>{statusContent}</div>
+          <div className={`${styles.selectionDock} max-md:hidden`}>{footerContent}</div>
         </footer>
       </div>
       {detail && mobileDetail ? <EnvironmentMobileSheet open focusReturnId={focusReturnId} record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}

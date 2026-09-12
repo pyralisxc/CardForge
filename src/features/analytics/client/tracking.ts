@@ -49,6 +49,7 @@ export const trackCardForgeEvent = (
 export type ProviderAnalyticsScope = 'google_drive' | 'pipeline';
 export type ProviderAnalyticsAction =
   | 'disconnect'
+  | 'folder_create'
   | 'folder_select'
   | 'personal_content'
   | 'personal_list'

@@ -28,6 +28,7 @@ import {
 import {
   AccountStorageLibrary,
   ConnectedPersonalLibraryPanel,
+  GoogleDrivePreviewWarmupBoundary,
   GoogleDriveProjectStoragePanel,
   LibraryStorageConnectionsTool,
   LocalProjectFolderPanel,
@@ -174,22 +175,24 @@ export default async function AccountPage({
     return (
       <CardForgeAppProviders scope="shell">
         <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
-          <UnifiedAccountLibrary
-            persistenceScope={persistenceScope}
-            experience={experience}
-            businessIdentity={{
-              brandName: businessIdentity.brandName,
-              copyrightHolder: businessIdentity.copyrightHolder,
-            }}
-            initialReturnContextKey={initialReturnContextKey}
-            initialCampaignNotice={params.meta === 'connected'
-              ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
-              : params.meta === 'error'
-                ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
-                : undefined}
-            initialTool={params.tool === 'locations' || storageStatus !== null || params.section === 'storage' ? 'locations' : null}
-            storageConnections={storageConnections}
-          />
+          <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
+            <UnifiedAccountLibrary
+              persistenceScope={persistenceScope}
+              experience={experience}
+              businessIdentity={{
+                brandName: businessIdentity.brandName,
+                copyrightHolder: businessIdentity.copyrightHolder,
+              }}
+              initialReturnContextKey={initialReturnContextKey}
+              initialCampaignNotice={params.meta === 'connected'
+                ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
+                : params.meta === 'error'
+                  ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
+                  : undefined}
+              initialTool={params.tool === 'locations' || storageStatus !== null || params.section === 'storage' ? 'locations' : null}
+              storageConnections={storageConnections}
+            />
+          </GoogleDrivePreviewWarmupBoundary>
         </AccountProjectWorkspaceBoundary>
       </CardForgeAppProviders>
     );
@@ -208,24 +211,27 @@ export default async function AccountPage({
           plans={plans}
         />
       ) : <AccountProjectWorkspaceBoundary persistenceScope={persistenceScope} canUseProjectFiles={entitlement.capabilities.canUseProjectFiles}>
-          <AccountDeskBoundary initialAuthConfigured={authConfigured}>
-            <Desk
-              key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'desk'}
-              persistenceScope={persistenceScope}
-              experience={experience}
-              businessIdentity={{
-                brandName: businessIdentity.brandName,
-                copyrightHolder: businessIdentity.copyrightHolder,
-              }}
-              initialContributorAccess={contributorAccess}
-              initialFocusedWorkId={initialFocusedWorkId}
-              initialFocusedArtifactId={initialFocusedArtifactId}
-              initialTool={initialDeskTool}
-              initialReturnContextKey={initialReturnContextKey}
-              accessStatus={deskAccessStatus}
-              securityStatus={deskSecurityStatus}
-            />
-          </AccountDeskBoundary>
+          <GoogleDrivePreviewWarmupBoundary enabled={entitlement.isSignedIn}>
+            <AccountDeskBoundary initialAuthConfigured={authConfigured}>
+              <Desk
+                key={initialFocusedWorkId || initialFocusedArtifactId || initialReturnContextKey ? `desk:${initialFocusedWorkId ?? 'overview'}:${initialFocusedArtifactId ?? 'set'}:${initialReturnContextKey ?? 'fresh'}` : 'desk'}
+                persistenceScope={persistenceScope}
+                experience={experience}
+                businessIdentity={{
+                  brandName: businessIdentity.brandName,
+                  copyrightHolder: businessIdentity.copyrightHolder,
+                }}
+                initialContributorAccess={contributorAccess}
+                initialFocusedWorkId={initialFocusedWorkId}
+                initialFocusedArtifactId={initialFocusedArtifactId}
+                initialTool={initialDeskTool}
+                initialReturnContextKey={initialReturnContextKey}
+                accessStatus={deskAccessStatus}
+                securityStatus={deskSecurityStatus}
+                storageConnections={storageConnections}
+              />
+            </AccountDeskBoundary>
+          </GoogleDrivePreviewWarmupBoundary>
       </AccountProjectWorkspaceBoundary>}
     </CardForgeAppProviders>
   );

@@ -100,7 +100,9 @@ export {
   updateGoogleDriveProjectFromServer,
 } from './server/googleDriveProjectStore';
 export {
+  createGoogleDriveProjectFolder,
   getGoogleDrivePickerConfiguration,
+  getGoogleDriveSelectedProjectFolder,
   selectGoogleDriveProjectFolder,
 } from './server/googleDriveFolderPickerStore';
 export {

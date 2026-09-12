@@ -223,6 +223,7 @@ export function AccountProfileEnvironment({
       detail={null}
       actions={actions}
       accountControl={<PublicAuthControls />}
+      showPrimaryAction={false}
       surfaceRef={surfaceRef}
       statusContent={(
         <>

@@ -44,9 +44,19 @@ export interface GoogleDriveProjectSummary {
   capabilities?: GoogleDriveProjectCapabilities;
 }
 
+export interface GoogleDriveFolderSelection {
+  id: string;
+  name: string;
+  driveId?: string | null;
+  resourceKey?: string | null;
+  canAddChildren?: boolean;
+}
+
 export interface GoogleDriveProjectListResult {
   connection: GoogleDriveProjectConnectionSummary;
   projects: GoogleDriveProjectSummary[];
+  /** Verified active destination when the provider connection is healthy. */
+  selectedFolder?: GoogleDriveFolderSelection | null;
   /** Native Drive cursor. Clients may follow it until no page remains. */
   nextPageToken?: string | null;
 }
@@ -56,13 +66,6 @@ export interface GoogleDrivePickerConfiguration {
   contributorKey: string;
   appId: string;
   initialFolderId: string | null;
-}
-
-export interface GoogleDriveFolderSelection {
-  id: string;
-  name: string;
-  driveId?: string | null;
-  canAddChildren?: boolean;
 }
 
 export interface GoogleDriveUploadPrepareResult {

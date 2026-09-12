@@ -23,6 +23,7 @@ interface EnvironmentNavigationProps {
   activeZone: ZoneId;
   brand: { src: string; alt: string };
   onActiveZoneNavigate?: () => void;
+  mobilePersistent?: boolean;
 }
 
 function ZoneLinkContents({ Icon, label }: { Icon: LucideIcon; label: string }) {
@@ -61,7 +62,7 @@ function MobileZoneButton({
   );
 }
 
-export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNavigate }: EnvironmentNavigationProps) {
+export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNavigate, mobilePersistent = false }: EnvironmentNavigationProps) {
   const coreZones = zones.filter((zone) => zone.minimumAccess === 'guest' || zone.minimumAccess === 'member');
   const protectedZones = zones.filter((zone) => zone.minimumAccess === 'contributor' || zone.minimumAccess === 'owner');
 
@@ -92,7 +93,14 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNa
         </nav>
       </aside>
 
-      <nav className={styles.mobileNav} aria-label="CardForge zones" style={{ gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}>
+      <nav
+        className={`${styles.mobileNav} md:!hidden`}
+        aria-label="CardForge zones"
+        style={{
+          gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))`,
+          ...(mobilePersistent ? { display: 'grid' } : {}),
+        }}
+      >
         {coreZones.map((zone) => (
           <MobileZoneButton key={zone.id} zone={zone} activeZone={activeZone} onActiveZoneNavigate={onActiveZoneNavigate} />
         ))}

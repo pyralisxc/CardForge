@@ -1,0 +1,334 @@
+/*
+ * Shared private-workspace responsive contract.
+ *
+ * Feature CSS can still own the visual language of its objects, but viewport,
+ * rail compression, and scroll ownership belong to the shell. Attribute and
+ * ARIA selectors intentionally target stable product boundaries rather than
+ * CSS-module implementation names.
+ */
+
+[aria-label="CardForge Desk"],
+[aria-label="CardForge Library"] {
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[aria-label="CardForge Desk"] > div:first-child,
+[aria-label="CardForge Library"] > div:first-child {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[aria-label="CardForge Desk"] main,
+[aria-label="CardForge Library"] main {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+[data-library-surface] {
+  display: flex !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* LibraryCollection contains the legacy local search node. It is the one
+   collection scroll owner even after that duplicate search is visually retired. */
+[data-library-surface] > section:has(#library-search) {
+  min-height: 0 !important;
+  flex: 1 1 auto;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+}
+
+/* The shell owns search. Feature toolbars keep filters/actions, not a second search.
+   Keep these retirement selectors inside the private workspace shells so future
+   features can reuse the same placeholder text without disappearing globally. */
+[aria-label="CardForge Library"] label:has(> #library-search),
+[aria-label="CardForge Desk"] label:has(input[placeholder="Search cards"]) {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :nth-child(2),
+[aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+  width: min(32rem, 42vw);
+  min-width: 10rem;
+}
+
+/* When a context component intentionally renders no content, do not keep an
+   empty first row. Search + account/primary action become the single top rail. */
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has(> :first-child:empty) {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 0.4rem !important;
+  min-height: 3.4rem;
+  padding: 0.3rem 0.55rem;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :first-child:empty {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has(> :first-child:empty) > :nth-child(2) {
+  grid-column: 1;
+  width: min(32rem, 100%);
+  min-width: 0;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has(> :first-child:empty) > :last-child {
+  grid-column: 2;
+}
+
+/* Desk selection is object state, not shell navigation. Selecting one or many
+   Sets must not manufacture a new top rail. Direct drag, keyboard commands,
+   double-click/open, and each Set's overflow menu own those interactions. */
+[data-desk-context-rail][data-depth="desk"] {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 0.4rem !important;
+  min-height: 3.4rem;
+  padding: 0.3rem 0.55rem;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
+  display: none !important;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :nth-child(2) {
+  grid-column: 1;
+  width: min(32rem, 100%);
+  min-width: 0;
+}
+
+[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :last-child {
+  grid-column: 2;
+}
+
+/* The whole remaining center rectangle is the Desk. Controls sit outside the
+   camera viewport instead of occupying logical world coordinates or covering
+   movable Sets. */
+[aria-label="CardForge Desk"] section[aria-label="Open Sets on Desk"] {
+  display: flex !important;
+  min-height: 0 !important;
+  flex: 1 1 auto;
+  flex-direction: column;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Desk controls are one compact action rail immediately above the camera. */
+[data-desk-toolbar] {
+  position: relative !important;
+  z-index: 12;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  max-width: none !important;
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  flex-wrap: nowrap !important;
+  gap: 0.2rem !important;
+  padding: 0.2rem 0.4rem !important;
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+[data-desk-toolbar]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-desk-viewport] {
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: 1 1 auto;
+}
+
+/* Mobile feature CSS used to reserve 3.75rem inside the world for the old
+   overlaid toolbar. The toolbar now lives outside the camera, so the world
+   begins at the viewport origin on every device. */
+[data-desk-viewport] > div:first-child {
+  min-height: 100% !important;
+  margin-top: 0 !important;
+}
+
+/* The logical world and viewport share one visual surface. World bounds still
+   constrain placement and camera math, but they are not drawn as a second Desk
+   floating inside the workspace. */
+[data-desk-viewport] > div > div[data-grid] {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* There is one view-control capability with two presentations. Full controls
+   are used while they fit; the compact wrapper takes over below 901px. */
+[data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  [data-desk-toolbar] > [aria-label="Desk view controls"] {
+    display: none !important;
+  }
+
+  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+    display: flex !important;
+  }
+}
+
+/* The focused Set is a camera depth, not a narrower page nested in the Desk. */
+[data-desk="focused"],
+[data-desk-set-board] {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* The shell/tool panel owns vertical scrolling. Locations content must not
+   become a second nested scroll container just because its content is tall. */
+[data-storage-connections-scroll] {
+  min-height: 100%;
+  overflow: visible !important;
+  touch-action: pan-y;
+}
+
+[data-scene-viewport] {
+  overscroll-behavior: contain;
+}
+
+/* Context actions should compress before they wrap into a second header. */
+[data-desk-context-rail] {
+  flex-wrap: nowrap !important;
+  min-height: 2.85rem !important;
+  gap: 0.3rem !important;
+  padding-block: 0.15rem !important;
+  overflow: hidden;
+}
+
+[data-desk-context-rail] nav,
+[data-desk-context-rail] nav > div {
+  min-width: 0;
+}
+
+/* Controls keep icon hit targets and lose visible prose before the rail wraps.
+   The label remains in the accessibility tree so compressed icon controls keep
+   the same semantic name for keyboard, assistive technology, and automation. */
+@media (max-width: 1120px) {
+  [data-desk-context-rail] button {
+    min-width: 2.6rem !important;
+    min-height: 2.6rem !important;
+    padding-inline: 0.55rem !important;
+  }
+
+  [data-desk-context-rail] button > span {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+}
+
+/* Mobile and narrow windows are the same product hierarchy, more compressed. */
+@media (max-width: 767px) {
+  [aria-label="CardForge Desk"],
+  [aria-label="CardForge Library"] {
+    height: 100dvh;
+  }
+
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"],
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 0.25rem !important;
+  }
+
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :first-child,
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :nth-child(2),
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  [aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :last-child,
+  [aria-label="CardForge Library"] header[data-context="true"][data-has-search="true"] > :last-child {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  /* Desk-depth selection is intentionally rail-less on every viewport. Undo
+     the generic mobile first-column placement when that hidden rail is present. */
+  [aria-label="CardForge Desk"] header[data-context="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
+    display: none !important;
+  }
+
+  /* Feature CSS used to drop the third status item on phones. The compact
+     status rail now scrolls horizontally, so preserve every status truth
+     instead of silently removing save/object state from the mobile product. */
+  [aria-label="CardForge Desk"] footer[aria-label="Environment status"] > div:first-child > span,
+  [aria-label="CardForge Library"] footer[aria-label="Environment status"] > div:first-child > span {
+    display: inline-flex !important;
+  }
+
+  /* Footer copy is contextual prose, not a fourth status. On small windows it
+     competes with open-work/storage/save state, so the status rail owns the row. */
+  [aria-label="CardForge Desk"] footer[aria-label="Environment status"] > :last-child,
+  [aria-label="CardForge Library"] footer[aria-label="Environment status"] > :last-child {
+    display: none !important;
+  }
+
+  [data-desk-context-rail] {
+    min-height: 2.7rem !important;
+  }
+
+  /* The visible local search was retired, so the old three-column toolbar was
+     leaving an empty first column. Compact Desk is now exactly Filters + View. */
+  [data-desk-toolbar] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    min-height: 2.7rem;
+    overflow: visible !important;
+  }
+
+  [data-mobile-desk-filters] {
+    grid-column: 1 !important;
+  }
+
+  [data-mobile-desk-filters] > summary,
+  [data-desk-toolbar] button[aria-label="Desk view controls"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+    grid-column: 2 !important;
+  }
+
+  [data-storage-connections-scroll] {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem) !important;
+  }
+}

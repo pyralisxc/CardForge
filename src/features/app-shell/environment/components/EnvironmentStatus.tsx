@@ -1,15 +1,30 @@
-import { AlertTriangle, CircleCheck, Clock3, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, Clock3, ShieldCheck, type LucideIcon } from 'lucide-react';
 
 import type { EnvironmentStatusTone } from '../presentation';
 import styles from './EnvironmentFoundation.module.css';
 
-export function EnvironmentStatus({ label, tone = 'neutral' }: { label: string; tone?: EnvironmentStatusTone }) {
-  const icon = tone === 'success'
+export function EnvironmentStatus({
+  label,
+  tone = 'neutral',
+  icon: Icon,
+  onClick,
+  title,
+}: {
+  label: string;
+  tone?: EnvironmentStatusTone;
+  icon?: LucideIcon;
+  onClick?: () => void;
+  title?: string;
+}) {
+  const fallbackIcon = tone === 'success'
     ? <CircleCheck size={14} aria-hidden="true" />
     : tone === 'warning'
       ? <Clock3 size={14} aria-hidden="true" />
       : tone === 'danger'
         ? <AlertTriangle size={14} aria-hidden="true" />
         : <ShieldCheck size={14} aria-hidden="true" />;
-  return <span className={styles.status} data-tone={tone}>{icon}<span>{label}</span></span>;
+  const content = <>{Icon ? <Icon size={14} aria-hidden="true" /> : fallbackIcon}<span>{label}</span></>;
+  return onClick
+    ? <button type="button" className={`${styles.status} max-md:min-h-11 max-md:px-2 border-0 bg-transparent p-0 font-inherit cursor-pointer hover:text-[var(--cf-accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cf-accent-strong)]`} data-tone={tone} onClick={onClick} title={title ?? label}>{content}</button>
+    : <span className={styles.status} data-tone={tone}>{content}</span>;
 }

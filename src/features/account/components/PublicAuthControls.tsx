@@ -50,8 +50,11 @@ function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: Re
     return (
       <div className="flex items-center gap-2">
         {signedInAccessory}
-        <Link href="/account?section=profile" prefetch={false} className="inline-flex min-h-10 items-center px-2 text-sm font-semibold text-[var(--cf-text-muted)] hover:text-[var(--cf-text-strong)]">Profile</Link>
-        <UserButton userProfileMode="navigation" userProfileUrl="/account" />
+        <UserButton
+          userProfileMode="navigation"
+          userProfileUrl="/account?section=profile"
+          appearance={{ elements: { avatarBox: 'h-9 w-9' } }}
+        />
       </div>
     );
   }

@@ -7,6 +7,7 @@ export {
   normalizeProjectFontAsset,
   normalizeProjectFontAssets,
   PROJECT_FONT_LIBRARY_CHANGE_EVENT,
+  PROJECT_FONT_LIBRARY_CHANGE_EVENT as PROJECT_LIBRARY_CHANGE_EVENT,
   PROJECT_FONT_MIME_TYPES,
 } from '../model/projectFont';
 export type { ProjectFontAsset, ProjectFontMimeType } from '../model/projectFont';

@@ -190,6 +190,10 @@ export function useDeskSpatialLayout({
   }, [collectWorldItems, persistPositions, selectedIds, snapToGrid, storedPositions]);
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
+    // React portal events bubble through this component tree even when their DOM
+    // target is a menu/dialog rendered elsewhere. Only the physical Desk canvas
+    // may claim pointer capture for marquee selection.
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
     if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;

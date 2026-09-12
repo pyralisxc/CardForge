@@ -7,8 +7,18 @@ describe('Google Drive Picker browser bridge', () => {
     vi.unstubAllGlobals();
   });
 
-  it('passes the restricted API key through Google Picker setDeveloperKey', async () => {
-    let callback: ((response: { action?: string; docs?: Array<{ id?: string; name?: string; mimeType?: string }> }) => void) | null = null;
+  const pickerHarness = (response: {
+    action?: string;
+    docs?: Array<{
+      id?: string;
+      name?: string;
+      mimeType?: string;
+      resourceKey?: string;
+      driveSuccess?: boolean;
+      driveError?: string;
+    }>;
+  }) => {
+    let callback: ((nextResponse: typeof response) => void) | null = null;
     const builder = {} as Record<string, ReturnType<typeof vi.fn>>;
     builder.addView = vi.fn(() => builder);
     builder.enableFeature = vi.fn(() => builder);
@@ -21,10 +31,7 @@ describe('Google Drive Picker browser bridge', () => {
       return builder;
     });
     builder.build = vi.fn(() => ({
-      setVisible: vi.fn(() => callback?.({
-        action: 'picked',
-        docs: [{ id: 'drive-file-12345', name: 'Selected project', mimeType: 'application/vnd.cardforge.project+zip' }],
-      })),
+      setVisible: vi.fn(() => callback?.(response)),
     }));
 
     class DocsView {
@@ -56,12 +63,48 @@ describe('Google Drive Picker browser bridge', () => {
       appId: '1234567890',
       initialFolderId: null,
     })));
+    return builder;
+  };
+
+  it('passes the restricted API key through Google Picker and preserves resource keys', async () => {
+    const builder = pickerHarness({
+      action: 'picked',
+      docs: [{
+        id: 'drive-file-12345',
+        name: 'Selected project',
+        mimeType: 'application/vnd.cardforge.project+zip',
+        resourceKey: 'resource-key-12345',
+        driveSuccess: true,
+      }],
+    });
 
     await expect(pickGoogleDriveItems({ title: 'Choose Drive project' })).resolves.toEqual([
-      { id: 'drive-file-12345', name: 'Selected project', mimeType: 'application/vnd.cardforge.project+zip' },
+      {
+        id: 'drive-file-12345',
+        name: 'Selected project',
+        mimeType: 'application/vnd.cardforge.project+zip',
+        resourceKey: 'resource-key-12345',
+      },
     ]);
     expect(builder.setDeveloperKey).toHaveBeenCalledWith('restricted-picker-key');
     expect(builder.setOAuthToken).toHaveBeenCalledWith('drive-access-token');
     expect(builder.setAppId).toHaveBeenCalledWith('1234567890');
+  });
+
+  it('stops before the Drive handoff when Picker reports that the app was not authorized', async () => {
+    pickerHarness({
+      action: 'picked',
+      docs: [{
+        id: 'shared-folder-12345',
+        name: 'Shared folder',
+        mimeType: 'application/vnd.google-apps.folder',
+        driveSuccess: false,
+        driveError: 'The selected item could not be opened by this app.',
+      }],
+    });
+
+    await expect(pickGoogleDriveItems({ title: 'Choose Drive project' })).rejects.toThrow(
+      'Google Picker selected the item but did not authorize CardForge to open it.',
+    );
   });
 });

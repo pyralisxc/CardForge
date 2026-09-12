@@ -13,6 +13,7 @@ export interface GoogleDrivePickerItem {
   id: string;
   name: string;
   mimeType: string | null;
+  resourceKey?: string | null;
 }
 
 export interface GoogleDrivePickerRequest {
@@ -28,6 +29,9 @@ type PickerDocument = {
   id?: string;
   name?: string;
   mimeType?: string;
+  resourceKey?: string;
+  driveSuccess?: boolean;
+  driveError?: string;
 };
 
 type PickerResponse = {
@@ -173,11 +177,26 @@ export const pickGoogleDriveItems = async ({
           return;
         }
         if (response.action !== picker.Action.PICKED) return;
+
+        const authorizationFailure = (response.docs ?? []).find((document) => document.driveSuccess === false);
+        if (authorizationFailure) {
+          const detail = authorizationFailure.driveError?.trim();
+          reject(new Error(detail
+            ? `Google Picker selected the item but did not authorize CardForge to open it. ${detail}`
+            : 'Google Picker selected the item but did not authorize CardForge to open it. The CardForge owner should verify the Picker API key and OAuth client use the same Google Cloud project.'));
+          return;
+        }
+
         const selected = (response.docs ?? []).flatMap((document) => {
           const id = document.id?.trim() ?? '';
           const name = document.name?.trim() ?? '';
           if (!id || !name) return [];
-          return [{ id, name, mimeType: document.mimeType?.trim() || null }];
+          return [{
+            id,
+            name,
+            mimeType: document.mimeType?.trim() || null,
+            resourceKey: document.resourceKey?.trim() || null,
+          }];
         });
         if (selected.length === 0) {
           reject(new Error('Google Drive returned no usable selection.'));

@@ -1,4 +1,4 @@
-export { BrowserStorageAlerts } from '../components/BrowserStorageAlerts';
+export { BrowserStorageAlerts, requestBrowserWorkspaceRecovery } from '../components/BrowserStorageAlerts';
 export { AccountProjectWorkspaceBoundary } from '../components/AccountProjectWorkspaceBoundary';
 export { StudioSaveMoveDialog } from '../components/StudioSaveMoveDialog';
 export { useBrowserWorkspaceSaveStatus } from '../hooks/useBrowserWorkspaceSaveStatus';
