@@ -69,7 +69,7 @@ test.describe('Desk desktop spatial interaction', () => {
     })).toEqual(after);
   });
 
-  test('@golden Desk shell removes duplicate account tiles and keeps one compact command/action hierarchy', async ({ page }) => {
+  test('@golden Desk shell keeps the whole fitted Desk stable while selection stays object-local', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 720 });
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
@@ -86,6 +86,23 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeVisible();
     await expect(page.locator('header').getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+
+    const viewport = page.locator('[data-desk-viewport]');
+    await expect(viewport).toBeVisible();
+    await expect.poll(() => viewport.evaluate((node) => ({
+      horizontal: node.scrollWidth - node.clientWidth,
+      vertical: node.scrollHeight - node.clientHeight,
+    }))).toEqual({ horizontal: 0, vertical: 0 });
+
+    const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await setButton.click();
+    await expect(setButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
+    await expect.poll(() => viewport.evaluate((node) => ({
+      horizontal: node.scrollWidth - node.clientWidth,
+      vertical: node.scrollHeight - node.clientHeight,
+    }))).toEqual({ horizontal: 0, vertical: 0 });
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
@@ -149,6 +166,8 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByPlaceholder('Search cards', { exact: true })).toBeHidden();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
+    const stage = page.locator('[data-desk-artifact-stage]');
+    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     const boardBox = await board.boundingBox();
     const mainBox = await page.locator('main[data-scene-viewport]').boundingBox();
     expect(boardBox).not.toBeNull();
