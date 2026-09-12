@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
-import { normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
+import { ensureCardSetTemplateReferences, normalizeCardTagIds, type StoredDisplayCard } from '@/domain/cards';
 
 import { selectAllTemplates } from './selectors';
 import type { OutputSlice, ProjectState } from './types';
@@ -28,6 +28,14 @@ const ensureImportSet = (getState: () => ProjectState): NonNullable<ProjectState
   return set;
 };
 
+const withCardSetTemplateReferences = (state: ProjectState, storedCards: StoredDisplayCard[]) => {
+  const cardSets = ensureCardSetTemplateReferences({ cardSets: state.cardSets, storedCards });
+  const activeCardSet = state.activeCardSet
+    ? cardSets.find((set) => set.id === state.activeCardSet?.id) ?? state.activeCardSet
+    : null;
+  return { storedCards, cardSets, activeCardSet };
+};
+
 export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> = (set, get) => ({
   storedCards: [],
   bulkRevisionUndo: null,
@@ -48,13 +56,13 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       ...(card.tagIds?.length ? { tagIds: card.tagIds } : {}),
       ...(card.updatedAt ? { updatedAt: card.updatedAt } : {}),
     }));
-    set((state) => ({ storedCards: [...state.storedCards, ...storedCards] }));
+    set((state) => withCardSetTemplateReferences(state, [...state.storedCards, ...storedCards]));
   },
-  clearGeneratedCards: () => set((state) => ({
-    storedCards: state.activeCardSet
+  clearGeneratedCards: () => set((state) => withCardSetTemplateReferences(state,
+    state.activeCardSet
       ? state.storedCards.filter((card) => card.setId && card.setId !== state.activeCardSet?.id)
       : state.storedCards,
-  })),
+  )),
   removeGeneratedCard: (cardUniqueId) => {
     get().removeGeneratedCards([cardUniqueId]);
   },
@@ -66,7 +74,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     set((state) => {
       const removedActiveEdit = state.editingCardUniqueId !== null && removals.has(state.editingCardUniqueId);
       return {
-        storedCards: state.storedCards.filter((card) => !removals.has(card.uniqueId)),
+        ...withCardSetTemplateReferences(state, state.storedCards.filter((card) => !removals.has(card.uniqueId))),
         editingCardUniqueId: removedActiveEdit ? null : state.editingCardUniqueId,
         isEditDialogOpen: removedActiveEdit ? false : state.isEditDialogOpen,
       };
@@ -82,13 +90,14 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     const moving = new Set(cardUniqueIds);
     if (!moving.size) return 0;
     let changedCount = 0;
-    set((state) => ({
-      storedCards: state.storedCards.map((card) => {
+    set((state) => {
+      const storedCards = state.storedCards.map((card) => {
         if (!moving.has(card.uniqueId) || card.setId === targetSet.id) return card;
         changedCount += 1;
         return { ...card, setId: targetSet.id, setName: targetSet.name };
-      }),
-    }));
+      });
+      return withCardSetTemplateReferences(state, storedCards);
+    });
     return changedCount;
   },
   reorderGeneratedCard: (cardUniqueId, direction) => {
@@ -113,29 +122,36 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     set({ storedCards: reordered });
     return true;
   },
-  updateGeneratedCard: (updatedCard) => set((state) => ({
-    storedCards: state.storedCards.map((card) => card.uniqueId === updatedCard.uniqueId
+  updateGeneratedCard: (updatedCard) => set((state) => {
+    const storedCards = state.storedCards.map((card) => card.uniqueId === updatedCard.uniqueId
       ? toStoredCard(updatedCard, card)
-      : card),
-  })),
+      : card);
+    return withCardSetTemplateReferences(state, storedCards);
+  }),
   reviseGeneratedCards: (updatedCards) => {
     const byId = new Map(updatedCards.map((card) => [card.uniqueId, card]));
     const previous = get().storedCards.filter((card) => byId.has(card.uniqueId));
     if (!previous.length || previous.length !== byId.size) return 0;
-    set((state) => ({
-      bulkRevisionUndo: previous.map((card) => structuredClone(card)),
-      storedCards: state.storedCards.map((card) => {
+    set((state) => {
+      const storedCards = state.storedCards.map((card) => {
         const update = byId.get(card.uniqueId);
         return update ? toStoredCard(update, card) : card;
-      }),
-    }));
+      });
+      return {
+        ...withCardSetTemplateReferences(state, storedCards),
+        bulkRevisionUndo: previous.map((card) => structuredClone(card)),
+      };
+    });
     return previous.length;
   },
   undoLastBulkRevision: () => {
     const previous = get().bulkRevisionUndo;
     if (!previous?.length) return 0;
     const byId = new Map(previous.map((card) => [card.uniqueId, card]));
-    set((state) => ({ bulkRevisionUndo: null, storedCards: state.storedCards.map((card) => byId.get(card.uniqueId) ?? card) }));
+    set((state) => ({
+      ...withCardSetTemplateReferences(state, state.storedCards.map((card) => byId.get(card.uniqueId) ?? card)),
+      bulkRevisionUndo: null,
+    }));
     return previous.length;
   },
   retargetGeneratedCardsTemplate: (fromTemplateId, toTemplateId) => set((state) => {
@@ -146,7 +162,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       changed = true;
       return { ...card, templateId: toTemplateId };
     });
-    return changed ? { storedCards } : state;
+    return changed ? withCardSetTemplateReferences(state, storedCards) : state;
   }),
   retargetGeneratedCardsBackingTemplate: (fromTemplateId, toTemplateId) => set((state) => {
     if (!fromTemplateId || !toTemplateId || fromTemplateId === toTemplateId) return state;
@@ -156,7 +172,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       changed = true;
       return { ...card, backingTemplateId: toTemplateId };
     });
-    return changed ? { storedCards } : state;
+    return changed ? withCardSetTemplateReferences(state, storedCards) : state;
   }),
   setStoredCardsFromFile: (loadedCards) => {
     const activeCardSet = ensureImportSet(get);
@@ -187,7 +203,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       });
       successCount += 1;
     });
-    set({ storedCards });
+    set((state) => withCardSetTemplateReferences(state, storedCards));
     return { successCount, skippedCount };
   },
   mergeStoredCardsFromFile: (loadedCards) => {
@@ -221,7 +237,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       });
       successCount += 1;
     });
-    set({ storedCards: Array.from(merged.values()) });
+    set((state) => withCardSetTemplateReferences(state, Array.from(merged.values())));
     return { successCount, skippedCount };
   },
   openEditDialog: (cardUniqueId) => set({ editingCardUniqueId: cardUniqueId, isEditDialogOpen: true }),

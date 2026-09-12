@@ -22,9 +22,9 @@ export interface AppearanceSlice {
   deleteAppearanceStyle: (styleId: string) => void;
 }
 
-  export interface OutputSlice {
-    storedCards: StoredDisplayCard[];
-    bulkRevisionUndo: StoredDisplayCard[] | null;
+export interface OutputSlice {
+  storedCards: StoredDisplayCard[];
+  bulkRevisionUndo: StoredDisplayCard[] | null;
   editingCardUniqueId: string | null;
   isEditDialogOpen: boolean;
   addGeneratedCards: (newCards: DisplayCard[]) => void;
@@ -34,9 +34,9 @@ export interface AppearanceSlice {
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
   reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;
-    updateGeneratedCard: (updatedCard: DisplayCard) => void;
-    reviseGeneratedCards: (updatedCards: DisplayCard[]) => number;
-    undoLastBulkRevision: () => number;
+  updateGeneratedCard: (updatedCard: DisplayCard) => void;
+  reviseGeneratedCards: (updatedCards: DisplayCard[]) => number;
+  undoLastBulkRevision: () => number;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
@@ -71,6 +71,8 @@ export interface SettingsSlice {
   setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
+  referenceTemplateInCardSet: (setId: string, templateId: string) => boolean;
+  unreferenceTemplateFromCardSet: (setId: string, templateId: string) => boolean;
   setGeneratorSelectedTemplateId: (id: string | null) => void;
   setGeneratorSelectedBackingTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
