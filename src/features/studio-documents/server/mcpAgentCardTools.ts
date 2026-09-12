@@ -13,7 +13,6 @@ import {
 import { getTemplateImageFields, getWorkingCardSetSnapshot } from './cardSetWorkingSetPreview';
 import { ensureSetContactSheetArtifact } from './studioRenderArtifacts';
 import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
-import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
   cardGenerationContractInputSchema,
   deleteCardsInputSchema,
