@@ -16,9 +16,13 @@ Do not reconstruct current requirements from old chats, closed PR prose, complet
 
 ## Workflow authority
 
-For CardForge implementation, refactor, testing, review, public-site, branding, accessibility, SEO, or UI-polish work, load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
+For a substantial new feature, changed product behavior, cross-owner user journey, persistence/identity rule, provider-backed workflow, or founder request whose desired experience is clearer than its complete behavioral contract, load and follow `.agents/skills/founder-to-feature/SKILL.md` **before implementation**. It is CardForge's pre-execution product-resolution gate: Explore the intent when needed, Resolve ownership/invariants/transitions/acceptance, and enter Build only after the feature is Ready.
 
-The lean skill is CardForge's sole execution workflow. Do not create planning ledgers, status diaries, progress folders, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use a compact inline plan only when work is high risk, materially ambiguous, or Cameron asks for one.
+An audit, critique, product discussion, UX reaction, or “what if” is not implementation approval by itself. Do not jump from promising product reasoning into code. When Cameron explicitly asks to implement or proceed, finish any required Founder-to-Feature Resolve step first rather than using implementation to discover basic product semantics.
+
+Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
+
+The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
 ## Native-first integration rule
 
@@ -60,6 +64,7 @@ Closed implementation plans, migration cutovers, and rollout checklists belong i
 ## Cameron shorthand
 
 - Treat short replies like “yes”, “do that”, “verify it”, “push it”, or “full clean cut” as continuing the most recent concrete objective.
+- If the active objective is still in Founder-to-Feature Explore or Resolve, a short approval advances that objective through resolution; it does not erase the Ready gate.
 - Map the request to CardForge's actual ownership boundary before choosing tools.
 - If the request touches production services, account state, payments, email, owner tools, domain setup, or provider dashboards, assume live-provider verification is required unless explicitly scoped local-only.
 - Do not expand vague approval into broad tool-chasing. Use the smallest valid proof path.
