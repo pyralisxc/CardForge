@@ -245,6 +245,12 @@
     grid-column: 1 !important;
   }
 
+  [data-mobile-desk-filters] > summary,
+  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
   [data-desk-toolbar] > button[aria-label="Desk view controls"] {
     grid-column: 2 !important;
   }
