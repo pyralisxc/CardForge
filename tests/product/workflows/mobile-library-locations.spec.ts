@@ -15,9 +15,9 @@ test.describe('mobile Library location tools', () => {
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
-  test('@golden keeps scrolled Locations & connections controls above the fixed mobile navigation', async ({ page }) => {
+  test('@golden keeps Locations controls scrollable above the fixed navigation in a constrained viewport', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
-    await page.setViewportSize({ width: 320, height: 844 });
+    await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/account?section=library&tool=locations', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
     const tool = page.getByRole('region', { name: 'Locations & connections', exact: true });
@@ -32,6 +32,29 @@ test.describe('mobile Library location tools', () => {
     expect(toolZ).toBeGreaterThan(navZ);
 
     const storage = tool.getByRole('region', { name: 'Storage and connections', exact: true });
+    const deviceLocation = storage.getByRole('button', { name: /This device/ });
+    await expectTouchTarget(deviceLocation);
+    await deviceLocation.tap();
+    await expect(tool.getByRole('heading', { name: 'This device', exact: true })).toBeVisible();
+
+    const scrollState = await storage.evaluate((element) => {
+      let owner: HTMLElement | null = element.parentElement;
+      while (owner) {
+        const style = getComputedStyle(owner);
+        if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && owner.scrollHeight > owner.clientHeight + 1) {
+          const before = owner.scrollTop;
+          owner.scrollTop = owner.scrollHeight;
+          return { before, after: owner.scrollTop, scrollHeight: owner.scrollHeight, clientHeight: owner.clientHeight };
+        }
+        owner = owner.parentElement;
+      }
+      return null;
+    });
+    expect(scrollState).not.toBeNull();
+    expect(scrollState!.scrollHeight).toBeGreaterThan(scrollState!.clientHeight);
+    expect(scrollState!.after).toBeGreaterThan(scrollState!.before);
+
+    await tool.getByRole('button', { name: 'Close This device', exact: true }).tap();
     const driveLocation = storage.getByRole('button', { name: /Google Drive projects/ });
     await expectTouchTarget(driveLocation);
     await driveLocation.tap();
@@ -47,24 +70,31 @@ test.describe('mobile Library location tools', () => {
     });
   });
 
-  test('@golden keeps Desk navigation, commands, status truth, and Locations available while focusing work', async ({ page }) => {
+  test('@golden keeps Desk navigation, commands, status truth, and compact actions while focusing work', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+    await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
+
+    const toolbar = page.locator('[data-desk-toolbar]');
+    await expect(toolbar.getByRole('button', { name: 'Open Desk filters', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
 
     const status = page.getByRole('contentinfo', { name: 'Environment status', exact: true });
     await expect(status).toBeVisible();
     await expect(status.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(status.getByText('Private creator desk', { exact: true })).toHaveCount(0);
 
     const storageStatus = page.getByTitle('Open Locations & connections');
     await expectTouchTarget(storageStatus);
     await storageStatus.tap();
     const locations = page.getByRole('region', { name: 'Locations & connections', exact: true });
     await expect(locations).toBeVisible();
-    await page.getByRole('button', { name: 'Close locations and connections', exact: true }).tap();
+    await page.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(locations).toBeHidden();
 
     await openScaleSet(page, 100);
