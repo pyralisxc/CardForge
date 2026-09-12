@@ -1,17 +1,17 @@
 ---
 name: create-cards-and-sets
-description: Create, revise, organize, visually review, and safely commit CardForge Sets, cards, and per-card artwork from an approved editable Template.
+description: Create, revise, organize, visually review, and safely commit CardForge Sets, cards, and per-card artwork from approved reusable Templates.
 ---
 
 # Create and revise CardForge cards and Sets
 
-Use this skill when the user wants actual card instances: one card, a deck/Set, bulk generation from a list, unique artwork across cards, cleanup/reorganization, or collaborative work on a connected CardForge project. The reusable Template stays separate from card data.
+Use this skill when the user wants actual card instances: one card, a deck/Set, bulk generation from a list, unique artwork across cards, cleanup/reorganization, or collaborative work on a connected CardForge project. Reusable Template design stays separate from Artifact content.
 
 ## Core model
 
-- **Template** = reusable visual design.
-- **Card** = one filled instance of that design with a stable card id.
-- **Set** = a named collection of cards using a front Template and optional compatible back.
+- **Template** = reusable visual design authority: layout, field contract, styling, and face role.
+- **Card / Artifact** = one stable content-bearing instance using a front Template and optional compatible back Template.
+- **Set** = a named body of work containing Artifacts and explicitly referencing the reusable Templates participating in that work. A Set does not own or clone those Templates.
 - **Connected project** = a durable `.cardforge` project in a user-authorized provider such as Google Drive.
 - **Agent working document** = a temporary private revisioned collaboration copy used for agent edits and exact Studio handoff. A successful agent write changes this document, not the browser workspace or connected provider project automatically.
 - **Project** = the complete local CardForge workspace.
@@ -48,11 +48,13 @@ Do not describe a checkout as a provider update, and do not describe a successfu
 
 ## Exact-contract and identity rule
 
-For an unfamiliar Template/Set, call `get_card_generation_contract` once before writing fields. Never guess card columns or image keys. Reuse that known contract while the Template contract is unchanged; do not reload it after every successful card mutation. On revisions and retries, reuse the same Set and card ids rather than creating replacement identities.
+For an unfamiliar Template/Set, call `get_card_generation_contract` before writing fields. Never guess card columns, image keys, or generation design. If a Set has more than one front Template, pass the exact `templateId`; pass the exact `backingTemplateId` when a particular back is intended, or `null` for front-only cards. CardForge must never choose an arbitrary representative/first card as generation authority.
 
-For **new cards**, `writeMode: create` is preferred when duplicates would be harmful. CardForge can derive a deterministic id when a new card omits `cardId`, but the returned id becomes the identity for every later change.
+Reuse a known contract while that exact Template contract is unchanged. On revisions and retries, reuse the same Set and card ids rather than creating replacements.
 
-For **existing cards**, prefer `patch_cards` when changing only selected fields. It requires stable `cardId`, has no card-creation path, distinguishes explicit `unsetFields` from unchanged fields, commits the batch in one revision, and preserves unrelated legacy/orphaned stored values with warnings. Existing `upsert_cards` with `writeMode: revise` remains supported for whole-card/contract-shaped revisions and still fails rather than silently creating a replacement card when an id is missing or stale.
+For **new cards**, `writeMode: create` is preferred when duplicates would be harmful. In a multi-Template Set, each new card carries the intended `templateId` (and back choice when applicable). CardForge can derive a deterministic id when a new card omits `cardId`, but the returned id becomes the identity for every later change.
+
+For **existing cards**, content edits preserve the Artifact's current Template relationship. A card-data write must not silently retarget an existing Artifact to another Template. Prefer `patch_cards` when changing only selected fields. It requires stable `cardId`, has no card-creation path, distinguishes explicit `unsetFields` from unchanged fields, commits the batch in one revision, and preserves unrelated legacy/orphaned stored values with warnings. Existing `upsert_cards` with `writeMode: revise` remains supported for whole-card/contract-shaped revisions and still fails rather than silently creating a replacement card when an id is missing or stale.
 
 When the connector reloads or a mutation response is lost, do not create replacements and do not blindly retry. If the mutation had an `operationId`, call `get_working_document_operation_status`; a committed receipt is terminal. Otherwise reload the current revision once and reconcile stable ids before deciding whether a retry is necessary.
 
@@ -69,7 +71,7 @@ For ordinary existing Template/Set/card edits, optimize for:
 5. Give important mutations an `operationId`. Reconcile timeouts with `get_working_document_operation_status` before any retry.
 6. Use `validate_working_document` for cheap structural checks after compound edits. It does not launch Chromium and does not replace visual review.
 7. Use `preview_cards` with changed or representative stable card ids during iteration to inspect native CardForge-rendered representative cards. Do not render the full Set after every small correction.
-8. Use `preview_card_set` once at a meaningful final/milestone review to inspect the canonical contact sheet and Set-wide diagnostics.
+8. Use `preview_card_set` once at a meaningful final/milestone review. Multi-Template Sets render each Artifact with its own exact Template relationship.
 9. Reread only on revision conflict, irreconcilable lost response, a Template contract change that requires new field knowledge, or when a mutation result genuinely omitted state needed for the next step.
 
 A normal request such as “move these medallions under the frame, update their artwork, preserve the nine cards, and verify it” should generally be one initial read, one compound mutation, optional cheap validation, one selective canonical preview, and one final full Set preview—not repeated full-template resends and rereads.
@@ -77,13 +79,13 @@ A normal request such as “move these medallions under the frame, update their 
 ## Card and Set workflow
 
 1. For a genuinely new concept, create or revise the working Set with `upsert_card_set`. Reuse the returned stable Set id.
-2. Call `get_card_generation_contract` once and inspect all text and image fields before the first card write or after a Template contract change.
+2. Resolve the intended Template and call `get_card_generation_contract` before the first new-card write or after that Template contract changes. In multi-Template Sets, pass the exact Template id rather than relying on Set/card order.
 3. For a new multi-card concept, a small representative sample is useful only while the Template/visual contract is unproven. Once verified, generate the requested full Set without unnecessary approval loops.
 4. Put per-card artwork in the same card object's `artwork` array when using `upsert_card(s)`, using an exact contract image field key. Prefer a generated/uploaded public HTTPS `sourceUrl`; use bounded raw base64 only when no URL is available.
-5. Use `move_cards`, `delete_cards`, and `delete_card_set` for ordinary maintenance rather than recreating Sets. `delete_card_set` refuses a non-empty Set unless `deleteCards: true` is explicitly used after the user asks for that destructive result.
+5. Use `move_cards`, `delete_cards`, and `delete_card_set` for ordinary maintenance rather than recreating Sets. Moving cards preserves their Template identities and establishes those Template references in the destination Set. `delete_card_set` refuses a non-empty Set unless `deleteCards: true` is explicitly used after the user asks for that destructive result.
 6. Use selective preview during revision work, then full `preview_card_set` for final Set review. Structural diagnostics alone are not sufficient visual proof.
 7. Open the exact returned Studio revision to apply/update the normal local Template, Set, and cards. Finished card work opens in **Sets**, not Make Cards.
 8. When needed, call `get_agent_install_status` to distinguish “revision exists on the server” from “this exact revision has been acknowledged as applied by Studio.” Never tell the user a revision is visible locally without that evidence.
 9. In CardForge Studio, users can continue editing, export finished media, transfer editable CardForge files, and manage connected project locations. Do not invent a parallel transfer format in chat.
 
-If CardForge reports a working-document, provider, or project revision conflict, reload the current state and retry the intended operation with the new expected revision while preserving stable identities. Never choose a winner silently.
+If CardForge reports a working-document, provider, project, Template, or selection conflict, reload the current state and retry the intended operation with the new expected revision while preserving stable identities. Never choose a winner silently.

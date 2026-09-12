@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
-import type { CardData, CardSet, StoredDisplayCard } from '@/domain/cards';
+import { ensureCardSetTemplateReferences, type CardData, type CardSet, type StoredDisplayCard } from '@/domain/cards';
 import {
   extractTemplateFieldDefinitions,
   materializeTemplateFieldBindings,
@@ -27,6 +27,8 @@ import { getStudioDocument, updateStudioDocument } from './studioDocumentStore';
 
 export interface AgentCardInput {
   cardId?: string;
+  templateId?: string;
+  backingTemplateId?: string | null;
   data: CardData;
   backingData?: CardData;
   artwork?: McpCardArtworkInput[];
@@ -36,13 +38,11 @@ const materializeGenerationTemplates = (templates: TCGCardTemplate[]): TCGCardTe
   templates.map(materializeTemplateFieldBindings)
 );
 
-const selectFrontTemplate = (templates: TCGCardTemplate[], templateId?: string | null): TCGCardTemplate => {
-  const template = templateId
-    ? templates.find((candidate) => candidate.id === templateId && candidate.templateUsage !== 'back-preset')
-    : templates.find((candidate) => candidate.templateUsage !== 'back-preset');
+const selectFrontTemplate = (templates: TCGCardTemplate[], templateId: string): TCGCardTemplate => {
+  const template = templates.find((candidate) => candidate.id === templateId && candidate.templateUsage !== 'back-preset');
   if (!template?.id) {
     throw new StudioDocumentStoreError(
-      'CardForge could not find the front Template for this set. Reload the working design and choose a current front Template before retrying.',
+      'CardForge could not find that front Template in this working design. Reload the working design and choose a current front Template before retrying.',
       404,
     );
   }
@@ -80,6 +80,98 @@ const requireSet = (sets: CardSet[], setId: string): CardSet => {
     );
   }
   return set;
+};
+
+const uniqueIds = (values: Array<string | null | undefined>): string[] => (
+  [...new Set(values.filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))]
+);
+
+const getSetCards = (cards: readonly StoredDisplayCard[], set: CardSet | null | undefined) => (
+  set ? cards.filter((card) => card.setId === set.id) : cards
+);
+
+const resolveFrontTemplateForGeneration = ({
+  templates,
+  set,
+  cards,
+  templateId,
+}: {
+  templates: TCGCardTemplate[];
+  set: CardSet | null | undefined;
+  cards: readonly StoredDisplayCard[];
+  templateId?: string | null;
+}): TCGCardTemplate => {
+  if (templateId?.trim()) return selectFrontTemplate(templates, templateId.trim());
+
+  const referenced = uniqueIds(set?.templateIds ?? [])
+    .map((id) => templates.find((template) => template.id === id && template.templateUsage !== 'back-preset'))
+    .filter((template): template is TCGCardTemplate => Boolean(template?.id));
+  if (referenced.length === 1) return referenced[0]!;
+  if (referenced.length > 1) {
+    throw new StudioDocumentStoreError(
+      `This Set references ${referenced.length} front Templates. Choose templateId explicitly before generating cards.`,
+      409,
+    );
+  }
+
+  const usedIds = uniqueIds(getSetCards(cards, set).map((card) => card.templateId));
+  if (usedIds.length === 1) return selectFrontTemplate(templates, usedIds[0]!);
+  if (usedIds.length > 1) {
+    throw new StudioDocumentStoreError(
+      `This Set already uses ${usedIds.length} front Templates. Choose templateId explicitly; CardForge will not use an arbitrary representative card as the generation source.`,
+      409,
+    );
+  }
+
+  const available = templates.filter((template) => template.id && template.templateUsage !== 'back-preset');
+  if (available.length === 1) return available[0]!;
+  if (available.length > 1) {
+    throw new StudioDocumentStoreError(
+      `This working design has ${available.length} front Templates. Choose templateId explicitly before generating cards.`,
+      409,
+    );
+  }
+  throw new StudioDocumentStoreError('This working design has no front Template available for card generation.', 404);
+};
+
+const resolveBackTemplateForGeneration = ({
+  templates,
+  front,
+  set,
+  cards,
+  backingTemplateId,
+}: {
+  templates: TCGCardTemplate[];
+  front: TCGCardTemplate;
+  set: CardSet | null | undefined;
+  cards: readonly StoredDisplayCard[];
+  backingTemplateId?: string | null;
+}): TCGCardTemplate | null => {
+  if (backingTemplateId === null) return null;
+  if (typeof backingTemplateId === 'string' && backingTemplateId.trim()) {
+    return selectBackTemplate(templates, front, backingTemplateId.trim());
+  }
+
+  const referenced = uniqueIds(set?.templateIds ?? [])
+    .map((id) => templates.find((template) => template.id === id && template.templateUsage === 'back-preset'))
+    .filter((template): template is TCGCardTemplate => Boolean(template?.id) && areTemplateFormatsCompatible(front, template!));
+  if (referenced.length === 1) return referenced[0]!;
+  if (referenced.length > 1) {
+    throw new StudioDocumentStoreError(
+      `This Set references ${referenced.length} compatible card backs. Choose backingTemplateId explicitly, or pass null for front-only cards.`,
+      409,
+    );
+  }
+
+  const usedIds = uniqueIds(getSetCards(cards, set).map((card) => card.backingTemplateId));
+  if (usedIds.length === 1) return selectBackTemplate(templates, front, usedIds[0]!);
+  if (usedIds.length > 1) {
+    throw new StudioDocumentStoreError(
+      'This Set uses more than one card back. Choose backingTemplateId explicitly, or pass null for front-only cards.',
+      409,
+    );
+  }
+  return null;
 };
 
 const getCardFields = (template: TCGCardTemplate) => (
@@ -130,6 +222,8 @@ export const createStableAgentCardId = (
   const fingerprint = JSON.stringify({
     setId,
     index,
+    templateId: input.templateId ?? null,
+    backingTemplateId: input.backingTemplateId ?? null,
     data: stableCardData(input.data),
     backingData: stableCardData(input.backingData),
   });
@@ -141,10 +235,14 @@ export const getCardGenerationContract = async ({
   access,
   documentId,
   setId,
+  templateId,
+  backingTemplateId,
 }: {
   access: AccountToolAccess;
   documentId: string;
   setId?: string;
+  templateId?: string;
+  backingTemplateId?: string | null;
 }) => {
   requireAccountToolCapability(access, 'studio.ai.create');
   const document = await getStudioDocument(
@@ -154,13 +252,19 @@ export const getCardGenerationContract = async ({
   );
   const templates = materializeGenerationTemplates(document.document.userTemplates);
   const set = setId ? requireSet(document.document.cardSets, setId) : document.document.cardSets[0];
-  const representativeCard = set
-    ? document.document.storedCards.find((card) => card.setId === set.id)
-    : document.document.storedCards[0];
-  const front = selectFrontTemplate(templates, representativeCard?.templateId);
-  const back = representativeCard?.backingTemplateId
-    ? selectBackTemplate(templates, front, representativeCard.backingTemplateId)
-    : null;
+  const front = resolveFrontTemplateForGeneration({
+    templates,
+    set,
+    cards: document.document.storedCards,
+    templateId,
+  });
+  const back = resolveBackTemplateForGeneration({
+    templates,
+    front,
+    set,
+    cards: document.document.storedCards,
+    backingTemplateId,
+  });
   const frontFields = getCardFields(front);
   const backFields = back ? getCardFields(back) : [];
   const bulkFields = createBulkFaceFieldDefinitions(frontFields, backFields);
@@ -196,6 +300,7 @@ export const upsertWorkingCardSet = async ({
   const sameNameExisting = !setId ? findSameNameSet(current.document.cardSets, name) : null;
   const existing = explicitExisting ?? sameNameExisting;
   const nextSet: CardSet = {
+    ...(existing ?? {}),
     id: existing?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
     name: normalizeSetName(name),
   };
@@ -204,13 +309,7 @@ export const upsertWorkingCardSet = async ({
   if (index >= 0) sets[index] = nextSet;
   else sets.push(nextSet);
   const storedCards = current.document.storedCards.map((card) => (
-    card.setId === nextSet.id
-      ? {
-          ...card,
-          setId: nextSet.id,
-          setName: nextSet.name,
-        }
-      : card
+    card.setId === nextSet.id ? { ...card, setId: nextSet.id, setName: nextSet.name } : card
   ));
   return updateStudioDocument({
     ownerUserId: access.user.id,
@@ -248,16 +347,12 @@ export const upsertWorkingCards = async ({
   const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
-  const representativeCard = current.document.storedCards.find((card) => card.setId === set.id);
-  const defaultFront = selectFrontTemplate(templates, representativeCard?.templateId);
-  const defaultBack = representativeCard?.backingTemplateId
-    ? selectBackTemplate(templates, defaultFront, representativeCard.backingTemplateId)
-    : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
   const addedIds: string[] = [];
   const revisedIds: string[] = [];
   const artworkResults: Array<{ cardId: string; fieldKey: string; face: 'front' | 'back'; status: 'stored' }> = [];
+
   for (const [inputIndex, input] of cards.entries()) {
     if (writeMode === 'revise' && !input.cardId?.trim()) {
       throw new StudioDocumentStoreError(
@@ -285,17 +380,38 @@ export const upsertWorkingCards = async ({
         409,
       );
     }
-    const front = existing ? selectFrontTemplate(templates, existing.templateId) : defaultFront;
-    const back = existing?.backingTemplateId
-      ? selectBackTemplate(templates, front, existing.backingTemplateId)
-      : existing ? null : defaultBack;
 
-    // Validate only the incoming delta against today's contract. Historical values
-    // already stored on the card may be legacy/orphaned and must not block an
-    // unrelated safe revision; they are preserved unless a dedicated migration
-    // or sparse unset explicitly removes them.
+    if (existing && input.templateId && input.templateId !== existing.templateId) {
+      throw new StudioDocumentStoreError(
+        `Card ${uniqueId} already uses Template ${existing.templateId}. Card edits preserve design identity; change the Template relationship in Studio instead of retargeting it through a data write.`,
+        409,
+      );
+    }
+    if (existing && input.backingTemplateId !== undefined && input.backingTemplateId !== (existing.backingTemplateId ?? null)) {
+      throw new StudioDocumentStoreError(
+        `Card ${uniqueId} already has its current back relationship. Card edits preserve design identity; change the back Template in Studio instead of retargeting it through a data write.`,
+        409,
+      );
+    }
+
+    const front = existing
+      ? selectFrontTemplate(templates, existing.templateId)
+      : resolveFrontTemplateForGeneration({ templates, set, cards: Array.from(byId.values()), templateId: input.templateId });
+    const back = existing
+      ? selectBackTemplate(templates, front, existing.backingTemplateId)
+      : resolveBackTemplateForGeneration({
+          templates,
+          front,
+          set,
+          cards: Array.from(byId.values()),
+          backingTemplateId: input.backingTemplateId,
+        });
+
     validateIncomingCardFields(front, input.data, 'Front');
     if (back && input.backingData) validateIncomingCardFields(back, input.backingData, 'Back');
+    if (!back && input.backingData && Object.keys(input.backingData).length > 0) {
+      throw new StudioDocumentStoreError('Backing data was provided for a front-only card. Choose a compatible backingTemplateId or remove the backing data.', 409);
+    }
 
     const nextData: CardData = { ...(existing?.data ?? {}), ...input.data };
     const nextBackingData: CardData | undefined = back
@@ -306,7 +422,7 @@ export const upsertWorkingCards = async ({
       const targetTemplate = artwork.face === 'back' ? back : front;
       if (!targetTemplate) {
         throw new StudioDocumentStoreError(
-          'This set does not have a card-back Template. Add a compatible back or attach the artwork to the front face instead.',
+          'This card does not have a card-back Template. Add a compatible back or attach the artwork to the front face instead.',
           409,
         );
       }
@@ -343,6 +459,10 @@ export const upsertWorkingCards = async ({
     if (existing) revisedIds.push(uniqueId);
     else addedIds.push(uniqueId);
   }
+
+  const storedCards = Array.from(byId.values());
+  const cardSets = ensureCardSetTemplateReferences({ cardSets: current.document.cardSets, storedCards });
+  const updatedSet = cardSets.find((candidate) => candidate.id === set.id) ?? set;
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
@@ -351,12 +471,13 @@ export const upsertWorkingCards = async ({
     document: {
       ...current.document,
       userTemplates: templates,
+      cardSets,
       activeCardSetId: set.id,
-      storedCards: Array.from(byId.values()),
+      storedCards,
     },
     retentionHours,
   });
-  return { document, set, updatedIds, addedIds, revisedIds, artworkResults };
+  return { document, set: updatedSet, updatedIds, addedIds, revisedIds, artworkResults };
 };
 
 export const deleteWorkingCards = async ({
@@ -429,14 +550,11 @@ export const moveWorkingCards = async ({
     }
   }
   const storedCards = current.document.storedCards.map((card) => (
-    requested.has(card.uniqueId)
-      ? {
-          ...card,
-          setId: target.id,
-          setName: target.name,
-        }
-      : card
+    requested.has(card.uniqueId) ? { ...card, setId: target.id, setName: target.name } : card
   ));
+  const cardSets = ensureCardSetTemplateReferences({ cardSets: current.document.cardSets, storedCards });
+  const updatedSource = cardSets.find((candidate) => candidate.id === source.id) ?? source;
+  const updatedTarget = cardSets.find((candidate) => candidate.id === target.id) ?? target;
   const document = await updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
@@ -444,12 +562,13 @@ export const moveWorkingCards = async ({
     title: current.title,
     document: {
       ...current.document,
+      cardSets,
       activeCardSetId: target.id,
       storedCards,
     },
     retentionHours,
   });
-  return { document, sourceSet: source, targetSet: target, movedIds: [...requested] };
+  return { document, sourceSet: updatedSource, targetSet: updatedTarget, movedIds: [...requested] };
 };
 
 export const deleteWorkingCardSet = async ({

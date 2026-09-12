@@ -10,6 +10,7 @@ import {
   upsertWorkingCards,
   upsertWorkingCardSet,
 } from './cardSetWorkingDocuments';
+import { getTemplateImageFields, getWorkingCardSetSnapshot } from './cardSetWorkingSetPreview';
 import { ensureSetContactSheetArtifact } from './studioRenderArtifacts';
 import { renderArtifactImageContent, renderArtifactStructuredContent } from './mcpRenderArtifactResults';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
@@ -44,10 +45,7 @@ type ToolErrorResult = {
   _meta?: Record<string, unknown>;
 };
 
-type WorkflowAction = {
-  action: string;
-  reason: string;
-};
+type WorkflowAction = { action: string; reason: string };
 
 const workflowMeta = (workflowStage: string, nextActions: WorkflowAction[]) => ({
   capabilityVersion: CARDFORGE_MCP_CONTRACT_VERSION,
@@ -65,13 +63,6 @@ const compactValue = (value: unknown): unknown => {
   return value;
 };
 
-type ArtworkField = {
-  key: string;
-  label: string;
-  defaultValue?: string;
-  isImage: boolean;
-};
-
 const isRenderableArtworkReference = (value: string): boolean => (
   value.startsWith('data:')
   || value.startsWith('blob:')
@@ -82,20 +73,20 @@ const isRenderableArtworkReference = (value: string): boolean => (
 
 const getArtworkDiagnostics = ({
   cards,
-  frontFields,
-  backFields,
+  templates,
 }: {
-  cards: Array<{ uniqueId: string; data: Record<string, unknown>; backingData?: Record<string, unknown> }>;
-  frontFields: ArtworkField[];
-  backFields: ArtworkField[];
+  cards: Array<{ uniqueId: string; templateId: string; backingTemplateId?: string | null; data: Record<string, unknown>; backingData?: Record<string, unknown> }>;
+  templates: Array<{ id: string | null } & Parameters<typeof getTemplateImageFields>[0]>;
 }) => {
-  const faces = [
-    { face: 'front' as const, fields: frontFields, getData: (card: typeof cards[number]) => card.data },
-    { face: 'back' as const, fields: backFields, getData: (card: typeof cards[number]) => card.backingData ?? {} },
-  ];
-  const diagnostics = cards.flatMap((card) => faces.flatMap(({ face, fields, getData }) => (
-    fields.filter((field) => field.isImage).map((field) => {
-      const rawValue = getData(card)[field.key];
+  const diagnostics = cards.flatMap((card) => {
+    const front = templates.find((template) => template.id === card.templateId);
+    const back = card.backingTemplateId ? templates.find((template) => template.id === card.backingTemplateId) : null;
+    const faces = [
+      { face: 'front' as const, fields: getTemplateImageFields(front), data: card.data },
+      { face: 'back' as const, fields: getTemplateImageFields(back), data: card.backingData ?? {} },
+    ];
+    return faces.flatMap(({ face, fields, data }) => fields.map((field) => {
+      const rawValue = data[field.key];
       const value = typeof rawValue === 'string' ? rawValue.trim() : '';
       const hasFallback = typeof field.defaultValue === 'string' && isRenderableArtworkReference(field.defaultValue.trim());
       if (value.startsWith('cardforge-studio-asset://')) {
@@ -121,8 +112,8 @@ const getArtworkDiagnostics = ({
         label: field.label,
         resolution: hasFallback ? 'template_fallback' as const : 'placeholder' as const,
       };
-    })
-  )));
+    }));
+  });
   return {
     fields: diagnostics,
     counts: {
@@ -172,26 +163,25 @@ export const registerAgentCardTools = ({
     }
   };
 
-
   server.registerTool(
     'get_card_generation_contract',
     {
       title: 'Prepare a Template for making or revising cards',
-      description: 'Read the exact front/back Template fields, required fields, image fields, and bulk schema before any card write. Use this for new cards and before revising an existing Set. Never guess card columns or image keys.',
+      description: 'Read the exact front/back Template fields, required fields, image fields, and bulk schema before a card write. When a Set has more than one design, pass the exact templateId (and backingTemplateId when needed); CardForge never guesses from the first card.',
       inputSchema: cardGenerationContractInputSchema,
       outputSchema: cardGenerationContractOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
-    async ({ documentId, setId }) => runObserved({
+    async ({ documentId, setId, templateId, backingTemplateId }) => runObserved({
       toolName: 'get_card_generation_contract',
-      input: { documentId, setId },
+      input: { documentId, setId, templateId, backingTemplateId },
       execute: async (access) => {
-        const result = await getCardGenerationContract({ access, documentId, setId });
+        const result = await getCardGenerationContract({ access, documentId, setId, templateId, backingTemplateId });
         const resolvedSetId = result.set?.id ?? null;
         return {
           content: [{
             type: 'text',
-            text: `CardForge is ready to make or revise cards from "${result.document.title}" revision ${result.document.revision}. Use only the returned field keys and use revise mode with stable card ids for existing cards.`,
+            text: `CardForge resolved front Template ${result.frontTemplateId}${result.backingTemplateId ? ` with back ${result.backingTemplateId}` : ' with no card back'} for "${result.document.title}" revision ${result.document.revision}. Use only the returned field keys.`,
           }],
           structuredContent: {
             documentId: result.document.id,
@@ -205,13 +195,13 @@ export const registerAgentCardTools = ({
             exampleJson: result.exampleJson,
             retrySafety: {
               setId: resolvedSetId,
-              rule: 'Reuse this set id and the stable card ids returned by card writes. Existing-card revisions should use writeMode revise so missing ids cannot become duplicates.',
+              rule: `Reuse this Set id and exact Template source (${result.frontTemplateId}${result.backingTemplateId ? ` / ${result.backingTemplateId}` : ''}) for new-card retries. Existing-card revisions preserve their current Template relationships.`,
             },
             ...workflowMeta('card_contract_ready', [
-              { action: 'upsert_card_set', reason: 'Name or update the working set before generation when needed.' },
-              { action: 'upsert_card', reason: 'Make or revise one card using the exact returned fields.' },
+              { action: 'upsert_card_set', reason: 'Name or update the working Set before generation when needed.' },
+              { action: 'upsert_card', reason: 'Make or revise one card using the exact returned fields and Template identity.' },
               { action: 'upsert_cards', reason: 'Generate or revise multiple cards in one bounded bulk pass.' },
-              { action: 'preview_card_set', reason: 'Read stable existing card ids before a revision pass.' },
+              { action: 'preview_card_set', reason: 'Read stable existing card ids and native renders before a revision pass.' },
             ]),
           },
         };
@@ -232,27 +222,18 @@ export const registerAgentCardTools = ({
       toolName: 'upsert_card_set',
       input: { documentId, expectedRevision, setId, name },
       execute: async (access) => {
-        const document = await upsertWorkingCardSet({
-          access,
-          documentId,
-          expectedRevision,
-          setId,
-          name,
-        });
+        const document = await upsertWorkingCardSet({ access, documentId, expectedRevision, setId, name });
         const set = document.document.cardSets.find((candidate) => candidate.id === document.document.activeCardSetId);
         return {
-          content: [{ type: 'text', text: `"${set?.name ?? name}" is the working CardForge Set at revision ${document.revision}. Load its exact card fields before making or revising cards.` }],
+          content: [{ type: 'text', text: `"${set?.name ?? name}" is the working CardForge Set at revision ${document.revision}. Load the exact Template contract before making new cards.` }],
           structuredContent: {
             documentId: document.id,
             revision: document.revision,
             set,
             openInStudioUrl: studioUrl(document.id, document.revision),
-            retrySafety: {
-              setId: set?.id ?? null,
-              rule: 'Reuse this Set id on every later revision or retry.',
-            },
+            retrySafety: { setId: set?.id ?? null, rule: 'Reuse this Set id on every later revision or retry.' },
             ...workflowMeta('card_set_ready', [
-              { action: 'get_card_generation_contract', reason: 'Load the real Template fields before making or revising cards.' },
+              { action: 'get_card_generation_contract', reason: 'Resolve the exact Template fields and design identity before making new cards.' },
             ]),
           },
         };
@@ -287,7 +268,7 @@ export const registerAgentCardTools = ({
       return {
         content: [{
           type: 'text' as const,
-          text: `${bulk ? 'Bulk card write' : 'Card write'} completed for "${result.set.name}": ${action}. The working document is now revision ${result.document.revision}; the user’s browser workspace is not changed until that exact revision is applied.`,
+          text: `${bulk ? 'Bulk card write' : 'Card write'} completed for "${result.set.name}": ${action}. Existing cards kept their design identities; new cards used their explicit or unambiguous Set Template source. The working document is now revision ${result.document.revision}.`,
         }],
         structuredContent: {
           documentId: result.document.id,
@@ -300,7 +281,7 @@ export const registerAgentCardTools = ({
           retrySafety: {
             setId: result.set.id,
             stableCardIds: result.updatedIds,
-            rule: 'Reuse these exact ids for edits and retries. Use writeMode revise for existing cards so a changed data payload cannot create a replacement id.',
+            rule: 'Reuse these exact ids for edits and retries. Existing-card writes preserve their Template relationships; for new cards in a multi-Template Set pass templateId explicitly.',
           },
           ...workflowMeta(bulk ? 'bulk_cards_ready' : 'card_ready', [
             { action: 'preview_card_set', reason: 'Review the complete Set and stable ids before applying this exact revision in Studio.' },
@@ -315,7 +296,7 @@ export const registerAgentCardTools = ({
     'upsert_card',
     {
       title: 'Make or revise one CardForge card',
-      description: 'Use for one card in a working Set. Load get_card_generation_contract first. For an existing card use writeMode revise and its current cardId; CardForge will fail rather than silently create a duplicate. Copy and optional artwork are written together.',
+      description: 'Use for one card in a working Set. For a new card in a Set with multiple designs, pass the exact templateId returned by the chosen generation contract. Existing-card revise writes preserve the current Template and fail rather than silently retargeting or duplicating it.',
       inputSchema: upsertCardInputSchema,
       outputSchema: cardWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
@@ -334,7 +315,7 @@ export const registerAgentCardTools = ({
     'upsert_cards',
     {
       title: 'Make or revise CardForge cards in bulk',
-      description: 'Use for multiple cards, list/CSV/JSON conversion, or a bounded multi-card revision. Creates or revises up to 100 cards in one operation. For existing cards use writeMode revise and provide every stable cardId; this is the preferred way to update an existing Set without duplicates. Per-card artwork accepts a generated/uploaded public HTTPS sourceUrl or bounded raw base64 through the exact image-field contract.',
+      description: 'Use for multiple cards, list/CSV/JSON conversion, or a bounded multi-card revision. New cards carry their Template source explicitly when the Set has multiple designs. Existing cards preserve their current Templates and cannot be silently retargeted by a data update.',
       inputSchema: upsertCardsInputSchema,
       outputSchema: cardWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
@@ -381,7 +362,7 @@ export const registerAgentCardTools = ({
     'move_cards',
     {
       title: 'Move cards between agent working Sets',
-      description: 'Move existing stable card ids from one Set to another in the same private working document. CardForge validates the target Template contract before moving so incompatible card data is not silently broken.',
+      description: 'Move existing stable card ids from one Set to another in the same private working document. Moving keeps each card’s Template identity and makes those Templates available to the destination Set.',
       inputSchema: moveCardsInputSchema,
       outputSchema: cardMoveOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
@@ -442,7 +423,7 @@ export const registerAgentCardTools = ({
     'preview_card_set',
     {
       title: 'Visually review a CardForge Set before applying or committing it',
-      description: 'Review the current agent Set structure, stable ids, artwork diagnostics, install state, and representative native CardForge renders. Use after meaningful copy or artwork changes. Do not call a Set visually finished from field diagnostics alone; inspect the rendered cards shown in chat.',
+      description: 'Review the current agent Set structure, stable ids, artwork diagnostics, install state, and representative native CardForge renders. Multi-Template Sets are reviewed using each Artifact’s own front/back design relationship.',
       inputSchema: getCardSetInputSchema,
       outputSchema: cardSetPreviewOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
@@ -451,21 +432,9 @@ export const registerAgentCardTools = ({
       toolName: 'preview_card_set',
       input: { documentId, setId },
       execute: async (access) => {
-        const contract = await getCardGenerationContract({ access, documentId, setId });
-        const document = contract.document;
-        const set = document.document.cardSets.find((candidate) => candidate.id === setId);
-        if (!set) {
-          throw new StudioDocumentStoreError(
-            'That card set is not part of the current working design. Reload get_card_generation_contract and retry with the current set id.',
-            404,
-          );
-        }
-        const cards = document.document.storedCards.filter((card) => card.setId === setId);
-        const artwork = getArtworkDiagnostics({
-          cards,
-          frontFields: contract.frontFields,
-          backFields: contract.backFields,
-        });
+        const snapshot = await getWorkingCardSetSnapshot({ access, documentId, setId });
+        const { document, set, cards, templates } = snapshot;
+        const artwork = getArtworkDiagnostics({ cards, templates });
         const applied = document.lastInstalledRevision === document.revision;
         const rendered = await ensureSetContactSheetArtifact({
           ownerUserId: access.user.id,
@@ -493,10 +462,7 @@ export const registerAgentCardTools = ({
               lastInstalledAt: document.lastInstalledAt,
             },
             openInStudioUrl: studioUrl(document.id, document.revision),
-            retrySafety: {
-              setId: set.id,
-              stableCardIds: cards.map((card) => card.uniqueId),
-            },
+            retrySafety: { setId: set.id, stableCardIds: cards.map((card) => card.uniqueId) },
             ...workflowMeta('card_set_reviewed', [
               { action: 'upsert_cards', reason: 'Use writeMode revise with these stable ids for any remaining copy or artwork changes.' },
               { action: 'open_in_studio', reason: 'Open openInStudioUrl to apply this exact revision to the normal local CardForge workspace.' },
