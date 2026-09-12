@@ -14,7 +14,7 @@ import type { CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
-import { getArtifactWorkState } from '@/features/card-generator/lib/artifactWorkState';
+import { getArtifactWorkState } from '@/features/card-generator/client';
 import { selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
