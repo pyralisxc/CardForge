@@ -1,407 +1,239 @@
 # CardForge Product Surface Map
 
-Last updated: September 6, 2026
+Last updated: September 12, 2026
 
-This document is the canonical placement map connecting current shipped capability owners to the approved product direction. `docs/architecture.md` remains authoritative for shipped runtime behavior. `docs/product-direction.md` owns intended product direction and delivery order.
+This document is CardForge's canonical **placement map**. It answers where capabilities belong and whether a placement is shipped, direction, or future. It deliberately does not duplicate runtime ownership, provider contracts, detailed feature inventories, or implementation history.
+
+- `docs/architecture.md` owns shipped runtime ownership and invariants.
+- `docs/product-direction.md` owns intended product meaning and delivery sequence.
+- `docs/integrations.md` owns provider seams.
+- `docs/operations.md` owns operational procedure.
+- the live `/roadmap` owns publicly presented capability status and votes.
+
+When placement changes materially, update this map in the same accepted feature change. Do not preserve superseded layouts here for historical context; Git history owns that archaeology.
 
 ## Status language
 
 - **Shipped:** present in the current application/provider-backed product.
-- **Shipped foundation:** a real lower-level capability exists, but the target composition is not complete.
-- **Direction:** approved target placement/interaction.
+- **Shipped foundation:** a real lower-level capability exists, but the intended composition is incomplete.
+- **Direction:** approved target placement/interaction, not necessarily shipped.
 - **Future:** credible later capability, not an implementation commitment.
-- **Object:** work a user can select, inspect, change, organize, move, generate from, or output.
-- **Tool:** an action applied to an object/surface. A tool is not automatically a destination.
-- **Layer:** contextual detail shown over/beside the current object while preserving context.
-- **Queue:** ordered work requiring review/follow-up.
+- **Object:** authored or managed work a user can select, inspect, change, organize, move, generate from, or output.
+- **Tool:** an action applied to an object/surface; a tool is not automatically a destination.
+- **Layer:** contextual detail shown over/beside current work while preserving context.
 
-## Scope and parity contract
+## Placement invariants
 
-- Every shipped capability remains available until a separately approved retirement/migration is complete.
-- Consolidation may relocate a page into a tool/layer or combine destinations; it must not make normal actions undiscoverable or strand authored work.
-- Advanced actions may move into inspectors, menus, sheets, drawers, or command access; expected actions stay visible near the object that owns them.
-- Human and MCP surfaces resolve to the same native object owner, permission, revision, validation, and outcome.
-- Feature/provider failures preserve boundary meaning: unavailable, auth required, not permitted, invalid input, conflict, not found, limit reached.
-- Any implementation that changes placement materially updates this map in the same PR.
+- Permanent signed-in navigation is **Desk / Library / Profile**.
+- **Studio is a focused workbench mode**, not a fourth collection destination.
+- **Contributor is a capability layer**, not a permanent destination.
+- Protected **Owner** operations compose through the surfaces that own the underlying work; Profile carries owner-only utilities that are genuinely person/governance scoped.
+- One current object/collection should dominate the available center workspace. Do not nest a second visual "page" around a spatial work surface merely to repeat shell chrome.
+- Expected actions stay near the object/surface that owns them; advanced actions may move into inspectors, menus, sheets, drawers, or command access.
+- Placement changes do not transfer persistence or provider ownership. The native feature owner remains authoritative unless Architecture changes explicitly.
+- Human and MCP paths resolve to the same native object owner, permission, revision, validation, and outcome.
+- Feature/provider failures preserve their real boundary meaning; placement must not relabel unavailable/auth/conflict/not-found as empty or success.
 
 ## Canonical private product model
 
-| Surface | Kind | Primary object/question | Role |
+| Surface | Kind | Primary question | Placement contract |
 | --- | --- | --- | --- |
-| **Desk** | User surface | User-owned work containers and active work | The spatial account home: organize, resume, inspect, generate/export quickly, save/move, and act on owned contribution state. The current domain name is Set; provider/package labels may say Project without creating a second object. |
-| **Library** | User surface | Reusable objects across Personal / entitlement-filtered Pipeline / Contributor Published scopes | Find, inspect, heart, compare, vote, source, reuse, and manage resource locations without becoming a persistence owner. |
-| **Studio** | Focused workbench mode | Selected Set/artifact/Template/record/revision plus requested tool | Precision authoring, generation, validation, review-in-context, save, and output entered from selected work; not another collection or permanent navigation destination. |
-| **Profile** | User surface | The person and personal relationship to CardForge | Identity, security, access, preferences, billing handoff, connection summary, temporary AI capacity, personal Contributor configuration, and protected owner operations when authorized. |
-| **Production / Orders** | Future candidate | Frozen production bundle/order | Earns a zone only after CardForge owns durable quote/order/proof/tracking/reorder lifecycle. Until then production/output stays a Studio tool. |
+| **Desk** | Permanent user surface | What work am I actively organizing or resuming? | Spatial account home for user-owned work containers, active Sets, provider/temporary projections, quick object actions, and entry into focused tools. |
+| **Library** | Permanent user surface | What reusable/published/provider-backed resources can I find or manage? | Collection surface for Personal, Pipeline, Published, Campaign, asset, and location-management projections without becoming their persistence owner. |
+| **Studio** | Focused workbench mode | What exact object/tool am I changing right now? | Precision Design/Generate/Output/Pipeline work entered from selected context; closes back to the originating Desk/Library state. |
+| **Profile** | Permanent user surface | Who am I and what is my relationship to CardForge? | Identity, access, preferences, billing handoff, personal Contributor configuration, connection summary, and protected owner/person-level utilities. |
+| **Production / Orders** | Future candidate | Is there durable quote/order/proof/tracking lifecycle? | Earns a permanent zone only after CardForge owns that lifecycle; until then production/output remains a Studio tool. |
 
-**Contributor is a capability layer, not a permanent destination.**
+The former Developer/Cockpit destination is retired. Do not recreate it under a new name.
 
-The separate Developer/Cockpit destination is retired. Its shipped capabilities are composed through Desk, Library, Profile, focused Studio tools, and Profile owner operations; do not replace it with another permanent Contributor zone.
+## Shared shell and responsive grammar
 
-## Shared UI grammar
+### Shipped
 
-| Shared part | Contract |
-| --- | --- |
-| Primary navigation | Desk, Library, Profile. Protected owner operations appear within Profile when authorized. Studio opens from selected work. Contributor permissions enhance surfaces and tools rather than adding a destination. |
-| Command band | Surface identity, current object/workspace switching, search/commands, strongest valid action. |
-| Primary surface | One current object/collection dominates. Desk uses spatial object composition; Library uses collection views; Studio uses a precise canvas/tool workspace; Profile uses quiet aligned utilities. |
-| Object treatment | Real authored objects use thumbnails/stacks/previews and selected depth. Comparable settings/status use rows and fine grouping. |
-| Inspector/detail | Selected object raises/focuses and opens metadata, source, dependency, revision, permissions, and secondary actions. Closing restores exact prior context. |
-| Action order | Primary action, one/two supporting actions, then predictable overflow. Commitment boundaries confirm explicitly. |
-| Responsive behavior | Same hierarchy on desktop/mobile. Inspectors become sheets/focused views; dense data becomes compact rows, not long oversized cards. |
-| Visual semantics | Imagery for authored nouns, recognizable marks for providers/sources, icons for actions/status, text for explanation. |
+- Primary navigation has one owner: **Desk / Library / Profile**.
+- Signed-in top-right identity is account/avatar only; signed-out retains Sign in.
+- The shell top rail owns contextual search/command access. Private surfaces do not grow duplicate top-level search owners.
+- The bottom status rail owns compact workspace truth such as open-project count, Storage health, and browser-save state; those signals remain reachable on compact screens.
+- Surface-specific controls stay with the surface. Desk Camera/Grid/Snap, for example, live outside the Desk world camera rather than consuming world coordinates.
+- Narrow layouts compress labels/actions and move detail into compact presentation without silently deleting important capability.
+- Portaled menus/dialogs keep normal event ownership; spatial surfaces claim only events that actually belong to them.
+
+### Direction
+
+Keep shell grammar stable across permanent surfaces. New cross-product chrome must justify why an existing shell owner cannot express it.
 
 ## Desk
 
 ### Shipped
 
-- Desk uses the shared Environment shell through the dedicated `desk` feature owner.
-- Meaningful local Sets plus recent provider/temporary work project onto one constrained visual Desk; an empty workspace stays empty until the user creates or imports work.
-- Search, persistent pinning/order/world positions, canonical CardForge card/Template preview stacks, source fallbacks, and compact account utilities are present. Provider navigation links are never rendered as images: Drive may contribute its authorized thumbnail, Campaigns contribute attached media, and Pipeline contributes only validated image previews; all other sources state the real fallback. Desk views, types, tags, and sources use multi-select dropdowns; My work is the default and authorized Campaigns/My published views are opt-in and saveable.
-- Browser, Drive, remembered local folders, and temporary Studio documents load independently. Drive and Studio document cursors are exhausted through their native listing contracts; same-scope transient failures retain known results while account/access changes clear protected projections. Folder-only remembered work remains explicit and permission-aware.
-- Set workflow/type/tags are portable package metadata. Shared/public items may receive account-private organization only; labels do not change capability, publication, storage ownership, or contained-card tags.
-- Campaign packages appear as individual authorized Desk objects, while the existing marketing-content package remains the owner. Opening one loads its native campaign workspace in the Desk scene rather than redirecting to a Library shelf. My published projects only the contributor's own published Pipeline lineages through `assets.submit`, never through broader review access; an immutable publication opens in a contextual identity/preview layer while any editable working copy remains separate in My work.
-- Focusing local work expands its contained cards inside the same persistent Desk scene, with search, selection, tags, reflective field/content facets, grid/stack/freeform arrangements, move, edit, duplicate, export handoff, and confirmed removal. Focusing one Artifact moves it to a camera-fitted foreground while its Set field remains mounted as dimmed spatial context; Back/Escape restores Artifact → Set → Desk with the prior camera and selection.
-- New Set opens one creation choice: a fresh Set or an independent local copy of an immutable Published Set package.
-- Open, Generate, Save/Move, Rename, Duplicate, Export/print, pin, detail, exact-copy deletion, and Contributor-only Send to Pipeline resolve to their native owners. Desk hands the selected Set identity to the existing Pipeline submission tool instead of duplicating upload/publication logic.
+- Desk uses one bounded logical spatial world for work containers; the available center workspace is the Desk surface rather than an outer page containing a second bordered Desk.
+- Desk opens in **Fit** camera mode. Fit tracks viewport resize/orientation; **Custom** preserves the user's relative zoom and focal position.
+- Meaningful local/provider/temporary work projects into Desk without manufacturing starter work before the user creates/imports something.
+- Set positions persist. Desktop direct drag is the native spatial move interaction; keyboard/menu positioning remains an accessible non-drag path.
+- Selection is object-local visual state. Selecting a Set does not manufacture a separate top selection rail.
+- Double activation/Enter opens work; explicit object actions remain in predictable overflow/command paths.
+- Opening a Set and then an Artifact preserves one spatial grammar and the full center workspace. Returning restores prior camera/selection context.
+- Set presentation density is independent of camera zoom: small collections stay comfortable, larger collections compact/densify, and stacks compact further.
+- Fit is an overview, not permission to reduce a large Set to unreadable dots. A physical readability floor may intentionally leave large Sets pannable.
+- Focused individual Artifacts return to comfortable presentation even when their Set is dense.
+- Inline scene controls render only when the Artifact has enough physical width to own the hit target; dense cards keep direct pointer/touch selection and pan behavior.
+- Campaign and published/contribution projections remain projections of their native owners rather than duplicate Desk-owned records.
 
 ### Direction
 
-Desk is the user's real higher-level spatial account home, not merely a router/dashboard.
+Desk remains the higher-level spatial account home: organize, group, stack, sort, resume, inspect, and act on owned work without becoming an unconstrained infinite canvas or filesystem folder tree.
 
-Persistent-scene invariants:
-
-- show meaningful work containers as visual authored objects;
-- do not manufacture an `Untitled Set` or assign a starting Template before the user creates or imports work;
-- allow constrained spatial grouping/stacks/saved views rather than a filesystem folder metaphor;
-- preserve selection/position/context;
-- opening a Set expands its contained objects and pulling back restores the prior arrangement; opening one Artifact keeps the Set field visibly present at reduced emphasis until the user returns to the Set;
-- expose object-scoped Open, Edit/Test, Rename, Duplicate, Delete/remove, Save/Move, Generate, Export/share where supported;
-- show compact Pipeline/contribution state on Contributor-owned objects;
-- expose Send to Pipeline / Submit Revision / review actions only when valid;
-- keep account attention conditional and quiet.
-
-Desk is **more spatial than Library**. Studio is more precise and tool-dense than either because it is entered for a specific change.
-
-## Library — Personal / Pipeline / Published
+## Library
 
 ### Shipped
 
-- one Set identity pooled across device, Google Drive, and attached-folder copies, plus personal assets/fonts and temporary Studio drafts;
-- search, source/location information, object detail, locations & connections tool, and the same genuine multi-select source/kind/type/tag filters with any/all tag matching used for personal Desk organization;
-- the same canonical authored-object preview used by Desk, including real published Template rendering;
-- shared reviewed registry feeds Studio and exposes immutable Published Set package revisions without creating another starter registry;
-- Contributor Pipeline loads every authorized shared entry plus the contributor's private work, projects one top-level object per stable lineage, keeps the current published revision primary when present, and expands revision history from the inspector;
-- every account sees published Pipeline objects allowed by its entitlement; active Contributors see every Pipeline entry authorized by their scopes and gain a Published scope for their own published work;
-- signed-in accounts can heart every visible Pipeline lineage; Contributors can vote up/down on every visible exact revision, with the Owner self-vote toggle enforced;
-- Pipeline lifecycle, ownership, and voting are separate states: votes recorded outside active review remain feedback and cannot rebalance stable publication;
-- Published and Pipeline collections use structured Template/style rendering, registry preview derivatives, real image previews where valid, semantic font samples, and truthful fallbacks instead of treating packages, fonts, or structured endpoints as images;
-- Pipeline detail exposes contributor, current/published revision, lifecycle, review availability, tier, quality, votes, classification/rights, decision reasoning, and revision history. Structured Template revisions can open as an exact local Studio test copy.
+Library is one collection environment with capability-dependent scopes, including:
 
-### Direction
+- **Personal** — user-owned reusable/project/provider-backed work and resources;
+- **Pipeline** — published shared resources for normal accounts plus authorized review content for Contributors;
+- **Published** — contributor/owner view over the contributor's published Pipeline work;
+- **Campaigns** — access-gated campaign packages owned by the marketing-content domain where authorized.
 
-Library becomes one collection with scopes:
+Library owns collection/location **presentation**, not underlying persistence. It provides search/filter/detail, published/review projections, and Locations & connections around native owners.
 
-- **Personal:** user-owned reusable objects/resources and provider-backed content;
-- **Pipeline:** published shared resources filtered to account level, enhanced with authorized review content for Contributors;
-- **Published:** Contributor/Owner view over the contributor's published Pipeline work.
+### Location tools — shipped
 
-Rules:
-
-- normal creators do not see unpublished Pipeline content;
-- Personal/Published/Pipeline projections preserve stable lineage rather than inventing disconnected duplicate identity;
-- Pipeline default view is one item per lineage, not every revision as a top-level tile;
-- show current published revision when present, otherwise current/strongest active candidate;
-- revisions expand from inspector;
-- support Gallery, Compact List, and Expanded/Detail review densities;
-- preserve current Forge Review filters and add saved views such as Needs my vote, My votes, New revisions, Near threshold, Changed since my vote, Published, Archived/recovery, family, Specialty, contributor, tier, status;
-- hearts available wherever Pipeline objects display and quick exact-revision voting available to Contributors;
-- testing an exact revision opens the contextual Design tool and returning restores Library scope/filter/position;
-- source/rights/classification/decision detail stays available.
-
-### Location tools
-
-Library remains the owner of location management presentation:
+Locations & connections is one native tool reachable from the relevant creator context. It presents:
 
 - browser workspace health;
-- portable project/Set packages;
-- local-folder attach/save/open/reconnect/disconnect;
-- Google Drive connect/folder/list/open/save-new/revision-safe update/delete/disconnect;
-- default save-location preference plus verified Copy/Move between supported locations; Move never removes the source before the destination is readable;
+- portable `.cardforge`/Set packages;
+- authorized local folders;
+- connected Google Drive project location;
+- default location/Copy/Move capabilities where supported;
 - connected personal asset references;
 - temporary AI workspace lifecycle.
 
-CardForge Cloud Set Mirror is retired from normal runtime; do not restore it.
+Google Drive folder selection may use existing writable personal/shared folders. The UI identifies the active folder and destination changes refresh the relevant Library/Desk projection without requiring a full page reload. Detailed OAuth, resource-key, revision, thumbnail, reconnect, and failure semantics remain owned by `docs/integrations.md` and the Google Drive setup runbook.
 
-## Contextual creator tools — Design, Generate, Output, Pipeline
+Move never removes a source before the destination is verified readable according to the native owner. CardForge Cloud Set Mirror remains retired.
 
-### Shipped creation foundation
-
-- Template Studio canvas/layers/inspector/history/front/back workflows;
-- text/rich text/images/icons/shapes/dividers/frames/semantic bindings;
-- Template library create/clone/revise/import/export;
-- bulk generation from structured input;
-- bulk CSV/import mapping/validation;
-- Set create/select/rename/import/export and front/back relationships;
-- generated card gallery/edit/duplicate/remove;
-- canonical preview/rendering;
-- individual downloads/share;
-- PNG ZIP, print PDF, quality/DPI, cut lines, duplex layout, TTS spritesheets;
-- entitlement/watermark policy;
-- portable project files;
-- Google Drive/local-folder project save/open;
-- temporary AI Studio-document handoff;
-- command palette/mobile editor controls.
-
-### Shipped contextual-tool consolidation
-
-- Desk and Library retain the active Set/object context while Design, Generate, Output, Pipeline, and location controls layer over the current environment;
-- Design exclusively owns the full viewport while active, exposes one close path, and does not retain page-level navigation or account chrome inside the tool;
-- Design Fit centers the complete Template canvas without document scrolling; wheel/button/pinch zoom may then create scroll only inside the canvas viewport;
-- Design and Generate remain the two focused authoring modes and preserve the active Set when switching;
-- Generate progressively separates Template/back setup from card-data entry and validation, then returns the new card selection to its originating Desk context;
-- Save/Move uses the Library storage owner, Output uses the native export owner, and Send to Pipeline embeds the native contribution owner;
-- one tool-host contract owns focus restoration, Back/Escape/close unwind, crash isolation, and dirty-close rejection;
-- legacy tab navigation, tab IDs, Set Library component, duplicate Studio Set Desk, and duplicate inline output surface are removed;
-- `/studio` is a lightweight compatibility translator into Desk Design; exact document/revision handoffs install through the same contextual creator runtime rather than booting a second application;
-- persisted legacy `desk`/`sets` destinations normalize without preserving a retired runtime surface.
-
-### Current placement
-
-Templates / Make Cards / Sets have been retired as competing top-level Studio destinations after preserving their native capability owners.
-
-The creator tool runtime opens for one active object/tool context:
-
-- the selected Set/object/revision and requested action determine the initial tool;
-- Template editing focuses the selected Template/master;
-- Generate is a contextual tool and returns outputs to the Desk;
-- advanced Output is contextual and already knows object/group/Set scope;
-- Save names the current durable destination;
-- Library/source selection opens around the work;
-- returning to Desk or Library restores the originating selection, filters, arrangement, inspector, and scroll context;
-- Set switching and spatial organization stay on Desk;
-- full editing power follows the focused object rather than turning every Desk object into a live editor.
-
-### Save / contribution commitment language
-
-- **Save · [destination]** — persist to current durable owner.
-- **Save As / Move** — choose another durable location.
-- **Send to Pipeline** — create a new reviewable contribution.
-- **Submit Revision** — create a new reviewable revision on an existing shared lineage.
-- **Publish Live** — Owner/policy boundary that changes stable Published Library truth.
-
-Never conflate these actions.
-
-### Contributor enhancements in Studio
-
-- Pipeline candidates/unpublished revisions visible in source picker;
-- published vs candidate/archived state explicit;
-- one primary revision shown per lineage by default;
-- inspector Revisions expansion;
-- exact `Use this revision` pinning;
-- contextual positive/negative vote on exact revision;
-- compare revision/history/source/review notes;
-- Send to Pipeline / Submit Revision from selected eligible objects;
-- controlled rights/source/classification collection;
-- candidate testing never silently publishes or updates a Project.
-
-### New domain work required
-
-- real Set/Project duplicate/delete actions;
-- generalized Pipeline lineage for media/fonts/etc. beyond the strong Template revision model;
-- exact candidate dependency pinning/materialization for durable Projects;
-- shared source-capability projection;
-- contributor Withdraw/Retire lifecycle distinct from Owner permanent purge.
-
-## Profile — person and personal continuity
+## Studio — contextual creator workbench
 
 ### Shipped
 
+Studio is entered for one selected object/tool context rather than navigated as a competing collection.
+
+- **Design** owns precision Template/card design around the selected object.
+- **Generate** owns structured creation/mapping/validation and returns created work to its originating context.
+- **Output** owns export/production actions with the current object/Set scope already resolved.
+- **Pipeline** contribution/review actions embed the native Pipeline owner when permitted.
+- Save/Move delegates to the native project/location owner.
+- `/studio` is compatibility ingress into the same contextual runtime, including exact temporary Studio-document handoff; it is not a second application.
+- one tool-host contract owns close/back/Escape unwind, focus restoration, crash isolation, and dirty-close rejection.
+
+Templates / Make Cards / Sets are not peer top-level Studio destinations. Their feature owners remain native tools/capabilities inside the contextual workbench.
+
+### Commitment language
+
+Keep these meanings distinct:
+
+- **Save · [destination]** — persist to current durable owner.
+- **Save As / Copy** — create an independent durable copy where supported.
+- **Move** — create/verify destination, then remove source only under the native safe-transfer contract.
+- **Send to Pipeline** — create a reviewable contribution.
+- **Submit Revision** — create a new reviewable revision on an existing shared lineage.
+- **Publish Live** — Owner/policy boundary that changes stable Published Library truth.
+
+## Profile
+
+### Shipped
+
+Profile remains person-centered:
+
 - Clerk identity/security/session management;
-- access/plan presentation;
-- Stripe checkout/Billing Portal handoff;
-- temporary AI usage/allowance presentation;
-- compact protected-access entry;
-- Environment shell/focused utilities.
-- current account/access/workspace/authority snapshot before utility navigation;
-- current assisted-work allowance and Contributor progress summaries when authorized, with explanations and controls in their focused utilities.
+- access/plan presentation and Stripe billing handoff;
+- personal settings/defaults that are genuinely person scoped;
+- temporary assisted-work usage/capacity presentation;
+- Contributor access/scopes/personal configuration when authorized;
+- provider-connection summary with detailed location management delegated to Library;
+- protected owner/person/governance utilities when authorized.
 
-### Direction
-
-Profile remains person-centered and quiet:
-
-- actual display name/avatar rather than email-derived identity when available;
-- personal Studio defaults/preferences only when ownership is truly personal;
-- provider connection summary, with detailed management opening in Library;
-- temporary AI capacity/retention status;
-- Contributor access/scopes/meaningful personal limits when authorized;
-- account/data lifecycle paths through the service that owns each datum.
-- current personal statistics stay visible in the overview; settings, policy explanation, and provider-owned management stay in focused utilities.
-
-Do not put work inventory or Pipeline queue here.
+Do not put work inventory or Pipeline queues in Profile merely because they belong to the signed-in account.
 
 ## Contributor capability placement
 
 | Capability | Desk | Library | Studio | Profile |
 | --- | --- | --- | --- | --- |
-| Own contribution status | Compact owned-object state | Personal lineage detail | Selected-object state | Personal access only |
-| Browse all Pipeline content | No | **Pipeline scope** | Through source picker/context | No |
-| Vote | Owned exact revision when useful | **Primary review action** | **Contextual while testing/using** | No |
-| Submit new candidate | Quick entry on eligible owned object | Possible from selected Personal object | **Native selected-object action** | No |
-| Submit revision | Quick entry on linked owned object | Selected lineage action | **Native selected-object action** | No |
-| Compare revisions | Inspector | **Inspector/detail** | **Inspector/detail** | No |
-| Contributor scopes/limits | Attention only when meaningful | No | Permission resolves actions | **Personal configuration/status** |
-| Campaign packages | **Authorized individual work objects; native campaign workspace opens in the same Desk scene** | **Access-gated Campaigns scope for drafting, revision, media, and submission** | Contextual editing where useful | Scope/status only |
-| Site proposals | Retired | Retired | Retired | Historical records only; no active Contributor scope or mutation surface |
+| Own contribution state | Compact object state | Lineage/detail | Selected-object state | Personal access summary only |
+| Browse shared Pipeline | No broad queue | **Primary collection** | Source/context only | No |
+| Vote/review | Only where object-local action is useful | **Primary batch/detail action** | Contextual while testing/using | No |
+| Submit candidate/revision | Eligible object quick entry | Selected Personal/lineage entry | **Native selected-object action** | No |
+| Compare revisions | Inspector/detail | **Inspector/detail** | **Inspector/detail** | No |
+| Contributor scopes/limits | Attention only when meaningful | Permission-filtered content | Permission resolves actions | **Personal configuration/status** |
+| Campaign packages | Authorized work objects | **Campaigns scope** | Contextual editing where useful | Scope/status only |
 
-## Pipeline and revision policy
+Site proposals remain retired as an active Contributor capability.
 
-Current Forge Pipeline owner remains `contributor-assets` and associated Supabase records.
-
-Preserve:
-
-- lifecycle draft/submitted/voting/publish_candidate/published/archived/rejected;
-- vote ledger and current-user vote;
-- vote weights/self-vote policy;
-- quality thresholds/capacity ranking;
-- automatic archive/recovery;
-- owner status/tier overrides;
-- attribution/history;
-- tombstoned permanent deletion.
-
-Direction:
-
-- one substantive revision = new immutable candidate signal;
-- votes do not carry forward automatically;
-- published revision stays stable until publication changes;
-- Project dependencies pin exact revision/snapshot;
-- revision history stays behind progressive disclosure;
-- heavy old revision payload may later be pruned by policy, but lightweight audit history remains;
-- Contributor may Withdraw unpublished own work and Retire published own work under policy/dependency checks;
-- Owner retains permanent purge.
-
-## Storage, providers, and MCP
+## Storage, providers, and MCP placement
 
 ### Durable user locations
 
 - browser working/recovery copy;
 - portable `.cardforge`/Set packages;
-- local folders;
+- authorized local folders;
 - Google Drive projects;
 - future deliberate providers.
 
-The `.cardforge` package is the one portability contract for import, export, provider transfer, Pipeline Set publication, and Published Set installation. Installing a Published Set creates new local Set/card/Template/resource identities while retaining the package as immutable published source material.
+The `.cardforge` package remains the portability contract for import/export/provider transfer and published Set installation. Storage semantics and exact identity/revision contracts belong to Architecture/Integrations, not this placement map.
 
 ### Temporary CardForge-owned work
 
-Temporary AI Studio documents only. They are revisioned, quota/retention governed, recoverable briefly after delete/expiry, and automatically cleaned. They are not project backups.
+Temporary AI Studio documents are revisioned, quota/retention governed working documents. They are not project backups or another durable project owner.
 
 ### MCP
 
-MCP shares native owners:
+MCP exposes the same native owners rather than alternate product surfaces: rendering/validation, temporary working documents, provider-backed project checkout/commit where reachable, connected asset materialization, and Pipeline handoff according to permission.
 
-- same renderer/validation/Pipeline/revisions;
-- Google Drive project revision-safe checkout/commit;
-- connected personal asset metadata search + explicit materialization;
-- temporary working documents;
-- Template Pipeline handoff.
-
-Browser/local-folder work remains remote-inaccessible without explicit handoff or server-reachable provider save.
-
-A future shared source-capability projection should expose human/agent reachability and revision/write/materialization semantics to both UI and MCP.
+Browser/local-folder work remains remote-inaccessible without explicit handoff or a server-reachable provider copy.
 
 ## Owner operations
 
-Owner remains protected and auditable, but composes as authority on native objects rather than a separate navigation environment. Profile contains Overview, Growth & People, and Governance. Campaign operations live in Library → Campaigns; Pipeline operations live in Library → Pipeline; public site controls live contextually on the homepage; Roadmap mutations live on `/roadmap`. `/owner` is compatibility ingress for older deep links and provider callbacks.
+Owner remains protected and auditable but is not a separate product universe.
 
-Current capability families remain preserved:
+- Campaign operations live with Campaigns.
+- Pipeline review/publication lives with Pipeline/Library.
+- public-site controls live with their public/content owners.
+- Roadmap mutations live with `/roadmap`.
+- person/governance/authorization utilities that genuinely belong to the account compose through protected Profile owner controls.
+- `/owner` remains compatibility ingress for older callbacks/deep links where required.
 
-- action/readiness overview;
-- Library → Campaigns strategy/approval/distribution/results;
-- growth/people/Contributor access/analytics/billing/contact;
-- contextual public-homepage site/content controls;
-- contextual `/roadmap` rules and status controls;
-- shared Library → Pipeline review/publication/routing/removal;
-- governance/legal/activity/retention.
-
-Owner may reuse shared object renderers and Library review projections, but it must not become a second persistence owner or provider dashboard.
+Owner composition must not become a second persistence owner or provider dashboard.
 
 ## Public site
 
-Public remains the entrance:
+Public remains the entrance for product proof, plans/access explanation, Contributor program, roadmap/history, founder/about, contact/support, legal/policy, authentication, and Specialty/Kits storytelling through outcomes.
 
-- product proof/outcomes;
-- plans/access explanation;
-- Contributor program explanation/application;
-- roadmap/voting/history;
-- founder/about;
-- contact/support;
-- legal/policy;
-- authentication;
-- Specialty/Kits storytelling through outcomes.
-
-Use Contributor in user-facing and runtime language. The former Developer, Developer Terms, standalone Profile, and Environment Lab routes are cold-cut rather than redirected; `/contributors`, `/contributor-terms`, and Account Profile are the current surfaces.
+Use **Contributor** in current user-facing/runtime language. Retired Developer/Cockpit surfaces must not reappear as parallel destinations.
 
 ## Specialty / Kits placement
 
-Specialties configure Desk/Library/Studio vocabulary and recommendations; they do not create separate Studios.
+Specialties configure vocabulary, recommendations, validation, components, and output profiles across Desk/Library/Studio. They do not create separate Studios.
 
-- Desk may group/recommend current Specialty work.
-- Library ranks compatible resources.
-- Studio changes suggested artifacts/components/validation/output profiles.
-- Profile may retain personal default Specialty/Kit preference if truly personal.
-- Pipeline contribution can carry controlled Specialty/use-case/compatibility classification.
+Games remains the first active Specialty direction; later artifact families must satisfy the validation standard in `docs/product-direction.md` rather than earning surfaces by taxonomy alone.
 
-Games remains the first active Specialty direction, including Playing Cards, Tarot/Oracle, TCG, Prototype, RPG/reference, Prompt/Trivia, coordinated Game Product, and later broader tabletop artifacts as validated by the product-direction standard.
+## Consolidation decisions that are not open
 
-## Feature-owner coverage ledger
-
-| Feature owner | Current responsibility | Target home |
-| --- | --- | --- |
-| `account` | identity/access projection and Profile composition | Profile + compact Desk status |
-| `home` | internal owner for Desk composition over native work/Library owners, including contained-card organization | Desk |
-| `app-shell` | Studio bootstrap, focused mode switching, return handoffs, and contextual-tool composition | Focused Studio workbench + shared environment grammar |
-| `card-generator` | generation, rendered-card editing, validation, output | Desk quick actions + focused Studio tools |
-| `card-rendering` | canonical preview/render/watermark | Cross-surface service |
-| `account` | ordinary signed-in account-tool capabilities, identity projection, plan, profile | Desk/Library/Profile/focused Studio/MCP account access |
-| `contributor-access` | Contributor profile/scopes/access | Profile + permission resolution across Desk/Library/focused Studio; Owner people controls |
-| `pipeline` | Pipeline submissions/votes/revisions/publication/registry | Library Pipeline, Studio contextual contribution/review, Owner publication |
-| `contributor-program` | public program explanation/application | Public Contributor program |
-| `marketing-content` | contributor campaign packages/media | Desk/Library/owning composition tool; Library Campaigns |
-| `personal-library` | connected provider assets/fonts | Library + Studio source picker + MCP read |
-| `project` | browser workspace, packages, folders, Drive, recovery | Desk + Library location truth + Studio save/open |
-| `storage-management` | account unified inventory/location tools | Library; compact Profile summary |
-| `studio-documents` | temporary AI documents/assets/revisions/MCP | Desk resume, Library temporary shelf, Studio, MCP |
-| `template-editor` | Template canvas/layers/inspector/lifecycle | Studio selected Template tool |
-| `mcp-usage` | assistant usage/capacity | Profile + Owner operations |
-| `billing` | Stripe access/checkout/portal/webhooks | Profile/Desk status + Owner reconciliation |
-| `owner` | operational authorization/composition | Profile owner operations; `/owner` compatibility ingress |
-
-All other existing feature owners keep their native records/providers; placement changes do not transfer ownership.
-
-## Consolidation decisions
-
-- Three permanent user-navigation surfaces: **Desk, Library, Profile**.
-- Studio is a focused authoring/production mode entered from selected work, not a fourth collection destination.
-- **Contributor is a capability layer**, not a zone.
-- **Owner remains protected** operations composed inside Profile.
-- Desk is spatial authored-work organization, not only orientation/router.
-- Library becomes a Personal / entitlement-filtered Pipeline collection, with Published added for Contributors and Owners.
-- Studio provides Design/Generate/Validate/Output over the selected object, with Save/Pipeline as contextual commitments.
-- Profile remains personal configuration.
-- Templates / Make Cards / Sets peer Studio destinations are retired; their feature owners remain native tools.
-- Developer Cockpit / nested Asset Hub navigation is retired; contribution actions resolve through Desk, Library, Profile, focused Studio tools, and Profile owner operations.
+- Permanent user navigation is **Desk / Library / Profile**.
+- Studio is focused workbench mode, not a permanent collection destination.
+- Contributor is a capability layer, not a zone.
+- Owner is protected authority composed through native surfaces, not another persistence/product universe.
+- Desk is spatial authored-work organization.
+- Library is collection/reuse/review/location presentation.
+- Provider save and Pipeline submission are separate commitments.
+- Review follows the object and also has a deliberate Pipeline Library home.
 - CardForge Cloud Set Mirror remains retired.
-- Provider save and Pipeline submission remain semantically separate.
-- Review follows the object and is also available in Pipeline Library for deliberate batch review.
-- Radial/marking interaction is a future accelerator over the same resolved actions, not a requirement for basic operation.
+- Radial/marking interaction, if added later, accelerates already-resolved actions rather than replacing discoverable basic operation.
 
 ## Current open placement questions
 
-1. Final public name for the one work container currently called Set in CardForge and Project by some provider/package paths.
-2. Generalized revision-lineage schema for media/fonts/component recipes.
-3. Heavy revision payload retention policy.
-4. Which defaults belong in Profile versus Project.
-5. When durable Production/Orders earns a separate zone.
+1. Final public name for the one work container currently called **Set** in CardForge and **Project** in some provider/package paths.
+2. Generalized revision-lineage placement for media/fonts/component recipes as those owners mature.
+3. Which truly personal defaults belong in Profile versus Set/Project scope.
+4. When durable Production/Orders lifecycle earns a separate permanent surface.
 
-These questions refine implementation; they do not reopen the three-surface navigation, focused-Studio, or Contributor-as-capability decisions.
+These questions may refine placement. They do not reopen the three-surface navigation, focused-Studio model, or Contributor-as-capability decision.

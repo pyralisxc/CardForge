@@ -7,7 +7,9 @@ description: Use when implementing, refactoring, testing, reviewing, or polishin
 
 ## Authority and startup
 
-Use this as CardForge's complete execution workflow. Load it after `AGENTS.md` and before applying generic task-process guidance.
+Use this as CardForge's complete repo-local execution workflow. Cameron may also have a global/account-level Lean Repository Execution skill available, but CardForge must not depend on it. When global and repo-local guidance differ, follow `AGENTS.md`, this repo skill, current CardForge code/provider state, and the canonical CardForge docs.
+
+Load this after `AGENTS.md` and after any required Founder-to-Feature Resolve step, before applying generic task-process guidance.
 
 State the selected risk lane, concrete objective, and verification budget in one compact progress update. Do not write a plan, ledger, status, workflow, or progress file unless Cameron explicitly requests it. Never create `docs/superpowers/**`.
 

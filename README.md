@@ -7,7 +7,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 ## Live product
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/contributors`, `/contact`, and legal pages.
-- Desk: `/account`; one persistent artifact layer carries the same rendered cards from three-to-five-card Set stacks into the expanded Set and focused editing. A context rail changes its identity and actions at Desk, Set, Artifact, and tool depth without discarding the objects underneath. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
+- Desk: `/account`; one persistent artifact layer carries the same rendered cards from three-to-five-card Set stacks into the expanded Set and focused editing. Desk, focused Set, and focused Artifact share the available center workspace while contextual tools preserve the underlying authored objects. Design promotes the focused object into the precision canvas inside the environment; Generate, Output, and Pipeline dock beside or below the visible scene. `/studio` is a compatibility translator into contextual Desk Design, including exact temporary Studio-document handoffs.
 - Account, Creator Pass, Designer Pass, and Profile: `/account`.
 - Contributor work is capability-gated inside Desk, Library, and Profile; site-proposal scope is retired.
 - Owner operations compose inside Profile; `/owner` is protected compatibility ingress for older callbacks and deep links.
@@ -17,13 +17,15 @@ Production runs at [cardforges.com](https://cardforges.com).
 
 ## Repository authority
 
-A fresh maintainer or agent should be able to work from the repository without prior chat history. Treat `main` plus live provider state as authoritative. Start with:
+A fresh maintainer or agent should be able to work from the repository without prior chat history or Cameron's account-level skills. Treat `main` plus live provider state as authoritative. Start with:
 
-1. `AGENTS.md` for working rules.
+1. `AGENTS.md` for working rules and repo-local workflow authority.
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
-PRs, commits, old migrations, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; `docs/product-surface-map.md` owns canonical placement and shipped-versus-direction surface status; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+
+Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
 ## Quick start
 
@@ -133,12 +135,19 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 ## Documentation
 
-- `docs/agent-map.md`: small objective-to-owner/test/documentation router.
-- `docs/architecture.md`: current architecture and source-of-truth behavior.
-- `docs/product-direction.md`: intended product model, boundaries, and delivery sequence.
-- `docs/product-surface-map.md`: canonical zones, feature placement, and shipped-versus-direction inventory.
+### Canonical living truth
+
+- `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
+- `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
+- `docs/product-surface-map.md`: canonical placement plus shipped-versus-direction surface status.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
-- `docs/operations.md`: current operations, release, provider, roadmap, and recovery procedures.
+- `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
 
-Keep these documents current and focused. Completed rollout instructions belong in Git/provider history, not in the live docs.
+### Routing and supporting references
+
+- `docs/agent-map.md`: objective-to-owner/test/documentation router; it does not redefine behavior.
+- `docs/testing.md`: durable testing philosophy and verification-lane ownership.
+- `docs/google-drive-project-storage-setup.md`: environment-specific Google Drive/Picker setup runbook subordinate to `integrations.md`, `operations.md`, and current provider state.
+
+Keep these documents current and focused. Completed audits, rollout instructions, migration cutovers, and feature-specific reasoning belong in Git/provider history, not in live docs.

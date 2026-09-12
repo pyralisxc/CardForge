@@ -1,6 +1,6 @@
 # CardForge Working Rules
 
-CardForge is a live service app with local development. A fresh agent must be able to work from the repository and current providers without relying on prior chat history.
+CardForge is a live service app with local development. A fresh agent must be able to work from the repository and current providers without relying on prior chat history or account-specific skills.
 
 ## Repository authority
 
@@ -10,9 +10,18 @@ Treat `main` plus live provider state as authoritative. Orient in this order:
 2. `docs/agent-map.md` for the affected owner, focused tests, and relevant document sections.
 3. Only the source and linked sections routed for the objective.
 
-The durable truth sources remain `docs/architecture.md` for shipped ownership and invariants, `docs/product-direction.md` for intended direction, `docs/integrations.md` for provider seams, `docs/operations.md` for release procedures, and `docs/risk-register.md` for unresolved risk. Do not preload all of them when the routed slice answers the question.
+The durable truth sources are:
 
-Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
+- `docs/architecture.md` for shipped ownership and invariants;
+- `docs/product-direction.md` for intended product meaning and delivery sequence;
+- `docs/product-surface-map.md` for canonical placement and shipped-versus-direction surface status;
+- `docs/integrations.md` for provider seams;
+- `docs/operations.md` for current release/recovery/provider procedure;
+- `docs/risk-register.md` for unresolved or explicitly accepted risk.
+
+Supporting documents such as `docs/testing.md` and provider setup runbooks may explain verification or configuration, but they do not override the canonical owners above. Do not preload every document when the routed slice answers the question.
+
+Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, audit reports, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
 
 ## Workflow authority
 
@@ -23,6 +32,15 @@ An audit, critique, product discussion, UX reaction, or “what if” is not imp
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
+
+### Global skill compatibility
+
+Cameron may also have account-level/global Founder-to-Feature or Lean Repository Execution skills available in ChatGPT/Codex. Treat those as optional reusable methodology, never as a CardForge dependency or authority.
+
+- A fresh agent without Cameron's account-level skills must be able to work correctly from this repository alone.
+- When global guidance and CardForge-local guidance overlap, use the repository copy for CardForge-specific ownership, verification, provider, and documentation rules.
+- When they conflict, `AGENTS.md`, repo-local skills, current code/provider state, and the canonical CardForge docs win.
+- Do not copy generic global-skill prose into CardForge docs unless CardForge needs a project-specific specialization of that rule.
 
 ## Native-first integration rule
 
@@ -57,9 +75,9 @@ Do not add speculative guards for impossible states. A new failure branch must c
 
 ## Roadmap and completed work
 
-`docs/product-direction.md` owns the durable intended product model and delivery sequence. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep them consistent without turning either source into a duplicate of the other. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
+`docs/product-direction.md` owns the durable intended product model and delivery sequence. `docs/product-surface-map.md` owns where shipped and intended capabilities live. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep them consistent without turning any source into a duplicate of another. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
-Closed implementation plans, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
+Closed implementation plans, audits, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 
 ## Cameron shorthand
 
