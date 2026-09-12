@@ -106,18 +106,18 @@
 }
 
 /* There is one view-control capability with two presentations. Full controls
-   are used while they fit; the single View menu takes over below 901px. */
-[data-desk-toolbar] > button[aria-label="Desk view controls"] {
+   are used while they fit; the compact wrapper takes over below 901px. */
+[data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
   display: none !important;
 }
 
 @media (max-width: 900px) {
-  [data-desk-toolbar] > div[aria-label="Desk view controls"] {
+  [data-desk-toolbar] > [aria-label="Desk view controls"] {
     display: none !important;
   }
 
-  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
-    display: inline-flex !important;
+  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
+    display: flex !important;
   }
 }
 
@@ -246,12 +246,12 @@
   }
 
   [data-mobile-desk-filters] > summary,
-  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
+  [data-desk-toolbar] button[aria-label="Desk view controls"] {
     min-width: 44px !important;
     min-height: 44px !important;
   }
 
-  [data-desk-toolbar] > button[aria-label="Desk view controls"] {
+  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
     grid-column: 2 !important;
   }
 
