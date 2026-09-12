@@ -44,7 +44,8 @@ export function StudioConfirmationDialogs({
   onApplyProjectImport,
 }: StudioConfirmationDialogsProps) {
   const template = templates.find((item) => item.id === templatePendingDeleteId);
-  const dependentCardCount = storedCards.filter((card) => card.templateId === templatePendingDeleteId).length;
+  const frontDependentCount = storedCards.filter((card) => card.templateId === templatePendingDeleteId).length;
+  const backDependentCount = storedCards.filter((card) => card.backingTemplateId === templatePendingDeleteId && card.templateId !== templatePendingDeleteId).length;
 
   return (
     <>
@@ -52,16 +53,18 @@ export function StudioConfirmationDialogs({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this Template?</AlertDialogTitle>
-            <AlertDialogDescription>
-              &quot;{template?.name || templatePendingDeleteId || 'This Template'}&quot; will be permanently removed from this browser.{' '}
-              {dependentCardCount} card{dependentCardCount === 1 ? '' : 's'} using it will also be removed.
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm leading-6">
+                <p>&quot;{template?.name || templatePendingDeleteId || 'This Template'}&quot; will be permanently removed from this browser.</p>
+                {frontDependentCount > 0 ? <p>{frontDependentCount} Artifact{frontDependentCount === 1 ? '' : 's'} use it as their required front design and will also be removed.</p> : null}
+                {backDependentCount > 0 ? <p>{backDependentCount} other Artifact{backDependentCount === 1 ? '' : 's'} use it only as a back. Those Artifacts will remain and become front-only.</p> : null}
+                {!frontDependentCount && !backDependentCount ? <p>No generated Artifacts currently depend on this Template.</p> : null}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmTemplateDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Template
-            </AlertDialogAction>
+            <AlertDialogAction onClick={onConfirmTemplateDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Template</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -70,9 +73,7 @@ export function StudioConfirmationDialogs({
         <AlertDialog open onOpenChange={(open) => !open && onDismissTemplateRetarget()}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>
-                {pendingTemplateRetarget.side === 'back' ? 'Use the saved back for this set?' : 'Use the saved design on existing cards?'}
-              </AlertDialogTitle>
+              <AlertDialogTitle>{pendingTemplateRetarget.side === 'back' ? 'Use the saved back for this set?' : 'Use the saved design on existing cards?'}</AlertDialogTitle>
               <AlertDialogDescription>
                 &quot;{pendingTemplateRetarget.name}&quot; is saved.{' '}
                 {pendingTemplateRetarget.side === 'back'
@@ -83,12 +84,8 @@ export function StudioConfirmationDialogs({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={onDismissTemplateRetarget}>
-                {pendingTemplateRetarget.side === 'back' ? 'Keep current back' : 'New cards only'}
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={onApplyTemplateRetarget}>
-                {pendingTemplateRetarget.side === 'back' ? 'Use saved back' : 'Update existing cards'}
-              </AlertDialogAction>
+              <AlertDialogCancel onClick={onDismissTemplateRetarget}>{pendingTemplateRetarget.side === 'back' ? 'Keep current back' : 'New cards only'}</AlertDialogCancel>
+              <AlertDialogAction onClick={onApplyTemplateRetarget}>{pendingTemplateRetarget.side === 'back' ? 'Use saved back' : 'Update existing cards'}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -100,22 +97,9 @@ export function StudioConfirmationDialogs({
             <AlertDialogTitle>Import project file?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm leading-6">
-                <p>
-                  {pendingProjectImport?.preview.fileName || 'Selected file'} includes{' '}
-                  {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
-                  {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'},{' '}
-                  {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and{' '}
-                  {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.
-                </p>
-                {(pendingProjectImport?.preview.templateIdConflicts.length || pendingProjectImport?.preview.templateNameConflicts.length) ? (
-                  <p>
-                    Matching templates found: {[
-                      ...(pendingProjectImport?.preview.templateIdConflicts ?? []),
-                      ...(pendingProjectImport?.preview.templateNameConflicts ?? []),
-                    ].slice(0, 4).join(', ')}.
-                  </p>
-                ) : null}
-                <p>Replace loads the file as the local project. Merge adds or updates Templates, cards, styles, assets, and export settings without clearing current local work.</p>
+                <p>{pendingProjectImport?.preview.fileName || 'Selected file'} includes {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'}, {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.</p>
+                {(pendingProjectImport?.preview.templateIdConflicts.length || pendingProjectImport?.preview.templateNameConflicts.length) ? <p>Matching Templates found: {[...(pendingProjectImport?.preview.templateIdConflicts ?? []), ...(pendingProjectImport?.preview.templateNameConflicts ?? [])].slice(0, 4).join(', ')}. Different snapshots are kept independent rather than silently replacing another Set&apos;s design.</p> : null}
+                <p>Replace loads the file as the local project. Merge adds its work while preserving independent Template snapshots when designs differ.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

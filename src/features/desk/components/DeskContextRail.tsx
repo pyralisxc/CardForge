@@ -72,6 +72,7 @@ interface DeskContextRailProps {
   onInspect: () => void;
   onDeleteWork: () => void;
   onEditArtifact: () => void;
+  /** Compatibility callback while Artifact-origin design is migrated to Save-time forking. */
   onDesignArtifactCopy: (face: CardFace) => void;
   onReviseSelected: () => void;
   onDuplicateSelected: () => void;
@@ -116,17 +117,11 @@ export function DeskContextRail(props: DeskContextRailProps) {
     requestAnimationFrame(() => setActionsRef.current?.focus());
   };
   const selectMenuAction = (action: () => void) => () => {
-    // Let Radix complete menu dismissal first. Preventing onSelect is Radix's
-    // documented way to keep a menu open, which is the opposite of a surface
-    // handoff such as Rename, Details, Delete, or opening another tool.
     window.setTimeout(action, 0);
   };
   const driveState = driveWorkingSession.state;
   const showDriveState = props.localSet && driveState.phase !== 'unlinked';
 
-  // Desk selection is object-local state. Selecting work must not manufacture a
-  // second shell rail; direct drag, double activation, keyboard commands, and
-  // each object's overflow menu own Desk-level interactions.
   if (props.depth === 'desk') return null;
 
   return (
@@ -194,14 +189,12 @@ export function DeskContextRail(props: DeskContextRailProps) {
 
         {props.depth === 'artifact' ? <>
           {props.selectedArtifactCount > 1 ? <span className={styles.contextStatus}>{props.selectedArtifactCount} selected</span> : null}
-          <Button type="button" size="sm" title="Edit card content" onClick={props.onEditArtifact}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Edit</span></Button>
+          <Button type="button" size="sm" title={props.selectedArtifactCount > 1 ? 'Edit selected Artifact content' : 'Edit card content'} onClick={props.selectedArtifactCount > 1 ? props.onReviseSelected : props.onEditArtifact}><Pencil className="h-4 w-4" aria-hidden="true" /><span>{props.selectedArtifactCount > 1 ? 'Edit selected' : 'Edit'}</span></Button>
           <Button type="button" size="sm" variant="outline" title="Design Template" onClick={() => props.onOpenDesign(artifactFace)}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Design</span></Button>
-          <Button type="button" size="sm" variant="outline" title="Revise selected Artifacts" onClick={props.onReviseSelected}><WandSparkles className="h-4 w-4" aria-hidden="true" /><span>Revise</span></Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="More Artifact actions" title="More Artifact actions"><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={selectMenuAction(() => props.onDesignArtifactCopy(artifactFace))}><Pencil aria-hidden="true" />Design a copy for this card</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onDuplicateSelected}><Copy aria-hidden="true" />Duplicate</DropdownMenuItem>
+            <DropdownMenuItem className={compactMenuItemClassName} onSelect={props.onDuplicateSelected}><Copy aria-hidden="true" />Duplicate{props.selectedArtifactCount > 1 ? ' selected' : ''}</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteSelected)}><Trash2 aria-hidden="true" />Remove from Set</DropdownMenuItem>
+            <DropdownMenuItem className={`${compactMenuItemClassName} text-destructive focus:text-destructive`} onSelect={selectMenuAction(props.onDeleteSelected)}><Trash2 aria-hidden="true" />Remove{props.selectedArtifactCount > 1 ? ' selected' : ''} from Set</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>
         </> : null}
 

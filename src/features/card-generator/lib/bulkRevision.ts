@@ -60,11 +60,11 @@ export const buildBulkRevisionPlan = ({
     Object.keys(candidate.data).forEach((key) => {
       if (candidate.data[key] !== current.data[key]) changedFields.add(key);
     });
+    // Updating values from data never changes design authority. Template
+    // retargeting is an explicit Design/Save operation, not a side effect of
+    // whichever Template happened to parse the incoming rows.
     revisions.push({
       ...current,
-      template: candidate.template,
-      backingTemplate: candidate.backingTemplate,
-      backingTemplateId: candidate.backingTemplateId,
       data: { ...current.data, ...candidate.data },
       backingData: candidate.backingData ? { ...current.backingData, ...candidate.backingData } : current.backingData,
       updatedAt: new Date().toISOString(),
