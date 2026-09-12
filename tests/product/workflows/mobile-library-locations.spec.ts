@@ -87,7 +87,7 @@ test.describe('mobile Library location tools', () => {
 
     const status = page.locator('footer[aria-label="Environment status"]');
     await expect(status).toBeVisible();
-    await expect(status.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(status.getByText('Working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
 
     const storageStatus = page.getByTitle('Open Locations & connections');
