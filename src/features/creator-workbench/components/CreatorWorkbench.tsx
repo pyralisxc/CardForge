@@ -414,7 +414,7 @@ export function CreatorWorkbench({
         outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
-      </>)}
+      </>}
       <StudioConfirmationDialogs
         templatePendingDeleteId={templatePendingDeleteId}
         templates={templatesFromStore}
