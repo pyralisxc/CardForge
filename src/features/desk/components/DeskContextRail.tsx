@@ -8,7 +8,6 @@ import {
   Home,
   Info,
   MoreHorizontal,
-  Move,
   Pencil,
   Pin,
   Printer,
@@ -52,7 +51,7 @@ interface DeskContextRailProps {
   selectedArtifactCount: number;
   /** Kept for compatibility with older callers; open-project count now lives in the bottom status rail. */
   openWorkCount: number;
-  /** Desk camera controls live in the overview action rail, not the contextual header. */
+  /** Kept for caller compatibility; Desk camera controls live in the overview action rail. */
   camera: DeskCamera;
   onBack: () => void;
   onReturnToDesk: () => void;
@@ -125,10 +124,10 @@ export function DeskContextRail(props: DeskContextRailProps) {
   const driveState = driveWorkingSession.state;
   const showDriveState = props.localSet && driveState.phase !== 'unlinked';
 
-  // The overview header is owned by search/account/primary action. Selection
-  // context appears here only when there is actual selected work to act on.
-  // Camera controls belong to the Desk action rail across every viewport size.
-  if (props.depth === 'desk' && props.selectedDeskCount === 0) return null;
+  // Desk selection is object-local state. Selecting work must not manufacture a
+  // second shell rail; direct drag, double activation, keyboard commands, and
+  // each object's overflow menu own Desk-level interactions.
+  if (props.depth === 'desk') return null;
 
   return (
     <div className={styles.contextRail} data-depth={props.depth} data-desk-context-rail>
@@ -141,7 +140,6 @@ export function DeskContextRail(props: DeskContextRailProps) {
         </Button> : null}
         <div className={styles.contextIdentity}>
           <div className={styles.contextBreadcrumbs}>
-            {!focused ? <span className={styles.contextCrumb}>Desk</span> : null}
             {props.setName ? <><ChevronRight aria-hidden="true" /><strong title={props.setName}>{props.setName}</strong></> : null}
             {props.artifactName ? <><ChevronRight aria-hidden="true" /><strong title={props.artifactName}>{props.artifactName}</strong></> : null}
             {props.toolName ? <><ChevronRight aria-hidden="true" /><strong title={props.toolName}>{props.toolName}</strong></> : null}
@@ -162,18 +160,6 @@ export function DeskContextRail(props: DeskContextRailProps) {
       </nav>
 
       <div className={styles.contextActions}>
-        {props.depth === 'desk' ? <>
-          <span className={styles.contextStatus}>{`${props.selectedDeskCount} Set${props.selectedDeskCount === 1 ? '' : 's'} selected`}</span>
-          <Button type="button" size="sm" title="Open selected Set" onClick={props.onOpenSelectedSet}><Pencil className="h-4 w-4" aria-hidden="true" /><span>Open</span></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" title="Position selected Sets"><Move className="h-4 w-4" aria-hidden="true" /><span>Position</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: -24, y: 0 })}>Move selected Sets left</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: -24 })}>Move selected Sets up</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 0, y: 24 })}>Move selected Sets down</DropdownMenuItem>
-            <DropdownMenuItem className={compactMenuItemClassName} onSelect={() => props.onNudgeDeskSelection({ x: 24, y: 0 })}>Move selected Sets right</DropdownMenuItem>
-          </DropdownMenuContent></DropdownMenu>
-          <Button type="button" size="icon" variant="ghost" onClick={props.onClearDeskSelection} aria-label="Clear Desk selection" title="Clear Desk selection"><X aria-hidden="true" /></Button>
-        </> : null}
-
         {props.depth === 'set' ? <>
           {props.renaming && props.localSet ? <form className={styles.contextRename}
             onSubmit={(event) => { event.preventDefault(); props.onCommitRename(); requestAnimationFrame(() => setActionsRef.current?.focus()); }}
