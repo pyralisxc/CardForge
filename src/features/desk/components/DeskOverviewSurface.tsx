@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { FolderPlus, LayoutGrid, Loader2, SlidersHorizontal } from 'lucide-react';
+import { FolderPlus, LayoutGrid, Loader2, Maximize2, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -169,7 +169,11 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
-        <div className={styles.spatialControls} aria-label="Desk positioning">
+        <div className={styles.spatialControls} aria-label="Desk view controls">
+          <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
+          <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
+          <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
+          <Button type="button" size="icon" variant="ghost" aria-label="Fit the whole Desk in view" title="Fit the whole Desk in view" onClick={props.camera.fit}><Maximize2 aria-hidden="true" /></Button>
           <Button type="button" size="icon" variant="ghost" title={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
           <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
         </div>
