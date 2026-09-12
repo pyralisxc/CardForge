@@ -49,11 +49,11 @@ describe('Template revision workflow', () => {
       templateOriginRevisionId: 'shared-revision-4',
     });
     expect(prepareTemplateForLibrarySave(sharedTemplate, false, () => 'personal-copy')).toMatchObject({
-      id: 'personal-copy',
+      id: 'template-personal-copy',
       templateSource: 'user',
       templateLibrarySource: 'personal',
       templateRegistryStatus: 'localOnly',
-      templateLineageId: 'personal-copy',
+      templateLineageId: 'template-personal-copy',
       templateOriginLineageId: 'shared-template',
       templateOriginRevisionId: 'shared-revision-4',
     });
