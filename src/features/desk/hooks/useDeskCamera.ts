@@ -12,12 +12,7 @@ import {
 } from 'react';
 import { useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
 
-import {
-  DESK_MAX_ZOOM,
-  DESK_MIN_ZOOM,
-  DESK_MOBILE_EXPLORATION_ZOOM,
-  getDeskCameraGeometry,
-} from '../model/deskSpatialGeometry';
+import { getDeskCameraGeometry } from '../model/deskSpatialGeometry';
 
 export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<typeof useSpatialGestures> & {
   changeZoom: (nextZoom: number, focalPoint?: { clientX: number; clientY: number }) => void;
@@ -25,10 +20,11 @@ export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<t
   onScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
 };
 
-const preferredDeskZoom = (viewport: { width: number; height: number }) => {
-  const fit = getDeskCameraGeometry(viewport, 1).fitZoom;
-  return Math.max(fit, viewport.width < 768 ? DESK_MOBILE_EXPLORATION_ZOOM : 0.85);
-};
+type CameraMode = 'fit' | 'custom';
+
+const clampScroll = (value: number, surface: number, viewport: number) => (
+  Math.max(0, Math.min(Math.max(0, surface - viewport), value))
+);
 
 export function useDeskCamera({
   focused,
@@ -42,93 +38,113 @@ export function useDeskCamera({
   onPinchStart?: () => void;
 }): DeskCamera {
   const scrollRef = useRef({ left: 0, top: 0 });
-  const userZoomedRef = useRef(false);
+  const viewportStateRef = useRef({ width: 1200, height: 720 });
   const zoomRef = useRef(1);
+  const cameraModeRef = useRef<CameraMode>('fit');
+  const suppressScrollRef = useRef(false);
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  const scrollProgrammatically = useCallback((grid: HTMLDivElement, target: { left: number; top: number }) => {
+    suppressScrollRef.current = true;
+    scrollRef.current = target;
+    grid.scrollTo(target);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      suppressScrollRef.current = false;
+    }));
+  }, []);
 
   useEffect(() => {
     const grid = viewportRef.current;
     if (!grid || focused) return;
     const update = () => {
       const next = { width: Math.max(1, grid.clientWidth), height: Math.max(1, grid.clientHeight) };
-      setViewport(next);
-      if (!userZoomedRef.current) {
-        const preferredZoom = preferredDeskZoom(next);
-        setZoom(preferredZoom);
-        const geometry = getDeskCameraGeometry(next, preferredZoom);
-        requestAnimationFrame(() => {
-          const centered = {
-            left: Math.max(0, (geometry.surfaceWidth - grid.clientWidth) / 2),
-            top: Math.max(0, (geometry.surfaceHeight - grid.clientHeight) / 2),
-          };
-          scrollRef.current = centered;
-          grid.scrollTo(centered);
-        });
+      const previous = viewportStateRef.current;
+      const previousGeometry = getDeskCameraGeometry(previous, zoomRef.current);
+      const nextFit = getDeskCameraGeometry(next, 0);
+      let nextGeometry = nextFit;
+      let target = { left: 0, top: 0 };
+
+      if (cameraModeRef.current === 'custom') {
+        nextGeometry = getDeskCameraGeometry(next, nextFit.fitZoom * previousGeometry.relativeZoom);
+        const worldCenter = {
+          x: (grid.scrollLeft + previous.width / 2 - previousGeometry.offsetX) / previousGeometry.zoom,
+          y: (grid.scrollTop + previous.height / 2 - previousGeometry.offsetY) / previousGeometry.zoom,
+        };
+        target = {
+          left: clampScroll(worldCenter.x * nextGeometry.zoom + nextGeometry.offsetX - next.width / 2, nextGeometry.surfaceWidth, next.width),
+          top: clampScroll(worldCenter.y * nextGeometry.zoom + nextGeometry.offsetY - next.height / 2, nextGeometry.surfaceHeight, next.height),
+        };
       }
+
+      viewportStateRef.current = next;
+      zoomRef.current = nextGeometry.zoom;
+      setViewport(next);
+      setZoom(nextGeometry.zoom);
+      requestAnimationFrame(() => scrollProgrammatically(grid, target));
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [viewportRef, hasItems, focused]);
+  }, [viewportRef, hasItems, focused, scrollProgrammatically]);
 
   useLayoutEffect(() => {
-    // The focused Set owns its own camera. Retained off-camera Desk objects
-    // can keep this outer scroll range alive, so explicitly leave that camera.
-    viewportRef.current?.scrollTo(focused
-      ? { left: 0, top: 0 }
-      : { left: scrollRef.current.left, top: scrollRef.current.top });
-  }, [focused, viewportRef]);
+    const grid = viewportRef.current;
+    if (!grid) return;
+    if (focused) scrollProgrammatically(grid, { left: 0, top: 0 });
+    else scrollProgrammatically(grid, scrollRef.current);
+  }, [focused, viewportRef, scrollProgrammatically]);
 
   const geometry = useMemo(() => getDeskCameraGeometry(viewport, zoom), [viewport, zoom]);
 
   const changeZoom = useCallback((nextZoom: number, focalPoint?: SpatialPoint, previousPoint = focalPoint) => {
     const grid = viewportRef.current;
-    const currentZoom = zoomRef.current;
-    const next = Math.max(DESK_MIN_ZOOM, Math.min(DESK_MAX_ZOOM, nextZoom));
-    userZoomedRef.current = true;
     if (!grid) return;
-    const currentGeometry = getDeskCameraGeometry(viewport, currentZoom);
-    const nextGeometry = getDeskCameraGeometry(viewport, next);
+    const currentViewport = viewportStateRef.current;
+    const currentGeometry = getDeskCameraGeometry(currentViewport, zoomRef.current);
+    const nextGeometry = getDeskCameraGeometry(currentViewport, nextZoom);
     const bounds = grid.getBoundingClientRect();
     const localPoint = focalPoint
       ? { x: focalPoint.clientX - bounds.left, y: focalPoint.clientY - bounds.top }
       : { x: grid.clientWidth / 2, y: grid.clientHeight / 2 };
+    const previousLocalPoint = previousPoint
+      ? { x: previousPoint.clientX - bounds.left, y: previousPoint.clientY - bounds.top }
+      : localPoint;
     const worldPoint = {
-      x: (grid.scrollLeft + (previousPoint ? previousPoint.clientX - bounds.left : localPoint.x) - currentGeometry.offsetX) / currentZoom,
-      y: (grid.scrollTop + (previousPoint ? previousPoint.clientY - bounds.top : localPoint.y) - currentGeometry.offsetY) / currentZoom,
+      x: (grid.scrollLeft + previousLocalPoint.x - currentGeometry.offsetX) / currentGeometry.zoom,
+      y: (grid.scrollTop + previousLocalPoint.y - currentGeometry.offsetY) / currentGeometry.zoom,
     };
-    zoomRef.current = next;
-    setZoom(next);
-    requestAnimationFrame(() => {
-      const target = {
-        left: Math.max(0, worldPoint.x * next + nextGeometry.offsetX - localPoint.x),
-        top: Math.max(0, worldPoint.y * next + nextGeometry.offsetY - localPoint.y),
-      };
-      scrollRef.current = target;
-      grid.scrollTo(target);
-    });
-  }, [viewport, viewportRef]);
+    const target = {
+      left: clampScroll(worldPoint.x * nextGeometry.zoom + nextGeometry.offsetX - localPoint.x, nextGeometry.surfaceWidth, currentViewport.width),
+      top: clampScroll(worldPoint.y * nextGeometry.zoom + nextGeometry.offsetY - localPoint.y, nextGeometry.surfaceHeight, currentViewport.height),
+    };
+
+    cameraModeRef.current = nextGeometry.relativeZoom <= 1.0001 ? 'fit' : 'custom';
+    zoomRef.current = nextGeometry.zoom;
+    setZoom(nextGeometry.zoom);
+    requestAnimationFrame(() => scrollProgrammatically(grid, target));
+  }, [viewportRef, scrollProgrammatically]);
 
   const gestures = useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag: onPinchStart, disabled: focused });
 
   const fit = useCallback(() => {
     const grid = viewportRef.current;
-    userZoomedRef.current = true;
-    zoomRef.current = geometry.fitZoom;
-    scrollRef.current = { left: 0, top: 0 };
-    setZoom(geometry.fitZoom);
-    requestAnimationFrame(() => grid?.scrollTo({ left: 0, top: 0 }));
-  }, [geometry.fitZoom, viewportRef]);
+    if (!grid) return;
+    const fitted = getDeskCameraGeometry(viewportStateRef.current, 0);
+    cameraModeRef.current = 'fit';
+    zoomRef.current = fitted.zoom;
+    setZoom(fitted.zoom);
+    requestAnimationFrame(() => scrollProgrammatically(grid, { left: 0, top: 0 }));
+  }, [viewportRef, scrollProgrammatically]);
 
   const onScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
-    if (focused || event.currentTarget.dataset.focused === 'true') return;
-    userZoomedRef.current = true;
+    if (focused || event.currentTarget.dataset.focused === 'true' || suppressScrollRef.current) return;
+    cameraModeRef.current = geometry.relativeZoom <= 1.0001 ? 'fit' : 'custom';
     scrollRef.current = { left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
-  }, [focused]);
+  }, [focused, geometry.relativeZoom]);
 
   return {
     ...geometry,
