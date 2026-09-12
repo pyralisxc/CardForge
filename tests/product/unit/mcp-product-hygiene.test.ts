@@ -113,15 +113,18 @@ describe('CardForge MCP and plugin product hygiene', () => {
     }
   });
 
-  it('uses mainstream card/set language so targeted MCP discovery can find the right tools', () => {
+  it('uses mainstream card/set language and makes Template authority discoverable', () => {
     expect(cardTools).toContain('Prepare a Template for making or revising cards');
     expect(cardTools).toContain('Create or update a CardForge card set');
     expect(cardTools).toContain('Make or revise one CardForge card');
     expect(cardTools).toContain('Make or revise CardForge cards in bulk');
-    expect(cardTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
+    expect(cardTools).toContain('New cards carry their Template source explicitly');
+    expect(cardTools).toContain('Existing cards preserve their current Templates');
     expect(cardTools).toContain('Visually review a CardForge Set before applying or committing it');
     expect(cardTools).toContain('working Set');
     expect(cardTools).toContain('list/CSV/JSON conversion');
+    expect(cardSchemas).toContain('sourceUrl');
+    expect(cardSchemas).toContain('exact image field key');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {
