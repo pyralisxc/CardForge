@@ -82,7 +82,7 @@ test.describe('mobile Library location tools', () => {
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByRole('button', { name: 'Open Desk filters', exact: true })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Desk view controls', exact: true })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toHaveCount(0);
+    await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
 
     const status = page.getByRole('contentinfo', { name: 'Environment status', exact: true });
     await expect(status).toBeVisible();
