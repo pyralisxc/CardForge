@@ -26,7 +26,7 @@ afterEach(async () => {
 });
 
 describe('Product Reality human projection', () => {
-  it('counts honest uses-feature API relationships in the Feature owners table', async () => {
+  it('counts honest uses-feature API relationships without implying omitted support evidence is absent', async () => {
     const root = await makeRoot();
     await put(root, 'src/features/project/server.ts', 'export const project = true;');
     await put(root, 'src/app/api/project/route.ts', `import '@/features/project/server'; export const GET = () => null;`);
@@ -47,5 +47,7 @@ describe('Product Reality human projection', () => {
     const projectRow = map.split('\n').find((line) => line.startsWith('| `project` |'));
     expect(projectRow).toBeDefined();
     expect(projectRow?.split('|').map((value) => value.trim())[5]).toBe('1');
+    expect(map).not.toContain('Test evidence');
+    expect(map).not.toContain('test-evidence nodes');
   });
 });

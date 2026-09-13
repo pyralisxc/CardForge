@@ -272,9 +272,24 @@ const rendererCompatibleGraph = (graph) => ({
   ],
 });
 
+const productFirstSurfaceMap = (markdown) => {
+  let inFeatureOwners = false;
+  return markdown.split('\n').map((line) => {
+    if (line === '## Feature owners') inFeatureOwners = true;
+    else if (inFeatureOwners && line.startsWith('## ')) inFeatureOwners = false;
+
+    if (/^- .*test-evidence nodes$/u.test(line)) return line.replace(/, \d+ test-evidence nodes$/u, '');
+    if (!inFeatureOwners) return line;
+    if (line.startsWith('| Feature |')) return line.replace(' | Test evidence |', ' |');
+    if (line.startsWith('| --- |')) return line.replace(/ \| ---: \|$/u, ' |');
+    if (line.startsWith('| `')) return line.replace(/ \| \d+ \|$/u, ' |');
+    return line;
+  }).join('\n');
+};
+
 export const renderCheckpointSurfaceMap = (graph) => {
   const product = productProjection(graph);
-  const base = renderProductSurfaceMap(rendererCompatibleGraph(product)).trimEnd();
+  const base = productFirstSurfaceMap(renderProductSurfaceMap(rendererCompatibleGraph(product)).trimEnd());
   const marker = '\n## Feature owners\n';
   const index = base.indexOf(marker);
   const capabilities = renderCapabilitySection(product);
