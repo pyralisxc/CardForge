@@ -53,3 +53,34 @@ Use:
 - subtle depth/material changes for selection and focus;
 - inspectors/sheets for detail;
 - spatial object grouping on Home and Studio where it improves orientation.
+
+Avoid:
+
+- folder/file-manager metaphors on Home;
+- walls of equal dashboard cards;
+- decorative borders as the primary hierarchy signal;
+- long nested tab bars;
+- exposing every revision by default;
+- creating a separate visual universe for Contributor access.
+
+Home should feel more spatial than Library. Library should remain denser and collection-like. Studio should preserve object position/context while focused tools open. Profile should remain calm and utilitarian. Owner may use denser operational queues because its job is different.
+
+## Usage boundary
+
+This folder is the only editable source for CardForge Studio identity assets. The matching SVG files under `public/brand/cardforge-studio/` are generated runtime mirrors, not independent masters. Run `npm run brand:export` after changing a source SVG; the command resynchronizes required runtime files before producing PNG derivatives.
+
+Do not edit the `public/` copies directly or introduce a second asset catalog.
+
+Concept images are design references only. Replacing them does not automatically change runtime UI, product behavior, or feature ownership.
+
+## Raster exports
+
+Keep the SVG files in this folder as the editable source of truth. Generate transparent PNG derivatives for advertising tools and other raster-only consumers with:
+
+```sh
+npm run brand:export
+```
+
+The command writes the primary and compact lockups, brand mark, watermark, and common favicon sizes to the ignored `output/brand/cardforge-studio/png/` scratch directory. Generated files are derivatives, not additional brand masters; regenerate them when needed instead of committing them. Do not convert the logos to JPEG because that removes transparency and introduces compression artifacts.
+
+The SVGs intentionally use controlled geometry and common serif fallbacks for the current approved direction. Before a future trademark or large-format print package, replace the live text with licensed, outlined master typography while preserving these filenames and proportions.
