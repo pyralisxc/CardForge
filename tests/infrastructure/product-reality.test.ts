@@ -60,6 +60,12 @@ describe('Product Reality graph', () => {
       import type { Thing } from '@/features/card-generator/client';
       import Stripe from 'stripe';
       export type DeskContextualToolId = 'design' | 'generate' | 'output' | 'pipeline';
+      export const contextualTools = [
+        { toolId: 'design', ownerFeature: 'template-editor', presentation: 'floating' },
+        { toolId: 'generate', ownerFeature: 'card-generator', presentation: 'sheet' },
+        { toolId: 'output', ownerFeature: 'card-generator', presentation: 'sheet' },
+        { toolId: 'pipeline', ownerFeature: 'pipeline', presentation: 'sheet' },
+      ] as const;
       export const action = {
         id: 'desk.generate-set', label: 'Generate cards', ownerFeature: 'card-generator',
         supportedObjectKinds: ['set'], supportedSources: ['browser-local'], revisionPolicy: 'none', requiredPermission: 'guest',
@@ -98,6 +104,8 @@ describe('Product Reality graph', () => {
       'surface:public',
       'action:desk.generate-set',
       'feature:card-generator',
+      'feature:template-editor',
+      'feature:pipeline',
       'tool:design',
       'tool:generate',
       'tool:output',
@@ -122,7 +130,10 @@ describe('Product Reality graph', () => {
     expect(relations.has('action:desk.generate-set|owned-by|feature:card-generator')).toBe(true);
     expect(relations.has('action:desk.generate-set|automated-by|mcp:upsert_cards')).toBe(true);
     expect(relations.has('action:desk.generate-set|opens|tool:generate')).toBe(true);
+    expect(relations.has('tool:design|owned-by|feature:template-editor')).toBe(true);
     expect(relations.has('tool:generate|owned-by|feature:card-generator')).toBe(true);
+    expect(relations.has('tool:output|owned-by|feature:card-generator')).toBe(true);
+    expect(relations.has('tool:pipeline|owned-by|feature:pipeline')).toBe(true);
     expect(relations.has('api:/api/cards|calls|feature:card-generator')).toBe(true);
     expect(relations.has('feature:desk|integrates-with|provider:stripe')).toBe(true);
     expect(relations.has('feature:card-generator|referenced-by-test|test:tests/product/unit/generate.test.ts')).toBe(true);
