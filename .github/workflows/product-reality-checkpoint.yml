@@ -9,6 +9,7 @@ permissions:
 
 env:
   CARDFORGE_REALITY_BASE: ${{ github.ref_name == 'main' && github.event.before || 'origin/main' }}
+  CARDFORGE_REQUIRE_SEALED_REALITY: '1'
 
 concurrency:
   group: product-reality-${{ github.ref_name }}

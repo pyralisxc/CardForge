@@ -13,11 +13,13 @@ import {
   renderProductSurfaceMap,
 } from './product-reality-lib.mjs';
 import { collectSourceModules } from './repository-analysis.mjs';
+import { collectProductRealitySemantics } from './product-reality-semantics.mjs';
 
 export const PRODUCT_REALITY_CHECKPOINT_PATH = 'docs/generated/product-reality.ndjson';
 export const PRODUCT_REALITY_LEGACY_PATH = 'docs/generated/product-reality.json';
 export const PRODUCT_REALITY_SURFACE_MAP_PATH = 'docs/product-surface-map.md';
 
+const SUPPORTING_NODE_KINDS = new Set(['test', 'workflow', 'script']);
 const uniq = (values) => [...new Set(values)];
 const edgeKey = (edge) => `${edge.from}|${edge.relation}|${edge.to}`;
 const unknownKey = (unknown) => `${unknown.kind}|${unknown.message}`;
@@ -26,6 +28,7 @@ const stableEvidence = (values = []) => [...new Map(values.filter((value) => val
   return [`${entry.path}|${entry.reason ?? ''}`, entry];
 })).values()].sort((a, b) => `${a.path}|${a.reason ?? ''}`.localeCompare(`${b.path}|${b.reason ?? ''}`));
 const stripEvidence = (value) => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'evidence'));
+const relationCount = (delta) => Object.values(delta).reduce((sum, values) => sum + values.length, 0);
 
 const normalizedGraph = (graph) => ({
   schemaVersion: graph.schemaVersion ?? 1,
@@ -40,13 +43,17 @@ const accumulator = (graph) => {
   const unknowns = new Map(graph.unknowns.map((entry) => [unknownKey(entry), entry]));
   const addNode = (node, evidence = []) => {
     const current = nodes.get(node.id);
-    nodes.set(node.id, current ? { ...current, ...node, evidence: stableEvidence([...(current.evidence ?? []), ...evidence]) } : { ...node, evidence: stableEvidence(evidence) });
+    nodes.set(node.id, current
+      ? { ...current, ...node, evidence: stableEvidence([...(current.evidence ?? []), ...evidence]) }
+      : { ...node, evidence: stableEvidence(evidence) });
   };
   const addEdge = (edge, evidence = []) => {
     const normalized = { ...edge, relation: edge.relation === 'calls' ? 'uses-feature' : edge.relation };
     const key = edgeKey(normalized);
     const current = edges.get(key);
-    edges.set(key, current ? { ...current, ...normalized, evidence: stableEvidence([...(current.evidence ?? []), ...evidence]) } : { ...normalized, evidence: stableEvidence(evidence) });
+    edges.set(key, current
+      ? { ...current, ...normalized, evidence: stableEvidence([...(current.evidence ?? []), ...evidence]) }
+      : { ...normalized, evidence: stableEvidence(evidence) });
   };
   const addUnknown = (entry) => unknowns.set(unknownKey(entry), entry);
   const clearActionUnknowns = (id) => {
@@ -61,15 +68,34 @@ const addAction = (acc, { id, label = id, owners = [], scope = 'object', result 
     acc.addNode({ id: `feature:${owner}`, kind: 'feature', label: owner });
     acc.addEdge({ from: `action:${id}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
   }
-  const surface = id.split('.')[0];
-  if (['desk', 'library', 'profile', 'studio'].includes(surface)) {
-    acc.addEdge({ from: `surface:${surface}`, to: `action:${id}`, relation: 'exposes', confidence: 'observed' }, evidence);
-  }
   for (const tool of mcpTools) {
     acc.addNode({ id: `mcp:${tool}`, kind: 'mcp', label: tool }, evidence);
     acc.addEdge({ from: `action:${id}`, to: `mcp:${tool}`, relation: 'automated-by', confidence: automation === 'contextual' ? 'contextual' : 'declared' }, evidence);
   }
   if (owners.length && scope !== 'unknown' && result !== 'unknown' && automation !== 'unknown') acc.clearActionUnknowns(id);
+};
+
+const addObservedSemantics = async (root, acc) => {
+  const semantics = await collectProductRealitySemantics(root);
+  for (const surface of semantics.surfaces) {
+    acc.addNode({ id: `surface:${surface.id}`, kind: 'surface', label: surface.label, role: surface.role }, surface.evidence);
+  }
+  for (const capability of semantics.capabilities) {
+    const capabilityId = `capability:${capability.id}`;
+    acc.addNode({ id: capabilityId, kind: 'capability', label: capability.label, category: capability.category }, capability.evidence);
+    if (capability.ownerFeature) {
+      acc.addNode({ id: `feature:${capability.ownerFeature}`, kind: 'feature', label: capability.ownerFeature });
+      acc.addEdge({ from: capabilityId, to: `feature:${capability.ownerFeature}`, relation: 'owned-by', confidence: 'declared' }, capability.evidence);
+    }
+    for (const surface of capability.surfaces) {
+      const surfaceId = `surface:${surface}`;
+      if (!acc.nodes.has(surfaceId)) {
+        acc.addUnknown({ kind: 'capability-surface', message: `Capability ${capability.id} declares unobserved surface ${surface}.`, path: capability.evidence?.[0]?.path });
+        continue;
+      }
+      acc.addEdge({ from: surfaceId, to: capabilityId, relation: 'exposes', confidence: 'declared' }, capability.evidence);
+    }
+  }
 };
 
 const enrichCardForgeSemantics = async (root, acc) => {
@@ -84,22 +110,14 @@ const enrichCardForgeSemantics = async (root, acc) => {
         addAction(acc, { id: action.id.slice(7), label: action.label, owners: action.owners ?? [], scope: action.scope, result: action.result, automation: 'human-only', evidence });
       }
     }
-
-    if (source.includes("zoneAction('desk.create-set'")) {
-      addAction(acc, { id: 'desk.create-set', label: 'New Set', owners: ['card-generator'], scope: 'zone', result: 'tool-opened', evidence });
-    }
-    if (source.includes("id: 'desk.send-pipeline'")) {
-      addAction(acc, { id: 'desk.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
-    }
-    if (source.includes("id: 'library.send-pipeline'")) {
-      addAction(acc, { id: 'library.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
-    }
+    if (source.includes("zoneAction('desk.create-set'")) addAction(acc, { id: 'desk.create-set', label: 'New Set', owners: ['card-generator'], scope: 'zone', result: 'tool-opened', evidence });
+    if (source.includes("id: 'desk.send-pipeline'")) addAction(acc, { id: 'desk.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
+    if (source.includes("id: 'library.send-pipeline'")) addAction(acc, { id: 'library.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
     if (source.includes('createLibraryZoneAction') && source.includes("'library.close-locations'") && source.includes("'library.close-tool'")) {
       for (const id of ['library.refresh', 'library.close-locations', 'library.close-tool']) {
         addAction(acc, { id, owners: ['storage-management'], scope: 'zone', result: id === 'library.refresh' ? 'refresh-requested' : 'navigation', evidence });
       }
     }
-
     if (source.includes("id: 'desk.open-set'")) {
       addAction(acc, {
         id: 'desk.open-set',
@@ -125,6 +143,25 @@ const enrichCardForgeSemantics = async (root, acc) => {
   }
 };
 
+const connectActionsToObservedSurfaces = (acc) => {
+  for (const action of [...acc.nodes.values()].filter((node) => node.kind === 'action')) {
+    const actionName = action.id.slice('action:'.length);
+    const namespace = actionName.split('.')[0];
+    const surfaceId = `surface:${namespace}`;
+    if (!acc.nodes.has(surfaceId)) continue;
+    acc.addEdge({ from: surfaceId, to: action.id, relation: 'exposes', confidence: 'observed' }, action.evidence ?? []);
+  }
+};
+
+const productProjection = (graph) => {
+  const supportingIds = new Set(graph.nodes.filter((node) => SUPPORTING_NODE_KINDS.has(node.kind)).map((node) => node.id));
+  const nodes = graph.nodes.filter((node) => !supportingIds.has(node.id));
+  const edges = graph.edges.filter((edge) => !supportingIds.has(edge.from) && !supportingIds.has(edge.to));
+  const kinds = {};
+  for (const node of nodes) kinds[node.kind] = (kinds[node.kind] ?? 0) + 1;
+  return { ...graph, nodes, edges, summary: { nodes: nodes.length, edges: edges.length, unknowns: graph.unknowns.length, kinds } };
+};
+
 const finalize = (acc, schemaVersion = 1) => {
   for (const workflow of [...acc.nodes.values()].filter((node) => node.kind === 'workflow')) {
     for (const command of workflow.commands ?? []) {
@@ -132,6 +169,7 @@ const finalize = (acc, schemaVersion = 1) => {
       acc.addEdge({ from: workflow.id, to: `script:${command}`, relation: 'runs', confidence: 'observed' }, workflow.evidence ?? []);
     }
   }
+  connectActionsToObservedSurfaces(acc);
   for (const [key, entry] of [...acc.unknowns]) {
     const match = /Action ([^ ]+) /.exec(entry.message);
     if (!match) continue;
@@ -147,11 +185,18 @@ const finalize = (acc, schemaVersion = 1) => {
   const nodes = [...acc.nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const edges = [...acc.edges.values()].sort((a, b) => edgeKey(a).localeCompare(edgeKey(b)));
   const unknowns = [...acc.unknowns.values()].sort((a, b) => unknownKey(a).localeCompare(unknownKey(b)));
-  const topology = { schemaVersion, nodes: nodes.map(stripEvidence), edges: edges.map(stripEvidence), unknowns: unknowns.map((entry) => ({ kind: entry.kind, message: entry.message })) };
+  const full = { schemaVersion, nodes, edges, unknowns };
+  const product = productProjection(full);
+  const topology = {
+    schemaVersion,
+    nodes: product.nodes.map(stripEvidence),
+    edges: product.edges.map(stripEvidence),
+    unknowns: unknowns.map((entry) => ({ kind: entry.kind, message: entry.message })),
+  };
   const topologyFingerprint = createHash('sha256').update(JSON.stringify(topology)).digest('hex').slice(0, 20);
   const evidenceFingerprint = createHash('sha256').update(JSON.stringify({
-    nodes: nodes.map((node) => [node.id, node.evidence ?? []]),
-    edges: edges.map((edge) => [edgeKey(edge), edge.evidence ?? []]),
+    nodes: nodes.map((node) => [node.id, stripEvidence(node), node.evidence ?? []]),
+    edges: edges.map((edge) => [edgeKey(edge), stripEvidence(edge), edge.evidence ?? []]),
     unknowns: unknowns.map((entry) => [unknownKey(entry), entry.path ?? null]),
   })).digest('hex').slice(0, 20);
   const kinds = {};
@@ -162,6 +207,7 @@ const finalize = (acc, schemaVersion = 1) => {
 export async function buildCheckpointProductReality(root = process.cwd()) {
   const raw = normalizedGraph(await buildProductReality(root));
   const acc = accumulator(raw);
+  await addObservedSemantics(root, acc);
   await enrichCardForgeSemantics(root, acc);
   return finalize(acc, raw.schemaVersion);
 }
@@ -188,16 +234,27 @@ export const parseCheckpointGraph = (content) => {
   };
 };
 
-const renderWorkflowSection = (graph) => {
-  const workflows = graph.nodes.filter((node) => node.kind === 'workflow');
-  if (!workflows.length) return '';
-  return `\n## Workflow evidence\n\n| Workflow | Observed npm scripts |\n| --- | --- |\n${workflows.map((workflow) => `| \`${workflow.label}\` | ${(workflow.commands ?? []).map((command) => `\`${command}\``).join(', ') || '—'} |`).join('\n')}\n`;
+const relationsFrom = (graph, id, relation = null) => graph.edges.filter((edge) => edge.from === id && (!relation || edge.relation === relation));
+const relationsTo = (graph, id, relation = null) => graph.edges.filter((edge) => edge.to === id && (!relation || edge.relation === relation));
+const labelFor = (graph, id) => graph.nodes.find((node) => node.id === id)?.label ?? id.slice(id.indexOf(':') + 1);
+const renderCapabilitySection = (graph) => {
+  const capabilities = graph.nodes.filter((node) => node.kind === 'capability');
+  if (!capabilities.length) return '';
+  const rows = capabilities.map((capability) => {
+    const owners = relationsFrom(graph, capability.id, 'owned-by').map((edge) => `\`${labelFor(graph, edge.to)}\``);
+    const surfaces = relationsTo(graph, capability.id, 'exposes').filter((edge) => edge.from.startsWith('surface:')).map((edge) => `\`${labelFor(graph, edge.from)}\``);
+    return `| \`${capability.label}\` | ${capability.category ?? 'product'} | ${owners.join(', ') || '—'} | ${surfaces.join(', ') || '—'} |`;
+  });
+  return `\n## User-visible capabilities\n\n| Capability | Category | Native owner | Observed surfaces |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`;
 };
+
 export const renderCheckpointSurfaceMap = (graph) => {
-  const base = renderProductSurfaceMap(graph).trimEnd();
-  const marker = '\n## Observability gaps\n';
+  const product = productProjection(graph);
+  const base = renderProductSurfaceMap(product).trimEnd();
+  const marker = '\n## Feature owners\n';
   const index = base.indexOf(marker);
-  return index === -1 ? `${base}\n${renderWorkflowSection(graph)}` : `${base.slice(0, index)}${renderWorkflowSection(graph)}${base.slice(index)}\n`;
+  const capabilities = renderCapabilitySection(product);
+  return index === -1 ? `${base}${capabilities}\n` : `${base.slice(0, index)}${capabilities}${base.slice(index)}\n`;
 };
 
 export async function sealProductReality(root = process.cwd()) {
@@ -234,21 +291,32 @@ export async function loadAcceptedProductReality(root, ref) {
   return normalizeLegacy(await buildProductRealityAtRef(root, ref));
 }
 
+const subtractDelta = (full, product) => Object.fromEntries(Object.keys(full).map((key) => {
+  const productValues = new Set(product[key] ?? []);
+  return [key, (full[key] ?? []).filter((value) => !productValues.has(value))];
+}));
+
 export const formatCheckpointHeatMap = (baseGraph, currentGraph, { baseLabel = 'accepted checkpoint A', currentLabel = 'candidate B' } = {}) => {
-  const delta = diffProductReality(baseGraph, currentGraph);
-  const changed = delta.addedNodes.length + delta.changedNodes.length + delta.addedEdges.length + delta.changedEdges.length;
-  const unchanged = Math.max(0, currentGraph.nodes.length + currentGraph.edges.length - changed);
+  const fullDelta = diffProductReality(baseGraph, currentGraph);
+  const productDelta = diffProductReality(productProjection(baseGraph), productProjection(currentGraph));
+  const supportingDelta = subtractDelta(fullDelta, productDelta);
+  const changed = productDelta.addedNodes.length + productDelta.changedNodes.length + productDelta.addedEdges.length + productDelta.changedEdges.length;
+  const currentProduct = productProjection(currentGraph);
+  const unchanged = Math.max(0, currentProduct.nodes.length + currentProduct.edges.length - changed);
   return {
-    delta,
+    delta: productDelta,
+    fullDelta,
+    supportingDelta,
     report: [
       '# Product Reality heat map', '', `Comparing **${baseLabel}** → **${currentLabel}**.`, '',
-      `- 🟢 ${unchanged} observed nodes/relationships unchanged`,
-      `- 🔵 ${delta.addedNodes.length + delta.addedEdges.length} newly observed`,
-      `- 🟡 ${delta.changedNodes.length + delta.changedEdges.length} semantic changes`,
-      `- 🔴 ${delta.removedNodes.length + delta.removedEdges.length} disappeared observations`,
-      `- ⚪ ${delta.addedUnknowns.length} new unresolved observations`,
-      `- ✅ ${delta.removedUnknowns.length} unresolved observations resolved/removed`, '',
-      formatProductRealityDelta(delta, { baseLabel, currentLabel }).trim(), '',
+      `- 🟢 ${unchanged} product-semantic nodes/relationships unchanged`,
+      `- 🔵 ${productDelta.addedNodes.length + productDelta.addedEdges.length} newly observed product semantics`,
+      `- 🟡 ${productDelta.changedNodes.length + productDelta.changedEdges.length} product-semantic changes`,
+      `- 🔴 ${productDelta.removedNodes.length + productDelta.removedEdges.length} disappeared product observations`,
+      `- ⚪ ${productDelta.addedUnknowns.length} new unresolved observations`,
+      `- ✅ ${productDelta.removedUnknowns.length} unresolved observations resolved/removed`,
+      `- 📎 ${relationCount(supportingDelta)} supporting evidence/test/workflow changes (secondary signal)`, '',
+      formatProductRealityDelta(productDelta, { baseLabel, currentLabel }).trim(), '',
     ].join('\n'),
   };
 };
@@ -269,7 +337,9 @@ export async function createTemporaryProductRealityAudit(root = process.cwd(), r
 export function queryCheckpointProductReality(graph, { node = null, match = null, ...options } = {}) {
   if (!node && !match) return queryProductReality(graph, options);
   const needle = match?.toLocaleLowerCase() ?? null;
-  const seeds = graph.nodes.filter((candidate) => node ? candidate.id === node : candidate.id.toLocaleLowerCase().includes(needle) || String(candidate.label ?? '').toLocaleLowerCase().includes(needle));
+  const seeds = graph.nodes.filter((candidate) => node
+    ? candidate.id === node
+    : candidate.id.toLocaleLowerCase().includes(needle) || String(candidate.label ?? '').toLocaleLowerCase().includes(needle));
   if (!seeds.length) return 'No matching Product Reality nodes.\n';
   const included = new Set(seeds.map((candidate) => candidate.id));
   let frontier = new Set(included);
@@ -283,8 +353,12 @@ export function queryCheckpointProductReality(graph, { node = null, match = null
     frontier = next;
   }
   const lines = ['NODES'];
-  for (const candidate of graph.nodes.filter((entry) => included.has(entry.id))) lines.push(`${candidate.id}\t${candidate.label}${candidate.kind === 'workflow' && candidate.commands?.length ? `\tcommands=${candidate.commands.join(',')}` : ''}`);
+  for (const candidate of graph.nodes.filter((entry) => included.has(entry.id))) {
+    lines.push(`${candidate.id}\t${candidate.label}${candidate.kind === 'workflow' && candidate.commands?.length ? `\tcommands=${candidate.commands.join(',')}` : ''}`);
+  }
   lines.push('', 'RELATIONSHIPS');
-  for (const edge of graph.edges.filter((entry) => included.has(entry.from) && included.has(entry.to))) lines.push(`${edge.from}\t${edge.relation}\t${edge.to}\t${edge.confidence ?? 'observed'}`);
+  for (const edge of graph.edges.filter((entry) => included.has(entry.from) && included.has(entry.to))) {
+    lines.push(`${edge.from}\t${edge.relation}\t${edge.to}\t${edge.confidence ?? 'observed'}`);
+  }
   return `${lines.join('\n')}\n`;
 }

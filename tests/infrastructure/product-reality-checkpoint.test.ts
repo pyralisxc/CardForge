@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   buildCheckpointProductReality,
+  formatCheckpointHeatMap,
   parseCheckpointGraph,
   queryCheckpointProductReality,
+  renderCheckpointSurfaceMap,
   serializeCheckpointGraph,
 } from '../../scripts/product-reality-checkpoint-lib.mjs';
 
@@ -30,7 +32,9 @@ afterEach(async () => {
 describe('Product Reality checkpoint projection', () => {
   it('resolves recurring action factories and contextual MCP parity without inventing a second action owner', async () => {
     const root = await makeRoot();
-    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONE_IDS = ['desk', 'library', 'profile'] as const;`);
+    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONES = [
+      { id: 'desk', label: 'Desk' }, { id: 'library', label: 'Library' }, { id: 'profile', label: 'Profile' }
+    ] as const;`);
     await put(root, 'src/features/desk/model/actions.ts', `
       const openAutomation = true
         ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
@@ -70,6 +74,7 @@ describe('Product Reality checkpoint projection', () => {
     ]) expect(actions.has(id)).toBe(true);
 
     const edges = new Set(graph.edges.map((edge: { from: string; relation: string; to: string }) => `${edge.from}|${edge.relation}|${edge.to}`));
+    expect(edges.has('surface:desk|exposes|action:desk.open-set')).toBe(true);
     expect(edges.has('action:desk.open-set|automated-by|mcp:list_connected_projects')).toBe(true);
     expect(edges.has('action:desk.open-set|automated-by|mcp:checkout_project')).toBe(true);
     expect(edges.has('action:desk.send-pipeline|owned-by|feature:pipeline')).toBe(true);
@@ -77,12 +82,56 @@ describe('Product Reality checkpoint projection', () => {
     expect(graph.unknowns.some((entry: { message: string }) => entry.message.includes('desk.create-set'))).toBe(false);
   });
 
+  it('discovers arbitrary current surfaces and collocated capabilities without a scanner geography list', async () => {
+    const root = await makeRoot();
+    await put(root, 'src/features/app-shell/environment/model.ts', `
+      export const ENVIRONMENT_ZONES = [{ id: 'desk', label: 'Desk' }] as const;
+      export const productReality = [
+        { productRealityKind: 'surface', id: 'lab', label: 'Lab', role: 'workbench' },
+        { productRealityKind: 'capability', id: 'lab.compare', label: 'Compare variants', category: 'interaction', ownerFeature: 'project', surfaces: ['lab'] },
+      ] as const;
+    `);
+    await put(root, 'src/features/project/client.ts', `export const project = true;`);
+    await put(root, 'src/features/app-shell/environment/labAction.ts', `export const action = {
+      id: 'lab.open', label: 'Open Lab', ownerFeature: 'project', supportedObjectKinds: ['set'], supportedSources: ['browser-local'],
+      revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary', availability: { kind: 'available' },
+      commitment: 'none', automation: { kind: 'human-only', owner: 'cardforge' }, result: 'navigation'
+    } as const;`);
+
+    const graph = await buildCheckpointProductReality(root);
+    const ids = new Set(graph.nodes.map((node: { id: string }) => node.id));
+    expect(ids).toContain('surface:lab');
+    expect(ids).toContain('capability:lab.compare');
+    const edges = new Set(graph.edges.map((edge: { from: string; relation: string; to: string }) => `${edge.from}|${edge.relation}|${edge.to}`));
+    expect(edges).toContain('surface:lab|exposes|capability:lab.compare');
+    expect(edges).toContain('surface:lab|exposes|action:lab.open');
+    expect(edges).toContain('capability:lab.compare|owned-by|feature:project');
+    const map = renderCheckpointSurfaceMap(graph);
+    expect(map).toContain('## User-visible capabilities');
+    expect(map).toContain('Compare variants');
+  });
+
+  it('keeps supporting test/workflow churn out of the product-semantic fingerprint and primary heat map', async () => {
+    const root = await makeRoot();
+    await put(root, 'src/features/project/client.ts', 'export const project = true;');
+    const first = await buildCheckpointProductReality(root);
+    await put(root, 'tests/product/unit/project.test.ts', `import '@/features/project/client'; test('project', () => {});`);
+    const second = await buildCheckpointProductReality(root);
+
+    expect(second.topologyFingerprint).toBe(first.topologyFingerprint);
+    expect(second.evidenceFingerprint).not.toBe(first.evidenceFingerprint);
+    const heatMap = formatCheckpointHeatMap(first, second);
+    expect(heatMap.report).toContain('supporting evidence/test/workflow changes');
+    expect(heatMap.delta.addedNodes).toEqual([]);
+    expect(heatMap.delta.addedEdges).toEqual([]);
+  });
+
   it('keeps accepted checkpoint bytes stable across comment-only source changes', async () => {
     const root = await makeRoot();
-    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONE_IDS = ['desk'] as const;`);
+    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONES = [{ id: 'desk', label: 'Desk' }] as const;`);
     const first = await buildCheckpointProductReality(root);
     const firstBytes = serializeCheckpointGraph(first);
-    await put(root, 'src/features/app-shell/environment/model.ts', `// comment only\nexport const ENVIRONMENT_ZONE_IDS = ['desk'] as const;`);
+    await put(root, 'src/features/app-shell/environment/model.ts', `// comment only\nexport const ENVIRONMENT_ZONES = [{ id: 'desk', label: 'Desk' }] as const;`);
     const second = await buildCheckpointProductReality(root);
     expect(second.topologyFingerprint).toBe(first.topologyFingerprint);
     expect(second.evidenceFingerprint).toBe(first.evidenceFingerprint);
@@ -91,7 +140,7 @@ describe('Product Reality checkpoint projection', () => {
 
   it('round-trips NDJSON checkpoints and supports exact-node or fuzzy development queries', async () => {
     const root = await makeRoot();
-    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONE_IDS = ['desk'] as const;`);
+    await put(root, 'src/features/app-shell/environment/model.ts', `export const ENVIRONMENT_ZONES = [{ id: 'desk', label: 'Desk' }] as const;`);
     await put(root, 'src/features/project/client.ts', 'export const project = true;');
     await put(root, 'src/features/desk/model/action.ts', `export const action = {
       id:'desk.open-set', label:'Open Set', ownerFeature:'project', supportedObjectKinds:['set'], supportedSources:['browser-local'],

@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -49,10 +48,6 @@ const parseArgs = (values) => {
 };
 
 const baseRef = (args) => args.base ?? process.env.CARDFORGE_VERIFY_BASE?.trim() ?? 'origin/main';
-const checkpointChangedFromBase = (root, base) => {
-  const result = spawnSync('git', ['diff', '--name-only', `${base}...HEAD`, '--', 'docs/generated/product-reality.ndjson'], { cwd: root, encoding: 'utf8' });
-  return result.status === 0 && result.stdout.split(/\r?\n/u).includes('docs/generated/product-reality.ndjson');
-};
 
 const run = async () => {
   const args = parseArgs(process.argv.slice(2));
@@ -66,8 +61,9 @@ const run = async () => {
 
   if (args.command === 'check') {
     const verifyBase = process.env.CARDFORGE_VERIFY_BASE?.trim();
-    if (verifyBase && !checkpointChangedFromBase(root, verifyBase)) {
-      console.log(`Product Reality checkpoint is not being sealed in this development change; live A→B auditing remains available against ${verifyBase}.`);
+    const requireSealed = process.env.CARDFORGE_REQUIRE_SEALED_REALITY === '1';
+    if (verifyBase && !requireSealed) {
+      console.log(`Working Product Reality W is disposable; sealed checkpoint freshness is deferred to Preview/main promotion. Live A→W auditing remains available against ${verifyBase}.`);
       return;
     }
     const result = await checkSealedProductReality(root);
