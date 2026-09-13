@@ -23,7 +23,7 @@ A fresh maintainer or agent should be able to work from the repository without p
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; generated `docs/product-surface-map.md` is the compact current-state Product Reality projection; `docs/generated/product-reality.json` is the complete rebuildable machine graph; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; generated `docs/product-surface-map.md` is the compact current-state Product Reality projection; `docs/generated/product-reality.ndjson` is the complete rebuildable machine graph; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -47,14 +47,17 @@ npm run verify:full
 
 Pass one or more paths after `npm run verify:focused --` to route an explicit slice. `npm run architecture:report` is the opt-in repository-wide architecture analysis; the normal architecture check stays concise.
 
-Current-topology audits use Product Reality rather than a hand-maintained feature inventory:
+Current-topology and capability-parity audits use Product Reality rather than a hand-maintained feature inventory:
 
 ```bash
 npm run product-reality:query -- --surface studio
 npm run product-reality:query -- --feature project
+npm run product-reality:query -- --kind capability
 npm run product-reality:query -- --kind mcp
 npm run product-reality:diff -- --base origin/main
 ```
+
+Working Product Reality is disposable during development. Seal `docs/generated/product-reality.ndjson` and `docs/product-surface-map.md` only when preparing the exact coherent candidate for Preview/main.
 
 Maintained operational commands:
 
@@ -87,7 +90,7 @@ Hosted smoke and scheduled production health install only the private `scripts/h
 - `src/features/account/` and `src/features/billing/`: Clerk-backed account access and Stripe-backed product/support billing.
 - `src/features/contributor-access/` and `src/features/pipeline/`: Contributor identity/scopes plus Forge Review, voting, publication, attribution, and the shared Library.
 - `src/features/studio-documents/`: private account Studio documents and MCP authoring bridge.
-- `src/features/marketing/`, `marketing-content/`, `marketing-distribution/`, `social-publishing/`: strategy, content, distribution state, and stateless provider publishing.
+- `src/features/marketing/`, `marketing-content`, `marketing-distribution`, `social-publishing`: strategy, content, distribution state, and stateless provider publishing.
 - `src/features/public-site/`, `business-identity/`, `legal/`, `contact/`, `roadmap/`, `analytics/`, `experience-settings/`: public/control-plane product owners.
 - `src/features/owner/`: owner authorization and lazy composition of feature-owned operational controls.
 - `src/infrastructure/`: Clerk, Supabase, HTTP, public URL, and abuse-protection infrastructure.
@@ -151,7 +154,7 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
 - `docs/product-surface-map.md`: generated compact current-state projection of observed Product Reality; never hand-edit it.
-- `docs/generated/product-reality.json`: complete rebuildable machine-readable Product Reality graph for queries, audits, and A→B topology diffs.
+- `docs/generated/product-reality.ndjson`: complete rebuildable machine-readable Product Reality graph for queries, audits, and A→W/B topology/capability diffs.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.

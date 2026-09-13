@@ -15,7 +15,7 @@ The durable truth sources are:
 - `docs/architecture.md` for shipped ownership and invariants;
 - `docs/product-direction.md` for intended product meaning and delivery sequence;
 - `docs/product-surface-map.md` for the generated current-state Product Reality projection; never hand-edit it;
-- `docs/generated/product-reality.json` for the complete rebuildable machine-readable Product Reality graph;
+- `docs/generated/product-reality.ndjson` for the complete rebuildable machine-readable Product Reality graph;
 - `docs/integrations.md` for provider seams;
 - `docs/operations.md` for current release/recovery/provider procedure;
 - `docs/risk-register.md` for unresolved or explicitly accepted risk.
@@ -32,7 +32,7 @@ An audit, critique, product discussion, UX reaction, or “what if” is not imp
 
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
 
-For audits of **what CardForge currently is** — where surfaces, tools, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect — load `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before manually reconstructing a broad dependency map. Product Reality is descriptive evidence only; Product Direction still owns what should change.
+For audits of **what CardForge currently is** — where surfaces, user-visible capabilities, tools, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect — load `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before manually reconstructing a broad dependency map. Product Reality is descriptive evidence only; Product Direction still owns what should change.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
