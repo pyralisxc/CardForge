@@ -31,6 +31,17 @@ jobs:
         run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
       - name: Run full repository gate
         run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
+      - name: Generate Product Reality bootstrap
+        run: npm run product-reality:generate
+      - name: Retain generated Product Reality bootstrap
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: product-reality-bootstrap
+          path: |
+            docs/generated/product-reality.json
+            docs/product-surface-map.md
+          if-no-files-found: error
+          retention-days: 3
 
   browser-golden:
     runs-on: ubuntu-latest
