@@ -71,6 +71,7 @@ Keep shell grammar stable across permanent surfaces. New cross-product chrome mu
 - Meaningful local/provider/temporary work projects into Desk without manufacturing starter work before the user creates/imports something.
 - Set positions persist. Desktop direct drag is the native spatial move interaction; keyboard/menu positioning remains an accessible non-drag path.
 - Selection is object-local visual state. Selecting a Set does not manufacture a separate top selection rail.
+- Inside an open Set, contained-Artifact multi-selection immediately exposes selection-scoped actions without requiring Organize. **Organize** owns arrange/group/sort/filter/select controls; Edit, Move, Duplicate, Tags, and Remove follow the captured Artifact selection and stay reachable on compact layouts.
 - Double activation/Enter opens work; explicit object actions remain in predictable overflow/command paths.
 - Opening a Set and then an Artifact preserves one spatial grammar and the full center workspace. Returning restores prior camera/selection context.
 - Set presentation density is independent of camera zoom: small collections stay comfortable, larger collections compact/densify, and stacks compact further.
@@ -118,8 +119,9 @@ Move never removes a source before the destination is verified readable accordin
 
 Studio is entered for one selected object/tool context rather than navigated as a competing collection.
 
-- **Design** owns precision Template/card design around the selected object.
-- **Generate** owns structured creation/mapping/validation and returns created work to its originating context.
+- **Edit** changes Artifact content. Multi-Artifact Edit is available for one exact compatible front-Template contract, preserves mixed values until explicitly touched, and patches only touched fields; mixed front Templates are refused rather than silently retargeted.
+- **Design** changes Template structure. Artifact-origin Design starts from the Artifact's referenced face Template; an independent variant is created only when saved divergence is chosen, and cancel/no divergence creates no extra Template.
+- **Generate** owns structured creation/mapping/validation and returns created work to its originating context. Artifact-scoped Generate resolves that Artifact's front/back Template relationship; Set-level generation uses an unambiguous or explicitly chosen referenced Template rather than an arbitrary first card.
 - **Output** owns export/production actions with the current object/Set scope already resolved.
 - **Pipeline** contribution/review actions embed the native Pipeline owner when permitted.
 - Save/Move delegates to the native project/location owner.
@@ -132,7 +134,9 @@ Templates / Make Cards / Sets are not peer top-level Studio destinations. Their 
 
 Keep these meanings distinct:
 
-- **Save · [destination]** — persist to current durable owner.
+- **Working copy saved** — browser workspace persistence only; it does not claim that a Drive/local-folder/package snapshot is current.
+- **Editor Save** — commit the current authored draft. Consequential Template changes may require impact review or an explicit selected-scope variant before commit.
+- **Save · [destination] / Update copy** — persist a durable Set snapshot to the named owner.
 - **Save As / Copy** — create an independent durable copy where supported.
 - **Move** — create/verify destination, then remove source only under the native safe-transfer contract.
 - **Send to Pipeline** — create a reviewable contribution.
@@ -187,7 +191,7 @@ Temporary AI Studio documents are revisioned, quota/retention governed working d
 
 ### MCP
 
-MCP exposes the same native owners rather than alternate product surfaces: rendering/validation, temporary working documents, provider-backed project checkout/commit where reachable, connected asset materialization, and Pipeline handoff according to permission.
+MCP exposes the same native owners rather than alternate product surfaces: rendering/validation, temporary working documents, provider-backed project checkout/commit where reachable, connected asset materialization, and Pipeline handoff according to permission. New-card generation uses the same Template authority as browser Studio: a multi-Template Set requires an explicit source Template, while edits to existing Artifacts preserve their current Template relationships.
 
 Browser/local-folder work remains remote-inaccessible without explicit handoff or a server-reachable provider copy.
 

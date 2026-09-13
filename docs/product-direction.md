@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: September 3, 2026
+Last updated: September 12, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for the current application, while [product-surface-map.md](product-surface-map.md) records shipped-versus-direction placement and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -39,7 +39,7 @@ The public site remains CardForge's entrance and explanation surface, not anothe
 
 Use these terms consistently:
 
-- **Studio:** the focused authoring, generation, review, validation, save, and output workbench opened for a selected Set, artifact, Template, record, or revision.
+- **Studio:** the focused authoring, generation, review, validation, save, and output workbench opened for a selected Set, Artifact, Template, record, or revision.
 - **Desk:** the persistent work-container-scale spatial surface and personal account home over real CardForge objects. It preserves selection, grouping, position, and return context without becoming a new persistence owner.
 - **Focused workbench:** the precision editing mode that keeps active Set/object identity and return context while Design, Generate, validation, Save, Output, or Pipeline tools operate on it.
 - **Library:** one collection/read model over reusable objects and their native owners. Library does not become a second file registry or sync engine.
@@ -47,9 +47,10 @@ Use these terms consistently:
 - **Contributor:** an approved user with additional contribution/review capabilities. Contributor access changes valid actions and visible Pipeline content; it does not create a parallel CardForge product.
 - **Specialty:** a guided lens over Studio for a market/body of work such as Games, Events, Retail, or Learning. It changes recommendations, vocabulary, validation, and Kits, not the underlying editor.
 - **Kit:** a versioned starting workflow inside a Specialty that defines a useful outcome, suggested artifacts, fields, components, validation, and output profiles.
-- **Work container:** the creator's durable body of coordinated work: records, layouts, artifacts, assets, output settings, and selected Specialty/Kit context. The current CardForge domain name is **Set**; provider/package surfaces may still say **Project**. These are one product object, not a parent/child hierarchy or parallel registry. The final public label remains a naming decision, not an architectural split.
-- **Artifact:** one designed surface/document inside a work container, such as a card face, card back, rules sheet, poster, badge, package surface, token, board, or social graphic.
-- **Template/master:** a reusable layout for an artifact.
+- **Work container:** the creator's durable body of coordinated work: records, layouts, Artifacts, assets, output settings, and selected Specialty/Kit context. The current CardForge domain name is **Set**; provider/package surfaces may still say **Project**. These are one product object, not a parent/child hierarchy or parallel registry. A Set may intentionally reference reusable Templates before any Artifact has been generated. The final public label remains a naming decision, not an architectural split.
+- **Artifact:** one produced/content-bearing thing inside a work container. In the current card domain, one Artifact is one whole card with stable identity, a required front face, and an optional back face. Future artifact families may be single-surface documents such as posters, badges, boards, tokens, or social graphics without changing the identity rule.
+- **Face:** a rendering side inside a multi-face Artifact. Card fronts are required; card backs are optional. A face is not a second card Artifact.
+- **Template/master:** reusable design authority for layout, style, field contract, and face role. Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage.
 - **Component recipe:** a semantic insertable assembly made from existing Studio primitives.
 - **Field contract:** the typed structured data expected by a Template or component recipe.
 - **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment.
@@ -58,7 +59,7 @@ The recommended internal/owner-facing phrase remains **Studio Specialty**. Speci
 
 ## Workbench Doctrine
 
-CardForge should reveal capability progressively without turning each feature, Specialty, artifact, permission, or provider into a page.
+CardForge should reveal capability progressively without turning each feature, Specialty, Artifact, permission, or provider into a page.
 
 The user's current object remains grounded in its originating surface: tools open around it or enter the focused Studio workbench, and closing the tool returns to the same selection, grouping, zoom, position, and broader context. Desk owns spatial organization; Studio owns precision change and production.
 
@@ -68,7 +69,7 @@ Core rules:
 2. Let tools **reveal**, not navigate, whenever the current surface already owns the job.
 3. Move advanced controls into inspectors, drawers, focused panels, sheets, or popovers that preserve context.
 4. Let each feature own its actions/domain state. Shared presentation resolves and arranges actions; it does not become a second owner for Sets, generation, export, Pipeline, storage, or validation.
-5. Use the same selection/action contract across visible buttons, menus, keyboard commands, mobile sheets, future radial/marking interaction, and agent actions.
+5. Use the same selection/action contract across visible buttons, menus, keyboard commands, mobile sheets, future radial/marking interaction, and agent actions: **focus supplies context; selection supplies scope**. Selection actions must remain discoverable without entering an unrelated organization mode.
 6. Keep destructive, financial, permission, and live-publication commitments explicit.
 7. Rearrange the same hierarchy across desktop, tablet, narrow windows, and mobile. A compact layout is not a different product model.
 8. Reserve card-like visual treatment for authored/selectable objects or real boundaries. Comparable settings/status belong in quieter rows and aligned groups.
@@ -103,37 +104,37 @@ Desk supports:
 - compact Pipeline state and vote/review actions when an owned object has shared lineage;
 - attention only when meaningful: expiring AI drafts, provider conflicts, failed save/export, review changes, or real limits.
 
-Opening a work container unfolds its three-to-five representative artifacts into the Set spread, with additional artifacts emerging from that same origin. Focus and Edit continue moving the same artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
+Opening a work container unfolds its three-to-five representative Artifacts into the Set spread, with additional Artifacts emerging from that same origin. Focus and Edit continue moving the same Artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
 
-The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen.
+The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen. When contained Artifacts are selected, their scope actions remain visible independently of that Organize disclosure.
 
 Opening a work container changes focus rather than changing the mental model:
 
 > Desk → focused work → contained objects
 
-Contained objects may include Templates/masters, backs, generated artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, and freeform card positions travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
+Contained objects may include Templates/masters, backs, generated Artifacts, assets/fonts where dependencies are known, generation batches, rules/reference surfaces, packaging, or later Specialty Artifacts. Pulling back restores the prior Desk arrangement and selection. Set-owned tag catalogs, card tag references, grouping/sort choices, freeform card positions, and intentional Template references travel in the project document; field facets are derived from actual Template/card data rather than copied into a second taxonomy.
 
 Artifact focus is a closer camera depth inside the same creative scene, not a detached inspector or replacement application. The chosen Artifact moves to the camera-fitted foreground while its Set field remains visibly present at reduced emphasis. The contextual rail carries identity and primary actions; detailed Artifact camera controls stay with the Artifact. Back/Escape restores the exact Set camera and selection before the next unwind returns to Desk.
 
 ### Studio: the focused authoring and production workbench
 
-Studio does not open another Set browser. It receives the active Set plus the selected artifact, Template, record, revision, or requested tool from Desk, Library, a public creation entry, or agent handoff.
+Studio does not open another Set browser. It receives the active Set plus the selected Artifact, Template, record, revision, or requested tool from Desk, Library, a public creation entry, or agent handoff.
 
 The focus path is:
 
-> selected work → artifact/Template/record → element-level editing or production tool
+> selected work → Artifact/Template/record → element-level editing or production tool
 
 Selecting Edit, Generate, Test, Validate, or advanced Output opens the smallest useful Studio tool. Returning restores exact prior Desk or Library context.
 
-Templates and their generated cards must be distinguishable inside a Set: show the actual referenced Templates separately, pair their solid borders with matching dashed card borders, and retain names/type labels so color is never the only cue.
+Templates and their generated cards must be distinguishable inside a Set: show the actual referenced Templates separately, including intentionally prepared Templates with no generated cards yet; pair their solid borders with matching dashed card borders; and retain names/type labels so color is never the only cue.
 
-Editing an individual Artifact preserves its visual identity while card tools appear around it. The Set spread remains recognizable behind the focused artifact; tool controls must not replace it with another preview. Edit changes the selected card's content; Design opens its shared Template in the existing Studio designer. Template edits update every linked card across Sets. Design a copy for this card uses an ordinary Template copy and changes only the viewed face's reference on that card. Keep the existing field contracts and layer locks rather than adding an override hierarchy. Shared Template Design can use the full viewport for element-level precision, with its distinct editing target explicit. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
+Editing an individual Artifact preserves its visual identity while card tools appear around it. The Set spread remains recognizable behind the focused Artifact; tool controls must not replace it with another preview. **Edit** changes Artifact content only. A compatible multi-selection uses the same conceptual editor with mixed values and sparse patches: untouched fields remain unchanged. **Design** changes reusable Template structure. Artifact-scoped Design begins from the referenced face Template without cloning or rebinding anything merely because the tool opened. If the creator saves design divergence for the selected Artifact scope, Save creates an independent personal Template lineage and rebinds exactly that scope atomically; cancel or no saved divergence creates no extra Template. Shared Template Save updates the reusable design lineage and makes consequences explicit when field requirements/removals affect linked Artifacts. Keep existing field contracts and layer locks rather than adding an override hierarchy. Shared Template Design can use the full viewport for element-level precision, with its distinct editing target explicit. The selected canvas is centered and fully visible at Fit across desktop and mobile; only deliberate zoom introduces scrolling, and that scrolling remains inside the canvas rather than the surrounding document. Tool-local controls replace page navigation, and one close path returns to the originating object.
 
 The focused Studio workbench supports:
 
-- multiple Templates/masters and artifact types;
+- multiple Templates/masters and Artifact types;
 - precise Template/master and element editing;
-- structured record/card editing;
+- structured record/card editing, including direct compatible-selection editing;
 - bulk generation and CSV mapping into the active Set;
 - exact candidate testing and review-in-context;
 - validation and production readiness;
@@ -155,7 +156,7 @@ Desk may surface browser-local work, Google Drive projects, attached local-folde
 
 Desk restores each source independently. A transient same-account failure keeps already loaded items with an honest unavailable state; an account switch, revoked capability, or expired protected session clears that protected source. Folder-only remembered work remains visible as a reconnectable work location. Drive/AI listing follows provider cursors, and discovery never imports provider work merely because a person logged in.
 
-**My work** is the quiet default. Authorized people may opt into and combine **Campaigns** and **My published**, or save a custom view; a newly granted permission never changes the default selection. Views, types, tags, and sources are genuine multi-select filters, tags may use any/all matching, and Reset returns to My work rather than broad protected content. Compact Desk layouts hold the full filter set behind one explicit disclosure while keeping the active restriction readable. Filtering must not rewrite spatial positions, pins, or saved order.
+**My work** is the quiet default. Authorized people may opt into and combine **Campaigns** and **My published**, or save a custom view; a newly granted permission never changes the default selection. Views, types, tags, and sources are genuine multi-select filters, tags may use any/all matching, and Reset returns to My work rather than broad protected content. Compact Desk layouts hold the full filter set behind one explicit disclosure while keeping the active restriction readable. Filtering must not rewrite spatial positions, pins, saved order, or the identity of already selected Artifacts.
 
 Set metadata separates its supported workflow from descriptive type and reusable personal tags. Built-in types describe shipped card-set work; creators may use custom types such as `Postcards`. Labels never grant a capability. Authored Set metadata travels in the project package; organization applied to an immutable publication/shared resource is private to the account and cannot mutate its public revision. Set tags do not silently tag contained cards.
 
@@ -169,10 +170,11 @@ Desk quick actions use the same scope contract as Studio:
 | --- | --- |
 | No object | New Set/Project, import/open, search Library, resume recent work. |
 | One Set/Project | Open, Edit/Test, Generate, Export, Save/Move, Duplicate, Delete, contribution actions when eligible. |
-| Multiple objects | Batch move/tag/archive/export where the domain supports it. |
-| One contained object | Edit/Test, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
+| Multiple work objects | Batch move/tag/archive/export where the domain supports it. |
+| One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
+| Multiple contained Artifacts | Edit selected when the exact Template contract is compatible; Move, Duplicate, Tag, Output, or Remove where supported. Mixed Template scopes never silently retarget or infer semantic field equivalence. |
 
-An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container; contained cards and other authored objects own their own Template and rendering dependencies.
+An empty account begins with an empty Desk. CardForge must not manufacture an `Untitled Set`, assign a starting Template, or present internal bootstrap state as user-authored work. A Set is a neutral spatial container that may intentionally reference reusable Templates before generation; each card Artifact owns its own front/back Template references and content data.
 
 ## Library: Personal, Pipeline, Published
 
@@ -217,24 +219,27 @@ Current Template editing, bulk generation, card editing, Set management, canonic
 The direction is to recompose them around the selected object:
 
 - Template editing is a focused tool on a selected Template/master.
-- Generate is a scope-aware tool on a Template, record, group, Set, or appropriate artifact.
+- Generate is a scope-aware tool on a Template, record, group, Set, or appropriate Artifact. Artifact-origin generation resolves that Artifact's front/back Template relationship; a Set with multiple eligible referenced Templates requires an explicit design choice rather than falling back to an arbitrary first card.
 - Bulk generation reuses current CSV/import/mapping/validation strength and returns generated objects visibly to the Desk.
+- Direct multi-Artifact Edit reuses the normal field grammar for exact compatible Template contracts; structured Update from data remains a distinct reconciliation workflow.
 - Export is a scope-aware output tool, not another destination.
 - Set switching stays compact and preserves context.
 - Library/source selection opens around the current work.
-- Save targets the current durable owner and names that destination.
+- Save targets the current commitment boundary and names the consequence.
 
 ### Save semantics
 
-These actions must remain unmistakably different:
+These commitments must remain unmistakably different:
 
-- **Save · This device / Local folder / Google Drive / future provider:** persist the current work container to its durable owner.
-- **Save As / Move:** choose another durable destination.
+- **Background working-copy persistence:** browser-local workspace persistence happens independently of provider/publication state. A visible status such as **Working copy saved** says only that the current browser working copy is persisted.
+- **Editor Save:** commit the current authored draft into the working copy. Safe content/design changes save directly; consequential Template-contract changes surface impact before commit. Artifact-scoped saved design divergence creates a new personal Template lineage only at this boundary.
+- **Save / Update · This device / Local folder / Google Drive / future provider:** write a durable Set snapshot to the named location. Saved Sets capture the exact Template revisions they intentionally reference so they remain reproducible.
+- **Save As / Copy / Move:** choose or create another durable destination; Move removes a source only after verified destination persistence.
 - **Send to Pipeline:** create a reviewable new shared candidate.
 - **Submit Revision:** create a reviewable revision of an existing shared lineage.
 - **Publish Live:** Owner/policy publication boundary that changes the stable shared Library.
 
-Pipeline submission is never labeled Save. Provider persistence is never labeled Publish.
+Pipeline submission is never labeled Save. Provider persistence is never labeled Publish. A newer same-lineage Template may be offered to an older saved Set as an explicit update; it is never silently substituted for the snapshot the Set saved.
 
 ## Contributor Capability Layer
 
@@ -337,7 +342,7 @@ Durable work must remain recoverable if a candidate later archives or becomes un
 
 ### Generalized revision lineage
 
-Template revisions already have the strongest model: stable shared asset ID, base revision, next revision, immutable submission identity, complete structured payload, conflict detection, and current-published pointer.
+Template revisions already have the strongest model: stable shared asset ID, base revision, next revision, immutable submission identity, complete structured payload, conflict detection, and current-published pointer. Personal Templates additionally distinguish reusable lineage, exact revision identity, and fork provenance so a derived personal design is not confused with ownership of its source.
 
 Extend equivalent lineage concepts to revisionable media/fonts/component recipes and later Kits/Specialty material instead of treating every update as an unrelated upload.
 
@@ -397,7 +402,8 @@ Current strong patterns remain:
 - canonical selective previews and full final renders;
 - Google Drive project checkout/commit with provider + CardForge revision safety;
 - connected personal-asset metadata discovery with explicit materialization before bytes are used;
-- Template handoff into Forge Review.
+- Template handoff into Forge Review;
+- explicit Template authority for new-card generation in multi-Template Sets, while existing-card data revisions preserve their current front/back Template relationships.
 
 Browser-only/local-folder work is not remotely agent-readable while the device/browser is unavailable. The user must hand it into temporary AI workspace or a server-reachable provider.
 
@@ -471,7 +477,7 @@ A Specialty may declaratively configure:
 - Kits and suggested starting points;
 - featured Templates/styles/fonts/media/component recipes;
 - suggested field contracts/import mappings;
-- suggested artifact types/order;
+- suggested Artifact types/order;
 - contextual Add Element/Section recommendations;
 - code-supported validation/preflight;
 - code-supported output profiles;
@@ -510,11 +516,12 @@ The outcome is a coherent playable/publishable game product.
 
 ### Domain hierarchy
 
-- **Game work container (currently Set):** shared identity, branding, credits, legal text, icon vocabulary, terminology, default production settings, and the organized body of related card pools/decks, rules artifacts, packaging, boards/tokens/reference materials, and promotional outputs.
-- **Card/record:** one stable structured game object with front data and optional independent back data.
+- **Game work container (currently Set):** shared identity, branding, credits, legal text, icon vocabulary, terminology, default production settings, and the organized body of related card pools/decks, rules Artifacts, packaging, boards/tokens/reference materials, and promotional outputs. It references reusable Templates relevant to the work without owning those Template lineages.
+- **Card/record Artifact:** one stable structured game object with a required front design/data relationship and optional independent back design/data relationship.
 - **Deck/collection:** ordered/counted references to records; quantity does not duplicate source identity.
-- **Product/pack:** distributable configuration defining included artifacts/quantities without becoming their source owner.
-- **Artifact:** card face/back, token, divider, rules surface, package surface, reference sheet, board, sell sheet, or promotional graphic.
+- **Product/pack:** distributable configuration defining included Artifacts/quantities without becoming their source owner.
+- **Face:** front or optional back rendering side inside a card Artifact.
+- **Other Artifact:** token, divider, rules surface, package surface, reference sheet, board, sell sheet, or promotional graphic as those families become native.
 
 Bulk generation adds results to an active Set. Legacy loose content imports into a clearly named recovered Set rather than becoming a permanent second model.
 
@@ -529,7 +536,7 @@ Initial/future Kits may include:
 - Tabletop/RPG Reference Deck;
 - Prompt/Party/Trivia Deck;
 - Game Product Kit;
-- later complete tabletop, board, tile/counter, roll-and-write, party/social-deduction, scenario/campaign, and educational tabletop projects where shared artifact foundations justify them.
+- later complete tabletop, board, tile/counter, roll-and-write, party/social-deduction, scenario/campaign, and educational tabletop projects where shared Artifact foundations justify them.
 
 The Arcane Playing Card proof remains a useful first physical proof, but the product architecture must support broader coordinated Sets.
 
@@ -558,7 +565,7 @@ Rules should progress from rich text to rules cards/reference sheets to fixed-pa
 
 Packaging remains provider-aware artwork preparation using exact provider dielines, semantic panels, guide layers, shared identity, preflight, and provider output profiles. CardForge does not issue retail identifiers or certify legal/structural compliance.
 
-Boards, tokens, tiles, mats, dashboards, player aids, scorepads, labels, and trackers can reuse structured records/Templates/assets/output foundations, but each artifact type needs deliberate geometry, performance, duplex/cut/imposition, and provider rules.
+Boards, tokens, tiles, mats, dashboards, player aids, scorepads, labels, and trackers can reuse structured records/Templates/assets/output foundations, but each Artifact type needs deliberate geometry, performance, duplex/cut/imposition, and provider rules.
 
 A future Game component manifest should coordinate designed and externally supplied components, quantities, references, packaging copy, setup/rules descriptions, and later fulfillment preparation without pretending CardForge authors every physical part.
 
@@ -608,7 +615,7 @@ Preserve ownership separation:
 | --- | --- |
 | Code | Allowed capabilities, renderer behavior, element/field types, validation, compatibility, access control, output engines, provider interfaces. |
 | Supabase | Published Specialty/Kit metadata, Pipeline/review state, shared registry, owner decisions, public/platform control records. |
-| Browser/work owner | Working records/layouts/local assets/preferences/recovery, plus portable work-package contracts. |
+| Browser/work owner | Working records/layouts/local assets/preferences/recovery, Set → Template references, and portable work-package contracts. |
 | Connected provider/local folder | Durable user-owned project files, permissions, provider revisions, provider deletion. |
 | Temporary AI workspace | Bounded private revisioned collaboration only; not durable creator backup. |
 | External production provider | Dielines/product specs, availability, prices, orders, shipping, delivery. |
@@ -618,8 +625,9 @@ Preserve ownership separation:
 ### Version behavior
 
 - Published Specialty/Kit revisions are immutable snapshots.
+- Reusable Templates have lineage plus exact revision identity; a fork creates a new lineage with provenance rather than transferring source ownership.
 - New work containers receive current published configuration.
-- Existing work containers store/pin sufficient configuration to remain usable.
+- Existing work containers store/pin sufficient configuration and exact referenced Template snapshots to remain usable.
 - Publishing new configuration does not silently mutate existing work.
 - Updating existing work is explicit and previewable.
 - Published shared asset/revision updates do not silently mutate exact work dependencies.
@@ -631,7 +639,7 @@ The visual system should reinforce object meaning rather than decorate every con
 
 Use:
 
-- real work stacks and artifact thumbnails;
+- real work stacks and Artifact thumbnails;
 - actual Template previews;
 - artwork thumbnails;
 - font specimens;
@@ -684,6 +692,7 @@ Do not:
 - make Contributors implicit live publishers;
 - conflate Save with Pipeline submission or Publish;
 - silently update pinned revisions;
+- silently treat generated Artifact content as generation authority when the Template source is known or must be chosen;
 - rebuild provider-native storage/auth/billing lifecycles;
 - turn Desk into an unconstrained infinite-canvas toy or Studio into another collection browser;
 - retire a shipped capability before its new home proves parity;
