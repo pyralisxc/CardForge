@@ -1,0 +1,37 @@
+name: Bootstrap Product Reality
+
+on:
+  push:
+    branches: [feature/product-reality-graph]
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feature/product-reality-graph
+          fetch-depth: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate final baseline without this bootstrap workflow
+        run: |
+          rm .github/workflows/bootstrap-product-reality.yml
+          npm run product-reality:generate
+          npm run product-reality:check
+      - name: Commit generated baseline and remove bootstrap workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .github/workflows/bootstrap-product-reality.yml docs/generated/product-reality.json docs/product-surface-map.md
+          git commit -m "Commit generated Product Reality baseline"
+          git push origin HEAD:feature/product-reality-graph
