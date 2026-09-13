@@ -4,109 +4,127 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `ef9b424027b80c5f594c`
+Topology fingerprint: `df3143bc744938d4008f`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
 ## Topology summary
 
-- 385 observed nodes
-- 685 observed relationships
-- 3 unresolved observations
-- 5 product surfaces, 26 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers, 170 test-evidence nodes
+- 224 observed nodes
+- 509 observed relationships
+- 0 unresolved observations
+- 5 product surfaces, 30 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers
 
 ## Product surfaces
 
 | Surface | Role | Actions | Tools | Routes | Connected feature owners | MCP parity links |
 | --- | --- | ---: | ---: | ---: | --- | ---: |
-| **desk** | zone | 10 | 0 | 0 | `project`, `card-generator`, `storage-management`, `marketing-content`, `pipeline`, `studio-documents` | 0 |
-| **library** | zone | 14 | 0 | 0 | `studio-documents`, `template-editor`, `card-generator`, `project`, `pipeline`, `storage-management`, `personal-library` | 0 |
-| **profile** | zone | 2 | 0 | 0 | `account` | 0 |
+| **Desk** | zone | 11 | 0 | 0 | `card-generator`, `project`, `storage-management`, `marketing-content`, `pipeline`, `studio-documents` | 2 |
+| **Library** | zone | 17 | 0 | 0 | `storage-management`, `studio-documents`, `template-editor`, `card-generator`, `project`, `pipeline`, `personal-library` | 2 |
+| **Profile** | zone | 2 | 0 | 0 | `account` | 0 |
 | **public** | public | 0 | 0 | 18 | `app-shell`, `business-identity`, `contributor-access`, `mcp-usage`, `public-site`, `legal`, `billing`, `contact`, `contributor-program`, `studio-documents`, `roadmap` | 0 |
-| **studio** | workbench | 0 | 4 | 1 | `template-editor`, `card-generator`, `pipeline`, `app-shell` | 0 |
+| **Studio** | workbench | 0 | 4 | 1 | `template-editor`, `card-generator`, `pipeline`, `app-shell` | 0 |
 
 ### Surface actions and tools
 
-#### desk
+#### Desk
 
 | Action | Owner evidence | Scope | Result | Automation |
 | --- | --- | --- | --- | --- |
-| `desk.create-set` | `unknown` | unknown | unknown | unknown |
+| `desk.create-set` | `card-generator` | zone | tool-opened | human-only |
 | `desk.delete-set` | `project` | object | tool-opened | human-only |
 | `desk.duplicate-set` | `project` | object | mutation | human-only |
 | `desk.export-set` | `card-generator` | object | tool-opened | human-only |
 | `desk.generate-set` | `card-generator` | object | tool-opened | human-only |
 | `desk.manage-location` | `storage-management` | object | navigation | human-only |
-| `desk.open-set` | `marketing-content`, `pipeline`, `studio-documents`, `project` | object | unknown | unknown |
+| `desk.open-set` | `marketing-content`, `pipeline`, `studio-documents`, `project` | object | contextual | contextual |
 | `desk.pin-set` | `project` | object | mutation | human-only |
 | `desk.rename-set` | `project` | object | tool-opened | human-only |
 | `desk.save-move-set` | `storage-management` | object | tool-opened | human-only |
+| `desk.send-pipeline` | `pipeline` | object | tool-opened | human-only |
 
-#### library
+#### Library
 
 | Action | Owner evidence | Scope | Result | Automation |
 | --- | --- | --- | --- | --- |
-| `library.continue` | `studio-documents` | object | navigation | unknown |
+| `library.close-locations` | `storage-management` | zone | navigation | human-only |
+| `library.close-tool` | `storage-management` | zone | navigation | human-only |
+| `library.continue` | `studio-documents` | object | navigation | human-only |
 | `library.copy-published-template` | `template-editor` | object | navigation | planned-mcp |
-| `library.delete-copy` | `template-editor`, `card-generator`, `project` | object | tool-opened | unknown |
-| `library.duplicate` | `card-generator` | object | mutation | unknown |
+| `library.delete-copy` | `template-editor`, `card-generator`, `project` | object | tool-opened | human-only |
+| `library.duplicate` | `card-generator` | object | mutation | human-only |
 | `library.edit-pipeline` | `pipeline` | object | tool-opened | human-only |
-| `library.manage-location` | `storage-management` | object | navigation | unknown |
-| `library.open` | `unknown` | object | navigation | unknown |
-| `library.refresh` | `unknown` | unknown | unknown | unknown |
+| `library.manage-location` | `storage-management` | object | navigation | human-only |
+| `library.open` | `project`, `studio-documents`, `template-editor`, `card-generator` | object | navigation | contextual |
+| `library.refresh` | `storage-management` | zone | refresh-requested | human-only |
 | `library.retire-pipeline` | `pipeline` | object | mutation | human-only |
-| `library.save-move` | `storage-management` | object | tool-opened | unknown |
+| `library.save-move` | `storage-management` | object | tool-opened | human-only |
+| `library.send-pipeline` | `pipeline` | object | tool-opened | human-only |
 | `library.test-pipeline` | `pipeline` | object | navigation | human-only |
 | `library.use-published` | `pipeline` | object | navigation | planned-mcp |
-| `library.view-source` | `personal-library`, `project` | object | provider-handoff | unknown |
+| `library.view-source` | `personal-library`, `project` | object | provider-handoff | human-only |
 | `library.withdraw-pipeline` | `pipeline` | object | mutation | human-only |
 
-#### profile
+#### Profile
 
 | Action | Owner evidence | Scope | Result | Automation |
 | --- | --- | --- | --- | --- |
 | `profile.close-utility` | `account` | zone | navigation | human-only |
 | `profile.manage-account` | `account` | zone | provider-handoff | human-only |
 
-#### studio
+#### Studio
 
 Tools: `design` → `template-editor`; `generate` → `card-generator`; `output` → `card-generator`; `pipeline` → `pipeline`.
 
+## User-visible capabilities
+
+| Capability | Category | Native owner | Observed surfaces |
+| --- | --- | --- | --- |
+| `Pointer, touch pan, pinch zoom, and hold-to-drag spatial gestures` | interaction | `card-rendering` | `Desk`, `Studio` |
+| `Exact creator focus and tool return context` | navigation | `app-shell` | `Desk`, `Studio` |
+| `Adaptive comfortable, compact, and dense Artifact presentation` | interaction | `desk` | `Desk` |
+| `Bounded spatial Desk with authored object movement` | interaction | `desk` | `Desk` |
+| `Desk selection and focus restoration` | navigation | `desk` | `Desk` |
+| `Fit and Custom spatial camera` | interaction | `desk` | `Desk` |
+| `Multi-Artifact spatial selection movement` | interaction | `desk` | `Desk` |
+| `Readable large-Set Fit floor` | accessibility | `desk` | `Desk` |
+| `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
+
 ## Feature owners
 
-| Feature | Actions | Depends on | Used by | APIs | MCP implementations | Providers | Test evidence |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `account` | 2 | 4 | 10 | 16 | 0 | 1 | 11 |
-| `analytics` | 0 | 1 | 11 | 1 | 0 | 2 | 4 |
-| `app-shell` | 0 | 6 | 4 | 0 | 0 | 0 | 8 |
-| `billing` | 0 | 0 | 4 | 8 | 0 | 2 | 11 |
-| `brand-presentation` | 0 | 0 | 4 | 0 | 0 | 0 | 0 |
-| `business-identity` | 0 | 0 | 7 | 3 | 0 | 0 | 4 |
-| `card-generator` | 4 | 7 | 7 | 0 | 0 | 0 | 10 |
-| `card-rendering` | 0 | 2 | 7 | 0 | 0 | 0 | 9 |
-| `contact` | 0 | 1 | 3 | 4 | 0 | 1 | 1 |
-| `contributor-access` | 0 | 1 | 7 | 14 | 0 | 0 | 5 |
-| `contributor-program` | 0 | 3 | 0 | 0 | 0 | 1 | 0 |
-| `creator-workbench` | 0 | 10 | 2 | 0 | 0 | 0 | 0 |
-| `desk` | 0 | 11 | 0 | 0 | 0 | 0 | 5 |
-| `experience-settings` | 0 | 0 | 3 | 2 | 0 | 0 | 2 |
-| `legal` | 0 | 3 | 1 | 2 | 0 | 1 | 4 |
-| `library-picker` | 0 | 2 | 2 | 0 | 0 | 0 | 3 |
-| `marketing` | 0 | 3 | 1 | 2 | 0 | 0 | 1 |
-| `marketing-content` | 1 | 1 | 4 | 8 | 0 | 0 | 2 |
-| `marketing-distribution` | 0 | 3 | 2 | 4 | 0 | 1 | 3 |
-| `mcp-usage` | 0 | 0 | 5 | 2 | 0 | 0 | 3 |
-| `owner` | 0 | 14 | 0 | 22 | 0 | 3 | 3 |
-| `personal-library` | 1 | 5 | 4 | 3 | 1 | 1 | 4 |
-| `pipeline` | 6 | 5 | 10 | 18 | 0 | 1 | 21 |
-| `project` | 7 | 1 | 11 | 7 | 0 | 1 | 46 |
-| `public-site` | 0 | 6 | 6 | 5 | 0 | 0 | 11 |
-| `render-artifacts` | 0 | 0 | 1 | 0 | 0 | 0 | 1 |
-| `roadmap` | 0 | 5 | 1 | 4 | 0 | 1 | 3 |
-| `social-publishing` | 0 | 0 | 1 | 0 | 0 | 1 | 1 |
-| `storage-management` | 4 | 12 | 1 | 0 | 0 | 0 | 10 |
-| `studio-documents` | 2 | 8 | 2 | 7 | 22 | 0 | 14 |
-| `template-editor` | 2 | 8 | 1 | 0 | 0 | 0 | 14 |
+| Feature | Actions | Depends on | Used by | APIs | MCP implementations | Providers |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `account` | 2 | 4 | 10 | 16 | 0 | 1 |
+| `analytics` | 0 | 1 | 11 | 1 | 0 | 2 |
+| `app-shell` | 0 | 6 | 4 | 0 | 0 | 0 |
+| `billing` | 0 | 0 | 4 | 8 | 0 | 2 |
+| `brand-presentation` | 0 | 0 | 4 | 0 | 0 | 0 |
+| `business-identity` | 0 | 0 | 7 | 3 | 0 | 0 |
+| `card-generator` | 6 | 7 | 7 | 0 | 0 | 0 |
+| `card-rendering` | 0 | 2 | 7 | 0 | 0 | 0 |
+| `contact` | 0 | 1 | 3 | 4 | 0 | 1 |
+| `contributor-access` | 0 | 1 | 7 | 14 | 0 | 0 |
+| `contributor-program` | 0 | 3 | 0 | 0 | 0 | 1 |
+| `creator-workbench` | 0 | 10 | 2 | 0 | 0 | 0 |
+| `desk` | 0 | 11 | 0 | 0 | 0 | 0 |
+| `experience-settings` | 0 | 0 | 3 | 2 | 0 | 0 |
+| `legal` | 0 | 3 | 1 | 2 | 0 | 1 |
+| `library-picker` | 0 | 2 | 2 | 0 | 0 | 0 |
+| `marketing` | 0 | 3 | 1 | 2 | 0 | 0 |
+| `marketing-content` | 1 | 1 | 4 | 8 | 0 | 0 |
+| `marketing-distribution` | 0 | 3 | 2 | 4 | 0 | 1 |
+| `mcp-usage` | 0 | 0 | 5 | 2 | 0 | 0 |
+| `owner` | 0 | 14 | 0 | 22 | 0 | 3 |
+| `personal-library` | 1 | 5 | 4 | 3 | 1 | 1 |
+| `pipeline` | 8 | 5 | 10 | 18 | 0 | 1 |
+| `project` | 8 | 1 | 11 | 7 | 0 | 1 |
+| `public-site` | 0 | 6 | 6 | 5 | 0 | 0 |
+| `render-artifacts` | 0 | 0 | 1 | 0 | 0 | 0 |
+| `roadmap` | 0 | 5 | 1 | 4 | 0 | 1 |
+| `social-publishing` | 0 | 0 | 1 | 0 | 0 | 1 |
+| `storage-management` | 7 | 12 | 1 | 0 | 0 | 0 |
+| `studio-documents` | 3 | 8 | 2 | 7 | 22 | 0 |
+| `template-editor` | 3 | 8 | 1 | 0 | 0 | 0 |
 
 ## Provider boundaries
 
@@ -127,7 +145,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | --- | --- | --- |
 | `attach_template_artwork` | `studio-documents` | supporting/none declared |
 | `attach_template_artworks` | `studio-documents` | supporting/none declared |
-| `checkout_project` | `studio-documents` | supporting/none declared |
+| `checkout_project` | `studio-documents` | `desk.open-set`, `library.open` |
 | `commit_project` | `studio-documents` | supporting/none declared |
 | `continue_template_in_pipeline` | `/mcp` | supporting/none declared |
 | `create_editable_template` | `/mcp` | supporting/none declared |
@@ -140,7 +158,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `get_studio_creation_guide` | `/mcp` | supporting/none declared |
 | `get_working_document_operation_status` | `studio-documents` | supporting/none declared |
 | `list_agent_working_documents` | `studio-documents` | supporting/none declared |
-| `list_connected_projects` | `studio-documents` | supporting/none declared |
+| `list_connected_projects` | `studio-documents` | `desk.open-set`, `library.open` |
 | `list_editable_templates` | `/mcp` | supporting/none declared |
 | `move_cards` | `studio-documents` | supporting/none declared |
 | `patch_cards` | `studio-documents` | supporting/none declared |
@@ -158,11 +176,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 
 ## Observability gaps
 
-The scanner found 3 observations it could not fully resolve. Unknown does not mean healthy or broken; it means the repository does not currently expose enough deterministic static evidence.
-
-- **action-factory** — Action desk.create-set is observable through zoneAction, but its full descriptor is dynamic.
-- **action-factory** — Action library.refresh is observable through zoneAction, but its full descriptor is dynamic.
-- **action-owner** — Action library.open has no statically provable ownerFeature.
+No unresolved observations were emitted by the current scanner.
 
 ## Reading this map
 
