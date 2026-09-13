@@ -114,6 +114,7 @@ describe('Product Reality checkpoint projection', () => {
   it('keeps supporting test/workflow churn out of the product-semantic fingerprint and primary heat map', async () => {
     const root = await makeRoot();
     await put(root, 'src/features/project/client.ts', 'export const project = true;');
+    await put(root, '.github/workflows/ci.yml', 'name: CI\nsteps:\n  - run: npm run verify:full\n');
     const first = await buildCheckpointProductReality(root);
     await put(root, 'tests/product/unit/project.test.ts', `import '@/features/project/client'; test('project', () => {});`);
     const second = await buildCheckpointProductReality(root);
