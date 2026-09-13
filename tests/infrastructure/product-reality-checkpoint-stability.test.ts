@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   buildCheckpointProductReality,
+  formatCheckpointHeatMap,
+  parseCheckpointGraph,
   serializeCheckpointGraph,
 } from '../../scripts/product-reality-checkpoint-lib.mjs';
 
@@ -32,6 +34,7 @@ describe('Product Reality accepted checkpoint stability', () => {
 
     const before = await buildCheckpointProductReality(root);
     const beforeCheckpoint = serializeCheckpointGraph(before);
+    const accepted = parseCheckpointGraph(beforeCheckpoint);
 
     await put(root, 'tests/product/unit/project.test.ts', `import '@/features/project/client'; test('project', () => {});`);
     const after = await buildCheckpointProductReality(root);
@@ -41,5 +44,10 @@ describe('Product Reality accepted checkpoint stability', () => {
     expect(serializeCheckpointGraph(after)).toBe(beforeCheckpoint);
     expect(beforeCheckpoint).not.toContain('"kind":"test"');
     expect(beforeCheckpoint).not.toContain('"evidence"');
+
+    const heatMap = formatCheckpointHeatMap(accepted, after);
+    expect(heatMap.supportingDelta).toBeNull();
+    expect(heatMap.report).toContain('Supporting evidence remains live/queryable');
+    expect(heatMap.report).not.toMatch(/📎 \d+ supporting evidence\/test\/workflow changes/);
   });
 });

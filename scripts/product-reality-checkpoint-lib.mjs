@@ -20,7 +20,6 @@ export const PRODUCT_REALITY_LEGACY_PATH = 'docs/generated/product-reality.json'
 export const PRODUCT_REALITY_SURFACE_MAP_PATH = 'docs/product-surface-map.md';
 
 const SUPPORTING_NODE_KINDS = new Set(['test', 'workflow', 'script']);
-const uniq = (values) => [...new Set(values)];
 const edgeKey = (edge) => `${edge.from}|${edge.relation}|${edge.to}`;
 const unknownKey = (unknown) => `${unknown.kind}|${unknown.message}`;
 const stableEvidence = (values = []) => [...new Map(values.filter((value) => value?.path).map((value) => {
@@ -322,12 +321,17 @@ const subtractDelta = (full, product) => Object.fromEntries(Object.keys(full).ma
 }));
 
 export const formatCheckpointHeatMap = (baseGraph, currentGraph, { baseLabel = 'accepted checkpoint A', currentLabel = 'candidate B' } = {}) => {
-  const fullDelta = diffProductReality(baseGraph, currentGraph);
   const productDelta = diffProductReality(productProjection(baseGraph), productProjection(currentGraph));
-  const supportingDelta = subtractDelta(fullDelta, productDelta);
+  const hasSupportingBaseline = baseGraph.evidenceFingerprint !== null
+    && baseGraph.nodes.some((node) => SUPPORTING_NODE_KINDS.has(node.kind));
+  const fullDelta = hasSupportingBaseline ? diffProductReality(baseGraph, currentGraph) : null;
+  const supportingDelta = fullDelta ? subtractDelta(fullDelta, productDelta) : null;
   const changed = productDelta.addedNodes.length + productDelta.changedNodes.length + productDelta.addedEdges.length + productDelta.changedEdges.length;
   const currentProduct = productProjection(currentGraph);
   const unchanged = Math.max(0, currentProduct.nodes.length + currentProduct.edges.length - changed);
+  const supportingLine = supportingDelta
+    ? `- 📎 ${relationCount(supportingDelta)} supporting evidence/test/workflow changes (secondary signal)`
+    : '- 📎 Supporting evidence remains live/queryable and is intentionally excluded from durable A/B checkpoints.';
   return {
     delta: productDelta,
     fullDelta,
@@ -340,7 +344,7 @@ export const formatCheckpointHeatMap = (baseGraph, currentGraph, { baseLabel = '
       `- 🔴 ${productDelta.removedNodes.length + productDelta.removedEdges.length} disappeared product observations`,
       `- ⚪ ${productDelta.addedUnknowns.length} new unresolved observations`,
       `- ✅ ${productDelta.removedUnknowns.length} unresolved observations resolved/removed`,
-      `- 📎 ${relationCount(supportingDelta)} supporting evidence/test/workflow changes (secondary signal)`, '',
+      supportingLine, '',
       formatProductRealityDelta(productDelta, { baseLabel, currentLabel }).trim(), '',
     ].join('\n'),
   };
