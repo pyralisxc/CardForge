@@ -66,7 +66,7 @@
     "@tiptap/extension-color": "^3.30.5",
     "@tiptap/extension-highlight": "^3.30.5",
     "@tiptap/extension-text-style": "^3.23.4",
-    "@tiptap/extension-underline": "^3.30.5",
+    "@tiptap/extension-underline": "^3.23.4",
     "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
     "@zip.js/zip.js": "^2.9.0",
@@ -90,7 +90,7 @@
     "react-dom": "^18.3.1",
     "sharp": "0.35.4",
     "stripe": "^22.6.0",
-    "tailwind-merge": "^3.3.0",
+    "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2",
     "zustand": "^4.5.4"
