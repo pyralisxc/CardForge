@@ -19,8 +19,20 @@ const workspaceStateFor = (
 ) => {
   const fixture = createProjectScaleFixture(cardCount);
   if (needsWorkFixture) {
-    fixture.userTemplates[0]!.fieldContracts = [
-      ...(fixture.userTemplates[0]!.fieldContracts ?? []),
+    const template = fixture.userTemplates[0]!;
+    template.freeformCanvas = {
+      ...template.freeformCanvas!,
+      elements: [
+        ...template.freeformCanvas!.elements,
+        {
+          id: 'required-fixture', name: 'Required Fixture', type: 'text',
+          x: 30, y: 620, width: 570, height: 70, zIndex: 3,
+          content: '{{requiredFixture}}', fontSizePx: 30, textColor: '#234567',
+        },
+      ],
+    };
+    template.fieldContracts = [
+      ...(template.fieldContracts ?? []),
       { key: 'requiredFixture', elementId: 'required-fixture', label: 'Required Fixture', type: 'text', required: true },
     ];
   }
