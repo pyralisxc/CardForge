@@ -179,3 +179,66 @@ test('@golden waits for catalog Templates before opening a deep-linked Generate 
   await expect(page.locator('#deck-front-template')).toContainText('Scale Fixture Template', { timeout: 30_000 });
   await expect(page.locator('#deck-backing-template')).toContainText('Scale Fixture Back');
 });
+
+for (const mobile of [false, true]) {
+  test.describe(`Selection scope hardening on ${mobile ? 'mobile' : 'desktop'}`, () => {
+    test.use(mobile ? { viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
+
+    test('@golden exposes selection-scoped Edit without making Organize the action gateway', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 3 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+
+      if (mobile) {
+        await page.getByRole('button', { name: /^Organize ·/ }).click();
+        await page.getByRole('button', { name: 'Select shown', exact: true }).click();
+        await page.keyboard.press('Escape');
+      } else {
+        await page.locator('button[data-artifact-id="scale-card-1"]').click();
+        await page.locator('button[data-artifact-id="scale-card-2"]').click({ modifiers: ['Control'] });
+      }
+
+      const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+      await expect(selectionActions).toBeVisible();
+      await expect(selectionActions.getByRole('button', { name: 'Edit selected', exact: true })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: /Organize/i })).toHaveCount(0);
+    });
+  });
+}
+
+test('@golden refuses mixed-Template direct edits instead of guessing field compatibility', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, mixedTemplates: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await page.locator('button[data-artifact-id="scale-card-2"]').click({ modifiers: ['Control'] });
+
+  const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+  await selectionActions.getByRole('button', { name: 'Edit selected', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Edit 2 selected Artifacts', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Edit one design group at a time', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Update from data', exact: true })).toHaveCount(0);
+});
+
+test('@golden surfaces derived Needs Work and clears it after repairing required values', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, needsWorkFixture: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+
+  const needsWork = page.getByRole('button', { name: 'Needs work · 2', exact: true });
+  await expect(needsWork).toBeVisible();
+  await needsWork.click();
+  const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+  await expect(selectionActions).toContainText('2 Artifacts selected');
+  await selectionActions.getByRole('button', { name: 'Edit selected', exact: true }).click();
+
+  const editor = page.getByRole('region', { name: 'Edit 2 selected Artifacts', exact: true });
+  await expect(editor).toBeVisible();
+  await editor.getByLabel('Required Fixture', { exact: true }).fill('Ready');
+  await editor.getByRole('button', { name: 'Apply to 2', exact: true }).click();
+  await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Needs work ·/ })).toHaveCount(0);
+});
