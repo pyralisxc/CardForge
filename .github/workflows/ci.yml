@@ -31,6 +31,8 @@ jobs:
         run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
       - name: Report Product Reality delta
         run: npm run product-reality:diff -- --base "$CARDFORGE_VERIFY_BASE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Bootstrap Product Reality outputs
+        run: npm run product-reality:generate
       - name: Run full repository gate
         run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
       - name: Refresh Product Reality artifact
