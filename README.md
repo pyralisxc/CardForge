@@ -23,7 +23,7 @@ A fresh maintainer or agent should be able to work from the repository without p
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; `docs/product-surface-map.md` owns canonical placement and shipped-versus-direction surface status; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; generated `docs/product-surface-map.md` is the compact current-state Product Reality projection; `docs/generated/product-reality.json` is the complete rebuildable machine graph; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -46,6 +46,15 @@ npm run verify:full
 ```
 
 Pass one or more paths after `npm run verify:focused --` to route an explicit slice. `npm run architecture:report` is the opt-in repository-wide architecture analysis; the normal architecture check stays concise.
+
+Current-topology audits use Product Reality rather than a hand-maintained feature inventory:
+
+```bash
+npm run product-reality:query -- --surface studio
+npm run product-reality:query -- --feature project
+npm run product-reality:query -- --kind mcp
+npm run product-reality:diff -- --base origin/main
+```
 
 Maintained operational commands:
 
@@ -109,6 +118,8 @@ The official Standard 52-card deck is the published free starter and the end-to-
 
 ChatGPT/Codex use authenticated `/mcp` tools to create and revise private Studio documents, preview exact CardForge renders, and hand the same document into normal Studio installation or Forge Review. MCP does not own a second template format, renderer, asset store, or publication authority. Clerk owns linked identity; CardForge owns Studio-document authorization and product semantics.
 
+For broad questions such as “where is this capability used?”, “what changed in product topology?”, or “is human/MCP parity still present?”, agents should load `.agents/skills/product-reality-audit/SKILL.md` and query the generated Product Reality graph before manually traversing the repository.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` for local provider testing. Core examples:
@@ -139,7 +150,8 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
-- `docs/product-surface-map.md`: canonical placement plus shipped-versus-direction surface status.
+- `docs/product-surface-map.md`: generated compact current-state projection of observed Product Reality; never hand-edit it.
+- `docs/generated/product-reality.json`: complete rebuildable machine-readable Product Reality graph for queries, audits, and A→B topology diffs.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.

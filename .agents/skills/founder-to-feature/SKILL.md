@@ -102,7 +102,7 @@ Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the
 
 - `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
-- `docs/product-surface-map.md` — canonical placement and shipped-versus-direction surface status;
+- generated `docs/product-surface-map.md` — compact observed current Product Reality; query the graph rather than hand-editing this projection when current placement/reachability matters;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.
@@ -233,13 +233,14 @@ Ask: **What is now durably true about CardForge that a new agent must know witho
 
 Promote only verified durable truth into its existing canonical owner:
 
-- `docs/product-direction.md` for durable product meaning or intended model;
+- `docs/product-direction.md` for durable product meaning, desired placement, or intended model;
 - `docs/architecture.md` for shipped ownership, identity, persistence, and architectural invariants;
-- `docs/product-surface-map.md` for canonical placement and shipped-versus-direction surface status;
 - `docs/integrations.md` for intentional provider seams and supported provider journeys;
 - `docs/operations.md` for durable operational/release procedure;
 - `docs/risk-register.md` for unresolved material risk;
 - `AGENTS.md` only for repository-wide agent behavior that truly applies across objectives.
+
+`docs/product-surface-map.md` is generated observed reality, not an authored destination for product doctrine. Do not promote desired placement or future intent into it by hand; change code/semantic metadata or the Product Reality scanner and regenerate when observed topology changes.
 
 Use **promote, consolidate, replace**:
 

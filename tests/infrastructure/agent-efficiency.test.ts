@@ -87,6 +87,7 @@ describe('agent verification routing', () => {
       'npm run test:infrastructure',
       'npm run test:inventory:check',
       'npm run architecture:check',
+      'npm run product-reality:check',
       'npm run migrations:check',
       'npm run build',
     ].join(' && '));

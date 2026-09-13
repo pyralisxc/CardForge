@@ -14,7 +14,8 @@ The durable truth sources are:
 
 - `docs/architecture.md` for shipped ownership and invariants;
 - `docs/product-direction.md` for intended product meaning and delivery sequence;
-- `docs/product-surface-map.md` for canonical placement and shipped-versus-direction surface status;
+- `docs/product-surface-map.md` for the generated current-state Product Reality projection; never hand-edit it;
+- `docs/generated/product-reality.json` for the complete rebuildable machine-readable Product Reality graph;
 - `docs/integrations.md` for provider seams;
 - `docs/operations.md` for current release/recovery/provider procedure;
 - `docs/risk-register.md` for unresolved or explicitly accepted risk.
@@ -30,6 +31,8 @@ For a substantial new feature, changed product behavior, cross-owner user journe
 An audit, critique, product discussion, UX reaction, or “what if” is not implementation approval by itself. Do not jump from promising product reasoning into code. When Cameron explicitly asks to implement or proceed, finish any required Founder-to-Feature Resolve step first rather than using implementation to discover basic product semantics.
 
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
+
+For audits of **what CardForge currently is** — where surfaces, tools, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect — load `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before manually reconstructing a broad dependency map. Product Reality is descriptive evidence only; Product Direction still owns what should change.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
@@ -59,7 +62,7 @@ Before changing an external integration:
 
 ## Human readability rule
 
-A maintainer should be able to answer “where does this behavior live?” without reconstructing a graph from dozens of files. Keep route composition thin, feature owners explicit, public `client.ts`/`server.ts` interfaces narrow, and large modules separated by real responsibility rather than arbitrary line count.
+A maintainer should be able to answer “where does this behavior live?” without reconstructing a graph from dozens of files. Keep route composition thin, feature owners explicit, public `client.ts`/`server.ts` interfaces narrow, and large modules separated by real responsibility rather than arbitrary line count. Use Product Reality as the first factual topology view, then inspect the native owner for behavior details the graph intentionally does not infer.
 
 When fixing a bug, first find the native owner and make the smallest change there. Do not create a unique workaround simply because it is locally convenient.
 
@@ -75,7 +78,7 @@ Do not add speculative guards for impossible states. A new failure branch must c
 
 ## Roadmap and completed work
 
-`docs/product-direction.md` owns the durable intended product model and delivery sequence. `docs/product-surface-map.md` owns where shipped and intended capabilities live. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep them consistent without turning any source into a duplicate of another. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
+`docs/product-direction.md` owns the durable intended product model and delivery sequence. `docs/product-surface-map.md` is generated from current code and owns no future intent; it shows where observable capabilities are currently connected. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep Product Direction and the public roadmap consistent without turning generated Product Reality into a wish list. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
 Closed implementation plans, audits, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 

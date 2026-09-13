@@ -29,8 +29,28 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
+      - name: Report Product Reality delta
+        run: npm run product-reality:diff -- --base "$CARDFORGE_VERIFY_BASE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Generate Product Reality outputs
+        run: npm run product-reality:generate
+      - name: Verify committed Product Reality freshness
+        run: |
+          if git ls-files --error-unmatch docs/generated/product-reality.json >/dev/null 2>&1; then
+            git diff --exit-code -- docs/generated/product-reality.json docs/product-surface-map.md
+          else
+            echo "Product Reality baseline is being bootstrapped; freshness enforcement begins once the generated graph is tracked." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Run full repository gate
         run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
+      - name: Retain Product Reality artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: product-reality-bootstrap
+          path: |
+            docs/generated/product-reality.json
+            docs/product-surface-map.md
+          if-no-files-found: error
+          retention-days: 3
 
   browser-golden:
     runs-on: ubuntu-latest
