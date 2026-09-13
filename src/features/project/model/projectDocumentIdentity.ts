@@ -43,7 +43,9 @@ export const mapProjectDocumentIdentity = (
   const userTemplates = document.userTemplates.map((template) => ({ ...remapProjectTemplateFonts(template, fontValues), id: template.id ? map('template', template.id) : template.id }));
   const cardIds = new Map(document.storedCards.map((card) => [card.uniqueId, map('card', card.uniqueId)]));
   const cardSets = document.cardSets.map((set) => ({
-    ...set, id: map('set', set.id),
+    ...set,
+    id: map('set', set.id),
+    ...(set.templateIds ? { templateIds: set.templateIds.map((id) => reference('template', id) ?? id) } : {}),
     ...(set.organization ? { organization: {
       ...set.organization,
       positions: Object.fromEntries(Object.entries(set.organization.positions).map(([id, position]) => [cardIds.get(id) ?? id, position])),

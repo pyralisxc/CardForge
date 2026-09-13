@@ -49,9 +49,11 @@ export const mapRegistryRowsToTemplateLibrary = async (
       templateAccessTier: row.access_tier,
       templateRegistryStatus: row.status,
       templateContributorName: template.templateContributorName || contributorName,
+      templateLineageId: row.lineage_id || template.templateLineageId || row.asset_id,
       templateOrder: row.studio_sort_order ?? template.templateOrder,
       templateRevision: Number.isInteger(revisionNumber) && revisionNumber >= 0 ? revisionNumber : 0,
-      templateRevisionId: typeof metadata.revisionId === 'string' ? metadata.revisionId : undefined,
+      templateRevisionId: typeof metadata.revisionId === 'string' ? metadata.revisionId : template.templateRevisionId,
+      templateParentRevisionId: typeof metadata.parentRevisionId === 'string' ? metadata.parentRevisionId : template.templateParentRevisionId,
     } satisfies TCGCardTemplate;
   }));
   return sortTemplates(templates.flatMap((template) => template ? [template] : []));

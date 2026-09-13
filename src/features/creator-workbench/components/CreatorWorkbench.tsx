@@ -10,11 +10,7 @@ import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useSafeCurrentReturnPath } from '@/infrastructure/auth/useSafeCurrentReturnPath';
 import { hasContributionScope, useContributorAccess, type ContributorAccessSessionState } from '@/features/contributor-access/client';
 import { StudioFirstRunGuide } from '@/features/creator-workbench/components/StudioFirstRunGuide';
-import {
-  CardTemplateMaker,
-  CardEditor,
-  GenerationWorkspace,
-} from '@/features/creator-workbench/components/StudioLazyWorkspaces';
+import { CardTemplateMaker, CardEditor, GenerationWorkspace } from '@/features/creator-workbench/components/StudioLazyWorkspaces';
 import { createDeskReturnHref, readSurfaceReturnContext, resolveStudioReturnTarget, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import { StudioContextTools, type StudioContextTool } from '@/features/creator-workbench/components/StudioContextTools';
 import { GeneratorBackWorkflowBanner } from '@/features/creator-workbench/components/GeneratorBackWorkflowBanner';
@@ -33,10 +29,7 @@ import { useStudioDocumentHandoff } from '@/features/studio-documents/client';
 import type { DisplayCard } from '@/domain/rendering';
 import type { DesignToolIntent } from '../model/designToolIntent';
 
-export type WorkbenchBusinessIdentity = {
-  brandName: string;
-  copyrightHolder: string;
-};
+export type WorkbenchBusinessIdentity = { brandName: string; copyrightHolder: string };
 
 export interface CreatorWorkbenchProps {
   businessIdentity: WorkbenchBusinessIdentity;
@@ -47,6 +40,8 @@ export interface CreatorWorkbenchProps {
   designIntent?: DesignToolIntent | null;
   onDesignIntentConsumed?: () => void;
   onReturnToGenerator?: () => void;
+  /** Set context is projection only; Library design leaves this undefined. */
+  contextSetId?: string | null;
 }
 
 export function CreatorWorkbench({
@@ -58,6 +53,7 @@ export function CreatorWorkbench({
   designIntent,
   onDesignIntentConsumed,
   onReturnToGenerator,
+  contextSetId = null,
 }: CreatorWorkbenchProps) {
   const searchParams = useSearchParams();
   const isOutput = (tool ?? searchParams.get('tool')) === 'output';
@@ -78,25 +74,20 @@ export function CreatorWorkbench({
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = accountEntitlement.copy.gateMessage;
   const projectFileGateMessage = accountEntitlement.copy.projectFileGateMessage;
-  const exportEntitlementLabel = accountEntitlement.authConfigured
-    ? exportEntitlementCopy.modeLabel
-    : 'Local setup mode';
+  const exportEntitlementLabel = accountEntitlement.authConfigured ? exportEntitlementCopy.modeLabel : 'Local setup mode';
   const accessExpiresOn = formatAccessExpiration(accountEntitlement.accessExpiresAt);
   const exportEntitlementMessage = accountEntitlement.authConfigured
-    ? accessExpiresOn
-      ? `${exportEntitlementCopy.panelMessage} Your access is active through ${accessExpiresOn}.`
-      : exportEntitlementCopy.panelMessage
+    ? accessExpiresOn ? `${exportEntitlementCopy.panelMessage} Your access is active through ${accessExpiresOn}.` : exportEntitlementCopy.panelMessage
     : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and Contributor account testing starts after adding CLERK_SECRET_KEY.';
-  const canUploadCustomAssets = canUploadCustomLocalAssets({
-    authConfigured: accountEntitlement.authConfigured,
-    isSignedIn: accountEntitlement.isSignedIn,
-  });
+  const canUploadCustomAssets = canUploadCustomLocalAssets({ authConfigured: accountEntitlement.authConfigured, isSignedIn: accountEntitlement.isSignedIn });
 
   const {
     actions: {
       addGeneratedCardsAction,
       addOrUpdateAppearanceStyleAction,
       addOrUpdateTemplateAction,
+      commitTemplateChangeAction,
+      clearPersonalTemplateOverrideAction,
       cloneTemplateAction,
       closeEditDialogAction,
       createCardSetAction,
@@ -151,11 +142,10 @@ export function CreatorWorkbench({
       userTemplatesFromStore,
     },
   } = useCardForgeWorkspaceState();
-  const returnTarget = resolveStudioReturnTarget({
-    activeSetId: activeCardSet?.id ?? '',
-    activeSetName: activeCardSet?.name ?? 'Desk',
-    requestedReturnTo: searchParams.get('returnTo'),
-  });
+  const artifactDesignScope = designIntent?.kind === 'artifact-design'
+    ? { artifactIds: designIntent.artifactIds, face: designIntent.face }
+    : null;
+  const returnTarget = resolveStudioReturnTarget({ activeSetId: activeCardSet?.id ?? '', activeSetName: activeCardSet?.name ?? 'Desk', requestedReturnTo: searchParams.get('returnTo') });
   const viewGeneratedCardsOnDesk = useCallback((cards: DisplayCard[]) => {
     if (!activeCardSet) return;
     const workId = `set:${activeCardSet.id}`;
@@ -163,10 +153,7 @@ export function CreatorWorkbench({
     const previousContext = readSurfaceReturnContext(previousContextKey);
     const returnContext = storeSurfaceReturnContext(previousContext?.kind === 'desk'
       ? { ...previousContext, focusedWorkId: workId, inspectorWorkId: null, selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all' }
-      : {
-          kind: 'desk', focusedWorkId: workId, inspectorWorkId: null, query: '', sourceFilter: 'all', sort: 'desk',
-          selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all', scrollTop: 0,
-        });
+      : { kind: 'desk', focusedWorkId: workId, inspectorWorkId: null, query: '', sourceFilter: 'all', sort: 'desk', selectedCardIds: cards.map((card) => card.uniqueId), cardQuery: '', tagFilter: 'all', scrollTop: 0 });
     router.push(createDeskReturnHref(workId, returnContext));
   }, [activeCardSet, returnTarget.href, router]);
 
@@ -177,49 +164,46 @@ export function CreatorWorkbench({
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [openStudioSheet, setOpenStudioSheet] = useState<StudioContextTool>(null);
   const [saveMoveOpen, setSaveMoveOpen] = useState(false);
-  const {
-    isLoadingTemplates,
-    retryLibraries,
-    styleLibraryFailed,
-    templateLibraryFailed,
-  } = useBootstrapLibraries({
+  const { isLoadingTemplates, retryLibraries, styleLibraryFailed, templateLibraryFailed } = useBootstrapLibraries({
     setAppearanceStylesFromFiles: setAppearanceStylesFromFilesAction,
     setDefaultTemplatesFromFiles: setDefaultTemplatesFromFilesAction,
     mergeUserTemplatesFromFiles: mergeUserTemplatesFromFilesAction,
   });
 
   const {
+    cancelPendingTemplateSave,
+    confirmTemplateSaveFork,
+    confirmTemplateSaveShared,
     handleCloneTemplate,
     handleConfirmDeleteTemplate,
     handleDeleteTemplate,
     handleSaveAppearanceStyle,
     handleSaveTemplate: saveTemplateToLibrary,
+    handleSubmitTemplateRevision,
     handleContinueNewTemplateInPipeline,
+    pendingTemplateSaveImpact,
+    setPendingTemplateSaveVariantName,
     setTemplatePendingDeleteId,
     templatePendingDeleteId,
   } = useTemplateLibraryActions({
     addOrUpdateAppearanceStyle: addOrUpdateAppearanceStyleAction,
     addOrUpdateTemplate: addOrUpdateTemplateAction,
+    commitTemplateChange: commitTemplateChangeAction,
+    clearPersonalTemplateOverride: clearPersonalTemplateOverrideAction,
     appearanceStyles,
     cloneTemplate: cloneTemplateAction,
     deleteAppearanceStyle: deleteAppearanceStyleAction,
     deleteTemplate: deleteTemplateAction,
-    projectCapabilities: {
-      canSubmitTemplateRevisions,
-      canPublishSharedLibrary,
-    },
+    projectCapabilities: { canSubmitTemplateRevisions, canPublishSharedLibrary },
     setGeneratorSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
     templates: templatesFromStore,
     toast,
+    contextSetId,
+    designScope: artifactDesignScope,
   });
-  const {
-    handleBulkCardsGenerated,
-    handleCloseEditDialog,
-    handleDuplicateCard,
-    handleSaveEditedCard,
-  } = useGeneratedOutputActions({
+  const { handleBulkCardsGenerated, handleCloseEditDialog, handleDuplicateCard, handleSaveEditedCard } = useGeneratedOutputActions({
     addGeneratedCards: addGeneratedCardsAction,
     closeEditDialog: closeEditDialogAction,
     openEditDialog: openEditDialogAction,
@@ -228,14 +212,7 @@ export function CreatorWorkbench({
     updateGeneratedCard: updateGeneratedCardAction,
   });
 
-  const {
-    applyPendingProjectImport,
-    clearPendingProjectImport,
-    handleChooseImportProject,
-    handleExportProject,
-    handleImportProject,
-    pendingProjectImport,
-  } = useProjectFileActions({
+  const { applyPendingProjectImport, clearPendingProjectImport, handleChooseImportProject, handleExportProject, handleImportProject, pendingProjectImport } = useProjectFileActions({
     appearanceStyles,
     canUseProjectFiles: projectCapabilities.canUseProjectFiles,
     exportDpi,
@@ -263,13 +240,7 @@ export function CreatorWorkbench({
     userTemplates: userTemplatesFromStore,
   });
 
-  const {
-    handleExportAllAsZip,
-    handleExportTabletopSimulatorSpritesheets,
-    isZipExporting,
-    zipExportKind,
-    zipProgress,
-  } = useCardZipExportActions({
+  const { handleExportAllAsZip, handleExportTabletopSimulatorSpritesheets, isZipExporting, zipExportKind, zipProgress } = useCardZipExportActions({
     canExportClean: projectCapabilities.canExportClean,
     exportDpi,
     exportMode,
@@ -277,31 +248,15 @@ export function CreatorWorkbench({
     richTextHighlightColor,
     toast,
   });
+  const { handleStartCheckout, isCheckoutStarting } = useCheckoutActions({ authConfigured: accountEntitlement.authConfigured, isSignedIn: accountEntitlement.isSignedIn, returnTo: checkoutReturnTo, toast });
 
-  const {
-    handleStartCheckout,
-    isCheckoutStarting,
-  } = useCheckoutActions({
-    authConfigured: accountEntitlement.authConfigured,
-    isSignedIn: accountEntitlement.isSignedIn,
-    returnTo: checkoutReturnTo,
-    toast,
-  });
-
-  const handleDismissFirstRunGuide = useCallback(() => {
-    firstRunGuideDismissedRef.current = true;
-    setShowFirstRunGuide(false);
-    void writeProjectPreference(STUDIO_GUIDE_STORAGE_KEY, true);
-  }, []);
-
+  const handleDismissFirstRunGuide = useCallback(() => { firstRunGuideDismissedRef.current = true; setShowFirstRunGuide(false); void writeProjectPreference(STUDIO_GUIDE_STORAGE_KEY, true); }, []);
   const focusStudioRegion = useCallback((selector: string) => {
     window.requestAnimationFrame(() => {
       const target = document.querySelector<HTMLElement>(selector);
       if (!target) return;
       const panel = target.closest<HTMLElement>('[data-testid="generator-panel"]');
-      if (panel && panel !== target) {
-        panel.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-      }
+      if (panel && panel !== target) panel.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
       target.focus({ preventScroll: true });
     });
   }, []);
@@ -332,35 +287,16 @@ export function CreatorWorkbench({
     toast,
   });
 
-  const handleStartMakingCards = useCallback(() => {
-    setStudioViewAction('generate');
-    handleDismissFirstRunGuide();
-    focusStudioRegion('[data-workflow-step="setup"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
-
-  const handleEditDesignFirst = useCallback(() => {
-    setStudioViewAction('template');
-    handleDismissFirstRunGuide();
-    focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
+  const handleStartMakingCards = useCallback(() => { setStudioViewAction('generate'); handleDismissFirstRunGuide(); focusStudioRegion('[data-workflow-step="setup"]'); }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
+  const handleEditDesignFirst = useCallback(() => { setStudioViewAction('template'); handleDismissFirstRunGuide(); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleDismissFirstRunGuide, setStudioViewAction]);
   useEffect(() => {
     if (isLoadingTemplates || requestedTemplateHandledRef.current) return;
     const url = new URL(window.location.href);
     const requestedTemplateId = url.searchParams.get('editTemplate');
-    if (!requestedTemplateId) {
-      requestedTemplateHandledRef.current = true;
-      return;
-    }
+    if (!requestedTemplateId) { requestedTemplateHandledRef.current = true; return; }
     requestedTemplateHandledRef.current = true;
     const template = templatesFromStore.find((candidate) => candidate.id === requestedTemplateId);
-    if (!template) {
-      toast({
-        title: 'Template is not available',
-        description: 'This Template may be archived, restricted, or no longer published.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!template) { toast({ title: 'Template is not available', description: 'This Template may be archived, restricted, or no longer published.', variant: 'destructive' }); return; }
     setTemplateEditorSelectedTemplateIdAction(template.id);
     setStudioViewAction('template');
     url.searchParams.delete('editTemplate');
@@ -372,10 +308,7 @@ export function CreatorWorkbench({
     if (requestedToolHandledRef.current) return;
     const url = new URL(window.location.href);
     const requestedTool = url.searchParams.get('tool');
-    if (!requestedTool) {
-      requestedToolHandledRef.current = true;
-      return;
-    }
+    if (!requestedTool) { requestedToolHandledRef.current = true; return; }
     if (requestedTool === 'output') setOpenStudioSheet('output');
     else if (requestedTool === 'pipeline' && canSubmitTemplateRevisions) setOpenStudioSheet('pipeline');
     else if (requestedTool === 'save') setSaveMoveOpen(true);
@@ -384,14 +317,8 @@ export function CreatorWorkbench({
 
   useEffect(() => {
     let cancelled = false;
-    void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
-      if (!cancelled && !firstRunGuideDismissedRef.current) {
-        setShowFirstRunGuide(dismissed !== true);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
+    void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => { if (!cancelled && !firstRunGuideDismissedRef.current) setShowFirstRunGuide(dismissed !== true); });
+    return () => { cancelled = true; };
   }, []);
 
   const isStudioReady = !isLoadingTemplates;
@@ -412,14 +339,10 @@ export function CreatorWorkbench({
     toast,
   });
 
-  const showTemplateTool = useCallback(() => {
-    handleStudioViewChange('template');
-    setOpenStudioSheet(null);
-    focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, handleStudioViewChange]);
+  const showTemplateTool = useCallback(() => { handleStudioViewChange('template'); setOpenStudioSheet(null); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleStudioViewChange]);
 
   useEffect(() => {
-    if (!designIntent || isLoadingTemplates) return;
+    if (!designIntent || isLoadingTemplates || designIntent.kind === 'artifact-design') return;
     if (designIntent.kind === 'matching-back') handleCreateMatchingBack(designIntent.formatSource);
     else if (designIntent.kind === 'edit-back') handleEditCardBack(designIntent.templateId);
     else handleManageCardBacks();
@@ -427,143 +350,57 @@ export function CreatorWorkbench({
   }, [designIntent, handleCreateMatchingBack, handleEditCardBack, handleManageCardBacks, isLoadingTemplates, onDesignIntentConsumed]);
 
   if (!activeCardSet && (isOutput || studioView !== 'template')) {
-    return (
-      <div className="flex min-h-full items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]">
-        <section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p>
-          <h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">
-            Studio opens around a card or Template inside a Set. Start a Set here, or return to your Desk and open existing work.
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-            <Button type="button" onClick={() => createCardSetAction('Untitled Set')}>Create a Set</Button>
-            <Button type="button" variant="outline" onClick={() => router.push('/account')}>Return to Desk</Button>
-          </div>
-        </section>
-      </div>
-    );
+    return <div className="flex min-h-full items-center justify-center bg-[var(--cf-canvas)] p-5 text-[var(--cf-text)]"><section className="w-full max-w-xl border-y border-[var(--cf-border-subtle)] py-10 text-center"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">Studio</p><h1 className="mt-3 font-serif text-3xl text-[var(--cf-text-strong)]">Choose the work you want to edit</h1><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--cf-text-muted)]">Studio opens around a card or Template inside a Set. Start a Set here, or return to your Desk and open existing work.</p><div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row"><Button type="button" onClick={() => createCardSetAction('Untitled Set')}>Create a Set</Button><Button type="button" variant="outline" onClick={() => router.push('/account')}>Return to Desk</Button></div></section></div>;
   }
 
   return (
     <div className="cardforge-studio-workspace flex h-full min-h-0 max-w-full flex-col overflow-hidden bg-[var(--cf-canvas)] text-[var(--cf-text)]" data-studio-presentation="contextual-tool">
-      {accountEntitlement.entitlementError ? (
-        <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">
-          Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.
+      {accountEntitlement.entitlementError ? <div role="status" className="border-b border-[#8b4c35] bg-[#2a130e] px-4 py-2 text-sm text-[#efb6a4] md:px-6">Account and connected-service access could not be verified. Local Studio work remains available; retry provider or account actions after the service recovers.</div> : null}
+      {contributorAccess.error ? <div role="alert" className="flex shrink-0 items-center gap-3 border-b border-amber-500/45 bg-amber-500/10 p-2 text-sm"><span>{contributorAccess.error}</span><Button type="button" variant="outline" size="sm" onClick={contributorAccess.retry}>Retry access</Button></div> : null}
+      {!isOutput && isEditDialogOpen && editingCardFromStore ? <CardEditor card={editingCardFromStore} onSave={(card) => { handleSaveEditedCard(card); onCloseTool?.(); }} onDuplicate={handleDuplicateCard} onClose={() => { handleCloseEditDialog(); onCloseTool?.(); }} onDirtyChange={onDirtyChange} /> : <>
+      {!isOutput ? <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"><main className="cardforge-studio-main flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-0">
+        {isStudioReady ? <div data-testid="studio-ready" className="sr-only">Studio ready</div> : <div data-testid="studio-loading" className="sr-only">Preparing studio</div>}
+        {templateLibraryFailed || styleLibraryFailed ? <div className="flex shrink-0 flex-col gap-2 border-b border-amber-500/45 bg-amber-500/10 py-2 pl-3 pr-16 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert"><div><p className="font-semibold">Some Studio library content did not load</p><p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">{templateLibraryFailed && styleLibraryFailed ? 'Templates and appearance styles are temporarily unavailable.' : templateLibraryFailed ? 'Templates are temporarily unavailable.' : 'Appearance styles are temporarily unavailable.'} Your browser-saved work is unchanged.</p></div><Button type="button" variant="outline" size="sm" onClick={retryLibraries} disabled={isLoadingTemplates}>{isLoadingTemplates ? 'Retrying...' : 'Retry library'}</Button></div> : null}
+        {showFirstRunGuide && studioView === 'generate' && generatedDisplayCards.length === 0 ? <StudioFirstRunGuide onDismiss={handleDismissFirstRunGuide} onStartMakingCards={handleStartMakingCards} onEditDesignFirst={handleEditDesignFirst} /> : null}
+
+        <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
+          {generatorBackWorkflow ? <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={onReturnToGenerator ?? handleReturnToGenerator} /> : null}
+          <CardTemplateMaker
+            canUseProjectFiles={projectCapabilities.canUseProjectFiles}
+            showCardWatermark={showVisibleCardWatermark}
+            isActive={studioView === 'template'}
+            onSaveTemplate={handleSaveTemplate}
+            onSubmitTemplateRevision={handleSubmitTemplateRevision}
+            onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
+            templates={templatesFromStore}
+            defaultTemplates={standardDefaultTemplates}
+            backFaceTemplates={backFacePresetTemplates}
+            userTemplates={userTemplatesFromStore}
+            fileInputRef={fileInputRef}
+            isCheckoutStarting={isCheckoutStarting}
+            appearanceStyles={appearanceStyles}
+            onSaveAppearanceStyle={handleSaveAppearanceStyle}
+            onDeleteTemplate={handleDeleteTemplate}
+            onCloneTemplate={handleCloneTemplate}
+            onExportProject={handleExportProject}
+            onImportProject={handleChooseImportProject}
+            onLoadProject={handleImportProject}
+            onStartCheckout={handleStartCheckout}
+            projectFileGateMessage={projectFileGateMessage}
+            selectedTemplateIdForEditing={templateEditorSelectedTemplateId}
+            onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}
+            canSubmitSharedTemplateRevision={canSubmitTemplateRevisions}
+            canPublishSharedLibrary={canPublishSharedLibrary}
+            canUploadCustomAssets={canUploadCustomAssets}
+            onReturnToTemplateMaker={showTemplateTool}
+            requestedBackFormat={matchingBackRequest}
+            onRequestedBackFormatConsumed={clearMatchingBackRequest}
+            onDirtyChange={onDirtyChange}
+          />
         </div>
-      ) : null}
 
-      {contributorAccess.error ? (
-        <div role="alert" className="flex shrink-0 items-center gap-3 border-b border-amber-500/45 bg-amber-500/10 p-2 text-sm">
-          <span>{contributorAccess.error}</span>
-          <Button type="button" variant="outline" size="sm" onClick={contributorAccess.retry}>Retry access</Button>
-        </div>
-      ) : null}
-      {!isOutput && isEditDialogOpen && editingCardFromStore ? (
-        <CardEditor
-          card={editingCardFromStore}
-          onSave={(card) => { handleSaveEditedCard(card); onCloseTool?.(); }}
-          onDuplicate={handleDuplicateCard}
-          onClose={() => { handleCloseEditDialog(); onCloseTool?.(); }}
-          onDirtyChange={onDirtyChange}
-        />
-      ) : (
-        <>
-      {!isOutput ? <div className="cardforge-studio-workbench flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-        <main className="cardforge-studio-main flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden p-0">
-          {isStudioReady ? (
-            <div data-testid="studio-ready" className="sr-only">Studio ready</div>
-          ) : (
-            <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
-          )}
-          {templateLibraryFailed || styleLibraryFailed ? (
-            <div className="flex shrink-0 flex-col gap-2 border-b border-amber-500/45 bg-amber-500/10 py-2 pl-3 pr-16 text-sm text-[var(--cf-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
-              <div>
-                <p className="font-semibold">Some Studio library content did not load</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
-                  {templateLibraryFailed && styleLibraryFailed
-                    ? 'Templates and appearance styles are temporarily unavailable.'
-                    : templateLibraryFailed
-                      ? 'Templates are temporarily unavailable.'
-                      : 'Appearance styles are temporarily unavailable.'}{' '}
-                  Your browser-saved work is unchanged.
-                </p>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={retryLibraries} disabled={isLoadingTemplates}>
-                {isLoadingTemplates ? 'Retrying...' : 'Retry library'}
-              </Button>
-            </div>
-          ) : null}
-          {showFirstRunGuide && studioView === 'generate' && generatedDisplayCards.length === 0 ? (
-            <StudioFirstRunGuide
-              onDismiss={handleDismissFirstRunGuide}
-              onStartMakingCards={handleStartMakingCards}
-              onEditDesignFirst={handleEditDesignFirst}
-            />
-          ) : null}
-
-          <div hidden={studioView !== 'template'} data-testid="layout-studio-panel" data-state={studioView === 'template' ? 'active' : 'inactive'} tabIndex={-1} className="min-h-0 flex-1 space-y-3">
-            {generatorBackWorkflow ? (
-              <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={onReturnToGenerator ?? handleReturnToGenerator} />
-            ) : null}
-            <CardTemplateMaker
-              canUseProjectFiles={projectCapabilities.canUseProjectFiles}
-              showCardWatermark={showVisibleCardWatermark}
-              isActive={studioView === 'template'}
-              onSaveTemplate={handleSaveTemplate}
-              onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
-              templates={templatesFromStore}
-              defaultTemplates={standardDefaultTemplates}
-              backFaceTemplates={backFacePresetTemplates}
-              userTemplates={userTemplatesFromStore}
-              fileInputRef={fileInputRef}
-              isCheckoutStarting={isCheckoutStarting}
-              appearanceStyles={appearanceStyles}
-              onSaveAppearanceStyle={handleSaveAppearanceStyle}
-              onDeleteTemplate={handleDeleteTemplate}
-              onCloneTemplate={handleCloneTemplate}
-              onExportProject={handleExportProject}
-              onImportProject={handleChooseImportProject}
-              onLoadProject={handleImportProject}
-              onStartCheckout={handleStartCheckout}
-              projectFileGateMessage={projectFileGateMessage}
-              selectedTemplateIdForEditing={templateEditorSelectedTemplateId}
-              onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}
-              canSubmitSharedTemplateRevision={canSubmitTemplateRevisions}
-              canPublishSharedLibrary={canPublishSharedLibrary}
-              canUploadCustomAssets={canUploadCustomAssets}
-              onReturnToTemplateMaker={showTemplateTool}
-              requestedBackFormat={matchingBackRequest}
-              onRequestedBackFormatConsumed={clearMatchingBackRequest}
-              onDirtyChange={onDirtyChange}
-            />
-          </div>
-
-          {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto">
-            <GenerationWorkspace
-              onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined}
-              isLoadingTemplates={isLoadingTemplates}
-              templates={freeformTemplatesForGenerator}
-              backFaceTemplates={backFacePresetTemplates}
-              activeCardSet={activeCardSet}
-              generatorSelectedTemplateId={generatorSelectedTemplateId}
-              generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId}
-              richTextHighlightColor={richTextHighlightColor}
-              generatedDisplayCards={generatedDisplayCards}
-              canExportClean={projectCapabilities.canExportClean}
-              onOpenTemplateMaker={showTemplateTool}
-              onCreateMatchingBack={handleCreateMatchingBack}
-              onEditSelectedBack={handleEditCardBack}
-              onManageCardBacks={handleManageCardBacks}
-              onBulkCardsGenerated={handleBulkCardsGenerated}
-              onBulkCardsRevised={reviseGeneratedCardsAction}
-              onUndoBulkRevision={undoLastBulkRevisionAction}
-              onViewGeneratedCards={viewGeneratedCardsOnDesk}
-              onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction}
-              onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction}
-            />
-          </div> : null}
-        </main>
-      </div> : null}
+        {activeCardSet ? <div hidden={studioView !== 'generate'} data-testid="generator-panel" className="min-h-0 flex-1 overflow-auto"><GenerationWorkspace onDirtyChange={studioView === 'generate' ? onDirtyChange : undefined} isLoadingTemplates={isLoadingTemplates} templates={freeformTemplatesForGenerator} backFaceTemplates={backFacePresetTemplates} activeCardSet={activeCardSet} generatorSelectedTemplateId={generatorSelectedTemplateId} generatorSelectedBackingTemplateId={generatorSelectedBackingTemplateId} richTextHighlightColor={richTextHighlightColor} generatedDisplayCards={generatedDisplayCards} canExportClean={projectCapabilities.canExportClean} onOpenTemplateMaker={showTemplateTool} onCreateMatchingBack={handleCreateMatchingBack} onEditSelectedBack={handleEditCardBack} onManageCardBacks={handleManageCardBacks} onBulkCardsGenerated={handleBulkCardsGenerated} onBulkCardsRevised={reviseGeneratedCardsAction} onUndoBulkRevision={undoLastBulkRevisionAction} onViewGeneratedCards={viewGeneratedCardsOnDesk} onTemplateSelectionChange={setGeneratorSelectedTemplateIdAction} onBackingTemplateSelectionChange={setGeneratorSelectedBackingTemplateIdAction} /></div> : null}
+      </main></div> : null}
 
       {activeCardSet ? <StudioContextTools
         inlineOutput={isOutput}
@@ -574,48 +411,21 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{
-          canExportClean: projectCapabilities.canExportClean,
-          exportDpi,
-          exportEntitlementLabel,
-          exportEntitlementMessage,
-          exportGateMessage,
-          exportMode,
-          generatedDisplayCards,
-          isCheckoutStarting,
-          isZipExporting,
-          pdfCardSpacingMm,
-          pdfDuplexLayout,
-          pdfIncludeCutLines,
-          pdfMarginMm,
-          richTextHighlightColor,
-          selectedPaperSize,
-          zipExportKind,
-          zipProgress,
-          onExportAllAsZip: handleExportAllAsZip,
-          onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets,
-          onSelectPaperSize: setSelectedPaperSizeAction,
-          onSetExportDpi: setExportDpiAction,
-          onSetExportMode: setExportModeAction,
-          onSetPdfOptions: setPdfOptionsAction,
-          onStartCheckout: handleStartCheckout,
-        }}
-        saveMoveDialogProps={{
-          isSignedIn: accountEntitlement.isSignedIn,
-          canUseProjectFiles: projectCapabilities.canUseProjectFiles,
-          setId: activeCardSet.id,
-          setName: activeCardSet.name,
-        }}
+        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
-
-        </>
-      )}
+      </>}
       <StudioConfirmationDialogs
         templatePendingDeleteId={templatePendingDeleteId}
         templates={templatesFromStore}
         storedCards={storedCards}
         onCloseTemplateDelete={() => setTemplatePendingDeleteId(null)}
         onConfirmTemplateDelete={handleConfirmDeleteTemplate}
+        pendingTemplateSaveImpact={pendingTemplateSaveImpact}
+        onCancelTemplateSave={cancelPendingTemplateSave}
+        onConfirmTemplateSaveShared={() => void confirmTemplateSaveShared()}
+        onConfirmTemplateSaveFork={() => void confirmTemplateSaveFork()}
+        onTemplateSaveVariantNameChange={setPendingTemplateSaveVariantName}
         pendingTemplateRetarget={pendingTemplateRetarget}
         onDismissTemplateRetarget={dismissPendingTemplateRetarget}
         onApplyTemplateRetarget={applyPendingTemplateRetarget}
@@ -623,9 +433,7 @@ export function CreatorWorkbench({
         onClearProjectImport={clearPendingProjectImport}
         onApplyProjectImport={(mode) => void applyPendingProjectImport(mode)}
       />
-      <footer className="hidden" aria-hidden="true">
-        {businessIdentity.brandName} &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}
-      </footer>
+      <footer className="hidden" aria-hidden="true">{businessIdentity.brandName} &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}</footer>
     </div>
   );
 }

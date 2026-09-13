@@ -26,6 +26,7 @@ interface GeneratorFieldInputProps {
   compact?: boolean;
   showLabel?: boolean;
   showDefaultText?: boolean;
+  placeholder?: string;
   styleValues?: Partial<Record<FieldStyleProperty, string>>;
   onStyleChange?: (property: FieldStyleProperty, value: string) => void;
   imageStyleValues?: Partial<Record<ImageFieldOverrideProperty, string>>;
@@ -43,6 +44,7 @@ export function GeneratorFieldInput({
   compact = false,
   showLabel = true,
   showDefaultText = true,
+  placeholder,
   styleValues,
   onStyleChange,
   imageStyleValues,
@@ -60,6 +62,7 @@ export function GeneratorFieldInput({
   const canUseRichText = field.editor === 'text-editor' && field.supportsRichText && !field.isImage;
   const currentFontWeight = styleValues?.fontWeight || '';
   const currentFontStyle = styleValues?.fontStyle || '';
+  const effectivePlaceholder = placeholder ?? `Enter ${field.label}...`;
   const hasRichTextMarkers = useMemo(
     () => /(\*\*[^*]+\*\*|_[^_]+_|__[^_]+__|==[^=]+==|\[color:[^\]]+\][\s\S]*?\[\/color\]|\[[a-z]+(?:\:[^\]]+)?\])/i.test(value),
     [value]
@@ -69,7 +72,7 @@ export function GeneratorFieldInput({
       id={fieldId}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={`Enter ${field.label}...`}
+      placeholder={effectivePlaceholder}
       rows={compact ? 2 : 3}
       maxLength={field.maxLength}
       className="text-sm"
@@ -79,7 +82,7 @@ export function GeneratorFieldInput({
       id={fieldId}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={`Enter ${field.label}...`}
+      placeholder={effectivePlaceholder}
       maxLength={field.maxLength}
       className={field.isImage ? 'min-w-0 flex-grow' : ''}
     />
@@ -118,7 +121,7 @@ export function GeneratorFieldInput({
                 onChange={onChange}
                 highlightColor={highlightColor}
                 onHighlightColorChange={onHighlightColorChange}
-                placeholder={`Enter ${field.label}...`}
+                placeholder={effectivePlaceholder}
                 editorClassName={compact ? 'min-h-[5.5rem]' : editorHeight}
                 allowedFormatting={field.allowedFormatting}
               />
@@ -197,7 +200,7 @@ export function GeneratorFieldInput({
             id={fieldId}
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder={field.isImage ? `URL or Data URI for ${field.label}` : `Enter ${field.label}...`}
+            placeholder={placeholder ?? (field.isImage ? `URL or Data URI for ${field.label}` : `Enter ${field.label}...`)}
             maxLength={field.maxLength}
             className={field.isImage ? 'min-w-0 flex-grow' : ''}
           />
@@ -312,21 +315,10 @@ function ImageToolInput({
   values?: Partial<Record<ImageFieldOverrideProperty, string>>;
   onChange?: (property: ImageFieldOverrideProperty, value: string) => void;
 }) {
-  const id = `${fieldId}-image-${property}`;
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={id} className="text-[10px] text-muted-foreground">{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        step={step}
-        value={values?.[property] || ''}
-        placeholder={placeholder}
-        onChange={(event) => onChange?.(property, event.target.value)}
-        className="h-8 text-xs"
-      />
-    </div>
-  );
+  return <div className="space-y-1">
+    <Label htmlFor={`${fieldId}-image-${property}`} className="text-[10px] text-muted-foreground">{label}</Label>
+    <Input id={`${fieldId}-image-${property}`} type={type} step={step} value={values?.[property] || ''} placeholder={placeholder} onChange={(event) => onChange?.(property, event.target.value)} className="h-8 text-xs" />
+  </div>;
 }
 
 function ImageToolCheckbox({
@@ -342,17 +334,8 @@ function ImageToolCheckbox({
   values?: Partial<Record<ImageFieldOverrideProperty, string>>;
   onChange?: (property: ImageFieldOverrideProperty, value: string) => void;
 }) {
-  const id = `${fieldId}-image-${property}`;
-  const checked = values?.[property] === 'true' || values?.[property] === '1';
-  return (
-    <label htmlFor={id} className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
-      <input
-        id={id}
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange?.(property, event.target.checked ? 'true' : '')}
-      />
-      {label}
-    </label>
-  );
+  return <label className="flex h-8 items-center gap-2 text-xs" htmlFor={`${fieldId}-image-${property}`}>
+    <input id={`${fieldId}-image-${property}`} type="checkbox" checked={values?.[property] === 'true'} onChange={(event) => onChange?.(property, event.target.checked ? 'true' : '')} />
+    {label}
+  </label>;
 }

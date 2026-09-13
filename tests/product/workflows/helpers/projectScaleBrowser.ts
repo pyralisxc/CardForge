@@ -8,10 +8,37 @@ const BROWSER_DATABASE = 'cardforge-browser-storage';
 const BROWSER_STORE = 'key-value';
 const LOCAL_WORKSPACE_SCOPES = ['guest', 'local'] as const;
 
-const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToolTemplate = false, catalogToolTemplates = false, templateContent = false) => {
+const workspaceStateFor = (
+  cardCount: ProjectScale,
+  additionalSets = 0,
+  staleToolTemplate = false,
+  catalogToolTemplates = false,
+  templateContent = false,
+  mixedTemplates = false,
+  needsWorkFixture = false,
+) => {
   const fixture = createProjectScaleFixture(cardCount);
+  if (needsWorkFixture) {
+    const template = fixture.userTemplates[0]!;
+    template.freeformCanvas = {
+      ...template.freeformCanvas!,
+      elements: [
+        ...template.freeformCanvas!.elements,
+        {
+          id: 'required-fixture', name: 'Required Fixture', type: 'text',
+          x: 30, y: 620, width: 570, height: 70, zIndex: 3,
+          content: '{{requiredFixture}}', fontSizePx: 30, textColor: '#234567',
+        },
+      ],
+    };
+    template.fieldContracts = [
+      ...(template.fieldContracts ?? []),
+      { key: 'requiredFixture', elementId: 'required-fixture', label: 'Required Fixture', type: 'text', required: true },
+    ];
+  }
   const staleTemplate = { ...fixture.userTemplates[0]!, id: 'unrelated-template', name: 'Unrelated Template' };
   const backingTemplate = { ...fixture.userTemplates[0]!, id: 'scale-back', name: 'Scale Fixture Back', templateUsage: 'back-preset' as const };
+  const mixedTemplate = { ...fixture.userTemplates[0]!, id: 'scale-template-variant', name: 'Scale Fixture Variant Template' };
   if (templateContent) {
     for (const template of [fixture.userTemplates[0]!, backingTemplate]) {
       template.freeformCanvas = { ...template.freeformCanvas!, elements: [{
@@ -25,6 +52,7 @@ const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToo
   const storedCards: typeof fixture.storedCards = fixture.storedCards.map((card, index) => ({
     ...card,
     ...(staleToolTemplate ? { backingTemplateId: backingTemplate.id } : {}),
+    ...(mixedTemplates && index === 1 ? { templateId: mixedTemplate.id } : {}),
     data: {
       ...card.data,
       artwork: `cardforge-browser-asset://${(index + 1).toString(16).padStart(64, '0')}`,
@@ -38,8 +66,15 @@ const workspaceStateFor = (cardCount: ProjectScale, additionalSets = 0, staleToo
       organization: { arrangement: 'manual' as const, groupBy: 'none' as const, sort: 'manual' as const, tags: [], positions: {} },
     })),
   ];
+  const userTemplates = catalogToolTemplates
+    ? [staleTemplate]
+    : [
+        ...fixture.userTemplates,
+        ...(mixedTemplates ? [mixedTemplate] : []),
+        ...(staleToolTemplate ? [staleTemplate, backingTemplate] : []),
+      ];
   return {
-    userTemplates: catalogToolTemplates ? [staleTemplate] : staleToolTemplate ? [...fixture.userTemplates, staleTemplate, backingTemplate] : fixture.userTemplates,
+    userTemplates,
     appearanceStyles: fixture.appearanceStyles,
     storedCards,
     cardSets,
@@ -90,11 +125,28 @@ export const installBrowserPerformanceObservers = async (page: Page) => {
   });
 };
 
-export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: { additionalSets?: number; staleToolTemplate?: boolean; catalogToolTemplates?: boolean; templateContent?: boolean; cardLimit?: number; exportSample?: boolean } = {}) => {
+export const seedGuestScaleWorkspace = async (page: Page, cardCount: ProjectScale, options: {
+  additionalSets?: number;
+  staleToolTemplate?: boolean;
+  catalogToolTemplates?: boolean;
+  templateContent?: boolean;
+  cardLimit?: number;
+  exportSample?: boolean;
+  mixedTemplates?: boolean;
+  needsWorkFixture?: boolean;
+} = {}) => {
   const previewShareUrl = process.env.CARDFORGE_E2E_PREVIEW_SHARE_URL;
   if (previewShareUrl) await page.goto(previewShareUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await page.goto('/robots.txt', { waitUntil: 'domcontentloaded' });
-  const state = workspaceStateFor(cardCount, options.additionalSets, options.staleToolTemplate, options.catalogToolTemplates, options.templateContent);
+  const state = workspaceStateFor(
+    cardCount,
+    options.additionalSets,
+    options.staleToolTemplate,
+    options.catalogToolTemplates,
+    options.templateContent,
+    options.mixedTemplates,
+    options.needsWorkFixture,
+  );
   if (options.cardLimit !== undefined) state.storedCards = state.storedCards.slice(0, options.cardLimit);
   if (options.exportSample) {
     for (const template of state.userTemplates) {

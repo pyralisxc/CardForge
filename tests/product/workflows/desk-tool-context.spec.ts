@@ -52,7 +52,7 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: 'Design', exact: true }).click();
-      const design = page.getByRole('region', { name: 'Design Artifacts', exact: true });
+      const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design).toBeVisible();
       if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Scale Fixture Template');
       else {
@@ -78,15 +78,15 @@ for (const mobile of [false, true]) {
       }
     });
 
-    test('@golden opens Studio from card content and copies only the viewed template for that card', async ({ page }, testInfo) => {
+    test('@golden keeps Artifact-scoped Design provisional until Save', async ({ page }, testInfo) => {
       test.setTimeout(120_000);
       await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
       await page.getByRole('button', { name: /^Templates ·/ }).click();
-      const templateRow = page.getByRole('dialog', { name: 'Templates used in this Set' });
-      const frontTemplate = templateRow.getByRole('button', { name: 'Design template Scale Fixture Template, used by 100 cards in this Set', exact: true });
-      const backTemplate = templateRow.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 100 cards in this Set', exact: true });
+      const templateRow = page.getByRole('dialog', { name: 'Templates in this Set' });
+      const frontTemplate = templateRow.getByRole('button', { name: 'Design Template Scale Fixture Template, used by 100 Artifacts', exact: true });
+      const backTemplate = templateRow.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true });
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
       const frontAccent = await frontTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
       const backAccent = await backTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
@@ -96,13 +96,14 @@ for (const mobile of [false, true]) {
       await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath('set-template-identity.png') });
       await backTemplate.click();
-      const templateStudio = page.getByRole('region', { name: 'Design Artifacts', exact: true });
+      const templateStudio = page.getByRole('region', { name: 'Design', exact: true });
       if (mobile) await expect(templateStudio.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Scale Fixture Back');
       else {
         await templateStudio.getByRole('button', { name: 'Card Setup', exact: true }).click();
         await expect(page.getByLabel('Template name', { exact: true })).toHaveValue('Scale Fixture Back');
       }
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
+
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
       if (mobile) await firstCard.tap(); else await firstCard.click();
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
@@ -114,7 +115,7 @@ for (const mobile of [false, true]) {
       const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();
       await artwork.fill('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Save & Design', exact: true }).click();
-      const design = page.getByRole('region', { name: 'Design Artifacts', exact: true });
+      const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design).toBeVisible();
       const expectTemplate = async (name: string) => {
         if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText(name);
@@ -128,24 +129,20 @@ for (const mobile of [false, true]) {
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+
       await visual.getByRole('button', { name: /^Show back of/ }).click();
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
       await rail.getByRole('button', { name: 'Design', exact: true }).click();
       await expectTemplate('Scale Fixture Back');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
-      await rail.getByRole('button', { name: 'More Artifact actions' }).click();
-      await page.getByRole('menuitem', { name: 'Design a copy for this card' }).click();
-      await expectTemplate('Copy of Scale Fixture Back');
-      await rail.getByRole('button', { name: 'Done', exact: true }).click();
-      await rail.getByRole('button', { name: 'Edit', exact: true }).click();
-      await expect(editor).toContainText('Back: Copy of Scale Fixture Back');
-      await expect(editor).toContainText('Front: Scale Fixture Template');
-      await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
       await page.getByRole('button', { name: /^Templates ·/ }).click();
-      await expect(templateRow.getByRole('button', { name: 'Design back template Copy of Scale Fixture Back, used by 1 card in this Set', exact: true })).toBeVisible();
-      await expect(templateRow.getByRole('button', { name: 'Design back template Scale Fixture Back, used by 99 cards in this Set', exact: true })).toBeVisible();
-      await templateRow.press('Escape');
+      const reopenedTemplates = page.getByRole('dialog', { name: 'Templates in this Set' });
+      await expect(reopenedTemplates.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
+      await expect(reopenedTemplates.getByRole('button', { name: /Copy of Scale Fixture Back|Variant/ })).toHaveCount(0);
+      await reopenedTemplates.press('Escape');
+
       const secondCard = page.locator('button[data-artifact-id="scale-card-2"]');
       await secondCard.click();
       await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
@@ -181,4 +178,67 @@ test('@golden waits for catalog Templates before opening a deep-linked Generate 
   releaseCatalog();
   await expect(page.locator('#deck-front-template')).toContainText('Scale Fixture Template', { timeout: 30_000 });
   await expect(page.locator('#deck-backing-template')).toContainText('Scale Fixture Back');
+});
+
+for (const mobile of [false, true]) {
+  test.describe(`Selection scope hardening on ${mobile ? 'mobile' : 'desktop'}`, () => {
+    test.use(mobile ? { viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
+
+    test('@golden exposes selection-scoped Edit without making Organize the action gateway', async ({ page }) => {
+      test.setTimeout(120_000);
+      await seedGuestScaleWorkspace(page, 100, { cardLimit: 3 });
+      await page.goto('/account', { waitUntil: 'domcontentloaded' });
+      await openScaleSet(page, 100);
+
+      if (mobile) {
+        await page.getByRole('button', { name: /^Organize ·/ }).click();
+        await page.getByRole('button', { name: 'Select shown', exact: true }).click();
+        await page.keyboard.press('Escape');
+      } else {
+        await page.locator('button[data-artifact-id="scale-card-1"]').click();
+        await page.locator('button[data-artifact-id="scale-card-2"]').click({ modifiers: ['Control'] });
+      }
+
+      const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+      await expect(selectionActions).toBeVisible();
+      await expect(selectionActions.getByRole('button', { name: 'Edit selected', exact: true })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: /Organize/i })).toHaveCount(0);
+    });
+  });
+}
+
+test('@golden refuses mixed-Template direct edits instead of guessing field compatibility', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, mixedTemplates: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await page.locator('button[data-artifact-id="scale-card-2"]').click({ modifiers: ['Control'] });
+
+  const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+  await selectionActions.getByRole('button', { name: 'Edit selected', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Edit 2 selected Artifacts', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Edit one design group at a time', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Update from data', exact: true })).toHaveCount(0);
+});
+
+test('@golden surfaces derived Needs Work and clears it after repairing required values', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, needsWorkFixture: true });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await openScaleSet(page, 100);
+
+  const needsWork = page.getByRole('button', { name: 'Needs work · 2', exact: true });
+  await expect(needsWork).toBeVisible();
+  await needsWork.click();
+  const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+  await expect(selectionActions).toContainText('2 Artifacts selected');
+  await selectionActions.getByRole('button', { name: 'Edit selected', exact: true }).click();
+
+  const editor = page.getByRole('region', { name: 'Edit 2 selected Artifacts', exact: true });
+  await expect(editor).toBeVisible();
+  await editor.getByLabel('Required Fixture', { exact: true }).fill('Ready');
+  await editor.getByRole('button', { name: 'Apply to 2', exact: true }).click();
+  await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Needs work ·/ })).toHaveCount(0);
 });

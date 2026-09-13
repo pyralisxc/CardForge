@@ -77,15 +77,51 @@ export const normalizeCardSet = (value: unknown): CardSet | null => {
   if (!id) return null;
   const organization = normalizeOrganization(record.organization);
   const metadata = normalizeMetadata(record.metadata);
+  const templateIds = cleanStringArray(record.templateIds);
   return {
     id,
     name: cleanName(record.name),
+    ...(templateIds.length ? { templateIds } : {}),
     ...(organization ? { organization } : {}),
     ...(metadata ? { metadata } : {}),
   };
 };
 
 export const normalizeCardTagIds = cleanStringArray;
+
+/**
+ * Preserve explicit Set → Template references while guaranteeing that every
+ * generated Artifact's required front/back Templates are also referenced by
+ * its Set. Removing or moving an Artifact therefore never silently erases an
+ * intentionally prepared Template from the Set.
+ *
+ * This is a workspace mutation helper. Low-level parsing of a modern document
+ * preserves the Set registry exactly as authored; only legacy documents with
+ * no real Set registry derive relationships from stored cards.
+ */
+export const ensureCardSetTemplateReferences = ({
+  cardSets,
+  storedCards,
+}: {
+  cardSets: CardSet[];
+  storedCards: StoredDisplayCard[];
+}): CardSet[] => {
+  if (!cardSets.length) return cardSets;
+  const firstSetId = cardSets[0]?.id ?? null;
+  const references = new Map(cardSets.map((set) => [set.id, new Set(set.templateIds ?? [])] as const));
+  storedCards.forEach((card) => {
+    const setId = cleanId(card.setId) ?? firstSetId;
+    if (!setId) return;
+    const setReferences = references.get(setId);
+    if (!setReferences) return;
+    if (cleanId(card.templateId)) setReferences.add(card.templateId.trim());
+    if (cleanId(card.backingTemplateId)) setReferences.add(card.backingTemplateId!.trim());
+  });
+  return cardSets.map((set) => {
+    const templateIds = [...(references.get(set.id) ?? new Set<string>())];
+    return templateIds.length ? { ...set, templateIds } : { ...set, templateIds: undefined };
+  });
+};
 
 export const reconcileCardSets = ({
   cardSets = [],
@@ -108,9 +144,9 @@ export const reconcileCardSets = ({
     const normalized = normalizeCardSet(activeCardSet);
     if (normalized) byId.set(normalized.id, normalized);
   }
-  // Stored-card snapshots are a legacy recovery source only. Once a real set
-  // registry is present it is authoritative, so stale cards from another local
-  // workspace cannot leak extra sets into a replace/import operation.
+  // Stored-card snapshots are a legacy recovery source only. Once a real Set
+  // registry exists it is authoritative; workspace mutation owners later
+  // guarantee Artifact dependencies are represented there.
   if (!hasExplicitSets) {
     storedCards.forEach((card) => {
       const setId = cleanId(card.setId);
@@ -118,7 +154,12 @@ export const reconcileCardSets = ({
       byId.set(setId, {
         id: setId,
         name: cleanName(card.setName),
+        templateIds: cleanStringArray([card.templateId, card.backingTemplateId]),
       });
+    });
+    return ensureCardSetTemplateReferences({
+      cardSets: Array.from(byId.values()),
+      storedCards,
     });
   }
   return Array.from(byId.values());

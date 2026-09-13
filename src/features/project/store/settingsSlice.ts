@@ -29,189 +29,218 @@ const upsertCardSet = (sets: CardSet[], nextSet: CardSet): CardSet[] => {
   return next;
 };
 
-const activateCardSet = (state: ProjectState, set: CardSet) => {
-  return {
-    cardSets: upsertCardSet(state.cardSets, set),
-    activeCardSet: set,
-  };
+const activateCardSet = (state: ProjectState, set: CardSet) => ({
+  cardSets: upsertCardSet(state.cardSets, set),
+  activeCardSet: set,
+});
+
+const withTemplateReference = (set: CardSet, templateId: string): CardSet => {
+  const normalizedId = templateId.trim();
+  if (!normalizedId || set.templateIds?.includes(normalizedId)) return set;
+  return { ...set, templateIds: [...(set.templateIds ?? []), normalizedId] };
 };
 
-export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => {
-  return {
-    selectedPaperSize: PAPER_SIZES[0],
-    studioView: 'template',
-    richTextHighlightColor: '#ffd700',
-    cardSets: [],
-    activeCardSet: null,
-    generatorSelectedTemplateId: null,
-    generatorSelectedBackingTemplateId: null,
-    templateEditorSelectedTemplateId: null,
-    pdfMarginMm: 5,
-    pdfCardSpacingMm: 0,
-    pdfIncludeCutLines: false,
-    pdfDuplexLayout: 'separate-pages',
-    exportMode: 'physical',
-    exportDpi: 300,
+export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => ({
+  selectedPaperSize: PAPER_SIZES[0],
+  studioView: 'template',
+  richTextHighlightColor: '#ffd700',
+  cardSets: [],
+  activeCardSet: null,
+  generatorSelectedTemplateId: null,
+  generatorSelectedBackingTemplateId: null,
+  templateEditorSelectedTemplateId: null,
+  pdfMarginMm: 5,
+  pdfCardSpacingMm: 0,
+  pdfIncludeCutLines: false,
+  pdfDuplexLayout: 'separate-pages',
+  exportMode: 'physical',
+  exportDpi: 300,
 
-    setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
-    setStudioView: (view) => set({ studioView: normalizeStudioView(view) }),
-    setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
-    createCardSet: (name) => {
-      const id = `set-${nanoid()}`;
-      set((state) => {
-        const nextSet: CardSet = {
-          id,
-          name: name?.trim() || 'Untitled Set',
-        };
-        return activateCardSet(state, nextSet);
-      });
-      return id;
-    },
-    setActiveCardSetId: (id) => set((state) => {
-      const requested = state.cardSets.find((candidate) => candidate.id === id);
-      return requested ? activateCardSet(state, requested) : state;
-    }),
-    renameCardSet: (id, name) => {
-      const requestedName = name.trim() || 'Untitled Set';
-      if (!get().cardSets.some((candidate) => candidate.id === id)) return false;
-      set((state) => {
-        const currentSet = state.cardSets.find((candidate) => candidate.id === id);
-        if (!currentSet) return state;
-        const renamedSet = { ...currentSet, name: requestedName };
-        return {
-          cardSets: upsertCardSet(state.cardSets, renamedSet),
-          activeCardSet: state.activeCardSet?.id === id ? renamedSet : state.activeCardSet,
-          storedCards: state.storedCards.map((card) => card.setId === id
-            ? { ...card, setName: requestedName }
-            : card),
-        };
-      });
-      return true;
-    },
-    duplicateCardSet: (id) => {
-      const source = get().cardSets.find((candidate) => candidate.id === id);
-      if (!source) return null;
-      const duplicateId = `set-${nanoid()}`;
-      const duplicateName = `${source.name} copy`;
-      set((state) => {
-        const sourceCards = state.storedCards.filter((card) => card.setId === id);
-        const cardIds = new Map(sourceCards.map((card) => [card.uniqueId, `card-${nanoid()}`]));
-        const tagIds = new Map((source.organization?.tags ?? []).map((tag) => [tag.id, `tag-${nanoid()}`]));
-        const organization = source.organization ? {
-          ...source.organization,
-          tags: source.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(tag.id)! })),
-          groupTagId: source.organization.groupTagId ? tagIds.get(source.organization.groupTagId) : undefined,
-          positions: Object.fromEntries(Object.entries(source.organization.positions).flatMap(([cardId, position]) => {
-            const nextId = cardIds.get(cardId);
-            return nextId ? [[nextId, position] as const] : [];
-          })),
-        } : undefined;
-        const duplicate: CardSet = {
-          ...source,
-          id: duplicateId,
-          name: duplicateName,
-          ...(organization ? { organization } : {}),
-        };
-        return {
-          ...activateCardSet(state, duplicate),
-          storedCards: [
-            ...state.storedCards,
-            ...sourceCards.map((card) => ({
-                ...card,
-                uniqueId: cardIds.get(card.uniqueId)!,
-                setId: duplicateId,
-                setName: duplicateName,
-                tagIds: card.tagIds?.flatMap((tagId) => tagIds.get(tagId) ? [tagIds.get(tagId)!] : []),
-              })),
-          ],
-        };
-      });
-      return duplicateId;
-    },
-    deleteCardSet: (id) => {
-      const current = get();
-      if (!current.cardSets.some((candidate) => candidate.id === id)) return false;
-      set((state) => {
-        const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
-        if (cardSets.length === 0) {
-          return {
-            cardSets: [],
-            activeCardSet: null,
-            storedCards: state.storedCards.filter((card) => card.setId !== id),
-          };
-        }
-        const requested = state.activeCardSet?.id === id
-          ? cardSets[0]
-          : cardSets.find((candidate) => candidate.id === state.activeCardSet?.id);
-        if (!requested) return state;
-        return {
-          cardSets,
-          activeCardSet: requested,
-          storedCards: state.storedCards.filter((card) => card.setId !== id),
-        };
-      });
-      return true;
-    },
-    setCardSetsFromFiles: (sets, activeSetId) => {
-      const state = get();
-      const cardSets = reconcileCardSets({ cardSets: sets, storedCards: state.storedCards });
-      const activeCardSet = resolveActiveCardSet({ cardSets, preferredId: activeSetId });
-      set({
-        cardSets,
-        activeCardSet,
-      });
-      return cardSets.length;
-    },
-    mergeCardSetsFromFiles: (sets, activeSetId) => {
-      const state = get();
-      const imported = reconcileCardSets({ cardSets: sets });
-      const merged = new Map(state.cardSets.map((set) => [set.id, set]));
-      imported.forEach((set) => merged.set(set.id, set));
-      const cardSets = Array.from(merged.values());
-      const requested = resolveActiveCardSet({
-        cardSets,
-        preferredId: activeSetId ?? state.activeCardSet?.id,
-      });
-      set({
-        cardSets,
-        activeCardSet: requested,
-      });
-      return imported.length;
-    },
-    setActiveCardSetName: (name) => set((state) => {
-      if (!state.activeCardSet) return state;
-      const activeCardSet = { ...state.activeCardSet, name: name.trim() || 'Untitled Set' };
+  setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
+  setStudioView: (view) => set({ studioView: normalizeStudioView(view) }),
+  setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
+  createCardSet: (name) => {
+    const id = `set-${nanoid()}`;
+    set((state) => activateCardSet(state, {
+      id,
+      name: name?.trim() || 'Untitled Set',
+    }));
+    return id;
+  },
+  setActiveCardSetId: (id) => set((state) => {
+    const requested = state.cardSets.find((candidate) => candidate.id === id);
+    return requested ? activateCardSet(state, requested) : state;
+  }),
+  renameCardSet: (id, name) => {
+    const requestedName = name.trim() || 'Untitled Set';
+    if (!get().cardSets.some((candidate) => candidate.id === id)) return false;
+    set((state) => {
+      const currentSet = state.cardSets.find((candidate) => candidate.id === id);
+      if (!currentSet) return state;
+      const renamedSet = { ...currentSet, name: requestedName };
       return {
-        activeCardSet,
-        cardSets: upsertCardSet(state.cardSets, activeCardSet),
-        storedCards: state.storedCards.map((card) => card.setId === activeCardSet.id
-          ? { ...card, setName: activeCardSet.name }
+        cardSets: upsertCardSet(state.cardSets, renamedSet),
+        activeCardSet: state.activeCardSet?.id === id ? renamedSet : state.activeCardSet,
+        storedCards: state.storedCards.map((card) => card.setId === id
+          ? { ...card, setName: requestedName }
           : card),
       };
-    }),
-    setGeneratorSelectedTemplateId: (id) => set((state) => ({
-      generatorSelectedTemplateId: id,
-      generatorSelectedBackingTemplateId: getCompatibleBackingId(
-        state,
-        id,
-        state.generatorSelectedBackingTemplateId,
-      ),
-    })),
-    setGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
-      generatorSelectedBackingTemplateId: getCompatibleBackingId(
-        state,
-        state.generatorSelectedTemplateId,
-        id,
-      ),
-    })),
-    setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),
-    setPdfOptions: (options) => set((state) => ({
-      pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
-      pdfCardSpacingMm: options.spacing !== undefined ? Math.max(0, options.spacing) : state.pdfCardSpacingMm,
-      pdfIncludeCutLines: options.cutLines !== undefined ? options.cutLines : state.pdfIncludeCutLines,
-      pdfDuplexLayout: options.duplexLayout ?? state.pdfDuplexLayout,
-    })),
-    setExportMode: (mode) => set({ exportMode: mode }),
-    setExportDpi: (dpi) => set({ exportDpi: Math.min(1200, Math.max(72, Math.round(dpi))) }),
-  };
-};
+    });
+    return true;
+  },
+  duplicateCardSet: (id) => {
+    const source = get().cardSets.find((candidate) => candidate.id === id);
+    if (!source) return null;
+    const duplicateId = `set-${nanoid()}`;
+    const duplicateName = `${source.name} copy`;
+    set((state) => {
+      const sourceCards = state.storedCards.filter((card) => card.setId === id);
+      const cardIds = new Map(sourceCards.map((card) => [card.uniqueId, `card-${nanoid()}`]));
+      const tagIds = new Map((source.organization?.tags ?? []).map((tag) => [tag.id, `tag-${nanoid()}`]));
+      const organization = source.organization ? {
+        ...source.organization,
+        tags: source.organization.tags.map((tag) => ({ ...tag, id: tagIds.get(tag.id)! })),
+        groupTagId: source.organization.groupTagId ? tagIds.get(source.organization.groupTagId) : undefined,
+        positions: Object.fromEntries(Object.entries(source.organization.positions).flatMap(([cardId, position]) => {
+          const nextId = cardIds.get(cardId);
+          return nextId ? [[nextId, position] as const] : [];
+        })),
+      } : undefined;
+      const duplicate: CardSet = {
+        ...source,
+        id: duplicateId,
+        name: duplicateName,
+        templateIds: [...(source.templateIds ?? [])],
+        ...(organization ? { organization } : {}),
+      };
+      return {
+        ...activateCardSet(state, duplicate),
+        storedCards: [
+          ...state.storedCards,
+          ...sourceCards.map((card) => ({
+            ...card,
+            uniqueId: cardIds.get(card.uniqueId)!,
+            setId: duplicateId,
+            setName: duplicateName,
+            tagIds: card.tagIds?.flatMap((tagId) => tagIds.get(tagId) ? [tagIds.get(tagId)!] : []),
+          })),
+        ],
+      };
+    });
+    return duplicateId;
+  },
+  deleteCardSet: (id) => {
+    const current = get();
+    if (!current.cardSets.some((candidate) => candidate.id === id)) return false;
+    set((state) => {
+      const cardSets = state.cardSets.filter((candidate) => candidate.id !== id);
+      if (cardSets.length === 0) {
+        return {
+          cardSets: [],
+          activeCardSet: null,
+          storedCards: state.storedCards.filter((card) => card.setId !== id),
+        };
+      }
+      const requested = state.activeCardSet?.id === id
+        ? cardSets[0]
+        : cardSets.find((candidate) => candidate.id === state.activeCardSet?.id);
+      if (!requested) return state;
+      return {
+        cardSets,
+        activeCardSet: requested,
+        storedCards: state.storedCards.filter((card) => card.setId !== id),
+      };
+    });
+    return true;
+  },
+  setCardSetsFromFiles: (sets, activeSetId) => {
+    const state = get();
+    const cardSets = reconcileCardSets({ cardSets: sets, storedCards: state.storedCards });
+    const activeCardSet = resolveActiveCardSet({ cardSets, preferredId: activeSetId });
+    set({ cardSets, activeCardSet });
+    return cardSets.length;
+  },
+  mergeCardSetsFromFiles: (sets, activeSetId) => {
+    const state = get();
+    const imported = reconcileCardSets({ cardSets: sets });
+    const merged = new Map(state.cardSets.map((set) => [set.id, set]));
+    imported.forEach((incoming) => {
+      const existing = merged.get(incoming.id);
+      merged.set(incoming.id, existing
+        ? { ...incoming, templateIds: [...new Set([...(existing.templateIds ?? []), ...(incoming.templateIds ?? [])])] }
+        : incoming);
+    });
+    const cardSets = Array.from(merged.values());
+    const requested = resolveActiveCardSet({
+      cardSets,
+      preferredId: activeSetId ?? state.activeCardSet?.id,
+    });
+    set({ cardSets, activeCardSet: requested });
+    return imported.length;
+  },
+  setActiveCardSetName: (name) => set((state) => {
+    if (!state.activeCardSet) return state;
+    const activeCardSet = { ...state.activeCardSet, name: name.trim() || 'Untitled Set' };
+    return {
+      activeCardSet,
+      cardSets: upsertCardSet(state.cardSets, activeCardSet),
+      storedCards: state.storedCards.map((card) => card.setId === activeCardSet.id
+        ? { ...card, setName: activeCardSet.name }
+        : card),
+    };
+  }),
+  referenceTemplateInCardSet: (setId, templateId) => {
+    const normalizedId = templateId.trim();
+    if (!normalizedId || !get().cardSets.some((candidate) => candidate.id === setId)) return false;
+    set((state) => {
+      const cardSets = state.cardSets.map((candidate) => candidate.id === setId
+        ? withTemplateReference(candidate, normalizedId)
+        : candidate);
+      const activeCardSet = state.activeCardSet?.id === setId
+        ? cardSets.find((candidate) => candidate.id === setId) ?? state.activeCardSet
+        : state.activeCardSet;
+      return { cardSets, activeCardSet };
+    });
+    return true;
+  },
+  unreferenceTemplateFromCardSet: (setId, templateId) => {
+    const state = get();
+    if (state.storedCards.some((card) => card.setId === setId
+      && (card.templateId === templateId || card.backingTemplateId === templateId))) return false;
+    const target = state.cardSets.find((candidate) => candidate.id === setId);
+    if (!target?.templateIds?.includes(templateId)) return false;
+    set((current) => {
+      const cardSets = current.cardSets.map((candidate) => candidate.id === setId
+        ? { ...candidate, templateIds: candidate.templateIds?.filter((id) => id !== templateId) }
+        : candidate);
+      const activeCardSet = current.activeCardSet?.id === setId
+        ? cardSets.find((candidate) => candidate.id === setId) ?? current.activeCardSet
+        : current.activeCardSet;
+      return { cardSets, activeCardSet };
+    });
+    return true;
+  },
+  // Choosing a Generator option is only transient tool state. A Set begins
+  // referencing a Template when the design is actually saved into that Set or
+  // an Artifact using it is generated/moved there.
+  setGeneratorSelectedTemplateId: (id) => set((state) => ({
+    generatorSelectedTemplateId: id,
+    generatorSelectedBackingTemplateId: getCompatibleBackingId(
+      state,
+      id,
+      state.generatorSelectedBackingTemplateId,
+    ),
+  })),
+  setGeneratorSelectedBackingTemplateId: (id) => set((state) => ({
+    generatorSelectedBackingTemplateId: getCompatibleBackingId(state, state.generatorSelectedTemplateId, id),
+  })),
+  setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),
+  setPdfOptions: (options) => set((state) => ({
+    pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
+    pdfCardSpacingMm: options.spacing !== undefined ? Math.max(0, options.spacing) : state.pdfCardSpacingMm,
+    pdfIncludeCutLines: options.cutLines !== undefined ? options.cutLines : state.pdfIncludeCutLines,
+    pdfDuplexLayout: options.duplexLayout ?? state.pdfDuplexLayout,
+  })),
+  setExportMode: (mode) => set({ exportMode: mode }),
+  setExportDpi: (dpi) => set({ exportDpi: Math.min(1200, Math.max(72, Math.round(dpi))) }),
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CardAssetOption } from '@/domain/templates';
+import type { CardAssetOption, TCGCardTemplate } from '@/domain/templates';
 
 import {
   CUSTOM_FONT_ASSETS_STORAGE_KEY,
@@ -36,10 +36,79 @@ export interface ProjectWorkspaceApplySummary {
   skippedCount: number;
 }
 
+const templateSnapshotFingerprint = (template: TCGCardTemplate): string => JSON.stringify(template);
+
+/**
+ * A portable Set may contain an older snapshot with the same historical
+ * runtime Template id as current browser work. Merge must never overwrite a
+ * different live design merely because those ids collide. Keep exact matches
+ * shared; re-key different snapshots while retaining their lineage metadata.
+ */
+export const rekeyConflictingTemplateSnapshots = (
+  document: ProjectDocumentV1,
+  currentTemplates: readonly TCGCardTemplate[],
+  createId: () => string = () => `template-${globalThis.crypto.randomUUID()}`,
+): ProjectDocumentV1 => {
+  const currentById = new Map(currentTemplates.flatMap((template) => template.id ? [[template.id, template] as const] : []));
+  const usedIds = new Set([
+    ...currentById.keys(),
+    ...document.userTemplates.flatMap((template) => template.id ? [template.id] : []),
+  ]);
+  const remap = new Map<string, string>();
+  const nextTemplates = document.userTemplates.map((template) => {
+    const id = template.id;
+    if (!id) return template;
+    const existing = currentById.get(id);
+    if (!existing || templateSnapshotFingerprint(existing) === templateSnapshotFingerprint(template)) return template;
+    let nextId = createId();
+    while (!nextId || usedIds.has(nextId)) nextId = createId();
+    usedIds.add(nextId);
+    remap.set(id, nextId);
+    return { ...template, id: nextId };
+  });
+  if (!remap.size) return document;
+  const mapTemplateId = (id: string | null | undefined) => id ? remap.get(id) ?? id : id;
+  return {
+    ...document,
+    userTemplates: nextTemplates,
+    cardSets: document.cardSets.map((set) => ({
+      ...set,
+      ...(set.templateIds ? { templateIds: set.templateIds.map((id) => mapTemplateId(id)!) } : {}),
+    })),
+    storedCards: document.storedCards.map((card) => ({
+      ...card,
+      templateId: mapTemplateId(card.templateId)!,
+      backingTemplateId: mapTemplateId(card.backingTemplateId),
+    })),
+  };
+};
+
+const restoreCopiedSetTemplateReferences = (
+  source: ProjectDocumentV1,
+  copied: ProjectDocumentV1,
+): ProjectDocumentV1 => {
+  const templateIds = new Map(source.userTemplates.flatMap((template, index) => {
+    const copiedId = copied.userTemplates[index]?.id;
+    return template.id && copiedId ? [[template.id, copiedId] as const] : [];
+  }));
+  return {
+    ...copied,
+    cardSets: copied.cardSets.map((set, index) => {
+      const sourceSet = source.cardSets[index];
+      if (!sourceSet?.templateIds?.length) return set;
+      return {
+        ...set,
+        templateIds: sourceSet.templateIds.map((id) => templateIds.get(id) ?? id),
+      };
+    }),
+  };
+};
+
 export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1> => {
   const scope = getProjectPersistenceScope();
   const state = useProjectStore.getState();
   const referencedTemplateIds = new Set([
+    ...state.cardSets.flatMap((set) => set.templateIds ?? []),
     ...state.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
   const portableTemplates = selectAllTemplates(state).filter((template) => (
@@ -78,9 +147,20 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   });
 };
 
-export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => (
-  isolateProjectDocumentToSet(await captureCurrentProjectDocument(), setId)
-);
+export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => {
+  const document = await captureCurrentProjectDocument();
+  const isolated = isolateProjectDocumentToSet(document, setId);
+  const set = document.cardSets.find((candidate) => candidate.id === setId);
+  if (!set?.templateIds?.length) return isolated;
+  const templateIds = new Set([
+    ...set.templateIds,
+    ...isolated.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
+  ].filter((value): value is string => Boolean(value)));
+  return {
+    ...isolated,
+    userTemplates: document.userTemplates.filter((template) => Boolean(template.id && templateIds.has(template.id))),
+  };
+};
 
 export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => (
   isolateProjectDocumentToCard(await captureCurrentProjectDocument(), cardId)
@@ -92,9 +172,15 @@ export const applyProjectDocumentToWorkspace = async (
   options: { expectedState?: ProjectState; replaceSetIds?: readonly string[] } = {},
 ): Promise<ProjectWorkspaceApplySummary> => {
   const draft = createProjectWorkspaceDraft(options.expectedState);
-  const sourceDocument = mode === 'copy'
-    ? instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`)
+  const independent = mode === 'copy'
+    ? restoreCopiedSetTemplateReferences(
+        document,
+        instantiateProjectDocumentCopy(document, (kind) => `${kind}-${globalThis.crypto.randomUUID()}`),
+      )
     : document;
+  const sourceDocument = mode === 'merge'
+    ? rekeyConflictingTemplateSnapshots(independent, selectAllTemplates(draft.getState()))
+    : independent;
   const writeMode = mode === 'copy' ? 'merge' : mode;
   const patch = applyProjectDocumentToState(sourceDocument);
   const scope = getProjectPersistenceScope();
@@ -159,7 +245,9 @@ export const applyProjectDocumentToWorkspace = async (
     ? draft.getState().mergeStoredCardsFromFile(patch.storedCards)
     : draft.getState().setStoredCardsFromFile(patch.storedCards);
   const activeSet = draft.getState().activeCardSet;
-  const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId ?? null;
+  const activeTemplateId = patch.storedCards.find((card) => !activeSet || card.setId === activeSet.id)?.templateId
+    ?? patch.cardSets.find((set) => set.id === activeSet?.id)?.templateIds?.[0]
+    ?? null;
   if (activeTemplateId) {
     draft.getState().setGeneratorSelectedTemplateId(activeTemplateId);
     draft.getState().setTemplateEditorSelectedTemplateId(activeTemplateId);

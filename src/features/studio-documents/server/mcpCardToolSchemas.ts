@@ -11,6 +11,8 @@ export type McpCardWriteMode = 'upsert' | 'create' | 'revise';
 export interface CardGenerationContractInput {
   documentId: string;
   setId?: string;
+  templateId?: string;
+  backingTemplateId?: string | null;
 }
 
 export interface UpsertCardSetInput {
@@ -22,6 +24,10 @@ export interface UpsertCardSetInput {
 
 export interface McpCardInput {
   cardId?: string;
+  /** Explicit design authority for a new card. Existing-card revisions preserve their current Template. */
+  templateId?: string;
+  /** Omit to use an unambiguous Set back, pass null for front-only, or pass an exact back Template id. */
+  backingTemplateId?: string | null;
   data: Record<string, string | number>;
   backingData?: Record<string, string | number>;
   artwork?: McpCardArtworkInput[];
@@ -94,6 +100,19 @@ const setId = {
   maxLength: 255,
   description: 'Stable set id. Reuse the same id for revisions and retries so a transient connector failure cannot create another set.',
 } as const;
+const templateId = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 255,
+  description: 'Exact front Template id. Pass this whenever more than one front design is available; generation never guesses from the first card in a Set.',
+} as const;
+const backingTemplateId = {
+  anyOf: [
+    { type: 'string', minLength: 1, maxLength: 255 },
+    { type: 'null' },
+  ],
+  description: 'Exact optional back Template id. Pass null to make a front-only card. Omit only when the Set has one unambiguous compatible back.',
+} as const;
 const cardId = {
   type: 'string',
   minLength: 1,
@@ -127,6 +146,8 @@ const cardInput = {
       ...cardId,
       description: 'Stable card id. Required in revise mode. If omitted for a new upsert/create card, CardForge derives a deterministic id from the submitted card data; always use the returned id for later edits.',
     },
+    templateId,
+    backingTemplateId,
     data: cardData,
     backingData: cardData,
     artwork: {
@@ -172,7 +193,7 @@ export const cardGenerationContractInputSchema = fromJsonSchema<CardGenerationCo
   type: 'object',
   additionalProperties: false,
   required: ['documentId'],
-  properties: { documentId, setId },
+  properties: { documentId, setId, templateId, backingTemplateId },
 });
 
 export const upsertCardSetInputSchema = fromJsonSchema<UpsertCardSetInput>({
@@ -212,7 +233,7 @@ export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
       type: 'array',
       minItems: 1,
       maxItems: 100,
-      description: 'One to 100 cards using the exact Template field keys. A single write may include up to 64 artwork files and 32 MB of aggregate artwork input; split larger artwork sets across revision-safe calls. For existing cards use writeMode revise and provide every stable cardId so edits cannot become duplicates.',
+      description: 'One to 100 cards using exact Template field keys. New cards should carry templateId when a Set has multiple front designs. Existing-card revise operations preserve each card’s Template and reject implicit design retargeting. A single write may include up to 64 artwork files and 32 MB of aggregate artwork input.',
       items: cardInput,
     },
   },

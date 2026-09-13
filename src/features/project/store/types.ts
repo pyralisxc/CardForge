@@ -1,12 +1,24 @@
-import type { CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
+import type { CardFace, CardSet, CardSetMetadata, CardSetOrganization, StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
 import type { StudioView } from './workspaceDefaults';
+
+export interface TemplateCommitChangeInput {
+  template: TCGCardTemplate;
+  source?: TemplateSource;
+  sourceTemplateId?: string | null;
+  artifactIds?: readonly string[];
+  face?: CardFace;
+  removedFieldKeys?: readonly string[];
+  setId?: string | null;
+}
 
 export interface TemplateSlice {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
   addOrUpdateTemplate: (template: TCGCardTemplate, source?: TemplateSource) => string;
+  commitTemplateChange: (input: TemplateCommitChangeInput) => string;
+  clearPersonalTemplateOverride: (templateId: string) => void;
   setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[], preferredTemplateId?: string | null) => number;
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
@@ -22,9 +34,9 @@ export interface AppearanceSlice {
   deleteAppearanceStyle: (styleId: string) => void;
 }
 
-  export interface OutputSlice {
-    storedCards: StoredDisplayCard[];
-    bulkRevisionUndo: StoredDisplayCard[] | null;
+export interface OutputSlice {
+  storedCards: StoredDisplayCard[];
+  bulkRevisionUndo: StoredDisplayCard[] | null;
   editingCardUniqueId: string | null;
   isEditDialogOpen: boolean;
   addGeneratedCards: (newCards: DisplayCard[]) => void;
@@ -34,9 +46,9 @@ export interface AppearanceSlice {
   moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   moveGeneratedCardsToSet: (cardUniqueIds: string[], setId: string) => number;
   reorderGeneratedCard: (cardUniqueId: string, direction: 'earlier' | 'later') => boolean;
-    updateGeneratedCard: (updatedCard: DisplayCard) => void;
-    reviseGeneratedCards: (updatedCards: DisplayCard[]) => number;
-    undoLastBulkRevision: () => number;
+  updateGeneratedCard: (updatedCard: DisplayCard) => void;
+  reviseGeneratedCards: (updatedCards: DisplayCard[]) => number;
+  undoLastBulkRevision: () => number;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
@@ -71,6 +83,8 @@ export interface SettingsSlice {
   setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
+  referenceTemplateInCardSet: (setId: string, templateId: string) => boolean;
+  unreferenceTemplateFromCardSet: (setId: string, templateId: string) => boolean;
   setGeneratorSelectedTemplateId: (id: string | null) => void;
   setGeneratorSelectedBackingTemplateId: (id: string | null) => void;
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;

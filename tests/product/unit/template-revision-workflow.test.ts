@@ -10,6 +10,8 @@ const sharedTemplate = {
   aspectRatio: '2.5:3.5',
   templateSource: 'default',
   templateLibrarySource: 'pipeline',
+  templateRevision: 4,
+  templateRevisionId: 'shared-revision-4',
 } as TCGCardTemplate;
 
 const makeActionOptions = () => ({
@@ -33,34 +35,45 @@ const makeActionOptions = () => ({
 });
 
 describe('Template revision workflow', () => {
-  it('preserves the stable shared Template id only for revision contributors', () => {
-    expect(prepareTemplateForLibrarySave(sharedTemplate, true, () => 'personal-copy')).toMatchObject({
+  it('keeps shared lineage provenance while local Save remains a personal draft until explicit Pipeline submission', () => {
+    expect(prepareTemplateForLibrarySave(sharedTemplate, true, () => 'draft-id')).toMatchObject({
       id: 'shared-template',
-      templateSource: 'default',
-      templateLibrarySource: 'pipeline',
-    });
-    expect(prepareTemplateForLibrarySave(sharedTemplate, false, () => 'personal-copy')).toMatchObject({
-      id: 'personal-copy',
       templateSource: 'user',
       templateLibrarySource: 'personal',
+      templateRegistryStatus: 'draft',
+      templateLineageId: 'shared-template',
+      templateRevision: 4,
+      templateRevisionId: 'template-draft-draft-id',
+      templateParentRevisionId: 'shared-revision-4',
+      templateOriginLineageId: 'shared-template',
+      templateOriginRevisionId: 'shared-revision-4',
+    });
+    expect(prepareTemplateForLibrarySave(sharedTemplate, false, () => 'personal-copy')).toMatchObject({
+      id: 'template-personal-copy',
+      templateSource: 'user',
+      templateLibrarySource: 'personal',
+      templateRegistryStatus: 'localOnly',
+      templateLineageId: 'template-personal-copy',
+      templateOriginLineageId: 'shared-template',
+      templateOriginRevisionId: 'shared-revision-4',
     });
   });
 
-  it('presents and locks the same revision action used by toolbar, mobile, and command palette', () => {
+  it('presents and locks the same Save action used by toolbar, mobile, and command palette', () => {
     const saveAction = createTemplateEditorActions({
       ...makeActionOptions(),
       saveDisabled: true,
       savePresentation: {
-        label: 'Submit Template revision 4',
-        shortLabel: 'Submitting…',
-        description: 'Submit revision 4 to Forge Review.',
+        label: 'Save Template draft',
+        shortLabel: 'Saving…',
+        description: 'Commit this design draft to browser work. Pipeline submission is separate.',
       },
     }).find((action) => action.id === 'save');
 
     expect(saveAction).toMatchObject({
-      label: 'Submit Template revision 4',
-      shortLabel: 'Submitting…',
-      description: 'Submit revision 4 to Forge Review.',
+      label: 'Save Template draft',
+      shortLabel: 'Saving…',
+      description: 'Commit this design draft to browser work. Pipeline submission is separate.',
       disabled: true,
     });
   });

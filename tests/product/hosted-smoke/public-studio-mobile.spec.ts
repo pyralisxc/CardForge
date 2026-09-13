@@ -84,7 +84,7 @@ test.describe('hosted release smoke', () => {
 
     await desk.getByRole('button', { name: 'Create your first Set' }).click();
     await choices.getByRole('button', { name: 'Fresh Set + Design', exact: true }).click();
-    const designTool = page.getByRole('region', { name: 'Design Artifacts' });
+    const designTool = page.getByRole('region', { name: 'Design', exact: true });
     await expect(designTool).toBeVisible();
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(designTool).toHaveCount(0);
@@ -115,6 +115,6 @@ test.describe('hosted mobile release smoke', () => {
     await expect(design).toBeInViewport();
     await test.info().attach('new-set-choices-mobile', { body: await page.screenshot(), contentType: 'image/png' });
     await design.tap();
-    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
   });
 });

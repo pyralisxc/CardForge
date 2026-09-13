@@ -66,6 +66,13 @@ export const CARD_SET_BUILT_IN_TYPES = [
 export interface CardSet {
   id: string;
   name: string;
+  /**
+   * Reusable Templates intentionally participating in this Set. The Set
+   * references these identities but does not own or clone them. This lets a
+   * creator prepare designs before generating the first Artifact and lets a
+   * portable Set snapshot include those exact design dependencies.
+   */
+  templateIds?: string[];
   organization?: CardSetOrganization;
   metadata?: CardSetMetadata;
 }

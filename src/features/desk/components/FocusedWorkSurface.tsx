@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from 'react';
-import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, Search, Sparkles, Tag, Trash2, WandSparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, Pencil, Search, Sparkles, Tag, Trash2, TriangleAlert } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,9 +9,13 @@ import { Input } from '@/components/ui/input';
 import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
 import type { CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
+import { getArtifactWorkState } from '@/features/card-generator/client';
+import { selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -43,7 +47,6 @@ export interface FocusedWorkSurfaceProps {
   otherSets: CardSet[];
   moveTargetId: string;
   cardQuery: string;
-  /** Legacy single-value surface prop; the interaction session now owns the full filter selection. */
   tagFilter: string;
   tagDraft: string;
   latestGeneratedIds: string[];
@@ -59,7 +62,6 @@ export interface FocusedWorkSurfaceProps {
   onOpenGenerate: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
-  /** Kept for old callers/return contexts; multi-select updates use setSession directly. */
   onTagFilterChange: (value: string) => void;
   onShowGridChange: () => void;
   onSnapToGridChange: () => void;
@@ -79,45 +81,90 @@ export interface FocusedWorkSurfaceProps {
 }
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
+  const { toast } = useToast();
+  const cardSets = useProjectStore((state) => state.cardSets);
+  const templates = useProjectStore(selectAllTemplates);
+  const commitTemplateChange = useProjectStore((state) => state.commitTemplateChange);
+  const unreferenceTemplateFromCardSet = useProjectStore((state) => state.unreferenceTemplateFromCardSet);
+  const currentSet = props.localSetId ? cardSets.find((set) => set.id === props.localSetId) ?? null : null;
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
+  const needsWorkCards = props.focusedCards.filter((card) => getArtifactWorkState(card).needsWork);
   const setTagFilters = (filterIds: string[]) => props.setSession((current) => setCreatorLens(current, { ...current.lens, filterIds }));
+
+  const adoptTemplateRevision = (fromTemplateId: string, toTemplateId: string) => {
+    if (!currentSet) return;
+    const previous = templates.find((template) => template.id === fromTemplateId);
+    const next = templates.find((template) => template.id === toTemplateId);
+    if (!previous || !next) return;
+    const face = previous.templateUsage === 'back-preset' ? 'back' as const : 'front' as const;
+    const artifactIds = props.focusedCards.filter((card) => (
+      face === 'front' ? card.template.id === fromTemplateId : card.backingTemplate?.id === fromTemplateId
+    )).map((card) => card.uniqueId);
+    const previousKeys = new Set(extractTemplateFieldDefinitions(previous).filter((field) => !field.isStaticBaseText).map((field) => field.key));
+    const nextKeys = new Set(extractTemplateFieldDefinitions(next).filter((field) => !field.isStaticBaseText).map((field) => field.key));
+    const removedFieldKeys = [...previousKeys].filter((key) => !nextKeys.has(key));
+    commitTemplateChange({
+      template: next,
+      source: next.templateSource,
+      sourceTemplateId: fromTemplateId,
+      artifactIds,
+      face,
+      removedFieldKeys,
+      setId: currentSet.id,
+    });
+    unreferenceTemplateFromCardSet(currentSet.id, fromTemplateId);
+    toast({
+      title: 'Template revision updated',
+      description: `${artifactIds.length} Artifact${artifactIds.length === 1 ? '' : 's'} now use “${next.name}”${removedFieldKeys.length ? `; removed fields were cleared from those Artifacts` : ''}.`,
+    });
+  };
+
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
     <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
       {props.localSetId ? <>
         {!artifactFocused ? <>
-        <div className={styles.contentToolbar}>
-          <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
-          <SetTemplates cards={props.focusedCards} onDesign={props.onDesignTemplate} />
-          <Popover><PopoverTrigger asChild><Button type="button" size="sm" variant="ghost">Organize · {props.selectedCards.length ? `${props.selectedCards.length} selected` : `${props.visibleCards.length} card${props.visibleCards.length === 1 ? '' : 's'}`}</Button></PopoverTrigger>
-            <PopoverContent align="end" className={styles.organizationPanel}>
-          <div className={styles.organizationToolbar} aria-label="Set organization">
-            <Select value={props.organization.arrangement} onValueChange={(value) => props.onOrganizationChange({ arrangement: value as CardSetOrganization['arrangement'] })}><SelectTrigger aria-label="Arrange cards" className={styles.compactSelect}><LayoutGrid aria-hidden="true" /><span>Arrange: {props.organization.arrangement === 'manual' ? 'Freeform' : props.organization.arrangement === 'stack' ? 'Stacks' : 'Grid'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Freeform positions</SelectItem><SelectItem value="grid">Arrange as grid</SelectItem><SelectItem value="stack">Arrange as stacks</SelectItem></SelectContent></Select>
-            <Select value={props.organization.groupBy} onValueChange={(value) => props.onOrganizationChange({ groupBy: value as CardSetOrganization['groupBy'], groupField: value === 'field' ? props.organization.groupField ?? groupFields[0]?.id : undefined })}><SelectTrigger aria-label="Group cards" className={styles.compactSelect}><Layers3 aria-hidden="true" /><span>{props.organization.groupBy === 'none' ? 'No groups' : `Group: ${props.organization.groupBy}`}</span></SelectTrigger><SelectContent><SelectItem value="none">No groups</SelectItem>{props.reflectiveGroupings.includes('tag') ? <SelectItem value="tag">By tag</SelectItem> : null}{props.reflectiveGroupings.includes('field') ? <SelectItem value="field">By field</SelectItem> : null}{props.reflectiveGroupings.includes('template') ? <SelectItem value="template">By Template</SelectItem> : null}{props.reflectiveGroupings.includes('content-type') ? <SelectItem value="content-type">By content type</SelectItem> : null}{props.reflectiveGroupings.includes('batch') ? <SelectItem value="batch">By batch</SelectItem> : null}</SelectContent></Select>
-            {props.organization.groupBy === 'field' && groupFields.length ? <Select value={props.organization.groupField ?? groupFields[0]?.id} onValueChange={(groupField) => props.onOrganizationChange({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{groupFields.find((field) => field.id === props.organization.groupField)?.label ?? groupFields[0]?.label}</span></SelectTrigger><SelectContent>{groupFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label} · {field.valueCount} values</SelectItem>)}</SelectContent></Select> : null}
-            <Select value={props.organization.sort} onValueChange={(value) => props.onOrganizationChange({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? props.organization.sortField ?? sortFields[0]?.id : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{props.organization.sort === 'manual' ? 'Manual order' : props.organization.sort === 'field-value' ? 'Sort by field' : props.organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{sortFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recent</SelectItem></SelectContent></Select>
-            {props.organization.sort === 'field-value' && sortFields.length ? <Select value={props.organization.sortField ?? sortFields[0]?.id} onValueChange={(sortField) => props.onOrganizationChange({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{sortFields.find((field) => field.id === props.organization.sortField)?.label ?? sortFields[0]?.label}</span></SelectTrigger><SelectContent>{sortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent></Select> : null}
-            {props.organization.tags.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter cards by tag" compactLabel="Tags" values={props.session.lens.filterIds} onChange={setTagFilters} options={props.organization.tags.map((tag) => ({ value: tag.id, label: tag.label }))} /> : null}
-            <Button type="button" size="sm" variant="ghost" aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button><Button type="button" size="sm" variant="ghost" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
+          <div className={styles.contentToolbar}>
+            <label className={styles.searchField}><span className="sr-only">Search cards in this work</span><Search aria-hidden="true" /><Input value={props.cardQuery} onChange={(event) => props.onCardQueryChange(event.target.value)} placeholder="Search cards" /></label>
+            {currentSet ? <SetTemplates set={currentSet} cards={props.focusedCards} templates={templates} onDesign={props.onDesignTemplate} onAdoptRevision={adoptTemplateRevision} /> : null}
+            {needsWorkCards.length ? <Button type="button" size="sm" variant="ghost" className="gap-1.5" onClick={() => props.onSelectionChange(needsWorkCards.map((card) => card.uniqueId))} title="Select Artifacts missing required Template values"><TriangleAlert className="h-4 w-4" />Needs work · {needsWorkCards.length}</Button> : null}
+            <Popover><PopoverTrigger asChild><Button type="button" size="sm" variant="ghost">Organize · {props.visibleCards.length} card{props.visibleCards.length === 1 ? '' : 's'}</Button></PopoverTrigger>
+              <PopoverContent align="end" className={styles.organizationPanel}>
+                <div className={styles.organizationToolbar} aria-label="Set organization">
+                  <Select value={props.organization.arrangement} onValueChange={(value) => props.onOrganizationChange({ arrangement: value as CardSetOrganization['arrangement'] })}><SelectTrigger aria-label="Arrange cards" className={styles.compactSelect}><LayoutGrid aria-hidden="true" /><span>Arrange: {props.organization.arrangement === 'manual' ? 'Freeform' : props.organization.arrangement === 'stack' ? 'Stacks' : 'Grid'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Freeform positions</SelectItem><SelectItem value="grid">Arrange as grid</SelectItem><SelectItem value="stack">Arrange as stacks</SelectItem></SelectContent></Select>
+                  <Select value={props.organization.groupBy} onValueChange={(value) => props.onOrganizationChange({ groupBy: value as CardSetOrganization['groupBy'], groupField: value === 'field' ? props.organization.groupField ?? groupFields[0]?.id : undefined })}><SelectTrigger aria-label="Group cards" className={styles.compactSelect}><Layers3 aria-hidden="true" /><span>{props.organization.groupBy === 'none' ? 'No groups' : `Group: ${props.organization.groupBy}`}</span></SelectTrigger><SelectContent><SelectItem value="none">No groups</SelectItem>{props.reflectiveGroupings.includes('tag') ? <SelectItem value="tag">By tag</SelectItem> : null}{props.reflectiveGroupings.includes('field') ? <SelectItem value="field">By field</SelectItem> : null}{props.reflectiveGroupings.includes('template') ? <SelectItem value="template">By Template</SelectItem> : null}{props.reflectiveGroupings.includes('content-type') ? <SelectItem value="content-type">By content type</SelectItem> : null}{props.reflectiveGroupings.includes('batch') ? <SelectItem value="batch">By batch</SelectItem> : null}</SelectContent></Select>
+                  {props.organization.groupBy === 'field' && groupFields.length ? <Select value={props.organization.groupField ?? groupFields[0]?.id} onValueChange={(groupField) => props.onOrganizationChange({ groupField })}><SelectTrigger aria-label="Field used for groups" className={styles.compactSelect}><span>{groupFields.find((field) => field.id === props.organization.groupField)?.label ?? groupFields[0]?.label}</span></SelectTrigger><SelectContent>{groupFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label} · {field.valueCount} values</SelectItem>)}</SelectContent></Select> : null}
+                  <Select value={props.organization.sort} onValueChange={(value) => props.onOrganizationChange({ sort: value as CardSetOrganization['sort'], sortField: value === 'field-value' ? props.organization.sortField ?? sortFields[0]?.id : undefined })}><SelectTrigger aria-label="Sort cards" className={styles.compactSelect}><span>{props.organization.sort === 'manual' ? 'Manual order' : props.organization.sort === 'field-value' ? 'Sort by field' : props.organization.sort === 'recently-changed' ? 'Recent' : 'Name'}</span></SelectTrigger><SelectContent><SelectItem value="manual">Manual order</SelectItem><SelectItem value="name">Name</SelectItem>{sortFields.length ? <SelectItem value="field-value">Field value</SelectItem> : null}<SelectItem value="recently-changed">Recent</SelectItem></SelectContent></Select>
+                  {props.organization.sort === 'field-value' && sortFields.length ? <Select value={props.organization.sortField ?? sortFields[0]?.id} onValueChange={(sortField) => props.onOrganizationChange({ sortField })}><SelectTrigger aria-label="Field used for sorting" className={styles.compactSelect}><span>{sortFields.find((field) => field.id === props.organization.sortField)?.label ?? sortFields[0]?.label}</span></SelectTrigger><SelectContent>{sortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent></Select> : null}
+                  {props.organization.tags.length ? <MultiSelectionFilterMenu allLabel="All tags" ariaLabel="Filter cards by tag" compactLabel="Tags" values={props.session.lens.filterIds} onChange={setTagFilters} options={props.organization.tags.map((tag) => ({ value: tag.id, label: tag.label }))} /> : null}
+                  <Button type="button" size="sm" variant="ghost" aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid className="mr-1.5 h-4 w-4" />Grid</Button><Button type="button" size="sm" variant="ghost" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
+                </div>
+                {props.visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange((current) => props.allVisibleSelected ? current.filter((id) => !props.visibleCards.some((card) => card.uniqueId === id)) : [...new Set([...current, ...props.visibleCards.map((card) => card.uniqueId)])])}>{props.allVisibleSelected ? 'Clear shown' : 'Select shown'}</Button> : null}
+                {props.focusedCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange(props.allArtifactsSelected ? [] : props.focusedCards.map((card) => card.uniqueId))}>{props.allArtifactsSelected ? 'Clear selection' : `Select all ${props.focusedCards.length} cards`}</Button> : null}
+              </PopoverContent>
+            </Popover>
           </div>
-          {props.visibleCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange((current) => props.allVisibleSelected ? current.filter((id) => !props.visibleCards.some((card) => card.uniqueId === id)) : [...new Set([...current, ...props.visibleCards.map((card) => card.uniqueId)])])}>{props.allVisibleSelected ? 'Clear shown' : 'Select shown'}</Button> : null}
-          {props.focusedCards.length ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange(props.allArtifactsSelected ? [] : props.focusedCards.map((card) => card.uniqueId))}>{props.allArtifactsSelected ? 'Clear selection' : `Select all ${props.focusedCards.length} cards`}</Button> : null}
-          {props.selectedCards.length ? <div className={styles.selectionBar}>
-            <span role="status">{props.selectedCards.length === 1 ? `${getCardTitle(props.selectedCards[0]!, 0)} selected` : `${props.selectedCards.length} Artifacts selected`}{props.selectionScope.hidden ? ` · ${props.selectionScope.hidden} hidden by the current filters; actions apply to the full selection` : ''}</span>
-            {props.selectionScope.hidden ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onSelectionChange((current) => current.filter((id) => props.visibleCards.some((card) => card.uniqueId === id)))}>Clear hidden selection</Button> : null}
-            {props.selectedCard ? <><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex <= 0} onClick={() => props.onReorderSelected('earlier')} aria-label="Move selected card earlier"><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="outline" disabled={props.selectedCardIndex < 0 || props.selectedCardIndex >= props.focusedCards.length - 1} onClick={() => props.onReorderSelected('later')} aria-label="Move selected card later"><ArrowDown className="h-4 w-4" /></Button></> : null}
-            {props.otherSets.length ? <Select value={props.moveTargetId} onValueChange={props.onMoveTargetChange}><SelectTrigger className={styles.moveSelect} aria-label="Move selected card to Set"><span className="truncate">Move to {props.otherSets.find((set) => set.id === props.moveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{props.otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
-            {props.otherSets.length ? <Button type="button" size="sm" variant="outline" onClick={props.onMoveSelected}>Move</Button> : null}
-            <Button type="button" size="sm" variant="outline" onClick={props.onReviseSelected}><WandSparkles className="mr-1.5 h-4 w-4" />Revise</Button><Button type="button" size="sm" variant="outline" onClick={props.onDuplicateSelected}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button><Button type="button" size="sm" variant="ghost" onClick={props.onDeleteSelected}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
-            <div className={styles.tagTools}>{props.organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Tags</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{props.organization.tags.map((tag) => { const applied = props.selectedCards.every((card) => card.tagIds?.includes(tag.id)); return <DropdownMenuItem key={tag.id} onSelect={() => props.onSetCardsTag(props.selectedCards.map((card) => card.uniqueId), tag.id, !applied)}>{applied ? 'Remove' : 'Add'} {tag.label}</DropdownMenuItem>; })}</DropdownMenuContent></DropdownMenu> : null}<Input value={props.tagDraft} onChange={(event) => props.onTagDraftChange(event.target.value)} placeholder="New tag" aria-label="New tag name" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); props.onApplyNewTag(); } }} /><Button type="button" size="sm" variant="outline" disabled={!props.tagDraft.trim()} onClick={props.onApplyNewTag}>Add tag</Button></div>
+          {props.selectedCards.length ? <div
+            className={`${styles.selectionBar} border-t border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-2 py-2`}
+            role="toolbar"
+            aria-label="Selection actions"
+            style={{ flex: '0 0 auto', display: 'flex', flexWrap: 'nowrap', justifyContent: 'flex-start', overflowX: 'auto', overflowY: 'hidden' }}
+          >
+            <span role="status" className="shrink-0 whitespace-nowrap">{props.selectedCards.length === 1 ? `${getCardTitle(props.selectedCards[0]!, 0)} selected` : `${props.selectedCards.length} Artifacts selected`}{props.selectionScope.hidden ? ` · ${props.selectionScope.hidden} hidden by current filters; actions apply to the full selection` : ''}</span>
+            <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={props.onReviseSelected}><Pencil className="mr-1.5 h-4 w-4" />Edit selected</Button>
+            {props.selectionScope.hidden ? <Button type="button" size="sm" variant="ghost" className="shrink-0" onClick={() => props.onSelectionChange((current) => current.filter((id) => props.visibleCards.some((card) => card.uniqueId === id)))}>Clear hidden selection</Button> : null}
+            {props.selectedCard ? <><Button type="button" size="icon" variant="outline" className="shrink-0" disabled={props.selectedCardIndex <= 0} onClick={() => props.onReorderSelected('earlier')} aria-label="Move selected card earlier"><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="outline" className="shrink-0" disabled={props.selectedCardIndex < 0 || props.selectedCardIndex >= props.focusedCards.length - 1} onClick={() => props.onReorderSelected('later')} aria-label="Move selected card later"><ArrowDown className="h-4 w-4" /></Button></> : null}
+            {props.otherSets.length ? <Select value={props.moveTargetId} onValueChange={props.onMoveTargetChange}><SelectTrigger className={`${styles.moveSelect} shrink-0`} aria-label="Move selected card to Set"><span className="truncate">Move to {props.otherSets.find((set) => set.id === props.moveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{props.otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}
+            {props.otherSets.length ? <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={props.onMoveSelected}>Move</Button> : null}
+            <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={props.onDuplicateSelected}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
+            <Button type="button" size="sm" variant="ghost" className="shrink-0" onClick={props.onDeleteSelected}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
+            <div className={`${styles.tagTools} shrink-0`}>{props.organization.tags.length ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="sm" variant="outline"><Tag className="mr-1.5 h-4 w-4" />Tags</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{props.organization.tags.map((tag) => { const applied = props.selectedCards.every((card) => card.tagIds?.includes(tag.id)); return <DropdownMenuItem key={tag.id} onSelect={() => props.onSetCardsTag(props.selectedCards.map((card) => card.uniqueId), tag.id, !applied)}>{applied ? 'Remove' : 'Add'} {tag.label}</DropdownMenuItem>; })}</DropdownMenuContent></DropdownMenu> : null}<Input value={props.tagDraft} onChange={(event) => props.onTagDraftChange(event.target.value)} placeholder="New tag" aria-label="New tag name" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); props.onApplyNewTag(); } }} /><Button type="button" size="sm" variant="outline" disabled={!props.tagDraft.trim()} onClick={props.onApplyNewTag}>Add tag</Button></div>
           </div> : null}
-            </PopoverContent>
-          </Popover>
-        </div>
-        {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}</> : null}
+          {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}
+        </> : null}
         {props.sortedCards.length ? <FocusedSetArtifactSurface canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles} setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} showGrid={props.showGrid} stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onEditArtifact={props.onEditSelected} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
-      </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}. Preparing it keeps that source identity; CardForge does not create an independent copy unless you explicitly choose Copy.`}</p><Button type="button" onClick={props.onOpenWork}>{props.item.references.campaignId ? 'Open campaign workspace' : props.item.references.pipelineLineageId ? 'Open published work' : 'Prepare work'}</Button></div></div>}
+      </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}.`}</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}
     </section>
   </div>;
 }

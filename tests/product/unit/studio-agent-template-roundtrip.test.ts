@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('agent Template Studio round trip', () => {
-  it('discovers an existing agent document and syncs an explicit Studio save back to it', async () => {
+  it('discovers an existing agent document and syncs an explicit Studio save back to it without conflating document and Template revisions', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({
         documents: [{
@@ -116,8 +116,8 @@ describe('agent Template Studio round trip', () => {
     expect(body.document.userTemplates[0]).toMatchObject({
       id: template.id,
       name: 'Saved in Studio',
-      templateRevision: 3,
     });
+    expect(body.document.userTemplates[0]?.templateRevision).toBe(template.templateRevision);
   });
 
   it('protects a newer ChatGPT revision from an older Studio save', async () => {
