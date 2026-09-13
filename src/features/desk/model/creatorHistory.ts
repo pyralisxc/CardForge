@@ -10,6 +10,15 @@ import {
 
 export type DeskContextualToolId = 'design' | 'generate' | 'output' | 'pipeline';
 
+type DeskContextualToolDefinition = Pick<CreatorToolSession, 'toolId' | 'ownerFeature' | 'presentation'>;
+
+const DESK_CONTEXTUAL_TOOL_DEFINITIONS: readonly DeskContextualToolDefinition[] = [
+  { toolId: 'design', ownerFeature: 'template-editor', presentation: 'floating' },
+  { toolId: 'generate', ownerFeature: 'card-generator', presentation: 'sheet' },
+  { toolId: 'output', ownerFeature: 'card-generator', presentation: 'sheet' },
+  { toolId: 'pipeline', ownerFeature: 'pipeline', presentation: 'sheet' },
+] as const;
+
 export interface CreatorHistorySnapshot {
   version: 1;
   focusedWorkId: string | null;
@@ -139,15 +148,15 @@ export const preserveCreatorLaunchIntent = (
 export const createCreatorTool = (
   setId: string,
   toolId: DeskContextualToolId,
-): CreatorToolSession => ({
-  instanceId: `desk-${toolId}-${setId}`,
-  toolId,
-  ownerFeature: toolId === 'design'
-    ? 'template-editor'
-    : toolId === 'pipeline'
-      ? 'pipeline'
-      : 'card-generator',
-  presentation: toolId === 'design' ? 'floating' : 'sheet',
-  targetIds: [setId],
-  dirty: false,
-});
+): CreatorToolSession => {
+  const definition = DESK_CONTEXTUAL_TOOL_DEFINITIONS.find((candidate) => candidate.toolId === toolId);
+  if (!definition) throw new Error(`Unknown Desk contextual tool: ${toolId}`);
+  return {
+    instanceId: `desk-${toolId}-${setId}`,
+    toolId,
+    ownerFeature: definition.ownerFeature,
+    presentation: definition.presentation,
+    targetIds: [setId],
+    dirty: false,
+  };
+};

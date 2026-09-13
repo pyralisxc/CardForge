@@ -1,14 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
 import ts from 'typescript';
 
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
-const FILE_SIZE_REVIEW_THRESHOLD = 500;
+import { collectSourceModules } from './repository-analysis.mjs';
 
-const toPosixPath = (value) => value.split(path.sep).join('/');
+const FILE_SIZE_REVIEW_THRESHOLD = 500;
 
 const parseArguments = (values) => {
   const args = {
@@ -65,83 +63,6 @@ const collectChangedPaths = (root, explicitBase) => {
   return paths;
 };
 
-const collectSourceFiles = async (directory) => {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await collectSourceFiles(entryPath));
-    } else if (
-      SOURCE_EXTENSIONS.has(path.extname(entry.name))
-      && !entry.name.endsWith('.d.ts')
-    ) {
-      files.push(entryPath);
-    }
-  }
-
-  return files;
-};
-
-const stripModuleSuffix = (value) => value
-  .replace(/\.(?:[cm]?[jt]sx?)$/u, '')
-  .replace(/\/index$/u, '');
-
-const resolveLocalImport = ({ importerPath, sourceRoot, specifier }) => {
-  let absoluteTarget;
-  if (specifier.startsWith('@/')) {
-    absoluteTarget = path.join(sourceRoot, specifier.slice(2));
-  } else if (specifier.startsWith('.')) {
-    absoluteTarget = path.resolve(path.dirname(importerPath), specifier);
-  } else {
-    return null;
-  }
-
-  const relativeTarget = path.relative(sourceRoot, absoluteTarget);
-  if (
-    relativeTarget === ''
-    || relativeTarget.startsWith(`..${path.sep}`)
-    || relativeTarget === '..'
-    || path.isAbsolute(relativeTarget)
-  ) {
-    return null;
-  }
-
-  return stripModuleSuffix(toPosixPath(relativeTarget));
-};
-
-const classifySourcePath = (relativePath) => {
-  const modulePath = stripModuleSuffix(relativePath);
-  const parts = modulePath.split('/');
-  const [root, featureName] = parts;
-
-  if (modulePath === 'proxy') return { kind: 'app', modulePath, parts };
-  if (root === 'app') return { kind: 'app', modulePath, parts };
-  if (root === 'domain') return { kind: 'domain', modulePath, parts };
-  if (root === 'infrastructure') return { kind: 'infrastructure', modulePath, parts };
-  if (root === 'shared') return { kind: 'shared', modulePath, parts };
-  if (root === 'features' && featureName) {
-    const featurePath = parts.slice(2).join('/');
-    const [featureEntry] = featurePath.split('/');
-    return {
-      kind: 'feature',
-      modulePath,
-      parts,
-      featureName,
-      featurePath,
-      publicEntry: featureEntry === 'client' || featureEntry === 'server' ? featureEntry : null,
-    };
-  }
-  if (root === 'components' && featureName === 'ui') {
-    return { kind: 'ui', modulePath, parts };
-  }
-  if (root === 'lib' || root === 'store' || root === 'types') {
-    return { kind: 'legacy', modulePath, parts, legacyRoot: root };
-  }
-  return { kind: 'unowned', modulePath, parts, unownedRoot: root };
-};
-
 const isClientModule = (classification, source) => {
   if (/^\s*['"]use client['"];?/u.test(source)) return true;
   if (classification.kind !== 'feature') return false;
@@ -189,48 +110,34 @@ const analyzeDependency = ({ source, target, sourceContent }) => {
 
   if (target.kind === 'legacy') {
     violations.push(createViolation(
-      'legacy-import-target',
-      sourceLabel,
-      targetLabel,
+      'legacy-import-target', sourceLabel, targetLabel,
       `${sourceLabel} imports retired root ${target.legacyRoot}.`,
     ));
   }
   if (target.kind === 'unowned') {
     violations.push(createViolation(
-      'unowned-import-target',
-      sourceLabel,
-      targetLabel,
+      'unowned-import-target', sourceLabel, targetLabel,
       `${sourceLabel} imports source without an approved owner.`,
     ));
   }
-
   if (source.kind === 'shared' && target.kind !== 'shared') {
     violations.push(createViolation(
-      'shared-imports-upward',
-      sourceLabel,
-      targetLabel,
+      'shared-imports-upward', sourceLabel, targetLabel,
       'Shared utilities cannot depend on CardForge product layers.',
     ));
   }
-
   if (source.kind === 'domain' && target.kind !== 'domain' && target.kind !== 'shared') {
     violations.push(createViolation(
-      'domain-imports-upward',
-      sourceLabel,
-      targetLabel,
+      'domain-imports-upward', sourceLabel, targetLabel,
       'Domain modules can depend only on domain and shared modules.',
     ));
   }
-
   if (source.kind === 'ui' && target.kind !== 'ui' && target.kind !== 'shared') {
     violations.push(createViolation(
-      'ui-imports-product',
-      sourceLabel,
-      targetLabel,
+      'ui-imports-product', sourceLabel, targetLabel,
       'Generic UI components cannot import product code.',
     ));
   }
-
   if (
     source.kind === 'infrastructure'
     && target.kind !== 'infrastructure'
@@ -238,22 +145,16 @@ const analyzeDependency = ({ source, target, sourceContent }) => {
     && target.kind !== 'shared'
   ) {
     violations.push(createViolation(
-      'infrastructure-imports-upward',
-      sourceLabel,
-      targetLabel,
+      'infrastructure-imports-upward', sourceLabel, targetLabel,
       'Infrastructure adapters cannot depend on features, app composition, or product UI.',
     ));
   }
-
   if (source.kind === 'feature' && target.kind === 'app') {
     violations.push(createViolation(
-      'feature-imports-app',
-      sourceLabel,
-      targetLabel,
+      'feature-imports-app', sourceLabel, targetLabel,
       'Features cannot import Next.js app composition.',
     ));
   }
-
   if (
     source.kind === 'feature'
     && target.kind === 'feature'
@@ -261,44 +162,33 @@ const analyzeDependency = ({ source, target, sourceContent }) => {
     && (target.publicEntry === 'server' || target.featurePath.startsWith('server/'))
   ) {
     violations.push(createViolation(
-      'client-imports-server',
-      sourceLabel,
-      targetLabel,
+      'client-imports-server', sourceLabel, targetLabel,
       'Client code cannot import feature server code.',
     ));
   }
-
   if (
     source.kind === 'feature'
     && target.kind === 'feature'
     && source.featureName !== target.featureName
+    && !target.publicEntry
   ) {
-    if (!target.publicEntry) {
-      violations.push(createViolation(
-        'cross-feature-internal',
-        sourceLabel,
-        targetLabel,
-        `${source.featureName} bypasses the ${target.featureName} public interface.`,
-      ));
-    }
+    violations.push(createViolation(
+      'cross-feature-internal', sourceLabel, targetLabel,
+      `${source.featureName} bypasses the ${target.featureName} public interface.`,
+    ));
   }
-
   if (source.kind === 'app' && target.kind === 'feature' && !target.publicEntry) {
     violations.push(createViolation(
-      'app-imports-feature-internal',
-      sourceLabel,
-      targetLabel,
+      'app-imports-feature-internal', sourceLabel, targetLabel,
       'App routes and pages must use a feature public interface.',
     ));
   }
-
   return violations;
 };
 
 const canReachFeature = (graph, start, goal) => {
   const pending = [start];
   const visited = new Set();
-
   while (pending.length > 0) {
     const current = pending.pop();
     if (current === goal) return true;
@@ -306,23 +196,25 @@ const canReachFeature = (graph, start, goal) => {
     visited.add(current);
     for (const next of graph.get(current) ?? []) pending.push(next);
   }
-
   return false;
 };
 
 const analyzeRepository = async (root) => {
-  const sourceRoot = path.join(root, 'src');
-  const sourceFiles = await collectSourceFiles(sourceRoot);
+  const { modules } = await collectSourceModules(root);
   const violations = new Map();
   const sizeWarnings = [];
   const featureGraph = new Map();
   const allFeatureNames = new Set();
   const publicInterfaces = [];
 
-  for (const filePath of sourceFiles) {
-    const relativePath = toPosixPath(path.relative(sourceRoot, filePath));
-    const sourceClassification = classifySourcePath(relativePath);
-    const sourceContent = await readFile(filePath, 'utf8');
+  for (const module of modules) {
+    const {
+      filePath,
+      relativePath,
+      source: sourceContent,
+      classification: sourceClassification,
+      localImports,
+    } = module;
     const sourceLabel = `src/${sourceClassification.modulePath}`;
     const lineCount = sourceContent.split(/\r?\n/u).length;
     if (sourceClassification.kind === 'feature') allFeatureNames.add(sourceClassification.featureName);
@@ -339,39 +231,25 @@ const analyzeRepository = async (root) => {
     }
     if (sourceClassification.kind === 'legacy') {
       const violation = createViolation(
-        'legacy-source-root',
-        sourceLabel,
-        `root:${sourceClassification.legacyRoot}`,
+        'legacy-source-root', sourceLabel, `root:${sourceClassification.legacyRoot}`,
         `${sourceLabel} remains under retired source root ${sourceClassification.legacyRoot}.`,
       );
       violations.set(violation.key, violation);
     } else if (sourceClassification.kind === 'unowned') {
       const violation = createViolation(
-        'unowned-source-root',
-        sourceLabel,
-        `root:${sourceClassification.unownedRoot}`,
+        'unowned-source-root', sourceLabel, `root:${sourceClassification.unownedRoot}`,
         `${sourceLabel} has no approved source owner.`,
       );
       violations.set(violation.key, violation);
     }
 
-    const importedFiles = ts.preProcessFile(sourceContent, true, true).importedFiles;
-    for (const importedFile of importedFiles) {
-      const targetPath = resolveLocalImport({
-        importerPath: filePath,
-        sourceRoot,
-        specifier: importedFile.fileName,
-      });
-      if (!targetPath) continue;
-
-      const targetClassification = classifySourcePath(targetPath);
+    for (const localImport of localImports) {
+      const targetClassification = localImport.classification;
       for (const violation of analyzeDependency({
         source: sourceClassification,
         target: targetClassification,
         sourceContent,
-      })) {
-        violations.set(violation.key, violation);
-      }
+      })) violations.set(violation.key, violation);
 
       if (
         sourceClassification.kind === 'feature'
@@ -389,9 +267,7 @@ const analyzeRepository = async (root) => {
     for (const targetFeature of targetFeatures) {
       if (!canReachFeature(featureGraph, targetFeature, sourceFeature)) continue;
       const violation = createViolation(
-        'feature-cycle-edge',
-        `feature:${sourceFeature}`,
-        `feature:${targetFeature}`,
+        'feature-cycle-edge', `feature:${sourceFeature}`, `feature:${targetFeature}`,
         `${sourceFeature} -> ${targetFeature} participates in a feature dependency cycle.`,
       );
       violations.set(violation.key, violation);
@@ -399,14 +275,10 @@ const analyzeRepository = async (root) => {
   }
 
   const featureNames = new Set(allFeatureNames);
-  for (const targets of featureGraph.values()) {
-    for (const target of targets) featureNames.add(target);
-  }
+  for (const targets of featureGraph.values()) for (const target of targets) featureNames.add(target);
   const featureGravity = [...featureNames].map((featureName) => {
     let fanIn = 0;
-    for (const targets of featureGraph.values()) {
-      if (targets.has(featureName)) fanIn += 1;
-    }
+    for (const targets of featureGraph.values()) if (targets.has(featureName)) fanIn += 1;
     return {
       featureName,
       fanIn,
@@ -457,6 +329,7 @@ const run = async () => {
     process.exitCode = 1;
     return;
   }
+
   const warningLabel = `${relevantSizeWarnings.length} ${args.changed ? 'changed ' : ''}size warning${relevantSizeWarnings.length === 1 ? '' : 's'}`;
   console.log(`Architecture check passed (0 violations; ${warningLabel}).`);
 };
