@@ -34,6 +34,8 @@ Once the behavioral contract is Ready — or immediately for routine copy, styli
 
 For audits of **what CardForge currently is** — where surfaces, user-visible capabilities, tools, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect — load `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before manually reconstructing a broad dependency map. Product Reality is descriptive evidence only; Product Direction still owns what should change.
 
+For broad **code-structure discovery** — callers/references, cross-file paths, architecture, semantic source search, or implementation impact — load `.agents/skills/cardforge-codebase-context/SKILL.md` when the private `cardforge_codebase` MCP is available. Verify `jarvis_source_status` before trusting its graph/index, treat it only as derived acceleration over the managed `main` copy, and fall back to current source/GitHub whenever it is stale, unavailable, unknown, or commit-mismatched. Product Reality answers product topology; Codebase MCP helps find the implementation behind it.
+
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
 ### Global skill compatibility
