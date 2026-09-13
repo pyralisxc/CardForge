@@ -162,6 +162,18 @@ const productProjection = (graph) => {
   return { ...graph, nodes, edges, summary: { nodes: nodes.length, edges: edges.length, unknowns: graph.unknowns.length, kinds } };
 };
 
+const checkpointProjection = (graph) => {
+  const product = productProjection(graph);
+  return {
+    schemaVersion: product.schemaVersion,
+    topologyFingerprint: product.topologyFingerprint,
+    summary: product.summary,
+    nodes: product.nodes.map(stripEvidence),
+    edges: product.edges.map(stripEvidence),
+    unknowns: product.unknowns.map((entry) => ({ kind: entry.kind, message: entry.message })),
+  };
+};
+
 const finalize = (acc, schemaVersion = 1) => {
   for (const workflow of [...acc.nodes.values()].filter((node) => node.kind === 'workflow')) {
     for (const command of workflow.commands ?? []) {
@@ -212,12 +224,15 @@ export async function buildCheckpointProductReality(root = process.cwd()) {
   return finalize(acc, raw.schemaVersion);
 }
 
-const records = (graph) => [
-  { type: 'meta', schemaVersion: graph.schemaVersion, topologyFingerprint: graph.topologyFingerprint, evidenceFingerprint: graph.evidenceFingerprint, summary: graph.summary },
-  ...graph.nodes.map((node) => ({ type: 'node', ...node })),
-  ...graph.edges.map((edge) => ({ type: 'edge', ...edge })),
-  ...graph.unknowns.map((entry) => ({ type: 'unknown', ...entry })),
-];
+const records = (graph) => {
+  const checkpoint = checkpointProjection(graph);
+  return [
+    { type: 'meta', schemaVersion: checkpoint.schemaVersion, topologyFingerprint: checkpoint.topologyFingerprint, summary: checkpoint.summary },
+    ...checkpoint.nodes.map((node) => ({ type: 'node', ...node })),
+    ...checkpoint.edges.map((edge) => ({ type: 'edge', ...edge })),
+    ...checkpoint.unknowns.map((entry) => ({ type: 'unknown', ...entry })),
+  ];
+};
 export const serializeCheckpointGraph = (graph) => `${records(graph).map((record) => JSON.stringify(record)).join('\n')}\n`;
 export const parseCheckpointGraph = (content) => {
   const values = content.split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
@@ -226,7 +241,7 @@ export const parseCheckpointGraph = (content) => {
   return {
     schemaVersion: meta.schemaVersion,
     topologyFingerprint: meta.topologyFingerprint,
-    evidenceFingerprint: meta.evidenceFingerprint,
+    evidenceFingerprint: null,
     summary: meta.summary,
     nodes: values.filter((value) => value.type === 'node').map(({ type: _type, ...value }) => value),
     edges: values.filter((value) => value.type === 'edge').map(({ type: _type, ...value }) => value),
@@ -260,9 +275,6 @@ const rendererCompatibleGraph = (graph) => ({
 
 export const renderCheckpointSurfaceMap = (graph) => {
   const product = productProjection(graph);
-  // The legacy human renderer counts API relationships under its historical
-  // `calls` label. Product Reality stores the more accurate `uses-feature`
-  // vocabulary; adapt only the render input so the machine graph stays honest.
   const base = renderProductSurfaceMap(rendererCompatibleGraph(product)).trimEnd();
   const marker = '\n## Feature owners\n';
   const index = base.indexOf(marker);
