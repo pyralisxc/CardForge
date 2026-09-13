@@ -219,7 +219,10 @@ describe('Product Reality graph', () => {
       ],
       unknowns: [],
     };
-    const output = queryProductReality(graph, { surface: 'studio' });
+    const output = (queryProductReality as unknown as (
+      value: typeof graph,
+      options: { surface: string },
+    ) => string)(graph, { surface: 'studio' });
     expect(output).toContain('surface:studio');
     expect(output).toContain('tool:generate');
     expect(output).toContain('feature:card-generator');
