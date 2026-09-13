@@ -29,11 +29,13 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: node scripts/run-ci-check.mjs --title "Dependency install" -- npm ci
+      - name: Report Product Reality delta
+        run: npm run product-reality:diff -- --base "$CARDFORGE_VERIFY_BASE" >> "$GITHUB_STEP_SUMMARY"
       - name: Run full repository gate
         run: node scripts/run-ci-check.mjs --title "Full repository gate" -- npm run verify:full
-      - name: Generate Product Reality bootstrap
+      - name: Refresh Product Reality artifact
         run: npm run product-reality:generate
-      - name: Retain generated Product Reality bootstrap
+      - name: Retain Product Reality artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: product-reality-bootstrap
