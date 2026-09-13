@@ -101,8 +101,9 @@ describe('Product Reality checkpoint projection', () => {
     const graph = await buildCheckpointProductReality(root);
     const parsed = parseCheckpointGraph(serializeCheckpointGraph(graph));
     expect(parsed.topologyFingerprint).toBe(graph.topologyFingerprint);
-    expect(queryCheckpointProductReality(graph, { node: 'action:desk.open-set', depth: 2 })).toContain('feature:project');
-    expect(queryCheckpointProductReality(graph, { match: 'open set', depth: 1 })).toContain('action:desk.open-set');
+    const query = queryCheckpointProductReality as unknown as (value: typeof graph, options: { node?: string; match?: string; depth?: number }) => string;
+    expect(query(graph, { node: 'action:desk.open-set', depth: 2 })).toContain('feature:project');
+    expect(query(graph, { match: 'open set', depth: 1 })).toContain('action:desk.open-set');
   });
 
   it('uses honest dependency vocabulary for API-to-feature import evidence', async () => {
