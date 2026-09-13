@@ -248,9 +248,22 @@ const renderCapabilitySection = (graph) => {
   return `\n## User-visible capabilities\n\n| Capability | Category | Native owner | Observed surfaces |\n| --- | --- | --- | --- |\n${rows.join('\n')}\n`;
 };
 
+const rendererCompatibleGraph = (graph) => ({
+  ...graph,
+  edges: [
+    ...graph.edges,
+    ...graph.edges
+      .filter((edge) => edge.relation === 'uses-feature' && edge.from.startsWith('api:'))
+      .map((edge) => ({ ...edge, relation: 'calls' })),
+  ],
+});
+
 export const renderCheckpointSurfaceMap = (graph) => {
   const product = productProjection(graph);
-  const base = renderProductSurfaceMap(product).trimEnd();
+  // The legacy human renderer counts API relationships under its historical
+  // `calls` label. Product Reality stores the more accurate `uses-feature`
+  // vocabulary; adapt only the render input so the machine graph stays honest.
+  const base = renderProductSurfaceMap(rendererCompatibleGraph(product)).trimEnd();
   const marker = '\n## Feature owners\n';
   const index = base.indexOf(marker);
   const capabilities = renderCapabilitySection(product);
