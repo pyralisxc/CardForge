@@ -286,6 +286,17 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     replaceSnapshot(next);
   }, [applySnapshot, replaceSnapshot]);
 
+  const returnToSet = useCallback(() => {
+    const current = currentRef.current;
+    const closed = closeCreatorContext(current.session);
+    if (closed.closed !== 'artifact-focus') return;
+    const next: CreatorHistorySnapshot = { ...current, session: closed.session };
+    pendingPopSnapshotRef.current = null;
+    bypassDirtyCloseRef.current = false;
+    applySnapshot(next);
+    replaceSnapshot(next);
+  }, [applySnapshot, replaceSnapshot]);
+
   const requestDeskReturn = useCallback(() => {
     const current = currentRef.current;
     if (!current.focusedWorkId && !current.inspectorWorkId && !current.session.toolStack.length) return;
@@ -339,6 +350,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     requestHistoryBack,
     requestDeskReturn,
     resetToDesk,
+    returnToSet,
     restoreFocusedContext,
     setActiveToolDirty,
     setDirtyCloseRequested,

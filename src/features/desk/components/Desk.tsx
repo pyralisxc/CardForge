@@ -230,7 +230,6 @@ export function Desk({
     removeGeneratedCards,
     reflectiveGroupings,
     refreshDeskSources,
-    requestHistoryBack,
     requestDeskReturn,
     renameDraft,
     renaming,
@@ -275,6 +274,7 @@ export function Desk({
     setTagFilter,
     undoLastBulkRevision,
     resetToDesk,
+    returnToSet,
     shouldSuppressActivation,
     showGrid,
     showTemplateTool,
@@ -420,7 +420,7 @@ export function Desk({
           selectedArtifactCount={selectedCards.length}
           openWorkCount={visibleWork.length}
           camera={deskCamera}
-          onBack={() => { setRenaming(false); requestHistoryBack(); }}
+          onBack={() => { setRenaming(false); returnToSet(); }}
           onReturnToDesk={() => { setRenaming(false); requestDeskReturn(); }}
           onCloseTool={closeActiveTool}
           onOpenSelectedSet={() => { if (primarySelectedSet) focusWork(primarySelectedSet); }}

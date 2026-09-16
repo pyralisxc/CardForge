@@ -45,6 +45,10 @@ test.describe('spatial touch workspace', () => {
     await workspace.getByRole('button', { name: 'Browse this Set', exact: true }).click();
     await page.getByRole('button', { name: 'Open Artifact to the left', exact: true }).click();
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-2');
+    // Browsing creates artifact history; this named action must still return
+    // directly to the Set rather than stopping at the previous card.
+    await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+    await expect(workspace).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
   });
 
