@@ -217,6 +217,17 @@ describe('Google Drive provider boundaries', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it('does not expose a machine-only Google token error as user-facing copy', () => {
+    expect(classifyGoogleProviderFailure(500, {
+      error: 'internal_failure',
+    }, 'token')).toMatchObject({
+      status: 503,
+      kind: 'unavailable',
+      providerMessage: undefined,
+      nextAction: expect.stringContaining('Retry without reconnecting'),
+    });
+  });
+
   it('does not persist a fake expired connection after a transient token failure', async () => {
     const from = vi.fn().mockReturnValue(selectConnectionQuery());
     mockedGetSupabaseServerClient.mockReturnValue({ from } as never);

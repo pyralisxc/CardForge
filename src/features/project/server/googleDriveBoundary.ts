@@ -28,14 +28,21 @@ const GOOGLE_CLIENT_CONFIGURATION_ERRORS = new Set([
   'unauthorized_client',
 ]);
 
+const readableGoogleProviderMessage = (value: string | undefined): string | undefined => {
+  const message = value?.trim();
+  if (!message || /^[a-z][a-z0-9_]*$/u.test(message)) return undefined;
+  return message;
+};
+
 export const classifyGoogleProviderFailure = (
   responseStatus: number,
   payload: GoogleProviderErrorPayload,
   context: 'api' | 'token' = 'api',
 ): GoogleProviderFailure => {
-  const providerMessage = typeof payload.error === 'object'
+  const rawProviderMessage = typeof payload.error === 'object'
     ? payload.error?.message
     : payload.error_description ?? (typeof payload.error === 'string' ? payload.error : undefined);
+  const providerMessage = readableGoogleProviderMessage(rawProviderMessage);
   const reasons = typeof payload.error === 'object'
     ? payload.error?.errors?.flatMap((error) => error.reason ? [error.reason] : []) ?? []
     : [];
