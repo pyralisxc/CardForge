@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
+  getDeskInitialRevealTarget,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
   normalizeDeskWorldGeometry,
@@ -72,6 +74,7 @@ export function useDeskSpatialLayout({
   const dragRef = useRef<DeskDragState | null>(null);
   const marqueeRef = useRef<DeskMarqueeState | null>(null);
   const suppressedActivationRef = useRef<string | null>(null);
+  const initialRevealRef = useRef(false);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
@@ -87,6 +90,7 @@ export function useDeskSpatialLayout({
   useEffect(() => {
     let cancelled = false;
     setPositionsWritable(false);
+    initialRevealRef.current = false;
     void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
       if (cancelled || result.kind === 'unavailable') return;
       setStoredPositions(normalizeDeskWorldGeometry(result.kind === 'available' ? result.value : null).positions);
@@ -99,6 +103,43 @@ export function useDeskSpatialLayout({
     id,
     storedPositions[id] ?? getDefaultDeskWorldPosition(index),
   ])), [itemIds, storedPositions]);
+
+  const itemKey = itemIds.join('\u0000');
+  useLayoutEffect(() => {
+    const grid = workGridRef.current;
+    if (
+      focused
+      || !positionsWritable
+      || initialRevealRef.current
+      || !grid
+      // Compact Desk starts at its readable overview and deliberately lets
+      // people explore the spatial field. This desktop correction only
+      // protects older complete-world layouts from the fixed status edge.
+      || grid.clientWidth <= 767
+      || camera.relativeZoom > 1.0001
+    ) return;
+    const frame = requestAnimationFrame(() => {
+      const bounds = grid.getBoundingClientRect();
+      const items = Array.from(workWorldRef.current?.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])') ?? []);
+      if (!items.length) return;
+      const target = getDeskInitialRevealTarget({
+        itemBounds: items.map((item) => {
+          const rect = item.getBoundingClientRect();
+          return {
+            left: rect.left - bounds.left + grid.scrollLeft,
+            top: rect.top - bounds.top + grid.scrollTop,
+            right: rect.right - bounds.left + grid.scrollLeft,
+            bottom: rect.bottom - bounds.top + grid.scrollTop,
+          };
+        }),
+        viewport: { width: grid.clientWidth, height: grid.clientHeight },
+        surface: { width: grid.scrollWidth, height: grid.scrollHeight },
+      });
+      if (target.left || target.top) grid.scrollTo(target);
+      initialRevealRef.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [camera.relativeZoom, focused, itemKey, positions, positionsWritable]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];

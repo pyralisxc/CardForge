@@ -6,6 +6,7 @@ import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
   getDeskCameraGeometry,
+  getDeskInitialRevealTarget,
   getDeskOverviewCameraGeometry,
   getDeskWorldProjection,
   getDeskMarqueeSelection,
@@ -211,6 +212,14 @@ describe('Desk model', () => {
     expect(getDeskOverviewCameraGeometry({ width: 1_920, height: 1_080 })).toMatchObject({
       relativeZoom: 1,
     });
+  });
+
+  it('reveals older complete-world Set positions without rewriting their layout', () => {
+    expect(getDeskInitialRevealTarget({
+      itemBounds: [{ left: 292, top: 452, right: 473, bottom: 624 }],
+      viewport: { width: 1_190, height: 563 },
+      surface: { width: 1_190, height: 630 },
+    })).toEqual({ left: 0, top: 61 });
   });
 
   it('gives unplaced Sets stable bounded-world anchors instead of device-sized slots', () => {
