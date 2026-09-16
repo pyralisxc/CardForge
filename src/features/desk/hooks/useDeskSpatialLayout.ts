@@ -118,7 +118,9 @@ export function useDeskSpatialLayout({
       || grid.clientWidth <= 767
       || camera.relativeZoom > 1.0001
     ) return;
-    const frame = requestAnimationFrame(() => {
+    let settleFrame: number | null = null;
+    let settleTimeout: ReturnType<typeof setTimeout> | null = null;
+    const revealSavedWork = (finalize: boolean) => {
       const bounds = grid.getBoundingClientRect();
       const items = Array.from(workWorldRef.current?.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])') ?? []);
       if (!items.length) return;
@@ -135,10 +137,29 @@ export function useDeskSpatialLayout({
         viewport: { width: grid.clientWidth, height: grid.clientHeight },
         surface: { width: grid.scrollWidth, height: grid.scrollHeight },
       });
-      if (target.left || target.top) grid.scrollTo(target);
-      initialRevealRef.current = true;
+      if (target.left || target.top) {
+        grid.scrollTo(target);
+        initialRevealRef.current = true;
+        return;
+      }
+      if (finalize) initialRevealRef.current = true;
+    };
+    const frame = requestAnimationFrame(() => {
+      // Intrinsic previews can expand after the initial React layout. Give the
+      // returning Desk one short settling window before accepting a no-op
+      // reveal, otherwise the first paint can mark the correction complete
+      // while a saved tile has just grown below the status edge.
+      revealSavedWork(false);
+      if (initialRevealRef.current) return;
+      settleTimeout = setTimeout(() => {
+        settleFrame = requestAnimationFrame(() => revealSavedWork(true));
+      }, 180);
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (settleFrame !== null) cancelAnimationFrame(settleFrame);
+      if (settleTimeout !== null) clearTimeout(settleTimeout);
+    };
   }, [camera.relativeZoom, focused, itemKey, positions, positionsWritable]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
