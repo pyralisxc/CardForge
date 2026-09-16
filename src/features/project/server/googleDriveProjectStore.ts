@@ -32,7 +32,11 @@ import {
   type ProjectDocumentV1,
 } from '../model/projectPackage';
 import { decryptProjectStorageToken, encryptProjectStorageToken } from './projectStorageTokenCrypto';
-import { readGoogleProviderFailure, requestGoogleAccessToken } from './googleDriveBoundary';
+import {
+  GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS,
+  readGoogleProviderFailure,
+  requestGoogleAccessToken,
+} from './googleDriveBoundary';
 
 const GOOGLE_AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -261,6 +265,7 @@ const exchangeAuthorizationCode = async (code: string): Promise<GoogleTokenRespo
       grant_type: 'authorization_code',
     }),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
   if (!response.ok || !payload.access_token) {

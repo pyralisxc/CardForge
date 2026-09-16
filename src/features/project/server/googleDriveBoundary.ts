@@ -28,6 +28,8 @@ const GOOGLE_CLIENT_CONFIGURATION_ERRORS = new Set([
   'unauthorized_client',
 ]);
 
+export const GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS = 15_000;
+
 const readableGoogleProviderMessage = (value: string | undefined): string | undefined => {
   const message = value?.trim();
   if (!message || /^[a-z][a-z0-9_]*$/u.test(message)) return undefined;
@@ -109,6 +111,7 @@ export const requestGoogleAccessToken = async ({
         grant_type: 'refresh_token',
       }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
     });
   } catch {
     return {
