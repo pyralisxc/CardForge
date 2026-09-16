@@ -1,6 +1,6 @@
 ---
 name: cardforge-codebase-context
-description: Use for broad CardForge code orientation, cross-file tracing, structural impact analysis, architecture discovery, callers/references, or implementation lookup when the private CardForge Codebase MCP is available. Treat it as derived acceleration only: verify freshness first, keep current source/GitHub authoritative, and fall back cleanly when the index is stale or unavailable.
+description: "Use for broad CardForge code orientation, cross-file tracing, structural impact analysis, architecture discovery, callers/references, or implementation lookup when the private CardForge Codebase MCP is available. Treat it as derived acceleration only: verify freshness first, keep current source/GitHub authoritative, and fall back cleanly when the index is stale or unavailable."
 ---
 
 # CardForge Codebase Context
