@@ -36,6 +36,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const recoveryOffered = useRef(false);
+  const recoveryTitle = useRef<HTMLHeadingElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
   const [pendingBackup, setPendingBackup] = useState<{ name: string; document: ProjectDocumentV1; scope: ReturnType<typeof getProjectPersistenceScope> } | null>(null);
@@ -221,9 +222,9 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
       {statusLabel}
     </button> : null}
     <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
-      <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); closeButton.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
+      <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); recoveryTitle.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
         <DialogHeader>
-          <DialogTitle>Browser workspace &amp; recovery</DialogTitle>
+          <DialogTitle ref={recoveryTitle} tabIndex={-1}>Browser workspace &amp; recovery</DialogTitle>
           <DialogDescription className="leading-6 text-[var(--cf-text-muted)]">
             This workspace is stored on this device. Restoring replaces all loaded Sets and layouts. The last saved copy is preserved as the next recovery snapshot; unsaved changes are not. Download an emergency backup first if you need those changes.
           </DialogDescription>
