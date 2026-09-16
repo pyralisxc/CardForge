@@ -1,0 +1,44 @@
+{
+  "type": "meta",
+  "schemaVersion": 2,
+  "format": "sharded-ndjson",
+  "analyzerVersion": "2.1.0-stable-entity",
+  "sourceFingerprint": "bc4c5ca7fda554bc1e92f8be105ab9b31f3ae2e7ee5018c8fbb00d88886b0464",
+  "topologyFingerprint": "8f106295144497f7c0badbf0c9b1f6d4e213a1549125b433356e16b285196d06",
+  "evidenceFingerprint": "49a34189e5ea5de2667bf6b40260e464e9de5c0ea2c09eb362774f6d09348a46",
+  "shards": [
+    "0.ndjson",
+    "1.ndjson",
+    "2.ndjson",
+    "3.ndjson",
+    "4.ndjson",
+    "5.ndjson",
+    "6.ndjson",
+    "7.ndjson",
+    "8.ndjson",
+    "9.ndjson",
+    "a.ndjson",
+    "b.ndjson",
+    "c.ndjson",
+    "d.ndjson",
+    "e.ndjson",
+    "f.ndjson"
+  ],
+  "summary": {
+    "nodes": 225,
+    "edges": 515,
+    "unresolved": 0,
+    "candidate": 0,
+    "kinds": {
+      "action": 30,
+      "api": 76,
+      "capability": 9,
+      "feature": 31,
+      "mcp": 30,
+      "provider": 9,
+      "route": 25,
+      "surface": 5,
+      "tool": 10
+    }
+  }
+}
