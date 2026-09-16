@@ -126,7 +126,7 @@ export function TemplateLibraryPanel({
             <div className="space-y-2 rounded-[6px] border border-[var(--cf-border-strong)] bg-[var(--cf-surface)] p-2">
               <p className="flex items-start gap-2 text-[11px] leading-4 text-[var(--cf-text-muted)]">
                 <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--cf-accent-strong)]" />
-                <span>{projectFileGateMessage || 'Creator Pass lets you download and open portable project copies.'}</span>
+                <span>{projectFileGateMessage || 'Portable project copies are temporarily unavailable. Refresh and try again.'}</span>
               </p>
               <Button
                 type="button"

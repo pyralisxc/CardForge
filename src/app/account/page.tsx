@@ -132,7 +132,7 @@ export default async function AccountPage({
       ? 'CardForge could not verify account access. Local work remains available and is not being relabeled as Free.'
       : entitlement.capabilities.canUseProjectFiles
         ? 'Portable project files and connected storage are available.'
-        : 'Local work is available; Creator Pass adds portable project files.',
+        : 'Portable project access is temporarily unavailable. Refresh and try again.',
     href: '/account?section=profile&utility=billing',
     action: 'Review',
   };

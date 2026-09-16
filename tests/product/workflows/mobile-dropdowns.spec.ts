@@ -25,6 +25,7 @@ test.describe('mobile Desk controls', () => {
     await expectTouchTarget(filters.locator('summary'));
     const toolbarBounds = await toolbar.boundingBox();
     expect(toolbarBounds?.height).toBeLessThanOrEqual(60);
+    await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).tap();
     await filters.locator('summary').tap();
     await expect(filters).toHaveAttribute('open', '');
     await expect(page.getByRole('button', { name: 'Choose Desk views' })).toBeVisible();
@@ -35,10 +36,17 @@ test.describe('mobile Desk controls', () => {
       const bounds = await panel.boundingBox();
       expect(bounds?.x).toBeGreaterThanOrEqual(0);
       expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(width);
-      for (const name of ['Choose Desk views', 'Name this Desk view']) {
-        await expect(panel.getByRole(name === 'Name this Desk view' ? 'textbox' : 'button', { name })).toBeInViewport({ ratio: 1 });
-      }
+      await expect(panel.getByRole('button', { name: 'Choose Desk views' })).toBeInViewport({ ratio: 1 });
+      const saveView = panel.getByRole('button', { name: 'Save view', exact: true });
+      await expect(saveView).toBeInViewport({ ratio: 1 });
+      await saveView.tap();
+      await expect(panel.getByRole('textbox', { name: 'Name this Desk view' })).toBeInViewport({ ratio: 1 });
+      await panel.getByRole('button', { name: 'Cancel', exact: true }).tap();
     }
+    const panel = filters.locator('[aria-label="Desk views and filters"]');
+    await panel.getByRole('button', { name: 'Organize Set', exact: true }).tap();
+    await expect(panel.getByLabel('Organize selected work')).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByRole('combobox', { name: 'Choose a supported or reusable Set type' })).toBeInViewport({ ratio: 1 });
     await test.info().attach('compact-desk-filters', { body: await page.screenshot(), contentType: 'image/png' });
   });
 

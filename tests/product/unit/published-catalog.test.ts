@@ -53,6 +53,30 @@ describe('published catalog discovery details', () => {
     await expect(getPublishedRegistryContentRows('elementPreset', 'contributor')).rejects.toThrow('temporarily unavailable');
     await expect(getCardForgeCatalogManifest()).rejects.toThrow('temporarily unavailable');
   });
+  it('does not leave the catalog loading when related registry reads stall', async () => {
+    vi.useFakeTimers();
+    const registryQuery = {
+      select: vi.fn(), eq: vi.fn(), in: vi.fn(), order: vi.fn(),
+      then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: [registryRow('free-icon', 'free')], error: null }).then(resolve),
+    };
+    registryQuery.select.mockReturnValue(registryQuery);
+    registryQuery.eq.mockReturnValue(registryQuery);
+    registryQuery.in.mockReturnValue(registryQuery);
+    registryQuery.order.mockReturnValue(registryQuery);
+    const stalledQuery = {
+      select: vi.fn(), in: vi.fn(),
+      then: () => new Promise(() => undefined),
+    };
+    stalledQuery.select.mockReturnValue(stalledQuery);
+    stalledQuery.in.mockReturnValue(stalledQuery);
+    database.from.mockImplementation((table: string) => table === 'cardforge_asset_registry' ? registryQuery : stalledQuery);
+
+    const catalog = getPublishedRegistryContentRows('elementPreset', 'free');
+    const expectedFailure = expect(catalog).rejects.toThrow('temporarily unavailable');
+    await vi.advanceTimersByTimeAsync(3_000);
+    await expectedFailure;
+    vi.useRealTimers();
+  });
   it.each([
     ['free', ['free-icon']],
     ['paid', ['free-icon', 'paid-icon']],

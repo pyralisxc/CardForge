@@ -4,14 +4,14 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `df3143bc744938d4008f`
+Topology fingerprint: `a6e9efac82b5a2b7a663`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
 ## Topology summary
 
-- 224 observed nodes
-- 509 observed relationships
+- 226 observed nodes
+- 510 observed relationships
 - 0 unresolved observations
 - 5 product surfaces, 30 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers
 
@@ -86,6 +86,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `Bounded spatial Desk with authored object movement` | interaction | `desk` | `Desk` |
 | `Desk selection and focus restoration` | navigation | `desk` | `Desk` |
 | `Fit and Custom spatial camera` | interaction | `desk` | `Desk` |
+| `Focused Artifact directional browsing through Set geometry` | navigation | `desk` | `Desk` |
 | `Multi-Artifact spatial selection movement` | interaction | `desk` | `Desk` |
 | `Readable large-Set Fit floor` | accessibility | `desk` | `Desk` |
 | `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
@@ -94,7 +95,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 
 | Feature | Actions | Depends on | Used by | APIs | MCP implementations | Providers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `account` | 2 | 4 | 10 | 16 | 0 | 1 |
+| `account` | 2 | 3 | 10 | 16 | 0 | 1 |
 | `analytics` | 0 | 1 | 11 | 1 | 0 | 2 |
 | `app-shell` | 0 | 6 | 4 | 0 | 0 | 0 |
 | `billing` | 0 | 0 | 4 | 8 | 0 | 2 |
@@ -107,7 +108,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `contributor-program` | 0 | 3 | 0 | 0 | 0 | 1 |
 | `creator-workbench` | 0 | 10 | 2 | 0 | 0 | 0 |
 | `desk` | 0 | 11 | 0 | 0 | 0 | 0 |
-| `experience-settings` | 0 | 0 | 3 | 2 | 0 | 0 |
+| `experience-settings` | 0 | 0 | 2 | 2 | 0 | 0 |
 | `legal` | 0 | 3 | 1 | 2 | 0 | 1 |
 | `library-picker` | 0 | 2 | 2 | 0 | 0 | 0 |
 | `marketing` | 0 | 3 | 1 | 2 | 0 | 0 |

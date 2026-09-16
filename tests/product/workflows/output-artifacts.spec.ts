@@ -3,6 +3,23 @@ import { expect, test, type Download } from '@playwright/test';
 import JSZip from 'jszip';
 import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
+test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
+  await seedGuestScaleWorkspace(page, 100, { cardLimit: 0 });
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
+  await expect(page.getByPlaceholder('Search cards in this Set')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Output', exact: true }).click();
+
+  const output = page.getByRole('region', { name: 'Output Set', exact: true });
+  await expect(output.getByRole('heading', { name: 'Prepare this Set for export', exact: true })).toBeVisible();
+  await expect(output.getByText('Add cards before exporting', { exact: true })).toBeVisible();
+  await expect(output.getByText(/Return to Desk, then create a design or generate cards/)).toBeVisible();
+  await expect(output.getByText('Primary use', { exact: true })).toHaveCount(0);
+  await expect(output.getByRole('button', { name: /^Download PNG set/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Return to Desk', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('empty-set-output.png') });
+});
+
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });

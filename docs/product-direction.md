@@ -24,7 +24,7 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Desk** | What am I working on? | The user's spatial home for authored work, active work, recent work, organization, and quick object actions. |
+| **Desk** | What am I working on? | The user's spatial home for authored work, active work, organization, and quick object actions. |
 | **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 | **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
@@ -106,7 +106,7 @@ Desk supports:
 
 Opening a work container unfolds its three-to-five representative Artifacts into the Set spread, with additional Artifacts emerging from that same origin. Focus and Edit continue moving the same Artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
 
-The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen. When contained Artifacts are selected, their scope actions remain visible independently of that Organize disclosure.
+The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. In focused Artifact view, fitted-card swipe and keyboard directions browse the nearest shown Artifact in that direction of the Set field, with a compact visible Browse control as the non-gesture path. Deliberately magnified card inspection retains its local pan behavior. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen. When contained Artifacts are selected, their scope actions remain visible independently of that Organize disclosure.
 
 Opening a work container changes focus rather than changing the mental model:
 
@@ -150,9 +150,11 @@ Desk and Studio use the same object/action grammar with distinct jobs:
 
 ## Desk: My Work
 
-Desk's primary content is user-owned Sets/Projects and resumable work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and active work. It is not an account metrics dashboard.
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
+
+Signing in carries browser-authored guest work into the next account workspace when that account has no saved browser workspace, preserving the work's Desk identity and placement. An existing account remains authoritative for its own work: any retained guest work stays recoverable and may be added as independent account copies, never replacing or silently merging into existing account work. Desk does not add a separate recent-work or resume layer for this transition.
 
 Desk restores each source independently. A transient same-account failure keeps already loaded items with an honest unavailable state; an account switch, revoked capability, or expired protected session clears that protected source. Folder-only remembered work remains visible as a reconnectable work location. Drive/AI listing follows provider cursors, and discovery never imports provider work merely because a person logged in.
 
@@ -168,7 +170,7 @@ Desk quick actions use the same scope contract as Studio:
 
 | Selection | Typical actions |
 | --- | --- |
-| No object | New Set/Project, import/open, search Library, resume recent work. |
+| No object | New Set/Project, import/open, search Library. |
 | One Set/Project | Open, Edit/Test, Generate, Export, Save/Move, Duplicate, Delete, contribution actions when eligible. |
 | Multiple work objects | Batch move/tag/archive/export where the domain supports it. |
 | One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
@@ -367,6 +369,8 @@ Durable creator locations include:
 - browser-authorized local folders;
 - Google Drive projects;
 - future providers chosen deliberately.
+
+Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge sync or collaboration promise: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions. A Set already linked to Drive coalesces ordinary edits into its one provider document after a short idle period and reports pending, saved, offline, and conflict states in the Desk context; this is a provider-backed save lifecycle, not a CardForge-managed multi-device sync promise.
 
 Temporary AI Studio documents remain CardForge-owned bounded collaboration storage with explicit capacity, inactivity retention, recoverable trash, and cleanup. They are not project backups.
 
@@ -590,7 +594,7 @@ CardForge already has much of the lower-level engine:
 - one semantic action runtime presented through Desk, focused work, and the command palette;
 - Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
 - one source-agnostic Library Picker contract used by resource-selecting tools;
-- visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
+- fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
 - a complete 52-card Published Set starter on the same immutable portable-package contract;
 - contextual Owner editing and Roadmap controls on their native public surfaces.
 

@@ -71,7 +71,7 @@ export const getAccountLibraryEnvironmentActions = (
     ? availability
     : canUseProjectFiles
       ? availability
-      : { kind: 'disabled', reason: 'Creator Pass is required to use portable Set files and connected project locations.' } as const;
+      : { kind: 'disabled', reason: 'Portable Set files and connected project locations are temporarily unavailable for this account.' } as const;
   const actions: ActionDescriptor[] = [];
 
   if (availableActions.includes('continue')) {

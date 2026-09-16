@@ -26,6 +26,8 @@ export interface FocusedArtifactLayoutEntry extends FocusedArtifactSeed {
   height: number;
 }
 
+export type ArtifactBrowseDirection = 'up' | 'down' | 'left' | 'right';
+
 export interface FocusedArtifactGroupLayout {
   label: string;
   y: number;
@@ -236,6 +238,52 @@ export const moveFocusedArtifactSelection = ({
         y: Math.max(0, snap(entry.position.y + delta.y)),
       }] as const]
     : []));
+};
+
+/**
+ * Focused Artifact browsing follows the displayed Desk geometry, not the
+ * collection's incidental array order. A direct neighbor wins over a farther
+ * diagonal one; a nearly perpendicular card is not treated as "right" merely
+ * because it is one pixel to the right.
+ */
+export const getDirectionalArtifactNeighbor = ({
+  entries,
+  artifactId,
+  direction,
+}: {
+  entries: readonly FocusedArtifactLayoutEntry[];
+  artifactId: string;
+  direction: ArtifactBrowseDirection;
+}): FocusedArtifactLayoutEntry | null => {
+  const current = entries.find((entry) => entry.identity.artifactId === artifactId);
+  if (!current) return null;
+  const currentCenter = {
+    x: current.position.x + current.width / 2,
+    y: current.position.y + current.height / 2,
+  };
+  const horizontal = direction === 'left' || direction === 'right';
+  const sign = direction === 'left' || direction === 'up' ? -1 : 1;
+  let nearest: { entry: FocusedArtifactLayoutEntry; forward: number; lateral: number } | null = null;
+
+  for (const entry of entries) {
+    if (entry.identity.artifactId === artifactId) continue;
+    const center = {
+      x: entry.position.x + entry.width / 2,
+      y: entry.position.y + entry.height / 2,
+    };
+    const forward = (horizontal ? center.x - currentCenter.x : center.y - currentCenter.y) * sign;
+    const lateral = Math.abs(horizontal ? center.y - currentCenter.y : center.x - currentCenter.x);
+    // Keep a cardinal browse action honest: if a candidate is principally
+    // above/below a right/left movement (or vice versa), leave that edge empty.
+    if (forward <= 0 || lateral > forward * 2) continue;
+    if (!nearest
+      || lateral * 2 + forward < nearest.lateral * 2 + nearest.forward
+      || (lateral * 2 + forward === nearest.lateral * 2 + nearest.forward && entry.index < nearest.entry.index)) {
+      nearest = { entry, forward, lateral };
+    }
+  }
+
+  return nearest?.entry ?? null;
 };
 
 export interface ArtifactSelectionScope {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
-import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder } from '@/features/desk/model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder, workDetailRecord } from '@/features/desk/model/desk';
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
   getDeskCameraGeometry,
+  getDeskInitialRevealTarget,
+  getDeskOverviewCameraGeometry,
   getDeskWorldProjection,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
@@ -66,6 +68,17 @@ describe('Desk model', () => {
     expect(getWorkActions(remote('pipeline:lineage', { pipelineLineageId: 'lineage', pipelineAssetType: 'assets' }), false, true)[0]).toMatchObject({
       label: 'Open published work', ownerFeature: 'pipeline',
     });
+  });
+
+  it('keeps a focused work item\'s real kind for shared action applicability', () => {
+    const draft: AccountLibraryItem = {
+      id: 'working-draft:brief', kind: 'working-draft', name: 'Private brief',
+      locations: [{ source: 'assistant-draft', status: 'temporary', label: 'Private working draft' }],
+      details: [], sizeBytes: null, revision: '2', updatedAt: null, expiresAt: null, webViewLink: null,
+      references: { workingDraftId: 'brief' },
+      organization: { workflow: 'assistant-document', type: null, tags: [], source: 'none', publicationState: 'temporary' },
+    };
+    expect(workDetailRecord(draft).kind).toBe('working-draft');
   });
 
   it('normalizes unsafe persisted Set geometry without discarding valid organization', () => {
@@ -198,6 +211,26 @@ describe('Desk model', () => {
       offsetX: 60,
       offsetY: 0,
     });
+  });
+
+  it('starts a compact returning Desk at a readable overview while Fit still shows the whole world', () => {
+    const compactOverview = getDeskOverviewCameraGeometry({ width: 390, height: 420 });
+    expect(compactOverview).toMatchObject({
+      fitZoom: 0.325,
+      relativeZoom: 1.35,
+    });
+    expect(compactOverview.zoom).toBeCloseTo(0.43875);
+    expect(getDeskOverviewCameraGeometry({ width: 1_920, height: 1_080 })).toMatchObject({
+      relativeZoom: 1,
+    });
+  });
+
+  it('reveals older complete-world Set positions without rewriting their layout', () => {
+    expect(getDeskInitialRevealTarget({
+      itemBounds: [{ left: 292, top: 452, right: 473, bottom: 624 }],
+      viewport: { width: 1_190, height: 563 },
+      surface: { width: 1_190, height: 630 },
+    })).toEqual({ left: 0, top: 61 });
   });
 
   it('gives unplaced Sets stable bounded-world anchors instead of device-sized slots', () => {

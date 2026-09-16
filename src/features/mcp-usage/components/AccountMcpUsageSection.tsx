@@ -26,6 +26,12 @@ export function AccountMcpUsageSection({
   const [usage, setUsage] = useState<McpAccountUsageSummary | null>(null);
   const [failed, setFailed] = useState(false);
   const [requestKey, setRequestKey] = useState(0);
+  const isEmptySummary = presentation === 'summary'
+    && usage !== null
+    && usage.monthlyActionUnits === 0
+    && usage.dailyActionUnits === 0
+    && usage.documentBytes === 0
+    && usage.documentCount === 0;
 
   useEffect(() => {
     let mounted = true;
@@ -60,7 +66,18 @@ export function AccountMcpUsageSection({
             Retry usage check
           </button>
         </div>
-      ) : !usage ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]" role="status">Loading current usage…</p> : (
+      ) : !usage ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]" role="status">Loading current usage…</p> : isEmptySummary ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2.5">
+          <p className="min-w-0 text-sm leading-5 text-[var(--cf-text-muted)]">
+            ChatGPT plugin included with {usage.allowance.displayName} · 0 / {usage.allowance.monthlyActionLimit} actions this month · 0 KB / {formatBytes(usage.allowance.onlineStorageLimitBytes)} workspace.
+          </p>
+          {onOpenDetails ? (
+            <button type="button" className="min-h-10 shrink-0 border border-[var(--cf-border-strong)] px-3 text-sm font-semibold text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]" onClick={onOpenDetails}>
+              Plan and usage details
+            </button>
+          ) : null}
+        </div>
+      ) : (
         <>
           <p className="mt-3 text-sm leading-6 text-[var(--cf-text-muted)]">CardForge’s ChatGPT plugin is included with your signed-in {usage.allowance.displayName} account. These are current planning targets, not enforced quotas or overage charges.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">

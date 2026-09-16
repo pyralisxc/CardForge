@@ -19,6 +19,7 @@ import { useBrowserWorkspaceSaveStatus } from '../hooks/useBrowserWorkspaceSaveS
 import { BrowserStoragePersistencePrompt } from './BrowserStoragePersistencePrompt';
 import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
+import type { BrowserStorageSaveStatus } from '../persistence/indexedDbStorage';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,6 +29,16 @@ export const requestBrowserWorkspaceRecovery = () => {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT));
 };
 
+export const needsBrowserRecoveryAttention = ({
+  workspaceReady,
+  saveStatus,
+  recovery,
+}: {
+  workspaceReady: boolean;
+  saveStatus: BrowserStorageSaveStatus;
+  recovery: BrowserWorkspaceRecoveryState | null;
+}): boolean => !workspaceReady || saveStatus === 'failed' || Boolean(recovery?.quarantinedAvailable);
+
 export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true }: { canUseProjectFiles: boolean; workspaceReady?: boolean }) {
   const { toast } = useToast();
   const saveStatus = useBrowserWorkspaceSaveStatus();
@@ -36,6 +47,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const recoveryOffered = useRef(false);
+  const recoveryTitle = useRef<HTMLHeadingElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
   const [pendingBackup, setPendingBackup] = useState<{ name: string; document: ProjectDocumentV1; scope: ReturnType<typeof getProjectPersistenceScope> } | null>(null);
@@ -59,10 +71,10 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   }, [openRecovery]);
 
   useEffect(() => {
-    const available = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
+    const available = Boolean(recovery?.quarantinedAvailable);
     if (available && !recoveryOffered.current) {
       trackCardForgeEvent('recovery_offered', {
-        recovery_source: recovery?.quarantinedAvailable ? 'quarantine' : 'previous',
+        recovery_source: 'quarantine',
       });
     }
     recoveryOffered.current = available;
@@ -100,7 +112,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
           title: 'Your work is saved in this browser',
           description: canUseProjectFiles
             ? 'Download a project backup periodically so you can reopen it on another device or recover after browser cleanup.'
-            : 'Portable project backups are available with Creator Pass.',
+            : 'Portable project backups are temporarily unavailable. Refresh and try again.',
           duration: 10_000,
         });
       }, 20_000);
@@ -207,8 +219,8 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   };
 
   const hasRecovery = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
-  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'failed' ? 'Latest change not saved' : 'Recovery available';
-  const showAttentionStatus = !workspaceReady || saveStatus === 'failed' || hasRecovery;
+  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'failed' ? 'Latest change not saved' : 'Unreadable copy preserved';
+  const showAttentionStatus = needsBrowserRecoveryAttention({ workspaceReady, saveStatus, recovery });
 
   return <>
     <BrowserStoragePersistencePrompt />
@@ -221,9 +233,9 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
       {statusLabel}
     </button> : null}
     <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
-      <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); closeButton.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
+      <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); recoveryTitle.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
         <DialogHeader>
-          <DialogTitle>Browser workspace &amp; recovery</DialogTitle>
+          <DialogTitle ref={recoveryTitle} tabIndex={-1}>Browser workspace &amp; recovery</DialogTitle>
           <DialogDescription className="leading-6 text-[var(--cf-text-muted)]">
             This workspace is stored on this device. Restoring replaces all loaded Sets and layouts. The last saved copy is preserved as the next recovery snapshot; unsaved changes are not. Download an emergency backup first if you need those changes.
           </DialogDescription>

@@ -29,6 +29,18 @@
   padding-block: 1rem;
 }
 
+.conflict {
+  display: grid;
+  gap: .3rem;
+  border: 1px solid color-mix(in srgb, var(--cf-warning) 52%, var(--cf-border));
+  background: color-mix(in srgb, var(--cf-warning) 7%, var(--cf-surface-raised));
+  color: var(--cf-text);
+  padding: .85rem 1rem;
+}
+
+.conflict strong { color: var(--cf-text-strong); }
+.conflict span { color: var(--cf-text-muted); font-size: .78rem; line-height: 1.45; }
+
 .defaultRow div,
 .locationPreference div,
 .locationCopy { display: grid; gap: 0.2rem; min-inline-size: 0; }

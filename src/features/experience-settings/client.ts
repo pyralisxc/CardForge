@@ -5,7 +5,6 @@ export {
   PRESENTATION_CONTRASTS,
   PRESENTATION_CORNERS,
   PRESENTATION_PALETTES,
-  PROJECT_FILE_ACCESS_POLICIES,
   hydrateExperienceSettings,
   normalizeExperienceSettingsInput,
   type AnalyticsConsentPresentation,
@@ -15,4 +14,3 @@ export {
   type PresentationCorners,
   type PresentationPalette,
 } from './model/experienceSettings';
-export type { ProjectFileAccessPolicy } from '@/domain/entitlements';

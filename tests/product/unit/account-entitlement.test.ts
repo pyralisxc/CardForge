@@ -221,15 +221,16 @@ describe('accountEntitlement', () => {
     });
 
     expect(entitlement.accessMode).toBe('free');
+    expect(entitlement.capabilities.canUseProjectFiles).toBe(true);
+    expect(entitlement.copy.projectFileGateMessage).toBeNull();
     expect(entitlement.capabilities).not.toHaveProperty('cloudSetLimit');
     expect(entitlement.copy.panelMessage).not.toContain('cloud');
   });
 
-  it('applies the owner project-file policy without changing finished export access', () => {
+  it('keeps portable project access free without changing finished export access', () => {
     const entitlement = resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: false,
-      projectFileAccess: 'free',
       env: {},
     });
 

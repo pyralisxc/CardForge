@@ -3,7 +3,6 @@ import type {
   ExportEntitlementCopy,
   PaidPlan,
   ProjectCapabilities,
-  ProjectFileAccessPolicy,
 } from '@/domain/entitlements';
 import type { OwnerAccess } from '@/domain/entitlements';
 import { getStripeCustomerIdFromMetadata } from '@/features/billing/client';
@@ -36,7 +35,6 @@ export interface ResolveAccountEntitlementInput extends Partial<ResolveAccountAc
   accountUserId?: string | null;
   env?: EntitlementEnvironment;
   ownerAccess?: OwnerAccess;
-  projectFileAccess?: ProjectFileAccessPolicy;
 }
 
 export interface AccountEntitlement {
@@ -190,7 +188,6 @@ export const resolveAccountEntitlement = ({
   env,
   now,
   ownerAccess = defaultOwnerAccess,
-  projectFileAccess = 'creator_pass',
 }: ResolveAccountEntitlementInput = {}): AccountEntitlement => {
   const configured = authConfigured ?? isClerkAuthConfigured(env);
   const baseAccessMode = resolveAccountAccessMode({
@@ -208,8 +205,8 @@ export const resolveAccountEntitlement = ({
     : 'free';
   const hasCreatorGrant = contributor || baseAccessMode === 'paid';
   const accessMode: AccessMode = contributor ? 'contributor' : hasCreatorGrant || commercialPlan !== 'free' ? 'paid' : 'free';
-  const capabilities = getProjectCapabilities(accessMode, projectFileAccess);
-  const copy = getExportEntitlementCopy(accessMode, projectFileAccess);
+  const capabilities = getProjectCapabilities(accessMode);
+  const copy = getExportEntitlementCopy(accessMode);
   const accessExpiresAt = configured && isSignedIn
     ? readActiveMetadataAccessExpiresAt(privateMetadata, now)
     : null;

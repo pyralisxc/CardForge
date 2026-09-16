@@ -32,7 +32,7 @@ export function useGeneratedOutputActions({
     addGeneratedCards(cards);
     if (cards.length > 0) {
       trackCardCreated('bulk', cards.length);
-      toast({ title: 'Cards added to your set', description: `${cards.length} cards are ready for review.` });
+      toast({ title: 'Cards added to your set', description: `${cards.length} card${cards.length === 1 ? '' : 's'} ${cards.length === 1 ? 'is' : 'are'} ready for review.` });
     }
   }, [addGeneratedCards, toast]);
 

@@ -67,12 +67,15 @@ export function CreatorWorkbench({
     isOwner: accountEntitlement.ownerAccess.isOwner,
     sessionKey: accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
   });
+  const isEntitlementPending = accountEntitlement.authConfigured
+    && accountEntitlement.isSignedIn
+    && accountEntitlement.entitlementStatus === 'loading';
   const canSubmitTemplateRevisions = hasContributionScope(contributorAccess.scopes, 'library.submit');
   const canPublishSharedLibrary = hasContributionScope(contributorAccess.scopes, 'library.publish');
   const projectCapabilities = accountEntitlement.capabilities;
-  const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
+  const showVisibleCardWatermark = !isEntitlementPending && shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
   const exportEntitlementCopy = accountEntitlement.copy;
-  const exportGateMessage = accountEntitlement.copy.gateMessage;
+  const exportGateMessage = isEntitlementPending ? null : accountEntitlement.copy.gateMessage;
   const projectFileGateMessage = accountEntitlement.copy.projectFileGateMessage;
   const exportEntitlementLabel = accountEntitlement.authConfigured ? exportEntitlementCopy.modeLabel : 'Local setup mode';
   const accessExpiresOn = formatAccessExpiration(accountEntitlement.accessExpiresAt);
@@ -411,7 +414,7 @@ export function CreatorWorkbench({
         canSubmitToPipeline={canSubmitTemplateRevisions}
         saveMoveOpen={saveMoveOpen}
         onSaveMoveOpenChange={setSaveMoveOpen}
-        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
+        outputPanelProps={{ canExportClean: projectCapabilities.canExportClean, isEntitlementPending, exportDpi, exportEntitlementLabel, exportEntitlementMessage, exportGateMessage, exportMode, generatedDisplayCards, isCheckoutStarting, isZipExporting, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, richTextHighlightColor, selectedPaperSize, zipExportKind, zipProgress, onExportAllAsZip: handleExportAllAsZip, onExportTabletopSimulatorSpritesheets: handleExportTabletopSimulatorSpritesheets, onSelectPaperSize: setSelectedPaperSizeAction, onSetExportDpi: setExportDpiAction, onSetExportMode: setExportModeAction, onSetPdfOptions: setPdfOptionsAction, onStartCheckout: handleStartCheckout }}
         saveMoveDialogProps={{ isSignedIn: accountEntitlement.isSignedIn, canUseProjectFiles: projectCapabilities.canUseProjectFiles, setId: activeCardSet.id, setName: activeCardSet.name }}
       /> : null}
       </>}

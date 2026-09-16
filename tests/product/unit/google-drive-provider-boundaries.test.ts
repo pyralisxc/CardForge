@@ -12,7 +12,7 @@ import {
   updateGoogleDriveProjectFromServer,
 } from '@/features/project/server/googleDriveProjectStore';
 import { getGoogleDrivePickerConfiguration } from '@/features/project/server/googleDriveFolderPickerStore';
-import { classifyGoogleProviderFailure } from '@/features/project/server/googleDriveBoundary';
+import { classifyGoogleProviderFailure, requestGoogleAccessToken } from '@/features/project/server/googleDriveBoundary';
 import { parsePersonalLibraryGoogleError } from '@/features/personal-library/server/personalLibraryStore';
 import { encryptProjectStorageToken } from '@/features/project/server/projectStorageTokenCrypto';
 import { describeAgentBoundaryFailure } from '@/shared/boundaryFailure';
@@ -217,6 +217,17 @@ describe('Google Drive provider boundaries', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it('does not expose a machine-only Google token error as user-facing copy', () => {
+    expect(classifyGoogleProviderFailure(500, {
+      error: 'internal_failure',
+    }, 'token')).toMatchObject({
+      status: 503,
+      kind: 'unavailable',
+      providerMessage: undefined,
+      nextAction: expect.stringContaining('Retry without reconnecting'),
+    });
+  });
+
   it('does not persist a fake expired connection after a transient token failure', async () => {
     const from = vi.fn().mockReturnValue(selectConnectionQuery());
     mockedGetSupabaseServerClient.mockReturnValue({ from } as never);
@@ -273,6 +284,24 @@ describe('Google Drive provider boundaries', () => {
       nextAction: expect.stringContaining('saved connection remains unchanged'),
     });
     expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds the shared Google token request used by Drive and Library actions', async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json({ access_token: 'private-access' }));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(requestGoogleAccessToken({
+      endpoint: 'https://oauth2.googleapis.com/token',
+      refreshToken: 'refresh-token-example',
+      clientId: 'google-client',
+      clientSecret: 'google-secret',
+    })).resolves.toMatchObject({ ok: true, accessToken: 'private-access' });
+
+    expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('persists reconnect-required state only when Google returns invalid_grant', async () => {

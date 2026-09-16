@@ -47,7 +47,9 @@ export interface PublishedRegistryAssetRow extends RegistryContentAssetRow {
 }
 
 const REGISTRY_CONTENT_FETCH_TIMEOUT_MS = 1200;
-const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 1200;
+// The starter chooser is a primary creation path. A short provider cold-start
+// must not turn a present catalog into a false "unavailable" state.
+const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 3_000;
 const REGISTRY_CONTENT_TIMEOUT_ERROR: PostgrestError = {
   code: 'REGISTRY_CONTENT_TIMEOUT',
   details: 'Timed out while loading published registry content rows.',
@@ -116,14 +118,37 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
     row.contributor_submission_id ? [row.contributor_submission_id] : []
   )))];
   const registryAssetIds = [...new Set(rows.map((row) => row.asset_id).filter(Boolean))];
-  const [submissionResult, lineageResult] = await Promise.all([
-    submissionIds.length
-      ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags').in('id', submissionIds)
-      : Promise.resolve({ data: [], error: null }),
-    registryAssetIds.length
-      ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
+  const [submissionResult, lineageResult] = await resolveWithTimeout(
+    Promise.all([
+      submissionIds.length
+        ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags').in('id', submissionIds)
+        : Promise.resolve({ data: [], error: null }),
+      registryAssetIds.length
+        ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]),
+    {
+      fallback: [
+        {
+          data: null,
+          error: REGISTRY_CONTENT_TIMEOUT_ERROR,
+          count: null,
+          status: 408,
+          statusText: 'Request Timeout',
+          success: false,
+        },
+        {
+          data: null,
+          error: REGISTRY_CONTENT_TIMEOUT_ERROR,
+          count: null,
+          status: 408,
+          statusText: 'Request Timeout',
+          success: false,
+        },
+      ],
+      timeoutMs: REGISTRY_CONTENT_ROWS_TIMEOUT_MS,
+    },
+  );
   if (submissionResult.error || lineageResult.error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
   const payloadsById = new Map((submissionResult.data ?? []).flatMap((entry) => {
     const row = entry as { id?: unknown; lineage_id?: unknown; source_payload?: unknown; description?: unknown; specialty_tags?: unknown; use_case_tags?: unknown };

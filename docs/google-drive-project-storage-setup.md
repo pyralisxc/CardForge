@@ -180,9 +180,9 @@ After deployment:
 6. Confirm the selected folder replaces the destination only, existing files are not moved, and Desk/Library refresh immediately without a page reload.
 7. Confirm Drive-backed Set previews/artwork appear after the destination refresh. Native Drive thumbnails are authoritative. Older `.cardforge` packages without one may receive a bounded, revision-keyed, memory-only compatibility preview generated in the background without importing the Set into editable browser work; Data Saver and hidden pages skip that optional compatibility read.
 8. Use **Create project folder** and confirm CardForge can also create a new My Drive destination when that is what the creator wants.
-9. Save a current CardForge project as a new `.cardforge` file and confirm it appears in the selected Drive folder.
+9. Create a browser-workspace backup and confirm the new `.cardforge` file appears in the selected Drive folder without changing the focused Set's own destination.
 10. Open that Drive project into Studio and verify the exact CardForge project revision is preserved.
-11. Modify and save the attached project; verify Drive provider revision advances.
+11. Modify the attached project, wait for **Drive save pending** to become **Saved to Drive** in the Desk context, and verify the Drive provider revision advances.
 12. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
 13. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
 14. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
