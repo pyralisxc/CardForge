@@ -63,6 +63,11 @@ next-env.d.ts
 /storage/export-jobs/
 /.worktrees/
 
+# local agent/review scratch
+/.codex/
+/.codex-remote-attachments/
+*.local-backup
+
 # firebase
 firebase-debug.log
 firestore-debug.log
