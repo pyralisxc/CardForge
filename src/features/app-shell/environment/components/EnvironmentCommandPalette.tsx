@@ -32,7 +32,7 @@ export function EnvironmentCommandPalette({
     <DialogContent className={styles.commandDialog}>
       <DialogHeader>
         <DialogTitle>Actions for this context</DialogTitle>
-        <DialogDescription>Find actions for your current selection or workspace.</DialogDescription>
+        <DialogDescription>Find the actions available in this workspace.</DialogDescription>
       </DialogHeader>
       <label className={styles.commandSearch}>
         <Search size={16} aria-hidden="true" />
