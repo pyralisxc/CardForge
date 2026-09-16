@@ -41,10 +41,12 @@ export function OwnerSiteConfigurationPanel({
   const { toast } = useToast();
   const [draft, setDraft] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   useEffect(() => setDraft(settings), [settings]);
 
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PUT',
@@ -63,7 +65,9 @@ export function OwnerSiteConfigurationPanel({
         variant: body.activityRecorded ? 'default' : 'destructive',
       });
     } catch (error) {
-      toast({ title: 'Public site settings not saved', description: error instanceof Error ? error.message : 'Unable to save public site settings.', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : 'Unable to save public site settings.';
+      setSaveError(message);
+      toast({ title: 'Public site settings not saved', description: message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -155,7 +159,10 @@ export function OwnerSiteConfigurationPanel({
         <OwnerHomepageShowcasePanel examples={showcaseExamples} onChange={updateShowcaseExamples} />
       </div>
 
-      <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
+      <div className="space-y-2">
+        {saveError ? <p role="alert" className="max-w-2xl border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive">Public site settings were not saved. {saveError}</p> : null}
+        <Button type="button" className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={saving || JSON.stringify(draft) === JSON.stringify(settings)} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving site controls...' : 'Save site controls'}</Button>
+      </div>
     </section>
   );
 }
