@@ -1,5 +1,6 @@
 import { createCreatorDeskSnapshot } from './creatorHistory';
 import {
+  getDirectionalArtifactNeighbor,
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
@@ -48,6 +49,15 @@ export const DESK_PRODUCT_REALITY = [
     ownerFeature: 'desk',
     surfaces: ['desk'],
     implementation: getFocusedArtifactFitZoom,
+  },
+  {
+    productRealityKind: 'capability',
+    id: 'desk.focused-artifact-spatial-browse',
+    label: 'Focused Artifact directional browsing through Set geometry',
+    category: 'navigation',
+    ownerFeature: 'desk',
+    surfaces: ['desk'],
+    implementation: getDirectionalArtifactNeighbor,
   },
   {
     productRealityKind: 'capability',

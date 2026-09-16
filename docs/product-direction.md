@@ -106,7 +106,7 @@ Desk supports:
 
 Opening a work container unfolds its three-to-five representative Artifacts into the Set spread, with additional Artifacts emerging from that same origin. Focus and Edit continue moving the same Artifact while the surrounding tools change. Returning reverses the movement and restores the original arrangement. This requires visible geometry and uninterrupted object identity, not merely retained data or a mounted background container.
 
-The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen. When contained Artifacts are selected, their scope actions remain visible independently of that Organize disclosure.
+The Desk and open Set use the available desktop/mobile viewport. Touch users swipe to pan, pinch to zoom, and hold before dragging a card or drawing a selection on empty space. Mouse users drag immediately; keyboard movement remains available. Moving a card in Grid or Stacks preserves the displayed spread and switches to Freeform. Zoom must not rearrange cards, scrolling must track the objects directly, and cancelled gestures must not save partial movement. In focused Artifact view, fitted-card swipe and keyboard directions browse the nearest shown Artifact in that direction of the Set field, with a compact visible Browse control as the non-gesture path. Deliberately magnified card inspection retains its local pan behavior. Organization tools remain available behind an explicit disclosure so the objects keep most of the screen. When contained Artifacts are selected, their scope actions remain visible independently of that Organize disclosure.
 
 Opening a work container changes focus rather than changing the mental model:
 
@@ -370,7 +370,7 @@ Durable creator locations include:
 - Google Drive projects;
 - future providers chosen deliberately.
 
-Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge sync or collaboration promise: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions.
+Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge sync or collaboration promise: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions. A Set already linked to Drive coalesces ordinary edits into its one provider document after a short idle period and reports pending, saved, offline, and conflict states in the Desk context; this is a provider-backed save lifecycle, not a CardForge-managed multi-device sync promise.
 
 Temporary AI Studio documents remain CardForge-owned bounded collaboration storage with explicit capacity, inactivity retention, recoverable trash, and cleanup. They are not project backups.
 
@@ -594,7 +594,7 @@ CardForge already has much of the lower-level engine:
 - one semantic action runtime presented through Desk, focused work, and the command palette;
 - Personal/Published/Pipeline Library scopes, exact revision editing, contributor withdrawal/retirement, and Content Health;
 - one source-agnostic Library Picker contract used by resource-selecting tools;
-- visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
+- fault-visible browser recovery, revision-safe Google Drive boundaries, exact checkout return, and independent commercial/authority entitlement axes;
 - a complete 52-card Published Set starter on the same immutable portable-package contract;
 - contextual Owner editing and Roadmap controls on their native public surfaces.
 

@@ -1,22 +1,24 @@
 .library { position: relative; display: grid; min-width: 0; min-height: 100%; grid-template-rows: auto auto minmax(0, 1fr); color: var(--cf-text); }
-.libraryHeader { display: flex; min-width: 0; align-items: end; justify-content: space-between; gap: 1rem; padding: .1rem .2rem .7rem; }
+.libraryHeader { display: flex; min-width: 0; align-items: end; justify-content: space-between; gap: 1rem; padding: .1rem .2rem .45rem; }
 .libraryHeader p, .libraryHeader h1, .libraryHeader span, .collectionHeading h2, .collectionHeading p, .objectCopy p { margin: 0; }
 .libraryHeader p { color: var(--cf-accent-strong); font-size: .64rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.libraryHeader h1 { margin-top: .1rem; color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: clamp(1.35rem, 2vw, 1.85rem); font-weight: 600; }
-.libraryHeader span { display: block; margin-top: .12rem; color: var(--cf-text-muted); font-size: .72rem; }
+.libraryHeader h1 { margin-top: .1rem; color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: clamp(1.25rem, 1.8vw, 1.65rem); font-weight: 600; }
+.libraryHeader span { display: block; margin-top: .05rem; color: var(--cf-text-muted); font-size: .72rem; }
 .locationsButton, .contributeButton, .scopeTabs button, .densityControls button, .reactionActions button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--cf-border-subtle); background: transparent; color: var(--cf-text-muted); font: inherit; cursor: pointer; }
 .locationsButton, .contributeButton { flex: 0 0 auto; gap: .45rem; padding: .45rem .75rem; font-size: .75rem; }
 .locationsButton:hover, .contributeButton:hover, .scopeTabs button:hover, .scopeTabs button[aria-current="page"], .densityControls button:hover, .densityControls button[aria-pressed="true"], .reactionActions button:hover, .reactionActions button[data-active="true"] { border-color: var(--cf-border-strong); background: var(--cf-surface-raised); color: var(--cf-accent-text); }
 .scopeTabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); border-block: 1px solid var(--cf-border-subtle); }
-.scopeTabs button { min-width: 0; flex-direction: column; align-items: flex-start; border-width: 0 1px 0 0; padding: .55rem .8rem; text-align: left; }
+.scopeTabs button { min-width: 0; min-height: 2.5rem; flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; border-width: 0 1px 0 0; padding: .4rem .8rem; text-align: left; }
 .scopeTabs button:last-child { border-right: 0; }
 .scopeTabs button[aria-current="page"] { box-shadow: inset 0 -2px var(--cf-accent-strong); }
 .scopeTabs span { color: var(--cf-text-strong); font-size: .8rem; font-weight: 700; }
-.scopeTabs small { margin-top: .08rem; overflow: hidden; color: var(--cf-text-subtle); font-size: .61rem; text-overflow: ellipsis; white-space: nowrap; }
-.collection { min-width: 0; min-height: 0; margin-top: .65rem; border-block: 1px solid var(--cf-border-subtle); background: var(--cf-surface-inset); overflow: auto; }
-.collectionHeading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: .7rem .85rem .55rem; }
+.scopeTabs small { margin: 0; overflow: hidden; color: var(--cf-text-subtle); font-size: .61rem; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.collection { min-width: 0; min-height: 0; margin-top: .4rem; border-block: 1px solid var(--cf-border-subtle); background: var(--cf-surface-inset); overflow: auto; }
+.collectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .45rem .7rem; }
+.collectionHeading > div { display: flex; min-width: 0; align-items: baseline; gap: .55rem; }
 .collectionHeading h2 { color: var(--cf-text-strong); font-family: var(--cf-font-display); font-size: 1rem; font-weight: 600; }
 .collectionHeading p, .collectionHeading > span { color: var(--cf-text-subtle); font-size: .66rem; }
+.collectionHeading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toolbar { position: sticky; z-index: 10; top: 0; display: grid; grid-template-columns: minmax(11rem, 1fr) 8.5rem 8.5rem 7rem auto; gap: .35rem; padding: .45rem .7rem; border-block: 1px solid var(--cf-border-subtle); background: color-mix(in srgb, var(--cf-canvas) 96%, transparent); }
 .searchField { position: relative; min-width: 0; }
 .searchField > svg { position: absolute; z-index: 1; top: 50%; left: .65rem; width: .9rem; transform: translateY(-50%); color: var(--cf-text-subtle); pointer-events: none; }
@@ -103,6 +105,8 @@
   .scopeTabs button { align-items: center; padding-inline: .35rem; }
   .scopeTabs small { display: none; }
   .collection { margin-top: .45rem; overflow: visible; }
+  .collectionHeading > div { display: grid; gap: .1rem; }
+  .collectionHeading p { overflow: visible; white-space: normal; }
   .collectionHeading p { max-width: 16rem; }
   .toolbar { position: static; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; padding: .4rem; }
   .searchField { grid-column: 1 / -1; }

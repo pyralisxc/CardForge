@@ -275,6 +275,9 @@ export function AnalyticsProvider({
       : presentation === 'banner'
         ? 'fixed inset-x-0 bottom-0 z-[100]'
         : 'fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl';
+  const settingsButtonClassName = pathname === '/account'
+    ? 'fixed bottom-14 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)] max-md:bottom-[calc(5.25rem+env(safe-area-inset-bottom))]'
+    : 'fixed bottom-3 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]';
 
   return (
     <>
@@ -313,7 +316,7 @@ export function AnalyticsProvider({
           </aside>
         </div>
       ) : (
-        <button type="button" onClick={() => setShowSettings(true)} className="fixed bottom-3 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]">Analytics settings</button>
+        <button type="button" onClick={() => setShowSettings(true)} className={settingsButtonClassName}>Analytics settings</button>
       )}
     </>
   );

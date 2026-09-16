@@ -138,7 +138,7 @@ export const getCardTitle = (card: DisplayCard, index: number): string => String
 
 export const workDetailRecord = (item: AccountLibraryItem): EnvironmentDetailRecord => ({
   id: item.id,
-  kind: 'set',
+  kind: item.kind,
   eyebrow: 'Work',
   title: item.name,
   summary: joinDeskMetadata(item.details) || 'Ready to continue.',

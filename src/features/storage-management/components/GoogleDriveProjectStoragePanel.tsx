@@ -275,7 +275,7 @@ export function GoogleDriveProjectStoragePanel({
                 <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
                 {selectedFolderName ? <p className="mt-1 truncate text-sm font-semibold text-[var(--cf-accent-text)]" title={selectedFolderName}>Project folder: “{selectedFolderName}”</p> : null}
                 <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-                  {connection.statusNote || (connection.status === 'active' ? 'CardForge can reach the selected Drive project folder while your devices are offline.' : 'This connection needs attention.')}
+                  {connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens. A writable linked Set saves after you pause editing.' : 'This connection needs attention.')}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -294,14 +294,16 @@ export function GoogleDriveProjectStoragePanel({
                 <Button
                   type="button"
                   size="sm"
+                  variant="outline"
                   disabled={Boolean(busyAction) || !canUseProjectFiles}
+                  title="Creates a separate backup of every local Set in this browser. Use Save & move for a focused Set."
                   onClick={() => void run('save-new', async () => {
                     const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
-                    toast({ title: 'Project saved to Google Drive', description: `“${saved.name}” is now attached to this browser workspace.` });
+                    toast({ title: 'Workspace backup saved to Google Drive', description: `“${saved.name}” is a new independent Drive copy.` });
                   })}
                 >
                   {busyAction === 'save-new' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveUpload className="mr-2 h-4 w-4" />}
-                  Save workspace backup as new
+                  Create workspace backup
                 </Button>
                 {binding ? (
                   <div className="space-y-2">

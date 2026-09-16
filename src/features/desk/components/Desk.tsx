@@ -41,6 +41,7 @@ import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 import {
   workSource,
   getCardTitle,
+  workDetailRecord,
   type DeskAccountStatus,
 } from '../model/desk';
 import { DeskContextRail } from './DeskContextRail';
@@ -375,6 +376,7 @@ export function Desk({
   const searchValue = focusedItem ? cardQuery : query;
   const setSearchValue = focusedItem ? setCardQuery : setQuery;
   const searchPlaceholder = focusedItem ? 'Search cards in this Set' : 'Search Desk work';
+  const hasSearchableWork = !focusedItem || focusedCards.length > 0;
   const storageNeedsAttention = projection.failures.length > 0
     || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
   const saveStatusLabel = browserSaveStatus === 'saving'
@@ -395,13 +397,14 @@ export function Desk({
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
+        actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<PublicAuthControls />}
-        search={<label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
+        search={hasSearchableWork ? <label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
           <span className="sr-only">{searchPlaceholder}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
           <Input ref={searchRef} value={searchValue} onChange={(event) => setSearchValue(event.target.value)} className="h-10 w-full pl-9" placeholder={searchPlaceholder} />
-        </label>}
+        </label> : undefined}
         showPrimaryAction={!focusedItem}
         contextBand={<DeskContextRail
           depth={contextDepth}

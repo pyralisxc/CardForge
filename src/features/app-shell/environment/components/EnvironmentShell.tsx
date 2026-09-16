@@ -18,6 +18,7 @@ interface EnvironmentShellProps {
   brand: { src: string; alt: string };
   viewer: EnvironmentViewer;
   detail: EnvironmentDetailRecord | null;
+  actionContext?: Pick<EnvironmentDetailRecord, 'kind' | 'actionSources'> | null;
   detailVisual?: ReactNode;
   detailContent?: ReactNode;
   actions: readonly ActionDescriptor[];
@@ -39,13 +40,20 @@ interface EnvironmentShellProps {
   onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
   const mobileNavigationPersistent = focusDepth !== 'tool';
   const containedMobileNavigation = viewportPolicy === 'desk' && mobileNavigationPersistent;
+  const activeDefinition = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  const applicableContext = detail ?? actionContext;
+  const visibleActions = actions.filter((action) => isActionApplicable(action, {
+    objectKind: applicableContext?.kind ?? null,
+    sources: applicableContext?.actionSources ?? [],
+    viewer,
+  }));
 
   useEffect(() => {
     if (primaryScroll !== 'contained') return;
@@ -63,19 +71,14 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
-        setCommandOpen(true);
+        if (visibleActions.length) setCommandOpen(true);
+        else onCommand();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-  const activeDefinition = zones.find((zone) => zone.id === activeZone) ?? zones[0];
+  }, [onCommand, visibleActions.length]);
   if (!activeDefinition) return null;
-  const visibleActions = actions.filter((action) => isActionApplicable(action, {
-    objectKind: detail?.kind ?? null,
-    sources: detail?.actionSources ?? [],
-    viewer,
-  }));
   const primaryAction = showPrimaryAction
     ? visibleActions.find((action) => action.hierarchy === 'primary' && action.availability.kind !== 'hidden') ?? null
     : null;

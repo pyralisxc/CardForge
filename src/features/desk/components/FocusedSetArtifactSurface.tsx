@@ -17,9 +17,11 @@ import { ArtifactSlot, getTemplateAccent, useArtifactFaces, useSpatialGestures, 
 
 import {
   buildFocusedArtifactLayout,
+  getDirectionalArtifactNeighbor,
   getFocusedArtifactFitZoom,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
+  type ArtifactBrowseDirection,
   type FocusedArtifactLayoutEntry,
 } from '../model/focusedArtifactLayout';
 import { getCardTitle } from '../model/desk';
@@ -253,14 +255,14 @@ export function FocusedSetArtifactSurface({
       : [...session.selection, artifactId]);
   };
 
-  const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' = 'spatial') => {
+  const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
       ? session
       : selectCreatorArtifacts(session, [artifactId]);
-    if (source === 'navigator') {
-      navigatorReturnArtifactIdRef.current = artifactId;
+    if (source === 'navigator') navigatorReturnArtifactIdRef.current = artifactId;
+    if (source === 'navigator' || source === 'browse') {
       pendingSpatialFocusIdRef.current = artifactId;
     }
     const viewport = viewportRef.current;
@@ -274,6 +276,18 @@ export function FocusedSetArtifactSurface({
     onFocusArtifact(focusCreatorArtifact(sessionAtCurrentCamera, artifactId));
     setNavigatorFocusId(artifactId);
   };
+
+  const browseFocusedArtifact = (direction: ArtifactBrowseDirection) => {
+    if (!artifactFocusId) return;
+    const neighbor = getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction });
+    if (neighbor) focusArtifact(neighbor.identity.artifactId, 'browse');
+  };
+  const focusedArtifactDirections = useMemo(() => ({
+    up: Boolean(artifactFocusId && getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction: 'up' })),
+    down: Boolean(artifactFocusId && getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction: 'down' })),
+    left: Boolean(artifactFocusId && getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction: 'left' })),
+    right: Boolean(artifactFocusId && getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction: 'right' })),
+  }), [artifactFocusId, layout.entries]);
 
   const commitSpatialMove = (after: Record<string, ArtifactPosition>, artifactIds: readonly string[]) => {
     const before = Object.fromEntries(artifactIds.flatMap((artifactId) => {
@@ -599,6 +613,8 @@ export function FocusedSetArtifactSurface({
         setName={setName}
         title={focusedEntry.title}
         subtitle={focusedEntry.subtitle}
+        availableDirections={focusedArtifactDirections}
+        onBrowse={browseFocusedArtifact}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
       /> : null}
 

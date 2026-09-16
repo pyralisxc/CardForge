@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeCardSet, type StoredDisplayCard } from '@/domain/cards';
-import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder } from '@/features/desk/model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskWorkKeyboardIntent, getWorkActions, joinDeskMetadata, matchesDeskTagFilters, matchesDeskViews, matchesSourceFilter, normalizeDeskOrder, preserveDeskOrder, workDetailRecord } from '@/features/desk/model/desk';
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
@@ -68,6 +68,17 @@ describe('Desk model', () => {
     expect(getWorkActions(remote('pipeline:lineage', { pipelineLineageId: 'lineage', pipelineAssetType: 'assets' }), false, true)[0]).toMatchObject({
       label: 'Open published work', ownerFeature: 'pipeline',
     });
+  });
+
+  it('keeps a focused work item\'s real kind for shared action applicability', () => {
+    const draft: AccountLibraryItem = {
+      id: 'working-draft:brief', kind: 'working-draft', name: 'Private brief',
+      locations: [{ source: 'assistant-draft', status: 'temporary', label: 'Private working draft' }],
+      details: [], sizeBytes: null, revision: '2', updatedAt: null, expiresAt: null, webViewLink: null,
+      references: { workingDraftId: 'brief' },
+      organization: { workflow: 'assistant-document', type: null, tags: [], source: 'none', publicationState: 'temporary' },
+    };
+    expect(workDetailRecord(draft).kind).toBe('working-draft');
   });
 
   it('normalizes unsafe persisted Set geometry without discarding valid organization', () => {

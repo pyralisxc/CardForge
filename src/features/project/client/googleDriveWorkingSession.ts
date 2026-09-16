@@ -189,7 +189,7 @@ export function useGoogleDriveWorkingSession({
     clearTimer();
     setState((current) => current.phase === 'saving'
       ? current
-      : { phase: 'dirty', message: 'Changes waiting for Drive', receipt: current.receipt });
+      : { phase: 'dirty', message: 'Drive save pending', receipt: current.receipt });
     timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
   }, [clearTimer, enabled, setId]);
 
@@ -236,7 +236,7 @@ export function useGoogleDriveWorkingSession({
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
         setState(dirty
-          ? { phase: 'dirty', message: 'Changes waiting for Drive', receipt: check.binding }
+          ? { phase: 'dirty', message: 'Drive save pending', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
         if (dirty) scheduleSave();
       }

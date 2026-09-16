@@ -19,6 +19,7 @@ import { useBrowserWorkspaceSaveStatus } from '../hooks/useBrowserWorkspaceSaveS
 import { BrowserStoragePersistencePrompt } from './BrowserStoragePersistencePrompt';
 import { trackCardForgeEvent } from '@/features/analytics/client/tracking';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
+import type { BrowserStorageSaveStatus } from '../persistence/indexedDbStorage';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -27,6 +28,16 @@ const BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT = 'cardforge:browser-workspace-recov
 export const requestBrowserWorkspaceRecovery = () => {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(BROWSER_WORKSPACE_RECOVERY_OPEN_EVENT));
 };
+
+export const needsBrowserRecoveryAttention = ({
+  workspaceReady,
+  saveStatus,
+  recovery,
+}: {
+  workspaceReady: boolean;
+  saveStatus: BrowserStorageSaveStatus;
+  recovery: BrowserWorkspaceRecoveryState | null;
+}): boolean => !workspaceReady || saveStatus === 'failed' || Boolean(recovery?.quarantinedAvailable);
 
 export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true }: { canUseProjectFiles: boolean; workspaceReady?: boolean }) {
   const { toast } = useToast();
@@ -60,10 +71,10 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   }, [openRecovery]);
 
   useEffect(() => {
-    const available = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
+    const available = Boolean(recovery?.quarantinedAvailable);
     if (available && !recoveryOffered.current) {
       trackCardForgeEvent('recovery_offered', {
-        recovery_source: recovery?.quarantinedAvailable ? 'quarantine' : 'previous',
+        recovery_source: 'quarantine',
       });
     }
     recoveryOffered.current = available;
@@ -208,8 +219,8 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   };
 
   const hasRecovery = Boolean(recovery?.previousAvailable || recovery?.quarantinedAvailable);
-  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'failed' ? 'Latest change not saved' : 'Recovery available';
-  const showAttentionStatus = !workspaceReady || saveStatus === 'failed' || hasRecovery;
+  const statusLabel = !workspaceReady ? 'Workspace unavailable · Recovery' : saveStatus === 'failed' ? 'Latest change not saved' : 'Unreadable copy preserved';
+  const showAttentionStatus = needsBrowserRecoveryAttention({ workspaceReady, saveStatus, recovery });
 
   return <>
     <BrowserStoragePersistencePrompt />
