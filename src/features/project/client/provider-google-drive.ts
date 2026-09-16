@@ -61,6 +61,7 @@ export {
 export { repairConfirmedGoogleDriveLink } from '../client/googleDriveLinkRepair';
 export {
   revalidateGoogleDriveWorkBinding,
+  shouldOfferGoogleDriveReconciliation,
   useGoogleDriveWorkingSession,
 } from '../client/googleDriveWorkingSession';
 export type {

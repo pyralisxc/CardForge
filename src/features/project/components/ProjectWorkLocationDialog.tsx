@@ -56,6 +56,7 @@ import type { ProjectDocumentV1 } from '../model/projectDocument';
 interface ProjectWorkLocationDialogProps extends ProjectWorkLocationContextProps {
   target: ProjectWorkLocationTarget | null;
   driveConflictMessage?: string | null;
+  driveAvailabilityMessage?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
@@ -119,6 +120,7 @@ export function DefaultWorkLocationControl({ isSignedIn, canUseProjectFiles, dri
 export function ProjectWorkLocationDialog({
   target,
   driveConflictMessage = null,
+  driveAvailabilityMessage = null,
   open,
   onOpenChange,
   isSignedIn,
@@ -228,6 +230,12 @@ export function ProjectWorkLocationDialog({
           <span>The existing Drive copy is protected. Save this browser work as a new Drive document to keep both versions.</span>
         </div> : null}
 
+        {driveAvailabilityMessage ? <div className={styles.conflict} role="status">
+          <strong>Google Drive needs review</strong>
+          <span>{driveAvailabilityMessage}</span>
+          <span>This dialog will not treat a failed Drive check as a disconnected account or update the Drive copy until it can be checked.</span>
+        </div> : null}
+
         <div className={styles.locationList}>
           {orderedCapabilities.map((capability) => {
             const Icon = locationIcon[capability.id];
@@ -235,7 +243,7 @@ export function ProjectWorkLocationDialog({
             const copyAvailable = Boolean(source && canTransferWork({ source, destination: capability.id, capabilities }))
               && (source === 'device' || capability.id === 'device');
             const moveAvailable = copyAvailable && Boolean(source && canMoveWork({ source, destination: capability.id, capabilities }));
-            const driveUpdateBlocked = capability.id === 'google-drive' && isCurrent && driveConflict !== null;
+            const driveUpdateBlocked = capability.id === 'google-drive' && (driveConflict !== null || driveAvailabilityMessage !== null);
             return (
               <div key={capability.id} className={styles.locationRow} data-default={defaultLocation === capability.id}>
                 <span className={styles.locationIcon}><Icon aria-hidden="true" /></span>

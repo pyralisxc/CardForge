@@ -4,14 +4,14 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `c64da0b36173770d82f7`
+Topology fingerprint: `a6e9efac82b5a2b7a663`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
 ## Topology summary
 
-- 225 observed nodes
-- 508 observed relationships
+- 226 observed nodes
+- 510 observed relationships
 - 0 unresolved observations
 - 5 product surfaces, 30 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers
 
@@ -86,6 +86,7 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `Bounded spatial Desk with authored object movement` | interaction | `desk` | `Desk` |
 | `Desk selection and focus restoration` | navigation | `desk` | `Desk` |
 | `Fit and Custom spatial camera` | interaction | `desk` | `Desk` |
+| `Focused Artifact directional browsing through Set geometry` | navigation | `desk` | `Desk` |
 | `Multi-Artifact spatial selection movement` | interaction | `desk` | `Desk` |
 | `Readable large-Set Fit floor` | accessibility | `desk` | `Desk` |
 | `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
