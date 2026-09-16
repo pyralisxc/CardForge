@@ -1,6 +1,7 @@
 export const DESK_WORLD_WIDTH = 1200;
 export const DESK_WORLD_HEIGHT = 720;
 export const DESK_MAX_RELATIVE_ZOOM = 3;
+export const DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM = 1.35;
 
 export interface DeskWorldPosition {
   x: number;
@@ -100,6 +101,19 @@ export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: num
     surfaceWidth: Math.max(width, worldWidth),
     surfaceHeight: Math.max(height, worldHeight),
   };
+};
+
+/**
+ * Returning to a compact Desk should foreground legible Set targets, rather
+ * than making every object tiny merely to display the entire world at once.
+ * The explicit Fit control still returns to the whole bounded Desk.
+ */
+export const getDeskOverviewCameraGeometry = (viewport: DeskViewport) => {
+  const fit = getDeskCameraGeometry(viewport, 0);
+  return getDeskCameraGeometry(
+    viewport,
+    fit.fitZoom * (viewport.width <= 767 ? DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM : 1),
+  );
 };
 
 const DEFAULT_DESK_SLOTS = [

@@ -6,6 +6,7 @@ import {
   collectDeskWorldItems,
   getDefaultDeskWorldPosition,
   getDeskCameraGeometry,
+  getDeskOverviewCameraGeometry,
   getDeskWorldProjection,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
@@ -197,6 +198,18 @@ describe('Desk model', () => {
       relativeZoom: 1,
       offsetX: 60,
       offsetY: 0,
+    });
+  });
+
+  it('starts a compact returning Desk at a readable overview while Fit still shows the whole world', () => {
+    const compactOverview = getDeskOverviewCameraGeometry({ width: 390, height: 420 });
+    expect(compactOverview).toMatchObject({
+      fitZoom: 0.325,
+      relativeZoom: 1.35,
+    });
+    expect(compactOverview.zoom).toBeCloseTo(0.43875);
+    expect(getDeskOverviewCameraGeometry({ width: 1_920, height: 1_080 })).toMatchObject({
+      relativeZoom: 1,
     });
   });
 
