@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
 
-import { getDeskCameraGeometry } from '../model/deskSpatialGeometry';
+import { getDeskCameraGeometry, getDeskOverviewCameraGeometry } from '../model/deskSpatialGeometry';
 
 export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<typeof useSpatialGestures> & {
   changeZoom: (nextZoom: number, focalPoint?: { clientX: number; clientY: number }) => void;
@@ -20,7 +20,7 @@ export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<t
   onScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
 };
 
-type CameraMode = 'fit' | 'custom';
+type CameraMode = 'overview' | 'fit' | 'custom';
 
 const clampScroll = (value: number, surface: number, viewport: number) => (
   Math.max(0, Math.min(Math.max(0, surface - viewport), value))
@@ -40,7 +40,7 @@ export function useDeskCamera({
   const scrollRef = useRef({ left: 0, top: 0 });
   const viewportStateRef = useRef({ width: 1200, height: 720 });
   const zoomRef = useRef(1);
-  const cameraModeRef = useRef<CameraMode>('fit');
+  const cameraModeRef = useRef<CameraMode>('overview');
   const suppressScrollRef = useRef(false);
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
   const [zoom, setZoom] = useState(1);
@@ -64,7 +64,9 @@ export function useDeskCamera({
       const previous = viewportStateRef.current;
       const previousGeometry = getDeskCameraGeometry(previous, zoomRef.current);
       const nextFit = getDeskCameraGeometry(next, 0);
-      let nextGeometry = nextFit;
+      let nextGeometry = cameraModeRef.current === 'overview' && hasItems
+        ? getDeskOverviewCameraGeometry(next)
+        : nextFit;
       let target = { left: 0, top: 0 };
 
       if (cameraModeRef.current === 'custom') {

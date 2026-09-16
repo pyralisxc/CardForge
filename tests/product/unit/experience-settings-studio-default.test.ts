@@ -6,7 +6,6 @@ import {
 } from '@/features/experience-settings/model/experienceSettings';
 
 const validInput = {
-  projectFileAccess: 'creator_pass',
   analyticsConsentPresentation: 'required_popup',
   presentationPalette: 'forge',
   presentationAccent: 'brass',

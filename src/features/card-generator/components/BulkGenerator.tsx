@@ -414,7 +414,7 @@ export function BulkGenerator({
       setCommittedInput(bulkDataInput);
       if (generatedCards.length > 0) {
         setLastGeneratedCards(generatedCards);
-        toast({ title: 'Cards added to your set', description: `${generatedCards.length} cards are ready to review, edit, or download.` });
+        toast({ title: 'Cards added to your set', description: `${generatedCards.length} card${generatedCards.length === 1 ? '' : 's'} ${generatedCards.length === 1 ? 'is' : 'are'} ready to review, edit, or download.` });
       } else {
         toast({
         title: 'No cards were added',

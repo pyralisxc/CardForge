@@ -16,7 +16,6 @@ export class ExperienceSettingsStoreError extends Error {
 }
 
 const EXPERIENCE_SETTINGS_COLUMNS = [
-  'project_file_access',
   'analytics_consent_presentation',
   'presentation_palette',
   'presentation_accent',
@@ -53,7 +52,6 @@ export const updateExperienceSettings = async (
   }
   const { error } = await supabase.from('cardforge_owner_settings').upsert({
     id: 'cardforge',
-    project_file_access: normalized.projectFileAccess,
     analytics_consent_presentation: normalized.analyticsConsentPresentation,
     presentation_palette: normalized.presentationPalette,
     presentation_accent: normalized.presentationAccent,

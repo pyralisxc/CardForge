@@ -135,6 +135,17 @@ describe('Google Drive reconnect destination safety', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it('keeps a failed authorization exchange in the unavailable boundary', async () => {
+    installConnectionStore();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Timed out', 'TimeoutError')));
+
+    await expect(connectGoogleDriveProjectStorage({ ownerUserId: 'user-1', code: 'fresh-code' })).rejects.toMatchObject({
+      status: 503,
+      kind: 'unavailable',
+      nextAction: 'Retry connecting Google Drive later.',
+    });
+  });
+
   it('creates a fresh default destination only when a different Google account is connected', async () => {
     const store = installConnectionStore();
     const fetch = vi.fn()

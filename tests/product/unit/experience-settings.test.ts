@@ -7,9 +7,8 @@ import {
 } from '@/features/experience-settings/client';
 
 describe('experience settings', () => {
-  it('launches with safe access, consent, and presentation defaults', () => {
+  it('launches with safe consent and presentation defaults', () => {
     expect(DEFAULT_EXPERIENCE_SETTINGS).toEqual({
-      projectFileAccess: 'creator_pass',
       analyticsConsentPresentation: 'required_popup',
       presentationPalette: 'forge',
       presentationAccent: 'brass',
@@ -21,14 +20,12 @@ describe('experience settings', () => {
 
   it('hydrates only known public values and otherwise uses safe launch defaults', () => {
     expect(hydrateExperienceSettings({
-      project_file_access: 'free',
       analytics_consent_presentation: 'banner',
       presentation_palette: 'slate',
       presentation_accent: 'arcane',
       presentation_corners: 'soft',
       presentation_contrast: 'high',
     })).toEqual({
-      projectFileAccess: 'free',
       analyticsConsentPresentation: 'banner',
       presentationPalette: 'slate',
       presentationAccent: 'arcane',
@@ -37,7 +34,6 @@ describe('experience settings', () => {
       studioDefaultTemplateId: null,
     });
     expect(hydrateExperienceSettings({
-      project_file_access: 'unexpected',
       analytics_consent_presentation: null,
       presentation_palette: 'custom',
       presentation_accent: 'custom',
@@ -48,16 +44,14 @@ describe('experience settings', () => {
 
   it('rejects unsupported owner writes instead of coercing them', () => {
     expect(() => normalizeExperienceSettingsInput({
-      projectFileAccess: 'enterprise',
       analyticsConsentPresentation: 'hidden',
       presentationPalette: 'forge',
       presentationAccent: 'brass',
       presentationCorners: 'subtle',
       presentationContrast: 'standard',
-    })).toThrow('Choose whether project files are free or require Creator Pass.');
+    })).toThrow('Choose required popup, current popup, or quiet banner for analytics consent.');
 
     expect(() => normalizeExperienceSettingsInput({
-      projectFileAccess: 'creator_pass',
       analyticsConsentPresentation: 'required_popup',
       presentationPalette: 'custom',
       presentationAccent: 'brass',

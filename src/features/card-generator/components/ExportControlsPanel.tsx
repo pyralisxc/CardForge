@@ -32,6 +32,7 @@ import {
 
 interface ExportControlsPanelProps {
   canExportClean: boolean;
+  isEntitlementPending: boolean;
   exportDpi: number;
   exportEntitlementLabel: string;
   exportEntitlementMessage: string;
@@ -73,6 +74,7 @@ const formatBytes = (bytes: number) => {
 
 export function ExportControlsPanel({
   canExportClean,
+  isEntitlementPending,
   exportDpi,
   exportEntitlementLabel,
   exportEntitlementMessage,
@@ -143,24 +145,36 @@ export function ExportControlsPanel({
     : 0;
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
+  const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle id="generator-export-heading" className="text-xl">
-            Export the finished set
+            {generatedDisplayCards.length === 0 ? 'Prepare this Set for export' : 'Export the finished set'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md border bg-muted/40 p-3 text-xs">
-            <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
-            <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
-            <p className="mt-2 text-muted-foreground">
-              CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
-            </p>
-          </div>
+          {generatedDisplayCards.length > 0 ? (
+            <div className="rounded-md border bg-muted/40 p-3 text-xs">
+              <p className="font-semibold text-foreground">{isEntitlementPending ? 'Checking account access…' : exportEntitlementLabel}</p>
+              <p className="mt-1 text-muted-foreground">{isEntitlementPending ? 'CardForge is confirming your download access before it applies watermark or project-file rules.' : exportEntitlementMessage}</p>
+              <p className="mt-2 text-muted-foreground">
+                CardForge builds exports locally, then your browser saves the single finished file to its configured download location. No server copy is created.
+              </p>
+            </div>
+          ) : null}
 
+          {generatedDisplayCards.length === 0 ? (
+            <div className="rounded-md border border-dashed bg-muted/20 p-3 text-sm">
+              <p className="font-semibold text-foreground">Add cards before exporting</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Return to Desk, then create a design or generate cards. Output settings and downloads appear as soon as this Set has its first card.
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="space-y-1">
             <Label htmlFor="exportMode" className="text-sm font-medium">Primary use</Label>
             <Select value={exportMode} onValueChange={(value) => onSetExportMode(value as ExportMode)}>
@@ -177,7 +191,7 @@ export function ExportControlsPanel({
             </p>
           </div>
 
-          {!canExportClean && exportGateMessage ? (
+          {!isEntitlementPending && !canExportClean && exportGateMessage ? (
             <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
               <p>{exportGateMessage}</p>
               <Button
@@ -227,13 +241,15 @@ export function ExportControlsPanel({
             <Button
               variant="outline"
               onClick={onExportAllAsZip}
-              disabled={generatedDisplayCards.length === 0 || isZipExporting}
+              disabled={exportsDisabled}
               className="w-full gap-2"
             >
               <Download className="h-4 w-4" />
               {isPngSetExporting
                 ? `Preparing PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                : `Download PNG set (${exportFaceCount} ${exportFaceCount === 1 ? 'file' : 'files'})`}
+                : isEntitlementPending
+                  ? 'Checking account access…'
+                  : `Download PNG set (${exportFaceCount} ${exportFaceCount === 1 ? 'file' : 'files'})`}
             </Button>
             {generatedDisplayCards.length > 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -332,7 +348,7 @@ export function ExportControlsPanel({
                 exportDpi={exportDpi}
                 richTextHighlightColor={richTextHighlightColor}
                 canExportClean={canExportClean}
-                disabled={generatedDisplayCards.length === 0}
+                disabled={isEntitlementPending || generatedDisplayCards.length === 0}
                 templateName={firstCard?.template?.name}
               />
             </div>
@@ -369,15 +385,19 @@ export function ExportControlsPanel({
             <Button
               variant="outline"
               onClick={() => onExportTabletopSimulatorSpritesheets(tabletopQuality)}
-              disabled={generatedDisplayCards.length === 0 || isZipExporting}
+              disabled={exportsDisabled}
               className="w-full gap-2"
             >
               <Gamepad2 className="h-4 w-4" />
               {isTabletopExporting
                 ? `Preparing TTS sheets… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
-                : `Export ${tabletopSummary.preset.label.toLowerCase()} TTS ZIP`}
+                : isEntitlementPending
+                  ? 'Checking account access…'
+                  : `Export ${tabletopSummary.preset.label.toLowerCase()} TTS ZIP`}
             </Button>
           </section>
+            </>
+          )}
 
         </CardContent>
       </Card>

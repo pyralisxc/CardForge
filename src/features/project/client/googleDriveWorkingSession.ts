@@ -53,6 +53,25 @@ const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
   !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
 );
 
+export const shouldPauseGoogleDriveAutosaveAfterRevalidation = (
+  kind: GoogleDriveBindingCheck['kind'],
+  hasLocalChanges: boolean,
+) => kind === 'missing' || (kind === 'changed' && hasLocalChanges);
+
+export const shouldPauseGoogleDriveAutosaveForError = (error: unknown) => (
+  error instanceof GoogleDriveSaveLinkageError
+  || (error instanceof ApiClientError && (
+    error.kind === 'conflict'
+    || error.kind === 'authorization'
+    || error.kind === 'authentication'
+    || error.kind === 'not_found'
+  ))
+);
+
+export const shouldOfferGoogleDriveReconciliation = (phase: GoogleDriveWorkingSessionPhase) => (
+  phase === 'remote-changed' || phase === 'read-only' || phase === 'error'
+);
+
 export const revalidateGoogleDriveWorkBinding = async (workId: string): Promise<GoogleDriveBindingCheck> => {
   const binding = await getGoogleDriveWorkBinding(workId);
   if (!binding) return { kind: 'unlinked', binding: null, project: null };
@@ -139,7 +158,10 @@ export function useGoogleDriveWorkingSession({
       }
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
-        queuedRef.current = true;
+        // The `online` listener resumes a dirty linked Set. Retrying every idle
+        // interval while the browser remains offline only burns work and obscures
+        // the actionable offline state.
+        queuedRef.current = false;
         return;
       }
       let dirty: boolean;
@@ -159,7 +181,7 @@ export function useGoogleDriveWorkingSession({
         bindingRef.current = saved;
         if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: saved });
       } catch (error) {
-        if (error instanceof GoogleDriveSaveLinkageError) {
+        if (shouldPauseGoogleDriveAutosaveForError(error)) {
           writableRef.current = false;
           queuedRef.current = false;
           clearTimer();
@@ -182,11 +204,14 @@ export function useGoogleDriveWorkingSession({
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
-    if (!enabled || !setId || writableRef.current === false) return;
+    // A local Set can change while its Drive binding is still being resolved.
+    // Never turn that ordinary browser work into a false Drive-pending state;
+    // reconcile() will schedule the save if it finds a real linked document.
+    if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return;
     clearTimer();
     setState((current) => current.phase === 'saving'
       ? current
-      : { phase: 'dirty', message: 'Changes waiting for Drive', receipt: current.receipt });
+      : { phase: 'dirty', message: 'Drive save pending', receipt: current.receipt });
     timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
   }, [clearTimer, enabled, setId]);
 
@@ -204,6 +229,8 @@ export function useGoogleDriveWorkingSession({
       }
       if (check.kind === 'missing') {
         writableRef.current = false;
+        queuedRef.current = false;
+        clearTimer();
         setState({ phase: 'error', message: 'The linked Drive document is unavailable or moved. Check Drive before saving.', receipt: check.binding });
         return;
       }
@@ -217,8 +244,11 @@ export function useGoogleDriveWorkingSession({
       if (check.kind === 'changed' && check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
-        if (dirty) {
-          setState({ phase: 'remote-changed', message: 'Drive changed while this browser also has edits. Compare or refresh before saving.', receipt: check.binding });
+        if (shouldPauseGoogleDriveAutosaveAfterRevalidation(check.kind, dirty)) {
+          writableRef.current = false;
+          queuedRef.current = false;
+          clearTimer();
+          setState({ phase: 'remote-changed', message: 'Drive changed while this browser also has edits. Use Save & move for an independent copy or return to Library to compare before saving.', receipt: check.binding });
           return;
         }
         setState({ phase: 'checking', message: 'Refreshing newer Drive revision…', receipt: check.binding });
@@ -233,11 +263,16 @@ export function useGoogleDriveWorkingSession({
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
         setState(dirty
-          ? { phase: 'dirty', message: 'Changes waiting for Drive', receipt: check.binding }
+          ? { phase: 'dirty', message: 'Drive save pending', receipt: check.binding }
           : { phase: 'clean', message: 'Saved to Drive', receipt: check.binding });
         if (dirty) scheduleSave();
       }
     } catch (error) {
+      if (shouldPauseGoogleDriveAutosaveForError(error)) {
+        writableRef.current = false;
+        queuedRef.current = false;
+        clearTimer();
+      }
       if (generation === generationRef.current) setState(stateForError(error));
     }
   }, [clearTimer, enabled, scheduleSave, setId]);
@@ -278,7 +313,10 @@ export function useGoogleDriveWorkingSession({
     const onFocus = () => { void reconcile(); };
     const onOnline = () => {
       queuedRef.current = false;
-      void reconcile().then(() => scheduleSave());
+      // Reconciliation owns the dirty check and schedules exactly one save when
+      // browser work actually differs. Scheduling unconditionally here briefly
+      // presented a clean, refreshed Set as pending Drive work after reconnect.
+      void reconcile();
     };
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);

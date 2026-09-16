@@ -146,7 +146,7 @@ export function ConnectedPersonalLibraryPanel({
             </Button>
           </div>
           {!canUseConnectedStorage ? (
-            <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Creator Pass currently unlocks connected project and personal-library storage.</p>
+            <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Connected project and personal-library storage are temporarily unavailable. Refresh and try again.</p>
           ) : null}
 
           {!library ? (

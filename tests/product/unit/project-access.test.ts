@@ -8,17 +8,8 @@ import {
 } from '@/domain/entitlements';
 
 describe('projectAccess', () => {
-  it('maps free access to watermarked preview and generation without clean exports', () => {
+  it('maps free access to watermarked output while retaining portable creator work', () => {
     expect(getProjectCapabilities('free')).toEqual({
-      canPreview: true,
-      canGenerate: true,
-      canExportClean: false,
-      canUseProjectFiles: false,
-    });
-  });
-
-  it('can make portable project files free without unlocking clean finished exports', () => {
-    expect(getProjectCapabilities('free', 'free')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: false,
@@ -89,23 +80,11 @@ describe('projectAccess', () => {
     expect(copy).toMatchObject({
       modeLabel: 'Free plan',
       canExportClean: false,
-      projectFileGateMessage: 'Creator Pass lets you download and open portable CardForge project files.',
+      projectFileGateMessage: null,
     });
     expect(copy.panelMessage).toContain('unlimited local Templates and card sets');
     expect(copy.panelMessage).toContain('download watermarked finished files');
     expect(copy.panelMessage).not.toContain('cloud set');
-  });
-
-  it('describes owner-enabled free project files alongside watermarked finished exports', () => {
-    const copy = getExportEntitlementCopy('free', 'free');
-    expect(copy).toMatchObject({
-      modeLabel: 'Free plan',
-      canExportClean: false,
-      projectFileGateMessage: null,
-    });
-    expect(copy.panelMessage).toContain('unlimited local Templates and card sets');
-    expect(copy.panelMessage).toContain('move portable project files for free');
-    expect(copy.panelMessage).toContain('download watermarked finished files');
   });
 
   it('describes paid access with portable files while keeping local projects unlimited', () => {

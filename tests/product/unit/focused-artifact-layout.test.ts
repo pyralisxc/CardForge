@@ -4,6 +4,7 @@ import type { ArtifactIdentity } from '@/domain/artifacts';
 import {
   buildFocusedArtifactLayout,
   FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH,
+  getDirectionalArtifactNeighbor,
   getArtifactSelectionScope,
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
@@ -127,5 +128,66 @@ describe('focused Artifact spatial layout', () => {
       ['card-visible', 'card-hidden-1', 'card-hidden-2'],
       ['card-visible', 'card-other'],
     )).toEqual({ visible: 1, hidden: 2, total: 3 });
+  });
+
+  it('browses focused Artifacts by displayed geometry rather than collection order', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 1_000,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'Center', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 300, y: 300 } },
+          { identity: identity(2), title: 'Right', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 560, y: 300 } },
+          { identity: identity(3), title: 'Down', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 300, y: 620 } },
+          { identity: identity(4), title: 'Left', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 40, y: 300 } },
+          { identity: identity(5), title: 'Up', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 300, y: 40 } },
+        ],
+      }],
+    });
+
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'right' })?.identity.artifactId).toBe('card-2');
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'down' })?.identity.artifactId).toBe('card-3');
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'left' })?.identity.artifactId).toBe('card-4');
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'up' })?.identity.artifactId).toBe('card-5');
+  });
+
+  it('prefers an aligned neighbor and leaves an empty spatial edge empty', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 1_000,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'Center', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 300, y: 300 } },
+          { identity: identity(2), title: 'Aligned right', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 580, y: 300 } },
+          { identity: identity(3), title: 'Diagonal right', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 470, y: 470 } },
+          { identity: identity(4), title: 'Below only', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 310, y: 680 } },
+        ],
+      }],
+    });
+
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'right' })?.identity.artifactId).toBe('card-2');
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'left' })).toBeNull();
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'up' })).toBeNull();
+  });
+
+  it('uses the current layout slice only and resolves equal geometry deterministically', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 1_000,
+      groups: [{
+        label: 'Shown Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'Center', subtitle: 'Card', groupLabel: 'Shown Artifacts', position: { x: 300, y: 300 } },
+          { identity: identity(2), title: 'First right', subtitle: 'Card', groupLabel: 'Shown Artifacts', position: { x: 560, y: 300 } },
+          { identity: identity(3), title: 'Second right', subtitle: 'Card', groupLabel: 'Shown Artifacts', position: { x: 560, y: 300 } },
+        ],
+      }],
+    });
+
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'card-1', direction: 'right' })?.identity.artifactId).toBe('card-2');
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries.slice(0, 1), artifactId: 'card-1', direction: 'right' })).toBeNull();
+    expect(getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: 'missing', direction: 'right' })).toBeNull();
   });
 });

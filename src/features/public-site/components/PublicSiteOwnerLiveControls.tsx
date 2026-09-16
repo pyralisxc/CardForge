@@ -159,12 +159,12 @@ export function PublicSiteOwnerLiveControls({
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 
   return <>
-    <div className="fixed bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
+    <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">Owner preview</span>
       {contextualBlocks.length ? <Button type="button" size="sm" variant={inlineMode ? 'default' : 'outline'} onClick={() => setInlineMode((value) => !value)}>{inlineMode ? 'Editing rendered copy' : 'Edit rendered copy'}</Button> : null}
       <Button type="button" size="sm" onClick={() => setOpen(true)}><FilePenLine className="mr-2 h-4 w-4" />Edit {context.label}</Button>
     </div>
-    {inlineSlug ? <div className="fixed bottom-20 right-5 z-[71] flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
+    {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">Edit the highlighted text, then publish or cancel.</span>
       <Button type="button" size="sm" onClick={() => void saveInlineEdit()} disabled={inlineSaving}><Check className="mr-2 h-4 w-4" />{inlineSaving ? 'Publishing…' : 'Publish'}</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => finishInlineEdit(true)} disabled={inlineSaving}><X className="mr-2 h-4 w-4" />Cancel</Button>

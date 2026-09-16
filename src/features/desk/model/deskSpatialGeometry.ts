@@ -1,6 +1,7 @@
 export const DESK_WORLD_WIDTH = 1200;
 export const DESK_WORLD_HEIGHT = 720;
 export const DESK_MAX_RELATIVE_ZOOM = 3;
+export const DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM = 1.35;
 
 export interface DeskWorldPosition {
   x: number;
@@ -29,6 +30,11 @@ export interface DeskRect {
   top: number;
   right: number;
   bottom: number;
+}
+
+export interface DeskScrollTarget {
+  left: number;
+  top: number;
 }
 
 export interface DeskWorldElement {
@@ -99,6 +105,42 @@ export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: num
     offsetY: Math.max(0, (height - worldHeight) / 2),
     surfaceWidth: Math.max(width, worldWidth),
     surfaceHeight: Math.max(height, worldHeight),
+  };
+};
+
+/**
+ * Returning to a compact Desk should foreground legible Set targets, rather
+ * than making every object tiny merely to display the entire world at once.
+ * The explicit Fit control still returns to the whole bounded Desk.
+ */
+export const getDeskOverviewCameraGeometry = (viewport: DeskViewport) => {
+  const fit = getDeskCameraGeometry(viewport, 0);
+  return getDeskCameraGeometry(
+    viewport,
+    fit.fitZoom * (viewport.width <= 767 ? DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM : 1),
+  );
+};
+
+/**
+ * Older saved layouts could place a complete Set just beyond the bounded
+ * world's visible edge. Reveal its existing position on return instead of
+ * rewriting the user's arrangement.
+ */
+export const getDeskInitialRevealTarget = ({
+  itemBounds,
+  viewport,
+  surface,
+}: {
+  itemBounds: readonly DeskRect[];
+  viewport: DeskViewport;
+  surface: DeskViewport;
+}): DeskScrollTarget => {
+  if (itemBounds.length === 0) return { left: 0, top: 0 };
+  const furthestRight = Math.max(...itemBounds.map((item) => item.right));
+  const furthestBottom = Math.max(...itemBounds.map((item) => item.bottom));
+  return {
+    left: clamp(furthestRight - viewport.width, 0, Math.max(0, surface.width - viewport.width)),
+    top: clamp(furthestBottom - viewport.height, 0, Math.max(0, surface.height - viewport.height)),
   };
 };
 

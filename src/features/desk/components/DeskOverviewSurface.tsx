@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { FolderPlus, LayoutGrid, Loader2, Maximize2, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -107,12 +107,28 @@ export interface DeskOverviewSurfaceProps {
 
 export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [viewName, setViewName] = useState('');
+  const [isSavingView, setIsSavingView] = useState(false);
+  const [isOrganizingSelection, setIsOrganizingSelection] = useState(false);
   const [organizationType, setOrganizationType] = useState('');
   const [organizationTag, setOrganizationTag] = useState('');
   const [renameFrom, setRenameFrom] = useState('');
   const [renameTo, setRenameTo] = useState('');
-  const saveView = () => { if (props.onSaveView(viewName)) setViewName(''); };
+  const selectedWorkKey = props.selectedWorkItems.map((item) => item.id).toSorted().join('|');
+  useEffect(() => {
+    setIsOrganizingSelection(false);
+    setOrganizationType('');
+    setOrganizationTag('');
+    setRenameFrom('');
+    setRenameTo('');
+  }, [selectedWorkKey]);
+  const saveView = () => {
+    if (!props.onSaveView(viewName)) return;
+    setViewName('');
+    setIsSavingView(false);
+  };
   const selectedTags = Array.from(new Set(props.selectedWorkItems.flatMap((item) => item.organization.tags))).toSorted((left, right) => left.localeCompare(right));
+  const selectedTypes = Array.from(new Set(props.selectedWorkItems.map((item) => item.organization.type).filter((type): type is string => Boolean(type))));
+  const hasSelectedOrganization = selectedTags.length > 0 || selectedTypes.length > 0;
   const typeVocabulary = Array.from(new Set([
     ...CARD_SET_BUILT_IN_TYPES,
     ...props.typeFacets.map((facet) => facet.label),
@@ -134,14 +150,30 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     {props.tagFilters.length > 1 ? <SelectionFilterMenu allLabel="Any tag" ariaLabel="Choose tag matching" compactLabel="Tags" value={props.tagMatch} onChange={(value) => props.onTagMatchChange(value === 'all' ? 'all' : 'any')} options={[{ value: 'any', label: 'Any tag' }, { value: 'all', label: 'All tags' }]} /> : null}
     {props.savedViews.length ? <SelectionFilterMenu allLabel="Saved views" ariaLabel="Apply a saved Desk view" compactLabel="Saved" value="all" onChange={(value) => { if (value !== 'all') props.onApplySavedView(value); }} options={props.savedViews.map((view) => ({ value: view.id, label: view.name }))} /> : null}
     <span className={styles.deskRestrictionLabel} aria-live="polite">{props.activeRestrictionsLabel}</span>
-    <Input value={viewName} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); saveView(); } }} className={styles.deskSaveViewInput} aria-label="Name this Desk view" placeholder="Save view" />
-    <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
+    {isSavingView ? <>
+      <Input value={viewName} onChange={(event) => setViewName(event.target.value)} onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          saveView();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          setViewName('');
+          setIsSavingView(false);
+        }
+      }} className={styles.deskSaveViewInput} aria-label="Name this Desk view" placeholder="Name this view" />
+      <Button type="button" size="sm" variant="ghost" onClick={saveView} disabled={!viewName.trim()}>Save</Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => { setViewName(''); setIsSavingView(false); }}>Cancel</Button>
+    </> : <Button type="button" size="sm" variant="ghost" onClick={() => setIsSavingView(true)}>Save view</Button>}
     <Button type="button" size="sm" variant="ghost" onClick={props.onResetViews}>Reset</Button>
-    {props.selectedWorkItems.length ? <div className={styles.deskOrganizer} aria-label="Organize selected work">
+    {props.selectedWorkItems.length ? <>
+      <Button type="button" size="sm" variant="ghost" aria-expanded={isOrganizingSelection} onClick={() => setIsOrganizingSelection((open) => !open)}>
+        {isOrganizingSelection ? 'Close organize' : `Organize ${props.selectedWorkItems.length === 1 ? 'Set' : `${props.selectedWorkItems.length} Sets`}`}
+      </Button>
+      {isOrganizingSelection ? <div className={styles.deskOrganizer} aria-label="Organize selected work">
       <Select value={organizationType || '__choose_type'} onValueChange={(type) => {
         if (type === '__choose_type') return;
         props.onUpdateSelectedOrganization({ kind: 'set-type', type });
-        setOrganizationType(type);
+        setOrganizationType('');
       }}>
         <SelectTrigger className={styles.deskTypeSelect} aria-label="Choose a supported or reusable Set type"><span>{organizationType || 'Set type'}</span></SelectTrigger>
         <SelectContent><SelectItem value="__choose_type">Set type</SelectItem>{typeVocabulary.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select>
@@ -157,8 +189,9 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
       {selectedTags.length ? <Select value={renameFrom || '__choose_tag'} onValueChange={(tag) => setRenameFrom(tag === '__choose_tag' ? '' : tag)}><SelectTrigger className={styles.deskTypeSelect} aria-label="Choose tag to rename"><span>{renameFrom || 'Rename tag'}</span></SelectTrigger><SelectContent><SelectItem value="__choose_tag">Rename tag</SelectItem>{selectedTags.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}</SelectContent></Select> : null}
       {renameFrom ? <Input value={renameTo} onChange={(event) => setRenameTo(event.target.value)} className={styles.deskSaveViewInput} aria-label={`New name for ${renameFrom}`} placeholder="New tag name" /> : null}
       {renameFrom ? <Button type="button" size="sm" variant="ghost" disabled={!renameTo.trim()} onClick={() => { props.onUpdateSelectedOrganization({ kind: 'rename-tag', from: renameFrom, to: renameTo }); setRenameFrom(''); setRenameTo(''); }}>Rename tag</Button> : null}
-      <Button type="button" size="sm" variant="ghost" onClick={() => props.onUpdateSelectedOrganization({ kind: 'clear' })}>Clear labels</Button>
+      {hasSelectedOrganization ? <Button type="button" size="sm" variant="ghost" onClick={() => props.onUpdateSelectedOrganization({ kind: 'clear' })}>Clear labels</Button> : null}
     </div> : null}
+    </> : null}
   </>;
   const fullViewControls = <div className={`${styles.spatialControls} max-[900px]:hidden`} aria-label="Desk view controls">
     <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>

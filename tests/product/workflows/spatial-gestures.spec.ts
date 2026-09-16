@@ -3,6 +3,55 @@ import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBro
 
 test.describe('spatial touch workspace', () => {
   test.use({ viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true });
+  test('@golden browses focused Artifacts without changing the Set, while magnified card inspection still pans', async ({ page, context }, testInfo) => {
+    test.setTimeout(120_000);
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account');
+    await openScaleSet(page, 100);
+    const boardCard = page.locator('button[data-artifact-id="scale-card-1"]');
+    await boardCard.focus();
+    await boardCard.press('Enter');
+    const workspace = page.locator('[data-focused-artifact-workspace]');
+    await expect(workspace).toBeVisible();
+    const controls = workspace.locator('[aria-label="Focused Artifact controls"]');
+    await expect(controls).toBeVisible();
+    await expect(controls.getByRole('button', { name: 'Browse this Set', exact: true })).toBeVisible();
+    await expect(controls.getByRole('button', { name: 'Edit Artifact', exact: true })).toBeVisible();
+    await expect(controls.getByRole('button', { name: 'Download individual card', exact: true })).toBeVisible();
+    expect(await controls.evaluate((node) => node.scrollHeight <= node.clientHeight + 2)).toBe(true);
+    const focusedCard = workspace.locator('button[data-artifact-id]');
+    await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-1');
+    const stage = page.getByLabel('100 Card Scale Set focused Artifact viewport');
+    const box = (await stage.boundingBox())!;
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: Array<{ x: number; y: number; id: number }>) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+
+    await touch('touchStart', [{ ...point, id: 1 }]);
+    await touch('touchMove', [{ x: point.x + 96, y: point.y, id: 1 }]);
+    await touch('touchEnd', []);
+    await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-2');
+    await focusedCard.press('ArrowRight');
+    await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-3');
+
+    await workspace.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-auto-fit', 'false');
+    await touch('touchStart', [{ ...point, id: 2 }]);
+    await touch('touchMove', [{ x: point.x - 96, y: point.y, id: 2 }]);
+    await touch('touchEnd', []);
+    await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-3');
+
+    await workspace.getByRole('button', { name: 'Fit', exact: true }).click();
+    await workspace.getByRole('button', { name: 'Browse this Set', exact: true }).click();
+    await page.getByRole('button', { name: 'Open Artifact to the left', exact: true }).click();
+    await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-2');
+    // Browsing creates artifact history; this named action must still return
+    // directly to the Set rather than stopping at the previous card.
+    await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+    await expect(workspace).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
+  });
+
   test('@golden pans, holds to move, pinches, and restores the same Set camera', async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
@@ -21,10 +70,10 @@ test.describe('spatial touch workspace', () => {
     const desk = page.locator('[data-desk-viewport]');
     await expect(desk).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
-    await expect.poll(() => desk.evaluate((node) => ({
-      horizontal: node.scrollWidth - node.clientWidth,
-      vertical: node.scrollHeight - node.clientHeight,
-    }))).toEqual({ horizontal: 0, vertical: 0 });
+    // Compact overview deliberately favors legible Set targets over a tiny
+    // whole-world projection, so only the horizontal Desk axis is pannable.
+    await expect.poll(() => desk.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeGreaterThan(0);
+    await expect.poll(() => desk.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
     const before = await setObject.getAttribute('style');

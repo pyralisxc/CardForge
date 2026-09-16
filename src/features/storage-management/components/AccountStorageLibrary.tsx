@@ -186,7 +186,7 @@ export function AccountStorageLibrary({
         {showDevice ? <div className={embedded ? 'mt-3' : 'mt-5'}>
           <StorageMetric
             health={deviceHealth}
-            detail={`${cardSets.length} set${cardSets.length === 1 ? '' : 's'} · ${storedCards.length} cards · ${userTemplates.length} personal Templates · ${customAssetCount} custom assets (${formatBytes(customAssetBytes)} serialized)`}
+            detail={`${cardSets.length} set${cardSets.length === 1 ? '' : 's'} · ${storedCards.length} card${storedCards.length === 1 ? '' : 's'} · ${userTemplates.length} personal Template${userTemplates.length === 1 ? '' : 's'} · ${customAssetCount} custom asset${customAssetCount === 1 ? '' : 's'} (${formatBytes(customAssetBytes)} serialized)`}
           />
           {hydrationError ? <p className="mt-4 border border-[#8b4c35] bg-[#2a130e] p-3 text-sm text-[#efb6a4]">{hydrationError}</p> : null}
           <div className="mt-6">
@@ -200,7 +200,7 @@ export function AccountStorageLibrary({
                   <div key={set.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[var(--cf-text-strong)]">{set.name}</p>
-                      <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} cards · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
+                      <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} card{(cardCounts.get(set.id) ?? 0) === 1 ? '' : 's'} · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => { useProjectStore.getState().setActiveCardSetId(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BROWSER_STORAGE_DATABASE, BROWSER_STORAGE_SAVE_STATUS_EVENT, createBrowserKeyValueStorage, createIndexedDbStorage, getBrowserRecoverySnapshot, getBrowserWorkspaceSaveStatus, getBrowserStorageHealth, getConstrainedImageSize, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
 import { parseBrowserWorkspaceRecord, getBrowserWorkspaceRecoveryState, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readProjectPreference, removeProjectPreference, writeProjectPreference } from '@/features/project/client/persistence-preferences';
+import { needsBrowserRecoveryAttention } from '@/features/project/components/BrowserStorageAlerts';
 import {
   getBrowserStoragePersistenceState,
   requestBrowserStoragePersistence,
@@ -129,6 +130,24 @@ describe('browser IndexedDB storage', () => {
     expect(await restoreBrowserWorkspaceRecovery('previous')).toBe(true);
     expect(parseBrowserWorkspaceRecord((await storage.getItem('workspace'))!).value).toBe('{"state":{"name":"first"},"version":4}');
     expect(await storage.getItem('__recovery__:workspace')).toBe('{"state":{"name":"second"},"version":4}');
+  });
+
+  it('only interrupts the workspace for an actual save or readable-state problem', () => {
+    expect(needsBrowserRecoveryAttention({
+      workspaceReady: true,
+      saveStatus: 'saved',
+      recovery: { currentAvailable: true, previousAvailable: true, quarantinedAvailable: false },
+    })).toBe(false);
+    expect(needsBrowserRecoveryAttention({
+      workspaceReady: true,
+      saveStatus: 'failed',
+      recovery: { currentAvailable: true, previousAvailable: true, quarantinedAvailable: false },
+    })).toBe(true);
+    expect(needsBrowserRecoveryAttention({
+      workspaceReady: true,
+      saveStatus: 'saved',
+      recovery: { currentAvailable: true, previousAvailable: false, quarantinedAvailable: true },
+    })).toBe(true);
   });
 
   it('round-trips typed browser preferences through the Project namespace', async () => {

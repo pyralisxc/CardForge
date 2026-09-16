@@ -110,19 +110,6 @@ export function OwnerExperienceControlsPanel({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <label className={fieldClassName}>
-          <span className="font-medium text-[var(--cf-accent-text)]">Portable project files</span>
-          <select
-            className={selectClassName}
-            value={draft.projectFileAccess}
-            onChange={(event) => setDraft((current) => ({ ...current, projectFileAccess: event.target.value as ExperienceSettings['projectFileAccess'] }))}
-          >
-            <option value="creator_pass">Require Creator Pass</option>
-            <option value="free">Available on the free plan</option>
-          </select>
-          <span className="leading-6 text-[var(--cf-text-subtle)]">Controls CardForge project files only. Watermark-free exports remain Creator Pass features.</span>
-        </label>
-
-        <label className={fieldClassName}>
           <span className="font-medium text-[var(--cf-accent-text)]">Fresh Studio starting Template</span>
           <select
             className={selectClassName}

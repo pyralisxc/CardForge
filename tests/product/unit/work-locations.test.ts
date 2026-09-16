@@ -30,11 +30,11 @@ describe('work location policy', () => {
     expect(capabilities.find((capability) => capability.id === 'google-drive')?.reason).toContain('Connect Google Drive');
   });
 
-  it('keeps portable and provider locations visible but unavailable when the plan does not include project files', () => {
+  it('keeps portable and provider locations visible but unavailable when the account capability is unavailable', () => {
     const capabilities = getWorkLocationCapabilities({ signedIn: true, canUseProjectFiles: false, driveConnected: true, localFolderSupported: true });
     expect(capabilities.find((capability) => capability.id === 'device')).toMatchObject({ available: true, create: true });
     expect(capabilities.find((capability) => capability.id === 'google-drive')).toMatchObject({ available: false, create: false });
     expect(capabilities.find((capability) => capability.id === 'local-folder')).toMatchObject({ available: false, create: false });
-    expect(capabilities.find((capability) => capability.id === 'google-drive')?.reason).toContain('Creator Pass');
+    expect(capabilities.find((capability) => capability.id === 'google-drive')?.reason).toContain('temporarily unavailable');
   });
 });

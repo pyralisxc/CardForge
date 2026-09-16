@@ -7,7 +7,6 @@ import {
   type AccountEntitlement,
 } from '@/features/account/lib/accountEntitlement';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
-import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import { resolveWithTimeoutOrThrow } from '@/shared/asyncTimeout';
 
 const CLERK_USER_READ_TIMEOUT_MS = 3000;
@@ -99,7 +98,6 @@ const createCardforgeUserAccess = (
 export const resolveCardforgeEntitlementForAccess = async (
   access: CardforgeServerUserAccess,
 ): Promise<AccountEntitlement> => {
-  const experienceSettings = await getCachedExperienceSettings();
   return resolveAccountEntitlement({
     accountUserId: access.user?.id ?? null,
     authConfigured: access.authConfigured,
@@ -107,7 +105,6 @@ export const resolveCardforgeEntitlementForAccess = async (
     emailAddresses: access.user?.emailAddresses ?? [],
     privateMetadata: access.user?.privateMetadata ?? {},
     ownerAccess: access.ownerAccess,
-    projectFileAccess: experienceSettings.projectFileAccess,
   });
 };
 

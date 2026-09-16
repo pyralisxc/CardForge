@@ -30,7 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import type { CardFace } from '@/domain/cards';
 import { useArtifactFace } from '@/features/card-rendering/client';
-import { useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
+import { shouldOfferGoogleDriveReconciliation, useGoogleDriveWorkingSession } from '@/features/project/client/provider-google-drive';
 import { useProjectStore } from '@/features/project/client/workspace';
 
 import type { DeskCamera } from '../hooks/useDeskCamera';
@@ -149,7 +149,7 @@ export function DeskContextRail(props: DeskContextRailProps) {
             <Cloud className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="max-w-[22rem] truncate" title={driveState.message}>{driveState.message}</span>
             {driveState.phase === 'recovery-required' ? <Button type="button" size="sm" variant="ghost" className="h-7 min-h-7 px-2 text-[0.66rem]" onClick={() => void driveWorkingSession.repairLink()}>Repair link</Button> : null}
-            {driveState.phase === 'remote-changed' ? <Button type="button" size="sm" variant="ghost" className="h-7 min-h-7 px-2 text-[0.66rem]" onClick={() => void driveWorkingSession.reconcile()}>Check Drive</Button> : null}
+            {shouldOfferGoogleDriveReconciliation(driveState.phase) ? <Button type="button" size="sm" variant="ghost" className="h-7 min-h-7 px-2 text-[0.66rem]" onClick={() => void driveWorkingSession.reconcile()}>Check Drive</Button> : null}
           </span> : null}
         </div>
       </nav>

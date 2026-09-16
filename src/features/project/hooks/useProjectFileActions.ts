@@ -156,8 +156,8 @@ export function useProjectFileActions(input: UseProjectFileActionsInput) {
     toast({
       title: 'Upgrade to move projects',
       description: withNextStep(
-        projectFileGateMessage || 'Buy Creator Pass to unlock portable project-file exports and imports.',
-        'Open your account page and buy Creator Pass to download or import local project files.',
+        projectFileGateMessage || 'Portable project files are temporarily unavailable for this account.',
+        'Refresh the account page and try again. Your current work remains unchanged.',
       ),
     });
   }, [projectFileGateMessage, toast]);
