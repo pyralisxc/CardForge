@@ -2,7 +2,7 @@
 
 Last updated: September 12, 2026
 
-Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants, while generated [product-surface-map.md](product-surface-map.md) is the compact current-state Product Reality projection and the live `/roadmap` owns publicly presented capability status and votes.
+Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants; current observed technical/product topology comes from source and may be inspected through Development Intelligence when available; the live `/roadmap` owns publicly presented capability status and votes.
 
 ## Product Thesis
 
