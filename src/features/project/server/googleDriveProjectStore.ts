@@ -254,19 +254,27 @@ export const buildGoogleDriveProjectAuthorizationUrl = (state: string): string =
 
 const exchangeAuthorizationCode = async (code: string): Promise<GoogleTokenResponse> => {
   const config = requireConfiguration();
-  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: 'authorization_code',
-    }),
-    cache: 'no-store',
-    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
-  });
+  let response: Response;
+  try {
+    response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        redirect_uri: config.redirectUri,
+        grant_type: 'authorization_code',
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
+    });
+  } catch {
+    throw new ProjectStorageProviderError('Google authorization is temporarily unavailable.', 503, {
+      kind: 'unavailable',
+      nextAction: 'Retry connecting Google Drive later.',
+    });
+  }
   const payload = await response.json().catch(() => ({})) as GoogleTokenResponse;
   if (!response.ok || !payload.access_token) {
     throw new ProjectStorageProviderError(
