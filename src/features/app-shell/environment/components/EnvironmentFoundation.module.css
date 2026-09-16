@@ -1147,6 +1147,17 @@
     box-shadow: 0 -1rem 2.5rem rgb(0 0 0 / 28%);
   }
 
+  /* Desk tools already keep their identity and close action in the context
+     rail. Give their first decision room on compact screens instead of making
+     the user scroll through the retained scene before reaching the tool. */
+  .toolLayer[data-rail-owned="true"] {
+    padding-top: 14%;
+  }
+
+  .toolLayer[data-rail-owned="true"] .toolPanel {
+    max-height: 86%;
+  }
+
   .toolContent {
     padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }

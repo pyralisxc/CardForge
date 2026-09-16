@@ -182,7 +182,10 @@ export function useGoogleDriveWorkingSession({
   saveNowRef.current = saveNow;
 
   const scheduleSave = useCallback(() => {
-    if (!enabled || !setId || writableRef.current === false) return;
+    // A local Set can change while its Drive binding is still being resolved.
+    // Never turn that ordinary browser work into a false Drive-pending state;
+    // reconcile() will schedule the save if it finds a real linked document.
+    if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return;
     clearTimer();
     setState((current) => current.phase === 'saving'
       ? current
