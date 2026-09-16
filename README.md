@@ -17,13 +17,15 @@ Production runs at [cardforges.com](https://cardforges.com).
 
 ## Repository authority
 
-A fresh maintainer or agent should be able to work from the repository without prior chat history or Cameron's account-level skills. Treat `main` plus live provider state as authoritative. Start with:
+A fresh maintainer or agent should be able to work from the repository without prior chat history, Cameron's account-level skills, or Development Intelligence. Treat `main` plus live provider state as authoritative. Start with:
 
 1. `AGENTS.md` for working rules and repo-local workflow authority.
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; generated `docs/product-surface-map.md` is the compact current-state Product Reality projection; `docs/generated/product-reality.ndjson` is the complete rebuildable machine graph; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; `docs/architecture.md` owns shipped ownership and invariants; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+
+Development Intelligence can provide one derived current-state graph over CardForge code structure, architecture, product semantics, parity, and change. Use it when connected and current for the revision being inspected, then verify consequential conclusions against source. CardForge does not depend on DI availability; source/GitHub remains sufficient and authoritative.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -47,17 +49,7 @@ npm run verify:full
 
 Pass one or more paths after `npm run verify:focused --` to route an explicit slice. `npm run architecture:report` is the opt-in repository-wide architecture analysis; the normal architecture check stays concise.
 
-Current-topology and capability-parity audits use Product Reality rather than a hand-maintained feature inventory:
-
-```bash
-npm run product-reality:query -- --surface studio
-npm run product-reality:query -- --feature project
-npm run product-reality:query -- --kind capability
-npm run product-reality:query -- --kind mcp
-npm run product-reality:diff -- --base origin/main
-```
-
-Working Product Reality is disposable during development. Seal `docs/generated/product-reality.ndjson` and `docs/product-surface-map.md` only when preparing the exact coherent candidate for Preview/main.
+For broad current-topology, cross-file, architecture, parity, and change questions, query Development Intelligence when it is available for the exact revision. There is no CardForge-local graph/checkpoint command to maintain; current source remains the fallback and authority.
 
 Maintained operational commands:
 
@@ -91,7 +83,7 @@ Hosted smoke and scheduled production health install only the private `scripts/h
 - `src/features/contributor-access/` and `src/features/pipeline/`: Contributor identity/scopes plus Forge Review, voting, publication, attribution, and the shared Library.
 - `src/features/studio-documents/`: private account Studio documents and MCP authoring bridge.
 - `src/features/marketing/`, `marketing-content`, `marketing-distribution`, `social-publishing`: strategy, content, distribution state, and stateless provider publishing.
-- `src/features/public-site/`, `business-identity/`, `legal/`, `contact/`, `roadmap/`, `analytics/`, `experience-settings/`: public/control-plane product owners.
+- `src/features/public-site/`, `business-identity/`, `legal/`, `contact/`, `roadmap/`, `analytics`, `experience-settings/`: public/control-plane product owners.
 - `src/features/owner/`: owner authorization and lazy composition of feature-owned operational controls.
 - `src/infrastructure/`: Clerk, Supabase, HTTP, public URL, and abuse-protection infrastructure.
 - `src/shared/`: framework-independent utilities.
@@ -121,7 +113,7 @@ The official Standard 52-card deck is the published free starter and the end-to-
 
 ChatGPT/Codex use authenticated `/mcp` tools to create and revise private Studio documents, preview exact CardForge renders, and hand the same document into normal Studio installation or Forge Review. MCP does not own a second template format, renderer, asset store, or publication authority. Clerk owns linked identity; CardForge owns Studio-document authorization and product semantics.
 
-For broad questions such as “where is this capability used?”, “what changed in product topology?”, or “is human/MCP parity still present?”, agents should load `.agents/skills/product-reality-audit/SKILL.md` and query the generated Product Reality graph before manually traversing the repository.
+For broad questions such as “where is this capability used?”, “what changed in product topology?”, or “is human/MCP parity still present?”, agents should query Development Intelligence when it is connected and current. Its answers are derived evidence over the same repository; inspect authoritative source for consequential implementation conclusions and fall back to source/GitHub when DI is unavailable.
 
 ## Environment
 
@@ -133,7 +125,7 @@ CLERK_SECRET_KEY=sk_test_...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...
 STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_WEBHOOK_SECRET=whsec_test_...
 NEXT_PUBLIC_APP_URL=http://localhost:9002
 ```
 
@@ -153,11 +145,11 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
 - `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
-- `docs/product-surface-map.md`: generated compact current-state projection of observed Product Reality; never hand-edit it.
-- `docs/generated/product-reality.ndjson`: complete rebuildable machine-readable Product Reality graph for queries, audits, and A→W/B topology/capability diffs.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
 - `docs/risk-register.md`: unresolved or explicitly accepted risks only.
+
+Development Intelligence is the optional derived current-state technical/semantic view; it does not replace these authored CardForge authorities or current source.
 
 ### Routing and supporting references
 
