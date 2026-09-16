@@ -4,7 +4,7 @@ Use this page after `AGENTS.md` to find the smallest trustworthy slice of CardFo
 
 Run `npm run verify:focused` to derive the route from the current Git diff. For a proposed path before editing, run `npm run verify:focused -- <path>`; omit `--run` by calling `node scripts/report-affected-verification.mjs <path>` when only a report is wanted. Push one coherent candidate and let the required GitHub `verify` job own `npm run verify:full`; run it locally only for high-risk work or a local/CI discrepancy.
 
-For cross-surface/current-topology questions, use `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before reading broad feature slices. `docs/product-surface-map.md` is its compact generated projection; `docs/generated/product-reality.ndjson` is the complete generated graph.
+For broad current-topology, parity, architecture, or cross-file questions, use Development Intelligence when it is connected and current for the revision being inspected. Its Code, Parity, Architecture, and Change lenses query one evidence-backed graph. Treat that graph as derived acceleration over Git/source, not as a second product authority. If Development Intelligence is unavailable or does not cover the exact branch/revision, continue from current source/GitHub rather than blocking development.
 
 ## Studio surfaces and navigation
 
@@ -73,7 +73,7 @@ For cross-surface/current-topology questions, use `.agents/skills/product-realit
 ## Platform and repository tooling
 
 - Owners: `src/infrastructure` for adapters, `src/shared` for framework-independent utilities, `src/components/ui` for generic primitives, `scripts` for repository checks, and `tests/infrastructure` for their guardrails.
-- Product Reality: `scripts/product-reality.mjs` queries/diffs current observed product semantics. Use `npm run product-reality:query -- --surface <id>`, `--feature <owner>`, `--kind capability`, `--kind mcp`, or `--unknown`; use `npm run product-reality:diff -- --base <ref>` for A→W/B review. Working W is disposable; seal generated outputs only at a coherent Preview/main promotion boundary.
+- Development Intelligence: when connected, use its graph search/trace, Parity, Architecture, and Change lenses for broad technical/current-state questions. Source-adjacent `developmentIntelligence` declarations describe stable current product semantics that static structure cannot prove alone. They describe what exists now; they do not own future intent.
 - Read: `docs/architecture.md#dependency-rules`, `docs/testing.md`, and the affected provider section only for an external adapter.
 - Tests: direct imports or the matching infrastructure fixture. `npm run architecture:report` is deliberately opt-in; `architecture:check` is the quiet enforcement path.
 - Risk: Product by default; High when security, migration, secrets, auth, permissions, or provider behavior changes.
@@ -81,9 +81,7 @@ For cross-surface/current-topology questions, use `.agents/skills/product-realit
 ## Command ownership
 
 - During implementation: `npm run verify:focused` or `npm run verify:focused -- <paths>`.
-- Product Reality query: `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind capability`, `--kind mcp`, or `--unknown`.
-- Product Reality working drift: `npm run product-reality:diff -- --base <ref>` or `npm run product-reality:audit -- --base <ref>`; W is disposable.
-- Product Reality promotion: `npm run product-reality:seal` then `npm run product-reality:check` on the exact candidate.
+- Current technical/product topology: query Development Intelligence when available and current for the target revision; otherwise inspect current source/GitHub directly.
 - Architecture enforcement: `npm run architecture:check`; changed-file signal: `npm run architecture:changed`; deep analysis: `npm run architecture:report`.
 - Final candidate: focused evidence locally; required GitHub `verify` runs `npm run verify:full` as the authoritative deterministic gate.
 - Test inventory: `npm run test:inventory` only when coverage growth or cleanup is the question.

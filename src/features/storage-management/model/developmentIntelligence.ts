@@ -1,0 +1,37 @@
+/** Current Library action and tool semantics for Development Intelligence. */
+export const LIBRARY_DEVELOPMENT_INTELLIGENCE = [
+  { developmentIntelligence: { kind: 'action', id: 'library.close-locations', label: 'Close locations', scope: 'zone', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.close-tool', label: 'Close Library tool', scope: 'zone', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.continue', label: 'Continue', scope: 'object', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:studio-documents' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.copy-published-template', label: 'Copy published Template', scope: 'object', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:template-editor' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.delete-copy', label: 'Delete copy', scope: 'object', result: 'tool-opened', relationships: [
+    { kind: 'owned-by', to: 'feature:card-generator' },
+    { kind: 'owned-by', to: 'feature:project' },
+    { kind: 'owned-by', to: 'feature:template-editor' },
+  ] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.duplicate', label: 'Duplicate', scope: 'object', result: 'mutation', relationships: [{ kind: 'owned-by', to: 'feature:card-generator' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.edit-pipeline', label: 'Edit Pipeline submission', scope: 'object', result: 'tool-opened', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.manage-location', label: 'Manage location', scope: 'object', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.open', label: 'Open', scope: 'object', result: 'navigation', relationships: [
+    { kind: 'automated-by', to: 'mcp:checkout_project' },
+    { kind: 'automated-by', to: 'mcp:list_connected_projects' },
+    { kind: 'owned-by', to: 'feature:card-generator' },
+    { kind: 'owned-by', to: 'feature:project' },
+    { kind: 'owned-by', to: 'feature:studio-documents' },
+    { kind: 'owned-by', to: 'feature:template-editor' },
+  ] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.refresh', label: 'Refresh Library', scope: 'zone', result: 'refresh-requested', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.retire-pipeline', label: 'Retire Pipeline revision', scope: 'object', result: 'mutation', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.save-move', label: 'Save & move', scope: 'object', result: 'tool-opened', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.send-pipeline', label: 'Send to Pipeline', scope: 'object', result: 'tool-opened', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.test-pipeline', label: 'Test Pipeline revision', scope: 'object', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.use-published', label: 'Use published work', scope: 'object', result: 'navigation', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.view-source', label: 'View source', scope: 'object', result: 'provider-handoff', relationships: [
+    { kind: 'owned-by', to: 'feature:personal-library' },
+    { kind: 'owned-by', to: 'feature:project' },
+  ] } },
+  { developmentIntelligence: { kind: 'action', id: 'library.withdraw-pipeline', label: 'Withdraw Pipeline revision', scope: 'object', result: 'mutation', relationships: [{ kind: 'owned-by', to: 'feature:pipeline' }] } },
+  { developmentIntelligence: { kind: 'tool', id: 'delete-copy-confirmation', label: 'Delete copy confirmation' } },
+  { developmentIntelligence: { kind: 'tool', id: 'edit-contribution', label: 'Edit contribution' } },
+  { developmentIntelligence: { kind: 'tool', id: 'locations', label: 'Locations', relationships: [{ kind: 'owned-by', to: 'feature:storage-management' }] } },
+] as const;
