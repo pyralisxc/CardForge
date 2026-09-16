@@ -102,12 +102,12 @@ Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the
 
 - `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
-- generated `docs/product-surface-map.md` — compact observed current Product Reality; query the graph rather than hand-editing this projection when current placement/reachability matters;
+- Development Intelligence when connected/current — derived observed code, architecture, parity, and semantic topology used to narrow authoritative source inspection, never future intent;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.
 
-Use current code and live provider state where they are authoritative. Git history is evidence, not current specification.
+Use current code and live provider state where they are authoritative. Git history is evidence, not current specification. Development Intelligence is optional acceleration and never a prerequisite for correct CardForge work.
 
 Do not reconstruct a feature contract from old PR prose or historical audit reports when current truth answers the question.
 
@@ -219,6 +219,7 @@ If these are not true, stay in Resolve. Do not use implementation as the mechani
 Specialist tools may strengthen a phase but never become CardForge's source of truth.
 
 - **Product Design** can help during Explore or adversarial UX review.
+- **Development Intelligence** can accelerate current-state code, architecture, parity, and topology discovery when it is connected and current.
 - **Linear** can receive the resolved contract and split it into implementation work after semantic freeze.
 - **GitHub** remains the code/history surface and implementation review boundary.
 - CardForge's canonical living docs remain the durable product and architecture authorities.
@@ -240,7 +241,7 @@ Promote only verified durable truth into its existing canonical owner:
 - `docs/risk-register.md` for unresolved material risk;
 - `AGENTS.md` only for repository-wide agent behavior that truly applies across objectives.
 
-`docs/product-surface-map.md` is generated observed reality, not an authored destination for product doctrine. Do not promote desired placement or future intent into it by hand; change code/semantic metadata or the Product Reality scanner and regenerate when observed topology changes.
+Development Intelligence is observed derived reality, not an authored destination for product doctrine. Do not encode desired placement or future intent into source-adjacent `developmentIntelligence` declarations; change product direction/docs for intent and only declare current semantics that actually exist in source.
 
 Use **promote, consolidate, replace**:
 
