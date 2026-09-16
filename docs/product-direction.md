@@ -24,7 +24,7 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 
 | Surface | Core question | Product role |
 | --- | --- | --- |
-| **Desk** | What am I working on? | The user's spatial home for authored work, active work, recent work, organization, and quick object actions. |
+| **Desk** | What am I working on? | The user's spatial home for authored work, active work, organization, and quick object actions. |
 | **Library** | What resources can I access? | The user's structured collection across Personal and entitlement-filtered Pipeline scopes, with a Published scope added for Contributors and Owners. |
 | **Profile** | Who am I here, and what follows me? | Identity, security, plan/access, preferences, provider summary, temporary AI capacity, and personal role configuration. |
 | **Studio workbench** | What am I changing or producing right now? | A focused mode entered from selected work for authoring, generation, review-in-context, validation, saving, and output. It is not another collection or permanent navigation destination. |
@@ -150,9 +150,11 @@ Desk and Studio use the same object/action grammar with distinct jobs:
 
 ## Desk: My Work
 
-Desk's primary content is user-owned Sets/Projects and resumable work. It is not an account metrics dashboard.
+Desk's primary content is user-owned Sets/Projects and active work. It is not an account metrics dashboard.
 
 Desk may surface browser-local work, Google Drive projects, attached local-folder projects, portable packages the user opens/indexes, and temporary AI work. Location is metadata on the work, not Desk's organizing principle.
+
+Signing in carries browser-authored guest work into the next account workspace when that account has no saved browser workspace, preserving the work's Desk identity and placement. An existing account remains authoritative for its own work: any retained guest work stays recoverable and may be added as independent account copies, never replacing or silently merging into existing account work. Desk does not add a separate recent-work or resume layer for this transition.
 
 Desk restores each source independently. A transient same-account failure keeps already loaded items with an honest unavailable state; an account switch, revoked capability, or expired protected session clears that protected source. Folder-only remembered work remains visible as a reconnectable work location. Drive/AI listing follows provider cursors, and discovery never imports provider work merely because a person logged in.
 
@@ -168,7 +170,7 @@ Desk quick actions use the same scope contract as Studio:
 
 | Selection | Typical actions |
 | --- | --- |
-| No object | New Set/Project, import/open, search Library, resume recent work. |
+| No object | New Set/Project, import/open, search Library. |
 | One Set/Project | Open, Edit/Test, Generate, Export, Save/Move, Duplicate, Delete, contribution actions when eligible. |
 | Multiple work objects | Batch move/tag/archive/export where the domain supports it. |
 | One contained Artifact | Edit, Design, Generate, Export, Duplicate, Pipeline/revision actions where valid. |
