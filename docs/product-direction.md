@@ -370,6 +370,8 @@ Durable creator locations include:
 - Google Drive projects;
 - future providers chosen deliberately.
 
+Free is a durable creator studio, not a storage trial: a signed-in Free creator may use portable Set packages, browser-authorized local folders, and their personally connected Google Drive location. Paid plans may improve finished output and CardForge-operated services, but must never block the creator from keeping, reopening, copying, or moving their own work. Google Drive remains a narrow provider location rather than a CardForge sync or collaboration promise: one CardForge account connects one Google identity at a time, and Google remains authoritative for folder membership, sharing, permissions, storage, and revisions.
+
 Temporary AI Studio documents remain CardForge-owned bounded collaboration storage with explicit capacity, inactivity retention, recoverable trash, and cleanup. They are not project backups.
 
 Library composes location/source truth; it does not own provider bytes or become a sync engine.

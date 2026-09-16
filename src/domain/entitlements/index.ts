@@ -1,6 +1,5 @@
 export type AccessMode = 'free' | 'paid' | 'contributor';
 export type PaidPlan = 'creator' | 'designer';
-export type ProjectFileAccessPolicy = 'free' | 'creator_pass';
 
 export type ProjectCapabilities = {
   canPreview: boolean;
@@ -33,14 +32,14 @@ const readEnvironment = (env?: AccessEnvironment): AccessEnvironment => env ?? {
   CARDFORGE_ACCESS_MODE: process.env.CARDFORGE_ACCESS_MODE,
 };
 
-export const getProjectCapabilities = (
-  mode: AccessMode,
-  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
-): ProjectCapabilities => ({
+export const getProjectCapabilities = (mode: AccessMode): ProjectCapabilities => ({
   canPreview: true,
   canGenerate: true,
   canExportClean: mode !== 'free',
-  canUseProjectFiles: mode !== 'free' || projectFileAccess === 'free',
+  // A creator's portable work belongs to them. CardForge plans improve the
+  // finished output and CardForge-operated services; they never hold project
+  // packages, local folders, or the creator's connected provider hostage.
+  canUseProjectFiles: true,
 });
 
 export const isWatermarkRequired = (canExportClean: boolean): boolean =>
@@ -58,20 +57,10 @@ export const getExportGateMessage = (mode: AccessMode): string | null =>
     ? null
     : 'Free PNG, PDF, ZIP, and Tabletop Simulator downloads include the CardForge watermark. Creator Pass removes it from finished files.';
 
-export const getProjectFileGateMessage = (
-  mode: AccessMode,
-  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
-): string | null => getProjectCapabilities(mode, projectFileAccess).canUseProjectFiles
-  ? null
-  : 'Creator Pass lets you download and open portable CardForge project files.';
-
-export const getExportEntitlementCopy = (
-  mode: AccessMode,
-  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
-): ExportEntitlementCopy => {
+export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCopy => {
   const gateMessage = getExportGateMessage(mode);
-  const projectFileGateMessage = getProjectFileGateMessage(mode, projectFileAccess);
-  const canExportClean = getProjectCapabilities(mode, projectFileAccess).canExportClean;
+  const projectFileGateMessage = null;
+  const canExportClean = getProjectCapabilities(mode).canExportClean;
 
   if (mode === 'contributor') {
     return {
@@ -98,9 +87,7 @@ export const getExportEntitlementCopy = (
     canExportClean,
     gateMessage,
     projectFileGateMessage,
-    panelMessage: projectFileAccess === 'free'
-      ? 'Build unlimited local Templates and card sets, move portable project files for free, and download watermarked finished files. Creator Pass removes the watermark.'
-      : 'Build unlimited local Templates and card sets and download watermarked finished files. Creator Pass removes the watermark and adds portable project files.',
+    panelMessage: 'Build unlimited local Templates and card sets, keep portable project files in your own locations, and download watermarked finished files. Creator Pass removes the watermark.',
   };
 };
 

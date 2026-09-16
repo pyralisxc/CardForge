@@ -109,14 +109,14 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 ## Access model
 
-- Free: local design/generation and whatever portable-project access the owner-controlled experience policy currently allows.
-- Creator Pass: clean paid finished-output entitlement and portable-project access.
-- Designer Pass: Creator Pass-grade Studio access plus the higher Designer MCP capacity target; it does not grant contributor access.
+- Free: local design/generation, portable Set packages, browser-authorized local folders, and one personally connected provider location such as Google Drive. A Free creator can keep and reopen their own work; provider permissions and storage limits remain provider-owned.
+- Creator Pass: clean paid finished-output entitlement plus the longer private Studio work window and higher current beta capacity target. It does not gate portable-project or connected-provider access.
+- Designer Pass: Creator Pass-grade Studio access plus the highest current beta Designer capacity target; it does not grant contributor access.
 - Contributor: Creator Pass-grade output plus contribution/Pipeline capabilities according to the active contributor profile and granted scopes.
 - Owner: protected Profile operations plus contributor-grade tooling.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
 
-`src/features/account/lib/accountExperience.ts` projects those independent axes into the shared product surfaces: plan (`free`, `creator`, or `designer`), active scoped contribution access, and explicit owner authority. Desk, Library, and Profile remain the same navigation environments for every account; catalog visibility, portable-project capability, Pipeline scope/actions, focused Studio capabilities, and owner governance layer onto them. A `contributor` entitlement without an active Contributor profile grants no contribution surface, and every Forge Review HTTP mutation independently requires its exact contribution scope. In the Environment vocabulary, `member` means any signed-in account and never means Creator Pass.
+`src/features/account/lib/accountExperience.ts` projects those independent axes into the shared product surfaces: plan (`free`, `creator`, or `designer`), active scoped contribution access, and explicit owner authority. Desk, Library, and Profile remain the same navigation environments for every account; catalog visibility, durable project/location capability, Pipeline scope/actions, focused Studio capabilities, and owner governance layer onto them. A `contributor` entitlement without an active Contributor profile grants no contribution surface, and every Forge Review HTTP mutation independently requires its exact contribution scope. In the Environment vocabulary, `member` means any signed-in account and never means Creator Pass.
 
 Current account resolution uses Clerk's current-user identity directly; CardForge does not maintain a second session/profile fallback. Explicit user-id administration uses Clerk's Backend API.
 

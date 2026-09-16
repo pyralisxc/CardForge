@@ -221,7 +221,7 @@ export const getWorkActions = (
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: canUseProjectFiles
         ? { kind: 'available' }
-        : { kind: 'disabled', reason: 'Creator Pass is required to save or move portable Set files.' }, commitment: 'none',
+        : { kind: 'disabled', reason: 'Portable Set files are temporarily unavailable for this account.' }, commitment: 'none',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     ...(localSet && canContribute ? [createSendToPipelineActionDescriptor({

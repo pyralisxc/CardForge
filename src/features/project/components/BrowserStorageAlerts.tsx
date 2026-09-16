@@ -101,7 +101,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
           title: 'Your work is saved in this browser',
           description: canUseProjectFiles
             ? 'Download a project backup periodically so you can reopen it on another device or recover after browser cleanup.'
-            : 'Portable project backups are available with Creator Pass.',
+            : 'Portable project backups are temporarily unavailable. Refresh and try again.',
           duration: 10_000,
         });
       }, 20_000);

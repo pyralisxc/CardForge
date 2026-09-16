@@ -56,10 +56,10 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.final.body', group: 'landing', section: 'Final action', label: 'Introduction', body: 'Open your Desk, choose a Set or starting point, and make something that feels like yours.', kind: 'long', maxLength: 350 },
 
   { slug: 'plans.meta.title', group: 'plans', section: 'Search & sharing', label: 'Page title', body: 'CardForge Plans', kind: 'short', maxLength: 100 },
-  { slug: 'plans.meta.description', group: 'plans', section: 'Search & sharing', label: 'Page description', body: 'Compare CardForge plans, finished-export access, portable project files, ChatGPT capacity, and subscription options.', kind: 'long', maxLength: 200 },
+  { slug: 'plans.meta.description', group: 'plans', section: 'Search & sharing', label: 'Page description', body: 'Compare CardForge plans, creator-owned storage, finished-export access, current beta capacity targets, and subscription options.', kind: 'long', maxLength: 200 },
   { slug: 'plans.hero.eyebrow', group: 'plans', section: 'Hero', label: 'Eyebrow', body: 'CardForge plans', kind: 'short', maxLength: 100 },
   { slug: 'plans.hero.headline', group: 'plans', section: 'Hero', label: 'Headline', body: 'Choose the plan that fits how you create.', kind: 'short', maxLength: 180 },
-  { slug: 'plans.hero.body', group: 'plans', section: 'Hero', label: 'Introduction', body: 'Start free on your local-first Desk, then add clean finished exports, portable project files, and more CardForge for ChatGPT capacity when your workflow needs them.', kind: 'long', maxLength: 500 },
+  { slug: 'plans.hero.body', group: 'plans', section: 'Hero', label: 'Introduction', body: 'Start free with a local-first Desk and portable Sets in the locations you choose. Upgrade for clean finished exports and more CardForge-operated Studio capacity when your workflow needs it.', kind: 'long', maxLength: 500 },
   { slug: 'plans.compare.heading', group: 'plans', section: 'Plan comparison', label: 'Heading', body: 'See what every plan includes', kind: 'short', maxLength: 160 },
   { slug: 'plans.compare.body', group: 'plans', section: 'Plan comparison', label: 'Introduction', body: 'Compare creation tools, connected storage, and sharing options to find the plan that fits your work.', kind: 'long', maxLength: 400 },
   { slug: 'plans.process.heading', group: 'plans', section: 'Subscription process', label: 'Heading', body: 'A straightforward subscription journey', kind: 'short', maxLength: 160 },

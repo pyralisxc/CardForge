@@ -61,8 +61,8 @@ export function LocalProjectFolderPanel({
   const run = useCallback(async (action: string, execute: () => Promise<void>) => {
     if (!canUseProjectFiles) {
       toast({
-        title: 'Portable projects are locked',
-        description: 'Creator Pass currently unlocks portable project files and direct project-folder storage.',
+        title: 'Portable projects are unavailable',
+        description: 'Refresh and try again. Your current work remains unchanged.',
       });
       return;
     }
@@ -218,7 +218,7 @@ export function LocalProjectFolderPanel({
       </div>
 
       {!canUseProjectFiles ? (
-        <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">Creator Pass currently unlocks portable .cardforge files and direct project-folder storage. Browser-local creation remains available without it.</p>
+        <p className="mt-3 text-xs leading-5 text-[var(--cf-text-subtle)]">Portable .cardforge files and direct project-folder storage are temporarily unavailable. Browser-local work remains unchanged.</p>
       ) : null}
     </div>
   );

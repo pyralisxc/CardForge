@@ -266,7 +266,7 @@ export function GoogleDriveProjectStoragePanel({
             >
               <Link2 className="mr-2 h-4 w-4" /> Connect Google Drive
             </Button>
-            {!canUseProjectFiles ? <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Creator Pass currently unlocks portable and connected project storage.</p> : null}
+            {!canUseProjectFiles ? <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Portable and connected project storage are temporarily unavailable. Refresh and try again.</p> : null}
           </div>
         ) : (
           <>

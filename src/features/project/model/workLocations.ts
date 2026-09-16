@@ -35,13 +35,13 @@ export const getWorkLocationCapabilities = ({
   },
   {
     id: 'google-drive', label: 'Google Drive', available: canUseProjectFiles && signedIn && driveConnected,
-    reason: !canUseProjectFiles ? 'Creator Pass is required for connected project locations.' : !signedIn ? 'Sign in before saving to Google Drive.' : !driveConnected ? 'Connect Google Drive in Locations first.' : null,
+    reason: !canUseProjectFiles ? 'Connected project locations are temporarily unavailable for this account.' : !signedIn ? 'Sign in before saving to Google Drive.' : !driveConnected ? 'Connect Google Drive in Locations first.' : null,
     create: canUseProjectFiles && signedIn && driveConnected, read: canUseProjectFiles && signedIn && driveConnected, write: canUseProjectFiles && signedIn && driveConnected,
     remove: canUseProjectFiles && signedIn && driveConnected, revisionSafe: true, serverReachable: true,
   },
   {
     id: 'local-folder', label: 'Local project folder', available: canUseProjectFiles && localFolderSupported,
-    reason: !canUseProjectFiles ? 'Creator Pass is required for portable Set locations.' : localFolderSupported ? null : 'Direct folder access is not supported by this browser.',
+    reason: !canUseProjectFiles ? 'Portable Set locations are temporarily unavailable for this account.' : localFolderSupported ? null : 'Direct folder access is not supported by this browser.',
     create: canUseProjectFiles && localFolderSupported, read: canUseProjectFiles && localFolderSupported, write: canUseProjectFiles && localFolderSupported,
     remove: false, revisionSafe: false, serverReachable: false,
   },

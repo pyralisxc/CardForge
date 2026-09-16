@@ -1,4 +1,4 @@
-{"type":"meta","schemaVersion":1,"topologyFingerprint":"df3143bc744938d4008f","summary":{"nodes":224,"edges":509,"unknowns":0,"kinds":{"action":30,"api":76,"capability":9,"feature":31,"mcp":30,"provider":8,"route":25,"surface":5,"tool":10}}}
+{"type":"meta","schemaVersion":1,"topologyFingerprint":"c64da0b36173770d82f7","summary":{"nodes":225,"edges":508,"unknowns":0,"kinds":{"action":30,"api":76,"capability":9,"feature":31,"mcp":30,"provider":8,"route":26,"surface":5,"tool":10}}}
 {"type":"node","id":"action:desk.create-set","kind":"action","label":"New Set","owner":"card-generator","owners":["card-generator"],"scope":"zone","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"human-only"}
 {"type":"node","id":"action:desk.delete-set","kind":"action","label":"Delete from this device","owner":"project","owners":["project"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":["browser-local"],"permission":"guest","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:desk.duplicate-set","kind":"action","label":"Duplicate","owner":"project","owners":["project"],"scope":"object","result":"mutation","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
@@ -191,6 +191,7 @@
 {"type":"node","id":"route:/accessibility","kind":"route","label":"/accessibility"}
 {"type":"node","id":"route:/account","kind":"route","label":"/account"}
 {"type":"node","id":"route:/cameron","kind":"route","label":"/cameron"}
+{"type":"node","id":"route:/card-assets/[...assetPath]","kind":"route","label":"/card-assets/[...assetPath]"}
 {"type":"node","id":"route:/contact","kind":"route","label":"/contact"}
 {"type":"node","id":"route:/contributor-terms","kind":"route","label":"/contributor-terms"}
 {"type":"node","id":"route:/contributors","kind":"route","label":"/contributors"}
@@ -427,7 +428,6 @@
 {"type":"edge","from":"capability:desk.reflective-set-organization","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"feature:account","to":"feature:analytics","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:billing","relation":"depends-on","confidence":"observed"}
-{"type":"edge","from":"feature:account","to":"feature:experience-settings","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:mcp-usage","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"provider:clerk","relation":"integrates-with","confidence":"observed"}
 {"type":"edge","from":"feature:analytics","to":"feature:experience-settings","relation":"depends-on","confidence":"observed"}
