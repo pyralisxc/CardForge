@@ -55,6 +55,7 @@ import type { ProjectDocumentV1 } from '../model/projectDocument';
 
 interface ProjectWorkLocationDialogProps extends ProjectWorkLocationContextProps {
   target: ProjectWorkLocationTarget | null;
+  driveConflictMessage?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
@@ -117,6 +118,7 @@ export function DefaultWorkLocationControl({ isSignedIn, canUseProjectFiles, dri
 
 export function ProjectWorkLocationDialog({
   target,
+  driveConflictMessage = null,
   open,
   onOpenChange,
   isSignedIn,
@@ -128,7 +130,8 @@ export function ProjectWorkLocationDialog({
 }: ProjectWorkLocationDialogProps) {
   const { toast } = useToast();
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [driveConflict, setDriveConflict] = useState<string | null>(null);
+  const [driveConflict, setDriveConflict] = useState<string | null>(driveConflictMessage);
+  useEffect(() => { setDriveConflict(driveConflictMessage); }, [driveConflictMessage, target?.localSetId]);
   const capabilities = useMemo(() => getWorkLocationCapabilities({
     signedIn: isSignedIn,
     canUseProjectFiles,
