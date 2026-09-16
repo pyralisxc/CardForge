@@ -47,7 +47,9 @@ export interface PublishedRegistryAssetRow extends RegistryContentAssetRow {
 }
 
 const REGISTRY_CONTENT_FETCH_TIMEOUT_MS = 1200;
-const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 1200;
+// The starter chooser is a primary creation path. A short provider cold-start
+// must not turn a present catalog into a false "unavailable" state.
+const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 3_000;
 const REGISTRY_CONTENT_TIMEOUT_ERROR: PostgrestError = {
   code: 'REGISTRY_CONTENT_TIMEOUT',
   details: 'Timed out while loading published registry content rows.',
