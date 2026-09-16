@@ -103,7 +103,7 @@ export function FocusedArtifactWorkspace({
       <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>Card · {face === 'back' && card.backingTemplate ? card.backingTemplate.name : subtitle}</small></span>
       <Popover>
         <PopoverTrigger asChild>
-          <Button type="button" size="sm" variant="ghost" data-artifact-browse aria-label="Browse this Set"><Navigation className="h-4 w-4" aria-hidden="true" /><span className={styles.artifactBrowseLabel}>Browse</span></Button>
+          <Button type="button" size="sm" variant="ghost" data-artifact-browse aria-label="Browse this Set" title="Browse this Set"><Navigation className="h-4 w-4" aria-hidden="true" /><span className={styles.artifactBrowseLabel}>Browse</span></Button>
         </PopoverTrigger>
         <PopoverContent align="end" className={styles.artifactBrowseMenu} aria-label="Browse this Set">
           <strong>Browse Set</strong>
@@ -116,11 +116,11 @@ export function FocusedArtifactWorkspace({
           </div>
         </PopoverContent>
       </Popover>
+      <Button type="button" size="sm" variant="outline" onClick={onEdit} aria-label="Edit Artifact" title="Edit Artifact"><Pencil className="mr-1.5 h-4 w-4" /><span className={styles.artifactEditLabel}>Edit</span></Button>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
       <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
       <Button type="button" size="sm" variant="ghost" onClick={viewport.fit}>Fit</Button>
-      <Button type="button" size="sm" variant="outline" onClick={onEdit}><Pencil className="mr-1.5 h-4 w-4" /><span className={styles.artifactEditLabel}>Edit Artifact</span></Button>
       <CardActions card={card} canExportClean={canExportClean} canUseProjectFiles={canUseProjectFiles} compact />
     </div>
     <div

@@ -66,10 +66,10 @@ test.describe('spatial touch workspace', () => {
     const desk = page.locator('[data-desk-viewport]');
     await expect(desk).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
-    await expect.poll(() => desk.evaluate((node) => ({
-      horizontal: node.scrollWidth - node.clientWidth,
-      vertical: node.scrollHeight - node.clientHeight,
-    }))).toEqual({ horizontal: 0, vertical: 0 });
+    // Compact overview deliberately favors legible Set targets over a tiny
+    // whole-world projection, so only the horizontal Desk axis is pannable.
+    await expect.poll(() => desk.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeGreaterThan(0);
+    await expect.poll(() => desk.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
     const before = await setObject.getAttribute('style');

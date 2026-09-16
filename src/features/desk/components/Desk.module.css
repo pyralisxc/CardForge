@@ -1705,15 +1705,6 @@
     display: none;
   }
 
-  .artifactBrowseLabel {
-    display: none;
-  }
-
-  .artifactEditLabel {
-    display: none;
-  }
-
-
   .contentHeading {
     display: flex;
     min-height: 1.25rem;
