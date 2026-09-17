@@ -5,7 +5,7 @@ import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
-import type { CardSetOrganization } from '@/domain/cards';
+import type { CardFace, CardSetOrganization } from '@/domain/cards';
 import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
@@ -13,7 +13,7 @@ import {
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { ArtifactSlot, getTemplateAccent, useArtifactFaces, useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
+import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces, useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
 
 import {
   buildFocusedArtifactLayout,
@@ -44,6 +44,11 @@ interface FocusedSetArtifactSurfaceProps {
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
   onEditArtifact: (artifactId: string) => void;
+  editingArtifactId: string | null;
+  onCancelArtifactEdit: () => void;
+  onArtifactEditDirtyChange: (dirty: boolean) => void;
+  onSaveArtifact: (card: DisplayCard) => void;
+  onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onMoveArtifacts: (positions: Record<string, ArtifactPosition>) => void;
 }
 
@@ -65,6 +70,7 @@ type SpatialHistoryEntry = {
 type SetCameraMode = 'fit' | 'custom';
 
 const MAX_SPATIAL_HISTORY = 50;
+const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
 
 const identityFor = (setId: string, card: DisplayCard): ArtifactIdentity => ({
   artifactId: card.uniqueId,
@@ -89,6 +95,11 @@ export function FocusedSetArtifactSurface({
   stageRef,
   onFocusArtifact,
   onEditArtifact,
+  editingArtifactId,
+  onCancelArtifactEdit,
+  onArtifactEditDirtyChange,
+  onSaveArtifact,
+  onDesignArtifact,
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -137,6 +148,10 @@ export function FocusedSetArtifactSurface({
     viewportHeight: viewportSize.height,
   }), [layout, viewportSize.height, viewportSize.width]);
   const relativeZoom = session.camera.zoom / fitZoom;
+  const scaledWorldWidth = layout.width * session.camera.zoom;
+  const scaledWorldHeight = layout.height * session.camera.zoom;
+  const worldOffsetX = Math.max(0, (viewportSize.width - scaledWorldWidth) / 2);
+  const worldOffsetY = Math.max(0, (viewportSize.height - scaledWorldHeight) / 2);
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
   const visibleEntries = useMemo(() => projectVisibleArtifacts(layout, {
     x: session.camera.x,
@@ -147,10 +162,10 @@ export function FocusedSetArtifactSurface({
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
   const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  // Projection already bounds mounted work. Preserve real previews for a normal
-  // Set-sized viewport so visual/template identity does not disappear merely
-  // because the camera is fitted; very large projections still fall back to LOD.
-  const useDetailedPreview = projectedEntries.length <= 160;
+  // Keep the canonical scene renderer for normal Set-sized projections. Large
+  // fitted collections use an image-led thumbnail tier instead of erasing the
+  // creator's work into generic numbered boxes.
+  const useFullPreview = projectedEntries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -211,13 +226,13 @@ export function FocusedSetArtifactSurface({
       return;
     }
     viewport.scrollTo({
-      left: session.camera.x * customZoom,
-      top: session.camera.y * customZoom,
+      left: session.camera.x * customZoom + worldOffsetX,
+      top: session.camera.y * customZoom + worldOffsetY,
       behavior: 'auto',
     });
     // Scroll is the camera's physical owner. Do not write each scroll event back
     // into the viewport: that fights trackpad/touch scrolling between renders.
-  }, [artifactFocusId, fitZoom, session.camera.x, session.camera.y, session.camera.zoom, setId, setSession]);
+  }, [artifactFocusId, fitZoom, session.camera.x, session.camera.y, session.camera.zoom, setId, setSession, worldOffsetX, worldOffsetY]);
 
   useEffect(() => {
     const previousArtifactFocusId = previousArtifactFocusIdRef.current;
@@ -444,12 +459,18 @@ export function FocusedSetArtifactSurface({
     const rect = node.getBoundingClientRect();
     const local = point ? { x: point.clientX - rect.left, y: point.clientY - rect.top } : { x: node.clientWidth / 2, y: node.clientHeight / 2 };
     const previous = previousPoint ? { x: previousPoint.clientX - rect.left, y: previousPoint.clientY - rect.top } : local;
-    const x = (node.scrollLeft + previous.x) / session.camera.zoom - local.x / normalized;
-    const y = (node.scrollTop + previous.y) / session.camera.zoom - local.y / normalized;
+    const worldX = (node.scrollLeft + previous.x - worldOffsetX) / session.camera.zoom;
+    const worldY = (node.scrollTop + previous.y - worldOffsetY) / session.camera.zoom;
+    const nextOffsetX = Math.max(0, (viewportSize.width - layout.width * normalized) / 2);
+    const nextOffsetY = Math.max(0, (viewportSize.height - layout.height * normalized) / 2);
+    const scrollLeft = worldX * normalized + nextOffsetX - local.x;
+    const scrollTop = worldY * normalized + nextOffsetY - local.y;
+    const x = Math.max(0, (scrollLeft - nextOffsetX) / normalized);
+    const y = Math.max(0, (scrollTop - nextOffsetY) / normalized);
     cameraModeRef.current = nearlyEqual(normalized, fitZoom) ? 'fit' : 'custom';
     relativeZoomRef.current = normalized / fitZoom;
-    if (normalized === session.camera.zoom) node.scrollTo({ left: Math.max(0, x) * normalized, top: Math.max(0, y) * normalized });
-    setSession((current) => setCreatorCamera(current, { x: Math.max(0, x), y: Math.max(0, y), zoom: normalized }));
+    if (normalized === session.camera.zoom) node.scrollTo({ left: Math.max(0, scrollLeft), top: Math.max(0, scrollTop) });
+    setSession((current) => setCreatorCamera(current, { x, y, zoom: normalized }));
   };
   const gestures = useSpatialGestures({ viewportRef, zoom: session.camera.zoom, changeZoom: setZoom, disabled: Boolean(artifactFocusId), cancelDrag: () => {
     dragRef.current = null;
@@ -459,7 +480,10 @@ export function FocusedSetArtifactSurface({
   } });
   const worldPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
     const node = event.currentTarget, bounds = node.getBoundingClientRect();
-    return { x: (node.scrollLeft + event.clientX - bounds.left) / session.camera.zoom, y: (node.scrollTop + event.clientY - bounds.top) / session.camera.zoom };
+    return {
+      x: (node.scrollLeft + event.clientX - bounds.left - worldOffsetX) / session.camera.zoom,
+      y: (node.scrollTop + event.clientY - bounds.top - worldOffsetY) / session.camera.zoom,
+    };
   };
   const selectionRect = (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = marqueeRef.current?.start;
@@ -473,34 +497,12 @@ export function FocusedSetArtifactSurface({
     <div className={styles.setArtifactWorkspace} data-artifact-focused={Boolean(focusedEntry)} data-artifact-density={layout.density}>
       <div
         className={styles.artifactContextField}
+        data-artifact-context-field
         data-obscured={Boolean(focusedEntry)}
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Swipe to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it; hold empty space then drag to draw a selection. With a mouse, drag cards to move or empty space to select. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
-      <div className={styles.cameraControls} data-set-view-controls aria-label="Artifact view controls">
-        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
-        <span aria-live="polite">{Math.round(relativeZoom * 100)}%</span>
-        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom + fitZoom * 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
-        <Button type="button" size="sm" variant="ghost" onClick={applyFit}>Fit</Button>
-        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
-        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
-      <FocusedArtifactNavigator
-        setName={setName}
-        entries={layout.entries}
-        groups={orderedGroups}
-        arrangement={organization.arrangement}
-        selection={session.selection}
-        navigatorFocusId={navigatorFocusId}
-        hidden={Boolean(focusedEntry)}
-        onFocusArtifact={(artifactId) => focusArtifact(artifactId, 'navigator')}
-        onMoveFocus={moveNavigatorFocus}
-        onMoveGroup={moveNavigatorGroup}
-        onNudge={nudgeSelection}
-        onSetNavigatorFocus={setNavigatorFocusId}
-        onToggleArtifact={toggleArtifact}
-      />
-      </div>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -511,6 +513,7 @@ export function FocusedSetArtifactSurface({
         data-density={layout.density}
         data-zoom={session.camera.zoom.toFixed(2)}
         data-relative-zoom={relativeZoom.toFixed(2)}
+        data-at-fit={relativeZoom <= 1.0001}
         data-grid={showGrid && organization.arrangement === 'manual'}
         data-artifact-focus-exclusive="false"
         aria-label={`${setName} spatial Artifact field`}
@@ -543,13 +546,13 @@ export function FocusedSetArtifactSurface({
           const viewport = event.currentTarget;
           setSession((current) => setCreatorCamera(current, {
             ...current.camera,
-            x: viewport.scrollLeft / current.camera.zoom,
-            y: viewport.scrollTop / current.camera.zoom,
+            x: Math.max(0, (viewport.scrollLeft - worldOffsetX) / current.camera.zoom),
+            y: Math.max(0, (viewport.scrollTop - worldOffsetY) / current.camera.zoom),
           }));
         }}
       >
-        <div className={styles.artifactWorldSizer} style={{ width: layout.width * session.camera.zoom, height: layout.height * session.camera.zoom }}>
-          <div className={styles.artifactWorld} style={{ width: layout.width, height: layout.height, transform: `scale(${session.camera.zoom})` }}>
+        <div className={styles.artifactWorldSizer} style={{ width: Math.max(viewportSize.width, scaledWorldWidth), height: Math.max(viewportSize.height, scaledWorldHeight) }}>
+          <div data-artifact-world className={styles.artifactWorld} style={{ left: worldOffsetX, top: worldOffsetY, width: layout.width, height: layout.height, transform: `scale(${session.camera.zoom})` }}>
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
               <div key={group.label} className={styles.artifactGroupLabel} style={{ top: group.y }}><strong>{group.label}</strong><span>{group.count}</span></div>
@@ -564,6 +567,8 @@ export function FocusedSetArtifactSurface({
               const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
               const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
               const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
+              const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
+              const showThumbnailImage = previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
                 <div
                   key={artifactId}
@@ -593,7 +598,21 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
-                  {useDetailedPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : <span className={styles.artifactLodPreview} style={{ border: `2px dashed ${getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name)}` }} aria-hidden="true">{entry.index + 1}</span>}
+                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
+                    <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
+                      <ArtifactThumbnail
+                        card={card}
+                        face={face}
+                        width={previewWidth}
+                        height={previewHeight}
+                        showImage={showThumbnailImage}
+                      />
+                      {!canExportClean && showThumbnailImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${artifactId}`} /> : null}
+                      <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name) }}>
+                        <span className={styles.artifactLodOrdinal}>{entry.index + 1}</span>
+                      </span>
+                    </span>
+                  )}
                   <strong>{entry.title}</strong>
                   <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
                   {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
@@ -603,6 +622,29 @@ export function FocusedSetArtifactSurface({
             })}
           </div>
         </div>
+      </div>
+      <div className={styles.cameraControls} data-set-view-controls aria-label="Artifact view controls">
+        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
+        <span aria-live="polite">{Math.round(relativeZoom * 100)}%</span>
+        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom + fitZoom * 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
+        <Button type="button" size="sm" variant="ghost" onClick={applyFit}>Fit</Button>
+        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
+        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
+        <FocusedArtifactNavigator
+          setName={setName}
+          entries={layout.entries}
+          groups={orderedGroups}
+          arrangement={organization.arrangement}
+          selection={session.selection}
+          navigatorFocusId={navigatorFocusId}
+          hidden={Boolean(focusedEntry)}
+          onFocusArtifact={(artifactId) => focusArtifact(artifactId, 'navigator')}
+          onMoveFocus={moveNavigatorFocus}
+          onMoveGroup={moveNavigatorGroup}
+          onNudge={nudgeSelection}
+          onSetNavigatorFocus={setNavigatorFocusId}
+          onToggleArtifact={toggleArtifact}
+        />
       </div>
       </div>
       {focusedEntry && focusedCard ? <FocusedArtifactWorkspace
@@ -616,6 +658,11 @@ export function FocusedSetArtifactSurface({
         availableDirections={focusedArtifactDirections}
         onBrowse={browseFocusedArtifact}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
+        editing={editingArtifactId === focusedEntry.identity.artifactId}
+        onCancelEdit={onCancelArtifactEdit}
+        onDirtyChange={onArtifactEditDirtyChange}
+        onSave={onSaveArtifact}
+        onDesign={onDesignArtifact}
       /> : null}
 
     </div>

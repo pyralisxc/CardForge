@@ -43,8 +43,8 @@ export const DESK_PRODUCT_REALITY = [
   },
   {
     productRealityKind: 'capability',
-    id: 'desk.readable-fit-floor',
-    label: 'Readable large-Set Fit floor',
+    id: 'desk.complete-fit-overview',
+    label: 'Complete bounded Set Fit with adaptive detail',
     category: 'accessibility',
     ownerFeature: 'desk',
     surfaces: ['desk'],

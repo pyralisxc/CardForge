@@ -87,8 +87,9 @@ test.describe('mobile Library location tools', () => {
 
     const status = page.locator('footer[aria-label="Environment status"]');
     await expect(status).toBeVisible();
-    await expect(status.getByText('Working copy saved', { exact: true })).toBeVisible();
+    await expect(status.getByText('Local working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
+    expect(await status.locator(':scope > div:first-child > *').evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth + 1))).toBe(true);
 
     const storageStatus = page.getByTitle('Open Locations & connections');
     await expectTouchTarget(storageStatus);
@@ -100,13 +101,128 @@ test.describe('mobile Library location tools', () => {
 
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
-    await expect(mobileNav).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Desk', exact: true })).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Library', exact: true })).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+    await expect(mobileNav).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 
+    const artifactStage = page.locator('[data-desk-artifact-stage]');
+    const viewControls = page.locator('[data-set-view-controls]');
+    expect(await page.evaluate(() => {
+      const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
+      return Boolean(stage && controls && controls.top >= stage.bottom - 1);
+    })).toBe(true);
+    await expect(viewControls).toBeVisible();
+
+    await artifactStage.locator('button[data-artifact-id="scale-card-1"]').click();
+    const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+    await expect(selectionActions.getByRole('button', { name: 'Edit selected', exact: true })).toBeVisible();
+    await expect(selectionActions.getByRole('button', { name: 'More selection actions', exact: true })).toBeVisible();
+    expect(await selectionActions.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await selectionActions.getByRole('button', { name: 'More selection actions', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Duplicate', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.setViewportSize({ width: 320, height: 667 });
+    await expect.poll(async () => page.evaluate(() => {
+      const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
+      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && controls
+        && footer
+        && controls.top >= stage.bottom - 1
+        && controls.bottom <= footer.top + 1
+        && footer.right <= innerWidth + 1
+        && footer.bottom <= innerHeight + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
+    const selectedCard = page.locator('button[data-artifact-id="scale-card-1"]');
+    await selectedCard.focus();
+    await selectedCard.press('Enter');
+    await expect(page.locator('[data-focused-artifact-workspace]')).toBeVisible();
+    await expect.poll(async () => page.evaluate(() => {
+      const workspace = document.querySelector('[data-focused-artifact-workspace]');
+      const stage = workspace?.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = workspace?.querySelector('[aria-label="Focused Artifact tools"]')?.getBoundingClientRect();
+      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && controls
+        && footer
+        && controls.top >= stage.bottom - 1
+        && controls.bottom <= footer.top + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
     await test.info().attach('mobile-desk-capability-parity', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
+
+  test('@golden edits a focused Artifact in place without overlapping the mobile stage, inspector, or rails', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { cardLimit: 5, exportSample: true });
+    await page.setViewportSize({ width: 320, height: 667 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await openScaleSet(page, 100);
+
+    const boardCard = page.locator('button[data-artifact-id="scale-card-1"]');
+    await boardCard.focus();
+    await boardCard.press('Enter');
+
+    const workspace = page.locator('[data-focused-artifact-workspace]');
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'true');
+
+    const titleTarget = page.locator('[data-field-element-id="scale-template-title"]');
+    await expect(titleTarget).toBeVisible();
+    await expect.poll(async () => {
+      const bounds = await titleTarget.boundingBox();
+      return bounds ? Math.min(bounds.width, bounds.height) : 0;
+    }).toBeGreaterThanOrEqual(44);
+    await titleTarget.tap();
+
+    const titleInput = page.getByRole('textbox', { name: 'Card Name', exact: true });
+    await expect(titleInput).toHaveValue('Scale Card 0001');
+    await titleInput.fill('Draft Mobile Artifact');
+    await expect(page.locator('[data-scene-depth="edit"]')).toContainText('Draft Mobile Artifact');
+
+    expect(await workspace.evaluate((element) => {
+      const stage = element.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const inspector = element.querySelector('[aria-label="Artifact field inspector"]')?.getBoundingClientRect();
+      const controls = element.querySelector('[aria-label="Focused Artifact tools"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && inspector
+        && controls
+        && inspector.top >= stage.bottom - 1
+        && controls.top >= inspector.bottom - 1
+        && controls.right <= innerWidth + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
+    await workspace.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('alertdialog', { name: 'Discard unsaved Artifact changes?' })).toBeVisible();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'false');
+    await expect(page.locator('[data-scene-depth="focus"]')).toContainText('Scale Card 0001');
+
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.locator('[data-field-element-id="scale-template-title"]').tap();
+    await page.getByRole('textbox', { name: 'Card Name', exact: true }).fill('Saved Mobile Artifact');
+    await workspace.getByRole('button', { name: 'Save & Done', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'false');
+    await expect(page.locator('[data-scene-depth="focus"]')).toContainText('Saved Mobile Artifact');
+
+    await test.info().attach('mobile-artifact-direct-edit', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });

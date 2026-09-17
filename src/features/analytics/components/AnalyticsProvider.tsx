@@ -278,6 +278,7 @@ export function AnalyticsProvider({
   const settingsButtonClassName = pathname === '/account'
     ? 'fixed bottom-14 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)] max-md:bottom-[calc(5.25rem+env(safe-area-inset-bottom))]'
     : 'fixed bottom-3 left-3 z-50 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 py-2 text-xs text-[var(--cf-text-muted)] hover:border-[var(--cf-accent)] hover:text-[var(--cf-text-strong)]';
+  const settingsAvailableHere = pathname !== '/account' || searchParams.get('section') === 'profile';
 
   return (
     <>
@@ -315,9 +316,9 @@ export function AnalyticsProvider({
             </div>
           </aside>
         </div>
-      ) : (
+      ) : settingsAvailableHere ? (
         <button type="button" onClick={() => setShowSettings(true)} className={settingsButtonClassName}>Analytics settings</button>
-      )}
+      ) : null}
     </>
   );
 }

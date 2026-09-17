@@ -57,7 +57,7 @@ test.describe('mobile Desk controls', () => {
 
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await setButton.tap();
-    await page.getByRole('button', { name: 'Open', exact: true }).tap();
+    await setButton.press('Enter');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
 
     const arrangement = page.getByRole('combobox', { name: 'Arrange cards' });
@@ -117,8 +117,9 @@ test.describe('mobile Desk controls', () => {
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await setButton.tap();
-    await page.getByRole('button', { name: 'Open', exact: true }).tap();
-    await page.getByRole('button', { name: 'Generate', exact: true }).tap();
+    await setButton.press('Enter');
+    await page.getByRole('button', { name: 'More Set actions', exact: true }).tap();
+    await page.getByRole('menuitem', { name: 'Generate', exact: true }).tap();
 
     const tool = page.getByRole('region', { name: 'Generate into 100 Card Scale Set' });
     await expect(tool).toBeVisible();
@@ -132,14 +133,15 @@ test.describe('mobile Desk controls', () => {
         page.locator('main[data-scroll="contained"]').boundingBox(),
       ]);
       if (!toolPanel || !primary) return false;
-      return toolPanel.y > primary.y + primary.height * 0.25
-        && toolPanel.height <= primary.height * 0.65;
+      return toolPanel.y >= primary.y + 80
+        && toolPanel.y + toolPanel.height <= primary.y + primary.height + 1;
     }).toBe(true);
 
     await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' }).tap();
     await expect(tool).toHaveCount(0);
     await expect(page.locator('[data-desk-context-rail][data-depth="set"]')).toBeVisible();
-    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Output', exact: true }).tap();
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'More Set actions', exact: true }).tap();
+    await page.getByRole('menuitem', { name: 'Output', exact: true }).tap();
     await expect(page.getByRole('region', { name: 'Output Set', exact: true })).toBeVisible();
     const home = page.getByRole('button', { name: 'Return to Desk', exact: true });
     await expectTouchTarget(home);
@@ -147,10 +149,11 @@ test.describe('mobile Desk controls', () => {
     await expect(page.locator('[data-desk="overview"]')).toBeVisible();
     await expect(page.locator('[data-desk-tool-surface]')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Open', exact: true }).tap();
+    await setButton.press('Enter');
     const visual = page.locator('[data-scene-artifact="scale-card-1"]');
     const original = await visual.elementHandle();
-    await page.locator('button[data-artifact-id="scale-card-1"]').tap();
+    await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+    await page.keyboard.press('Enter');
     await expect(visual).toHaveAttribute('data-scene-depth', 'focus');
     await expectTouchTarget(page.getByRole('button', { name: 'Back to Set', exact: true }));
     await expectTouchTarget(home);

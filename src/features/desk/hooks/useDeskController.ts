@@ -513,7 +513,6 @@ export function useDeskController({
     actions: projectActions,
     state: projectState,
     focusedSetId: focusedLocalSetId,
-    openDesign: (setId) => openContextStudio(setId, 'design'),
     setSelection: setSelectedCardIds,
     setTagDraft,
     tagDraft,

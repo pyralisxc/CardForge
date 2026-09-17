@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -41,6 +42,7 @@ export const needsBrowserRecoveryAttention = ({
 
 export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true }: { canUseProjectFiles: boolean; workspaceReady?: boolean }) {
   const { toast } = useToast();
+  const pathname = usePathname();
   const saveStatus = useBrowserWorkspaceSaveStatus();
   const [recovery, setRecovery] = useState<BrowserWorkspaceRecoveryState | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -98,7 +100,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
   }, [canUseProjectFiles, toast]);
 
   useEffect(() => {
-    if (!workspaceReady) return;
+    if (!workspaceReady || pathname === '/account') return;
     const preferences = createIndexedDbStorage('project-preferences');
     let timer: number | undefined;
     let cancelled = false;
@@ -122,7 +124,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [canUseProjectFiles, toast, workspaceReady]);
+  }, [canUseProjectFiles, pathname, toast, workspaceReady]);
 
   const restore = async (source: BrowserWorkspaceRecoverySource) => {
     setRecoveryBusy(true);
@@ -224,7 +226,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles, workspaceReady = true
 
   return <>
     <BrowserStoragePersistencePrompt />
-    {showAttentionStatus ? <button
+    {showAttentionStatus && pathname !== '/account' ? <button
       type="button"
       onClick={openRecovery}
       className={`fixed bottom-4 right-4 z-40 border px-3 py-2 text-xs shadow-lg ${saveStatus === 'failed' || !workspaceReady ? 'border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] text-[var(--cf-danger)]' : 'border-[var(--cf-warning-border)] bg-[var(--cf-warning-surface)] text-[var(--cf-warning)]'}`}

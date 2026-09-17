@@ -27,7 +27,7 @@ const prepareScalePage = async (page: Page, cardCount: ProjectScale, options: { 
   await installBrowserPerformanceObservers(page);
   await seedGuestScaleWorkspace(page, cardCount, options);
   await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
-  await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
+  await expect(page.locator('[data-desk-toolbar]')).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) })).toBeVisible();
 };
 
@@ -45,14 +45,17 @@ test.describe('large Artifact browser evidence', () => {
       await prepareScalePage(page, cardCount);
       await resetLongTasks(page);
 
-      const openMs = await openScaleSet(page, cardCount, { expectOpeningMotion: true });
+      const openMs = await openScaleSet(page, cardCount, { expectOpeningMotion: cardCount <= 160 });
       const visualArtifacts = page.locator('[data-desk-artifact-stage] [data-artifact-id]');
-      const expensivePreviews = page.locator('[data-artifact-scene] [id^="card-preview-"]');
+      const expensivePreviews = page.locator('[data-artifact-scene] [data-scene-depth="board"] [id^="card-preview-"]');
+      const imageLedThumbnails = page.locator('[data-desk-artifact-stage] [data-card-preview-detail="thumbnail"]');
       const mountedVisuals = await visualArtifacts.count();
       expect(mountedVisuals).toBeGreaterThan(0);
-      expect(mountedVisuals).toBeLessThan(cardCount);
+      expect(mountedVisuals).toBeLessThanOrEqual(cardCount);
       await expect.poll(() => expensivePreviews.count()).toBeLessThanOrEqual(Math.min(160, mountedVisuals));
       const mountedExpensivePreviews = await expensivePreviews.count();
+      const mountedImageLedThumbnails = await imageLedThumbnails.count();
+      expect(mountedExpensivePreviews + mountedImageLedThumbnails).toBe(mountedVisuals);
 
       const panMs = await elapsed(async () => {
         await page.locator('[data-desk-artifact-stage]').evaluate((stage) => {
@@ -62,14 +65,15 @@ test.describe('large Artifact browser evidence', () => {
       });
 
       const zoomMs = await elapsed(async () => {
-        await page.getByRole('button', { name: 'Zoom out' }).click();
-        await expect(page.getByText('85%', { exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Zoom in' }).click();
+        await expect(page.getByText('115%', { exact: true })).toBeVisible();
       });
 
       const searchMs = await elapsed(async () => {
-        await page.getByPlaceholder('Search cards').fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
+        const cardSearch = page.getByRole('textbox', { name: 'Search cards in this Set', exact: true });
+        await cardSearch.fill(`Scale Card ${String(cardCount).padStart(4, '0')}`);
         await expect(page.getByRole('button', { name: /^Organize/ })).toContainText('1 card');
-        await page.getByPlaceholder('Search cards').fill('');
+        await cardSearch.fill('');
         await expect(page.getByRole('button', { name: /^Organize/ })).toContainText(`${cardCount} cards`);
       });
 
@@ -117,6 +121,7 @@ test.describe('large Artifact browser evidence', () => {
         cardCount,
         mountedVisuals,
         mountedExpensivePreviews,
+        mountedImageLedThumbnails,
         timingsMs: { openMs, panMs, zoomMs, searchMs, selectionMs, jumpMs, closeMs },
         ...browserEvidence,
       });
@@ -141,7 +146,8 @@ test.describe('large Artifact browser evidence', () => {
     const before = await stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }));
     const selectedBefore = await stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')));
 
-    await first.click();
+    await first.focus();
+    await first.press('Enter');
     const focusedStage = page.locator('[data-focused-artifact-workspace] [data-desk-artifact-stage]');
     const primarySurface = page.locator('main[data-scroll="contained"]');
     const workSurface = page.getByRole('region', { name: 'Open Sets on Desk' });
@@ -161,7 +167,13 @@ test.describe('large Artifact browser evidence', () => {
     await expect(visibleArtifacts).not.toHaveCount(1);
     await expect(focusedStage.locator('[data-artifact-id]')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Design', exact: true })).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
+    const focusedWorkspace = page.locator('[data-focused-artifact-workspace]');
+    await expect(focusedWorkspace).toHaveAttribute('data-focus-dismissal', 'explicit');
+    const focusedWorkspaceBox = await focusedWorkspace.boundingBox();
+    expect(focusedWorkspaceBox).not.toBeNull();
+    await page.mouse.click(focusedWorkspaceBox!.x + 8, focusedWorkspaceBox!.y + 8);
     await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
     await expect.poll(async () => focusedStage.locator(`[data-artifact-id="${firstId}"]`).evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
     await expect.poll(async () => {
@@ -183,7 +195,8 @@ test.describe('large Artifact browser evidence', () => {
     await expect.poll(() => stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(before);
     await expect.poll(async () => stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')))).toEqual(selectedBefore);
 
-    await page.locator(`[data-artifact-id="${firstId}"]`).click();
+    await page.locator(`[data-artifact-id="${firstId}"]`).focus();
+    await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Back to Set' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();

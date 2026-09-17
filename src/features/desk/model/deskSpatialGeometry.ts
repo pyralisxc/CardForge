@@ -1,5 +1,14 @@
 export const DESK_WORLD_WIDTH = 1200;
 export const DESK_WORLD_HEIGHT = 720;
+/**
+ * Saved positions identify a Set's anchor inside the stable 1200 × 720 Desk.
+ * The rendered surface reserves room beyond the furthest legal anchor for the
+ * Set itself, so Fit includes complete objects rather than only their origins.
+ * This preserves every saved coordinate while making the bounded surface true
+ * for older layouts and tall representative stacks.
+ */
+export const DESK_SURFACE_WIDTH = DESK_WORLD_WIDTH + 320;
+export const DESK_SURFACE_HEIGHT = DESK_WORLD_HEIGHT + 420;
 export const DESK_MAX_RELATIVE_ZOOM = 3;
 export const DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM = 1.35;
 
@@ -77,9 +86,9 @@ export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry =>
 export const getDeskWorldProjection = (viewport: DeskViewport) => {
   const width = Math.max(1, viewport.width);
   const height = Math.max(1, viewport.height);
-  const scale = Math.min(width / DESK_WORLD_WIDTH, height / DESK_WORLD_HEIGHT);
-  const offsetX = Math.max(0, (width - DESK_WORLD_WIDTH * scale) / 2);
-  const offsetY = Math.max(0, (height - DESK_WORLD_HEIGHT * scale) / 2);
+  const scale = Math.min(width / DESK_SURFACE_WIDTH, height / DESK_SURFACE_HEIGHT);
+  const offsetX = Math.max(0, (width - DESK_SURFACE_WIDTH * scale) / 2);
+  const offsetY = Math.max(0, (height - DESK_SURFACE_HEIGHT * scale) / 2);
   return { scale, offsetX, offsetY };
 };
 
@@ -95,8 +104,8 @@ export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: num
   const projection = getDeskWorldProjection(viewport);
   const fitZoom = Math.max(Number.EPSILON, projection.scale);
   const zoom = clamp(requestedZoom, fitZoom, fitZoom * DESK_MAX_RELATIVE_ZOOM);
-  const worldWidth = DESK_WORLD_WIDTH * zoom;
-  const worldHeight = DESK_WORLD_HEIGHT * zoom;
+  const worldWidth = DESK_SURFACE_WIDTH * zoom;
+  const worldHeight = DESK_SURFACE_HEIGHT * zoom;
   return {
     zoom,
     fitZoom,

@@ -4,7 +4,7 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `a6e9efac82b5a2b7a663`
+Topology fingerprint: `d1f346c01fa74a8e7b46`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
@@ -84,11 +84,11 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `Exact creator focus and tool return context` | navigation | `app-shell` | `Desk`, `Studio` |
 | `Adaptive comfortable, compact, and dense Artifact presentation` | interaction | `desk` | `Desk` |
 | `Bounded spatial Desk with authored object movement` | interaction | `desk` | `Desk` |
+| `Complete bounded Set Fit with adaptive detail` | accessibility | `desk` | `Desk` |
 | `Desk selection and focus restoration` | navigation | `desk` | `Desk` |
 | `Fit and Custom spatial camera` | interaction | `desk` | `Desk` |
 | `Focused Artifact directional browsing through Set geometry` | navigation | `desk` | `Desk` |
 | `Multi-Artifact spatial selection movement` | interaction | `desk` | `Desk` |
-| `Readable large-Set Fit floor` | accessibility | `desk` | `Desk` |
 | `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
 
 ## Feature owners

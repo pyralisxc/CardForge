@@ -52,6 +52,11 @@ describe('Desk creator history', () => {
     expect(state).toMatchObject({ nextInternal: true });
   });
 
+  it('allows a bounded overview camera below the retired readability floor', () => {
+    const session = setCreatorCamera(createCreatorInteractionSession(), { x: 0, y: 0, zoom: 0.08 });
+    expect(session.camera.zoom).toBe(0.08);
+  });
+
   it('returns from nested tools to the same Desk selection without mutating the focused snapshot', () => {
     const initial = selectCreatorDeskSets(createCreatorInteractionSession(), ['set:one', 'set:two'], 'set:two');
     let session = focusCreatorSet(initial, 'one');

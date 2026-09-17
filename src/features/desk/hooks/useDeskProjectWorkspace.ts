@@ -41,8 +41,6 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
   const reviseGeneratedCards = useProjectStore((state) => state.reviseGeneratedCards);
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
-  const openEditDialog = useProjectStore((state) => state.openEditDialog);
-  const setStudioView = useProjectStore((state) => state.setStudioView);
   const generatorSelectedTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
   const generatorSelectedBackingTemplateId = useProjectStore((state) => state.generatorSelectedBackingTemplateId);
   const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
@@ -132,8 +130,8 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   return {
     actions: {
       addCardSetTag, addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
-      openEditDialog, removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
-      setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setStudioView,
+      removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
+      setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId,
       setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateCardSetMetadata, updateCardSetOrganization,
     },
     state: {

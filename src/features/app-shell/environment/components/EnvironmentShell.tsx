@@ -45,7 +45,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
-  const mobileNavigationPersistent = focusDepth !== 'tool';
+  const mobileNavigationPersistent = focusDepth === 'zone';
   const containedMobileNavigation = viewportPolicy === 'desk' && mobileNavigationPersistent;
   const activeDefinition = zones.find((zone) => zone.id === activeZone) ?? zones[0];
   const applicableContext = detail ?? actionContext;

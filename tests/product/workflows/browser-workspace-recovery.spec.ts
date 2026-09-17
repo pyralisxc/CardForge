@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import JSZip from 'jszip';
-import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 const workspaceBytes = (page: Page) => page.evaluate(async () => {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -41,10 +41,12 @@ test('@golden native quota failure preserves saved work and permits emergency ed
   });
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await openScaleSet(page, 100);
+  await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+  await page.keyboard.press('Enter');
   await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.locator('[data-artifact-edit-workspace]')).toBeVisible();
+  await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'All fields', exact: true }).click();
   const session = await context.newCDPSession(page);
   const origin = new URL(page.url()).origin;
   const before = await workspaceBytes(page);
@@ -59,11 +61,11 @@ test('@golden native quota failure preserves saved work and permits emergency ed
     expect(quota.overrideActive).toBe(true);
     expect(quota.quota).toBe(1);
     await page.getByRole('textbox', { name: /Card Name/i }).fill('Unsaved authored quota proof');
-    await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByRole('button', { name: /Latest change not saved/ })).toBeVisible();
+    await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'Save & Done', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Local working copy not saved/ })).toBeVisible();
     expect(await page.evaluate(() => (window as typeof window & { __quotaTransactionErrors: string[] }).__quotaTransactionErrors)).toContain('QuotaExceededError');
     expect(await workspaceBytes(page)).toEqual(before);
-    await page.getByRole('button', { name: /Latest change not saved/ }).click();
+    await page.getByRole('button', { name: /Local working copy not saved/ }).click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download emergency backup', exact: true }).click();
     const download = await downloadPromise;
@@ -93,7 +95,7 @@ test('@golden native quota failure preserves saved work and permits emergency ed
 
     await session.send('Storage.overrideQuotaForOrigin', { origin });
     await page.getByRole('button', { name: 'Restore & reload', exact: true }).click();
-    await expect(page.getByRole('button', { name: /^Saved in this browser/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Local working copy saved/ })).toBeVisible();
     const restored = await workspaceBytes(page);
     const activeKey = Object.keys(before).find((key) => key.endsWith(':workspace') && !key.includes(':__') && restored[key] !== before[key])!;
     expect(activeKey).toBeTruthy();
@@ -102,7 +104,7 @@ test('@golden native quota failure preserves saved work and permits emergency ed
     expect(restoredState.storedCards).toHaveLength(2);
     expect(restoredState.storedCards[0].data.cardName).toBe('Scale Card 0001');
 
-    await page.getByRole('button', { name: /^Saved in this browser/ }).click();
+    await page.getByRole('button', { name: /^Local working copy saved/ }).click();
     await page.getByRole('dialog').locator('input[type="file"]').setInputFiles(backupPath);
     await page.getByRole('button', { name: 'Open recovered copy', exact: true }).click();
     await expect(page.getByText('Recovered copy opened', { exact: true })).toBeVisible();
@@ -127,7 +129,7 @@ test('@golden an unreadable native workspace preserves original bytes through ex
   test.setTimeout(90_000);
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 2, exportSample: true });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /^Saved in this browser/ }).click();
+  await page.getByRole('button', { name: /^Local working copy saved/ }).click();
   const backupDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download emergency backup', exact: true }).click();
   const backup = await backupDownload;

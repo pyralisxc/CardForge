@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/components/ui/use-toast';
@@ -13,8 +14,10 @@ let hasShownPersistencePrompt = false;
 
 export function BrowserStoragePersistencePrompt() {
   const { toast } = useToast();
+  const pathname = usePathname();
 
   useEffect(() => {
+    if (pathname === '/account') return;
     let cancelled = false;
     void getBrowserStoragePersistenceState().then((state) => {
       if (cancelled || state !== 'best-effort' || hasShownPersistencePrompt) return;
@@ -54,7 +57,7 @@ export function BrowserStoragePersistencePrompt() {
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, [pathname, toast]);
 
   return null;
 }

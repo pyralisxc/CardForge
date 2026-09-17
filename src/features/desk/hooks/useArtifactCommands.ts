@@ -8,13 +8,12 @@ type ProjectWorkspace = ReturnType<typeof useDeskProjectWorkspace>;
 
 interface UseHomeArtifactCommandsOptions {
   actions: Pick<ProjectWorkspace['actions'],
-    'addCardSetTag' | 'addGeneratedCards' | 'moveGeneratedCardsToSet' | 'openEditDialog'
-    | 'reorderGeneratedCard' | 'setActiveCardSetId' | 'setCardsTag' | 'setStudioView'
+    'addCardSetTag' | 'addGeneratedCards' | 'moveGeneratedCardsToSet'
+    | 'reorderGeneratedCard' | 'setActiveCardSetId' | 'setCardsTag'
     | 'updateCardSetOrganization'>;
   state: Pick<ProjectWorkspace['state'],
     'cardSets' | 'effectiveMoveTargetId' | 'focusedCards' | 'selectedCard' | 'selectedCards'>;
   focusedSetId: string | null;
-  openDesign: (setId: string) => void;
   setSelection: (ids: string[]) => void;
   setTagDraft: (value: string) => void;
   tagDraft: string;
@@ -24,7 +23,6 @@ export function useArtifactCommands({
   actions,
   state,
   focusedSetId,
-  openDesign,
   setSelection,
   setTagDraft,
   tagDraft,
@@ -54,15 +52,6 @@ export function useArtifactCommands({
     setSelection([]);
   };
 
-  const editSelectedCard = (artifactId: string = state.selectedCard?.uniqueId ?? '') => {
-    const card = state.focusedCards.find((candidate) => candidate.uniqueId === artifactId);
-    if (!card || !focusedSetId) return;
-    actions.setActiveCardSetId(focusedSetId);
-    actions.setStudioView('template');
-    actions.openEditDialog(card.uniqueId);
-    openDesign(focusedSetId);
-  };
-
   const duplicateSelectedCards = () => {
     if (!state.selectedCards.length || !focusedSetId) return;
     actions.setActiveCardSetId(focusedSetId);
@@ -88,7 +77,6 @@ export function useArtifactCommands({
   return {
     applyNewTag,
     duplicateSelectedCards,
-    editSelectedCard,
     moveSelectedCards,
     reorderSelectedCard,
     updateOrganization: (patch: Parameters<typeof actions.updateCardSetOrganization>[1]) => {

@@ -109,7 +109,7 @@ export const setCreatorCamera = (
   camera: {
     x: Number.isFinite(camera.x) ? camera.x : session.camera.x,
     y: Number.isFinite(camera.y) ? camera.y : session.camera.y,
-    zoom: Number.isFinite(camera.zoom) ? Math.min(4, Math.max(0.2, camera.zoom)) : session.camera.zoom,
+    zoom: Number.isFinite(camera.zoom) ? Math.min(4, Math.max(Number.EPSILON, camera.zoom)) : session.camera.zoom,
   },
 });
 
