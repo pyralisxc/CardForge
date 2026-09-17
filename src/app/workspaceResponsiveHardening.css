@@ -323,6 +323,11 @@
     min-height: 2.7rem !important;
   }
 
+  [data-desk-context-rail] button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
   /* The visible local search was retired, so the old three-column toolbar was
      leaving an empty first column. Compact Desk is now exactly Filters + View. */
   [data-desk-toolbar] {

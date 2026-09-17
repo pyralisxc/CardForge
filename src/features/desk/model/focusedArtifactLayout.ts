@@ -1,8 +1,6 @@
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 
 export const FOCUSED_ARTIFACT_OVERSCAN = 180;
-export const FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH = 80;
-
 export type FocusedArtifactArrangement = 'manual' | 'grid' | 'stack';
 export type FocusedArtifactDensity = 'comfortable' | 'compact' | 'dense';
 

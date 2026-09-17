@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useRef, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Navigation, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -58,25 +58,11 @@ export function FocusedArtifactWorkspace({
   const canvas = getCardFaceCanvas(card, face);
   const viewport = useArtifactViewport({
     aspectRatio: canvas ? `${canvas.width}:${canvas.height}` : (face === 'back' ? card.backingTemplate : card.template)?.aspectRatio,
-    horizontalPadding: 96,
-    maxWidth: 560,
-    verticalPadding: 96,
+    horizontalPadding: 72,
+    maxWidth: 520,
+    verticalPadding: 144,
   });
   const swipeRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null);
-  const workspaceRef = useRef<HTMLDivElement | null>(null);
-  const [focusOrigin, setFocusOrigin] = useState<{ x: number; y: number; scale: number } | null>(null);
-  useLayoutEffect(() => {
-    const workspace = workspaceRef.current;
-    const source = document.getElementById(`artifact-field-${artifactId}`);
-    if (!workspace || !source) return;
-    const workspaceBounds = workspace.getBoundingClientRect();
-    const sourceBounds = source.getBoundingClientRect();
-    setFocusOrigin({
-      x: sourceBounds.left + sourceBounds.width / 2 - (workspaceBounds.left + workspaceBounds.width / 2),
-      y: sourceBounds.top + sourceBounds.height / 2 - (workspaceBounds.top + workspaceBounds.height / 2),
-      scale: Math.max(0.08, Math.min(1, sourceBounds.width / Math.max(1, viewport.visualWidth))),
-    });
-  }, [artifactId, viewport.visualWidth]);
   const browse = (direction: ArtifactBrowseDirection) => {
     if (availableDirections[direction]) onBrowse(direction);
   };
@@ -112,7 +98,7 @@ export function FocusedArtifactWorkspace({
     browse(direction);
   };
 
-  return <div ref={workspaceRef} className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={viewport.zoom.toFixed(2)}>
+  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-focus-dismissal="explicit" data-zoom={viewport.zoom.toFixed(2)}>
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact tools">
       <Popover>
         <PopoverTrigger asChild>
@@ -156,18 +142,7 @@ export function FocusedArtifactWorkspace({
     >
       <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls.</p>
       <div className={styles.focusedArtifactWorld} style={{ width: viewport.worldWidth, height: viewport.worldHeight }}>
-        <div
-          className={styles.focusedArtifactFrame}
-          style={{
-            width: viewport.visualWidth,
-            minHeight: viewport.visualHeight,
-            '--focus-origin-x': `${focusOrigin?.x ?? 0}px`,
-            '--focus-origin-y': `${focusOrigin?.y ?? 0}px`,
-            '--focus-origin-scale': focusOrigin?.scale ?? 1,
-          } as CSSProperties}
-          data-card-face={face}
-          data-has-origin={Boolean(focusOrigin)}
-        >
+        <div className={styles.focusedArtifactFrame} style={{ width: viewport.visualWidth, minHeight: viewport.visualHeight }} data-card-face={face}>
           <button
             id={`spatial-artifact-${artifactId}`}
             type="button"

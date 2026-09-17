@@ -993,6 +993,7 @@
 }
 
 .artifactContextField {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1003,8 +1004,8 @@
 
 .artifactContextField[data-obscured="true"] {
   height: 100%;
-  opacity: 0.48;
-  filter: saturate(0.72) brightness(0.78);
+  opacity: 0.68;
+  filter: saturate(0.86) brightness(0.9);
   pointer-events: none;
 }
 
@@ -1024,7 +1025,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--cf-surface-raised) 24%, transparent) 0 24%, color-mix(in srgb, var(--cf-canvas) 62%, transparent) 52%, transparent 78%);
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--cf-surface-raised) 18%, transparent) 0 22%, color-mix(in srgb, var(--cf-canvas) 42%, transparent) 54%, transparent 82%);
   overflow: hidden;
 }
 
@@ -1115,21 +1116,6 @@
   filter: drop-shadow(0 1.5rem 2rem rgb(0 0 0 / 38%));
 }
 
-.focusedArtifactFrame[data-has-origin="true"] {
-  animation: focused-artifact-lift 300ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
-}
-
-@keyframes focused-artifact-lift {
-  from {
-    opacity: 0.72;
-    transform: translate(calc(-50% + var(--focus-origin-x)), calc(-50% + var(--focus-origin-y))) scale(var(--focus-origin-scale));
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
 .focusedArtifactButton {
   display: block;
   width: 100%;
@@ -1147,38 +1133,67 @@
 
 
 .artifactLodPreview {
+  position: relative;
   display: grid;
   width: 100%;
   aspect-ratio: 2.5 / 3.5;
   place-items: center;
+  overflow: hidden;
   border: 1px solid var(--cf-border-subtle);
-  background: color-mix(in srgb, var(--cf-accent-soft) 34%, var(--cf-surface-inset));
+  background: var(--cf-surface-inset);
   color: var(--cf-text-muted);
-  font-size: 1rem;
 }
 
 .artifactLodBorder {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
+  position: absolute;
+  inset: 0;
   border: 2px dashed;
+  pointer-events: none;
+}
+
+.artifactLodOrdinal {
+  position: absolute;
+  right: 0.2rem;
+  bottom: 0.2rem;
+  display: grid;
+  min-width: 1.2rem;
+  min-height: 1.2rem;
+  place-items: center;
+  margin: 0;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--cf-border-strong) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cf-surface) 88%, transparent);
+  color: var(--cf-text-strong);
+  font-size: 0.58rem;
+  line-height: 1;
+  box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 24%);
 }
 
 .cameraControls {
+  position: absolute;
+  z-index: 8;
+  right: 0.55rem;
+  bottom: 0.55rem;
   display: flex;
   min-height: 2.5rem;
-  flex-wrap: wrap;
+  max-width: calc(100% - 1.1rem);
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.15rem;
+  margin: 0;
+  padding: 0.22rem;
+  border: 1px solid var(--cf-border-subtle);
+  background: color-mix(in srgb, var(--cf-surface-inset) 90%, transparent);
+  box-shadow: var(--cf-panel-shadow);
+  backdrop-filter: blur(12px);
   flex-shrink: 0;
   color: var(--cf-text-muted);
   font-size: 0.68rem;
 }
 
 .cameraControls > :last-child {
-  margin-left: auto;
+  margin-left: 0.15rem;
 }
 
 .orderedNavigator {
@@ -1387,8 +1402,21 @@
     padding: 0.3rem 0.45rem;
   }
 
+  .contextRail[data-depth="set"] {
+    flex-wrap: nowrap;
+  }
+
   .contextRail[data-depth="set"] .contextPath {
-    flex-basis: 100%;
+    flex: 1 1 0;
+  }
+
+  .contextRail[data-depth="set"] .contextReturn span {
+    display: none;
+  }
+
+  .contextRail[data-depth="set"] .contextActions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
   }
 
   .contextRail[data-depth="artifact"] {
@@ -1729,6 +1757,22 @@
 
   .artifactWorkspaceControls > * { flex: 0 0 auto; }
 
+  .cameraControls {
+    right: 0.4rem;
+    bottom: 0.4rem;
+    left: 0.4rem;
+    width: auto;
+    max-width: none;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+
+  .cameraControls::-webkit-scrollbar { display: none; }
+
+  .cameraControls > * { flex: 0 0 auto; }
+
   .contentHeading {
     display: flex;
     min-height: 1.25rem;
@@ -1744,6 +1788,10 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+  }
+
+  .focusWorkspace[data-has-selection="true"] > .contentToolbar {
+    display: none;
   }
   .contentToolbar > .searchField { flex: 1; width: auto; }
 
@@ -1808,10 +1856,6 @@
   .cardButton,
   .focusWorkspace {
     transition: none;
-  }
-
-  .focusedArtifactFrame {
-    animation: none;
   }
 
   .artifactWorld {

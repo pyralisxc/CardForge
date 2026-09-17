@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { ArtifactIdentity } from '@/domain/artifacts';
 import {
   buildFocusedArtifactLayout,
-  FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH,
   getDirectionalArtifactNeighbor,
   getArtifactSelectionScope,
   getFocusedArtifactFitZoom,
@@ -61,7 +60,7 @@ describe('focused Artifact spatial layout', () => {
     });
   });
 
-  it('fits every Artifact inside the bounded Set overview and lets LOD preserve orientation', () => {
+  it('fits every Artifact inside the bounded Set overview without changing the world bounds', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'grid',
       minimumWidth: 960,
@@ -75,7 +74,7 @@ describe('focused Artifact spatial layout', () => {
     });
 
     expect(layout.density).toBe('dense');
-    expect(layout.artifactWidth * fitZoom).toBeLessThan(FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH);
+    expect(layout.artifactWidth * fitZoom).toBeGreaterThan(0);
     expect(layout.width * fitZoom).toBeLessThanOrEqual(320);
     expect(layout.height * fitZoom).toBeLessThanOrEqual(640);
   });

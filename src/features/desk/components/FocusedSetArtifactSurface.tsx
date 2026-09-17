@@ -13,11 +13,10 @@ import {
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { ArtifactSlot, getTemplateAccent, useArtifactFaces, useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
+import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces, useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
 
 import {
   buildFocusedArtifactLayout,
-  FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFitZoom,
   moveFocusedArtifactSelection,
@@ -66,6 +65,7 @@ type SpatialHistoryEntry = {
 type SetCameraMode = 'fit' | 'custom';
 
 const MAX_SPATIAL_HISTORY = 50;
+const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
 
 const identityFor = (setId: string, card: DisplayCard): ArtifactIdentity => ({
   artifactId: card.uniqueId,
@@ -152,11 +152,10 @@ export function FocusedSetArtifactSurface({
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
   const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  // Projection already bounds mounted work. Preserve real previews for a normal
-  // Set-sized viewport so visual/template identity does not disappear merely
-  // because the camera is fitted; very large projections still fall back to LOD.
-  const useDetailedPreview = projectedEntries.length <= 160
-    && layout.artifactWidth * session.camera.zoom >= FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH;
+  // Keep the canonical scene renderer for normal Set-sized projections. Large
+  // fitted collections use an image-led thumbnail tier instead of erasing the
+  // creator's work into generic numbered boxes.
+  const useFullPreview = projectedEntries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -488,6 +487,7 @@ export function FocusedSetArtifactSurface({
     <div className={styles.setArtifactWorkspace} data-artifact-focused={Boolean(focusedEntry)} data-artifact-density={layout.density}>
       <div
         className={styles.artifactContextField}
+        data-artifact-context-field
         data-obscured={Boolean(focusedEntry)}
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
@@ -580,6 +580,8 @@ export function FocusedSetArtifactSurface({
               const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
               const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
               const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
+              const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
+              const showThumbnailImage = previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
                 <div
                   key={artifactId}
@@ -609,9 +611,19 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
-                  {useDetailedPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
-                    <span className={styles.artifactLodPreview} data-scene-artifact={artifactId} aria-hidden="true">
-                      <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name) }}>{entry.index + 1}</span>
+                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
+                    <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
+                      <ArtifactThumbnail
+                        card={card}
+                        face={face}
+                        width={previewWidth}
+                        height={previewHeight}
+                        showImage={showThumbnailImage}
+                      />
+                      {!canExportClean && showThumbnailImage ? <CardWatermarkOverlay testId={`artifact-thumbnail-watermark-${artifactId}`} /> : null}
+                      <span className={styles.artifactLodBorder} data-artifact-template-border style={{ borderColor: getTemplateAccent(visibleTemplate.id ?? visibleTemplate.name) }}>
+                        <span className={styles.artifactLodOrdinal}>{entry.index + 1}</span>
+                      </span>
                     </span>
                   )}
                   <strong>{entry.title}</strong>

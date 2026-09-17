@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from 'react';
-import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, Pencil, Search, Sparkles, Tag, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, Boxes, Copy, Layers3, LayoutGrid, Pencil, Search, Sparkles, Tag, Trash2, TriangleAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -122,7 +122,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   };
 
   return <div className={styles.focusSurface} data-desk="focused" data-focus-transition="set-to-artifacts" data-artifact-focused={artifactFocused}>
-    <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} aria-label={props.item.name}>
+    <section className={styles.focusWorkspace} data-desk-set-board data-artifact-focused={artifactFocused} data-has-selection={props.selectedCards.length > 0} aria-label={props.item.name}>
       {props.localSetId ? <>
         {!artifactFocused ? <>
           <div className={styles.contentToolbar}>
@@ -153,6 +153,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           >
             <span role="status" className="shrink-0 whitespace-nowrap">{props.selectedCards.length === 1 ? `${getCardTitle(props.selectedCards[0]!, 0)} selected` : `${props.selectedCards.length} Artifacts selected`}{props.selectionScope.hidden ? ` · ${props.selectionScope.hidden} hidden by current filters; actions apply to the full selection` : ''}</span>
             <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={props.onReviseSelected}><Pencil className="mr-1.5 h-4 w-4" />Edit selected</Button>
+            <Button type="button" size="icon" variant="ghost" className="shrink-0" onClick={() => props.onSelectionChange([])} aria-label="Clear Artifact selection" title="Clear selection"><X className="h-4 w-4" /></Button>
             {props.selectionScope.hidden ? <Button type="button" size="sm" variant="ghost" className="shrink-0" onClick={() => props.onSelectionChange((current) => current.filter((id) => props.visibleCards.some((card) => card.uniqueId === id)))}>Clear hidden selection</Button> : null}
             {props.selectedCard ? <><Button type="button" size="icon" variant="outline" className="shrink-0" disabled={props.selectedCardIndex <= 0} onClick={() => props.onReorderSelected('earlier')} aria-label="Move selected card earlier"><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="outline" className="shrink-0" disabled={props.selectedCardIndex < 0 || props.selectedCardIndex >= props.focusedCards.length - 1} onClick={() => props.onReorderSelected('later')} aria-label="Move selected card later"><ArrowDown className="h-4 w-4" /></Button></> : null}
             {props.otherSets.length ? <Select value={props.moveTargetId} onValueChange={props.onMoveTargetChange}><SelectTrigger className={`${styles.moveSelect} shrink-0`} aria-label="Move selected card to Set"><span className="truncate">Move to {props.otherSets.find((set) => set.id === props.moveTargetId)?.name ?? 'Set'}</span></SelectTrigger><SelectContent>{props.otherSets.map((set) => <SelectItem key={set.id} value={set.id}>{set.name}</SelectItem>)}</SelectContent></Select> : null}

@@ -15,7 +15,8 @@ test.describe('persistent Artifact scene', () => {
     await page.getByRole('textbox', { name: 'Set name', exact: true }).fill('Renamed scale Set');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(search).toHaveValue('Scale Card 0001');
-    await page.locator('button[data-artifact-id="scale-card-1"]').click();
+    await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+    await page.keyboard.press('Enter');
     await expect(page.locator('[data-focused-artifact-workspace]')).toBeVisible();
     await page.goBack();
     await expect(search).toHaveValue('Scale Card 0001');
@@ -51,18 +52,39 @@ test.describe('persistent Artifact scene', () => {
     await set.press('Space');
     await page.locator('[data-desk-viewport]').evaluate((node) => node.scrollTo({ left: 400, top: 300 }));
     await page.keyboard.press('Enter');
-    await page.locator('button[data-artifact-id="scale-card-1"]').click();
+    await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+    await page.keyboard.press('Enter');
     const workspace = page.locator('[data-focused-artifact-workspace]');
     await expect(workspace).toBeVisible();
     await expect.poll(async () => {
       const header = await page.locator('[data-desk-context-rail]').boundingBox();
-      const controls = await page.getByLabel('Focused Artifact controls').boundingBox();
+      const controls = await page.getByLabel('Focused Artifact tools').boundingBox();
       return Boolean(header && controls && controls.y >= header.y + header.height && controls.y + controls.height < 585);
     }).toBe(true);
     await expect.poll(async () => {
       const card = await page.locator('[data-scene-artifact="scale-card-1"]').boundingBox();
       const stage = await page.getByLabel('100 Card Scale Set focused Artifact viewport').boundingBox();
       return Boolean(card && stage && card.y >= stage.y - 1 && card.y + card.height <= stage.y + stage.height + 1);
+    }).toBe(true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => {
+      const slot = await page.locator('[data-scene-slot-depth="focus"]').boundingBox();
+      const pixels = await page.locator('[data-scene-depth="focus"]').boundingBox();
+      return Boolean(slot && pixels
+        && Math.abs(slot.x - pixels.x) <= 2
+        && Math.abs(slot.y - pixels.y) <= 2
+        && Math.abs(slot.width - pixels.width) <= 2
+        && Math.abs(slot.height - pixels.height) <= 2);
+    }).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 585 });
+    await expect.poll(async () => {
+      const slot = await page.locator('[data-scene-slot-depth="focus"]').boundingBox();
+      const pixels = await page.locator('[data-scene-depth="focus"]').boundingBox();
+      return Boolean(slot && pixels
+        && Math.abs(slot.x - pixels.x) <= 2
+        && Math.abs(slot.y - pixels.y) <= 2
+        && Math.abs(slot.width - pixels.width) <= 2
+        && Math.abs(slot.height - pixels.height) <= 2);
     }).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('short-focused-card.png') });
   });
@@ -105,7 +127,8 @@ test.describe('persistent Artifact scene', () => {
     await expect(visual).toHaveAttribute('data-scene-depth', 'board');
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('set.png') });
-    await page.locator('button[data-artifact-id="scale-card-1"]').click();
+    await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+    await page.keyboard.press('Enter');
     await expect(visual).toHaveAttribute('data-scene-depth', 'focus');
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     await visual.getByRole('button', { name: /^Show back of/ }).click();
