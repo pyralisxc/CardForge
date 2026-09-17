@@ -5,6 +5,7 @@ import {
   buildFocusedArtifactLayout,
   getDirectionalArtifactNeighbor,
   getArtifactSelectionScope,
+  getFocusedArtifactFrame,
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
@@ -95,6 +96,48 @@ describe('focused Artifact spatial layout', () => {
     expect(stack.density).toBe('compact');
     expect(stack.artifactWidth).toBeLessThan(grid.artifactWidth);
     expect((stack.entries[1]?.position.x ?? 0) - (stack.entries[0]?.position.x ?? 0)).toBeLessThan(stack.artifactWidth);
+  });
+
+  it('keeps Grid and Stack arrangements deterministic across viewport widths', () => {
+    const groups = Array.from({ length: 4 }, (_, groupIndex) => ({
+      label: `Group ${groupIndex + 1}`,
+      artifacts: artifacts(13).map((artifact, artifactIndex) => ({
+        ...artifact,
+        identity: identity(groupIndex * 13 + artifactIndex),
+        groupLabel: `Group ${groupIndex + 1}`,
+      })),
+    }));
+    const narrow = buildFocusedArtifactLayout({ arrangement: 'grid', minimumWidth: 390, groups });
+    const wide = buildFocusedArtifactLayout({ arrangement: 'grid', minimumWidth: 1_920, groups });
+
+    expect(wide.entries.map((entry) => entry.position)).toEqual(narrow.entries.map((entry) => entry.position));
+    expect(wide.groups).toEqual(narrow.groups);
+    expect(wide.width).toBe(narrow.width);
+    expect(wide.height).toBe(narrow.height);
+    expect(wide.width).toBeGreaterThan(wide.height);
+  });
+
+  it('frames selected Artifacts above the Whole Set floor without moving them', () => {
+    const layout = buildLayout(30);
+    const before = layout.entries.map((entry) => ({ ...entry.position }));
+    const whole = getFocusedArtifactFitZoom({ layout, viewportWidth: 390, viewportHeight: 640 });
+    const frame = getFocusedArtifactFrame({
+      layout,
+      entries: layout.entries.slice(10, 12),
+      viewportWidth: 390,
+      viewportHeight: 640,
+    });
+
+    expect(frame.zoom).toBeGreaterThan(whole);
+    expect(frame.x).toBeGreaterThanOrEqual(0);
+    expect(frame.y).toBeGreaterThanOrEqual(0);
+    expect(layout.entries.map((entry) => entry.position)).toEqual(before);
+    expect(getFocusedArtifactFrame({
+      layout,
+      entries: [],
+      viewportWidth: 390,
+      viewportHeight: 640,
+    })).toEqual({ x: 0, y: 0, zoom: whole });
   });
 
   it('moves a manual multi-selection together using camera-independent world coordinates', () => {

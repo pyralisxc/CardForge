@@ -13,9 +13,10 @@ import {
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
+  DESK_SURFACE_WIDTH,
   getDefaultDeskWorldPosition,
-  getDeskInitialRevealTarget,
   getDeskMarqueeSelection,
+  getDeskWorldBounds,
   moveDeskWorldSelection,
   normalizeDeskWorldGeometry,
   type DeskRect,
@@ -74,10 +75,10 @@ export function useDeskSpatialLayout({
   const dragRef = useRef<DeskDragState | null>(null);
   const marqueeRef = useRef<DeskMarqueeState | null>(null);
   const suppressedActivationRef = useRef<string | null>(null);
-  const initialRevealRef = useRef(false);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
+  const [framingItems, setFramingItems] = useState<DeskWorldItemRect[]>([]);
   const cancelPointerGesture = useCallback(() => {
     const drag = dragRef.current;
     if (drag) setStoredPositions((current) => ({ ...current, ...drag.originalPositions }));
@@ -85,12 +86,10 @@ export function useDeskSpatialLayout({
     marqueeRef.current = null;
     setMarquee(null);
   }, []);
-  const camera = useDeskCamera({ focused, hasItems: itemIds.length > 0, viewportRef: workGridRef, onPinchStart: cancelPointerGesture });
-
   useEffect(() => {
     let cancelled = false;
     setPositionsWritable(false);
-    initialRevealRef.current = false;
+    setFramingItems([]);
     void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
       if (cancelled || result.kind === 'unavailable') return;
       setStoredPositions(normalizeDeskWorldGeometry(result.kind === 'available' ? result.value : null).positions);
@@ -103,56 +102,45 @@ export function useDeskSpatialLayout({
     id,
     storedPositions[id] ?? getDefaultDeskWorldPosition(index),
   ])), [itemIds, storedPositions]);
+  const workBounds = useMemo(() => getDeskWorldBounds(framingItems), [framingItems]);
+  const selectionBounds = useMemo(() => getDeskWorldBounds(
+    framingItems.filter((item) => selectedIds.includes(item.id)),
+  ), [framingItems, selectedIds]);
+  const camera = useDeskCamera({
+    focused,
+    hasItems: itemIds.length > 0,
+    workBounds,
+    selectionBounds,
+    viewportRef: workGridRef,
+    onPinchStart: cancelPointerGesture,
+  });
 
   const itemKey = itemIds.join('\u0000');
   useLayoutEffect(() => {
-    const grid = workGridRef.current;
-    if (
-      focused
-      || !positionsWritable
-      || initialRevealRef.current
-      || !grid
-      // Compact Desk starts at its readable overview and deliberately lets
-      // people explore the spatial field. This desktop correction only
-      // protects older complete-world layouts from the fixed status edge.
-      || grid.clientWidth <= 767
-      || camera.relativeZoom > 1.0001
-    ) return;
+    const world = workWorldRef.current;
+    if (focused || !positionsWritable || !world) return;
     let settleFrame: number | null = null;
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
-    const revealSavedWork = (finalize: boolean) => {
-      const bounds = grid.getBoundingClientRect();
-      const items = Array.from(workWorldRef.current?.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])') ?? []);
-      if (!items.length) return;
-      const target = getDeskInitialRevealTarget({
-        itemBounds: items.map((item) => {
-          const rect = item.getBoundingClientRect();
-          return {
-            left: rect.left - bounds.left + grid.scrollLeft,
-            top: rect.top - bounds.top + grid.scrollTop,
-            right: rect.right - bounds.left + grid.scrollLeft,
-            bottom: rect.bottom - bounds.top + grid.scrollTop,
-          };
-        }),
-        viewport: { width: grid.clientWidth, height: grid.clientHeight },
-        surface: { width: grid.scrollWidth, height: grid.scrollHeight },
+    const measureVisibleWork = () => {
+      const bounds = world.getBoundingClientRect();
+      const scale = Math.max(Number.EPSILON, bounds.width / DESK_SURFACE_WIDTH);
+      const next = collectDeskWorldItems({
+        tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
+        bounds,
+        projection: { scale, offsetX: 0, offsetY: 0 },
+        positions,
       });
-      if (target.left || target.top) {
-        grid.scrollTo(target);
-        initialRevealRef.current = true;
-        return;
-      }
-      if (finalize) initialRevealRef.current = true;
+      setFramingItems((current) => {
+        const signature = (items: DeskWorldItemRect[]) => items.map((item) => `${item.id}:${item.x}:${item.y}:${item.width}:${item.height}`).join('|');
+        return signature(current) === signature(next) ? current : next;
+      });
     };
     const frame = requestAnimationFrame(() => {
-      // Intrinsic previews can expand after the initial React layout. Give the
-      // returning Desk one short settling window before accepting a no-op
-      // reveal, otherwise the first paint can mark the correction complete
-      // while a saved tile has just grown below the status edge.
-      revealSavedWork(false);
-      if (initialRevealRef.current) return;
+      measureVisibleWork();
+      // Intrinsic previews may settle after the first layout. One bounded
+      // remeasure keeps Fit Work honest without creating a live camera loop.
       settleTimeout = setTimeout(() => {
-        settleFrame = requestAnimationFrame(() => revealSavedWork(true));
+        settleFrame = requestAnimationFrame(measureVisibleWork);
       }, 180);
     });
     return () => {
@@ -160,7 +148,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [camera.relativeZoom, focused, itemKey, positions, positionsWritable]);
+  }, [focused, itemKey, positions, positionsWritable]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];
@@ -179,6 +167,7 @@ export function useDeskSpatialLayout({
 
   const beginDrag = useCallback((itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options: { additive?: boolean } = {}) => {
     if (event.button !== 0) return;
+    camera.enterCustom();
     suppressedActivationRef.current = null;
     const items = collectWorldItems();
     const selected = selectedIds.includes(itemId)
@@ -207,7 +196,7 @@ export function useDeskSpatialLayout({
       originalPositions: Object.fromEntries(selectedItems.map((item) => [item.id, { x: item.x, y: item.y, z: item.z }])),
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-  }, [collectWorldItems, onSelectionChange, positions, selectedIds]);
+  }, [camera, collectWorldItems, onSelectionChange, positions, selectedIds]);
 
   const moveDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
@@ -240,6 +229,7 @@ export function useDeskSpatialLayout({
   }, [cancelPointerGesture, persistPositions, storedPositions]);
 
   const nudgeSelection = useCallback((delta: { x: number; y: number }) => {
+    camera.enterCustom();
     const moved = moveDeskWorldSelection({
       items: collectWorldItems(),
       selectedIds,
@@ -249,7 +239,7 @@ export function useDeskSpatialLayout({
     const next = { ...storedPositions, ...moved };
     setStoredPositions(next);
     persistPositions(next);
-  }, [collectWorldItems, persistPositions, selectedIds, snapToGrid, storedPositions]);
+  }, [camera, collectWorldItems, persistPositions, selectedIds, snapToGrid, storedPositions]);
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
     // React portal events bubble through this component tree even when their DOM
@@ -257,6 +247,7 @@ export function useDeskSpatialLayout({
     // may claim pointer capture for marquee selection.
     if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
     if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
+    camera.enterCustom();
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
     const point = {
@@ -270,7 +261,7 @@ export function useDeskSpatialLayout({
       additiveIds: event.metaKey || event.ctrlKey || event.shiftKey ? [...selectedIds] : [],
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-  }, [camera.zoom, selectedIds]);
+  }, [camera, selectedIds]);
 
   const moveMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;

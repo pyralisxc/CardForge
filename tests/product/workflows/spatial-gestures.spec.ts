@@ -19,6 +19,18 @@ test.describe('spatial touch workspace', () => {
     await expect(page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
     await expect(controls.getByRole('button', { name: 'Download individual card', exact: true })).toBeVisible();
     expect(await controls.evaluate((node) => node.scrollHeight <= node.clientHeight + 2)).toBe(true);
+    expect(await controls.evaluate((node) => node.scrollWidth <= node.clientWidth + 2)).toBe(true);
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(controls.getByRole('button', { name: 'Browse this Set', exact: true })).toBeInViewport({ ratio: 1 });
+      await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+      const done = controls.getByRole('button', { name: 'Done', exact: true });
+      await expect(done).toBeInViewport({ ratio: 1 });
+      await expect(controls.getByRole('button', { name: 'More focused Artifact actions', exact: true })).toBeInViewport({ ratio: 1 });
+      expect(await controls.evaluate((node) => node.scrollWidth <= node.clientWidth + 2)).toBe(true);
+      await done.click();
+    }
+    await page.setViewportSize(devices['Pixel 7'].viewport);
     const focusedCard = workspace.locator('button[data-artifact-id]');
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-1');
     const stage = page.getByLabel('100 Card Scale Set focused Artifact viewport');
@@ -34,14 +46,16 @@ test.describe('spatial touch workspace', () => {
     await focusedCard.press('ArrowRight');
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-3');
 
-    await workspace.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await controls.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Zoom in', exact: true }).click();
     await expect(stage).toHaveAttribute('data-auto-fit', 'false');
     await touch('touchStart', [{ ...point, id: 2 }]);
     await touch('touchMove', [{ x: point.x - 96, y: point.y, id: 2 }]);
     await touch('touchEnd', []);
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-3');
 
-    await workspace.getByRole('button', { name: 'Fit', exact: true }).click();
+    await controls.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Fit Artifact', exact: true }).click();
     await workspace.getByRole('button', { name: 'Browse this Set', exact: true }).click();
     await page.getByRole('button', { name: 'Open Artifact to the left', exact: true }).click();
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-2');
@@ -68,13 +82,13 @@ test.describe('spatial touch workspace', () => {
     await expect(page.getByRole('region', { name: 'Locations & connections', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Done', exact: true }).tap();
     const desk = page.locator('[data-desk-viewport]');
+    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(desk).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
-    // Compact overview deliberately favors legible Set targets over a tiny
-    // whole-world projection, so only the horizontal Desk axis is pannable.
-    await expect.poll(() => desk.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeGreaterThan(0);
-    await expect.poll(() => desk.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
-    const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    // Fit Work keeps the visible authored object complete and readable without
+    // changing its world coordinates; Whole Desk remains a separate action.
+    await expect(set).toBeInViewport({ ratio: 1 });
+    expect(Math.max((await set.boundingBox())!.width / (await desk.boundingBox())!.width, (await set.boundingBox())!.height / (await desk.boundingBox())!.height)).toBeGreaterThanOrEqual(0.65);
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
     const before = await setObject.getAttribute('style');
     const p = await center(set);
@@ -88,15 +102,16 @@ test.describe('spatial touch workspace', () => {
     await expect(stage).toBeVisible();
     expect((await stage.boundingBox())!.height).toBeGreaterThan(420);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 2)).toBe(true);
-    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
     const card = page.locator('button[data-artifact-id="scale-card-1"]');
     const tile = card.locator('..');
     const originalPosition = await tile.getAttribute('style');
     const cardPoint = await center(card);
-    // Fit is a complete bounded overview, so deliberate zoom creates the
-    // pannable inspection camera before a swipe explores the Set.
+    const fitWorkZoom = Number(await stage.getAttribute('data-zoom'));
+    // Deliberate zoom creates the pannable Custom camera before a swipe explores the Set.
     await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
-    await expect(stage).toHaveAttribute('data-relative-zoom', '1.15');
+    await expect(stage).toHaveAttribute('data-camera-mode', 'custom');
+    await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(fitWorkZoom);
     await touch('touchStart', [{ ...cardPoint, id: 2 }]);
     await touch('touchMove', [{ x: cardPoint.x - 50, y: cardPoint.y, id: 2 }]);
     await touch('touchEnd', []);
@@ -135,9 +150,11 @@ test.describe('spatial touch workspace', () => {
     expect(Math.abs(anchorAfter.y - anchorBefore.y) * zoomAfter).toBeLessThan(3);
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Fit', exact: true }).click();
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
+    await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
     await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
-    await expect.poll(() => stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual({ left: 0, top: 0 });
     // Cancellation leaves the last committed move untouched.
     const cancelPoint = await center(card);
     await touch('touchStart', [{ ...cancelPoint, id: 6 }]);
@@ -175,11 +192,11 @@ test('@golden desktop uses the full viewport and zoom leaves card positions stab
   await page.screenshot({ path: testInfo.outputPath('desktop-set.png') });
   expect(bounds.width).toBeGreaterThan(1700);
   await expect.poll(async () => (await stage.boundingBox())!.height).toBeGreaterThan(700);
-  await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
+  await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
   const card = page.locator('button[data-artifact-id="scale-card-1"]');
   const position = await card.locator('..').getAttribute('style');
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
-  await expect(stage).toHaveAttribute('data-relative-zoom', '1.15');
+  await expect(stage).toHaveAttribute('data-camera-mode', 'custom');
   await expect(card.locator('..')).toHaveAttribute('style', position!);
   await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('desktop-set.png') });
@@ -188,9 +205,14 @@ test('@golden desktop uses the full viewport and zoom leaves card positions stab
   await page.getByRole('option', { name: 'Arrange as grid', exact: true }).click();
   await page.getByRole('button', { name: /^Organize/ }).click();
   await expect(stage).toHaveAttribute('data-arrangement', 'grid');
-  await page.getByRole('button', { name: 'Fit', exact: true }).click();
+  const arrangedPositions = await page.locator('[data-artifact-world] > div[style]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('style')));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('[data-artifact-world] > div[style]')).toHaveCount(arrangedPositions.length);
+  expect(await page.locator('[data-artifact-world] > div[style]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('style')))).toEqual(arrangedPositions);
+  await page.setViewportSize({ width: 1_920, height: 1_080 });
+  await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
+  await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
   await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
-  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(0);
   const secondTile = page.locator('button[data-artifact-id="scale-card-11"]').locator('..');
   const secondPosition = await secondTile.getAttribute('style');
   const first = (await card.boundingBox())!;

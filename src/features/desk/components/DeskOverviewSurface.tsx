@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import type { AccountLibraryItem, AccountLibraryOrganizationOperation, AccountLibrarySource } from '@/features/storage-management/client';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
-import type { DeskCamera } from '../hooks/useDeskCamera';
+import { deskMinimapPointToWorld, type DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
 import type { DeskOrganizationFacet, DeskSourceFacet } from '../model/desk';
 import type { DeskSavedView, DeskTagMatch, DeskViewId } from '../hooks/useDeskViewPreferences';
@@ -195,19 +195,23 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     </> : null}
   </>;
   const fullViewControls = <div className={`${styles.spatialControls} max-[900px]:hidden`} aria-label="Desk view controls">
-    <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
+    <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" disabled={!props.camera.canZoomOut} onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
     <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
     <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
-    <Button type="button" size="icon" variant="ghost" aria-label="Fit the whole Desk in view" title="Fit the whole Desk in view" onClick={props.camera.fit}><Maximize2 aria-hidden="true" /></Button>
+    <Button type="button" size="sm" variant="ghost" aria-pressed={props.camera.mode === 'fit-work'} onClick={props.camera.fit}>Fit Work</Button>
+    <Button type="button" size="sm" variant="ghost" disabled={!props.camera.hasSelectionTarget} aria-pressed={props.camera.mode === 'fit-selection'} onClick={props.camera.fitSelection}>Selection</Button>
+    <Button type="button" size="sm" variant="ghost" aria-pressed={props.camera.mode === 'whole'} onClick={props.camera.whole}>Whole Desk</Button>
     <Button type="button" size="icon" variant="ghost" title={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
     <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
   </div>;
   const compactViewControls = <DropdownMenu>
     <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[901px]:hidden" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem onSelect={() => props.camera.changeZoom(props.camera.zoom - 0.1)}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.zoom * 100)}%</DropdownMenuItem>
+      <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={() => props.camera.changeZoom(props.camera.zoom - 0.1)}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.zoom * 100)}%</DropdownMenuItem>
       <DropdownMenuItem onSelect={() => props.camera.changeZoom(props.camera.zoom + 0.1)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
-      <DropdownMenuItem onSelect={props.camera.fit}><Maximize2 aria-hidden="true" />Fit Desk</DropdownMenuItem>
+      <DropdownMenuItem onSelect={props.camera.fit}><Maximize2 aria-hidden="true" />Fit visible work</DropdownMenuItem>
+      <DropdownMenuItem disabled={!props.camera.hasSelectionTarget} onSelect={props.camera.fitSelection}>Fit selection</DropdownMenuItem>
+      <DropdownMenuItem onSelect={props.camera.whole}>Whole Desk</DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={props.onShowGridChange}><LayoutGrid aria-hidden="true" />{props.showGrid ? 'Hide grid' : 'Show grid'}</DropdownMenuItem>
       <DropdownMenuItem onSelect={props.onSnapToGridChange}>{props.snapToGrid ? 'Disable Snap' : 'Enable Snap'}</DropdownMenuItem>
@@ -236,7 +240,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         <summary>{sourceStatusSummary}</summary>
         <ul>{sourceStatusDetails.map((source) => <li key={source.id}><strong>{source.label}</strong><span>{source.failure?.message ?? sourcePhaseLabel[source.phase] ?? 'Status unavailable'}</span></li>)}</ul>
       </details> : null}
-      {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.visibleWork.length ? <div
+      {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.visibleWork.length ? <><div
         id="desk-world-viewport"
         ref={props.workGridRef}
         className={styles.workGrid}
@@ -268,7 +272,23 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             })}
           </div>
         </div>
-      </div> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}>
+      </div>{props.camera.showMinimap ? <button
+        type="button"
+        className={styles.deskMinimap}
+        aria-label="Desk minimap. Choose a point to center the camera."
+        onClick={(event) => {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          props.camera.centerOnWorldPoint(deskMinimapPointToWorld({
+            x: (event.clientX - bounds.left) / Math.max(1, bounds.width),
+            y: (event.clientY - bounds.top) / Math.max(1, bounds.height),
+          }));
+        }}
+      ><span style={{
+        left: `${props.camera.minimapViewport.left * 100}%`,
+        top: `${props.camera.minimapViewport.top * 100}%`,
+        width: `${props.camera.minimapViewport.width * 100}%`,
+        height: `${props.camera.minimapViewport.height * 100}%`,
+      }} /></button> : null}</> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}>
         <FolderPlus aria-hidden="true" />
         <strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong>
         <p className={styles.emptyCopy}>{props.workItemsCount ? 'Clear the search or change the active view and filters.' : 'A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.'}</p>

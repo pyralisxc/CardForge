@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccen
 import {
   buildFocusedArtifactLayout,
   getDirectionalArtifactNeighbor,
+  getFocusedArtifactFrame,
   getFocusedArtifactFitZoom,
   moveFocusedArtifactSelection,
   projectVisibleArtifacts,
@@ -67,7 +68,7 @@ type SpatialHistoryEntry = {
   after: Record<string, ArtifactPosition>;
 };
 
-type SetCameraMode = 'fit' | 'custom';
+type SetCameraMode = 'fit-work' | 'fit-selection' | 'whole' | 'custom';
 
 const MAX_SPATIAL_HISTORY = 50;
 const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
@@ -110,7 +111,8 @@ export function FocusedSetArtifactSurface({
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
   const fittedSetIdRef = useRef<string | null>(null);
-  const cameraModeRef = useRef<SetCameraMode>('fit');
+  const cameraModeRef = useRef<SetCameraMode>('fit-work');
+  const [cameraMode, setCameraMode] = useState<SetCameraMode>('fit-work');
   const relativeZoomRef = useRef(1);
   const suppressCameraScrollRef = useRef(false);
   const undoStackRef = useRef<SpatialHistoryEntry[]>([]);
@@ -139,9 +141,9 @@ export function FocusedSetArtifactSurface({
   const layout = useMemo(() => buildFocusedArtifactLayout({
     arrangement: organization.arrangement,
     groups: layoutGroups,
-    minimumWidth: Math.max(960, viewportSize.width),
-    minimumHeight: Math.max(1, viewportSize.height),
-  }), [layoutGroups, organization.arrangement, viewportSize.height, viewportSize.width]);
+    minimumWidth: 960,
+    minimumHeight: 640,
+  }), [layoutGroups, organization.arrangement]);
   const fitZoom = useMemo(() => getFocusedArtifactFitZoom({
     layout,
     viewportWidth: viewportSize.width,
@@ -153,6 +155,21 @@ export function FocusedSetArtifactSurface({
   const worldOffsetX = Math.max(0, (viewportSize.width - scaledWorldWidth) / 2);
   const worldOffsetY = Math.max(0, (viewportSize.height - scaledWorldHeight) / 2);
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
+  const workFrame = useMemo(() => getFocusedArtifactFrame({
+    layout,
+    entries: layout.entries,
+    viewportWidth: viewportSize.width,
+    viewportHeight: viewportSize.height,
+  }), [layout, viewportSize.height, viewportSize.width]);
+  const visibleSelectionEntries = useMemo(() => (
+    layout.entries.filter((entry) => session.selection.includes(entry.identity.artifactId))
+  ), [layout.entries, session.selection]);
+  const selectionFrame = useMemo(() => getFocusedArtifactFrame({
+    layout,
+    entries: visibleSelectionEntries,
+    viewportWidth: viewportSize.width,
+    viewportHeight: viewportSize.height,
+  }), [layout, viewportSize.height, viewportSize.width, visibleSelectionEntries]);
   const visibleEntries = useMemo(() => projectVisibleArtifacts(layout, {
     x: session.camera.x,
     y: session.camera.y,
@@ -199,24 +216,44 @@ export function FocusedSetArtifactSurface({
     setHistoryRevision((current) => current + 1);
   }, [setId]);
 
+  const setSemanticCamera = useCallback((requestedMode: Exclude<SetCameraMode, 'custom'>, behavior: ScrollBehavior = 'auto') => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const effectiveMode = requestedMode === 'fit-selection' && visibleSelectionEntries.length === 0 ? 'fit-work' : requestedMode;
+    const frame = effectiveMode === 'whole'
+      ? { x: 0, y: 0, zoom: fitZoom }
+      : effectiveMode === 'fit-selection'
+        ? selectionFrame
+        : workFrame;
+    const offsetX = Math.max(0, (viewportSize.width - layout.width * frame.zoom) / 2);
+    const offsetY = Math.max(0, (viewportSize.height - layout.height * frame.zoom) / 2);
+    cameraModeRef.current = effectiveMode;
+    setCameraMode(effectiveMode);
+    relativeZoomRef.current = frame.zoom / fitZoom;
+    setSession((current) => (
+      nearlyEqual(current.camera.zoom, frame.zoom)
+      && nearlyEqual(current.camera.x, frame.x)
+      && nearlyEqual(current.camera.y, frame.y)
+        ? current
+        : setCreatorCamera(current, frame)
+    ));
+    suppressCameraScrollRef.current = true;
+    viewport.scrollTo({ left: frame.x * frame.zoom + offsetX, top: frame.y * frame.zoom + offsetY, behavior });
+    requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
+  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize.height, viewportSize.width, visibleSelectionEntries.length, workFrame]);
+
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || artifactFocusId) return;
     if (fittedSetIdRef.current !== setId) {
       fittedSetIdRef.current = setId;
-      cameraModeRef.current = 'fit';
+      cameraModeRef.current = 'fit-work';
+      setCameraMode('fit-work');
       relativeZoomRef.current = 1;
     }
 
-    if (cameraModeRef.current === 'fit') {
-      suppressCameraScrollRef.current = true;
-      viewport.scrollTo({ left: 0, top: 0, behavior: 'auto' });
-      requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-      setSession((current) => (
-        nearlyEqual(current.camera.zoom, fitZoom) && current.camera.x === 0 && current.camera.y === 0
-          ? current
-          : setCreatorCamera(current, { x: 0, y: 0, zoom: fitZoom })
-      ));
+    if (cameraModeRef.current !== 'custom') {
+      setSemanticCamera(cameraModeRef.current);
       return;
     }
 
@@ -232,7 +269,7 @@ export function FocusedSetArtifactSurface({
     });
     // Scroll is the camera's physical owner. Do not write each scroll event back
     // into the viewport: that fights trackpad/touch scrolling between renders.
-  }, [artifactFocusId, fitZoom, session.camera.x, session.camera.y, session.camera.zoom, setId, setSession, worldOffsetX, worldOffsetY]);
+  }, [artifactFocusId, fitZoom, session.camera.x, session.camera.y, session.camera.zoom, setId, setSemanticCamera, setSession, worldOffsetX, worldOffsetY]);
 
   useEffect(() => {
     const previousArtifactFocusId = previousArtifactFocusIdRef.current;
@@ -348,6 +385,8 @@ export function FocusedSetArtifactSurface({
 
   const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
+    cameraModeRef.current = 'custom';
+    setCameraMode('custom');
     suppressedClickRef.current = null;
     const artifactId = entry.identity.artifactId;
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
@@ -436,21 +475,10 @@ export function FocusedSetArtifactSurface({
     requestAnimationFrame(() => document.getElementById(`ordered-artifact-${nextId}`)?.focus());
   };
 
-  const applyFit = () => {
-    const node = viewportRef.current;
-    cameraModeRef.current = 'fit';
-    relativeZoomRef.current = 1;
-    setSession((current) => setCreatorCamera(current, { x: 0, y: 0, zoom: fitZoom }));
-    if (node) {
-      suppressCameraScrollRef.current = true;
-      node.scrollTo({
-        left: 0,
-        top: 0,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-      });
-      requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-    }
-  };
+  const semanticScrollBehavior = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' as const : 'smooth' as const;
+  const applyFit = () => setSemanticCamera('fit-work', semanticScrollBehavior());
+  const applySelectionFit = () => setSemanticCamera('fit-selection', semanticScrollBehavior());
+  const applyWhole = () => setSemanticCamera('whole', semanticScrollBehavior());
 
   const setZoom = (zoom: number, point?: SpatialPoint, previousPoint = point) => {
     const normalized = Math.max(fitZoom, Math.min(Math.max(2, fitZoom * 3), zoom));
@@ -467,7 +495,8 @@ export function FocusedSetArtifactSurface({
     const scrollTop = worldY * normalized + nextOffsetY - local.y;
     const x = Math.max(0, (scrollLeft - nextOffsetX) / normalized);
     const y = Math.max(0, (scrollTop - nextOffsetY) / normalized);
-    cameraModeRef.current = nearlyEqual(normalized, fitZoom) ? 'fit' : 'custom';
+    cameraModeRef.current = nearlyEqual(normalized, fitZoom) ? 'whole' : 'custom';
+    setCameraMode(cameraModeRef.current);
     relativeZoomRef.current = normalized / fitZoom;
     if (normalized === session.camera.zoom) node.scrollTo({ left: Math.max(0, scrollLeft), top: Math.max(0, scrollTop) });
     setSession((current) => setCreatorCamera(current, { x, y, zoom: normalized }));
@@ -484,6 +513,20 @@ export function FocusedSetArtifactSurface({
       x: (node.scrollLeft + event.clientX - bounds.left - worldOffsetX) / session.camera.zoom,
       y: (node.scrollTop + event.clientY - bounds.top - worldOffsetY) / session.camera.zoom,
     };
+  };
+  const centerSetCamera = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    const node = viewportRef.current;
+    if (!node) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(layout.width, (event.clientX - bounds.left) / Math.max(1, bounds.width) * layout.width));
+    const y = Math.max(0, Math.min(layout.height, (event.clientY - bounds.top) / Math.max(1, bounds.height) * layout.height));
+    const camera = {
+      x: Math.max(0, Math.min(Math.max(0, layout.width - viewportSize.width / session.camera.zoom), x - viewportSize.width / session.camera.zoom / 2)),
+      y: Math.max(0, Math.min(Math.max(0, layout.height - viewportSize.height / session.camera.zoom), y - viewportSize.height / session.camera.zoom / 2)),
+      zoom: session.camera.zoom,
+    };
+    setSession((current) => setCreatorCamera(current, camera));
+    node.scrollTo({ left: camera.x * camera.zoom + worldOffsetX, top: camera.y * camera.zoom + worldOffsetY });
   };
   const selectionRect = (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = marqueeRef.current?.start;
@@ -513,7 +556,8 @@ export function FocusedSetArtifactSurface({
         data-density={layout.density}
         data-zoom={session.camera.zoom.toFixed(2)}
         data-relative-zoom={relativeZoom.toFixed(2)}
-        data-at-fit={relativeZoom <= 1.0001}
+        data-camera-mode={cameraMode}
+        data-at-fit={cameraMode !== 'custom'}
         data-grid={showGrid && organization.arrangement === 'manual'}
         data-artifact-focus-exclusive="false"
         aria-label={`${setName} spatial Artifact field`}
@@ -522,6 +566,8 @@ export function FocusedSetArtifactSurface({
         {...gestures}
         onPointerDown={(event) => {
           if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+          cameraModeRef.current = 'custom';
+          setCameraMode('custom');
           marqueeRef.current = { start: worldPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
@@ -542,6 +588,7 @@ export function FocusedSetArtifactSurface({
         onScroll={(event) => {
           if (suppressCameraScrollRef.current) return;
           cameraModeRef.current = 'custom';
+          setCameraMode('custom');
           relativeZoomRef.current = session.camera.zoom / fitZoom;
           const viewport = event.currentTarget;
           setSession((current) => setCreatorCamera(current, {
@@ -555,7 +602,7 @@ export function FocusedSetArtifactSurface({
           <div data-artifact-world className={styles.artifactWorld} style={{ left: worldOffsetX, top: worldOffsetY, width: layout.width, height: layout.height, transform: `scale(${session.camera.zoom})` }}>
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
-              <div key={group.label} className={styles.artifactGroupLabel} style={{ top: group.y }}><strong>{group.label}</strong><span>{group.count}</span></div>
+              <div key={group.label} className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width }}><strong>{group.label}</strong><span>{group.count}</span></div>
             )) : null}
             {projectedEntries.map((entry) => {
               const artifactId = entry.identity.artifactId;
@@ -623,11 +670,24 @@ export function FocusedSetArtifactSurface({
           </div>
         </div>
       </div>
-      <div className={styles.cameraControls} data-set-view-controls aria-label="Artifact view controls">
-        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
+      {cameraMode === 'custom' && (scaledWorldWidth > viewportSize.width + 1 || scaledWorldHeight > viewportSize.height + 1) ? <button
+        type="button"
+        className={styles.setMinimap}
+        aria-label="Set minimap. Choose a point to center the camera."
+        onClick={centerSetCamera}
+      ><span style={{
+        left: `${session.camera.x / Math.max(1, layout.width) * 100}%`,
+        top: `${session.camera.y / Math.max(1, layout.height) * 100}%`,
+        width: `${Math.min(1, viewportSize.width / session.camera.zoom / Math.max(1, layout.width)) * 100}%`,
+        height: `${Math.min(1, viewportSize.height / session.camera.zoom / Math.max(1, layout.height)) * 100}%`,
+      }} /></button> : null}
+      <div className={styles.cameraControls} data-set-view-controls data-camera-mode={cameraMode} aria-label="Artifact view controls">
+        <Button type="button" size="icon" variant="ghost" disabled={relativeZoom <= 1.0001} onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
         <span aria-live="polite">{Math.round(relativeZoom * 100)}%</span>
         <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom + fitZoom * 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
-        <Button type="button" size="sm" variant="ghost" onClick={applyFit}>Fit</Button>
+        <Button type="button" size="sm" variant="ghost" aria-pressed={cameraMode === 'fit-work'} onClick={applyFit}>Fit Work</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={visibleSelectionEntries.length === 0} aria-pressed={cameraMode === 'fit-selection'} onClick={applySelectionFit}>Selection</Button>
+        <Button type="button" size="sm" variant="ghost" aria-pressed={cameraMode === 'whole'} onClick={applyWhole}>Whole Set</Button>
         <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
         <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
         <FocusedArtifactNavigator

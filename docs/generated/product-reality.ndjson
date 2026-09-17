@@ -1,4 +1,4 @@
-{"type":"meta","schemaVersion":1,"topologyFingerprint":"d1f346c01fa74a8e7b46","summary":{"nodes":226,"edges":510,"unknowns":0,"kinds":{"action":30,"api":76,"capability":10,"feature":31,"mcp":30,"provider":8,"route":26,"surface":5,"tool":10}}}
+{"type":"meta","schemaVersion":1,"topologyFingerprint":"478083777d3feeab06c9","summary":{"nodes":230,"edges":518,"unknowns":0,"kinds":{"action":30,"api":76,"capability":14,"feature":31,"mcp":30,"provider":8,"route":26,"surface":5,"tool":10}}}
 {"type":"node","id":"action:desk.create-set","kind":"action","label":"New Set","owner":"card-generator","owners":["card-generator"],"scope":"zone","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"human-only"}
 {"type":"node","id":"action:desk.delete-set","kind":"action","label":"Delete from this device","owner":"project","owners":["project"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":["browser-local"],"permission":"guest","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:desk.duplicate-set","kind":"action","label":"Duplicate","owner":"project","owners":["project"],"scope":"object","result":"mutation","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
@@ -109,12 +109,16 @@
 {"type":"node","id":"capability:creator.exact-context-return","kind":"capability","label":"Exact creator focus and tool return context","category":"navigation"}
 {"type":"node","id":"capability:desk.adaptive-artifact-density","kind":"capability","label":"Adaptive comfortable, compact, and dense Artifact presentation","category":"interaction"}
 {"type":"node","id":"capability:desk.bounded-spatial-workspace","kind":"capability","label":"Bounded spatial Desk with authored object movement","category":"interaction"}
-{"type":"node","id":"capability:desk.complete-fit-overview","kind":"capability","label":"Complete bounded Set Fit with adaptive detail","category":"accessibility"}
+{"type":"node","id":"capability:desk.compact-primary-action-access","kind":"capability","label":"Compact focused Artifact primary actions without horizontal scrolling","category":"accessibility"}
 {"type":"node","id":"capability:desk.context-restoration","kind":"capability","label":"Desk selection and focus restoration","category":"navigation"}
-{"type":"node","id":"capability:desk.fit-custom-camera","kind":"capability","label":"Fit and Custom spatial camera","category":"interaction"}
+{"type":"node","id":"capability:desk.custom-spatial-camera","kind":"capability","label":"Custom pan and zoom camera that preserves authored coordinates","category":"interaction"}
+{"type":"node","id":"capability:desk.fit-selection-camera","kind":"capability","label":"Visible-selection spatial framing","category":"interaction"}
+{"type":"node","id":"capability:desk.fit-work-camera","kind":"capability","label":"Content-aware Fit Work spatial camera","category":"interaction"}
 {"type":"node","id":"capability:desk.focused-artifact-spatial-browse","kind":"capability","label":"Focused Artifact directional browsing through Set geometry","category":"navigation"}
 {"type":"node","id":"capability:desk.multi-artifact-spatial-move","kind":"capability","label":"Multi-Artifact spatial selection movement","category":"interaction"}
 {"type":"node","id":"capability:desk.reflective-set-organization","kind":"capability","label":"Reflective Set grouping, filtering, and sorting","category":"organization"}
+{"type":"node","id":"capability:desk.stable-set-arrangement","kind":"capability","label":"Viewport-independent Grid and Stack Set arrangement","category":"organization"}
+{"type":"node","id":"capability:desk.whole-spatial-overview","kind":"capability","label":"Explicit complete bounded Desk and Set overview","category":"accessibility"}
 {"type":"node","id":"feature:account","kind":"feature","label":"account"}
 {"type":"node","id":"feature:analytics","kind":"feature","label":"analytics"}
 {"type":"node","id":"feature:app-shell","kind":"feature","label":"app-shell"}
@@ -422,12 +426,16 @@
 {"type":"edge","from":"capability:creator.exact-context-return","to":"feature:app-shell","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.adaptive-artifact-density","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.bounded-spatial-workspace","to":"feature:desk","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:desk.complete-fit-overview","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.compact-primary-action-access","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.context-restoration","to":"feature:desk","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:desk.fit-custom-camera","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.custom-spatial-camera","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.fit-selection-camera","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.fit-work-camera","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.focused-artifact-spatial-browse","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.multi-artifact-spatial-move","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.reflective-set-organization","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.stable-set-arrangement","to":"feature:desk","relation":"owned-by","confidence":"declared"}
+{"type":"edge","from":"capability:desk.whole-spatial-overview","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"feature:account","to":"feature:analytics","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:billing","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:mcp-usage","relation":"depends-on","confidence":"observed"}
@@ -678,12 +686,16 @@
 {"type":"edge","from":"surface:desk","to":"capability:creator.exact-context-return","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.adaptive-artifact-density","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.bounded-spatial-workspace","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:desk.complete-fit-overview","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.compact-primary-action-access","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.context-restoration","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:desk.fit-custom-camera","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.custom-spatial-camera","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.fit-selection-camera","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.fit-work-camera","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.focused-artifact-spatial-browse","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.multi-artifact-spatial-move","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.reflective-set-organization","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.stable-set-arrangement","relation":"exposes","confidence":"declared"}
+{"type":"edge","from":"surface:desk","to":"capability:desk.whole-spatial-overview","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:library","to":"action:library.close-locations","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.close-tool","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.continue","relation":"exposes","confidence":"observed"}

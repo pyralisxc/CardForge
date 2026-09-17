@@ -329,6 +329,42 @@
   outline-offset: -2px;
 }
 
+.deskMinimap,
+.setMinimap {
+  position: absolute;
+  z-index: 9;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  width: 8.5rem;
+  aspect-ratio: 1520 / 1140;
+  overflow: hidden;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(color-mix(in srgb, var(--cf-accent-soft) 34%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-accent-soft) 34%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--cf-surface-inset) 94%, transparent);
+  background-size: 12px 12px;
+  box-shadow: var(--cf-panel-shadow);
+  cursor: crosshair;
+}
+
+.deskMinimap > span,
+.setMinimap > span {
+  position: absolute;
+  min-width: 0.65rem;
+  min-height: 0.65rem;
+  border: 2px solid var(--cf-accent-strong);
+  background: color-mix(in srgb, var(--cf-accent-soft) 38%, transparent);
+  pointer-events: none;
+}
+
+.setMinimap {
+  left: 0.75rem;
+  right: auto;
+  bottom: 0.75rem;
+}
+
 .deskWorldSizer {
   position: relative;
   min-width: 100%;
@@ -1584,6 +1620,9 @@
 }
 
 @media (max-width: 767px) {
+  .deskMinimap,
+  .setMinimap { display: none; }
+
   .emptySetCompactActions {
     display: flex;
     flex-wrap: wrap;
@@ -1941,16 +1980,16 @@
     max-width: none;
     min-height: 3rem;
     flex: 0 0 auto;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow: visible;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     padding-bottom: 0.15rem;
     pointer-events: auto;
     scrollbar-width: none;
-    touch-action: pan-x;
+    touch-action: auto;
     transform: none;
   }
 
@@ -1982,7 +2021,7 @@
   .artifactWorkspace[data-editing="true"] .artifactWorkspaceControls {
     width: 100%;
     justify-content: flex-start;
-    overflow-x: auto;
+    overflow: visible;
   }
 
   .artifactFieldInspector {
@@ -2015,13 +2054,14 @@
     max-width: none;
     min-height: 3rem;
     flex: 0 0 auto;
+    flex-wrap: wrap;
     justify-content: flex-start;
-    overflow-x: auto;
+    overflow: visible;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     scrollbar-width: none;
-    touch-action: pan-x;
+    touch-action: auto;
   }
 
   .cameraControls::-webkit-scrollbar { display: none; }

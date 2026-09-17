@@ -88,21 +88,15 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     const viewport = page.locator('[data-desk-viewport]');
-    await expect(viewport).toBeVisible();
-    await expect.poll(() => viewport.evaluate((node) => ({
-      horizontal: node.scrollWidth - node.clientWidth,
-      vertical: node.scrollHeight - node.clientHeight,
-    }))).toEqual({ horizontal: 0, vertical: 0 });
-
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
+    await expect(viewport).toBeVisible();
+    await expect(setButton).toBeInViewport({ ratio: 0.99 });
+
     await setButton.click();
     await expect(setButton).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
-    await expect.poll(() => viewport.evaluate((node) => ({
-      horizontal: node.scrollWidth - node.clientWidth,
-      vertical: node.scrollHeight - node.clientHeight,
-    }))).toEqual({ horizontal: 0, vertical: 0 });
+    await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
     const storage = page.getByRole('button', { name: /Storage/ }).first();
     await expect(storage).toBeVisible();
@@ -167,7 +161,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     const stage = page.locator('[data-desk-artifact-stage]');
-    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
     const boardBox = await board.boundingBox();
     const mainBox = await page.locator('main[data-scene-viewport]').boundingBox();
     expect(boardBox).not.toBeNull();

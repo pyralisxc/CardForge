@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, Navigation, Pencil, Plus, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, MoreHorizontal, Navigation, Pencil, Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { CardData, CardFace } from '@/domain/cards';
 import { getCardFaceCanvas, getCardFaceTemplate, type DisplayCard } from '@/domain/rendering';
@@ -321,7 +322,7 @@ export function FocusedArtifactWorkspace({
     </aside> : null}
 
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact tools">
-      {!editing ? <Popover>
+      {editing ? <Button className={styles.artifactPrimaryAction} type="button" size="sm" onClick={() => { if (dirty) save(); else onCancelEdit(); }}><Check className="mr-1.5 h-4 w-4" aria-hidden="true" />{dirty ? 'Save & Done' : 'Done'}</Button> : <Popover>
         <PopoverTrigger asChild>
           <Button type="button" size="sm" variant="ghost" data-artifact-browse aria-label="Browse this Set" title="Browse this Set"><Navigation className="h-4 w-4" aria-hidden="true" /><span className={styles.artifactBrowseLabel}>Browse</span></Button>
         </PopoverTrigger>
@@ -335,16 +336,38 @@ export function FocusedArtifactWorkspace({
             <Button type="button" size="icon" variant="outline" className={styles.artifactBrowseDown} disabled={!availableDirections.down} onClick={() => browse('down')} aria-label="Open Artifact below"><ArrowDown aria-hidden="true" /></Button>
           </div>
         </PopoverContent>
-      </Popover> : <>
+      </Popover>}
+      {editing ? <>
         <span className={styles.artifactEditModeLabel}><Pencil aria-hidden="true" />Editing Artifact</span>
         <Button type="button" size="sm" variant="ghost" onClick={onCancelEdit}>Cancel</Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</Button>
-      </>}
-      <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
-      <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
-      <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
-      <Button type="button" size="sm" variant="ghost" onClick={viewport.fit}>Fit</Button>
-      {editing ? <Button type="button" size="sm" onClick={() => { if (dirty) save(); else onCancelEdit(); }}><Check className="mr-1.5 h-4 w-4" aria-hidden="true" />{dirty ? 'Save & Done' : 'Done'}</Button> : <CardActions card={card} canExportClean={canExportClean} canUseProjectFiles={canUseProjectFiles} compact />}
+      </> : null}
+      <span className="max-[600px]:hidden contents">
+        {editing ? <Button type="button" size="sm" variant="outline" onClick={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</Button> : null}
+        <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
+        <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
+        <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
+        <Button type="button" size="sm" variant="ghost" onClick={viewport.fit}>Fit</Button>
+      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[601px]:hidden" aria-label="More focused Artifact actions"><MoreHorizontal aria-hidden="true" />More</Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {editing ? <DropdownMenuItem onSelect={() => { setShowAllFields(true); setSelectedTargetId(null); }}>All fields</DropdownMenuItem> : null}
+          <DropdownMenuItem onSelect={() => viewport.changeZoom(viewport.zoom - 0.15)}><Minus aria-hidden="true" />Zoom out · {Math.round(viewport.zoom * 100)}%</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => viewport.changeZoom(viewport.zoom + 0.15)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
+          <DropdownMenuItem onSelect={viewport.fit}>Fit Artifact</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {!editing ? <CardActions card={card} canExportClean={canExportClean} canUseProjectFiles={canUseProjectFiles} compact /> : null}
     </div>
   </div>;
 }
+
+export const FOCUSED_ARTIFACT_ACTION_REALITY = {
+  productRealityKind: 'capability',
+  id: 'desk.compact-primary-action-access',
+  label: 'Compact focused Artifact primary actions without horizontal scrolling',
+  category: 'accessibility',
+  ownerFeature: 'desk',
+  surfaces: ['desk'],
+  implementation: FocusedArtifactWorkspace,
+} as const;
