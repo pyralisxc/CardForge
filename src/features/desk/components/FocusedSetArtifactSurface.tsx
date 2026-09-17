@@ -493,29 +493,6 @@ export function FocusedSetArtifactSurface({
         inert={focusedEntry ? true : undefined}
       >
       <p id={`artifact-field-instructions-${setId}`} className="sr-only">Swipe to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it; hold empty space then drag to draw a selection. With a mouse, drag cards to move or empty space to select. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
-      <div className={styles.cameraControls} data-set-view-controls aria-label="Artifact view controls">
-        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
-        <span aria-live="polite">{Math.round(relativeZoom * 100)}%</span>
-        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom + fitZoom * 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
-        <Button type="button" size="sm" variant="ghost" onClick={applyFit}>Fit</Button>
-        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
-        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
-      <FocusedArtifactNavigator
-        setName={setName}
-        entries={layout.entries}
-        groups={orderedGroups}
-        arrangement={organization.arrangement}
-        selection={session.selection}
-        navigatorFocusId={navigatorFocusId}
-        hidden={Boolean(focusedEntry)}
-        onFocusArtifact={(artifactId) => focusArtifact(artifactId, 'navigator')}
-        onMoveFocus={moveNavigatorFocus}
-        onMoveGroup={moveNavigatorGroup}
-        onNudge={nudgeSelection}
-        onSetNavigatorFocus={setNavigatorFocusId}
-        onToggleArtifact={toggleArtifact}
-      />
-      </div>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -635,6 +612,29 @@ export function FocusedSetArtifactSurface({
             })}
           </div>
         </div>
+      </div>
+      <div className={styles.cameraControls} data-set-view-controls aria-label="Artifact view controls">
+        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom - fitZoom * 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
+        <span aria-live="polite">{Math.round(relativeZoom * 100)}%</span>
+        <Button type="button" size="icon" variant="ghost" onClick={() => setZoom(session.camera.zoom + fitZoom * 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
+        <Button type="button" size="sm" variant="ghost" onClick={applyFit}>Fit</Button>
+        <Button type="button" size="icon" variant="ghost" disabled={undoStackRef.current.length === 0} onClick={undoSpatialMove} aria-label="Undo Artifact move"><Undo2 aria-hidden="true" /></Button>
+        <Button type="button" size="icon" variant="ghost" disabled={redoStackRef.current.length === 0} onClick={redoSpatialMove} aria-label="Redo Artifact move"><Redo2 aria-hidden="true" /></Button>
+        <FocusedArtifactNavigator
+          setName={setName}
+          entries={layout.entries}
+          groups={orderedGroups}
+          arrangement={organization.arrangement}
+          selection={session.selection}
+          navigatorFocusId={navigatorFocusId}
+          hidden={Boolean(focusedEntry)}
+          onFocusArtifact={(artifactId) => focusArtifact(artifactId, 'navigator')}
+          onMoveFocus={moveNavigatorFocus}
+          onMoveGroup={moveNavigatorGroup}
+          onNudge={nudgeSelection}
+          onSetNavigatorFocus={setNavigatorFocusId}
+          onToggleArtifact={toggleArtifact}
+        />
       </div>
       </div>
       {focusedEntry && focusedCard ? <FocusedArtifactWorkspace

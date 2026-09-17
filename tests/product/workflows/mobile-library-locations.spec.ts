@@ -106,6 +106,42 @@ test.describe('mobile Library location tools', () => {
     await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 
+    const artifactStage = page.locator('[data-desk-artifact-stage]');
+    const viewControls = page.locator('[data-set-view-controls]');
+    expect(await page.evaluate(() => {
+      const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
+      return Boolean(stage && controls && controls.top >= stage.bottom - 1);
+    })).toBe(true);
+    await expect(viewControls).toBeVisible();
+
+    await artifactStage.locator('button[data-artifact-id="scale-card-1"]').click();
+    const selectionActions = page.getByRole('toolbar', { name: 'Selection actions', exact: true });
+    await expect(selectionActions.getByRole('button', { name: 'Edit selected', exact: true })).toBeVisible();
+    await expect(selectionActions.getByRole('button', { name: 'More selection actions', exact: true })).toBeVisible();
+    expect(await selectionActions.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await selectionActions.getByRole('button', { name: 'More selection actions', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Duplicate', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.setViewportSize({ width: 320, height: 667 });
+    await expect.poll(async () => page.evaluate(() => {
+      const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
+      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && controls
+        && footer
+        && controls.top >= stage.bottom - 1
+        && controls.bottom <= footer.top + 1
+        && footer.right <= innerWidth + 1
+        && footer.bottom <= innerHeight + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
     await test.info().attach('mobile-desk-capability-parity', {
       body: await page.screenshot(),
       contentType: 'image/png',

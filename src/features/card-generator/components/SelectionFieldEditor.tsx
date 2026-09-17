@@ -104,7 +104,7 @@ export function SelectionFieldEditor({
     </div>;
   };
 
-  return <section className="space-y-5" aria-label={`Edit ${cards.length} selected Artifacts`}>
+  return <section className="space-y-5" role="group" aria-label={`Edit ${cards.length} selected Artifacts`}>
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Selection edit</p><h3 className="mt-1 text-xl font-semibold">Edit {cards.length} selected Artifact{cards.length === 1 ? '' : 's'}</h3><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Only fields you touch are changed. Mixed values remain different unless you replace them here.</p></div>
       <Button type="button" variant="outline" onClick={onUpdateFromData}><Database className="mr-2 h-4 w-4" />Update from data</Button>

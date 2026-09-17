@@ -841,14 +841,52 @@
 
 .selectionBar {
   flex: 1;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.selectionCount {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--cf-accent-text);
+  font-size: 0.68rem;
+}
+
+.selectionDesktopActions {
+  display: contents;
+}
+
+.selectionMore {
+  display: none;
+}
+
+.selectionActionPanel {
+  display: grid;
+  width: min(24rem, calc(100vw - 1rem));
+  max-height: min(70dvh, var(--radix-popover-content-available-height));
+  gap: 0.5rem;
+  overflow-y: auto;
+  border: 1px solid var(--cf-border-subtle);
+  background: var(--cf-surface);
+  padding: 0.65rem;
+}
+
+.selectionActionPanel > button {
+  justify-content: flex-start;
+}
+
+.selectionActionRow {
+  display: flex;
+  min-width: 0;
   gap: 0.4rem;
 }
 
-.selectionBar > span {
-  color: var(--cf-accent-text);
-  font-size: 0.68rem;
+.selectionActionRow > * {
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .tagTools {
@@ -1758,13 +1796,19 @@
   .artifactWorkspaceControls > * { flex: 0 0 auto; }
 
   .cameraControls {
-    right: 0.4rem;
-    bottom: 0.4rem;
-    left: 0.4rem;
-    width: auto;
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
     max-width: none;
+    min-height: 3rem;
+    flex: 0 0 auto;
     justify-content: flex-start;
     overflow-x: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
     scrollbar-width: none;
     touch-action: pan-x;
   }
@@ -1802,9 +1846,34 @@
   }
 
   .selectionBar {
-    display: grid;
-    flex-basis: 100%;
-    justify-content: stretch;
+    width: 100%;
+    flex-basis: auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+    padding-block: 0.3rem !important;
+    overflow: hidden;
+  }
+
+  .selectionCount {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .selectionDesktopActions {
+    display: none;
+  }
+
+  .selectionMore {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .selectionActionPanel .moveSelect {
+    width: auto;
+    flex: 1 1 auto;
   }
 
   .organizationToolbar {
@@ -1829,10 +1898,6 @@
 
   .contentStage {
     min-height: 0;
-  }
-
-  .cameraControls {
-    flex-wrap: wrap;
   }
 
   .cameraControls > * { flex-shrink: 0; }
