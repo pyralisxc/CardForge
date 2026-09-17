@@ -84,6 +84,7 @@ For cross-surface/current-topology questions, use `.agents/skills/product-realit
 - Product Reality query: `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind capability`, `--kind mcp`, or `--unknown`.
 - Product Reality working drift: `npm run product-reality:diff -- --base <ref>` or `npm run product-reality:audit -- --base <ref>`; W is disposable.
 - Product Reality promotion: `npm run product-reality:seal` then `npm run product-reality:check` on the exact candidate.
+- Development Intelligence acceptance: `.development-intelligence/` is the repository-owned accepted semantic checkpoint. The `development-intelligence` CI job checks it with an immutable Development Intelligence action SHA; intentional source changes must reseal it in the same reviewed candidate.
 - Architecture enforcement: `npm run architecture:check`; changed-file signal: `npm run architecture:changed`; deep analysis: `npm run architecture:report`.
 - Final candidate: focused evidence locally; required GitHub `verify` runs `npm run verify:full` as the authoritative deterministic gate.
 - Test inventory: `npm run test:inventory` only when coverage growth or cleanup is the question.
