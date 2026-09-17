@@ -4,14 +4,14 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `d1f346c01fa74a8e7b46`
+Topology fingerprint: `478083777d3feeab06c9`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
 ## Topology summary
 
-- 226 observed nodes
-- 510 observed relationships
+- 230 observed nodes
+- 518 observed relationships
 - 0 unresolved observations
 - 5 product surfaces, 30 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers
 
@@ -84,12 +84,16 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `Exact creator focus and tool return context` | navigation | `app-shell` | `Desk`, `Studio` |
 | `Adaptive comfortable, compact, and dense Artifact presentation` | interaction | `desk` | `Desk` |
 | `Bounded spatial Desk with authored object movement` | interaction | `desk` | `Desk` |
-| `Complete bounded Set Fit with adaptive detail` | accessibility | `desk` | `Desk` |
+| `Compact focused Artifact primary actions without horizontal scrolling` | accessibility | `desk` | `Desk` |
 | `Desk selection and focus restoration` | navigation | `desk` | `Desk` |
-| `Fit and Custom spatial camera` | interaction | `desk` | `Desk` |
+| `Custom pan and zoom camera that preserves authored coordinates` | interaction | `desk` | `Desk` |
+| `Visible-selection spatial framing` | interaction | `desk` | `Desk` |
+| `Content-aware Fit Work spatial camera` | interaction | `desk` | `Desk` |
 | `Focused Artifact directional browsing through Set geometry` | navigation | `desk` | `Desk` |
 | `Multi-Artifact spatial selection movement` | interaction | `desk` | `Desk` |
 | `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
+| `Viewport-independent Grid and Stack Set arrangement` | organization | `desk` | `Desk` |
+| `Explicit complete bounded Desk and Set overview` | accessibility | `desk` | `Desk` |
 
 ## Feature owners
 

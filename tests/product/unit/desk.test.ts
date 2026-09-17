@@ -8,9 +8,9 @@ import {
   DESK_SURFACE_WIDTH,
   getDefaultDeskWorldPosition,
   getDeskCameraGeometry,
-  getDeskInitialRevealTarget,
-  getDeskOverviewCameraGeometry,
+  getDeskFramingTarget,
   getDeskWorldProjection,
+  getDeskWorldBounds,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
   normalizeDeskWorldGeometry,
@@ -214,24 +214,30 @@ describe('Desk model', () => {
     expect(desktopFit.offsetX).toBeCloseTo((1_920 - DESK_SURFACE_WIDTH * desktopFit.zoom) / 2);
   });
 
-  it('starts a compact returning Desk at a readable overview while Fit still shows the whole world', () => {
-    const compactOverview = getDeskOverviewCameraGeometry({ width: 390, height: 420 });
-    expect(compactOverview).toMatchObject({
-      relativeZoom: 1.35,
-    });
-    expect(compactOverview.fitZoom).toBeCloseTo(Math.min(390 / DESK_SURFACE_WIDTH, 420 / DESK_SURFACE_HEIGHT));
-    expect(compactOverview.zoom).toBeCloseTo(compactOverview.fitZoom * 1.35);
-    expect(getDeskOverviewCameraGeometry({ width: 1_920, height: 1_080 })).toMatchObject({
-      relativeZoom: 1,
-    });
+  it('frames visible authored bounds without changing their world coordinates', () => {
+    const items = [
+      { id: 'set:one', x: 420, y: 160, z: 1, width: 260, height: 360 },
+      { id: 'set:two', x: 700, y: 220, z: 2, width: 220, height: 300 },
+    ];
+    const bounds = getDeskWorldBounds(items);
+    const target = getDeskFramingTarget({ viewport: { width: 390, height: 420 }, bounds });
+
+    expect(bounds).toEqual({ left: 420, top: 160, right: 920, bottom: 520 });
+    expect(target.geometry.relativeZoom).toBeGreaterThan(1);
+    expect(target.scroll.left).toBeGreaterThan(0);
+    expect(items).toEqual([
+      { id: 'set:one', x: 420, y: 160, z: 1, width: 260, height: 360 },
+      { id: 'set:two', x: 700, y: 220, z: 2, width: 220, height: 300 },
+    ]);
   });
 
-  it('reveals older complete-world Set positions without rewriting their layout', () => {
-    expect(getDeskInitialRevealTarget({
-      itemBounds: [{ left: 292, top: 452, right: 473, bottom: 624 }],
-      viewport: { width: 1_190, height: 563 },
-      surface: { width: 1_190, height: 630 },
-    })).toEqual({ left: 0, top: 61 });
+  it('falls back to the complete bounded Desk for absent or invalid framing bounds', () => {
+    const viewport = { width: 390, height: 420 };
+    expect(getDeskWorldBounds([{ x: 10, y: 20, width: 0, height: Number.NaN }])).toBeNull();
+    expect(getDeskFramingTarget({ viewport, bounds: null })).toEqual({
+      geometry: getDeskCameraGeometry(viewport, 0),
+      scroll: { left: 0, top: 0 },
+    });
   });
 
   it('gives unplaced Sets stable bounded-world anchors instead of device-sized slots', () => {

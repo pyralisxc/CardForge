@@ -9,8 +9,8 @@ export const DESK_WORLD_HEIGHT = 720;
  */
 export const DESK_SURFACE_WIDTH = DESK_WORLD_WIDTH + 320;
 export const DESK_SURFACE_HEIGHT = DESK_WORLD_HEIGHT + 420;
-export const DESK_MAX_RELATIVE_ZOOM = 3;
-export const DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM = 1.35;
+export const DESK_MAX_RELATIVE_ZOOM = 8;
+export const DESK_FRAME_PADDING = 44;
 
 export interface DeskWorldPosition {
   x: number;
@@ -44,6 +44,13 @@ export interface DeskRect {
 export interface DeskScrollTarget {
   left: number;
   top: number;
+}
+
+export type DeskCameraMode = 'fit-work' | 'fit-selection' | 'whole' | 'custom';
+
+export interface DeskFramingTarget {
+  geometry: ReturnType<typeof getDeskCameraGeometry>;
+  scroll: DeskScrollTarget;
 }
 
 export interface DeskWorldElement {
@@ -93,10 +100,9 @@ export const getDeskWorldProjection = (viewport: DeskViewport) => {
 };
 
 /**
- * The Desk has one bounded world. Fit is its minimum useful camera scale: the
- * whole Desk is visible and panning is unnecessary. Custom zoom only moves
- * inward from that fitted state, so there is never an off-Desk exploration
- * area to navigate into.
+ * The Desk has one bounded world. Whole is its minimum useful camera scale:
+ * the complete Desk is visible and panning is unnecessary. Semantic fits and
+ * Custom zoom move only inward from that floor, so there is no off-Desk area.
  */
 export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: number) => {
   const width = Math.max(1, viewport.width);
@@ -117,39 +123,65 @@ export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: num
   };
 };
 
-/**
- * Returning to a compact Desk should foreground legible Set targets, rather
- * than making every object tiny merely to display the entire world at once.
- * The explicit Fit control still returns to the whole bounded Desk.
- */
-export const getDeskOverviewCameraGeometry = (viewport: DeskViewport) => {
-  const fit = getDeskCameraGeometry(viewport, 0);
-  return getDeskCameraGeometry(
-    viewport,
-    fit.fitZoom * (viewport.width <= 767 ? DESK_COMPACT_OVERVIEW_RELATIVE_ZOOM : 1),
-  );
+/** Derives one camera target from the union of visible authored objects. */
+export const getDeskWorldBounds = (items: readonly Pick<DeskWorldItemRect, 'x' | 'y' | 'width' | 'height'>[]): DeskRect | null => {
+  const valid = items.filter((item) => (
+    Number.isFinite(item.x)
+    && Number.isFinite(item.y)
+    && Number.isFinite(item.width)
+    && Number.isFinite(item.height)
+    && item.width > 0
+    && item.height > 0
+  ));
+  if (valid.length === 0) return null;
+  return {
+    left: Math.min(...valid.map((item) => item.x)),
+    top: Math.min(...valid.map((item) => item.y)),
+    right: Math.max(...valid.map((item) => item.x + item.width)),
+    bottom: Math.max(...valid.map((item) => item.y + item.height)),
+  };
 };
 
 /**
- * Older saved layouts could place a complete Set just beyond the bounded
- * world's visible edge. Reveal its existing position on return instead of
- * rewriting the user's arrangement.
+ * Frames a content slice inside the stable Desk world. This is camera-only:
+ * the target is derived from authored bounds and never normalizes or rewrites
+ * those bounds. Invalid or absent bounds safely fall back to Whole Desk.
  */
-export const getDeskInitialRevealTarget = ({
-  itemBounds,
+export const getDeskFramingTarget = ({
   viewport,
-  surface,
+  bounds,
+  padding = DESK_FRAME_PADDING,
 }: {
-  itemBounds: readonly DeskRect[];
   viewport: DeskViewport;
-  surface: DeskViewport;
-}): DeskScrollTarget => {
-  if (itemBounds.length === 0) return { left: 0, top: 0 };
-  const furthestRight = Math.max(...itemBounds.map((item) => item.right));
-  const furthestBottom = Math.max(...itemBounds.map((item) => item.bottom));
+  bounds: DeskRect | null;
+  padding?: number;
+}): DeskFramingTarget => {
+  const whole = getDeskCameraGeometry(viewport, 0);
+  if (!bounds) return { geometry: whole, scroll: { left: 0, top: 0 } };
+  const targetWidth = Math.max(1, bounds.right - bounds.left);
+  const targetHeight = Math.max(1, bounds.bottom - bounds.top);
+  const safePadding = clamp(finite(padding, DESK_FRAME_PADDING), 0, Math.min(viewport.width, viewport.height) * 0.3);
+  const requestedZoom = Math.min(
+    Math.max(1, viewport.width - safePadding * 2) / targetWidth,
+    Math.max(1, viewport.height - safePadding * 2) / targetHeight,
+  );
+  const geometry = getDeskCameraGeometry(viewport, requestedZoom);
+  const centerX = (bounds.left + bounds.right) / 2;
+  const centerY = (bounds.top + bounds.bottom) / 2;
   return {
-    left: clamp(furthestRight - viewport.width, 0, Math.max(0, surface.width - viewport.width)),
-    top: clamp(furthestBottom - viewport.height, 0, Math.max(0, surface.height - viewport.height)),
+    geometry,
+    scroll: {
+      left: clamp(
+        centerX * geometry.zoom + geometry.offsetX - viewport.width / 2,
+        0,
+        Math.max(0, geometry.surfaceWidth - viewport.width),
+      ),
+      top: clamp(
+        centerY * geometry.zoom + geometry.offsetY - viewport.height / 2,
+        0,
+        Math.max(0, geometry.surfaceHeight - viewport.height),
+      ),
+    },
   };
 };
 

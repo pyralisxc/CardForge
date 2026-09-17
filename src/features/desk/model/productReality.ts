@@ -1,12 +1,14 @@
 import { createCreatorDeskSnapshot } from './creatorHistory';
 import {
+  buildFocusedArtifactLayout,
   getDirectionalArtifactNeighbor,
+  getFocusedArtifactFrame,
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
 } from './focusedArtifactLayout';
 import { deriveReflectiveOrganization } from './reflectiveOrganization';
-import { getDeskCameraGeometry, moveDeskWorldSelection } from './deskSpatialGeometry';
+import { getDeskCameraGeometry, getDeskFramingTarget, moveDeskWorldSelection } from './deskSpatialGeometry';
 
 /**
  * Descriptive, source-adjacent capability evidence for parity audits.
@@ -25,8 +27,26 @@ export const DESK_PRODUCT_REALITY = [
   },
   {
     productRealityKind: 'capability',
-    id: 'desk.fit-custom-camera',
-    label: 'Fit and Custom spatial camera',
+    id: 'desk.fit-work-camera',
+    label: 'Content-aware Fit Work spatial camera',
+    category: 'interaction',
+    ownerFeature: 'desk',
+    surfaces: ['desk'],
+    implementation: getDeskFramingTarget,
+  },
+  {
+    productRealityKind: 'capability',
+    id: 'desk.fit-selection-camera',
+    label: 'Visible-selection spatial framing',
+    category: 'interaction',
+    ownerFeature: 'desk',
+    surfaces: ['desk'],
+    implementation: [getDeskFramingTarget, getFocusedArtifactFrame],
+  },
+  {
+    productRealityKind: 'capability',
+    id: 'desk.custom-spatial-camera',
+    label: 'Custom pan and zoom camera that preserves authored coordinates',
     category: 'interaction',
     ownerFeature: 'desk',
     surfaces: ['desk'],
@@ -43,12 +63,21 @@ export const DESK_PRODUCT_REALITY = [
   },
   {
     productRealityKind: 'capability',
-    id: 'desk.complete-fit-overview',
-    label: 'Complete bounded Set Fit with adaptive detail',
+    id: 'desk.whole-spatial-overview',
+    label: 'Explicit complete bounded Desk and Set overview',
     category: 'accessibility',
     ownerFeature: 'desk',
     surfaces: ['desk'],
-    implementation: getFocusedArtifactFitZoom,
+    implementation: [getDeskCameraGeometry, getFocusedArtifactFitZoom],
+  },
+  {
+    productRealityKind: 'capability',
+    id: 'desk.stable-set-arrangement',
+    label: 'Viewport-independent Grid and Stack Set arrangement',
+    category: 'organization',
+    ownerFeature: 'desk',
+    surfaces: ['desk'],
+    implementation: buildFocusedArtifactLayout,
   },
   {
     productRealityKind: 'capability',
