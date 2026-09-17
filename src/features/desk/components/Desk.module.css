@@ -1206,8 +1206,8 @@
 
 .artifactFieldTarget {
   position: absolute;
-  min-width: calc(44px * var(--artifact-hit-scale, 1));
-  min-height: calc(44px * var(--artifact-hit-scale, 1));
+  min-width: calc(45px * var(--artifact-hit-scale, 1));
+  min-height: calc(45px * var(--artifact-hit-scale, 1));
   border: 3px solid color-mix(in srgb, var(--cf-accent-strong) 76%, white 12%);
   border-radius: 6px;
   background: color-mix(in srgb, var(--cf-accent) 10%, transparent);
