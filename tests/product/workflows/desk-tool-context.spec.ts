@@ -39,7 +39,10 @@ for (const mobile of [false, true]) {
         await expect(page.getByRole('menuitem', { name: 'Save & move', exact: true })).toBeVisible();
         await page.keyboard.press('Escape');
       } else await expect(page.getByRole('button', { name: 'Save & move', exact: true })).toBeVisible();
-      await page.getByRole('button', { name: 'Output', exact: true }).click();
+      if (mobile) {
+        await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Output', exact: true }).click();
+      } else await page.getByRole('button', { name: 'Output', exact: true }).click();
       await expect(page.getByRole('region', { name: 'Output 100 Card Scale Set', exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Template canvas', exact: true })).toHaveCount(0);
       await expect(artwork).toHaveCount(0);
@@ -62,7 +65,10 @@ for (const mobile of [false, true]) {
       const rail = page.locator('[data-desk-context-rail][data-depth="tool"]');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
 
-      await page.getByRole('button', { name: 'Generate', exact: true }).click();
+      if (mobile) {
+        await page.getByRole('button', { name: 'More Set actions', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Generate', exact: true }).click();
+      } else await page.getByRole('button', { name: 'Generate', exact: true }).click();
       await expect(page.locator('#deck-front-template')).toContainText('Scale Fixture Template');
       await expect(page.locator('#deck-backing-template')).toContainText('Scale Fixture Back');
       await expect(page.getByRole('button', { name: 'Close Generate', exact: true, includeHidden: true })).toHaveCount(0);
@@ -132,11 +138,18 @@ for (const mobile of [false, true]) {
 
       await visual.getByRole('button', { name: /^Show back of/ }).click();
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
-      await rail.getByRole('button', { name: 'Design', exact: true }).click();
+      if (mobile) {
+        await rail.getByRole('button', { name: 'More Artifact actions', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Design Template', exact: true }).click();
+      } else await rail.getByRole('button', { name: 'Design', exact: true }).click();
       await expectTemplate('Scale Fixture Back');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
 
       await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+      if (mobile) {
+        await expect(page.getByRole('button', { name: /^Templates ·/ })).toHaveCount(0);
+        await page.getByRole('button', { name: 'Clear Artifact selection', exact: true }).click();
+      }
       await page.getByRole('button', { name: /^Templates ·/ }).click();
       const reopenedTemplates = page.getByRole('dialog', { name: 'Templates in this Set' });
       await expect(reopenedTemplates.getByRole('button', { name: 'Design back Template Scale Fixture Back, used by 100 Artifacts', exact: true })).toBeVisible();
