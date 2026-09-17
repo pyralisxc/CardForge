@@ -118,7 +118,13 @@ for (const mobile of [false, true]) {
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
-      await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      const openAllFields = async () => {
+        if (mobile) {
+          await editor.getByRole('button', { name: 'More focused Artifact actions', exact: true }).click();
+          await page.getByRole('menuitem', { name: 'All fields', exact: true }).click();
+        } else await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      };
+      await openAllFields();
       const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();
       await artwork.fill('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Save & Design Template', exact: true }).first().click();
@@ -134,7 +140,7 @@ for (const mobile of [false, true]) {
       await expectTemplate('Scale Fixture Template');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
-      await editor.getByRole('button', { name: 'All fields', exact: true }).click();
+      await openAllFields();
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
