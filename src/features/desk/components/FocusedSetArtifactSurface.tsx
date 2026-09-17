@@ -5,7 +5,7 @@ import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
-import type { CardSetOrganization } from '@/domain/cards';
+import type { CardFace, CardSetOrganization } from '@/domain/cards';
 import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
@@ -44,6 +44,11 @@ interface FocusedSetArtifactSurfaceProps {
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
   onEditArtifact: (artifactId: string) => void;
+  editingArtifactId: string | null;
+  onCancelArtifactEdit: () => void;
+  onArtifactEditDirtyChange: (dirty: boolean) => void;
+  onSaveArtifact: (card: DisplayCard) => void;
+  onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onMoveArtifacts: (positions: Record<string, ArtifactPosition>) => void;
 }
 
@@ -90,6 +95,11 @@ export function FocusedSetArtifactSurface({
   stageRef,
   onFocusArtifact,
   onEditArtifact,
+  editingArtifactId,
+  onCancelArtifactEdit,
+  onArtifactEditDirtyChange,
+  onSaveArtifact,
+  onDesignArtifact,
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -648,6 +658,11 @@ export function FocusedSetArtifactSurface({
         availableDirections={focusedArtifactDirections}
         onBrowse={browseFocusedArtifact}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
+        editing={editingArtifactId === focusedEntry.identity.artifactId}
+        onCancelEdit={onCancelArtifactEdit}
+        onDirtyChange={onArtifactEditDirtyChange}
+        onSave={onSaveArtifact}
+        onDesign={onDesignArtifact}
       /> : null}
 
     </div>

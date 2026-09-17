@@ -142,7 +142,87 @@ test.describe('mobile Library location tools', () => {
       );
     })).toBe(true);
 
+    const selectedCard = page.locator('button[data-artifact-id="scale-card-1"]');
+    await selectedCard.focus();
+    await selectedCard.press('Enter');
+    await expect(page.locator('[data-focused-artifact-workspace]')).toBeVisible();
+    await expect.poll(async () => page.evaluate(() => {
+      const workspace = document.querySelector('[data-focused-artifact-workspace]');
+      const stage = workspace?.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const controls = workspace?.querySelector('[aria-label="Focused Artifact tools"]')?.getBoundingClientRect();
+      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && controls
+        && footer
+        && controls.top >= stage.bottom - 1
+        && controls.bottom <= footer.top + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
     await test.info().attach('mobile-desk-capability-parity', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
+
+  test('@golden edits a focused Artifact in place without overlapping the mobile stage, inspector, or rails', async ({ page }) => {
+    await seedGuestScaleWorkspace(page, 100, { cardLimit: 5, exportSample: true });
+    await page.setViewportSize({ width: 320, height: 667 });
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    await openScaleSet(page, 100);
+
+    const boardCard = page.locator('button[data-artifact-id="scale-card-1"]');
+    await boardCard.focus();
+    await boardCard.press('Enter');
+
+    const workspace = page.locator('[data-focused-artifact-workspace]');
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'true');
+
+    const titleTarget = page.locator('[data-field-element-id="scale-template-title"]');
+    await expect(titleTarget).toBeVisible();
+    await expect.poll(async () => {
+      const bounds = await titleTarget.boundingBox();
+      return bounds ? Math.min(bounds.width, bounds.height) : 0;
+    }).toBeGreaterThanOrEqual(44);
+    await titleTarget.tap();
+
+    const titleInput = page.getByRole('textbox', { name: 'Card Name', exact: true });
+    await expect(titleInput).toHaveValue('Scale Card 0001');
+    await titleInput.fill('Draft Mobile Artifact');
+    await expect(page.locator('[data-scene-depth="edit"]')).toContainText('Draft Mobile Artifact');
+
+    expect(await workspace.evaluate((element) => {
+      const stage = element.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
+      const inspector = element.querySelector('[aria-label="Artifact field inspector"]')?.getBoundingClientRect();
+      const controls = element.querySelector('[aria-label="Focused Artifact tools"]')?.getBoundingClientRect();
+      return Boolean(
+        stage
+        && inspector
+        && controls
+        && inspector.top >= stage.bottom - 1
+        && controls.top >= inspector.bottom - 1
+        && controls.right <= innerWidth + 1
+        && document.documentElement.scrollWidth <= innerWidth + 2
+      );
+    })).toBe(true);
+
+    await workspace.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('alertdialog', { name: 'Discard unsaved Artifact changes?' })).toBeVisible();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'false');
+    await expect(page.locator('[data-scene-depth="focus"]')).toContainText('Scale Card 0001');
+
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.locator('[data-field-element-id="scale-template-title"]').tap();
+    await page.getByRole('textbox', { name: 'Card Name', exact: true }).fill('Saved Mobile Artifact');
+    await workspace.getByRole('button', { name: 'Save & Done', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'false');
+    await expect(page.locator('[data-scene-depth="focus"]')).toContainText('Saved Mobile Artifact');
+
+    await test.info().attach('mobile-artifact-direct-edit', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });

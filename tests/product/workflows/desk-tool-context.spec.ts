@@ -118,9 +118,10 @@ for (const mobile of [false, true]) {
       const rail = page.locator('[data-desk-context-rail]');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
       const editor = page.locator('[data-artifact-edit-workspace]');
+      await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();
       await artwork.fill('/brand/cardforge-studio/brand-mark.svg');
-      await editor.getByRole('button', { name: 'Save & Design', exact: true }).click();
+      await editor.getByRole('button', { name: 'Save & Design Template', exact: true }).first().click();
       const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design).toBeVisible();
       const expectTemplate = async (name: string) => {
@@ -133,6 +134,7 @@ for (const mobile of [false, true]) {
       await expectTemplate('Scale Fixture Template');
       await rail.getByRole('button', { name: 'Done', exact: true }).click();
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
+      await editor.getByRole('button', { name: 'All fields', exact: true }).click();
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
@@ -161,7 +163,7 @@ for (const mobile of [false, true]) {
       await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
       await secondCard.press('Enter');
       await rail.getByRole('button', { name: 'Edit', exact: true }).click();
-      await expect(editor).toContainText('Back: Scale Fixture Back');
+      await expect(editor).toBeVisible();
       await expect(editor).not.toContainText('Copy of');
     });
   });

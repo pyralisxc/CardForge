@@ -1067,10 +1067,33 @@
   overflow: hidden;
 }
 
-.spatialPlane[data-artifact-editing="true"] .artifactWorkspaceControls {
-  visibility: hidden;
+.artifactWorkspace[data-editing="true"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
+.artifactWorkspace[data-editing="true"] .contentStage {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.artifactWorkspace[data-editing="true"] .artifactWorkspaceControls {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  max-width: none;
+  min-height: 3rem;
+  justify-content: center;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  transform: none;
+  pointer-events: auto;
+}
 
 .artifactWorkspaceControls {
   position: absolute;
@@ -1168,6 +1191,140 @@
   outline: 2px solid var(--cf-accent-strong);
   outline-offset: 4px;
 }
+
+.focusedArtifactEditFrame {
+  position: relative;
+  width: 100%;
+}
+
+.artifactFieldOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10001;
+  pointer-events: none;
+}
+
+.artifactFieldTarget {
+  position: absolute;
+  min-width: calc(44px * var(--artifact-hit-scale, 1));
+  min-height: calc(44px * var(--artifact-hit-scale, 1));
+  border: 3px solid color-mix(in srgb, var(--cf-accent-strong) 76%, white 12%);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cf-accent) 10%, transparent);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 34%), inset 0 0 0 1px rgb(255 255 255 / 12%);
+  opacity: 0.68;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.artifactFieldTarget[data-artifact-field-target="template-element"] {
+  border-style: dotted;
+  border-color: color-mix(in srgb, var(--cf-text-muted) 50%, transparent);
+  background: transparent;
+  opacity: 0;
+}
+
+.artifactFieldTarget:hover,
+.artifactFieldTarget:focus-visible,
+.artifactFieldTarget[data-selected="true"] {
+  opacity: 1;
+  background: color-mix(in srgb, var(--cf-accent) 20%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cf-accent-strong) 36%, transparent), 0 0 1rem color-mix(in srgb, var(--cf-accent) 28%, transparent);
+  outline: none;
+}
+
+.artifactFieldTarget[data-artifact-field-target="template-element"]:hover,
+.artifactFieldTarget[data-artifact-field-target="template-element"]:focus-visible,
+.artifactFieldTarget[data-artifact-field-target="template-element"][data-selected="true"] {
+  opacity: 0.78;
+  background: color-mix(in srgb, var(--cf-surface-raised) 15%, transparent);
+}
+
+.artifactFieldInspector {
+  z-index: 24;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--cf-border-strong);
+  background: color-mix(in srgb, var(--cf-surface) 97%, transparent);
+  box-shadow: -1.2rem 0 2.4rem rgb(0 0 0 / 20%);
+  backdrop-filter: blur(18px);
+}
+
+.artifactInspectorHeader {
+  display: flex;
+  min-height: 4.2rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--cf-border-subtle);
+  padding: 0.85rem 0.75rem 0.7rem 1rem;
+}
+
+.artifactInspectorHeader p {
+  color: var(--cf-accent-strong);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.artifactInspectorHeader h3 {
+  margin-top: 0.2rem;
+  color: var(--cf-text-strong);
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+}
+
+.artifactInspectorActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.artifactInspectorBody {
+  height: calc(100% - 4.2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+}
+
+.artifactInspectorPrompt,
+.templateOwnedNotice {
+  display: grid;
+  justify-items: start;
+  gap: 0.65rem;
+  border: 1px solid var(--cf-border-subtle);
+  border-radius: 0.65rem;
+  background: var(--cf-surface-inset);
+  padding: 1rem;
+  color: var(--cf-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.artifactInspectorPrompt > svg,
+.templateOwnedNotice > svg { color: var(--cf-accent-strong); }
+.artifactInspectorPrompt strong,
+.templateOwnedNotice strong { color: var(--cf-text-strong); }
+
+.artifactEditModeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.35rem;
+  color: var(--cf-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.artifactEditModeLabel svg { width: 0.9rem; height: 0.9rem; }
 
 
 .artifactLodPreview {
@@ -1776,14 +1933,20 @@
   }
 
   .artifactWorkspaceControls {
+    position: relative;
     right: auto;
-    bottom: 0.4rem;
-    left: 0.4rem;
-    width: calc(100% - 0.8rem);
+    bottom: auto;
+    left: auto;
+    width: 100%;
     max-width: none;
+    min-height: 3rem;
+    flex: 0 0 auto;
     flex-wrap: nowrap;
     justify-content: flex-start;
     overflow-x: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
     padding-bottom: 0.15rem;
     pointer-events: auto;
     scrollbar-width: none;
@@ -1794,6 +1957,54 @@
   .artifactWorkspaceControls::-webkit-scrollbar { display: none; }
 
   .artifactWorkspaceControls > * { flex: 0 0 auto; }
+
+  .artifactWorkspace {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .artifactWorkspace[data-editing="true"] {
+    display: flex;
+  }
+
+  .artifactWorkspace .contentStage {
+    height: auto;
+    flex: 1 1 auto;
+  }
+
+  .artifactWorkspace[data-editing="true"] .contentStage {
+    width: 100%;
+    height: 0;
+    min-height: 11rem;
+    flex: 1 1 0;
+  }
+
+  .artifactWorkspace[data-editing="true"] .artifactWorkspaceControls {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .artifactFieldInspector {
+    width: 100%;
+    max-height: min(42dvh, 22rem);
+    flex: 0 0 auto;
+    border-top: 1px solid var(--cf-border-strong);
+    border-left: 0;
+    box-shadow: 0 -1rem 2rem rgb(0 0 0 / 18%);
+  }
+
+  .artifactInspectorHeader {
+    min-height: 3.65rem;
+    padding-top: 0.65rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .artifactInspectorBody {
+    height: auto;
+    max-height: calc(min(42dvh, 22rem) - 3.65rem);
+    padding: 0.75rem;
+  }
 
   .cameraControls {
     position: relative;

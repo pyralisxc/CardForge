@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Boxes,
   Cloud,
@@ -24,6 +24,7 @@ import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
 import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
@@ -71,9 +72,6 @@ const DeskGenerationWorkspace = dynamic(() => import(
 const DeskDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
 ).then((module) => module.CreatorWorkbench), { ssr: false, loading: DeskToolLoading });
-const DeskCardEditor = dynamic(() => import(
-  '@/features/card-generator/client/card-editor'
-).then((module) => module.CardEditor), { ssr: false, loading: DeskToolLoading });
 const DeskCampaignWorkspace = dynamic(() => import(
   '@/features/marketing-content/client'
 ).then((module) => module.CampaignLibraryWorkspace), { ssr: false, loading: DeskToolLoading });
@@ -160,6 +158,10 @@ export function Desk({
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
+  const [artifactEditDirty, setArtifactEditDirty] = useState(false);
+  const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
+  const pendingArtifactExitRef = useRef<(() => void) | null>(null);
   const {
     actions,
     activeWorkId,
@@ -194,7 +196,6 @@ export function Desk({
     dirtyCloseToDesk,
     duplicateSelectedCards,
     duplicateWork,
-    editSelectedCard,
     effectiveMoveTargetId,
     endDeskDrag,
     endDeskMarquee,
@@ -326,15 +327,13 @@ export function Desk({
   const focusedArtifact = focusedArtifactId
     ? focusedCards.find((card) => card.uniqueId === focusedArtifactId) ?? null
     : null;
-  const editingCardId = useProjectStore((state) => state.isEditDialogOpen ? state.editingCardUniqueId : null);
-  const editingCard = studioTool?.tool === 'design' && editingCardId
-    ? focusedCards.find((card) => card.uniqueId === editingCardId) ?? null : null;
+  const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const contextDepth = storageOpen || remoteWorkspaceItem || activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
-        : activeTool?.toolId === 'design' ? (editingCard ? 'Edit card' : 'Design')
+        : activeTool?.toolId === 'design' ? 'Design'
           : activeTool?.toolId === 'generate' ? (generationRevisionScopeIds.length ? 'Edit selected' : 'Generate')
             : activeTool?.toolId === 'output' ? 'Output'
               : activeTool?.toolId === 'pipeline' ? 'Pipeline'
@@ -358,6 +357,36 @@ export function Desk({
     project.setTemplateEditorSelectedTemplateId(template.id);
     setDesignIntent({ kind: 'artifact-design', artifactIds, face });
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
+  };
+  useEffect(() => {
+    if (artifactEditId && artifactEditId !== focusedArtifactId) {
+      setArtifactEditId(null);
+      setArtifactEditDirty(false);
+    }
+  }, [artifactEditId, focusedArtifactId]);
+  const startArtifactEdit = (artifactId: string) => {
+    setArtifactEditId(artifactId);
+    setArtifactEditDirty(false);
+  };
+  const finishArtifactEdit = () => {
+    setArtifactEditId(null);
+    setArtifactEditDirty(false);
+  };
+  const requestArtifactExit = (afterExit: () => void) => {
+    if (!artifactEditing || !artifactEditDirty) {
+      finishArtifactEdit();
+      afterExit();
+      return;
+    }
+    pendingArtifactExitRef.current = afterExit;
+    setArtifactDiscardOpen(true);
+  };
+  const confirmArtifactDiscard = () => {
+    const afterExit = pendingArtifactExitRef.current;
+    pendingArtifactExitRef.current = null;
+    setArtifactDiscardOpen(false);
+    finishArtifactEdit();
+    afterExit?.();
   };
   const openSelectedRevision = () => {
     if (!focusedItem || !selectedCards.length) return;
@@ -413,7 +442,7 @@ export function Desk({
         viewer={viewer}
         zones={zones.length ? zones : ENVIRONMENT_ZONES.filter((zone) => zone.id === 'desk' || zone.id === 'library' || zone.id === 'profile')}
         activeZone="desk"
-        onActiveZoneNavigate={requestDeskReturn}
+        onActiveZoneNavigate={() => requestArtifactExit(requestDeskReturn)}
         viewportPolicy="desk"
         primaryScroll="contained"
         detail={detail}
@@ -440,8 +469,8 @@ export function Desk({
           selectedArtifactCount={selectedCards.length}
           openWorkCount={visibleWork.length}
           camera={deskCamera}
-          onBack={() => { setRenaming(false); returnToSet(); }}
-          onReturnToDesk={() => { setRenaming(false); requestDeskReturn(); }}
+          onBack={() => { setRenaming(false); requestArtifactExit(returnToSet); }}
+          onReturnToDesk={() => { setRenaming(false); requestArtifactExit(requestDeskReturn); }}
           onCloseTool={closeActiveTool}
           onOpenSelectedSet={() => { if (primarySelectedSet) focusWork(primarySelectedSet); }}
           onClearDeskSelection={() => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))}
@@ -451,7 +480,7 @@ export function Desk({
           onToggleRenaming={() => setRenaming((current) => !current)}
           onOpenWork={() => { if (focusedItem) openWorkLane(focusedItem, 'open'); }}
           artifactId={focusedArtifactId ?? undefined}
-          onOpenDesign={(face) => focusedArtifact ? designCard(focusedArtifact, face) : focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
+          onOpenDesign={(face) => focusedArtifact ? requestArtifactExit(() => designCard(focusedArtifact, face)) : focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
           onDesignArtifactCopy={(face) => { if (focusedArtifact) designCard(focusedArtifact, face); }}
           onOpenGenerate={() => { if (focusedItem) { setGenerationRevisionScopeIds([]); openWorkLane(focusedItem, 'generate'); } }}
           onOpenLocation={() => { if (focusedItem) setLocationItem(focusedItem); }}
@@ -460,7 +489,7 @@ export function Desk({
           onTogglePin={() => { if (focusedItem) togglePin(focusedItem.id); }}
           onInspect={() => { if (focusedItem) inspectItem(focusedItem); }}
           onDeleteWork={() => { if (focusedItem) setPendingDeleteWork(focusedItem); }}
-          onEditArtifact={() => { if (focusedArtifactId) editSelectedCard(focusedArtifactId); }}
+          onEditArtifact={() => { if (focusedArtifactId) startArtifactEdit(focusedArtifactId); }}
           onReviseSelected={openSelectedRevision}
           onDuplicateSelected={duplicateSelectedCards}
           onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
@@ -490,7 +519,7 @@ export function Desk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-scene-hidden={Boolean(studioTool?.tool === 'design' && !editingCard)} data-artifact-editing={Boolean(editingCard)} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-scene-hidden={Boolean(studioTool?.tool === 'design')} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
@@ -569,7 +598,12 @@ export function Desk({
               onReorderSelected={reorderSelectedCard}
               onMoveTargetChange={setMoveTargetId}
               onMoveSelected={moveSelectedCards}
-              onEditSelected={editSelectedCard}
+              onEditSelected={(artifactId) => { if (artifactId) startArtifactEdit(artifactId); }}
+              editingArtifactId={artifactEditId}
+              onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
+              onArtifactEditDirtyChange={setArtifactEditDirty}
+              onSaveArtifact={(card) => { useProjectStore.getState().updateGeneratedCard(card); finishArtifactEdit(); }}
+              onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={openSelectedRevision}
               onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
@@ -695,7 +729,7 @@ export function Desk({
         {studioTool ? <EnvironmentToolLayer
           id="desk-design-tool-title"
           eyebrow="Desk tool"
-          title={studioTool.tool === 'output' ? 'Output Set' : editingCard ? 'Edit card content' : 'Design'}
+          title={studioTool.tool === 'output' ? 'Output Set' : 'Design'}
           summary="The focused Set remains on the Desk while this Studio tool operates on the current object and selection context."
           closeLabel="Close Studio tool"
           onClose={closeDesignContext}
@@ -703,18 +737,9 @@ export function Desk({
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
-          sceneVisible={Boolean(editingCard)}
           railOwned
         >
-          {editingCard ? <DeskCardEditor
-            key={editingCard.uniqueId}
-            card={editingCard}
-            onDirtyChange={setActiveToolDirty}
-            onClose={confirmDirtyClose}
-            onSave={(card) => { useProjectStore.getState().updateGeneratedCard(card); confirmDirtyClose(); }}
-            onDesign={(face, savedCard) => { if (savedCard) useProjectStore.getState().updateGeneratedCard(savedCard); designCard(savedCard ?? editingCard, face); }}
-            onDuplicate={(card) => addGeneratedCards([{ ...card, uniqueId: crypto.randomUUID() }])}
-          /> : <DeskDesignWorkspace
+          <DeskDesignWorkspace
             tool={studioTool.tool === 'output' ? 'output' : 'design'}
             onCloseTool={confirmDirtyClose}
             businessIdentity={businessIdentity}
@@ -724,7 +749,7 @@ export function Desk({
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
             contextSetId={studioTool.setId}
-          />}
+          />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
 
@@ -738,6 +763,22 @@ export function Desk({
         localFolderSupported={projection.localFolderSupported}
         onChanged={projection.refresh}
       />
+
+      <AlertDialog open={artifactDiscardOpen} onOpenChange={(open) => {
+        setArtifactDiscardOpen(open);
+        if (!open) pendingArtifactExitRef.current = null;
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved Artifact changes?</AlertDialogTitle>
+            <AlertDialogDescription>Your saved Artifact will stay unchanged. Keep editing to save the current field changes first.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmArtifactDiscard}>Discard changes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DeskDialogs
         createOpen={createOpen}

@@ -1,5 +1,5 @@
 import { devices, expect, test } from '@playwright/test';
-import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test.describe('persistent Artifact scene', () => {
   test.setTimeout(120_000);
@@ -140,16 +140,18 @@ test.describe('persistent Artifact scene', () => {
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('edit.png') });
     const editor = page.locator('[data-artifact-edit-workspace]');
-    await editor.getByRole('button', { name: /^Show front of/ }).click();
+    await visual.getByRole('button', { name: /^Show front of/ }).click();
     await expect(visual).toHaveAttribute('data-scene-face', 'front');
-    await editor.getByRole('button', { name: /^Show back of/ }).click();
+    await visual.getByRole('button', { name: /^Show back of/ }).click();
     await expect(visual).toHaveAttribute('data-scene-face', 'back');
+    await editor.getByRole('button', { name: 'All fields', exact: true }).click();
     const artwork = editor.getByRole('textbox', { name: /Artwork/ }).first();
     await artwork.fill('/brand/cardforge-studio/brand-mark.svg');
-    await editor.getByRole('button', { name: 'Save', exact: true }).click();
+    await editor.getByRole('button', { name: 'Save & Done', exact: true }).click();
     await expect(visual).toHaveAttribute('data-scene-depth', 'focus');
     await expect(visual).toHaveAttribute('data-scene-face', 'back');
     await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await editor.getByRole('button', { name: 'All fields', exact: true }).click();
     await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
     await artwork.fill('/brand/cardforge-studio/brand-mark.svg?draft=1');
     await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -177,9 +179,9 @@ test.describe('compact scene with reduced motion', () => {
     const visual = page.locator('[data-scene-artifact="scale-card-1"]');
     await expect(visual).toHaveAttribute('data-scene-depth', 'stack');
     const original = await visual.elementHandle();
-    await page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ }).tap();
-    await page.getByRole('button', { name: 'Open', exact: true }).tap();
+    await openScaleSet(page, 100);
     await page.locator('button[data-artifact-id="scale-card-1"]').tap();
+    await page.locator('button[data-artifact-id="scale-card-1"]').press('Enter');
     await expect(visual).toHaveAttribute('data-scene-depth', 'focus');
     await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).tap();
     await expect(visual).toHaveAttribute('data-scene-depth', 'edit');

@@ -38,6 +38,7 @@ interface GeneratorFieldGroupsProps {
   fileInputRefs: MutableRefObject<Record<string, HTMLInputElement | null>>;
   onImageUpload: (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => void;
   emptyMessage?: string;
+  singleColumn?: boolean;
 }
 
 const getFieldPreviewValue = (field: TemplateFieldDefinition, data: CardData) => {
@@ -228,6 +229,7 @@ export function GeneratorFieldGroups({
   fileInputRefs,
   onImageUpload,
   emptyMessage = 'No editable card fields were found for this Template.',
+  singleColumn = false,
 }: GeneratorFieldGroupsProps) {
   if (fields.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
@@ -279,9 +281,9 @@ export function GeneratorFieldGroups({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className={`grid grid-cols-1 gap-2 ${singleColumn ? '' : 'sm:grid-cols-2'}`}>
               {isStructuredRows ? (
-                <div className="sm:col-span-2">
+                <div className={singleColumn ? '' : 'sm:col-span-2'}>
                   <StructuredRowsEditor
                     group={group}
                     fields={orderedFields}

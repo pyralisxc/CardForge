@@ -24,6 +24,7 @@ interface SceneSlot {
   order: number;
   watermark: boolean;
   flipLabel?: string;
+  interactionOverlay?: ReactNode;
 }
 interface Projection extends SceneSlot {
   x: number;
@@ -43,8 +44,8 @@ const FaceContext = createContext<{
   faces: Record<string, CardFace>;
   setFace: (id: string, face: CardFace) => void;
 } | null>(null);
-const SceneCardContent = memo(function SceneCardContent({ card, face, watermark }: Pick<SceneSlot, 'card' | 'face' | 'watermark'>) {
-  return <><CardPreview card={card} face={face} targetWidthPx={RENDER_WIDTH} />{watermark ? <CardWatermarkOverlay /> : null}</>;
+const SceneCardContent = memo(function SceneCardContent({ card, face, watermark, interactionOverlay }: Pick<SceneSlot, 'card' | 'face' | 'watermark' | 'interactionOverlay'>) {
+  return <><CardPreview card={card} face={face} targetWidthPx={RENDER_WIDTH} interactionOverlay={interactionOverlay} />{watermark ? <CardWatermarkOverlay /> : null}</>;
 });
 
 function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Projection; origin: Projection; immediate: boolean; onFlip: (id: string, face: CardFace) => void }) {
@@ -55,6 +56,12 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
   const travelling = !immediate && (!present || settledDepth !== item.depth);
   const template = getCardFaceTemplate(item.card, item.face);
   const screenScale = RENDER_WIDTH / item.width;
+  const previewScale = getCardPreviewLayout({
+    targetWidthPx: RENDER_WIDTH,
+    aspectRatio: template.aspectRatio,
+    canvas: getCardFaceCanvas(item.card, item.face),
+    isPrintMode: false,
+  }).visualScale;
   const canOwnInlineFlip = item.width >= INLINE_FLIP_MIN_SCREEN_WIDTH;
   return <motion.div style={{ position: 'absolute', inset: 0, clipPath: travelling ? item.travelClip : item.clip, zIndex: priority[item.depth] * 100 + item.order }}>
     <motion.div
@@ -68,9 +75,11 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
       exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
       onAnimationComplete={() => setSettledDepth(item.depth)}
       transition={immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
-      style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))' }}
+      style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
     >
-      <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>
+      {item.interactionOverlay
+        ? <SceneCardContent card={item.card} face={item.face} watermark={item.watermark} interactionOverlay={item.interactionOverlay} />
+        : <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>}
       {item.depth !== 'stack' ? <span data-artifact-template-border aria-hidden="true" style={{ position: 'absolute', inset: -3 * screenScale, border: `${2 * screenScale}px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4 * screenScale, pointerEvents: 'none' }} /> : null}
       {canOwnInlineFlip && item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
         type="button"
@@ -214,7 +223,7 @@ export function useArtifactFaces() {
   return [scene?.faces ?? faces, scene?.setFace ?? setFace] as const;
 }
 
-export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel }: {
+export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel, interactionOverlay }: {
   card: DisplayCard;
   face?: CardFace;
   depth: Depth;
@@ -224,6 +233,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   order?: number;
   watermark?: boolean;
   flipLabel?: string;
+  interactionOverlay?: ReactNode;
 }) {
   const scene = useContext(RegistryContext);
   const id = useId();
@@ -234,9 +244,9 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: template.aspectRatio, canvas: getCardFaceCanvas(card, persistentFace), isPrintMode: false });
   useLayoutEffect(() => {
     if (!scene || !node.current) return;
-    return scene.register(id, { node: node.current, card, face: persistentFace, depth, setId: resolvedSetId, rotation, order, watermark, flipLabel });
-  }, [card, depth, flipLabel, id, order, persistentFace, rotation, scene, resolvedSetId, watermark]);
+    return scene.register(id, { node: node.current, card, face: persistentFace, depth, setId: resolvedSetId, rotation, order, watermark, flipLabel, interactionOverlay });
+  }, [card, depth, flipLabel, id, interactionOverlay, order, persistentFace, rotation, scene, resolvedSetId, watermark]);
   useLayoutEffect(() => { scene?.refresh(); });
-  if (!scene) return <CardPreview card={card} face={face} targetWidthPx={width} isEditorPreview />;
+  if (!scene) return <CardPreview card={card} face={face} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />;
   return <span ref={node} data-scene-slot={card.uniqueId} data-scene-slot-depth={depth} style={{ display: 'block', width, height: geometry.visualHeightPx }} />;
 }

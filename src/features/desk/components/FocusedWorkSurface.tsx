@@ -10,7 +10,7 @@ import { MultiSelectionFilterMenu } from '@/components/ui/multi-selection-filter
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import type { CardSet, CardSetOrganization } from '@/domain/cards';
+import type { CardFace, CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
@@ -70,6 +70,11 @@ export interface FocusedWorkSurfaceProps {
   onMoveTargetChange: (setId: string) => void;
   onMoveSelected: () => void;
   onEditSelected: (artifactId?: string) => void;
+  editingArtifactId: string | null;
+  onCancelArtifactEdit: () => void;
+  onArtifactEditDirtyChange: (dirty: boolean) => void;
+  onSaveArtifact: (card: DisplayCard) => void;
+  onDesignArtifact: (card: DisplayCard, face: CardFace) => void;
   onDuplicateSelected: () => void;
   onReviseSelected: () => void;
   onDeleteSelected: () => void;
@@ -175,7 +180,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
           </div> : null}
           {props.latestGeneratedIds.length ? <div className={styles.resultFilter} role="status"><Sparkles size={15} aria-hidden="true" /><span>Showing {props.visibleCards.length} newly generated card{props.visibleCards.length === 1 ? '' : 's'}</span><Button type="button" size="sm" variant="ghost" onClick={props.onClearGenerated}>Clear all</Button></div> : null}
         </> : null}
-        {props.sortedCards.length ? <FocusedSetArtifactSurface canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles} setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} showGrid={props.showGrid} stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onEditArtifact={props.onEditSelected} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
+        {props.sortedCards.length ? <FocusedSetArtifactSurface canExportClean={props.canExportClean} canUseProjectFiles={props.canUseProjectFiles} setId={props.localSetId} setName={props.item.name} allCards={props.focusedCards} groups={props.groups} organization={props.organization} session={props.session} setSession={props.setSession} snapToGrid={props.snapToGrid} showGrid={props.showGrid} stageRef={props.stageRef} onFocusArtifact={props.onFocusArtifact} onEditArtifact={props.onEditSelected} editingArtifactId={props.editingArtifactId} onCancelArtifactEdit={props.onCancelArtifactEdit} onArtifactEditDirtyChange={props.onArtifactEditDirtyChange} onSaveArtifact={props.onSaveArtifact} onDesignArtifact={props.onDesignArtifact} onMoveArtifacts={props.onMoveArtifacts} /> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Boxes aria-hidden="true" /><strong>{props.focusedCards.length ? 'No cards match this view' : 'This Set is ready for its first card'}</strong><p className={styles.emptyCopy}>{props.focusedCards.length ? 'Clear the active filters to bring the cards back.' : 'Create a design from scratch or generate cards into this Set.'}</p>{!props.focusedCards.length ? <div className={styles.emptySetCompactActions}><Button type="button" onClick={props.onOpenDesign}>Create design</Button><Button type="button" variant="outline" onClick={props.onOpenGenerate}>Generate cards</Button></div> : null}</div></div>}
       </> : <div className={styles.remoteFocus}><div className={styles.remoteFocusInner}>{props.remoteIcon}<h2 className="font-serif text-xl text-[var(--cf-text-strong)]">{props.item.name}</h2><p className={styles.emptyCopy}>{props.item.references.campaignId ? 'Open this campaign’s native workspace in the same Desk scene.' : props.item.references.pipelineLineageId ? 'Inspect this immutable publication in the same Desk scene. Its working copies remain separate.' : `This work stays owned by ${workSourceLabel(props.item)}.`}</p><Button type="button" onClick={props.onOpenWork}>Open work</Button></div></div>}
     </section>
   </div>;

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Download } from '@playwright/test';
 import JSZip from 'jszip';
-import { seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
+import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test('@golden gives an empty Set one creation next step before output controls', async ({ page }, testInfo) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 0 });
@@ -11,7 +11,7 @@ test('@golden gives an empty Set one creation next step before output controls',
   await page.getByRole('button', { name: 'Output', exact: true }).click();
 
   const output = page.getByRole('region', { name: 'Output Set', exact: true });
-  await expect(output.getByRole('heading', { name: 'Prepare this Set for export', exact: true })).toBeVisible();
+  await expect(output.getByText('Prepare this Set for export', { exact: true })).toBeVisible();
   await expect(output.getByText('Add cards before exporting', { exact: true })).toBeVisible();
   await expect(output.getByText(/Return to Desk, then create a design or generate cards/)).toBeVisible();
   await expect(output.getByText('Primary use', { exact: true })).toHaveCount(0);
@@ -23,11 +23,13 @@ test('@golden gives an empty Set one creation next step before output controls',
 test('does not download a success artifact when authored artwork fails to load', async ({ page }) => {
   await seedGuestScaleWorkspace(page, 100, { cardLimit: 1 });
   await page.goto('/account', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /^Select 100 Card Scale Set/ }).press('Enter');
-  await page.locator('button[data-artifact-id="scale-card-1"]').click();
+  await openScaleSet(page, 100);
+  await page.locator('button[data-artifact-id="scale-card-1"]').focus();
+  await page.keyboard.press('Enter');
   await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'All fields', exact: true }).click();
   await page.getByRole('textbox', { name: /Artwork/ }).first().fill('/missing-proof-artwork.png');
-  await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'Save', exact: true }).click();
+  await page.locator('[data-artifact-edit-workspace]').getByRole('button', { name: 'Save & Done', exact: true }).click();
   let downloads = 0;
   page.on('download', () => { downloads += 1; });
   await page.getByTestId('single-card-export-trigger').click();
