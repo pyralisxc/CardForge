@@ -9,6 +9,7 @@ import {
   FileArchive,
   HardDrive,
   Search,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import {
@@ -29,7 +30,11 @@ import type { CardFace } from '@/domain/cards';
 import { ArtifactScene, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import type { ContributorAccessSessionState } from '@/features/contributor-access/client';
 import type { ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
-import { useBrowserWorkspaceSaveStatus } from '@/features/project/client/ui';
+import {
+  requestBrowserWorkspaceRecovery,
+  useBrowserStoragePersistence,
+  useBrowserWorkspaceSaveStatus,
+} from '@/features/project/client/ui';
 import { useProjectStore } from '@/features/project/client/workspace';
 import {
   getAccountLibraryWorkPreview,
@@ -151,6 +156,7 @@ export function Desk({
 }: DeskProps) {
   const { toast } = useToast();
   const browserSaveStatus = useBrowserWorkspaceSaveStatus();
+  const browserStoragePersistence = useBrowserStoragePersistence();
   const [generationRevisionScopeIds, setGenerationRevisionScopeIds] = useState<string[]>([]);
   const [designIntent, setDesignIntent] = useState<DesignToolIntent | null>(null);
   const [storageOpen, setStorageOpen] = useState(false);
@@ -380,10 +386,24 @@ export function Desk({
   const storageNeedsAttention = projection.failures.length > 0
     || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
   const saveStatusLabel = browserSaveStatus === 'saving'
-    ? 'Saving working copy…'
+    ? 'Saving local working copy…'
     : browserSaveStatus === 'failed'
-      ? 'Working copy not saved'
-      : 'Working copy saved';
+      ? 'Local working copy not saved'
+      : 'Local working copy saved';
+  const protectLocalWork = async () => {
+    const nextStatus = await browserStoragePersistence.requestPersistence();
+    if (nextStatus === 'persistent') {
+      toast({
+        title: 'Local work protected',
+        description: 'This browser granted stronger eviction protection. Keep a separate project backup for device loss or browser cleanup.',
+      });
+      return;
+    }
+    toast({
+      title: nextStatus === 'best-effort' ? 'Browser kept best-effort storage' : 'Persistent storage unavailable',
+      description: 'Your working copy remains saved locally, but this browser did not grant stronger eviction protection. Keep a separate project backup.',
+    });
+  };
 
   return (
     <ArtifactScene activeSetId={focusedLocalSetId}>
@@ -451,7 +471,13 @@ export function Desk({
         statusContent={<>
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open project${workItems.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
-          <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} />
+          <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} onClick={requestBrowserWorkspaceRecovery} title="Open browser workspace, recovery, and backup tools" />
+          {browserStoragePersistence.status === 'best-effort' ? (
+            <EnvironmentStatus label="Protect local work" icon={ShieldCheck} tone="warning" onClick={() => { void protectLocalWork(); }} title="Ask this browser for stronger local storage protection" />
+          ) : null}
+          {browserStoragePersistence.status === 'unavailable' ? (
+            <EnvironmentStatus label="Storage protection unavailable" icon={ShieldCheck} tone="warning" title="This browser could not check persistent storage protection" />
+          ) : null}
         </>}
         footerContent={focusedItem ? <span>{focusedItem.name}</span> : isSignedIn ? <span>Private creator desk</span> : (
           <span className="flex items-center gap-3">

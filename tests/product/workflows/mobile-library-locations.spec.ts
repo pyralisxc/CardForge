@@ -87,7 +87,7 @@ test.describe('mobile Library location tools', () => {
 
     const status = page.locator('footer[aria-label="Environment status"]');
     await expect(status).toBeVisible();
-    await expect(status.getByText('Working copy saved', { exact: true })).toBeVisible();
+    await expect(status.getByText('Local working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
 
     const storageStatus = page.getByTitle('Open Locations & connections');
@@ -100,10 +100,9 @@ test.describe('mobile Library location tools', () => {
 
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
-    await expect(mobileNav).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Desk', exact: true })).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Library', exact: true })).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+    await expect(mobileNav).toBeHidden();
+    await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 
     await test.info().attach('mobile-desk-capability-parity', {

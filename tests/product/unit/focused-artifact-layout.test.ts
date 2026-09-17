@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ArtifactIdentity } from '@/domain/artifacts';
 import {
   buildFocusedArtifactLayout,
-  FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH,
+  FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH,
   getDirectionalArtifactNeighbor,
   getArtifactSelectionScope,
   getFocusedArtifactFitZoom,
@@ -61,7 +61,7 @@ describe('focused Artifact spatial layout', () => {
     });
   });
 
-  it('keeps fitted large Sets readable instead of shrinking every Artifact into the viewport', () => {
+  it('fits every Artifact inside the bounded Set overview and lets LOD preserve orientation', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'grid',
       minimumWidth: 960,
@@ -75,9 +75,9 @@ describe('focused Artifact spatial layout', () => {
     });
 
     expect(layout.density).toBe('dense');
-    expect(layout.artifactWidth * fitZoom).toBeGreaterThanOrEqual(FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH);
-    expect(layout.width * fitZoom).toBeGreaterThan(320);
-    expect(layout.height * fitZoom).toBeGreaterThan(640);
+    expect(layout.artifactWidth * fitZoom).toBeLessThan(FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH);
+    expect(layout.width * fitZoom).toBeLessThanOrEqual(320);
+    expect(layout.height * fitZoom).toBeLessThanOrEqual(640);
   });
 
   it('compacts stacks one density step and consolidates them by overlap', () => {

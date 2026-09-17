@@ -13,10 +13,10 @@ test.describe('spatial touch workspace', () => {
     await boardCard.press('Enter');
     const workspace = page.locator('[data-focused-artifact-workspace]');
     await expect(workspace).toBeVisible();
-    const controls = workspace.locator('[aria-label="Focused Artifact controls"]');
+    const controls = workspace.locator('[aria-label="Focused Artifact tools"]');
     await expect(controls).toBeVisible();
     await expect(controls.getByRole('button', { name: 'Browse this Set', exact: true })).toBeVisible();
-    await expect(controls.getByRole('button', { name: 'Edit Artifact', exact: true })).toBeVisible();
+    await expect(page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
     await expect(controls.getByRole('button', { name: 'Download individual card', exact: true })).toBeVisible();
     expect(await controls.evaluate((node) => node.scrollHeight <= node.clientHeight + 2)).toBe(true);
     const focusedCard = workspace.locator('button[data-artifact-id]');
@@ -93,14 +93,18 @@ test.describe('spatial touch workspace', () => {
     const tile = card.locator('..');
     const originalPosition = await tile.getAttribute('style');
     const cardPoint = await center(card);
-    // A swipe over a card explores the Set, without moving or opening the card.
+    // Fit is a complete bounded overview, so deliberate zoom creates the
+    // pannable inspection camera before a swipe explores the Set.
+    await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-relative-zoom', '1.15');
     await touch('touchStart', [{ ...cardPoint, id: 2 }]);
     await touch('touchMove', [{ x: cardPoint.x - 50, y: cardPoint.y, id: 2 }]);
     await touch('touchEnd', []);
     await expect.poll(() => stage.evaluate((node) => node.scrollLeft)).toBeGreaterThan(20);
-    await expect(tile).toHaveAttribute('style', originalPosition!);
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
     await stage.evaluate((node) => node.scrollTo(0, 0));
+    await expect(card).toBeVisible();
+    await expect(tile).toHaveAttribute('style', originalPosition!);
     const start = await center(card);
     await touch('touchStart', [{ ...start, id: 3 }]);
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
@@ -114,18 +118,21 @@ test.describe('spatial touch workspace', () => {
     await page.getByRole('button', { name: 'Redo Artifact move' }).click();
     await expect(tile).toHaveAttribute('style', movedPosition!);
     const pinchPoint = await center(stage);
-    const worldAtPinch = () => stage.evaluate((node, point) => {
-      const rect = node.getBoundingClientRect(), zoom = Number(node.getAttribute('data-zoom'));
-      return { x: (node.scrollLeft + point.x - rect.left) / zoom, y: (node.scrollTop + point.y - rect.top) / zoom };
-    }, pinchPoint);
+    const world = page.locator('[data-artifact-world]');
+    const worldAtPinch = async () => {
+      const rect = (await world.boundingBox())!;
+      const zoom = Number(await stage.getAttribute('data-zoom'));
+      return { x: (pinchPoint.x - rect.x) / zoom, y: (pinchPoint.y - rect.y) / zoom };
+    };
     const anchorBefore = await worldAtPinch();
     await touch('touchStart', [{ x: pinchPoint.x - 50, y: pinchPoint.y, id: 4 }, { x: pinchPoint.x + 50, y: pinchPoint.y, id: 5 }]);
     await touch('touchMove', [{ x: pinchPoint.x - 80, y: pinchPoint.y, id: 4 }, { x: pinchPoint.x + 80, y: pinchPoint.y, id: 5 }]);
     await touch('touchEnd', []);
     await expect.poll(async () => Number(await stage.getAttribute('data-relative-zoom'))).toBeGreaterThan(1.25);
     const anchorAfter = await worldAtPinch();
-    expect(Math.abs(anchorAfter.x - anchorBefore.x)).toBeLessThan(3);
-    expect(Math.abs(anchorAfter.y - anchorBefore.y)).toBeLessThan(3);
+    const zoomAfter = Number(await stage.getAttribute('data-zoom'));
+    expect(Math.abs(anchorAfter.x - anchorBefore.x) * zoomAfter).toBeLessThan(3);
+    expect(Math.abs(anchorAfter.y - anchorBefore.y) * zoomAfter).toBeLessThan(3);
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
@@ -138,7 +145,7 @@ test.describe('spatial touch workspace', () => {
     await touch('touchMove', [{ x: cancelPoint.x + 35, y: cancelPoint.y + 35, id: 6 }]);
     await touch('touchCancel', []);
     await expect(tile).toHaveAttribute('style', movedPosition!);
-    const box = (await stage.boundingBox())!;
+    const box = (await world.boundingBox())!;
     await touch('touchStart', [{ x: box.x + 3, y: box.y + 3, id: 7 }]);
     await expect(stage).toHaveAttribute('data-spatial-held', 'true');
     await touch('touchMove', [{ x: box.x + 320, y: box.y + 185, id: 7 }]);

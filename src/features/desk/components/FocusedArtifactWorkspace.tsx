@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useRef, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Navigation, Pencil, Plus } from 'lucide-react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Navigation, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -63,6 +63,20 @@ export function FocusedArtifactWorkspace({
     verticalPadding: 96,
   });
   const swipeRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const [focusOrigin, setFocusOrigin] = useState<{ x: number; y: number; scale: number } | null>(null);
+  useLayoutEffect(() => {
+    const workspace = workspaceRef.current;
+    const source = document.getElementById(`artifact-field-${artifactId}`);
+    if (!workspace || !source) return;
+    const workspaceBounds = workspace.getBoundingClientRect();
+    const sourceBounds = source.getBoundingClientRect();
+    setFocusOrigin({
+      x: sourceBounds.left + sourceBounds.width / 2 - (workspaceBounds.left + workspaceBounds.width / 2),
+      y: sourceBounds.top + sourceBounds.height / 2 - (workspaceBounds.top + workspaceBounds.height / 2),
+      scale: Math.max(0.08, Math.min(1, sourceBounds.width / Math.max(1, viewport.visualWidth))),
+    });
+  }, [artifactId, viewport.visualWidth]);
   const browse = (direction: ArtifactBrowseDirection) => {
     if (availableDirections[direction]) onBrowse(direction);
   };
@@ -98,9 +112,8 @@ export function FocusedArtifactWorkspace({
     browse(direction);
   };
 
-  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={viewport.zoom.toFixed(2)}>
-    <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact controls">
-      <span className={styles.artifactWorkspaceIdentity}><strong>{title}</strong><small>Card · {face === 'back' && card.backingTemplate ? card.backingTemplate.name : subtitle}</small></span>
+  return <div ref={workspaceRef} className={styles.artifactWorkspace} data-focused-artifact-workspace data-zoom={viewport.zoom.toFixed(2)}>
+    <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact tools">
       <Popover>
         <PopoverTrigger asChild>
           <Button type="button" size="sm" variant="ghost" data-artifact-browse aria-label="Browse this Set" title="Browse this Set"><Navigation className="h-4 w-4" aria-hidden="true" /><span className={styles.artifactBrowseLabel}>Browse</span></Button>
@@ -116,7 +129,6 @@ export function FocusedArtifactWorkspace({
           </div>
         </PopoverContent>
       </Popover>
-      <Button type="button" size="sm" variant="outline" onClick={onEdit} aria-label="Edit Artifact" title="Edit Artifact"><Pencil className="mr-1.5 h-4 w-4" /><span className={styles.artifactEditLabel}>Edit</span></Button>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom - 0.15)} aria-label="Zoom out"><Minus aria-hidden="true" /></Button>
       <span className={styles.artifactZoomValue} aria-live="polite">{Math.round(viewport.zoom * 100)}%</span>
       <Button type="button" size="icon" variant="ghost" onClick={() => viewport.changeZoom(viewport.zoom + 0.15)} aria-label="Zoom in"><Plus aria-hidden="true" /></Button>
@@ -144,7 +156,18 @@ export function FocusedArtifactWorkspace({
     >
       <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls.</p>
       <div className={styles.focusedArtifactWorld} style={{ width: viewport.worldWidth, height: viewport.worldHeight }}>
-        <div className={styles.focusedArtifactFrame} style={{ width: viewport.visualWidth, minHeight: viewport.visualHeight }} data-card-face={face}>
+        <div
+          className={styles.focusedArtifactFrame}
+          style={{
+            width: viewport.visualWidth,
+            minHeight: viewport.visualHeight,
+            '--focus-origin-x': `${focusOrigin?.x ?? 0}px`,
+            '--focus-origin-y': `${focusOrigin?.y ?? 0}px`,
+            '--focus-origin-scale': focusOrigin?.scale ?? 1,
+          } as CSSProperties}
+          data-card-face={face}
+          data-has-origin={Boolean(focusOrigin)}
+        >
           <button
             id={`spatial-artifact-${artifactId}`}
             type="button"

@@ -4,6 +4,8 @@ import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskW
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
+  DESK_SURFACE_HEIGHT,
+  DESK_SURFACE_WIDTH,
   getDefaultDeskWorldPosition,
   getDeskCameraGeometry,
   getDeskInitialRevealTarget,
@@ -187,39 +189,38 @@ describe('Desk model', () => {
       version: 2,
       positions: { 'set:one': { x: 120, y: 160, z: 0 } },
     });
-    expect(projectDeskWorldPosition(geometry.positions['set:one']!, { width: 600, height: 360 })).toEqual({ x: 60, y: 80, z: 0 });
+    expect(projectDeskWorldPosition(geometry.positions['set:one']!, { width: 600, height: 360 })).toEqual({ x: 98, y: 51, z: 0 });
   });
 
   it('treats Fit as the minimum Desk camera scale on every viewport', () => {
     const mobileFit = getDeskCameraGeometry({ width: 390, height: 420 }, 0);
     expect(mobileFit).toMatchObject({
-      zoom: 0.325,
-      fitZoom: 0.325,
       relativeZoom: 1,
-      offsetX: 0,
     });
+    expect(mobileFit.zoom).toBeCloseTo(Math.min(390 / DESK_SURFACE_WIDTH, 420 / DESK_SURFACE_HEIGHT));
+    expect(mobileFit.fitZoom).toBe(mobileFit.zoom);
     expect(mobileFit.surfaceWidth).toBeCloseTo(390);
 
     const mobileCustom = getDeskCameraGeometry({ width: 390, height: 420 }, 0.68);
     expect(mobileCustom.relativeZoom).toBeGreaterThan(2);
-    expect(mobileCustom.surfaceWidth).toBeCloseTo(816);
+    expect(mobileCustom.surfaceWidth).toBeCloseTo(DESK_SURFACE_WIDTH * mobileCustom.zoom);
 
-    expect(getDeskCameraGeometry({ width: 1_920, height: 1_080 }, 1)).toMatchObject({
-      zoom: 1.5,
-      fitZoom: 1.5,
+    const desktopFit = getDeskCameraGeometry({ width: 1_920, height: 1_080 }, 0);
+    expect(desktopFit).toMatchObject({
       relativeZoom: 1,
-      offsetX: 60,
       offsetY: 0,
     });
+    expect(desktopFit.zoom).toBeCloseTo(1_080 / DESK_SURFACE_HEIGHT);
+    expect(desktopFit.offsetX).toBeCloseTo((1_920 - DESK_SURFACE_WIDTH * desktopFit.zoom) / 2);
   });
 
   it('starts a compact returning Desk at a readable overview while Fit still shows the whole world', () => {
     const compactOverview = getDeskOverviewCameraGeometry({ width: 390, height: 420 });
     expect(compactOverview).toMatchObject({
-      fitZoom: 0.325,
       relativeZoom: 1.35,
     });
-    expect(compactOverview.zoom).toBeCloseTo(0.43875);
+    expect(compactOverview.fitZoom).toBeCloseTo(Math.min(390 / DESK_SURFACE_WIDTH, 420 / DESK_SURFACE_HEIGHT));
+    expect(compactOverview.zoom).toBeCloseTo(compactOverview.fitZoom * 1.35);
     expect(getDeskOverviewCameraGeometry({ width: 1_920, height: 1_080 })).toMatchObject({
       relativeZoom: 1,
     });
@@ -250,14 +251,20 @@ describe('Desk model', () => {
   });
 
   it('collects the Desk object data contract used by real spatial controls', () => {
+    const projection = getDeskWorldProjection({ width: 1200, height: 720 });
     const tile = {
       dataset: { deskSetObjectId: 'set:one' },
-      getBoundingClientRect: () => ({ left: 110, top: 140, width: 200, height: 240 }),
+      getBoundingClientRect: () => ({
+        left: 10 + projection.offsetX + 100 * projection.scale,
+        top: 20 + projection.offsetY + 120 * projection.scale,
+        width: 200 * projection.scale,
+        height: 240 * projection.scale,
+      }),
     };
     expect(collectDeskWorldItems({
       tiles: [tile],
       bounds: { left: 10, top: 20 },
-      projection: getDeskWorldProjection({ width: 1200, height: 720 }),
+      projection,
       positions: {},
     })).toEqual([{ id: 'set:one', x: 100, y: 120, z: 0, width: 200, height: 240 }]);
   });

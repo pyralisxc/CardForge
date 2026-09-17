@@ -1,7 +1,7 @@
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 
 export const FOCUSED_ARTIFACT_OVERSCAN = 180;
-export const FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH = 80;
+export const FOCUSED_ARTIFACT_DETAILED_PREVIEW_SCREEN_WIDTH = 80;
 
 export type FocusedArtifactArrangement = 'manual' | 'grid' | 'stack';
 export type FocusedArtifactDensity = 'comfortable' | 'compact' | 'dense';
@@ -104,27 +104,24 @@ export const getFocusedArtifactPresentation = ({
 };
 
 /**
- * Fit is an overview, not permission to shrink a large Set into unreadable dots.
- * Small Sets can geometrically fit the whole layout. Once that would make a card
- * narrower than the readability floor, Fit stops shrinking and the bounded Set
- * intentionally becomes pannable. Camera zoom remains separate from layout density.
+ * Fit is the complete bounded Set overview. It always shows the whole layout;
+ * presentation detail may step down to a lightweight spatial marker when a
+ * full card would be too small to read. Zoom remains camera-only and never
+ * rewrites Artifact positions or arrangement.
  */
 export const getFocusedArtifactFitZoom = ({
   layout,
   viewportWidth,
   viewportHeight,
-  minimumScreenArtifactWidth = FOCUSED_ARTIFACT_MIN_SCREEN_WIDTH,
 }: {
   layout: Pick<FocusedArtifactLayout, 'width' | 'height' | 'artifactWidth'>;
   viewportWidth: number;
   viewportHeight: number;
-  minimumScreenArtifactWidth?: number;
 }): number => {
   const width = Math.max(1, viewportWidth);
   const height = Math.max(1, viewportHeight);
   const geometricFit = Math.min(1, width / Math.max(1, layout.width), height / Math.max(1, layout.height));
-  const readableFit = Math.min(1, Math.max(0, minimumScreenArtifactWidth) / Math.max(1, layout.artifactWidth));
-  return Math.max(0.2, geometricFit, readableFit);
+  return Math.max(Number.EPSILON, geometricFit);
 };
 
 export const buildFocusedArtifactLayout = ({

@@ -281,6 +281,23 @@
     min-width: 0;
   }
 
+  /* Once Desk focus moves inside a Set, the context rail and global actions
+     share one header row. Search is still available through Commands, so it
+     must not create a second band over the spatial scene. */
+  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :first-child {
+    grid-column: 1 !important;
+    grid-row: 1;
+  }
+
+  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+    display: none !important;
+  }
+
+  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :last-child {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   /* Desk-depth selection is intentionally rail-less on every viewport. Undo
      the generic mobile first-column placement when that hidden rail is present. */
   [aria-label="CardForge Desk"] header[data-context="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
