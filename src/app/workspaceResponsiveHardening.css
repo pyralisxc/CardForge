@@ -312,6 +312,11 @@
     display: inline-flex !important;
   }
 
+  [aria-label="CardForge Desk"] footer[aria-label="Environment status"] > div:first-child > *,
+  [aria-label="CardForge Library"] footer[aria-label="Environment status"] > div:first-child > * {
+    flex: 0 0 auto;
+  }
+
   /* Footer copy is contextual prose, not a fourth status. On small windows it
      competes with open-work/storage/save state, so the status rail owns the row. */
   [aria-label="CardForge Desk"] footer[aria-label="Environment status"] > :last-child,

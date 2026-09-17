@@ -89,6 +89,7 @@ test.describe('mobile Library location tools', () => {
     await expect(status).toBeVisible();
     await expect(status.getByText('Local working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
+    expect(await status.locator(':scope > div:first-child > *').evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth + 1))).toBe(true);
 
     const storageStatus = page.getByTitle('Open Locations & connections');
     await expectTouchTarget(storageStatus);
