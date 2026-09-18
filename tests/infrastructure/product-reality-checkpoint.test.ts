@@ -84,6 +84,7 @@ describe('Product Reality checkpoint projection', () => {
     expect(edges.has('action:desk.send-pipeline|owned-by|feature:pipeline')).toBe(true);
     expect(edges.has('action:desk.send-pipeline|realizes|capability:pipeline.send')).toBe(true);
     expect(edges.has('action:library.send-pipeline|realizes|capability:pipeline.send')).toBe(true);
+    expect(edges.has('capability:pipeline.send|owned-by|feature:pipeline')).toBe(true);
     expect(edges.has('surface:desk|exposes|capability:pipeline.send')).toBe(true);
     expect(edges.has('surface:library|exposes|capability:pipeline.send')).toBe(true);
     expect(edges.has('workflow:.github/workflows/ci.yml|runs|script:verify:full')).toBe(true);
