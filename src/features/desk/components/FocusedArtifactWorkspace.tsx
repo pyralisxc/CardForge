@@ -362,12 +362,3 @@ export function FocusedArtifactWorkspace({
   </div>;
 }
 
-export const FOCUSED_ARTIFACT_ACTION_REALITY = {
-  productRealityKind: 'capability',
-  id: 'desk.compact-primary-action-access',
-  label: 'Compact focused Artifact primary actions without horizontal scrolling',
-  category: 'accessibility',
-  ownerFeature: 'desk',
-  surfaces: ['desk'],
-  implementation: FocusedArtifactWorkspace,
-} as const;
