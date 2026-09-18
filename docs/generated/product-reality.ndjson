@@ -1,28 +1,28 @@
-{"type":"meta","schemaVersion":1,"topologyFingerprint":"8d36193f934cb1e8fd7b","summary":{"nodes":236,"edges":547,"unknowns":0,"kinds":{"action":30,"api":76,"capability":20,"feature":31,"mcp":30,"provider":8,"route":26,"surface":5,"tool":10}}}
+{"type":"meta","schemaVersion":1,"topologyFingerprint":"478083777d3feeab06c9","summary":{"nodes":230,"edges":518,"unknowns":0,"kinds":{"action":30,"api":76,"capability":14,"feature":31,"mcp":30,"provider":8,"route":26,"surface":5,"tool":10}}}
 {"type":"node","id":"action:desk.create-set","kind":"action","label":"New Set","owner":"card-generator","owners":["card-generator"],"scope":"zone","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"human-only"}
 {"type":"node","id":"action:desk.delete-set","kind":"action","label":"Delete from this device","owner":"project","owners":["project"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":["browser-local"],"permission":"guest","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:desk.duplicate-set","kind":"action","label":"Duplicate","owner":"project","owners":["project"],"scope":"object","result":"mutation","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:desk.export-set","kind":"action","label":"Output","owner":"card-generator","owners":["card-generator"],"capabilityIds":["work.output"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:desk.generate-set","kind":"action","label":"Generate cards","owner":"card-generator","owners":["card-generator"],"capabilityIds":["work.generate"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
+{"type":"node","id":"action:desk.export-set","kind":"action","label":"Output","owner":"card-generator","owners":["card-generator"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
+{"type":"node","id":"action:desk.generate-set","kind":"action","label":"Generate cards","owner":"card-generator","owners":["card-generator"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:desk.manage-location","kind":"action","label":"Manage source","owner":"storage-management","owners":["storage-management"],"scope":"object","result":"navigation","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:desk.open-set","kind":"action","label":"desk.open-set","owner":"contextual","owners":["marketing-content","pipeline","studio-documents","project"],"capabilityIds":["work.continue","work.open"],"scope":"object","result":"contextual","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"contextual"}
+{"type":"node","id":"action:desk.open-set","kind":"action","label":"desk.open-set","owner":"contextual","owners":["marketing-content","pipeline","studio-documents","project"],"scope":"object","result":"contextual","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"contextual"}
 {"type":"node","id":"action:desk.pin-set","kind":"action","label":"desk.pin-set","owner":"project","owners":["project"],"scope":"object","result":"mutation","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:desk.rename-set","kind":"action","label":"Rename","owner":"project","owners":["project"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:desk.save-move-set","kind":"action","label":"Save & move","owner":"storage-management","owners":["storage-management"],"capabilityIds":["work.save-move"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:desk.send-pipeline","kind":"action","label":"Send to Pipeline","owner":"pipeline","owners":["pipeline"],"capabilityIds":["pipeline.send"],"scope":"object","result":"tool-opened","automation":"human-only"}
+{"type":"node","id":"action:desk.save-move-set","kind":"action","label":"Save & move","owner":"storage-management","owners":["storage-management"],"scope":"object","result":"tool-opened","objectKinds":["set"],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
+{"type":"node","id":"action:desk.send-pipeline","kind":"action","label":"Send to Pipeline","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"tool-opened","automation":"human-only"}
 {"type":"node","id":"action:library.close-locations","kind":"action","label":"library.close-locations","owner":"storage-management","owners":["storage-management"],"scope":"zone","result":"navigation","automation":"human-only"}
 {"type":"node","id":"action:library.close-tool","kind":"action","label":"library.close-tool","owner":"storage-management","owners":["storage-management"],"scope":"zone","result":"navigation","automation":"human-only"}
-{"type":"node","id":"action:library.continue","kind":"action","label":"Continue in Studio","owner":"studio-documents","owners":["studio-documents"],"capabilityIds":["work.continue"],"scope":"object","result":"navigation","objectKinds":[],"sources":[],"permission":"member","commitment":"none","automation":"human-only"}
+{"type":"node","id":"action:library.continue","kind":"action","label":"Continue in Studio","owner":"studio-documents","owners":["studio-documents"],"scope":"object","result":"navigation","objectKinds":[],"sources":[],"permission":"member","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:library.copy-published-template","kind":"action","label":"Make editable copy","owner":"template-editor","owners":["template-editor"],"scope":"object","result":"navigation","objectKinds":["published-asset"],"sources":["provider-native"],"permission":"guest","commitment":"none","automation":"planned-mcp"}
 {"type":"node","id":"action:library.delete-copy","kind":"action","label":"library.delete-copy","owner":"contextual","owners":["template-editor","card-generator","project"],"scope":"object","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:library.duplicate","kind":"action","label":"Duplicate","owner":"card-generator","owners":["card-generator"],"scope":"object","result":"mutation","objectKinds":[],"sources":[],"permission":"guest","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:library.edit-pipeline","kind":"action","label":"library.edit-pipeline","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"tool-opened","objectKinds":["pipeline-asset"],"sources":["provider-native"],"permission":"contributor","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:library.manage-location","kind":"action","label":"Manage locations","owner":"storage-management","owners":["storage-management"],"scope":"object","result":"navigation","objectKinds":[],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:library.open","kind":"action","label":"library.open","owner":"contextual","owners":["project","studio-documents","template-editor","card-generator"],"capabilityIds":["work.open"],"scope":"object","result":"navigation","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"contextual"}
+{"type":"node","id":"action:library.open","kind":"action","label":"library.open","owner":"contextual","owners":["project","studio-documents","template-editor","card-generator"],"scope":"object","result":"navigation","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"contextual"}
 {"type":"node","id":"action:library.refresh","kind":"action","label":"library.refresh","owner":"storage-management","owners":["storage-management"],"scope":"zone","result":"refresh-requested","objectKinds":[],"sources":[],"permission":"unknown","commitment":"unknown","automation":"human-only"}
 {"type":"node","id":"action:library.retire-pipeline","kind":"action","label":"library.retire-pipeline","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"mutation","objectKinds":["pipeline-asset"],"sources":["provider-native"],"permission":"contributor","commitment":"publication","automation":"human-only"}
-{"type":"node","id":"action:library.save-move","kind":"action","label":"Save & move","owner":"storage-management","owners":["storage-management"],"capabilityIds":["work.save-move"],"scope":"object","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
-{"type":"node","id":"action:library.send-pipeline","kind":"action","label":"Send to Pipeline","owner":"pipeline","owners":["pipeline"],"capabilityIds":["pipeline.send"],"scope":"object","result":"tool-opened","automation":"human-only"}
+{"type":"node","id":"action:library.save-move","kind":"action","label":"Save & move","owner":"storage-management","owners":["storage-management"],"scope":"object","result":"tool-opened","objectKinds":[],"sources":[],"permission":"unknown","commitment":"none","automation":"human-only"}
+{"type":"node","id":"action:library.send-pipeline","kind":"action","label":"Send to Pipeline","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"tool-opened","automation":"human-only"}
 {"type":"node","id":"action:library.test-pipeline","kind":"action","label":"Test exact revision in Design","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"navigation","objectKinds":["pipeline-asset"],"sources":["provider-native"],"permission":"contributor","commitment":"none","automation":"human-only"}
 {"type":"node","id":"action:library.use-published","kind":"action","label":"library.use-published","owner":"pipeline","owners":["pipeline"],"scope":"object","result":"navigation","objectKinds":["published-asset"],"sources":["provider-native"],"permission":"guest","commitment":"none","automation":"planned-mcp"}
 {"type":"node","id":"action:library.view-source","kind":"action","label":"View source","owner":"contextual","owners":["personal-library","project"],"scope":"object","result":"provider-handoff","objectKinds":[],"sources":["google-drive"],"permission":"member","commitment":"none","automation":"human-only"}
@@ -119,12 +119,6 @@
 {"type":"node","id":"capability:desk.reflective-set-organization","kind":"capability","label":"Reflective Set grouping, filtering, and sorting","category":"organization"}
 {"type":"node","id":"capability:desk.stable-set-arrangement","kind":"capability","label":"Viewport-independent Grid and Stack Set arrangement","category":"organization"}
 {"type":"node","id":"capability:desk.whole-spatial-overview","kind":"capability","label":"Explicit complete bounded Desk and Set overview","category":"accessibility"}
-{"type":"node","id":"capability:pipeline.send","kind":"capability","label":"pipeline.send","category":"workflow"}
-{"type":"node","id":"capability:work.continue","kind":"capability","label":"work.continue","category":"workflow"}
-{"type":"node","id":"capability:work.generate","kind":"capability","label":"work.generate","category":"workflow"}
-{"type":"node","id":"capability:work.open","kind":"capability","label":"work.open","category":"workflow"}
-{"type":"node","id":"capability:work.output","kind":"capability","label":"work.output","category":"workflow"}
-{"type":"node","id":"capability:work.save-move","kind":"capability","label":"work.save-move","category":"workflow"}
 {"type":"node","id":"feature:account","kind":"feature","label":"account"}
 {"type":"node","id":"feature:analytics","kind":"feature","label":"analytics"}
 {"type":"node","id":"feature:app-shell","kind":"feature","label":"app-shell"}
@@ -242,10 +236,8 @@
 {"type":"edge","from":"action:desk.duplicate-set","to":"feature:project","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:desk.export-set","to":"tool:output","relation":"opens","confidence":"observed"}
 {"type":"edge","from":"action:desk.export-set","to":"feature:card-generator","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:desk.export-set","to":"capability:work.output","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:desk.generate-set","to":"tool:generate","relation":"opens","confidence":"observed"}
 {"type":"edge","from":"action:desk.generate-set","to":"feature:card-generator","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:desk.generate-set","to":"capability:work.generate","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:desk.manage-location","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:desk.open-set","to":"mcp:checkout_project","relation":"automated-by","confidence":"contextual"}
 {"type":"edge","from":"action:desk.open-set","to":"mcp:list_connected_projects","relation":"automated-by","confidence":"contextual"}
@@ -253,20 +245,15 @@
 {"type":"edge","from":"action:desk.open-set","to":"feature:pipeline","relation":"owned-by","confidence":"contextual"}
 {"type":"edge","from":"action:desk.open-set","to":"feature:project","relation":"owned-by","confidence":"contextual"}
 {"type":"edge","from":"action:desk.open-set","to":"feature:studio-documents","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"action:desk.open-set","to":"capability:work.continue","relation":"realizes","confidence":"contextual"}
-{"type":"edge","from":"action:desk.open-set","to":"capability:work.open","relation":"realizes","confidence":"contextual"}
 {"type":"edge","from":"action:desk.pin-set","to":"feature:project","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:desk.rename-set","to":"tool:rename-set","relation":"opens","confidence":"observed"}
 {"type":"edge","from":"action:desk.rename-set","to":"feature:project","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:desk.save-move-set","to":"tool:locations","relation":"opens","confidence":"observed"}
 {"type":"edge","from":"action:desk.save-move-set","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:desk.save-move-set","to":"capability:work.save-move","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:desk.send-pipeline","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:desk.send-pipeline","to":"capability:pipeline.send","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:library.close-locations","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.close-tool","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.continue","to":"feature:studio-documents","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:library.continue","to":"capability:work.continue","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:library.copy-published-template","to":"feature:template-editor","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.delete-copy","to":"feature:card-generator","relation":"owned-by","confidence":"contextual"}
 {"type":"edge","from":"action:library.delete-copy","to":"feature:project","relation":"owned-by","confidence":"contextual"}
@@ -280,13 +267,10 @@
 {"type":"edge","from":"action:library.open","to":"feature:project","relation":"owned-by","confidence":"contextual"}
 {"type":"edge","from":"action:library.open","to":"feature:studio-documents","relation":"owned-by","confidence":"contextual"}
 {"type":"edge","from":"action:library.open","to":"feature:template-editor","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"action:library.open","to":"capability:work.open","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:library.refresh","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.retire-pipeline","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.save-move","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:library.save-move","to":"capability:work.save-move","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:library.send-pipeline","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"action:library.send-pipeline","to":"capability:pipeline.send","relation":"realizes","confidence":"declared"}
 {"type":"edge","from":"action:library.test-pipeline","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.use-published","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"action:library.view-source","to":"feature:personal-library","relation":"owned-by","confidence":"contextual"}
@@ -452,15 +436,6 @@
 {"type":"edge","from":"capability:desk.reflective-set-organization","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.stable-set-arrangement","to":"feature:desk","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"capability:desk.whole-spatial-overview","to":"feature:desk","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:pipeline.send","to":"feature:pipeline","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:work.continue","to":"feature:studio-documents","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:work.generate","to":"feature:card-generator","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:work.open","to":"feature:card-generator","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"capability:work.open","to":"feature:project","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"capability:work.open","to":"feature:studio-documents","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"capability:work.open","to":"feature:template-editor","relation":"owned-by","confidence":"contextual"}
-{"type":"edge","from":"capability:work.output","to":"feature:card-generator","relation":"owned-by","confidence":"declared"}
-{"type":"edge","from":"capability:work.save-move","to":"feature:storage-management","relation":"owned-by","confidence":"declared"}
 {"type":"edge","from":"feature:account","to":"feature:analytics","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:billing","relation":"depends-on","confidence":"observed"}
 {"type":"edge","from":"feature:account","to":"feature:mcp-usage","relation":"depends-on","confidence":"observed"}
@@ -721,12 +696,6 @@
 {"type":"edge","from":"surface:desk","to":"capability:desk.reflective-set-organization","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.stable-set-arrangement","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:desk","to":"capability:desk.whole-spatial-overview","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:pipeline.send","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:work.continue","relation":"exposes","confidence":"contextual"}
-{"type":"edge","from":"surface:desk","to":"capability:work.generate","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:work.open","relation":"exposes","confidence":"contextual"}
-{"type":"edge","from":"surface:desk","to":"capability:work.output","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:desk","to":"capability:work.save-move","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:library","to":"action:library.close-locations","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.close-tool","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.continue","relation":"exposes","confidence":"observed"}
@@ -744,10 +713,6 @@
 {"type":"edge","from":"surface:library","to":"action:library.use-published","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.view-source","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:library","to":"action:library.withdraw-pipeline","relation":"exposes","confidence":"observed"}
-{"type":"edge","from":"surface:library","to":"capability:pipeline.send","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:library","to":"capability:work.continue","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:library","to":"capability:work.open","relation":"exposes","confidence":"declared"}
-{"type":"edge","from":"surface:library","to":"capability:work.save-move","relation":"exposes","confidence":"declared"}
 {"type":"edge","from":"surface:profile","to":"action:profile.close-utility","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:profile","to":"action:profile.manage-account","relation":"exposes","confidence":"observed"}
 {"type":"edge","from":"surface:public","to":"route:/","relation":"exposes","confidence":"observed"}

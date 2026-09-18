@@ -39,7 +39,6 @@ export type {
   ActionAutomation,
   ActionAvailability,
   ActionCommitment,
-  ActionCapabilityId,
   ActionDescriptor,
   ActionHierarchy,
   ActionPermission,

@@ -94,12 +94,9 @@ export type ActionAvailability =
   | { kind: 'disabled'; reason: string }
   | { kind: 'hidden'; reason: string };
 
-export type ActionCapabilityId = `${string}.${string}`;
-
 export interface ActionDescriptor {
   id: `${string}.${string}`;
   label: string;
-  capabilityId?: ActionCapabilityId;
   ownerFeature: FeatureOwnerId;
   supportedObjectKinds: readonly string[];
   supportedSources: readonly ActionSource[];

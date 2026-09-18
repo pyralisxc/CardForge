@@ -61,25 +61,11 @@ const accumulator = (graph) => {
   return { nodes, edges, unknowns, addNode, addEdge, addUnknown, clearActionUnknowns };
 };
 
-const addAction = (acc, { id, label = id, owners = [], capabilityIds = [], scope = 'object', result = 'navigation', automation = 'human-only', mcpTools = [], evidence = [] }) => {
-  const actionId = `action:${id}`;
-  const effectiveCapabilityIds = capabilityIds.length ? capabilityIds : (acc.nodes.get(actionId)?.capabilityIds ?? []);
-  acc.addNode({ id: actionId, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, ...(effectiveCapabilityIds.length ? { capabilityIds: effectiveCapabilityIds } : {}), scope, result, automation }, evidence);
+const addAction = (acc, { id, label = id, owners = [], scope = 'object', result = 'navigation', automation = 'human-only', mcpTools = [], evidence = [] }) => {
+  acc.addNode({ id: `action:${id}`, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, scope, result, automation }, evidence);
   for (const owner of owners) {
     acc.addNode({ id: `feature:${owner}`, kind: 'feature', label: owner });
     acc.addEdge({ from: `action:${id}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
-  }
-  const surfaceId = `surface:${id.split('.')[0]}`;
-  for (const capabilityId of effectiveCapabilityIds) {
-    const confidence = effectiveCapabilityIds.length === 1 ? 'declared' : 'contextual';
-    acc.addNode({ id: `capability:${capabilityId}`, kind: 'capability', label: capabilityId, category: 'workflow' }, evidence);
-    acc.addEdge({ from: actionId, to: `capability:${capabilityId}`, relation: 'realizes', confidence }, evidence);
-    if (effectiveCapabilityIds.length === 1) {
-      for (const owner of owners) {
-        acc.addEdge({ from: `capability:${capabilityId}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
-      }
-    }
-    if (acc.nodes.has(surfaceId)) acc.addEdge({ from: surfaceId, to: `capability:${capabilityId}`, relation: 'exposes', confidence }, evidence);
   }
   for (const tool of mcpTools) {
     acc.addNode({ id: `mcp:${tool}`, kind: 'mcp', label: tool }, evidence);
@@ -124,8 +110,8 @@ const enrichCardForgeSemantics = async (root, acc) => {
       }
     }
     if (source.includes("zoneAction('desk.create-set'")) addAction(acc, { id: 'desk.create-set', label: 'New Set', owners: ['card-generator'], scope: 'zone', result: 'tool-opened', evidence });
-    if (source.includes("id: 'desk.send-pipeline'")) addAction(acc, { id: 'desk.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], capabilityIds: ['pipeline.send'], result: 'tool-opened', evidence });
-    if (source.includes("id: 'library.send-pipeline'")) addAction(acc, { id: 'library.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], capabilityIds: ['pipeline.send'], result: 'tool-opened', evidence });
+    if (source.includes("id: 'desk.send-pipeline'")) addAction(acc, { id: 'desk.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
+    if (source.includes("id: 'library.send-pipeline'")) addAction(acc, { id: 'library.send-pipeline', label: 'Send to Pipeline', owners: ['pipeline'], result: 'tool-opened', evidence });
     if (source.includes('createLibraryZoneAction') && source.includes("'library.close-locations'") && source.includes("'library.close-tool'")) {
       for (const id of ['library.refresh', 'library.close-locations', 'library.close-tool']) {
         addAction(acc, { id, owners: ['storage-management'], scope: 'zone', result: id === 'library.refresh' ? 'refresh-requested' : 'navigation', evidence });
@@ -269,8 +255,7 @@ const renderCapabilitySection = (graph) => {
   const capabilities = graph.nodes.filter((node) => node.kind === 'capability');
   if (!capabilities.length) return '';
   const rows = capabilities.map((capability) => {
-    const owners = [...new Set(relationsFrom(graph, capability.id, 'owned-by').map((edge) => edge.to))]
-      .map((id) => `\`${labelFor(graph, id)}\``);
+    const owners = relationsFrom(graph, capability.id, 'owned-by').map((edge) => `\`${labelFor(graph, edge.to)}\``);
     const surfaces = relationsTo(graph, capability.id, 'exposes').filter((edge) => edge.from.startsWith('surface:')).map((edge) => `\`${labelFor(graph, edge.from)}\``);
     return `| \`${capability.label}\` | ${capability.category ?? 'product'} | ${owners.join(', ') || '—'} | ${surfaces.join(', ') || '—'} |`;
   });

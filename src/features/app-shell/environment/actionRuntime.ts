@@ -22,7 +22,6 @@ export type ActionOperationResult =
 
 export interface ActionOperation {
   id: ActionDescriptor['id'];
-  capabilityId?: ActionDescriptor['capabilityId'];
   ownerFeature: FeatureOwnerId;
   result: ActionDescriptor['result'];
   execute: (input: ActionOperationInput) => Promise<ActionOperationResult>;
@@ -45,7 +44,6 @@ export const createActionDefinition = (
   descriptor,
   operation: {
     id: descriptor.id,
-    capabilityId: descriptor.capabilityId,
     ownerFeature: descriptor.ownerFeature,
     result: descriptor.result,
     execute,
@@ -55,9 +53,6 @@ export const createActionDefinition = (
 const assertDefinitionMatches = ({ descriptor, operation }: ActionDefinition) => {
   if (descriptor.id !== operation.id) {
     throw new Error(`Action operation ${operation.id} does not match descriptor ${descriptor.id}.`);
-  }
-  if (descriptor.capabilityId !== operation.capabilityId) {
-    throw new Error(`Action ${descriptor.id} capability ${descriptor.capabilityId ?? 'none'} does not match operation capability ${operation.capabilityId ?? 'none'}.`);
   }
   if (descriptor.ownerFeature !== operation.ownerFeature) {
     throw new Error(`Action ${descriptor.id} owner ${descriptor.ownerFeature} does not match operation owner ${operation.ownerFeature}.`);
