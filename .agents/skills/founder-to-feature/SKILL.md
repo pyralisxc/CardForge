@@ -102,7 +102,7 @@ Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the
 
 - `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
-- generated `docs/product-surface-map.md` — compact observed current Product Reality; query the graph rather than hand-editing this projection when current placement/reachability matters;
+- `.development-intelligence/` — accepted derived structural checkpoint from Development Intelligence for broad current topology when useful; current source remains authoritative;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.
