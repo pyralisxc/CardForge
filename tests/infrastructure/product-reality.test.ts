@@ -67,7 +67,7 @@ describe('Product Reality graph', () => {
         { toolId: 'pipeline', ownerFeature: 'pipeline', presentation: 'sheet' },
       ] as const;
       export const action = {
-        id: 'desk.generate-set', label: 'Generate cards', capabilityId: 'work.generate', ownerFeature: 'card-generator',
+        id: 'desk.generate-set', label: 'Generate cards', ownerFeature: 'card-generator',
         supportedObjectKinds: ['set'], supportedSources: ['browser-local'], revisionPolicy: 'none', requiredPermission: 'guest',
         scope: 'object', hierarchy: 'supporting', availability: { kind: 'available' }, commitment: 'none',
         automation: { kind: 'published-mcp', tools: ['upsert_cards'] }, result: 'tool-opened',
@@ -103,7 +103,6 @@ describe('Product Reality graph', () => {
       'surface:studio',
       'surface:public',
       'action:desk.generate-set',
-      'capability:work.generate',
       'feature:card-generator',
       'feature:template-editor',
       'feature:pipeline',
@@ -129,9 +128,6 @@ describe('Product Reality graph', () => {
     expect(relations.has('surface:desk|exposes|action:desk.generate-set')).toBe(true);
     expect(relations.has('surface:studio|exposes|tool:generate')).toBe(true);
     expect(relations.has('action:desk.generate-set|owned-by|feature:card-generator')).toBe(true);
-    expect(relations.has('action:desk.generate-set|realizes|capability:work.generate')).toBe(true);
-    expect(relations.has('capability:work.generate|owned-by|feature:card-generator')).toBe(true);
-    expect(relations.has('surface:desk|exposes|capability:work.generate')).toBe(true);
     expect(relations.has('action:desk.generate-set|automated-by|mcp:upsert_cards')).toBe(true);
     expect(relations.has('action:desk.generate-set|opens|tool:generate')).toBe(true);
     expect(relations.has('tool:design|owned-by|feature:template-editor')).toBe(true);
