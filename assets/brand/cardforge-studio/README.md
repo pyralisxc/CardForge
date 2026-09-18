@@ -41,7 +41,7 @@ Current references:
 
 There is **no standalone Contributor/Developer concept image**. Contributor is a capability layer that enhances Home, Library, Studio, and Profile; it must not create a separate visual universe or permanent destination.
 
-The four user-surface WebP files are compressed repository references derived from the approved concept mockups. They preserve hierarchy, spatial intent, responsive pairing, and interaction direction while keeping the repository lightweight. They are not runtime assets or pixel-perfect implementation contracts. `docs/product-direction.md` owns the intended product model; generated `docs/product-surface-map.md` reports the current observed product topology.
+The four user-surface WebP files are compressed repository references derived from the approved concept mockups. They preserve hierarchy, spatial intent, responsive pairing, and interaction direction while keeping the repository lightweight. They are not runtime assets or pixel-perfect implementation contracts. `docs/product-direction.md` owns the intended product model; current source owns shipped behavior, with Development Intelligence providing rebuildable structural evidence.
 
 ## Visual hierarchy rule
 
