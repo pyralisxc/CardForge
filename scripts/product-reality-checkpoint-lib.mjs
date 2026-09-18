@@ -62,7 +62,7 @@ const accumulator = (graph) => {
 };
 
 const addAction = (acc, { id, label = id, owners = [], capabilityIds = [], scope = 'object', result = 'navigation', automation = 'human-only', mcpTools = [], evidence = [] }) => {
-  acc.addNode({ id: `action:${id}`, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, capabilityIds, scope, result, automation }, evidence);
+  acc.addNode({ id: `action:${id}`, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, ...(capabilityIds.length ? { capabilityIds } : {}), scope, result, automation }, evidence);
   for (const owner of owners) {
     acc.addNode({ id: `feature:${owner}`, kind: 'feature', label: owner });
     acc.addEdge({ from: `action:${id}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
