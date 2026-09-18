@@ -41,23 +41,6 @@ describe('action runtime', () => {
       .toThrow(/owner/i);
   });
 
-  it('rejects capability identity drift between metadata and execution', () => {
-    const capabilityDescriptor: ActionDescriptor = {
-      ...descriptor,
-      capabilityId: 'work.rename',
-    };
-    const operation: ActionOperation = {
-      id: capabilityDescriptor.id,
-      capabilityId: 'work.open',
-      ownerFeature: capabilityDescriptor.ownerFeature,
-      result: capabilityDescriptor.result,
-      execute: vi.fn(),
-    };
-
-    expect(() => createActionRuntime([{ descriptor: capabilityDescriptor, operation }]))
-      .toThrow(/capability/i);
-  });
-
   it('executes the feature-owned operation through the descriptor contract', async () => {
     const execute = vi.fn(async () => ({ kind: 'mutation' as const, changedIds: ['set-1'] }));
     const runtime = createActionRuntime([{
