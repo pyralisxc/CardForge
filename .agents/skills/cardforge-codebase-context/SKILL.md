@@ -26,8 +26,8 @@ Use this order when facts matter:
 1. current task worktree / exact branch source;
 2. GitHub current source and commit state;
 3. CardForge canonical living docs for accepted product/architecture meaning;
-4. Product Reality for generated current product topology;
-5. Codebase MCP for derived structural/search context.
+4. Development Intelligence for generated semantic topology, dependency, and blast-radius evidence;
+5. Codebase MCP for optional derived structural/search context.
 
 The Codebase MCP index is rebuildable derived evidence. It never overrides current source.
 
@@ -42,7 +42,7 @@ Prefer this skill when the question is expensive to answer by opening files one 
 - likely structural impact of changing an owner/public interface;
 - architecture/module discovery;
 - broad semantic/full-text source retrieval;
-- tracing implementation paths after Product Reality identifies the relevant product owner/surface;
+- tracing implementation paths after Development Intelligence or current source identifies the relevant product owner/surface;
 - orienting a fresh agent before focused source inspection.
 
 Do not call the MCP merely because it exists. For a known file/owner or a narrow local edit, inspect the source directly.
@@ -73,22 +73,18 @@ Therefore:
 - use the MCP for baseline/main structural orientation when fresh;
 - use the actual worktree/GitHub branch for feature-branch truth;
 - use Git diff/PR diff for branch-specific changes;
-- use Product Reality A→B diff when the project workflow provides it for product-topology changes;
+- use Development Intelligence plus the actual Git diff for branch-impact/topology questions when the integration is available;
 - never describe the MCP graph as proving unindexed branch code.
 
 For a branch task, a useful pattern is:
 
-`fresh main Codebase MCP` + `current branch source/diff` + `Product Reality when relevant`.
+`current branch source/diff` + `Development Intelligence when available` + `fresh Codebase MCP only when it adds narrower implementation context`.
 
-## Relationship to Product Reality
+## Relationship to Development Intelligence
 
-These systems answer different questions.
+Development Intelligence is the repository-intelligence owner for semantic topology, dependency relationships, and blast-radius discovery. The repository-owned `.development-intelligence/` checkpoint is accepted derived evidence.
 
-Use **Product Reality** first for broad questions about what CardForge currently exposes and how product surfaces, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect.
-
-Use **Codebase MCP** for structural implementation discovery inside or across those owners: symbols, source relationships, code paths, architecture, semantic retrieval, and focused snippets.
-
-Do not merge their authority models and do not reconstruct one from the other unnecessarily.
+Codebase MCP remains an optional accelerator for narrow structural/search context when available and fresh. It must not compete with Development Intelligence or current source as a second topology authority.
 
 ## Safe tool usage
 
