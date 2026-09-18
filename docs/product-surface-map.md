@@ -4,14 +4,14 @@
 >
 > Source code is authoritative. `docs/product-direction.md` owns desired/future product behavior; `docs/architecture.md` owns architectural rules and invariants. This map reports only relationships the Product Reality scanner can deterministically observe in the current repository.
 
-Topology fingerprint: `8d36193f934cb1e8fd7b`
+Topology fingerprint: `478083777d3feeab06c9`
 
 Regenerate with `npm run product-reality:generate`. Query narrow slices with `npm run product-reality:query -- --surface studio`, `--feature project`, `--kind mcp`, or `--unknown`.
 
 ## Topology summary
 
-- 236 observed nodes
-- 547 observed relationships
+- 230 observed nodes
+- 518 observed relationships
 - 0 unresolved observations
 - 5 product surfaces, 30 semantic actions, 10 tools, 31 feature owners, 76 API routes, 30 MCP tools, 8 providers
 
@@ -94,12 +94,6 @@ Tools: `design` → `template-editor`; `generate` → `card-generator`; `output`
 | `Reflective Set grouping, filtering, and sorting` | organization | `desk` | `Desk` |
 | `Viewport-independent Grid and Stack Set arrangement` | organization | `desk` | `Desk` |
 | `Explicit complete bounded Desk and Set overview` | accessibility | `desk` | `Desk` |
-| `pipeline.send` | workflow | `pipeline` | `Desk`, `Library` |
-| `work.continue` | workflow | `studio-documents` | `Desk`, `Library` |
-| `work.generate` | workflow | `card-generator` | `Desk` |
-| `work.open` | workflow | `card-generator`, `project`, `studio-documents`, `template-editor` | `Desk`, `Library` |
-| `work.output` | workflow | `card-generator` | `Desk` |
-| `work.save-move` | workflow | `storage-management` | `Desk`, `Library` |
 
 ## Feature owners
 
