@@ -14,8 +14,6 @@ The durable truth sources are:
 
 - `docs/architecture.md` for shipped ownership and invariants;
 - `docs/product-direction.md` for intended product meaning and delivery sequence;
-- `docs/product-surface-map.md` for the generated current-state Product Reality projection; never hand-edit it;
-- `docs/generated/product-reality.ndjson` for the complete rebuildable machine-readable Product Reality graph;
 - `docs/integrations.md` for provider seams;
 - `docs/operations.md` for current release/recovery/provider procedure;
 - `docs/risk-register.md` for unresolved or explicitly accepted risk.
@@ -32,7 +30,7 @@ An audit, critique, product discussion, UX reaction, or “what if” is not imp
 
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
 
-For audits of **what CardForge currently is** — where surfaces, user-visible capabilities, tools, actions, feature owners, routes/APIs, providers, MCP tools, workflows, and tests connect — load `.agents/skills/product-reality-audit/SKILL.md` and query Product Reality before manually reconstructing a broad dependency map. Product Reality is descriptive evidence only; Product Direction still owns what should change.
+For broad audits of **what CardForge currently is** — topology, ownership, dependency paths, blast radius, APIs, providers, MCP exposure, and structural evidence — use Development Intelligence as the repository-intelligence owner. The repository-owned `.development-intelligence/` checkpoint is accepted derived evidence and never overrides current source. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement and current source for consequential conclusions. `docs/product-direction.md` still owns what should change.
 
 For broad **code-structure discovery** — callers/references, cross-file paths, architecture, semantic source search, or implementation impact — load `.agents/skills/cardforge-codebase-context/SKILL.md` when the private `cardforge_codebase` MCP is available. Verify `jarvis_source_status` before trusting its graph/index, treat it only as derived acceleration over the managed `main` copy, and fall back to current source/GitHub whenever it is stale, unavailable, unknown, or commit-mismatched. Product Reality answers product topology; Codebase MCP helps find the implementation behind it.
 
