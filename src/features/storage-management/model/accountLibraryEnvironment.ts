@@ -78,6 +78,7 @@ export const getAccountLibraryEnvironmentActions = (
     actions.push({
       id: 'library.continue',
       label: 'Continue in Studio',
+      capabilityId: 'work.continue',
       ownerFeature: 'studio-documents',
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
@@ -96,6 +97,7 @@ export const getAccountLibraryEnvironmentActions = (
     actions.push({
       id: 'library.open',
       label: item.references.localSetId ? 'Open on Desk' : item.references.localTemplateId ? 'Open in Studio' : 'Open project',
+      capabilityId: 'work.open',
       ownerFeature: openOwner(item),
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
@@ -117,6 +119,7 @@ export const getAccountLibraryEnvironmentActions = (
     actions.push({
       id: 'library.save-move',
       label: 'Save & move',
+      capabilityId: 'work.save-move',
       ownerFeature: 'storage-management',
       supportedObjectKinds: [item.kind],
       supportedSources: sources,
