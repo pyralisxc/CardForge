@@ -62,16 +62,23 @@ const accumulator = (graph) => {
 };
 
 const addAction = (acc, { id, label = id, owners = [], capabilityIds = [], scope = 'object', result = 'navigation', automation = 'human-only', mcpTools = [], evidence = [] }) => {
-  acc.addNode({ id: `action:${id}`, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, ...(capabilityIds.length ? { capabilityIds } : {}), scope, result, automation }, evidence);
+  const actionId = `action:${id}`;
+  const effectiveCapabilityIds = capabilityIds.length ? capabilityIds : (acc.nodes.get(actionId)?.capabilityIds ?? []);
+  acc.addNode({ id: actionId, kind: 'action', label, owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown', owners, ...(effectiveCapabilityIds.length ? { capabilityIds: effectiveCapabilityIds } : {}), scope, result, automation }, evidence);
   for (const owner of owners) {
     acc.addNode({ id: `feature:${owner}`, kind: 'feature', label: owner });
     acc.addEdge({ from: `action:${id}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
   }
   const surfaceId = `surface:${id.split('.')[0]}`;
-  for (const capabilityId of capabilityIds) {
-    const confidence = capabilityIds.length === 1 ? 'declared' : 'contextual';
+  for (const capabilityId of effectiveCapabilityIds) {
+    const confidence = effectiveCapabilityIds.length === 1 ? 'declared' : 'contextual';
     acc.addNode({ id: `capability:${capabilityId}`, kind: 'capability', label: capabilityId, category: 'workflow' }, evidence);
-    acc.addEdge({ from: `action:${id}`, to: `capability:${capabilityId}`, relation: 'realizes', confidence }, evidence);
+    acc.addEdge({ from: actionId, to: `capability:${capabilityId}`, relation: 'realizes', confidence }, evidence);
+    if (effectiveCapabilityIds.length === 1) {
+      for (const owner of owners) {
+        acc.addEdge({ from: `capability:${capabilityId}`, to: `feature:${owner}`, relation: 'owned-by', confidence: owners.length === 1 ? 'declared' : 'contextual' }, evidence);
+      }
+    }
     if (acc.nodes.has(surfaceId)) acc.addEdge({ from: surfaceId, to: `capability:${capabilityId}`, relation: 'exposes', confidence }, evidence);
   }
   for (const tool of mcpTools) {
@@ -262,11 +269,7 @@ const renderCapabilitySection = (graph) => {
   const capabilities = graph.nodes.filter((node) => node.kind === 'capability');
   if (!capabilities.length) return '';
   const rows = capabilities.map((capability) => {
-    const directOwners = relationsFrom(graph, capability.id, 'owned-by').map((edge) => edge.to);
-    const actionOwners = relationsTo(graph, capability.id, 'realizes')
-      .filter((edge) => edge.from.startsWith('action:'))
-      .flatMap((edge) => relationsFrom(graph, edge.from, 'owned-by').map((ownerEdge) => ownerEdge.to));
-    const owners = [...new Set([...directOwners, ...actionOwners])]
+    const owners = [...new Set(relationsFrom(graph, capability.id, 'owned-by').map((edge) => edge.to))]
       .map((id) => `\`${labelFor(graph, id)}\``);
     const surfaces = relationsTo(graph, capability.id, 'exposes').filter((edge) => edge.from.startsWith('surface:')).map((edge) => `\`${labelFor(graph, edge.from)}\``);
     return `| \`${capability.label}\` | ${capability.category ?? 'product'} | ${owners.join(', ') || '—'} | ${surfaces.join(', ') || '—'} |`;
