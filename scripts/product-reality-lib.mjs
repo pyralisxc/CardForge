@@ -292,6 +292,16 @@ const addActionNode = ({ accumulator, id, label, owners, props, evidence }) => {
       relation: 'realizes',
       confidence,
     }, evidence);
+    if (capabilityIds.length === 1) {
+      for (const ownerFeature of owners) {
+        accumulator.addEdge({
+          from: `capability:${capabilityId}`,
+          to: `feature:${ownerFeature}`,
+          relation: 'owned-by',
+          confidence: owners.length === 1 ? 'declared' : 'contextual',
+        }, evidence);
+      }
+    }
     if (SURFACE_ROLES.has(namespace) && namespace !== 'public') {
       accumulator.addEdge({
         from: `surface:${namespace}`,
