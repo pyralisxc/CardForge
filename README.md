@@ -111,7 +111,7 @@ The official Standard 52-card deck is the published free starter and the end-to-
 
 ChatGPT/Codex use authenticated `/mcp` tools to create and revise private Studio documents, preview exact CardForge renders, and hand the same document into normal Studio installation or Forge Review. MCP does not own a second template format, renderer, asset store, or publication authority. Clerk owns linked identity; CardForge owns Studio-document authorization and product semantics.
 
-For broad questions such as “where is this capability used?”, “what changed in product topology?”, or “is human/MCP parity still present?”, agents should load `.agents/skills/product-reality-audit/SKILL.md` and query the generated Product Reality graph before manually traversing the repository.
+For broad questions such as “where is this capability implemented?”, “what changed structurally?”, or “what is the likely blast radius?”, use Development Intelligence when available, then verify consequential conclusions in current CardForge source.
 
 ## Environment
 
