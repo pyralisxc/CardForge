@@ -32,7 +32,7 @@ Once the behavioral contract is Ready — or immediately for routine copy, styli
 
 For broad audits of **what CardForge currently is** — topology, ownership, dependency paths, blast radius, APIs, providers, MCP exposure, and structural evidence — use Development Intelligence as the repository-intelligence owner. The repository-owned `.development-intelligence/` checkpoint is accepted derived evidence and never overrides current source. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement and current source for consequential conclusions. `docs/product-direction.md` still owns what should change.
 
-For broad **code-structure discovery** — callers/references, cross-file paths, architecture, semantic source search, or implementation impact — load `.agents/skills/cardforge-codebase-context/SKILL.md` when the private `cardforge_codebase` MCP is available. Verify `jarvis_source_status` before trusting its graph/index, treat it only as derived acceleration over the managed `main` copy, and fall back to current source/GitHub whenever it is stale, unavailable, unknown, or commit-mismatched. Product Reality answers product topology; Codebase MCP helps find the implementation behind it.
+For broad **code-structure discovery** — callers/references, cross-file paths, architecture, semantic source search, or implementation impact — load `.agents/skills/cardforge-codebase-context/SKILL.md` when the private `cardforge_codebase` MCP is available. Verify `jarvis_source_status` before trusting its graph/index, treat it only as derived acceleration over the managed `main` copy, and fall back to current source/GitHub whenever it is stale, unavailable, unknown, or commit-mismatched. Development Intelligence owns broad repository topology; Codebase MCP is only an optional accelerator for narrowing implementation paths.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
@@ -62,7 +62,7 @@ Before changing an external integration:
 
 ## Human readability rule
 
-A maintainer should be able to answer “where does this behavior live?” without reconstructing a graph from dozens of files. Keep route composition thin, feature owners explicit, public `client.ts`/`server.ts` interfaces narrow, and large modules separated by real responsibility rather than arbitrary line count. Use Product Reality as the first factual topology view, then inspect the native owner for behavior details the graph intentionally does not infer.
+A maintainer should be able to answer “where does this behavior live?” without reconstructing a graph from dozens of files. Keep route composition thin, feature owners explicit, public `client.ts`/`server.ts` interfaces narrow, and large modules separated by real responsibility rather than arbitrary line count. Use Development Intelligence for broad structural orientation when needed, then inspect the native owner and current source for behavior details.
 
 When fixing a bug, first find the native owner and make the smallest change there. Do not create a unique workaround simply because it is locally convenient.
 
@@ -78,7 +78,7 @@ Do not add speculative guards for impossible states. A new failure branch must c
 
 ## Roadmap and completed work
 
-`docs/product-direction.md` owns the durable intended product model and delivery sequence. `docs/product-surface-map.md` is generated from current code and owns no future intent; it shows where observable capabilities are currently connected. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Keep Product Direction and the public roadmap consistent without turning generated Product Reality into a wish list. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
+`docs/product-direction.md` owns the durable intended product model and delivery sequence. The live `/roadmap` and Supabase roadmap tables own publicly presented future/completed capability status and votes. Development Intelligence may describe current repository structure, but it owns no future product intent. Keep Product Direction and the public roadmap consistent. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
 Closed implementation plans, audits, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 
