@@ -19,6 +19,7 @@ export const createSendToPipelineActionDescriptor = ({
 }: SendToPipelineActionInput) => ({
   id,
   label: 'Send to Pipeline',
+  capabilityId: 'pipeline.send' as const,
   ownerFeature: 'pipeline' as const,
   supportedObjectKinds: [objectKind],
   supportedSources: sources,
@@ -43,6 +44,7 @@ export const createSendToPipelineActionDefinition = ({
     descriptor,
     operation: {
       id: descriptor.id,
+      capabilityId: descriptor.capabilityId,
       ownerFeature: descriptor.ownerFeature,
       result: descriptor.result,
       execute: async (operationInput: PipelineActionOperationInput) => {

@@ -40,7 +40,7 @@ describe('Product Reality checkpoint projection', () => {
         ? { kind: 'published-mcp', tools: ['list_connected_projects', 'checkout_project'] }
         : { kind: 'human-only', owner: 'cardforge' };
       export const open = {
-        id: 'desk.open-set', label: 'Open Set', ownerFeature: true ? 'project' : 'studio-documents',
+        id: 'desk.open-set', label: 'Open Set', capabilityId: true ? 'work.open' : 'work.continue', ownerFeature: true ? 'project' : 'studio-documents',
         supportedObjectKinds: ['set'], supportedSources: ['browser-local'], revisionPolicy: 'none', requiredPermission: 'guest',
         scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: 'none', automation: openAutomation, result: 'navigation'
       } as const;
@@ -52,6 +52,7 @@ describe('Product Reality checkpoint projection', () => {
       zoneAction('desk.create-set', 'New Set', 'tool-opened');
       function createSendToPipelineActionDescriptor(input: { id: string }) { return input; }
       createSendToPipelineActionDescriptor({ id: 'desk.send-pipeline' });
+      createSendToPipelineActionDescriptor({ id: 'library.send-pipeline' });
     `);
     await put(root, 'src/features/storage-management/components/LibraryObjectPresentation.tsx', `
       export const createLibraryZoneAction = (id: 'library.refresh' | 'library.close-locations' | 'library.close-tool', label: string) => ({
@@ -68,6 +69,7 @@ describe('Product Reality checkpoint projection', () => {
       'action:desk.open-set',
       'action:desk.create-set',
       'action:desk.send-pipeline',
+      'action:library.send-pipeline',
       'action:library.refresh',
       'action:library.close-locations',
       'action:library.close-tool',
@@ -77,8 +79,17 @@ describe('Product Reality checkpoint projection', () => {
     expect(edges.has('surface:desk|exposes|action:desk.open-set')).toBe(true);
     expect(edges.has('action:desk.open-set|automated-by|mcp:list_connected_projects')).toBe(true);
     expect(edges.has('action:desk.open-set|automated-by|mcp:checkout_project')).toBe(true);
+    expect(edges.has('action:desk.open-set|realizes|capability:work.open')).toBe(true);
+    expect(edges.has('action:desk.open-set|realizes|capability:work.continue')).toBe(true);
     expect(edges.has('action:desk.send-pipeline|owned-by|feature:pipeline')).toBe(true);
+    expect(edges.has('action:desk.send-pipeline|realizes|capability:pipeline.send')).toBe(true);
+    expect(edges.has('action:library.send-pipeline|realizes|capability:pipeline.send')).toBe(true);
+    expect(edges.has('capability:pipeline.send|owned-by|feature:pipeline')).toBe(true);
+    expect(edges.has('surface:desk|exposes|capability:pipeline.send')).toBe(true);
+    expect(edges.has('surface:library|exposes|capability:pipeline.send')).toBe(true);
     expect(edges.has('workflow:.github/workflows/ci.yml|runs|script:verify:full')).toBe(true);
+    const map = renderCheckpointSurfaceMap(graph);
+    expect(map).toContain('| `pipeline.send` | workflow | `pipeline` | `Desk`, `Library` |');
     expect(graph.unknowns.some((entry: { message: string }) => entry.message.includes('desk.create-set'))).toBe(false);
   });
 

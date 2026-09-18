@@ -245,12 +245,14 @@ const addToolNode = (accumulator, toolId, evidence = []) => {
 
 const addActionNode = ({ accumulator, id, label, owners, props, evidence }) => {
   const automation = staticAutomation(props.get('automation'));
+  const capabilityIds = stringCandidates(props.get('capabilityId'));
   accumulator.addNode({
     id: `action:${id}`,
     kind: 'action',
     label: label ?? id,
     owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown',
     owners,
+    ...(capabilityIds.length ? { capabilityIds } : {}),
     scope: staticString(props.get('scope')) ?? 'unknown',
     result: staticString(props.get('result')) ?? 'unknown',
     objectKinds: staticArrayStrings(props.get('supportedObjectKinds')) ?? [],
@@ -279,6 +281,35 @@ const addActionNode = ({ accumulator, id, label, owners, props, evidence }) => {
       relation: 'exposes',
       confidence: 'observed',
     }, evidence);
+  }
+
+  for (const capabilityId of capabilityIds) {
+    const confidence = capabilityIds.length === 1 ? 'declared' : 'contextual';
+    accumulator.addNode({ id: `capability:${capabilityId}`, kind: 'capability', label: capabilityId, category: 'workflow' }, evidence);
+    accumulator.addEdge({
+      from: `action:${id}`,
+      to: `capability:${capabilityId}`,
+      relation: 'realizes',
+      confidence,
+    }, evidence);
+    if (capabilityIds.length === 1) {
+      for (const ownerFeature of owners) {
+        accumulator.addEdge({
+          from: `capability:${capabilityId}`,
+          to: `feature:${ownerFeature}`,
+          relation: 'owned-by',
+          confidence: owners.length === 1 ? 'declared' : 'contextual',
+        }, evidence);
+      }
+    }
+    if (SURFACE_ROLES.has(namespace) && namespace !== 'public') {
+      accumulator.addEdge({
+        from: `surface:${namespace}`,
+        to: `capability:${capabilityId}`,
+        relation: 'exposes',
+        confidence,
+      }, evidence);
+    }
   }
 
   if (automation.kind === 'published-mcp') {

@@ -193,7 +193,7 @@ export const getWorkActions = (
     : { kind: 'human-only', owner: 'cardforge' };
   return [
     {
-      id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
+      id: 'desk.open-set', label: localSet ? 'Open Set' : item.references.campaignId ? 'Open campaign workspace' : item.references.pipelineLineageId ? 'Open published work' : item.kind === 'working-draft' ? 'Continue in Studio' : 'Open in Studio', capabilityId: item.kind === 'working-draft' ? 'work.continue' : 'work.open', ownerFeature: item.references.campaignId ? 'marketing-content' : item.references.pipelineLineageId ? 'pipeline' : item.kind === 'working-draft' ? 'studio-documents' : 'project',
       supportedObjectKinds: [item.kind], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'primary', availability: { kind: 'available' }, commitment: item.references.driveFileId ? 'permission' : 'none',
       automation: openAutomation, result: item.references.campaignId || item.references.pipelineLineageId ? 'tool-opened' : 'navigation',
@@ -205,19 +205,19 @@ export const getWorkActions = (
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'mutation',
     },
     {
-      id: 'desk.generate-set', label: 'Generate cards', ownerFeature: 'card-generator',
+      id: 'desk.generate-set', label: 'Generate cards', capabilityId: 'work.generate', ownerFeature: 'card-generator',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before generating cards.' }, commitment: 'none',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     {
-      id: 'desk.export-set', label: 'Output', ownerFeature: 'card-generator',
+      id: 'desk.export-set', label: 'Output', capabilityId: 'work.output', ownerFeature: 'card-generator',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'overflow', availability: localSet ? { kind: 'available' } : { kind: 'disabled', reason: 'Open this work on the device before exporting it.' }, commitment: 'none',
       automation: { kind: 'human-only', owner: 'cardforge' }, result: 'tool-opened',
     },
     {
-      id: 'desk.save-move-set', label: 'Save & move', ownerFeature: 'storage-management',
+      id: 'desk.save-move-set', label: 'Save & move', capabilityId: 'work.save-move', ownerFeature: 'storage-management',
       supportedObjectKinds: ['set'], supportedSources: sources, revisionPolicy: 'none', requiredPermission: localSet ? 'guest' : 'member',
       scope: 'object', hierarchy: 'supporting', availability: canUseProjectFiles
         ? { kind: 'available' }
