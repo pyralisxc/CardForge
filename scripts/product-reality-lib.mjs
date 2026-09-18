@@ -252,7 +252,7 @@ const addActionNode = ({ accumulator, id, label, owners, props, evidence }) => {
     label: label ?? id,
     owner: owners.length === 1 ? owners[0] : owners.length > 1 ? 'contextual' : 'unknown',
     owners,
-    capabilityIds,
+    ...(capabilityIds.length ? { capabilityIds } : {}),
     scope: staticString(props.get('scope')) ?? 'unknown',
     result: staticString(props.get('result')) ?? 'unknown',
     objectKinds: staticArrayStrings(props.get('supportedObjectKinds')) ?? [],
