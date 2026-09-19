@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-import { createMcpToolError } from '@/features/studio-documents/server';
+import { createMcpToolError } from '@/features/studio-documents/mcp';
 import { PersonalLibraryStoreError } from '@/features/personal-library/server';
 import { ProjectStorageProviderError } from '@/features/project/server';
 
