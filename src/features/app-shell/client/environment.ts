@@ -26,6 +26,11 @@ export {
   setCreatorLens,
   setCreatorToolDirty,
 } from '../environment/interactionSession';
+export {
+  closeEnvironmentToolSession,
+  openEnvironmentToolSession,
+  setEnvironmentToolSessionDirty,
+} from '../environment/toolSession';
 export { createActionDefinition, createActionRuntime } from '../environment/actionRuntime';
 export { projectApiClientErrorBoundary } from '../environment/environmentBoundary';
 export { EnvironmentCommandBand } from '../environment/components/EnvironmentCommandBand';
@@ -59,6 +64,10 @@ export type {
   ZoneId,
   ZoneViewportPolicy,
 } from '../environment/model';
+export type {
+  EnvironmentToolPresentation,
+  EnvironmentToolSession,
+} from '../environment/toolSession';
 export type {
   CreatorCamera,
   CreatorContextClosed,
