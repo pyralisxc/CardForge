@@ -12,6 +12,7 @@ export {
   getCollaborationTopic,
   hasCollaborationCheckpointConflict,
 } from './model';
+export type { CollaborationErrorCode } from './server/collaborationSessionStore';
 export type {
   CollaborationCheckpoint,
   CollaborationProvider,
