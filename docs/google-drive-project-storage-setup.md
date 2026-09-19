@@ -150,6 +150,25 @@ OAuth client secret and storage-token encryption key are server secrets. Picker 
 
 Production uses values from the production Google Cloud project. `vercel-preview` uses values from the Preview/testing Google Cloud project. Do not share the OAuth client, Picker key, or token-encryption key across these environment projects, and never scope Preview credentials to all Vercel Preview deployments.
 
+### Live collaboration hosting
+
+Drive-backed live co-editing adds browser-safe Supabase Realtime configuration. Preview needs:
+
+- `NEXT_PUBLIC_SUPABASE_URL` — the **Card Forge Staging** project URL.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the active modern publishable key for **Card Forge Staging**.
+- `NEXT_PUBLIC_CARDFORGE_COLLABORATION_ENABLED=true` — enable only after the staging database migrations and Clerk/Supabase auth integration below are configured.
+
+Production should keep `NEXT_PUBLIC_CARDFORGE_COLLABORATION_ENABLED=false` until the two-account acceptance matrix passes. The URL and publishable key are intentionally browser-visible; authorization comes from the signed Clerk session token and private Realtime RLS.
+
+In the **Card Forge Staging** Supabase project, configure Clerk as a Third-Party Auth provider using the environment's Clerk domain/issuer. Use Clerk's normal session token; do not create a legacy Supabase JWT template. The Clerk token must authenticate into Supabase as the `authenticated` role. CardForge's browser Supabase client passes `session.getToken()` through the current `accessToken` integration.
+
+Apply both collaboration migrations before enabling the Preview flag:
+
+- `supabase/migrations/20260919101500_drive_collaboration_sessions.sql`
+- `supabase/migrations/20260919115000_harden_collaboration_realtime_rls.sql`
+
+The Realtime authorization helper lives in the non-exposed `cardforge_private` schema. It is `SECURITY DEFINER` only so private-channel RLS can verify server-owned room membership; it is deliberately absent from the public RPC surface.
+
 CardForge initiates resumable Drive uploads on the server so refresh/access credentials remain private, then the authenticated browser streams the project bytes directly to Google's session URI. The initiation request must carry the same canonical application origin that performs the browser upload; otherwise Google's upload response cannot satisfy that browser origin and the project remains unchanged.
 
 ## Database migration
@@ -200,6 +219,9 @@ After deployment:
 14. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
 15. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
 16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
+16a. For live collaboration acceptance, require two different signed-in CardForge accounts that have each explicitly authorized the same Drive file. Confirm read-only Drive roles join as viewers, editors join as editors, and disconnecting or revoking one account does not expose or reuse another participant's Google credential.
+16b. Use only private Realtime channels. Verify Clerk third-party auth is enabled for the environment's Supabase project, the Clerk session token carries the authenticated role, public Realtime channels are disabled, and an unrelated signed-in account cannot subscribe to the room topic.
+16c. Do not call Broadcast/Presence alone co-editing. Before enabling collaborative editing in product UI, prove the CRDT/native mutation bridge with simultaneous same-card and different-card edits, Template edits, reorder/delete-vs-edit, offline/reconnect, duplicate/out-of-order delivery, and an external Drive overwrite. Drive remains the checkpoint owner throughout.
 17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
 18. For a link-shared folder whose Picker result includes a `resourceKey`, select it, reload the page, close/reopen the browser, reconnect the same Google account, list existing CardForge projects, and save a new Set into the folder. Every later folder-referencing request must continue to work from the persisted resource key; success only during the initial Picker callback is not sufficient acceptance.
 

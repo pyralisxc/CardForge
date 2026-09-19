@@ -1,0 +1,39 @@
+name: Seal Development Intelligence candidate
+
+on:
+  pull_request:
+    types: [ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  seal:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Seal exact candidate
+        uses: pyralisxc/Development-Intelligence@bc093fc6c1ea5bf316f6710c91fc9c85d9cb0cd6 # v2.3.0
+        with:
+          project: pyralisxc/CardForge
+          mode: seal
+      - name: Commit semantic checkpoint
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- .development-intelligence; then
+            echo "Development Intelligence checkpoint is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .development-intelligence
+          git commit -m "chore: seal Development Intelligence candidate"
+          git push origin "HEAD:${HEAD_REF}"

@@ -7,6 +7,7 @@ export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,
 } from '../client/projectWorkspaceDocument';
+export type { ProjectDocumentV1 } from '../model/projectDocument';
 export { SPATIAL_WORKSPACE_PREFERENCE_KEY, useSpatialWorkspacePreferences } from '../client/useSpatialWorkspacePreferences';
 export {
   selectAllGeneratedDisplayCards,
@@ -18,5 +19,7 @@ export {
 export { hydrateProjectWorkspaceForScope, useProjectStore } from '../store/workspaceStore';
 export type { ProjectState } from '../store/workspaceStore';
 export type { TemplateCommitChangeInput } from '../store/types';
+export { mapProjectDocumentIdentity } from '../model/projectDocumentIdentity';
+export type { ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
 export { normalizeStudioView } from '../store/workspaceDefaults';
 export type { StudioView } from '../store/workspaceDefaults';
