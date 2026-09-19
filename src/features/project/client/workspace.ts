@@ -18,5 +18,7 @@ export {
 export { hydrateProjectWorkspaceForScope, useProjectStore } from '../store/workspaceStore';
 export type { ProjectState } from '../store/workspaceStore';
 export type { TemplateCommitChangeInput } from '../store/types';
+export { mapProjectDocumentIdentity } from '../model/projectDocumentIdentity';
+export type { ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
 export { normalizeStudioView } from '../store/workspaceDefaults';
 export type { StudioView } from '../store/workspaceDefaults';
