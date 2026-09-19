@@ -1,0 +1,48 @@
+name: Development Intelligence seal candidate
+
+on:
+  push:
+    branches:
+      - refactor/shared-contextual-tool-lifecycle
+
+permissions:
+  contents: write
+
+concurrency:
+  group: development-intelligence-seal-candidate
+  cancel-in-progress: true
+
+jobs:
+  seal:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - name: Seal Development Intelligence checkpoint
+        uses: pyralisxc/Development-Intelligence@bc093fc6c1ea5bf316f6710c91fc9c85d9cb0cd6 # v2.3.0
+        with:
+          project: pyralisxc/CardForge
+          mode: seal
+      - name: Verify sealed checkpoint
+        uses: pyralisxc/Development-Intelligence@bc093fc6c1ea5bf316f6710c91fc9c85d9cb0cd6 # v2.3.0
+        with:
+          project: pyralisxc/CardForge
+          mode: check
+      - name: Commit sealed checkpoint and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/development-intelligence-seal-candidate.yml
+          if git diff --quiet -- .development-intelligence && git diff --cached --quiet -- .github/workflows/development-intelligence-seal-candidate.yml; then
+            echo "No checkpoint change was produced." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .development-intelligence
+          git commit -m "chore: seal crystallization Development Intelligence checkpoint"
+          git push origin HEAD:"${GITHUB_REF_NAME}"
