@@ -1,4 +1,9 @@
 export { mapCollaborationAuthoredDocumentIdentity } from './client/driveIdentity';
+export { startDriveCollaborationClientSession } from './client/realtimeSession';
+export type {
+  CollaborationRealtimeParticipant,
+  DriveCollaborationClientSession,
+} from './client/realtimeSession';
 export {
   applyCollaborationAuthoredDocumentToWorkspace,
   buildCollaborationWorkspacePatch,
