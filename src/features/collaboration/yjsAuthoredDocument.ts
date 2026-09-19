@@ -14,7 +14,7 @@ export interface CollaborationAuthoredDocument {
 }
 
 type JsonObject = Record<string, unknown>;
-type YValue = string | number | boolean | null | Uint8Array | Y.AbstractType<unknown>;
+type YValue = string | number | boolean | null | Uint8Array | Y.Text | Y.Array<unknown> | Y.Map<unknown>;
 
 const ROOT_KEY = 'cardforge-authored-document';
 const SET_KEY = 'set';
