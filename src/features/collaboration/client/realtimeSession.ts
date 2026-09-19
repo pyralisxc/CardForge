@@ -118,7 +118,7 @@ export const startDriveCollaborationClientSession = async ({
   let bridge: CollaborationWorkspaceBridge | null = null;
   let writeChain = Promise.resolve();
   let checkpointLeader = false;
-  let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
+  let checkpointTimer: number | null = null;
 
   const updateCheckpointLeader = () => {
     const presence = channel.presenceState() as Record<string, Array<{ role?: unknown }>>;
