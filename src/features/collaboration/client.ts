@@ -1,4 +1,9 @@
 export { mapCollaborationAuthoredDocumentIdentity } from './client/driveIdentity';
+export { useDriveCollaborationSession } from './client/useDriveCollaborationSession';
+export type {
+  DriveCollaborationPhase,
+  DriveCollaborationState,
+} from './client/useDriveCollaborationSession';
 export { startDriveCollaborationClientSession } from './client/realtimeSession';
 export type {
   CollaborationRealtimeParticipant,
