@@ -12,6 +12,7 @@ import {
   type ProjectDocumentV1,
 } from '@/features/project/server';
 
+import { decideCollaborationCheckpoint } from '../checkpointDecision';
 import {
   getCollaborationRole,
   getCollaborationTopic,
@@ -532,33 +533,38 @@ export const checkpointGoogleDriveCollaborationSession = async ({
   const roomAuthored = readAuthoredRoomState(row);
   const sourceAuthored = createCollaborationAuthoredDocument(source.document);
 
-  if (hasCollaborationCheckpointConflict({
-    providerRevision: row.checkpoint_provider_revision,
-    projectRevision: row.checkpoint_project_revision,
-  }, current)) {
-    // A provider write may have succeeded while the session linkage response was
-    // lost. If Drive already contains exactly the current room state, adopt that
-    // receipt instead of turning a successful same-room checkpoint into conflict.
-    if (JSON.stringify(sourceAuthored) === JSON.stringify(roomAuthored)) {
-      const { error } = await requireStore()
-        .from('cardforge_collaboration_sessions')
-        .update({
-          checkpoint_provider_revision: current.providerRevision,
-          checkpoint_project_revision: current.projectRevision,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', row.id)
-        .eq('status', 'active');
-      if (error) {
-        console.error('Unable to recover collaboration checkpoint lineage:', error);
-        throw new CollaborationSessionError(
-          'Drive contains the collaborative state, but CardForge could not record its revision. Do not repeat the checkpoint until the room is reloaded.',
-          503,
-          'collaboration_unavailable',
-        );
-      }
-      return { source: source.summary, roomVersion: row.crdt_version, changed: false };
+  const decision = decideCollaborationCheckpoint({
+    recorded: {
+      providerRevision: row.checkpoint_provider_revision,
+      projectRevision: row.checkpoint_project_revision,
+    },
+    current,
+    source: sourceAuthored,
+    room: roomAuthored,
+  });
+
+  if (decision === 'adopt-provider-receipt') {
+    const { error } = await requireStore()
+      .from('cardforge_collaboration_sessions')
+      .update({
+        checkpoint_provider_revision: current.providerRevision,
+        checkpoint_project_revision: current.projectRevision,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+      .eq('status', 'active');
+    if (error) {
+      console.error('Unable to recover collaboration checkpoint lineage:', error);
+      throw new CollaborationSessionError(
+        'Drive contains the collaborative state, but CardForge could not record its revision. Do not repeat the checkpoint until the room is reloaded.',
+        503,
+        'collaboration_unavailable',
+      );
     }
+    return { source: source.summary, roomVersion: row.crdt_version, changed: false };
+  }
+
+  if (decision === 'external-conflict') {
     await markConflict(row);
     throw new CollaborationSessionError(
       'Google Drive changed outside this collaboration session. The room was stopped before overwriting that revision.',
@@ -567,7 +573,7 @@ export const checkpointGoogleDriveCollaborationSession = async ({
     );
   }
 
-  if (JSON.stringify(sourceAuthored) === JSON.stringify(roomAuthored)) {
+  if (decision === 'already-current') {
     return { source: source.summary, roomVersion: row.crdt_version, changed: false };
   }
 
