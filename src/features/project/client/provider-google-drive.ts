@@ -45,7 +45,6 @@ export {
   getGoogleDriveProjectSourceDescriptor,
   openGoogleDriveProject,
   refreshGoogleDriveProject,
-  refreshGoogleDriveWorkBindingLocalRevision,
   hasGoogleDriveWorkingChanges,
   copyGoogleDriveProjectToBrowser,
   saveCurrentProjectToGoogleDrive,
