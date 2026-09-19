@@ -74,10 +74,7 @@ as $$
       and s.status = 'active'
       and s.expires_at > pg_catalog.now()
       and m.left_at is null
-      and m.user_id = coalesce(
-        pg_catalog.current_setting('request.jwt.claims', true)::jsonb ->> 'sub',
-        ''
-      )
+      and m.user_id = coalesce((select auth.jwt()->>'sub'), '')
       and (not p_require_editor or m.role = 'editor')
   );
 $$;
