@@ -32,15 +32,28 @@ export interface DriveCollaborationState {
   binding: GoogleDriveProjectBinding | null;
 }
 
-const idleState = (binding: GoogleDriveProjectBinding | null): DriveCollaborationState => ({
-  phase: binding ? 'idle' : 'unavailable',
-  message: binding ? 'Live co-editing available' : 'Save this Set to Drive before starting live co-editing.',
+const collaborationConfigured = () => (
+  process.env.NEXT_PUBLIC_CARDFORGE_COLLABORATION_ENABLED === 'true'
+  && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim())
+  && Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim())
+);
+
+const idleState = (binding: GoogleDriveProjectBinding | null): DriveCollaborationState => {
+  const configured = collaborationConfigured();
+  return {
+  phase: configured && binding ? 'idle' : 'unavailable',
+  message: !configured
+    ? 'Live co-editing is not enabled for this CardForge environment.'
+    : binding
+      ? 'Live co-editing available'
+      : 'Save this Set to Drive before starting live co-editing.',
   participantCount: 0,
-  available: Boolean(binding),
+  available: configured && Boolean(binding),
   isActive: false,
   canEdit: false,
   binding,
-});
+  };
+};
 
 const participantCount = (presence: Record<string, unknown[]>) => (
   Object.values(presence).reduce((total, entries) => total + entries.length, 0)
@@ -61,7 +74,7 @@ export function useDriveCollaborationSession({
   const generationRef = useRef(0);
 
   const refreshAvailability = useCallback(async () => {
-    if (!enabled || !setId) {
+    if (!enabled || !setId || !collaborationConfigured()) {
       bindingRef.current = null;
       setState(idleState(null));
       return null;
@@ -98,7 +111,7 @@ export function useDriveCollaborationSession({
   }, [refreshAvailability]);
 
   const start = useCallback(async () => {
-    if (!enabled || !setId) return;
+    if (!enabled || !setId || !collaborationConfigured()) return;
     if (liveRef.current) return;
     if (!sessionLoaded || !userLoaded || !clerkSession || !user) {
       setState((current) => ({
