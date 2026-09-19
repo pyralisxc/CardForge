@@ -16,7 +16,6 @@ import { decideCollaborationCheckpoint } from '../checkpointDecision';
 import {
   getCollaborationRole,
   getCollaborationTopic,
-  hasCollaborationCheckpointConflict,
   type CollaborationCheckpoint,
   type CollaborationRole,
   type CollaborationRoomState,
