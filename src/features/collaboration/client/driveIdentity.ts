@@ -3,8 +3,8 @@
 import {
   mapProjectDocumentIdentity,
   type ProjectDocumentIdentityMap,
+  type ProjectDocumentV1,
 } from '@/features/project/client/workspace';
-import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
 
 import {
   createCollaborationAuthoredDocument,
