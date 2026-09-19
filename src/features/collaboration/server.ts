@@ -1,4 +1,5 @@
 export {
+  checkpointGoogleDriveCollaborationSession,
   CollaborationSessionError,
   getGoogleDriveCollaborationSession,
   getGoogleDriveCollaborationState,
