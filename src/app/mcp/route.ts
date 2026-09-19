@@ -2,7 +2,7 @@ import { verifyClerkToken } from '@clerk/mcp-tools/next';
 import { auth } from '@clerk/nextjs/server';
 import { withMcpAuth } from 'mcp-handler';
 
-import { cardForgeMcpHandler } from '@/features/studio-documents/server/mcpServer';
+import { cardForgeMcpHandler } from '@/features/studio-documents/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
