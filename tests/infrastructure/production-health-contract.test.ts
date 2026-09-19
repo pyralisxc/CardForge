@@ -16,7 +16,7 @@ import {
 const page = (content: string, shell = '') => `<!doctype html><html><body>${shell}<main>${content}</main></body></html>`;
 const publication = (content: string, shell = '') => page(`<article>${content}</article>`, shell);
 const currentTerms = '<h1>Contributor Terms</h1><p>Contributors submit work through the review Pipeline.</p>';
-const currentPrivacy = '<h1>Privacy Policy</h1><p>Contributor profiles are provider records. Work remains separate from browser-local CardForge projects.</p>';
+const currentPrivacy = '<h1>Privacy Policy</h1><p>Contributor profiles are provider records. Work remains separate from browser-local CardForge projects.</p><p>CardForge requests the drive.file permission and does not request broad access to all files. It stores an encrypted Google OAuth refresh credential and uses Google Drive data only for user-directed storage, not for advertising. CardForge follows the Google API Services User Data Policy, including the Limited Use requirements.</p>';
 
 describe('production health semantic contracts', () => {
   it.each([['route', 9], ['deployment', 11]] as const)('runs the %s CLI without installed packages', async (category, count) => {
@@ -53,6 +53,12 @@ describe('production health semantic contracts', () => {
     expect(() => assertContributorPublicTruth(page('<p>Contributors may propose clearer public-site text. Public-site editing remains owner-only.</p>'))).toThrow(/retired public-site/iu);
     expect(() => assertPrivacyPublicTruth(publication('<h1>Privacy Policy</h1><p>developer profiles, owner/developer accounts, Owner Console, browser-local Studio projects</p>'))).toThrow(/retired/iu);
     expect(() => assertContributorTermsPublicTruth(publication('<h1>Developer Contributor Terms</h1><p>Developer votes use the Developer path.</p>'))).toThrow(/retired/iu);
+  });
+
+  it('rejects a Privacy publication that loses its Google Drive public-data disclosure', () => {
+    expect(() => assertPrivacyPublicTruth(publication(
+      '<h1>Privacy Policy</h1><p>Contributor profiles are provider records. Work remains separate from browser-local CardForge projects.</p>',
+    ))).toThrow(/Google Drive data-use/iu);
   });
 
   it('accepts the current Contributor and legal vocabulary', () => {

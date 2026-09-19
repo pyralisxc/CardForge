@@ -217,6 +217,30 @@ describe('Google Drive provider boundaries', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it('refuses Picker access when a saved connection contains broader Drive authority', async () => {
+    const query = selectConnectionQuery();
+    query.maybeSingle.mockResolvedValue({
+      data: {
+        ...connectionRow(),
+        granted_scopes: [
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive.readonly',
+        ],
+      },
+      error: null,
+    });
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(getGoogleDrivePickerConfiguration('user-1')).rejects.toMatchObject({
+      status: 409,
+      kind: 'conflict',
+      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('does not expose a machine-only Google token error as user-facing copy', () => {
     expect(classifyGoogleProviderFailure(500, {
       error: 'internal_failure',

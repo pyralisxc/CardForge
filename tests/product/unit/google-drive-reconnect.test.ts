@@ -51,10 +51,10 @@ const installConnectionStore = (existing = existingConnection()) => {
   return { query, getUpsertPayload: () => upsertPayload };
 };
 
-const tokenResponse = () => Response.json({
+const tokenResponse = (scope = 'openid email https://www.googleapis.com/auth/drive.file') => Response.json({
   access_token: 'new-access-token',
   refresh_token: 'new-refresh-token',
-  scope: 'openid email https://www.googleapis.com/auth/drive.file',
+  scope,
 });
 
 const userInfoResponse = (sub = 'google-user-1') => Response.json({
@@ -133,6 +133,23 @@ describe('Google Drive reconnect destination safety', () => {
       status: 'error',
     });
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('fails closed before persistence when Google returns a broader Drive grant', async () => {
+    const store = installConnectionStore();
+    const fetch = vi.fn().mockResolvedValueOnce(tokenResponse(
+      'openid email https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+    ));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(connectGoogleDriveProjectStorage({ ownerUserId: 'user-1', code: 'fresh-code' })).rejects.toMatchObject({
+      status: 409,
+      kind: 'conflict',
+      message: 'Google granted Drive permissions broader than CardForge permits. The connection was not saved.',
+      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(store.query.upsert).not.toHaveBeenCalled();
   });
 
   it('keeps a failed authorization exchange in the unavailable boundary', async () => {

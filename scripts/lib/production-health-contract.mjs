@@ -68,6 +68,17 @@ export const assertPrivacyPublicTruth = (html) => {
   if (!/Contributor profiles/iu.test(body) || !/browser-local CardForge projects/iu.test(body)) {
     throw new Error('Privacy publication is missing current Contributor or local-project language');
   }
+  const googleDriveClaims = [
+    /drive\.file/iu,
+    /does not request broad access to all files/iu,
+    /encrypted Google OAuth refresh credential/iu,
+    /Google API Services User Data Policy/iu,
+    /Limited Use requirements/iu,
+    /not for advertising/iu,
+  ];
+  if (googleDriveClaims.some((claim) => !claim.test(body))) {
+    throw new Error('Privacy publication is missing the public Google Drive data-use or Limited Use disclosure');
+  }
 };
 
 export const assertContributorTermsPublicTruth = (html) => {

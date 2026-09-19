@@ -2,6 +2,7 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
+  getUnexpectedGoogleDriveScopes,
   isGoogleDriveFileId,
   type GoogleDriveFolderSelection,
   type GoogleDrivePickerConfiguration,
@@ -22,6 +23,7 @@ type PickerConnectionRow = {
   refresh_token_ciphertext: string;
   refresh_token_iv: string;
   refresh_token_auth_tag: string;
+  granted_scopes: string[] | null;
   root_folder_id: string;
   root_folder_resource_key: string | null;
 };
@@ -35,7 +37,7 @@ type GoogleDriveFolderMetadata = {
   capabilities?: { canAddChildren?: boolean };
 };
 
-const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,root_folder_id,root_folder_resource_key';
+const PICKER_CONNECTION_COLUMNS = 'id,refresh_token_ciphertext,refresh_token_iv,refresh_token_auth_tag,granted_scopes,root_folder_id,root_folder_resource_key';
 
 const requireStore = () => {
   const database = getSupabaseServerClient();
@@ -62,7 +64,18 @@ const getPickerConnection = async (ownerUserId: string): Promise<PickerConnectio
       nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
-  return data as unknown as PickerConnectionRow;
+  const row = data as unknown as PickerConnectionRow;
+  if (getUnexpectedGoogleDriveScopes(row.granted_scopes ?? []).length > 0) {
+    throw new ProjectStorageProviderError(
+      'Google granted Drive permissions broader than CardForge permits. The connection cannot be used.',
+      409,
+      {
+        kind: 'conflict',
+        nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
+      },
+    );
+  }
+  return row;
 };
 
 const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<string> => {

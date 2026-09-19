@@ -5,7 +5,7 @@ import {
   clearCachedGoogleDriveProjectPreviews,
   getCachedGoogleDriveProjectPreview,
 } from '@/features/project/client/provider-google-drive';
-import { hasGoogleDriveProjectRevisionConflict } from '@/features/project/model/googleDriveProject';
+import { getUnexpectedGoogleDriveScopes, hasGoogleDriveProjectRevisionConflict } from '@/features/project/model/googleDriveProject';
 import {
   GOOGLE_DRIVE_FILE_SCOPE,
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
@@ -22,6 +22,24 @@ describe('Google Drive project storage', () => {
     expect(GOOGLE_DRIVE_FILE_SCOPE).toBe('https://www.googleapis.com/auth/drive.file');
     expect(GOOGLE_DRIVE_PROJECT_MIME_TYPE).toBe('application/vnd.cardforge.project+zip');
     expect(GOOGLE_DRIVE_ROOT_FOLDER_NAME).toBe('CardForge');
+  });
+
+  it('rejects every broader Google Drive scope while allowing per-file access', () => {
+    expect(getUnexpectedGoogleDriveScopes([
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
+      GOOGLE_DRIVE_FILE_SCOPE,
+    ])).toEqual([]);
+    expect(getUnexpectedGoogleDriveScopes([
+      GOOGLE_DRIVE_FILE_SCOPE,
+      'https://www.googleapis.com/auth/drive.readonly',
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/drive.metadata.readonly',
+    ])).toEqual([
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/drive.metadata.readonly',
+      'https://www.googleapis.com/auth/drive.readonly',
+    ]);
   });
 
   it('builds exact Library return paths for connected storage', () => {
