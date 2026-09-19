@@ -3,6 +3,7 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import * as Y from 'yjs';
 
+import type { GoogleDriveProjectSummary } from '@/features/project/client/provider-google-drive';
 import type { ProjectDocumentIdentityMap } from '@/features/project/client/workspace';
 
 import type { CollaborationRoomState, CollaborationSessionSummary } from '../model';
@@ -49,6 +50,8 @@ export interface DriveCollaborationClientSession {
   bridge: CollaborationWorkspaceBridge;
   channel: RealtimeChannel;
   getPresence: () => Record<string, unknown[]>;
+  isCheckpointLeader: () => boolean;
+  checkpointNow: () => Promise<void>;
   destroy: () => Promise<void>;
 }
 
@@ -59,6 +62,8 @@ export const startDriveCollaborationClientSession = async ({
   participant,
   getClerkToken,
   onError,
+  onCheckpoint,
+  onPresenceChange,
 }: {
   fileId: string;
   localSetId: string;
@@ -66,6 +71,8 @@ export const startDriveCollaborationClientSession = async ({
   participant: CollaborationRealtimeParticipant;
   getClerkToken: () => Promise<string | null>;
   onError?: (error: Error) => void;
+  onCheckpoint?: (source: GoogleDriveProjectSummary) => void | Promise<void>;
+  onPresenceChange?: (presence: Record<string, unknown[]>) => void;
 }): Promise<DriveCollaborationClientSession> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
@@ -110,6 +117,48 @@ export const startDriveCollaborationClientSession = async ({
 
   let bridge: CollaborationWorkspaceBridge | null = null;
   let writeChain = Promise.resolve();
+  let checkpointLeader = false;
+  let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const updateCheckpointLeader = () => {
+    const presence = channel.presenceState() as Record<string, Array<{ role?: unknown }>>;
+    const editors = Object.entries(presence)
+      .filter(([, entries]) => entries.some((entry) => entry.role === 'editor'))
+      .map(([key]) => key)
+      .sort();
+    checkpointLeader = session.role === 'editor' && editors[0] === participant.userId;
+    onPresenceChange?.(presence);
+  };
+
+  const checkpointNow = async () => {
+    if (session.role !== 'editor') return;
+    await writeChain;
+    const result = await readJson<{
+      source: GoogleDriveProjectSummary;
+      roomVersion: number;
+      changed: boolean;
+    }>(
+      await fetch(`/api/collaboration/google-drive/${encodeURIComponent(fileId)}/checkpoint`, {
+        method: 'POST',
+        cache: 'no-store',
+      }),
+      'Unable to checkpoint collaborative work to Drive.',
+    );
+    await onCheckpoint?.(result.source);
+  };
+
+  const scheduleCheckpoint = () => {
+    if (!checkpointLeader) return;
+    if (checkpointTimer) window.clearTimeout(checkpointTimer);
+    checkpointTimer = window.setTimeout(() => {
+      checkpointTimer = null;
+      void checkpointNow().catch((error) => {
+        onError?.(error instanceof Error ? error : new Error('Unable to checkpoint collaborative work to Drive.'));
+      });
+    }, 4_000);
+  };
+
+  channel.on('presence', { event: 'sync' }, updateCheckpointLeader);
 
   channel.on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
     const update = payload && typeof payload === 'object' && typeof payload.update === 'string'
@@ -118,6 +167,7 @@ export const startDriveCollaborationClientSession = async ({
     if (!update) return;
     try {
       bridge?.applyRemoteUpdate(decodeUpdate(update));
+      scheduleCheckpoint();
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to apply a live collaboration update.'));
     }
@@ -142,6 +192,7 @@ export const startDriveCollaborationClientSession = async ({
             role: session.role,
             joinedAt: new Date().toISOString(),
           });
+          updateCheckpointLeader();
           resolve();
         } catch (error) {
           reject(error);
@@ -189,6 +240,7 @@ export const startDriveCollaborationClientSession = async ({
         onError?.(error instanceof Error ? error : new Error('Unable to broadcast the live collaboration update.'));
       });
       persistUpdate(encoded);
+      scheduleCheckpoint();
     },
     toSharedIdentity: (authored) => mapCollaborationAuthoredDocumentIdentity(authored, identities, 'save'),
     fromSharedIdentity: (authored) => mapCollaborationAuthoredDocumentIdentity(authored, identities, 'open'),
@@ -204,9 +256,20 @@ export const startDriveCollaborationClientSession = async ({
     bridge,
     channel,
     getPresence: () => channel.presenceState(),
+    isCheckpointLeader: () => checkpointLeader,
+    checkpointNow,
     destroy: async () => {
       bridge?.destroy();
+      if (checkpointTimer) {
+        window.clearTimeout(checkpointTimer);
+        checkpointTimer = null;
+      }
       await writeChain.catch(() => undefined);
+      if (checkpointLeader) {
+        await checkpointNow().catch((error) => {
+          onError?.(error instanceof Error ? error : new Error('Unable to checkpoint collaborative work to Drive.'));
+        });
+      }
       await fetch(`/api/collaboration/google-drive/${encodeURIComponent(fileId)}`, {
         method: 'DELETE',
         cache: 'no-store',
