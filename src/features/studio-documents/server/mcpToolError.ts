@@ -5,7 +5,7 @@ import { ContributorAccessError } from '@/features/contributor-access/server';
 import { McpUsageStoreError } from '@/features/mcp-usage/server';
 import { PersonalLibraryStoreError } from '@/features/personal-library/server';
 import { ProjectStorageProviderError } from '@/features/project/server';
-import { StudioDocumentStoreError } from '@/features/studio-documents/server';
+import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
   RateLimitExceededError,
   RateLimitUnavailableError,
