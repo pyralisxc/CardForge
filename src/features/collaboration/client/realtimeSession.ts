@@ -244,6 +244,7 @@ export const startDriveCollaborationClientSession = async ({
     },
     toSharedIdentity: (authored) => mapCollaborationAuthoredDocumentIdentity(authored, identities, 'save'),
     fromSharedIdentity: (authored) => mapCollaborationAuthoredDocumentIdentity(authored, identities, 'open'),
+    readOnly: session.role !== 'editor',
   });
 
   // Reconcile the room bootstrap with any intentional unsaved local work that
