@@ -35,11 +35,22 @@ type CollaborationSessionRow = {
   expires_at: string;
 };
 
+export type CollaborationErrorCode =
+  | 'collaboration_auth_required'
+  | 'collaboration_capabilities_unavailable'
+  | 'collaboration_external_change'
+  | 'collaboration_invalid_file'
+  | 'collaboration_not_permitted'
+  | 'collaboration_project_revision_required'
+  | 'collaboration_provider_identity_unavailable'
+  | 'collaboration_session_changed'
+  | 'collaboration_unavailable';
+
 export class CollaborationSessionError extends Error {
   readonly status: number;
-  readonly code: string;
+  readonly code: CollaborationErrorCode;
 
-  constructor(message: string, status = 500, code = 'collaboration_unavailable') {
+  constructor(message: string, status = 500, code: CollaborationErrorCode = 'collaboration_unavailable') {
     super(message);
     this.name = 'CollaborationSessionError';
     this.status = status;
