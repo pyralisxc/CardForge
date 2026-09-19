@@ -15,8 +15,9 @@ import type { AccountExperienceProjection } from '@/features/account/client/expe
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
   ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
-  closeEnvironmentDetail, createSelectionSession, getVisibleEnvironmentZones, openEnvironmentDetail,
-  type EnvironmentViewer, type SelectionSession,
+  closeEnvironmentDetail, closeEnvironmentToolSession, createSelectionSession, getVisibleEnvironmentZones,
+  openEnvironmentDetail, openEnvironmentToolSession, setEnvironmentToolSessionDirty,
+  type EnvironmentToolSession, type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
 import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/client';
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
@@ -60,6 +61,24 @@ const LibraryDesignWorkspace = dynamic(() => import(
   '@/features/creator-workbench/client'
 ).then((module) => module.CreatorWorkbench), { ssr: false });
 
+type LibraryToolId = 'locations' | 'contribute' | 'edit-contribution' | 'design';
+
+const createLibraryToolSession = (
+  toolId: LibraryToolId,
+  targetIds: readonly string[] = [],
+): EnvironmentToolSession<LibraryToolId> => ({
+  instanceId: `library-${toolId}`,
+  toolId,
+  ownerFeature: toolId === 'locations'
+    ? 'storage-management'
+    : toolId === 'design'
+      ? 'template-editor'
+      : 'pipeline',
+  presentation: toolId === 'design' ? 'floating' : 'sheet',
+  targetIds: [...targetIds],
+  dirty: false,
+});
+
 interface UnifiedAccountLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   experience: AccountExperienceProjection;
@@ -82,9 +101,13 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [density, setDensity] = useState<LibraryDensity>('gallery');
   const [sharedType, setSharedType] = useState('all');
   const [selection, setSelection] = useState<SelectionSession>(() => createSelectionSession());
-  const [activeTool, setActiveTool] = useState<'locations' | 'contribute' | 'edit-contribution' | 'design' | null>(() => initialTool);
+  const [toolStack, setToolStack] = useState<EnvironmentToolSession<LibraryToolId>[]>(() => (
+    initialTool ? [createLibraryToolSession(initialTool)] : []
+  ));
+  const activeToolSession = toolStack.at(-1) ?? null;
+  const activeTool = activeToolSession?.toolId ?? null;
+  const toolDirty = activeToolSession?.dirty ?? false;
   const [designReturnFocusId, setDesignReturnFocusId] = useState<string | null>(null);
-  const [toolDirty, setToolDirty] = useState(false);
   const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
@@ -105,6 +128,19 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const visibleZones = getVisibleEnvironmentZones(viewer);
   const libraryDefinition = ENVIRONMENT_ZONES.find((zone) => zone.id === 'library')!;
   const zones = visibleZones.some((zone) => zone.id === 'library') ? visibleZones : [{ ...libraryDefinition, minimumAccess: 'guest' as const }, ...visibleZones];
+
+  const openTool = (toolId: LibraryToolId, targetIds: readonly string[] = []) => {
+    setToolStack(openEnvironmentToolSession([], createLibraryToolSession(toolId, targetIds)));
+  };
+  const closeTool = () => {
+    setToolStack((current) => closeEnvironmentToolSession(current).stack);
+  };
+  const setToolDirty = (dirty: boolean) => {
+    setToolStack((current) => {
+      const active = current.at(-1);
+      return active ? setEnvironmentToolSessionDirty(current, active.instanceId, dirty) : current;
+    });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -134,8 +170,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     setSelection(closeEnvironmentDetail);
     projection.router.replace(`/account?section=library&scope=${activeScope}`);
   }, [activeScope, projection.router, scope]);
-  useEffect(() => { if (initialTool) setActiveTool(initialTool); }, [initialTool]);
-  useEffect(() => { if (!activeTool) setToolDirty(false); }, [activeTool]);
+  useEffect(() => {
+    if (initialTool) setToolStack(openEnvironmentToolSession([], createLibraryToolSession(initialTool)));
+  }, [initialTool]);
 
   const { activeFailure, activeLoading, activeStatus, itemMap, scopeItems, sharedTypes, unfilteredScopeItemCount, viewItems } = useUnifiedLibraryView({
     activeScope,
@@ -174,12 +211,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   });
 
   const chooseScope = (nextScope: LibraryScope) => {
-    setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setActiveTool(null);
+    setScope(nextScope); setSharedType('all'); setSelection(closeEnvironmentDetail); setToolStack([]);
     projection.router.replace(`/account?section=library&scope=${nextScope}`);
   };
   const openContributionTool = ({ setId = null }: { setId?: string | null } = {}) => {
     setContributionTargetSetId(setId);
-    setActiveTool('contribute');
+    openTool('contribute', setId ? [setId] : []);
     closeDetail();
     const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'contribute' });
     if (setId) params.set('submitSet', setId);
@@ -271,7 +308,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     openContributionTool,
     projection,
     refresh,
-    setActiveTool,
+    closeTool,
+    openTool,
     setDesignReturnFocusId,
     setEditingSubmission,
     setLocationItem,
@@ -409,6 +447,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="Inspect one owner at a time. Changes affect only the named location."
           closeLabel="Close locations and connections"
           onClose={() => runAction(actions[0]!)}
+          presentation={activeToolSession?.presentation}
         >
           <DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />
           {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
@@ -422,6 +461,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="Use the same Library objects, exact revisions, voting rules, and publication lifecycle."
           closeLabel="Close contribution tool"
           onClose={() => runAction(actions[0]!)}
+          presentation={activeToolSession?.presentation}
         >
           <PipelineContributionPanel compact initialSubmitSetId={contributionTargetSetId} />
         </EnvironmentToolLayer>
@@ -434,6 +474,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           summary="Update the current submission without leaving its Library context or changing the shared object behind your back."
           closeLabel="Close submission editor"
           onClose={() => runAction(actions[0]!)}
+          presentation={activeToolSession?.presentation}
         >
           <PipelineSubmissionEditPanel
             submission={editingSubmission}
@@ -455,7 +496,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           onClose={() => runAction(actions[0]!)}
           dirty={toolDirty}
           onDirtyCloseRequest={() => setDiscardToolRequested(true)}
-          presentation="floating"
+          presentation={activeToolSession?.presentation}
         >
           <LibraryDesignWorkspace
             businessIdentity={businessIdentity}
