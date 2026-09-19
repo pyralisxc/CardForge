@@ -1,7 +1,9 @@
 export {
   CollaborationSessionError,
   getGoogleDriveCollaborationSession,
+  getGoogleDriveCollaborationState,
   leaveGoogleDriveCollaborationSession,
+  mergeGoogleDriveCollaborationUpdate,
   startOrJoinGoogleDriveCollaborationSession,
 } from './server/collaborationSessionStore';
 export {
@@ -15,6 +17,7 @@ export {
 export type { CollaborationErrorCode } from './server/collaborationSessionStore';
 export type {
   CollaborationCheckpoint,
+  CollaborationRoomState,
   CollaborationProvider,
   CollaborationProviderCapabilities,
   CollaborationRole,
