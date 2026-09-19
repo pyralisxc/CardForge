@@ -30,9 +30,7 @@ An audit, critique, product discussion, UX reaction, or “what if” is not imp
 
 Once the behavioral contract is Ready — or immediately for routine copy, styling, docs, narrow visual polish, and contained fixes whose contract already exists — load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
 
-For broad audits of **what CardForge currently is** — topology, ownership, dependency paths, blast radius, APIs, providers, MCP exposure, and structural evidence — use Development Intelligence as the repository-intelligence owner. The repository-owned `.development-intelligence/` checkpoint is accepted derived evidence and never overrides current source. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement and current source for consequential conclusions. `docs/product-direction.md` still owns what should change.
-
-For broad **code-structure discovery** — callers/references, cross-file paths, architecture, semantic source search, or implementation impact — load `.agents/skills/cardforge-codebase-context/SKILL.md` when the private `cardforge_codebase` MCP is available. Verify `jarvis_source_status` before trusting its graph/index, treat it only as derived acceleration over the managed `main` copy, and fall back to current source/GitHub whenever it is stale, unavailable, unknown, or commit-mismatched. Development Intelligence owns broad repository topology; Codebase MCP is only an optional accelerator for narrowing implementation paths.
+For broad audits and **code-structure discovery** — topology, ownership, callers/references, cross-file paths, architecture, dependency and impact paths, APIs, providers, MCP exposure, semantic source search, and structural evidence — use Development Intelligence as the repository-intelligence owner. Prefer its revision-bound search, tracing, architecture, coverage, evidence, change, and impact capabilities, then inspect the exact current source for consequential behavior conclusions. The repository-owned `.development-intelligence/` checkpoint is accepted derived evidence and never overrides current source. Use `npm run architecture:report` for CardForge-local dependency/public-interface enforcement. `docs/product-direction.md` still owns what should change.
 
 The lean skill remains CardForge's sole execution workflow. Founder-to-Feature resolves **what must be true**; Lean Repository Execution governs **how the approved objective is changed and verified**. Do not create planning ledgers, status diaries, progress folders, permanent feature-spec layers, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use compact inline working context instead.
 
@@ -113,3 +111,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
