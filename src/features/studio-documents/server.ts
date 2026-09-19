@@ -13,3 +13,4 @@ export * from './server/mcpToolInputSchemas';
 export * from './server/mcpPluginSkills';
 export * from './server/mcpTemplateToolResults';
 
+export { cardForgeMcpHandler } from './server/mcpServer';
