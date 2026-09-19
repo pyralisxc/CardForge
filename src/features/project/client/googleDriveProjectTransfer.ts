@@ -191,6 +191,24 @@ const createProjectPackage = async (name: string, workId?: string, identities?: 
   return { document, snapshot, blob, localProjectRevision: localSnapshot.manifest.projectRevision };
 };
 
+export const refreshGoogleDriveWorkBindingLocalRevision = async (
+  workId: string,
+): Promise<GoogleDriveProjectBinding> => {
+  const namespace = getScopedProjectStorageNamespace('project-assets');
+  const binding = await getGoogleDriveWorkBinding(workId, namespace);
+  if (!binding) throw new ProjectPackageError('The Drive-backed Set is no longer linked in this browser.');
+  const { localProjectRevision } = await createProjectPackage(
+    binding.name,
+    workId,
+    structuredClone(binding.identities ?? {}),
+  );
+  const next = { ...binding, localProjectRevision };
+  await persistWorkBinding(workId, next, namespace);
+  await persistBinding(next, namespace);
+  assertBindingScope(namespace);
+  return next;
+};
+
 const prepareUpload = async ({
   name,
   size,
