@@ -146,10 +146,12 @@ export const startDriveCollaborationClientSession = async ({
       'Unable to checkpoint collaborative work to Drive.',
     );
     await onCheckpoint?.(result.source);
-    await channel.send({
+    void channel.send({
       type: 'broadcast',
       event: CHECKPOINT_EVENT,
       payload: { source: result.source },
+    }).catch((error) => {
+      onError?.(error instanceof Error ? error : new Error('Drive saved, but the checkpoint receipt could not be broadcast to peers.'));
     });
   };
 
@@ -176,7 +178,9 @@ export const startDriveCollaborationClientSession = async ({
       || typeof source.providerRevision !== 'string'
       || typeof source.projectRevision !== 'string'
       || typeof source.modifiedAt !== 'string') return;
-    void onCheckpoint?.(source as GoogleDriveProjectSummary);
+    void Promise.resolve(onCheckpoint?.(source as GoogleDriveProjectSummary)).catch((error) => {
+      onError?.(error instanceof Error ? error : new Error('Unable to record a peer Drive checkpoint receipt.'));
+    });
   });
 
   channel.on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
