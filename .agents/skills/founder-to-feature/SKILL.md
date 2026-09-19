@@ -102,7 +102,7 @@ Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the
 
 - `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
-- generated `docs/product-surface-map.md` — compact observed current Product Reality; query the graph rather than hand-editing this projection when current placement/reachability matters;
+- `.development-intelligence/` — accepted derived structural checkpoint from Development Intelligence for broad current topology when useful; current source remains authoritative;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.
@@ -240,7 +240,7 @@ Promote only verified durable truth into its existing canonical owner:
 - `docs/risk-register.md` for unresolved material risk;
 - `AGENTS.md` only for repository-wide agent behavior that truly applies across objectives.
 
-`docs/product-surface-map.md` is generated observed reality, not an authored destination for product doctrine. Do not promote desired placement or future intent into it by hand; change code/semantic metadata or the Product Reality scanner and regenerate when observed topology changes.
+Development Intelligence is derived structural evidence, not an authored destination for product doctrine. Do not encode desired placement or future intent into repository-intelligence metadata; change CardForge code and canonical product/architecture documents, then let Development Intelligence observe the resulting repository.
 
 Use **promote, consolidate, replace**:
 
