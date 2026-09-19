@@ -211,7 +211,16 @@ export function useDriveCollaborationSession({
   const checkpointNow = useCallback(async () => {
     const live = liveRef.current;
     if (!live || live.session.role !== 'editor') return;
-    await live.checkpointNow();
+    try {
+      await live.checkpointNow();
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        phase: 'error',
+        message: error instanceof Error ? error.message : 'Unable to checkpoint collaborative work to Drive.',
+        isActive: Boolean(liveRef.current),
+      }));
+    }
   }, []);
 
   useEffect(() => {
