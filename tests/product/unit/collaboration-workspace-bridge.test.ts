@@ -4,6 +4,7 @@ import type { ProjectState } from '@/features/project/client/workspace';
 import {
   buildCollaborationWorkspacePatch,
   captureCollaborationAuthoredDocumentFromState,
+  mapCollaborationAuthoredDocumentIdentity,
 } from '@/features/collaboration/client';
 
 const baseState = (): ProjectState => ({
@@ -66,6 +67,27 @@ describe('collaboration workspace bridge', () => {
     expect(patch.storedCards.find((card) => card.uniqueId === 'shared-card')?.data.title).toBe('Remote title');
     expect(patch.storedCards.find((card) => card.uniqueId === 'other-card')?.data.title).toBe('Other');
     expect(patch.userTemplates.map((template) => template.id)).toEqual(['other-template']);
+  });
+
+  it('round-trips browser-local identities through the provider-portable collaboration identity', () => {
+    const state = baseState();
+    const local = captureCollaborationAuthoredDocumentFromState(state, 'shared-set');
+    const identities = {
+      set: { 'portable-set': 'shared-set' },
+      card: { 'portable-card': 'shared-card' },
+      template: { 'portable-template': 'shared-template' },
+    };
+    const portable = mapCollaborationAuthoredDocumentIdentity(local, identities, 'save');
+    expect(portable.set.id).toBe('portable-set');
+    expect(portable.cards[0]?.uniqueId).toBe('portable-card');
+    expect(portable.cards[0]?.templateId).toBe('portable-template');
+    expect(portable.templates[0]?.id).toBe('portable-template');
+
+    const reopened = mapCollaborationAuthoredDocumentIdentity(portable, identities, 'open');
+    expect(reopened.set.id).toBe('shared-set');
+    expect(reopened.cards[0]?.uniqueId).toBe('shared-card');
+    expect(reopened.cards[0]?.templateId).toBe('shared-template');
+    expect(reopened.templates[0]?.id).toBe('shared-template');
   });
 
   it('creates a personal Template override only when collaborative content differs from the shared/default source', () => {
