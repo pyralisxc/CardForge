@@ -1,4 +1,10 @@
-import type { FeatureOwnerId } from './model';
+import {
+  closeEnvironmentToolSession,
+  openEnvironmentToolSession,
+  setEnvironmentToolSessionDirty,
+  type EnvironmentToolPresentation,
+  type EnvironmentToolSession,
+} from './toolSession';
 
 export interface CreatorFocusPath {
   setId: string | null;
@@ -16,16 +22,8 @@ export interface CreatorLens {
   filterIds: string[];
 }
 
-export type CreatorToolPresentation = 'inline' | 'floating' | 'inspector' | 'sheet' | 'provider-handoff';
-
-export interface CreatorToolSession {
-  instanceId: string;
-  toolId: string;
-  ownerFeature: FeatureOwnerId;
-  presentation: CreatorToolPresentation;
-  targetIds: string[];
-  dirty: boolean;
-}
+export type CreatorToolPresentation = EnvironmentToolPresentation;
+export type CreatorToolSession = EnvironmentToolSession;
 
 export interface CreatorInteractionSession {
   focusPath: CreatorFocusPath;
@@ -126,10 +124,7 @@ export const openCreatorTool = (
   tool: CreatorToolSession,
 ): CreatorInteractionSession => ({
   ...session,
-  toolStack: [
-    ...session.toolStack.filter((candidate) => candidate.instanceId !== tool.instanceId),
-    { ...tool, targetIds: [...tool.targetIds] },
-  ],
+  toolStack: openEnvironmentToolSession(session.toolStack, tool),
 });
 
 export const setCreatorToolDirty = (
@@ -138,16 +133,15 @@ export const setCreatorToolDirty = (
   dirty: boolean,
 ): CreatorInteractionSession => ({
   ...session,
-  toolStack: session.toolStack.map((tool) => (
-    tool.instanceId === instanceId ? { ...tool, dirty } : tool
-  )),
+  toolStack: setEnvironmentToolSessionDirty(session.toolStack, instanceId, dirty),
 });
 
 export const closeCreatorContext = (
   session: CreatorInteractionSession,
 ): { session: CreatorInteractionSession; closed: CreatorContextClosed } => {
   if (session.toolStack.length > 0) {
-    return { session: { ...session, toolStack: session.toolStack.slice(0, -1) }, closed: 'tool' };
+    const nextTools = closeEnvironmentToolSession(session.toolStack);
+    return { session: { ...session, toolStack: nextTools.stack }, closed: 'tool' };
   }
   if (session.inspectionTargetId) {
     return { session: { ...session, inspectionTargetId: null }, closed: 'inspection' };
