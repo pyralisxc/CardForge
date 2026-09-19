@@ -15,6 +15,7 @@ import {
 import { applyCollaborationUpdate } from '../yjsAuthoredDocument';
 
 const BROADCAST_EVENT = 'yjs-update';
+const CHECKPOINT_EVENT = 'drive-checkpoint';
 
 const encodeUpdate = (update: Uint8Array): string => {
   let binary = '';
@@ -145,6 +146,11 @@ export const startDriveCollaborationClientSession = async ({
       'Unable to checkpoint collaborative work to Drive.',
     );
     await onCheckpoint?.(result.source);
+    await channel.send({
+      type: 'broadcast',
+      event: CHECKPOINT_EVENT,
+      payload: { source: result.source },
+    });
   };
 
   const scheduleCheckpoint = () => {
@@ -159,6 +165,19 @@ export const startDriveCollaborationClientSession = async ({
   };
 
   channel.on('presence', { event: 'sync' }, updateCheckpointLeader);
+
+  channel.on('broadcast', { event: CHECKPOINT_EVENT }, ({ payload }) => {
+    const source = payload && typeof payload === 'object' && payload.source && typeof payload.source === 'object'
+      ? payload.source as Partial<GoogleDriveProjectSummary>
+      : null;
+    if (!source
+      || source.fileId !== fileId
+      || typeof source.name !== 'string'
+      || typeof source.providerRevision !== 'string'
+      || typeof source.projectRevision !== 'string'
+      || typeof source.modifiedAt !== 'string') return;
+    void onCheckpoint?.(source as GoogleDriveProjectSummary);
+  });
 
   channel.on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
     const update = payload && typeof payload === 'object' && typeof payload.update === 'string'
