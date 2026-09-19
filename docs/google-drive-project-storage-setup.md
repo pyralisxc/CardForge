@@ -150,6 +150,25 @@ OAuth client secret and storage-token encryption key are server secrets. Picker 
 
 Production uses values from the production Google Cloud project. `vercel-preview` uses values from the Preview/testing Google Cloud project. Do not share the OAuth client, Picker key, or token-encryption key across these environment projects, and never scope Preview credentials to all Vercel Preview deployments.
 
+### Live collaboration hosting
+
+Drive-backed live co-editing adds browser-safe Supabase Realtime configuration. Preview needs:
+
+- `NEXT_PUBLIC_SUPABASE_URL` — the **Card Forge Staging** project URL.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the active modern publishable key for **Card Forge Staging**.
+- `NEXT_PUBLIC_CARDFORGE_COLLABORATION_ENABLED=true` — enable only after the staging database migrations and Clerk/Supabase auth integration below are configured.
+
+Production should keep `NEXT_PUBLIC_CARDFORGE_COLLABORATION_ENABLED=false` until the two-account acceptance matrix passes. The URL and publishable key are intentionally browser-visible; authorization comes from the signed Clerk session token and private Realtime RLS.
+
+In the **Card Forge Staging** Supabase project, configure Clerk as a Third-Party Auth provider using the environment's Clerk domain/issuer. Use Clerk's normal session token; do not create a legacy Supabase JWT template. The Clerk token must authenticate into Supabase as the `authenticated` role. CardForge's browser Supabase client passes `session.getToken()` through the current `accessToken` integration.
+
+Apply both collaboration migrations before enabling the Preview flag:
+
+- `supabase/migrations/20260919101500_drive_collaboration_sessions.sql`
+- `supabase/migrations/20260919115000_harden_collaboration_realtime_rls.sql`
+
+The Realtime authorization helper lives in the non-exposed `cardforge_private` schema. It is `SECURITY DEFINER` only so private-channel RLS can verify server-owned room membership; it is deliberately absent from the public RPC surface.
+
 CardForge initiates resumable Drive uploads on the server so refresh/access credentials remain private, then the authenticated browser streams the project bytes directly to Google's session URI. The initiation request must carry the same canonical application origin that performs the browser upload; otherwise Google's upload response cannot satisfy that browser origin and the project remains unchanged.
 
 ## Database migration
