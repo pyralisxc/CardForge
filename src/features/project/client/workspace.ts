@@ -7,6 +7,7 @@ export type {
   ProjectWorkspaceApplyMode,
   ProjectWorkspaceApplySummary,
 } from '../client/projectWorkspaceDocument';
+export type { ProjectDocumentV1 } from '../model/projectDocument';
 export { SPATIAL_WORKSPACE_PREFERENCE_KEY, useSpatialWorkspacePreferences } from '../client/useSpatialWorkspacePreferences';
 export {
   selectAllGeneratedDisplayCards,
