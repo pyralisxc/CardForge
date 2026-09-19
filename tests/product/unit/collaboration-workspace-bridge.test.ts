@@ -45,7 +45,7 @@ const baseState = (): ProjectState => ({
   pdfDuplexLayout: 'flip-long-edge',
   exportMode: 'png',
   exportDpi: 300,
-} as ProjectState);
+} as unknown as ProjectState);
 
 describe('collaboration workspace bridge', () => {
   it('captures only the target Set authored core', () => {
