@@ -207,9 +207,7 @@ export const createCollaborationWorkspaceBridge = ({
     if (origin === LOCAL_ORIGIN) void onLocalUpdate(update.slice());
   };
 
-  document.on('update', handleDocumentUpdate);
-  const unsubscribe = useProjectStore.subscribe(() => syncFromWorkspace());
-  if (readOnly) {
+  const projectRoomToWorkspace = () => {
     const shared = readCollaborationAuthoredDocument(document);
     const authored = fromSharedIdentity(shared);
     applyingRemote = true;
@@ -219,6 +217,15 @@ export const createCollaborationWorkspaceBridge = ({
     } finally {
       applyingRemote = false;
     }
+  };
+
+  document.on('update', handleDocumentUpdate);
+  const unsubscribe = useProjectStore.subscribe(() => {
+    if (readOnly && !applyingRemote) projectRoomToWorkspace();
+    else syncFromWorkspace();
+  });
+  if (readOnly) {
+    projectRoomToWorkspace();
   } else {
     lastFingerprint = JSON.stringify(captureShared());
     syncFromWorkspace();
