@@ -618,6 +618,7 @@ export const listGoogleDriveProjectsPage = async ({
   }
   const row = await getConnectionRow(ownerUserId);
   if (!row) return { connection: toConnectionSummary(null, true), projects: [] };
+  assertGoogleDriveLeastPrivilege(row.granted_scopes);
   const accessToken = await refreshGoogleAccessToken(row);
   const folder = await getDriveFolderMetadata({ accessToken, folderId: row.root_folder_id, resourceKey: row.root_folder_resource_key });
   const url = new URL(`${GOOGLE_DRIVE_API}/files`);
