@@ -148,20 +148,25 @@ export const createCollaborationWorkspaceBridge = ({
   document,
   setId,
   onLocalUpdate,
+  toSharedIdentity = (authored) => authored,
+  fromSharedIdentity = (authored) => authored,
 }: {
   document: Y.Doc;
   setId: string;
   onLocalUpdate: (update: Uint8Array) => void | Promise<void>;
+  toSharedIdentity?: (authored: CollaborationAuthoredDocument) => CollaborationAuthoredDocument;
+  fromSharedIdentity?: (authored: CollaborationAuthoredDocument) => CollaborationAuthoredDocument;
 }): CollaborationWorkspaceBridge => {
   let destroyed = false;
   let applyingRemote = false;
   let lastFingerprint = '';
 
-  const capture = () => captureCollaborationAuthoredDocumentFromState(useProjectStore.getState(), setId);
+  const captureLocal = () => captureCollaborationAuthoredDocumentFromState(useProjectStore.getState(), setId);
+  const captureShared = () => toSharedIdentity(captureLocal());
 
   const syncFromWorkspace = () => {
     if (destroyed || applyingRemote) return;
-    const authored = capture();
+    const authored = captureShared();
     const fingerprint = JSON.stringify(authored);
     if (fingerprint === lastFingerprint) return;
     lastFingerprint = fingerprint;
@@ -173,9 +178,10 @@ export const createCollaborationWorkspaceBridge = ({
     if (origin === REMOTE_ORIGIN) {
       applyingRemote = true;
       try {
-        const authored = readCollaborationAuthoredDocument(document);
+        const shared = readCollaborationAuthoredDocument(document);
+        const authored = fromSharedIdentity(shared);
         applyCollaborationAuthoredDocumentToWorkspace(authored);
-        lastFingerprint = JSON.stringify(authored);
+        lastFingerprint = JSON.stringify(shared);
       } finally {
         applyingRemote = false;
       }
@@ -186,7 +192,7 @@ export const createCollaborationWorkspaceBridge = ({
 
   document.on('update', handleDocumentUpdate);
   const unsubscribe = useProjectStore.subscribe(() => syncFromWorkspace());
-  lastFingerprint = JSON.stringify(capture());
+  lastFingerprint = JSON.stringify(captureShared());
   syncFromWorkspace();
 
   return {
