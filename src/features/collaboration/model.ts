@@ -18,6 +18,11 @@ export interface CollaborationCheckpoint {
   projectRevision: string;
 }
 
+export interface CollaborationRoomState {
+  state: string;
+  version: number;
+}
+
 export interface CollaborationSessionSummary {
   id: string;
   provider: CollaborationProvider;
