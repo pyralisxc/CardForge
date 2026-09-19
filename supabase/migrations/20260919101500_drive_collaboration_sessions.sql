@@ -9,7 +9,7 @@ create table if not exists public.cardforge_collaboration_sessions (
   base_project_revision text not null check (char_length(btrim(base_project_revision)) between 1 and 160),
   checkpoint_provider_revision text not null check (char_length(btrim(checkpoint_provider_revision)) between 1 and 160),
   checkpoint_project_revision text not null check (char_length(btrim(checkpoint_project_revision)) between 1 and 160),
-  crdt_state bytea null,
+  crdt_state text null check (crdt_state is null or char_length(crdt_state) <= 5600000),
   crdt_version bigint not null default 0 check (crdt_version >= 0),
   last_activity_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '8 hours'),
@@ -21,7 +21,7 @@ comment on table public.cardforge_collaboration_sessions is
   'Ephemeral authenticated collaboration rooms for provider-owned CardForge work. Drive remains the durable project owner; crdt_state is temporary session continuity only.';
 
 comment on column public.cardforge_collaboration_sessions.crdt_state is
-  'Reserved for a bounded merged CRDT state update. It is not a durable creator backup and must never outlive the collaboration retention boundary.';
+  'Base64url-encoded bounded merged Yjs state for reconnect continuity. It is not a durable creator backup and must never outlive the collaboration retention boundary.';
 
 create unique index if not exists cardforge_collaboration_one_active_provider_file
   on public.cardforge_collaboration_sessions (provider, provider_file_id)
