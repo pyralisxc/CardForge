@@ -1,3 +1,4 @@
+export { mapCollaborationAuthoredDocumentIdentity } from './client/driveIdentity';
 export {
   applyCollaborationAuthoredDocumentToWorkspace,
   buildCollaborationWorkspacePatch,
