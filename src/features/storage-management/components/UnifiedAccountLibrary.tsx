@@ -148,14 +148,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (requestedScope === 'published' || requestedScope === 'pipeline' || requestedScope === 'campaigns') setScope(requestedScope);
     const tool = params.get('tool');
     if (tool === 'contribute' && experience.contributor.canSubmit) {
-      setActiveTool('contribute');
-      setContributionTargetSetId(params.get('submitSet'));
+      const setId = params.get('submitSet');
+      setToolStack(openEnvironmentToolSession([], createLibraryToolSession('contribute', setId ? [setId] : [])));
+      setContributionTargetSetId(setId);
     } else if (tool === 'design' && params.get('artifact')) {
       const templateId = params.get('artifact')!;
       const store = useProjectStore.getState();
       store.setTemplateEditorSelectedTemplateId(templateId);
       store.setStudioView('template');
-      setActiveTool('design');
+      setToolStack(openEnvironmentToolSession([], createLibraryToolSession('design', [templateId])));
     }
     setCampaignTargetId(params.get('campaign'));
     const status = params.get('storage');
