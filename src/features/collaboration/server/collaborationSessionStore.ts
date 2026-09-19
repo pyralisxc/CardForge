@@ -1,3 +1,5 @@
+import * as Y from 'yjs';
+
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   getGoogleDriveProject,
@@ -12,12 +14,22 @@ import {
   hasCollaborationCheckpointConflict,
   type CollaborationCheckpoint,
   type CollaborationRole,
+  type CollaborationRoomState,
   type CollaborationSessionStatus,
   type CollaborationSessionSummary,
 } from '../model';
+import {
+  applyCollaborationUpdate,
+  createCollaborationAuthoredDocument,
+  createYjsCollaborationDocument,
+  encodeCollaborationState,
+} from '../yjsAuthoredDocument';
 
 const SESSION_HOURS = 8;
-const SESSION_COLUMNS = 'id,provider,provider_file_id,work_id,created_by_user_id,status,base_provider_revision,base_project_revision,checkpoint_provider_revision,checkpoint_project_revision,created_at,updated_at,expires_at';
+export const MAX_COLLABORATION_STATE_BYTES = 4 * 1024 * 1024;
+export const MAX_COLLABORATION_UPDATE_BYTES = 512 * 1024;
+const MAX_CRDT_WRITE_ATTEMPTS = 4;
+const SESSION_COLUMNS = 'id,provider,provider_file_id,work_id,created_by_user_id,status,base_provider_revision,base_project_revision,checkpoint_provider_revision,checkpoint_project_revision,crdt_state,crdt_version,created_at,updated_at,expires_at';
 
 type CollaborationSessionRow = {
   id: string;
@@ -30,6 +42,8 @@ type CollaborationSessionRow = {
   base_project_revision: string;
   checkpoint_provider_revision: string;
   checkpoint_project_revision: string;
+  crdt_state: string | null;
+  crdt_version: number;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -57,6 +71,61 @@ export class CollaborationSessionError extends Error {
     this.code = code;
   }
 }
+
+const encodeRoomState = (state: Uint8Array): string => {
+  if (state.byteLength <= 0 || state.byteLength > MAX_COLLABORATION_STATE_BYTES) {
+    throw new CollaborationSessionError(
+      'This collaboration state exceeds the safe live-session limit.',
+      413,
+      'collaboration_unavailable',
+    );
+  }
+  return Buffer.from(state).toString('base64url');
+};
+
+const decodeRoomState = (state: string | null): Uint8Array => {
+  if (!state?.trim()) {
+    throw new CollaborationSessionError(
+      'The collaboration room has no recoverable live state.',
+      409,
+      'collaboration_session_changed',
+    );
+  }
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(state, 'base64url');
+  } catch {
+    throw new CollaborationSessionError(
+      'The collaboration room state is unreadable.',
+      409,
+      'collaboration_session_changed',
+    );
+  }
+  if (bytes.byteLength <= 0 || bytes.byteLength > MAX_COLLABORATION_STATE_BYTES) {
+    throw new CollaborationSessionError(
+      'The collaboration room state is outside the safe live-session limit.',
+      409,
+      'collaboration_session_changed',
+    );
+  }
+  return new Uint8Array(bytes);
+};
+
+const decodeIncomingUpdate = (value: string): Uint8Array => {
+  if (!value?.trim()) {
+    throw new CollaborationSessionError('A collaboration update is required.', 400, 'collaboration_invalid_file');
+  }
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(value, 'base64url');
+  } catch {
+    throw new CollaborationSessionError('The collaboration update is invalid.', 400, 'collaboration_invalid_file');
+  }
+  if (bytes.byteLength <= 0 || bytes.byteLength > MAX_COLLABORATION_UPDATE_BYTES) {
+    throw new CollaborationSessionError('The collaboration update exceeds the safe live-update limit.', 413, 'collaboration_unavailable');
+  }
+  return new Uint8Array(bytes);
+};
 
 const requireStore = () => {
   const database = getSupabaseServerClient();
@@ -143,10 +212,12 @@ const createSession = async ({
   ownerUserId,
   project,
   checkpoint,
+  crdtState,
 }: {
   ownerUserId: string;
   project: GoogleDriveProjectSummary;
   checkpoint: CollaborationCheckpoint;
+  crdtState: string;
 }): Promise<CollaborationSessionRow> => {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_HOURS * 60 * 60 * 1000).toISOString();
@@ -162,6 +233,8 @@ const createSession = async ({
       base_project_revision: checkpoint.projectRevision,
       checkpoint_provider_revision: checkpoint.providerRevision,
       checkpoint_project_revision: checkpoint.projectRevision,
+      crdt_state: crdtState,
+      crdt_version: 0,
       last_activity_at: now.toISOString(),
       expires_at: expiresAt,
     })
@@ -262,7 +335,13 @@ export const startOrJoinGoogleDriveCollaborationSession = async ({
   }
   const current = getCheckpoint(project);
   let row = await readActiveSession(fileId);
-  if (!row) row = await createSession({ ownerUserId, project, checkpoint: current });
+  if (!row) {
+    const authored = createCollaborationAuthoredDocument(source.document);
+    const document = createYjsCollaborationDocument(authored);
+    const crdtState = encodeRoomState(encodeCollaborationState(document));
+    document.destroy();
+    row = await createSession({ ownerUserId, project, checkpoint: current, crdtState });
+  }
 
   if (hasCollaborationCheckpointConflict({
     providerRevision: row.checkpoint_provider_revision,
@@ -280,6 +359,27 @@ export const startOrJoinGoogleDriveCollaborationSession = async ({
   return toSummary(row, role);
 };
 
+const getMembershipRole = async ({
+  sessionId,
+  ownerUserId,
+}: {
+  sessionId: string;
+  ownerUserId: string;
+}): Promise<CollaborationRole | null> => {
+  const { data, error } = await requireStore()
+    .from('cardforge_collaboration_members')
+    .select('role')
+    .eq('session_id', sessionId)
+    .eq('user_id', ownerUserId)
+    .is('left_at', null)
+    .maybeSingle();
+  if (error) {
+    console.error('Unable to read CardForge collaboration membership:', error);
+    throw new CollaborationSessionError('CardForge could not read your live collaboration membership.');
+  }
+  return data?.role === 'viewer' || data?.role === 'editor' ? data.role : null;
+};
+
 export const getGoogleDriveCollaborationSession = async ({
   ownerUserId,
   fileId,
@@ -290,19 +390,88 @@ export const getGoogleDriveCollaborationSession = async ({
   if (!isGoogleDriveFileId(fileId)) return null;
   const row = await readActiveSession(fileId);
   if (!row) return null;
-  const { data, error } = await requireStore()
-    .from('cardforge_collaboration_members')
-    .select('role')
-    .eq('session_id', row.id)
-    .eq('user_id', ownerUserId)
-    .is('left_at', null)
-    .maybeSingle();
-  if (error) {
-    console.error('Unable to read CardForge collaboration membership:', error);
-    throw new CollaborationSessionError('CardForge could not read your live collaboration membership.');
+  const role = await getMembershipRole({ sessionId: row.id, ownerUserId });
+  if (!role) return null;
+  return toSummary(row, role);
+};
+
+export const getGoogleDriveCollaborationState = async ({
+  ownerUserId,
+  fileId,
+}: {
+  ownerUserId: string;
+  fileId: string;
+}): Promise<CollaborationRoomState> => {
+  if (!isGoogleDriveFileId(fileId)) {
+    throw new CollaborationSessionError('Google Drive file id is invalid.', 400, 'collaboration_invalid_file');
   }
-  if (!data || (data.role !== 'viewer' && data.role !== 'editor')) return null;
-  return toSummary(row, data.role);
+  const row = await readActiveSession(fileId);
+  if (!row) {
+    throw new CollaborationSessionError('No active collaboration session exists for this Drive file.', 404, 'collaboration_session_changed');
+  }
+  const role = await getMembershipRole({ sessionId: row.id, ownerUserId });
+  if (!role) throw new CollaborationSessionError('Join this collaboration session before reading its live state.', 403, 'collaboration_not_permitted');
+  const state = row.crdt_state;
+  decodeRoomState(state);
+  return { state: state!, version: row.crdt_version };
+};
+
+export const mergeGoogleDriveCollaborationUpdate = async ({
+  ownerUserId,
+  fileId,
+  update,
+}: {
+  ownerUserId: string;
+  fileId: string;
+  update: string;
+}): Promise<CollaborationRoomState> => {
+  if (!isGoogleDriveFileId(fileId)) {
+    throw new CollaborationSessionError('Google Drive file id is invalid.', 400, 'collaboration_invalid_file');
+  }
+  const incoming = decodeIncomingUpdate(update);
+  for (let attempt = 0; attempt < MAX_CRDT_WRITE_ATTEMPTS; attempt += 1) {
+    const row = await readActiveSession(fileId);
+    if (!row) throw new CollaborationSessionError('The collaboration session is no longer active.', 409, 'collaboration_session_changed');
+    const role = await getMembershipRole({ sessionId: row.id, ownerUserId });
+    if (role !== 'editor') {
+      throw new CollaborationSessionError('Your current Drive role is view-only for this collaboration session.', 403, 'collaboration_not_permitted');
+    }
+
+    const document = new Y.Doc();
+    try {
+      applyCollaborationUpdate(document, decodeRoomState(row.crdt_state), 'server-room-state');
+      applyCollaborationUpdate(document, incoming, 'server-room-update');
+      const merged = encodeRoomState(encodeCollaborationState(document));
+      const now = new Date().toISOString();
+      const { data, error } = await requireStore()
+        .from('cardforge_collaboration_sessions')
+        .update({
+          crdt_state: merged,
+          crdt_version: row.crdt_version + 1,
+          last_activity_at: now,
+          updated_at: now,
+        })
+        .eq('id', row.id)
+        .eq('status', 'active')
+        .eq('crdt_version', row.crdt_version)
+        .select('crdt_state,crdt_version')
+        .maybeSingle();
+      if (error) {
+        console.error('Unable to persist CardForge collaboration update:', error);
+        throw new CollaborationSessionError('CardForge could not persist the live collaboration update.');
+      }
+      if (data?.crdt_state && Number.isInteger(data.crdt_version)) {
+        return { state: data.crdt_state, version: data.crdt_version };
+      }
+    } finally {
+      document.destroy();
+    }
+  }
+  throw new CollaborationSessionError(
+    'The collaboration room changed too quickly to persist this update. Retry from the latest room state.',
+    409,
+    'collaboration_session_changed',
+  );
 };
 
 export const leaveGoogleDriveCollaborationSession = async ({
