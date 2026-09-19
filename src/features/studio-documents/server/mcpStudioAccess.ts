@@ -11,7 +11,7 @@ import {
   type ContributorAccessProjection,
   type ContributorScope,
 } from '@/features/contributor-access/server';
-import type { StudioAgentAccess } from '@/features/studio-documents/server';
+import type { StudioAgentAccess } from './studioAgentAccess';
 
 export interface McpStudioAccess extends StudioAgentAccess {
   contribution: ContributorAccessProjection;

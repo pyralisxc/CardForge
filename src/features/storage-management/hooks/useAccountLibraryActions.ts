@@ -30,6 +30,7 @@ import {
 } from '../components/LibraryObjectPresentation';
 
 type LibraryTool = 'locations' | 'contribute' | 'edit-contribution' | 'design' | null;
+type LibraryToolId = Exclude<LibraryTool, null>;
 type AccountLibraryProjection = Pick<ReturnType<typeof useAccountLibraryProjection>, 'busyItemId' | 'openItem' | 'refresh' | 'router'>;
 type CommandTarget = LibraryViewItem | { scope: 'personal'; id: string; personal: AccountLibraryItem } | null;
 
@@ -46,7 +47,8 @@ interface UseAccountLibraryActionsOptions {
   openContributionTool: (options?: { setId?: string | null }) => void;
   projection: AccountLibraryProjection;
   refresh: () => void;
-  setActiveTool: Dispatch<SetStateAction<LibraryTool>>;
+  closeTool: () => void;
+  openTool: (toolId: LibraryToolId, targetIds?: readonly string[]) => void;
   setDesignReturnFocusId: Dispatch<SetStateAction<string | null>>;
   setEditingSubmission: Dispatch<SetStateAction<PipelineSubmission | null>>;
   setLocationItem: Dispatch<SetStateAction<AccountLibraryItem | null>>;
@@ -66,7 +68,8 @@ export function useAccountLibraryActions({
   openContributionTool,
   projection,
   refresh,
-  setActiveTool,
+  closeTool,
+  openTool,
   setDesignReturnFocusId,
   setEditingSubmission,
   setLocationItem,
@@ -89,7 +92,7 @@ export function useAccountLibraryActions({
     store.setTemplateEditorSelectedTemplateId(templateId);
     store.setStudioView('template');
     setDesignReturnFocusId(focusReturnId);
-    setActiveTool('design');
+    openTool('design', [templateId]);
     closeDetail();
     const params = new URLSearchParams({ section: 'library', scope: activeScope, tool: 'design', artifact: templateId });
     const href = `/account?${params.toString()}`;
@@ -156,7 +159,7 @@ export function useAccountLibraryActions({
       : activeTool === 'edit-contribution' && editingSubmission
         ? `library-object-pipeline:${editingSubmission.targetRegistryAssetId ?? editingSubmission.registryAssetId ?? editingSubmission.id}`
         : activeTool === 'design' ? designReturnFocusId : 'library-contribute-trigger';
-    setActiveTool(null);
+    closeTool();
     setEditingSubmission(null);
     setDesignReturnFocusId(null);
     const href = `/account?section=library&scope=${activeScope}`;
@@ -166,7 +169,7 @@ export function useAccountLibraryActions({
   };
 
   const openLocations = () => {
-    setActiveTool('locations');
+    openTool('locations');
     closeDetail();
     const href = createLibraryLocationsHref(activeScope);
     projection.router.replace(href);
@@ -235,7 +238,7 @@ export function useAccountLibraryActions({
         const item = requirePipeline();
         if (!item.pipeline.editableSubmission) throw new Error('This Pipeline lineage has no editable revision.');
         setEditingSubmission(item.pipeline.editableSubmission);
-        setActiveTool('edit-contribution');
+        openTool('edit-contribution', [item.pipeline.editableSubmission.id]);
         closeDetail();
         return { kind: 'tool-opened', toolId: 'edit-contribution' };
       },

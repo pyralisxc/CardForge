@@ -23,6 +23,8 @@ const toolRegistration = (source: string, name: string) => {
 
 describe('CardForge MCP and plugin product hygiene', () => {
   const route = readSource('src/app/mcp/route.ts');
+  const studioMcpServer = readSource('src/features/studio-documents/server/mcpServer.ts');
+  const editableTemplateTools = readSource('src/features/studio-documents/server/mcpEditableTemplateTools.ts');
   const accountTools = readSource('src/features/studio-documents/server/mcpAccountWorkflowTools.ts');
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
@@ -38,9 +40,20 @@ describe('CardForge MCP and plugin product hygiene', () => {
     interface: { shortDescription: string; longDescription: string; defaultPrompt: string[] };
   };
 
+  it('keeps the Next MCP route as transport composition only', () => {
+    expect(route.split(/\r?\n/).length).toBeLessThan(40);
+    expect(route).toContain('withMcpAuth');
+    expect(route).toContain('cardForgeMcpHandler');
+    expect(route).not.toContain('registerTool(');
+    expect(route).not.toContain('consumeRateLimit');
+    expect(route).not.toContain('productionPlan');
+    expect(studioMcpServer).toContain('registerEditableTemplateTools');
+    expect(studioMcpServer).not.toContain('registerTool(');
+  });
+
   it('keeps the published MCP action names explicit', () => {
     const names = [
-      ...toolNames(route),
+      ...toolNames(editableTemplateTools),
       ...toolNames(accountTools),
       ...toolNames(templateTools),
       ...toolNames(cardTools),
@@ -84,12 +97,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
   });
 
   it('publishes an explicit output schema for every structured MCP tool', () => {
-    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
+    const sources = [editableTemplateTools, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
   });
 
   it('labels private overwrites and external artwork retrieval accurately', () => {
-    const sources = [route, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
+    const sources = [editableTemplateTools, accountTools, templateTools, cardTools, projectTools, workingDocumentTools, personalLibraryTools].join('\n');
     const destructiveTools = new Set([
       'attach_template_artwork',
       'attach_template_artworks',
