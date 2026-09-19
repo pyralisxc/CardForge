@@ -118,8 +118,34 @@ export const startDriveCollaborationClientSession = async ({
 
   let bridge: CollaborationWorkspaceBridge | null = null;
   let writeChain = Promise.resolve();
+  let persistenceError: Error | null = null;
   let checkpointLeader = false;
   let checkpointTimer: number | null = null;
+
+  const persistUpdate = (encoded: string) => {
+    writeChain = writeChain.then(async () => {
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await readJson<CollaborationRoomState>(
+            await fetch(`/api/collaboration/google-drive/${encodeURIComponent(fileId)}/state`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ update: encoded }),
+            }),
+            'Unable to persist the live collaboration update.',
+          );
+          persistenceError = null;
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error('Unable to persist the live collaboration update.');
+          if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
+      persistenceError = lastError ?? new Error('Unable to persist the live collaboration update.');
+      onError?.(persistenceError);
+    });
+  };
 
   const updateCheckpointLeader = () => {
     const presence = channel.presenceState() as Record<string, Array<{ role?: unknown }>>;
@@ -134,6 +160,7 @@ export const startDriveCollaborationClientSession = async ({
   const checkpointNow = async () => {
     if (session.role !== 'editor') return;
     await writeChain;
+    if (persistenceError) throw persistenceError;
     const result = await readJson<{
       source: GoogleDriveProjectSummary;
       roomVersion: number;
@@ -190,6 +217,7 @@ export const startDriveCollaborationClientSession = async ({
     if (!update) return;
     try {
       bridge?.applyRemoteUpdate(decodeUpdate(update));
+      if (checkpointLeader && session.role === 'editor') persistUpdate(update);
       scheduleCheckpoint();
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to apply a live collaboration update.'));
@@ -227,24 +255,6 @@ export const startDriveCollaborationClientSession = async ({
       }
     });
   });
-
-  const persistUpdate = (encoded: string) => {
-    writeChain = writeChain
-      .then(async () => {
-        const state = await readJson<CollaborationRoomState>(
-          await fetch(`/api/collaboration/google-drive/${encodeURIComponent(fileId)}/state`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ update: encoded }),
-          }),
-          'Unable to persist the live collaboration update.',
-        );
-        void state.version;
-      })
-      .catch((error) => {
-        onError?.(error instanceof Error ? error : new Error('Unable to persist the live collaboration update.'));
-      });
-  };
 
   bridge = createCollaborationWorkspaceBridge({
     document,
