@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 
 import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
-import type { ProjectDocumentV1 } from '@/features/project/model/projectDocument';
+import type { ProjectDocumentV1 } from '@/features/project/client/workspace';
 
 export const COLLABORATION_AUTHORED_DOCUMENT_VERSION = 1 as const;
 
