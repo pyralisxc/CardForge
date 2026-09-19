@@ -254,7 +254,6 @@ export const updateOwnerPerson = async (
               : profile?.owner_note ?? '',
           });
         } catch (error) {
-          if (error instanceof OwnerPeopleOperationError) throw error;
           warnings.push('Clerk access changed, but the retained contributor profile did not update. Retry this action to reconcile it.');
           console.error('Owner people update partially completed:', error);
         }
