@@ -3,9 +3,9 @@
   "schemaVersion": 2,
   "format": "sharded-ndjson",
   "analyzerVersion": "2.1.0-semantic-freeze",
-  "sourceFingerprint": "79372f2a6f891530c1de2ac604cd4f8e2c97a04049c9b5ef09ae8c9b9353851b",
-  "topologyFingerprint": "74ec29b4c6a4a6c26603aa6880e16d34a654717192a71c033eb98348d71a10cb",
-  "evidenceFingerprint": "24e5fbd938a9e9db8d5390613df64612e4d8b6071e0f50d7d7399339f687b9b3",
+  "sourceFingerprint": "cb54a09446018c5e8e9b1c0a542e5968711993fbd9de8e74b934c8e0dc1cb8fb",
+  "topologyFingerprint": "d2c18653bc05d7b5d81b07b18672da1146342f6660255a96bc95f69332df96e0",
+  "evidenceFingerprint": "12ff97575f960409ab6f417dff8b35f6079d5b4586c1f638ab2f6a7a1df8f671",
   "shards": [
     "0.ndjson",
     "1.ndjson",
@@ -26,7 +26,7 @@
   ],
   "summary": {
     "nodes": 172,
-    "edges": 384,
+    "edges": 380,
     "unresolved": 0,
     "candidate": 11,
     "kinds": {
