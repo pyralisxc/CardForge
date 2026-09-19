@@ -3,7 +3,7 @@
   "schemaVersion": 2,
   "format": "sharded-ndjson",
   "analyzerVersion": "2.1.0-semantic-freeze",
-  "sourceFingerprint": "e5863178a9cea9672e35eaec53dce9e78bb64e183a883c69c90d297bceba02a2",
+  "sourceFingerprint": "72bfcb9b3896d0fe4208629856ce928786561544eaacb1ad671649fa037c4e6e",
   "topologyFingerprint": "74ec29b4c6a4a6c26603aa6880e16d34a654717192a71c033eb98348d71a10cb",
   "evidenceFingerprint": "17b35896c9e343aaeca40e5d46519eb69dc1ab888feba67e442cf96b18d53029",
   "shards": [
