@@ -4,6 +4,14 @@ export const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder
 export const GOOGLE_DRIVE_ROOT_FOLDER_NAME = 'CardForge';
 export const GOOGLE_DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 export const GOOGLE_DRIVE_IDENTITY_SCOPES = ['openid', 'email'] as const;
+const GOOGLE_DRIVE_SCOPE_PREFIX = 'https://www.googleapis.com/auth/drive';
+
+export const getUnexpectedGoogleDriveScopes = (scopes: readonly string[]): string[] => (
+  [...new Set(scopes
+    .map((scope) => scope.trim())
+    .filter((scope) => scope.startsWith(GOOGLE_DRIVE_SCOPE_PREFIX) && scope !== GOOGLE_DRIVE_FILE_SCOPE))]
+    .sort()
+);
 
 export interface GoogleDriveProjectConnectionSummary {
   provider: typeof GOOGLE_DRIVE_PROJECT_PROVIDER;

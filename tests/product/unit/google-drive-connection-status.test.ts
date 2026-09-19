@@ -11,7 +11,7 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const encryptionKey = Buffer.alloc(32, 4).toString('base64');
 
-const connectionRow = () => {
+const connectionRow = (overrides: Record<string, unknown> = {}) => {
   const encrypted = encryptProjectStorageToken('refresh-token-example', encryptionKey);
   return {
     id: 'connection-1',
@@ -29,6 +29,7 @@ const connectionRow = () => {
     last_verified_at: '2026-09-09T00:00:00.000Z',
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-09T00:00:00.000Z',
+    ...overrides,
   };
 };
 
@@ -43,6 +44,32 @@ describe('Google Drive connection status ownership', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  it('refuses a stored broad Drive grant before refreshing or reading provider data', async () => {
+    const query = {} as Record<string, ReturnType<typeof vi.fn>>;
+    query.select = vi.fn(() => query);
+    query.eq = vi.fn(() => query);
+    query.maybeSingle = vi.fn(async () => ({
+      data: connectionRow({
+        granted_scopes: [
+          'openid',
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive',
+        ],
+      }),
+      error: null,
+    }));
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn(() => query) } as never);
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(listGoogleDriveProjectsPage({ ownerUserId: 'user-1' })).rejects.toMatchObject({
+      status: 409,
+      kind: 'conflict',
+      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('does not erase folder capability status when refreshing a healthy OAuth credential', async () => {

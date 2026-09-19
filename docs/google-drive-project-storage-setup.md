@@ -39,6 +39,16 @@ Configure each environment independently:
 
 Before publishing production authorization beyond known testers, make sure the public CardForge homepage and Privacy Policy are current, the production domains are owned/verified in the Google project, and the Privacy Policy accurately explains CardForge's use and storage of Google user data. Provider-console publishing and verification are human/provider approval steps; repository deployment does not perform them.
 
+Use the current Google Auth Platform surfaces deliberately:
+
+- **Branding** — app name, support/developer contacts, `https://cardforges.com`, `https://cardforges.com/privacy`, and `https://cardforges.com/terms`; keep `cardforges.com` as the verified authorized domain.
+- **Audience** — External for the public production app; keep Preview/testing in its separate project and Testing audience.
+- **Data Access** — request only `openid`, `email`, and `https://www.googleapis.com/auth/drive.file`.
+- **Clients** — production uses only the canonical CardForge callback below; do not add Preview or one-off deployment hosts.
+- **Verification Center** — complete required brand and data-access verification before relying on production access for arbitrary Google accounts.
+
+CardForge treats the narrow Drive permission as a runtime security invariant as well as a console setting. If Google ever returns or an existing connection records another `https://www.googleapis.com/auth/drive*` scope besides `drive.file`, CardForge refuses to use or persist that connection and directs the owner to repair the Google Auth Platform client. This fail-closed guard is a safety net, not a substitute for keeping Data Access configured correctly.
+
 ## OAuth Web application client
 
 Create a dedicated OAuth 2.0 **Web application** client in each matching Google Cloud project. The production client belongs only to the production project; the Preview client belongs only to the Preview/testing project.
@@ -163,8 +173,10 @@ Before changing the production Google Auth Platform project from Testing to In p
 4. Confirm the production Picker key is restricted to the production CardForge website origin, `https://docs.google.com/*`, and Google Picker API.
 5. Confirm the production Picker key belongs to the same Google Cloud project as `CARDFORGE_GOOGLE_STORAGE_CLIENT_ID`; CardForge derives the Picker App ID from that OAuth client automatically.
 6. Confirm the public homepage and Privacy Policy are reachable on the owned production domain and the Privacy Policy describes Google Drive authorization, use, storage, and disconnect behavior accurately.
-7. Complete Google's production branding/domain verification flow as required by the Google Auth Platform console.
-8. Only then publish the production app and verify authorization with an account that is **not** a Preview test user.
+7. In Google Auth Platform → Branding, verify/publish the production brand and confirm the homepage, privacy-policy, terms, authorized-domain, and developer-contact values match the live CardForge production site.
+8. In Data Access and Verification Center, confirm only the intended identity scopes plus non-sensitive `drive.file` are declared and complete the verification Google requires for the production app.
+9. In Audience, move the production app out of Testing only after the verification state permits it; keep the Preview project in Testing.
+10. Verify the full production authorization journey with a Google account that is **not** a Preview test user, then repeat open/save/disconnect and confirm the stored granted scopes contain no broader Drive permission.
 
 Do not broaden scopes, copy Preview credentials into production, or change the production audience merely to bypass a verification warning.
 

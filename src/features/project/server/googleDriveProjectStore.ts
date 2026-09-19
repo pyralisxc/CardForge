@@ -13,6 +13,7 @@ import {
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   GOOGLE_DRIVE_ROOT_FOLDER_NAME,
   isGoogleDriveFileId,
+  getUnexpectedGoogleDriveScopes,
   createGoogleDriveProviderRevision,
   isGoogleDriveWorkId,
   hasGoogleDriveProjectRevisionConflict,
@@ -368,6 +369,19 @@ const resolveGoogleDriveRootOnConnect = async ({
   }
 };
 
+const assertGoogleDriveLeastPrivilege = (grantedScopes: readonly string[] | null | undefined): void => {
+  const unexpectedDriveScopes = getUnexpectedGoogleDriveScopes(grantedScopes ?? []);
+  if (unexpectedDriveScopes.length === 0) return;
+  throw new ProjectStorageProviderError(
+    'Google granted Drive permissions broader than CardForge permits. The connection was not saved.',
+    409,
+    {
+      kind: 'conflict',
+      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
+    },
+  );
+};
+
 export const connectGoogleDriveProjectStorage = async ({
   ownerUserId,
   code,
@@ -377,6 +391,9 @@ export const connectGoogleDriveProjectStorage = async ({
 }): Promise<GoogleDriveProjectConnectionSummary> => {
   if (!code.trim()) throw new ProjectStorageProviderError('Google authorization code is missing.', 400, { kind: 'invalid' });
   const tokens = await exchangeAuthorizationCode(code.trim());
+  const grantedScopes = tokens.scope?.split(/\s+/gu).filter(Boolean)
+    ?? [...GOOGLE_DRIVE_IDENTITY_SCOPES, GOOGLE_DRIVE_FILE_SCOPE];
+  assertGoogleDriveLeastPrivilege(grantedScopes);
   const userInfo = await fetchGoogleUserInfo(tokens.access_token!);
   const externalAccountId = userInfo.sub?.trim() ?? '';
   const displayName = userInfo.email?.trim() || userInfo.name?.trim() || 'Google Drive';
@@ -398,7 +415,6 @@ export const connectGoogleDriveProjectStorage = async ({
   });
   const encrypted = encryptProjectStorageToken(refreshToken);
   const now = new Date().toISOString();
-  const grantedScopes = tokens.scope?.split(/\s+/gu).filter(Boolean) ?? [...GOOGLE_DRIVE_IDENTITY_SCOPES, GOOGLE_DRIVE_FILE_SCOPE];
   const { data, error } = await requireStore()
     .from('cardforge_project_storage_connections')
     .upsert({
@@ -484,6 +500,7 @@ const requireConnection = async (ownerUserId: string): Promise<{ row: GoogleDriv
       nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
+  assertGoogleDriveLeastPrivilege(row.granted_scopes);
   return { row, accessToken: await refreshGoogleAccessToken(row) };
 };
 
