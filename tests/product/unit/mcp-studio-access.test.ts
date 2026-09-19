@@ -18,7 +18,7 @@ import { auth } from '@clerk/nextjs/server';
 
 import { getAccountToolAccessForUserId } from '@/features/account/server';
 import { getContributorCapabilities } from '@/features/contributor-access/server';
-import { getMcpStudioAccess } from '@/features/studio-documents/server';
+import { getMcpStudioAccess } from '@/features/studio-documents/mcp';
 
 const user = {
   id: 'account_123',
