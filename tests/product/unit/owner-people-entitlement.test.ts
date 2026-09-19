@@ -59,7 +59,6 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 }));
 
 import {
-  OwnerPeopleOperationError,
   updateOwnerPerson,
 } from '@/features/owner/server/ownerPeopleOperations';
 
@@ -100,7 +99,7 @@ describe('owner grants share the Stripe projection lock', () => {
   it('refuses an owner write during webhook projection', async () => {
     state.locked = true;
 
-    await expect(updateOwnerPerson(input())).rejects.toMatchObject<Partial<OwnerPeopleOperationError>>({
+    await expect(updateOwnerPerson(input())).rejects.toMatchObject({
       status: 409,
       code: 'owner_operations_conflict',
     });
