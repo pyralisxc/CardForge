@@ -150,12 +150,14 @@ export const createCollaborationWorkspaceBridge = ({
   onLocalUpdate,
   toSharedIdentity = (authored) => authored,
   fromSharedIdentity = (authored) => authored,
+  readOnly = false,
 }: {
   document: Y.Doc;
   setId: string;
   onLocalUpdate: (update: Uint8Array) => void | Promise<void>;
   toSharedIdentity?: (authored: CollaborationAuthoredDocument) => CollaborationAuthoredDocument;
   fromSharedIdentity?: (authored: CollaborationAuthoredDocument) => CollaborationAuthoredDocument;
+  readOnly?: boolean;
 }): CollaborationWorkspaceBridge => {
   let destroyed = false;
   let applyingRemote = false;
@@ -165,7 +167,7 @@ export const createCollaborationWorkspaceBridge = ({
   const captureShared = () => toSharedIdentity(captureLocal());
 
   const syncFromWorkspace = () => {
-    if (destroyed || applyingRemote) return;
+    if (destroyed || applyingRemote || readOnly) return;
     const local = captureLocal();
     const authored = toSharedIdentity(local);
     const fingerprint = JSON.stringify(authored);
@@ -207,8 +209,20 @@ export const createCollaborationWorkspaceBridge = ({
 
   document.on('update', handleDocumentUpdate);
   const unsubscribe = useProjectStore.subscribe(() => syncFromWorkspace());
-  lastFingerprint = JSON.stringify(captureShared());
-  syncFromWorkspace();
+  if (readOnly) {
+    const shared = readCollaborationAuthoredDocument(document);
+    const authored = fromSharedIdentity(shared);
+    applyingRemote = true;
+    try {
+      applyCollaborationAuthoredDocumentToWorkspace(authored);
+      lastFingerprint = JSON.stringify(shared);
+    } finally {
+      applyingRemote = false;
+    }
+  } else {
+    lastFingerprint = JSON.stringify(captureShared());
+    syncFromWorkspace();
+  }
 
   return {
     syncFromWorkspace,
