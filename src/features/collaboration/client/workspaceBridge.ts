@@ -166,11 +166,26 @@ export const createCollaborationWorkspaceBridge = ({
 
   const syncFromWorkspace = () => {
     if (destroyed || applyingRemote) return;
-    const authored = captureShared();
+    const local = captureLocal();
+    const authored = toSharedIdentity(local);
     const fingerprint = JSON.stringify(authored);
     if (fingerprint === lastFingerprint) return;
-    lastFingerprint = fingerprint;
     syncCollaborationAuthoredDocument(document, authored, LOCAL_ORIGIN);
+
+    // Yjs may have merged remote text/entity changes with this local edit.
+    // Project that canonical merged state back into the native workspace now,
+    // rather than leaving the UI behind the room until another remote event.
+    const mergedShared = readCollaborationAuthoredDocument(document);
+    const mergedLocal = fromSharedIdentity(mergedShared);
+    lastFingerprint = JSON.stringify(mergedShared);
+    if (JSON.stringify(mergedLocal) !== JSON.stringify(local)) {
+      applyingRemote = true;
+      try {
+        applyCollaborationAuthoredDocumentToWorkspace(mergedLocal);
+      } finally {
+        applyingRemote = false;
+      }
+    }
   };
 
   const handleDocumentUpdate = (update: Uint8Array, origin: unknown) => {
