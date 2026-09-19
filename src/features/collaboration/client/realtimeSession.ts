@@ -109,7 +109,6 @@ export const startDriveCollaborationClientSession = async ({
   });
 
   let bridge: CollaborationWorkspaceBridge | null = null;
-  let lastServerVersion = room.version;
   let writeChain = Promise.resolve();
 
   channel.on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
@@ -166,7 +165,7 @@ export const startDriveCollaborationClientSession = async ({
           }),
           'Unable to persist the live collaboration update.',
         );
-        lastServerVersion = Math.max(lastServerVersion, state.version);
+        void state.version;
       })
       .catch((error) => {
         onError?.(error instanceof Error ? error : new Error('Unable to persist the live collaboration update.'));
