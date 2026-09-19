@@ -1,5 +1,3 @@
-import 'server-only';
-
 import { clerkClient } from '@clerk/nextjs/server';
 
 import { resolveOwnerAccess } from '@/domain/entitlements';
