@@ -2,10 +2,10 @@
   "type": "meta",
   "schemaVersion": 2,
   "format": "sharded-ndjson",
-  "analyzerVersion": "2.1.0-semantic-freeze",
-  "sourceFingerprint": "3c48b4e1ef057c67e17332d53af06719d6758acfcc870243409ca76b3ba7cf12",
+  "analyzerVersion": "2.6.0-behavior-observations",
+  "sourceFingerprint": "7ed53a95e7dc9ec5ad3d1c46a36a14afddecf39109d7135c48561d8575b42411",
   "topologyFingerprint": "d2c18653bc05d7b5d81b07b18672da1146342f6660255a96bc95f69332df96e0",
-  "evidenceFingerprint": "12ff97575f960409ab6f417dff8b35f6079d5b4586c1f638ab2f6a7a1df8f671",
+  "evidenceFingerprint": "9a4aa0525dab8e8c72cebd17c8df01f4cfb11b914093d34ec8a888a4f3f68ad2",
   "shards": [
     "0.ndjson",
     "1.ndjson",
