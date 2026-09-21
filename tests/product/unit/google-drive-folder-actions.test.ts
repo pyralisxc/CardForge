@@ -17,24 +17,24 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
 const encryptionKey = Buffer.alloc(32, 7).toString('base64');
 
-const connectionRow = (rootFolderResourceKey: string | null = null) => {
+const connectionRow = (rootFolderResourceKey: string | null = null, rootFolderId: string | null = 'drive_folder_123') => {
   const encrypted = encryptProjectStorageToken('refresh-token-example', encryptionKey);
   return {
     id: 'connection-1',
     refresh_token_ciphertext: encrypted.ciphertext,
     refresh_token_iv: encrypted.iv,
     refresh_token_auth_tag: encrypted.authTag,
-    root_folder_id: 'drive_folder_123',
+    root_folder_id: rootFolderId,
     root_folder_resource_key: rootFolderResourceKey,
   };
 };
 
-const connectionQuery = (rootFolderResourceKey: string | null = null) => {
+const connectionQuery = (rootFolderResourceKey: string | null = null, rootFolderId: string | null = 'drive_folder_123') => {
   const query = {
     select: vi.fn(),
     update: vi.fn(),
     eq: vi.fn(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: connectionRow(rootFolderResourceKey), error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: connectionRow(rootFolderResourceKey, rootFolderId), error: null }),
   };
   query.select.mockReturnValue(query);
   query.update.mockReturnValue(query);
@@ -111,6 +111,18 @@ describe('Google Drive folder actions', () => {
         Authorization: 'Bearer private-access',
         'X-Goog-Drive-Resource-Keys': 'drive_folder_123/persisted-resource-key',
       },
+    });
+  });
+
+  it('keeps Picker rooted at My Drive when no project folder has been chosen yet', async () => {
+    const query = connectionQuery(null, null);
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) } as never);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ access_token: 'private-access' })));
+
+    await expect(getGoogleDrivePickerConfiguration('user-1')).resolves.toMatchObject({
+      appId: '123456789012',
+      contributorKey: 'picker-key',
+      initialFolderId: null,
     });
   });
 
