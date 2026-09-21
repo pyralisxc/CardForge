@@ -605,6 +605,35 @@ const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: 
   return summary;
 };
 
+const getAuthorizedGoogleDriveProjectMetadata = async ({
+  ownerUserId,
+  fileId,
+}: {
+  ownerUserId: string;
+  fileId: string;
+}) => {
+  const { row, accessToken } = await requireConnection(ownerUserId);
+  const file = await getDriveFileMetadata({ accessToken, fileId });
+  const summary = await assertOwnedCardForgeProject(file, row.root_folder_id);
+  return { row, accessToken, summary };
+};
+
+/**
+ * Lightweight exact-file probe for an already open Drive-backed Set. This
+ * reads provider metadata only; package bytes are downloaded only after the
+ * client proves a newer clean revision should replace the browser projection.
+ */
+export const getGoogleDriveProjectSummary = async ({
+  ownerUserId,
+  fileId,
+}: {
+  ownerUserId: string;
+  fileId: string;
+}): Promise<GoogleDriveProjectSummary> => {
+  const { row, summary } = await getAuthorizedGoogleDriveProjectMetadata({ ownerUserId, fileId });
+  return { ...summary, accountId: row.external_account_id };
+};
+
 export const listGoogleDriveProjectsPage = async ({
   ownerUserId,
   pageToken = null,
@@ -682,9 +711,7 @@ export const getGoogleDriveProject = async ({
   ownerUserId: string;
   fileId: string;
 }): Promise<GoogleDriveProjectDownload & { document: ProjectDocumentV1 }> => {
-  const { row, accessToken } = await requireConnection(ownerUserId);
-  const file = await getDriveFileMetadata({ accessToken, fileId });
-  const summary = await assertOwnedCardForgeProject(file, row.root_folder_id);
+  const { row, accessToken, summary } = await getAuthorizedGoogleDriveProjectMetadata({ ownerUserId, fileId });
   if (summary.capabilities && !summary.capabilities.canDownload) {
     throw new ProjectStorageProviderError('Your current Drive role cannot download this project.', 403, { kind: 'authorization', nextAction: 'Ask the Drive owner for file access or choose another project.' });
   }

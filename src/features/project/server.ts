@@ -90,6 +90,7 @@ export {
   deleteGoogleDriveProject,
   disconnectGoogleDriveProjectStorage,
   getGoogleDriveProject,
+  getGoogleDriveProjectSummary,
   getGoogleDriveProjectThumbnail,
   getGoogleDriveProjectConnection,
   getGoogleDriveProjectStorageConfiguration,

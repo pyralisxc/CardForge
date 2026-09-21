@@ -1,6 +1,7 @@
 import {
   deleteGoogleDriveProject,
   getGoogleDriveProject,
+  getGoogleDriveProjectSummary,
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
 } from '@/features/project/server';
 import {
@@ -18,6 +19,11 @@ export async function GET(
   try {
     const { ownerUserId } = await getGoogleDriveProjectAccount();
     const { fileId } = await context.params;
+    if (new URL(_request.url).searchParams.get('metadata') === '1') {
+      return Response.json(await getGoogleDriveProjectSummary({ ownerUserId, fileId }), {
+        headers: { 'Cache-Control': 'private, no-store' },
+      });
+    }
     const project = await getGoogleDriveProject({ ownerUserId, fileId });
     const bytes = new Uint8Array(project.bytes.byteLength);
     bytes.set(project.bytes);

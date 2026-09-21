@@ -2,7 +2,7 @@
 
 This runbook configures the Google services used by CardForge connected project storage and the native Google Drive folder Picker.
 
-CardForge uses the user's own Google Drive as a durable `.cardforge` project source. The server keeps an encrypted refresh credential so the MCP can check projects into temporary CardForge collaboration workspaces even when the user's device is offline. The browser uses Google Picker for explicit folder selection. CardForge does not request broad Drive access.
+CardForge uses the user's own Google Drive as a durable `.cardforge` project source. The server keeps an encrypted refresh credential so the MCP can check projects into temporary CardForge Studio documents even when the user's device is offline. The browser uses Google Picker for explicit folder selection. CardForge does not request broad Drive access. When collaborators use the same authorized Drive project folder, the shared `.cardforge` file itself remains the durable coordination point: CardForge checks newer saved revisions while the file is open rather than creating a separate live-edit room.
 
 ## Google Cloud projects
 
@@ -202,6 +202,10 @@ After deployment:
 16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
 17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
 18. For a link-shared folder whose Picker result includes a `resourceKey`, select it, reload the page, close/reopen the browser, reconnect the same Google account, list existing CardForge projects, and save a new Set into the folder. Every later folder-referencing request must continue to work from the persisted resource key; success only during the initial Picker callback is not sufficient acceptance.
+19. Share one writable project folder with a second Google account. On the second account, choose that same shared folder and explicitly authorize the existing `.cardforge` file through Picker; do not broaden the Drive scope.
+20. Open the same Set in both accounts with clean browser copies. Save from account A and confirm account B refreshes the newer saved revision within the 30-second active-file window; returning focus to B should trigger the check immediately.
+21. Repeat while account B has local browser edits. A newer Drive save from account A must preserve B's local work, stop automatic saving, and present the existing remote-change reconciliation state rather than silently replacing either copy.
+22. Repeat with account B changed to read-only in Drive. B must continue receiving newer saved revisions when download permission remains available, while CardForge never enables Drive writes for that role.
 
 If Picker visibly selects an item but CardForge immediately receives an app-authorization failure, verify the environment's Picker API key belongs to the same Google Cloud project as the active OAuth Web client. CardForge derives `setAppId(...)` from that OAuth client specifically to eliminate a second mutable project-number source of truth.
 

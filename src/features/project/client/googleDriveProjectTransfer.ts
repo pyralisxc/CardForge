@@ -177,6 +177,24 @@ export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjec
   })), nextPageToken: null };
 };
 
+
+export const probeGoogleDriveProject = async (
+  binding: Pick<GoogleDriveProjectBinding, 'fileId' | 'accountId'>,
+): Promise<GoogleDriveProjectSummary> => {
+  const response = await observeProviderBoundaryResponse('google_drive', 'project_list', () => (
+    fetch(`/api/project-sources/google-drive/${encodeURIComponent(binding.fileId)}?metadata=1`, { cache: 'no-store' })
+  ));
+  if (!response.ok) throw await readApiError(response, 'Unable to check the Google Drive project.');
+  const project = await response.json() as GoogleDriveProjectSummary;
+  if (project.fileId !== binding.fileId || !isGoogleDriveProviderRevision(project.providerRevision)) {
+    throw new ProjectPackageError('Drive returned an unreadable project revision while checking for shared updates.');
+  }
+  if (binding.accountId && project.accountId !== binding.accountId) {
+    throw new ProjectPackageError('The connected Google account changed. Reload Drive before refreshing this document.');
+  }
+  return project;
+};
+
 const createProjectPackage = async (name: string, workId?: string, identities?: ProjectDocumentIdentityMap) => {
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const expectedState = useProjectStore.getState();
