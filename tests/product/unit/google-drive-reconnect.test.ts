@@ -163,28 +163,57 @@ describe('Google Drive reconnect destination safety', () => {
     });
   });
 
-  it('creates a fresh default destination only when a different Google account is connected', async () => {
+  it('leaves folder selection explicit when a different Google account is connected', async () => {
     const store = installConnectionStore();
     const fetch = vi.fn()
       .mockResolvedValueOnce(tokenResponse())
-      .mockResolvedValueOnce(userInfoResponse('google-user-2'))
-      .mockResolvedValueOnce(Response.json({ id: 'new_folder_456', name: 'CardForge' }));
+      .mockResolvedValueOnce(userInfoResponse('google-user-2'));
     vi.stubGlobal('fetch', fetch);
 
     const result = await connectGoogleDriveProjectStorage({ ownerUserId: 'user-1', code: 'fresh-code' });
 
     expect(result).toMatchObject({
       connected: true,
-      rootFolderId: 'new_folder_456',
+      rootFolderId: null,
       status: 'active',
+      statusNote: 'Choose or create a project folder before saving to Google Drive.',
     });
     expect(store.getUpsertPayload()).toMatchObject({
       external_account_id: 'google-user-2',
-      root_folder_id: 'new_folder_456',
+      root_folder_id: null,
+      root_folder_resource_key: null,
+      status: 'active',
+      status_note: 'Choose or create a project folder before saving to Google Drive.',
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls.some(([url, init]) => String(url).includes('/drive/v3/files') && (init as RequestInit | undefined)?.method === 'POST')).toBe(false);
+  });
+
+  it('preserves an intentionally empty destination on same-account reconnect', async () => {
+    const store = installConnectionStore(existingConnection({
+      root_folder_id: null,
+      root_folder_resource_key: null,
+      status: 'active',
+      status_note: 'Choose or create a project folder before saving to Google Drive.',
+    }));
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(userInfoResponse());
+    vi.stubGlobal('fetch', fetch);
+
+    const result = await connectGoogleDriveProjectStorage({ ownerUserId: 'user-1', code: 'fresh-code' });
+
+    expect(result).toMatchObject({
+      connected: true,
+      rootFolderId: null,
+      status: 'active',
+      statusNote: 'Choose or create a project folder before saving to Google Drive.',
+    });
+    expect(store.getUpsertPayload()).toMatchObject({
+      root_folder_id: null,
+      root_folder_resource_key: null,
       status: 'active',
     });
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(String(fetch.mock.calls[2]![0])).toContain('/drive/v3/files?fields=id,name');
-    expect(fetch.mock.calls[2]![1]).toMatchObject({ method: 'POST' });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
