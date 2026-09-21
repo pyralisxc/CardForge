@@ -263,7 +263,7 @@ export const getGoogleDrivePickerConfiguration = async (
     accessToken,
     contributorKey: picker.contributorKey,
     appId: picker.appId,
-    initialFolderId: isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
+    initialFolderId: row.root_folder_id && isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
   };
 };
 
