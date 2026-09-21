@@ -72,6 +72,35 @@ describe('Google Drive connection status ownership', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('keeps a connected account usable before any project folder is selected', async () => {
+    const query = {} as Record<string, ReturnType<typeof vi.fn>>;
+    query.select = vi.fn(() => query);
+    query.eq = vi.fn(() => query);
+    query.maybeSingle = vi.fn(async () => ({
+      data: connectionRow({
+        root_folder_id: null,
+        root_folder_resource_key: null,
+        status_note: 'Choose or create a project folder before saving to Google Drive.',
+      }),
+      error: null,
+    }));
+    mockedGetSupabaseServerClient.mockReturnValue({ from: vi.fn(() => query) } as never);
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(listGoogleDriveProjectsPage({ ownerUserId: 'user-1' })).resolves.toMatchObject({
+      connection: {
+        connected: true,
+        rootFolderId: null,
+        status: 'active',
+        statusNote: 'Choose or create a project folder before saving to Google Drive.',
+      },
+      projects: [],
+      nextPageToken: null,
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('does not erase folder capability status when refreshing a healthy OAuth credential', async () => {
     const updates: Array<Record<string, unknown>> = [];
     const query = {} as Record<string, ReturnType<typeof vi.fn>>;
