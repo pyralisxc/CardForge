@@ -644,7 +644,7 @@ export const listGoogleDriveProjectsPage = async ({
   const row = await getConnectionRow(ownerUserId);
   if (!row) return { connection: toConnectionSummary(null, true), projects: [] };
   assertGoogleDriveLeastPrivilege(row.granted_scopes);
-  if (!rootFolderId) {
+  if (!row.root_folder_id) {
     return {
       connection: toConnectionSummary(row, true),
       projects: [],
