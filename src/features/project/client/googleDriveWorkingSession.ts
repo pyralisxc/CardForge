@@ -11,13 +11,14 @@ import {
   GoogleDriveSaveLinkageError,
   getGoogleDriveWorkBinding,
   hasGoogleDriveWorkingChanges,
-  loadGoogleDriveProjectLibrary,
+  probeGoogleDriveProject,
   refreshGoogleDriveProject,
   saveCardSetToGoogleDrive,
   type GoogleDriveProjectBinding,
 } from './googleDriveProjectTransfer';
 
 const DRIVE_AUTOSAVE_DELAY_MS = 4_000;
+export const GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS = 30_000;
 
 export type GoogleDriveWorkingSessionPhase =
   | 'unlinked'
@@ -53,6 +54,12 @@ const canWriteProject = (project: GoogleDriveProjectSummary | null) => (
   !project?.capabilities || (project.capabilities.canEdit && project.capabilities.canModifyContent)
 );
 
+export const shouldApplyGoogleDriveRemoteProbe = (
+  kind: GoogleDriveBindingCheck['kind'],
+  currentWritable: boolean | null,
+  nextWritable: boolean,
+) => kind !== 'current' || currentWritable !== nextWritable;
+
 export const shouldPauseGoogleDriveAutosaveAfterRevalidation = (
   kind: GoogleDriveBindingCheck['kind'],
   hasLocalChanges: boolean,
@@ -75,10 +82,15 @@ export const shouldOfferGoogleDriveReconciliation = (phase: GoogleDriveWorkingSe
 export const revalidateGoogleDriveWorkBinding = async (workId: string): Promise<GoogleDriveBindingCheck> => {
   const binding = await getGoogleDriveWorkBinding(workId);
   if (!binding) return { kind: 'unlinked', binding: null, project: null };
-  const library = await loadGoogleDriveProjectLibrary();
-  const project = library.projects.find((candidate) => candidate.fileId === binding.fileId
-    && (!binding.accountId || candidate.accountId === binding.accountId)) ?? null;
-  if (!project) return { kind: 'missing', binding, project: null };
+  let project: GoogleDriveProjectSummary;
+  try {
+    project = await probeGoogleDriveProject(binding);
+  } catch (error) {
+    if (error instanceof ApiClientError && error.kind === 'not_found') {
+      return { kind: 'missing', binding, project: null };
+    }
+    throw error;
+  }
   return {
     kind: project.providerRevision === binding.providerRevision
       && project.projectRevision === binding.projectRevision
@@ -215,11 +227,13 @@ export function useGoogleDriveWorkingSession({
     timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
   }, [clearTimer, enabled, setId]);
 
-  const reconcile = useCallback(async () => {
+  const reconcile = useCallback(async (knownCheck?: GoogleDriveBindingCheck) => {
     if (!enabled || !setId) return;
     const generation = generationRef.current;
     try {
-      const check = await revalidateGoogleDriveWorkBinding(setId);
+      if (inFlightRef.current) await inFlightRef.current;
+      if (generation !== generationRef.current) return;
+      const check = knownCheck ?? await revalidateGoogleDriveWorkBinding(setId);
       if (generation !== generationRef.current) return;
       bindingRef.current = check.binding;
       if (check.kind === 'unlinked') {
@@ -235,12 +249,6 @@ export function useGoogleDriveWorkingSession({
         return;
       }
       writableRef.current = canWriteProject(check.project);
-      if (!writableRef.current) {
-        clearTimer();
-        queuedRef.current = false;
-        setState({ phase: 'read-only', message: 'Drive is read-only for your current role. You can inspect this Set or save an independent copy to a writable location.', receipt: check.binding });
-        return;
-      }
       if (check.kind === 'changed' && check.binding) {
         const dirty = await hasGoogleDriveWorkingChanges(check.binding);
         if (generation !== generationRef.current) return;
@@ -255,8 +263,16 @@ export function useGoogleDriveWorkingSession({
         const refreshed = await refreshGoogleDriveProject(check.binding);
         if (generation === generationRef.current) {
           bindingRef.current = refreshed;
-          setState({ phase: 'clean', message: 'Drive revision refreshed', receipt: refreshed });
+          setState(writableRef.current === false
+            ? { phase: 'read-only', message: 'Updated from Drive · read-only', receipt: refreshed }
+            : { phase: 'clean', message: 'Updated from Drive', receipt: refreshed });
         }
+        return;
+      }
+      if (!writableRef.current) {
+        clearTimer();
+        queuedRef.current = false;
+        setState({ phase: 'read-only', message: 'Drive is read-only for your current role. Shared saved changes will refresh automatically.', receipt: check.binding });
         return;
       }
       if (check.binding) {
@@ -276,6 +292,28 @@ export function useGoogleDriveWorkingSession({
       if (generation === generationRef.current) setState(stateForError(error));
     }
   }, [clearTimer, enabled, scheduleSave, setId]);
+
+  const pollRemote = useCallback(async () => {
+    if (!enabled || !setId || document.visibilityState !== 'visible') return;
+    const generation = generationRef.current;
+    try {
+      if (inFlightRef.current) await inFlightRef.current;
+      if (generation !== generationRef.current) return;
+      const check = await revalidateGoogleDriveWorkBinding(setId);
+      if (generation !== generationRef.current) return;
+      const nextWritable = canWriteProject(check.project);
+      if (shouldApplyGoogleDriveRemoteProbe(check.kind, writableRef.current, nextWritable)) {
+        await reconcile(check);
+      }
+    } catch (error) {
+      if (shouldPauseGoogleDriveAutosaveForError(error)) {
+        writableRef.current = false;
+        queuedRef.current = false;
+        clearTimer();
+      }
+      if (generation === generationRef.current) setState(stateForError(error));
+    }
+  }, [clearTimer, enabled, reconcile, setId]);
 
   const repairLink = useCallback(async () => {
     const receipt = state.receipt;
@@ -318,16 +356,20 @@ export function useGoogleDriveWorkingSession({
       // presented a clean, refreshed Set as pending Drive work after reconnect.
       void reconcile();
     };
+    const refreshInterval = window.setInterval(() => {
+      void pollRemote();
+    }, GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS);
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
     return () => {
       generationRef.current += 1;
       clearTimer();
       unsubscribe();
+      window.clearInterval(refreshInterval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
     };
-  }, [clearTimer, enabled, reconcile, scheduleSave, setId]);
+  }, [clearTimer, enabled, pollRemote, reconcile, scheduleSave, setId]);
 
   return { state, saveNow, reconcile, repairLink };
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import {
+  GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS,
+  shouldApplyGoogleDriveRemoteProbe,
   shouldPauseGoogleDriveAutosaveAfterRevalidation,
   shouldPauseGoogleDriveAutosaveForError,
   shouldOfferGoogleDriveReconciliation,
@@ -18,6 +20,22 @@ const driveError = (kind: ConstructorParameters<typeof ApiClientError>[3]) => ne
 );
 
 describe('Google Drive working-session safety', () => {
+  it('uses a bounded shared-file refresh cadence', () => {
+    expect(GOOGLE_DRIVE_SHARED_FILE_REFRESH_INTERVAL_MS).toBe(30_000);
+  });
+
+  it.each([
+    ['current', true, true, false],
+    ['current', false, false, false],
+    ['current', true, false, true],
+    ['current', false, true, true],
+    ['changed', true, true, true],
+    ['missing', true, true, true],
+    ['unlinked', null, true, true],
+  ] as const)('applies a remote metadata probe only when provider state or write capability changes: %s', (kind, currentWritable, nextWritable, expected) => {
+    expect(shouldApplyGoogleDriveRemoteProbe(kind, currentWritable, nextWritable)).toBe(expected);
+  });
+
   it.each([
     ['unlinked', false, false],
     ['current', false, false],
