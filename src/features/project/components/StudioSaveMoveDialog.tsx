@@ -113,7 +113,7 @@ export function StudioSaveMoveDialog({
         ? await resolveGoogleDriveConflictMessage(() => hasGoogleDriveWorkingChanges(driveBinding))
         : null;
       if (!cancelled) setLocationState({
-        driveConnected: Boolean(driveLibrary?.connection.connected),
+        driveConnected: Boolean(driveLibrary?.connection.connected && driveLibrary.connection.rootFolderId),
         driveConflictMessage,
         driveAvailabilityMessage: driveRead.failure ?? driveBindingRead.failure,
         localFolderSupported,
