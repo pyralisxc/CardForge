@@ -21,6 +21,16 @@ export async function GET(request: Request) {
     if (!library.connection.connected) return Response.json(library);
 
     const folder = await getGoogleDriveSelectedProjectFolder(ownerUserId);
+    if (!folder) {
+      return Response.json({
+        ...library,
+        connection: {
+          ...library.connection,
+          statusNote: library.connection.statusNote || 'Choose or create a project folder before saving to Google Drive.',
+        },
+        selectedFolder: null,
+      });
+    }
     const folderHealth = library.connection.statusNote
       || (folder.canAddChildren === false
         ? 'This Drive folder is read-only for the connected account.'
