@@ -33,9 +33,12 @@ import {
 } from '../model/projectPackage';
 import { decryptProjectStorageToken, encryptProjectStorageToken } from './projectStorageTokenCrypto';
 import {
+  resolveGoogleDriveConnectionAccess,
+  validateGoogleDriveStoredScopes,
+} from './googleDriveConnectionAuthority';
+import {
   GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS,
   readGoogleProviderFailure,
-  requestGoogleAccessToken,
 } from './googleDriveBoundary';
 
 const GOOGLE_AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -45,8 +48,8 @@ const GOOGLE_USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userin
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const GOOGLE_DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const GOOGLE_DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,headRevisionId,modifiedTime,size,parents,driveId,resourceKey,webViewLink,thumbnailLink,capabilities(canDownload,canEdit,canModifyContent,canDelete),appProperties';
-const GOOGLE_DRIVE_FOLDER_FIELDS = 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren,canEdit)';
+const GOOGLE_DRIVE_PROJECT_FIELDS = 'id,name,mimeType,version,headRevisionId,modifiedTime,size,parents,driveId,resourceKey,webViewLink,thumbnailLink,trashed,capabilities(canDownload,canEdit,canModifyContent,canTrash,canDelete),appProperties';
+const GOOGLE_DRIVE_FOLDER_FIELDS = 'id,name,mimeType,driveId,resourceKey,trashed,capabilities(canAddChildren,canEdit)';
 const GOOGLE_DRIVE_PROJECT_APP_PROPERTY = 'cardforgeProject';
 const GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY = 'cardforgeProjectRevision';
 const GOOGLE_DRIVE_WORK_ID_PROPERTY = 'cardforgeWorkId';
@@ -119,10 +122,12 @@ type GoogleDriveFile = {
   resourceKey?: string;
   webViewLink?: string;
   thumbnailLink?: string;
+  trashed?: boolean;
   capabilities?: {
     canDownload?: boolean;
     canEdit?: boolean;
     canModifyContent?: boolean;
+    canTrash?: boolean;
     canDelete?: boolean;
     canAddChildren?: boolean;
   };
@@ -354,15 +359,12 @@ const resolveGoogleDriveRootOnConnect = async ({
 };
 
 const assertGoogleDriveLeastPrivilege = (grantedScopes: readonly string[] | null | undefined): void => {
-  const unexpectedDriveScopes = getUnexpectedGoogleDriveScopes(grantedScopes ?? []);
-  if (unexpectedDriveScopes.length === 0) return;
+  const failure = validateGoogleDriveStoredScopes(grantedScopes);
+  if (!failure) return;
   throw new ProjectStorageProviderError(
-    'Google granted Drive permissions broader than CardForge permits. The connection was not saved.',
-    409,
-    {
-      kind: 'conflict',
-      nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
-    },
+    failure.message.replace('The connection cannot be used.', 'The connection was not saved.'),
+    failure.status,
+    { kind: failure.kind, nextAction: failure.nextAction },
   );
 };
 
@@ -427,52 +429,25 @@ export const connectGoogleDriveProjectStorage = async ({
 
 const refreshGoogleAccessToken = async (row: GoogleDriveConnectionRow): Promise<string> => {
   const config = requireConfiguration();
-  let refreshToken: string;
-  try {
-    refreshToken = decryptProjectStorageToken({
-      ciphertext: row.refresh_token_ciphertext,
-      iv: row.refresh_token_iv,
-      authTag: row.refresh_token_auth_tag,
-    });
-  } catch (error) {
-    console.error('Unable to decrypt Google Drive project refresh token:', error);
-    throw new ProjectStorageProviderError('The Google Drive connection needs to be reconnected.', 401, {
-      kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Library → Locations.',
-    });
-  }
-  const token = await requestGoogleAccessToken({
-    endpoint: GOOGLE_TOKEN_ENDPOINT,
-    refreshToken,
+  const access = await resolveGoogleDriveConnectionAccess({
+    row,
     clientId: config.clientId,
     clientSecret: config.clientSecret,
+    tokenEndpoint: GOOGLE_TOKEN_ENDPOINT,
   });
-  if (!token.ok && token.failure.reconnectRequired) {
-    await requireStore()
-      .from('cardforge_project_storage_connections')
-      .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
-      .eq('id', row.id);
-    throw new ProjectStorageProviderError('Google Drive authorization expired or was revoked.', 401, {
-      kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Library → Locations.',
+  if (!access.ok) {
+    if (access.failure.reconnectRequired) {
+      await requireStore()
+        .from('cardforge_project_storage_connections')
+        .update({ status: 'error', status_note: 'Google authorization expired, was revoked, or is missing the required Drive permission.' })
+        .eq('id', row.id);
+    }
+    throw new ProjectStorageProviderError(access.failure.message, access.failure.status, {
+      kind: access.failure.kind,
+      nextAction: access.failure.nextAction,
     });
   }
-  if (!token.ok) {
-    const message = token.failure.providerMessage
-      ? `Google Drive could not refresh this connection. ${token.failure.providerMessage}`
-      : 'Google Drive could not refresh this connection.';
-    throw new ProjectStorageProviderError(message, token.failure.status, {
-      kind: token.failure.kind,
-      nextAction: token.failure.nextAction,
-    });
-  }
-  // Credential refresh proves OAuth health only. The selected folder's status and
-  // capability note are owned by folder verification/selection and must survive.
-  await requireStore()
-    .from('cardforge_project_storage_connections')
-    .update({ last_verified_at: new Date().toISOString() })
-    .eq('id', row.id);
-  return token.accessToken;
+  return access.accessToken;
 };
 
 const requireConnection = async (ownerUserId: string): Promise<{ row: GoogleDriveConnectionRow; accessToken: string }> => {
@@ -530,6 +505,7 @@ const toProjectSummary = async (file: GoogleDriveFile): Promise<GoogleDriveProje
       canDownload: file.capabilities?.canDownload === true,
       canEdit: file.capabilities?.canEdit === true,
       canModifyContent: file.capabilities?.canModifyContent === true,
+      canTrash: file.capabilities?.canTrash === true,
       canDelete: file.capabilities?.canDelete === true,
     },
   };
@@ -575,6 +551,10 @@ const getDriveFolderMetadata = async ({
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read the selected Google Drive folder.');
   const folder = await response.json() as GoogleDriveFile;
   if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
+  if (folder.trashed === true) throw new ProjectStorageProviderError('The selected Google Drive project folder is in Trash.', 404, {
+    kind: 'not_found',
+    nextAction: 'Restore the folder in Google Drive or choose another project folder in Library → Locations.',
+  });
   if (folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE) throw new ProjectStorageProviderError('The configured Drive location is no longer a folder.', 409, { kind: 'conflict' });
   return folder;
 };
@@ -593,6 +573,12 @@ export const isGoogleDriveProjectFileInFolder = (
 ): boolean => file.mimeType === GOOGLE_DRIVE_PROJECT_MIME_TYPE && file.parents?.includes(rootFolderId) === true;
 
 const assertOwnedCardForgeProject = async (file: GoogleDriveFile, rootFolderId: string): Promise<GoogleDriveProjectSummary> => {
+  if (file.trashed === true) {
+    throw new ProjectStorageProviderError('That Google Drive project is in Trash.', 404, {
+      kind: 'not_found',
+      nextAction: 'Restore the project in Google Drive or open another copy.',
+    });
+  }
   const summary = await toProjectSummary(file);
   if (!summary || !isGoogleDriveProjectFileInFolder(file, rootFolderId)) {
     throw new ProjectStorageProviderError('That Google Drive file is not a CardForge project in this connected folder.', 404, { kind: 'not_found' });
@@ -870,7 +856,6 @@ export const prepareGoogleDriveProjectUpload = async ({
     requestUrl = new URL(`${GOOGLE_DRIVE_UPLOAD_API}/files/${encodeURIComponent(fileId)}`);
     method = 'PATCH';
     metadata = {
-      name: normalizedName,
       mimeType: GOOGLE_DRIVE_PROJECT_MIME_TYPE,
       appProperties: {
         [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
@@ -1029,20 +1014,29 @@ export const deleteGoogleDriveProject = async ({
   const rootFolderId = requireSelectedRootFolderId(row);
   const current = await getDriveFileMetadata({ accessToken, fileId });
   const summary = await assertOwnedCardForgeProject(current, rootFolderId);
-  if (summary.capabilities && !summary.capabilities.canDelete) {
-    throw new ProjectStorageProviderError('Your current Drive role cannot delete this project.', 403, { kind: 'authorization' });
+  if (summary.capabilities && !summary.capabilities.canTrash) {
+    throw new ProjectStorageProviderError('Your current Drive role cannot move this project to Trash.', 403, {
+      kind: 'authorization',
+      nextAction: 'Ask the Drive owner or organizer to remove it, or keep the source file and remove only the CardForge browser copy.',
+    });
   }
   if (summary.providerRevision !== expectedProviderRevision || summary.projectRevision !== expectedProjectRevision) {
-    throw new ProjectStorageProviderError('The Google Drive project changed after it was loaded. Reload it before deleting.', 409, { kind: 'conflict' });
+    throw new ProjectStorageProviderError('The Google Drive project changed after it was loaded. Reload it before moving it to Trash.', 409, { kind: 'conflict' });
   }
-  const deleteUrl = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
-  deleteUrl.searchParams.set('supportsAllDrives', 'true');
-  const response = await fetch(deleteUrl, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${accessToken}` },
+  const trashUrl = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}`);
+  trashUrl.searchParams.set('supportsAllDrives', 'true');
+  trashUrl.searchParams.set('fields', GOOGLE_DRIVE_PROJECT_FIELDS);
+  const response = await fetch(trashUrl, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ trashed: true }),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
-  if (!response.ok && response.status !== 204) throw await parseGoogleError(response, 'CardForge could not delete that Google Drive project.');
+  if (!response.ok) throw await parseGoogleError(response, 'CardForge could not move that Google Drive project to Trash.');
   return summary;
 };
 
