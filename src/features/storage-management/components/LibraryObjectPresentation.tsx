@@ -9,7 +9,7 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineReviewable } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
 
@@ -183,7 +183,7 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
       return <li key={revision.id}>
         <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{revision.contributorLifecycleState === 'withdrawn' ? 'Withdrawn' : revision.contributorLifecycleState === 'retired' ? 'Retired' : getPipelineStatusLabel(revision.status)}</span></div>
-        {canReview ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
+        {canReview && isContributorPipelineReviewable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
         </div> : null}

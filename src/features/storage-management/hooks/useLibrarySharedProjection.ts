@@ -51,6 +51,7 @@ export interface PublishedLibraryObject {
 export interface PipelineLibraryObject {
   packageUrl?: string | null;
   submission: PipelineSubmission;
+  reviewSubmission: PipelineSubmission | null;
   editableSubmission: PipelineSubmission | null;
   retirableSubmission: PipelineSubmission | null;
   revisions: PipelineSubmission[];
@@ -270,6 +271,7 @@ export const projectPipelineLibraryObjects = (
         || set.id === item.currentPublishedSubmission?.targetRegistryAssetId
       ))?.packageUrl ?? null,
       submission: item.submission,
+      reviewSubmission: item.reviewSubmission,
       editableSubmission: item.editableSubmission,
       retirableSubmission: item.retirableSubmission,
       revisions: item.revisions,
@@ -348,6 +350,10 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
     await Promise.all([catalogRequest, pipelineRequest]);
   }, [activeScope, pipelineEnabled]);
 
+  const acceptProgram = useCallback((nextProgram: PipelineProgramView) => {
+    if (pipelineEnabledRef.current) setProgram(nextProgram);
+  }, []);
+
   useEffect(() => { void refresh(); }, [refresh]);
 
   return {
@@ -359,6 +365,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
     pipelineFailure: pipelineEnabled ? pipelineFailure : null,
     catalogLoading,
     pipelineLoading: pipelineEnabled && pipelineLoading,
+    acceptProgram,
     refresh,
   };
 }

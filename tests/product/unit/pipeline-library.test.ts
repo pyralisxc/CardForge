@@ -63,7 +63,7 @@ const program = (submissions: PipelineSubmission[]) => ({
 });
 
 describe('Pipeline Library projection', () => {
-  it('shows one object per lineage and keeps the current published revision primary', () => {
+  it('keeps the published revision primary while routing review to the active candidate', () => {
     const published = submission('published-r2', {
       status: 'published', revisionNumber: 2, publishedAt: '2026-08-22T12:00:00.000Z',
     });
@@ -75,10 +75,11 @@ describe('Pipeline Library projection', () => {
 
     expect(projected).toHaveLength(1);
     expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].editableSubmission).toBeNull();
     expect(projected[0].currentPublishedSubmission?.id).toBe('published-r2');
     expect(projected[0].revisions.map((item) => item.id)).toEqual(['candidate-r3', 'published-r2']);
-    expect(projected[0].reviewState).toBe('closed');
+    expect(projected[0].reviewState).toBe('available');
   });
 
   it('projects the exact owned candidate revision as editable behind a published primary', () => {
@@ -92,8 +93,10 @@ describe('Pipeline Library projection', () => {
     const projected = projectPipelineLibrary(program([candidate, published]));
 
     expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].editableSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
+    expect(projected[0].reviewState).toBe('available');
   });
 
   it('keeps contributor lifecycle actions pinned to the exact eligible revision', () => {
@@ -131,8 +134,21 @@ describe('Pipeline Library projection', () => {
     const projected = projectPipelineLibrary(program([newerDraft, candidate]));
 
     expect(projected[0].submission.id).toBe('candidate-r3');
+    expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
     expect(projected[0].reviewState).toBe('available');
+  });
+
+  it('does not expose a closed revision as a review target', () => {
+    const published = submission('published-r2', {
+      status: 'published', revisionNumber: 2, publishedAt: '2026-08-22T12:00:00.000Z',
+    });
+
+    const projected = projectPipelineLibrary(program([published]));
+
+    expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].reviewSubmission).toBeNull();
+    expect(projected[0].reviewState).toBe('closed');
   });
 
   it('separates lifecycle from voteability', () => {

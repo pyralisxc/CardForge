@@ -282,6 +282,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     try {
       const response = await fetch(`/api/pipeline/${submissionId}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voteValue: value }) });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to record this vote.'));
+      const { program } = await response.json() as { program: Parameters<typeof shared.acceptProgram>[0] };
+      shared.acceptProgram(program);
       toast({ title: 'Vote recorded', description: `${name} has been updated in Forge Review.` });
       await shared.refresh();
     } catch (error) {
