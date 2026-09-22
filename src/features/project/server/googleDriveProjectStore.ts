@@ -1171,6 +1171,10 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
       });
     }
   }
+  // Provider revocation is authoritative even if local cleanup fails. Drop any
+  // cached access immediately so a retained database row cannot keep operating
+  // on a token minted before revocation.
+  invalidateGoogleDriveAccessTokenCache(row.id);
   const { error } = await requireStore()
     .from('cardforge_project_storage_connections')
     .delete()
@@ -1180,5 +1184,4 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
     console.error('Unable to delete Google Drive project connection:', error);
     throw new ProjectStorageProviderError('CardForge could not disconnect Google Drive.', 503, { kind: 'unavailable' });
   }
-  invalidateGoogleDriveAccessTokenCache(row.id);
 };
