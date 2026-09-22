@@ -58,6 +58,8 @@ Published discovery classification is an Owner operation in Content Health. The 
 
 `npm run pipeline:sync-defaults` imports missing stable IDs and referenced media without overwriting owner decisions or recreating tombstoned assets. Code owns finite Studio destinations/compatibility; Supabase owns live placement, ordering, featured state, and owner overrides.
 
+Template Studio consumes that routing rather than inferring every placement from an asset's broad kind. Explicit `studioDestinations` win over the finite kind fallback. Template-derived card treatments stay on the current face and physical format, and front Templates expose published same-format backs as navigable counterparts; these projections do not create a second catalog or duplicate the underlying revision.
+
 ## Core ownership
 
 - `src/domain`: pure Artifact, Card, Template, Rendering, and Entitlements policy. In the shipped card specialization, one Artifact is one whole card identity; front/back are faces inside that Artifact, with a required front Template/data relationship and optional back Template/data relationship. Set exposes the generic Artifact identity/type seam while current creation and type-specific payload rules remain card-specialized.

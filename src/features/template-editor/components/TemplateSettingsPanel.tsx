@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES } from '@/features/template-editor/lib/editorOptions';
 import {
+  getTemplateCardMeasurement,
   resolveTemplateCardFormat,
   type CardFormatId,
   type CardMeasurementUnit,
@@ -32,6 +33,7 @@ interface TemplateSettingsPanelProps {
   resizeStrategy: CanvasResizeStrategy;
   gridSize: number;
   frameKitRecipes: ElementPresetRecipe[];
+  matchingBacks: TCGCardTemplate[];
   frameAssets: CardAssetOption[];
   borderAssets: CardAssetOption[];
   backgroundImageInputRef: { current: HTMLInputElement | null };
@@ -47,6 +49,7 @@ interface TemplateSettingsPanelProps {
   onResetGridToTemplateDefault: () => void;
   onApplyFrameStyle: (frameStyle: string) => void;
   onApplyElementPresetRecipe: (recipe: ElementPresetRecipe) => void;
+  onOpenMatchingBack: (template: TCGCardTemplate) => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onUpdateCanvas: (updates: Partial<FreeformCanvas>, trackHistory?: boolean) => void;
   onUpdateTemplate: (updates: Partial<TCGCardTemplate>, trackHistory?: boolean) => void;
@@ -63,6 +66,7 @@ export function TemplateSettingsPanel({
   resizeStrategy,
   gridSize,
   frameKitRecipes,
+  matchingBacks,
   frameAssets,
   borderAssets,
   backgroundImageInputRef,
@@ -78,6 +82,7 @@ export function TemplateSettingsPanel({
   onResetGridToTemplateDefault,
   onApplyFrameStyle,
   onApplyElementPresetRecipe,
+  onOpenMatchingBack,
   onFileUpload,
   onUpdateCanvas,
   onUpdateTemplate,
@@ -123,6 +128,31 @@ export function TemplateSettingsPanel({
           onValueChange={onApplyCardFormat}
         />
       </div>
+      {currentTemplate.templateUsage !== 'back-preset' && matchingBacks.length > 0 ? (
+        <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
+          <div>
+            <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">Compatible card backs</Label>
+            <p className="mt-1 text-[10px] leading-4 text-[#818999]">
+              Published backs with the same physical card size as this front.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            {matchingBacks.map((template) => (
+              <Button
+                key={template.id ?? template.name}
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(buttonClassName, 'h-auto min-h-9 justify-between gap-2 px-2 py-1.5 text-left text-[10px]')}
+                onClick={() => onOpenMatchingBack(template)}
+              >
+                <span className="truncate text-[#f1dfb4]">{template.name}</span>
+                <span className="shrink-0 text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div>
         <Label htmlFor="maker-resize-strategy" className="text-xs text-[#b7bdc9]">When size changes</Label>
         <Select
@@ -220,7 +250,8 @@ export function TemplateSettingsPanel({
           <SelectContent>{CARD_BORDER_STYLES.map(style => <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-      <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
+      {frameKitRecipes.length > 0 ? (
+        <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
         <div className="flex items-center justify-between">
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">Card treatments</Label>
           <Sparkles className="h-3.5 w-3.5 text-[#7a52cc]" />
@@ -257,7 +288,8 @@ export function TemplateSettingsPanel({
             </Tooltip>
           ))}
         </div>
-      </div>
+        </div>
+      ) : null}
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
         <div className="flex items-start justify-between gap-2">
           <div>

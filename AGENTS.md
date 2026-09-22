@@ -10,6 +10,8 @@ Treat `main` plus live provider state as authoritative. Orient in this order:
 2. `docs/agent-map.md` for the affected owner, focused tests, and relevant document sections.
 3. Only the source and linked sections routed for the objective.
 
+`ORCHESTRATION.md` owns the stable branch, CI, exact-SHA Preview, provider-migration, and human acceptance boundaries. It does not replace the authorities above or record current work state.
+
 The durable truth sources are:
 
 - `docs/architecture.md` for shipped ownership and invariants;
@@ -111,4 +113,3 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
-

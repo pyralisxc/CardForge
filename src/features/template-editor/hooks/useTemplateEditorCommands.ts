@@ -18,7 +18,7 @@ import {
   reconstructMinimalTemplate,
 } from '@/domain/templates';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
-import { createFrameKitPresetRecipes } from '@/features/template-editor/lib/elementPresetRecipes';
+import { createCompatibleFrameKitPresetRecipes } from '@/features/template-editor/lib/elementPresetRecipes';
 import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
 import {
   buildCardFormatTemplateUpdate,
@@ -115,12 +115,12 @@ export function useTemplateEditorCommands({
   }, [currentMeasurementHeight, currentMeasurementWidth]);
 
   const frameKitRecipes = useMemo(() => {
-    const recipes = createFrameKitPresetRecipes(templates);
+    const recipes = createCompatibleFrameKitPresetRecipes(templates, currentTemplate);
     const recommendedId = `frame-kit-${currentTemplate.id}`;
     return recipes.sort((left, right) => (
       left.id === recommendedId ? -1 : right.id === recommendedId ? 1 : left.label.localeCompare(right.label)
     ));
-  }, [currentTemplate.id, templates]);
+  }, [currentTemplate, templates]);
 
   const saveTemplate = useCallback(async (templateOverride?: TCGCardTemplate) => {
     if (saveInFlightRef.current) return false;

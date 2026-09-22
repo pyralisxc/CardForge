@@ -20,6 +20,7 @@ import {
 import {
   buildElementPresetElementUpdates,
   createRecipesFromAppearanceStyles,
+  isAppearanceStyleRoutedTo,
   isElementPresetApplicable,
   type ElementPresetRecipe,
 } from '@/features/template-editor/lib/elementPresetRecipes';
@@ -109,7 +110,9 @@ export function useTemplateEditorElements({
     const target = isDividerElement(selectedElement) ? 'divider' : selectedElement.type;
     const byId = new Map<string, AppearanceStylePreset>();
     appearanceStyles.forEach((style) => {
-      if (style.targets.includes(target) && !byId.has(style.id)) byId.set(style.id, style);
+      const belongsInLook = isAppearanceStyleRoutedTo(style, 'style.material')
+        || isAppearanceStyleRoutedTo(style, 'style.textFrame');
+      if (belongsInLook && style.targets.includes(target) && !byId.has(style.id)) byId.set(style.id, style);
     });
     return Array.from(byId.values());
   }, [appearanceStyles, selectedElement]);
@@ -122,7 +125,13 @@ export function useTemplateEditorElements({
       shapeRole: [] as ElementPresetRecipe[],
     };
     if (!selectedElement) return empty;
-    const recipes = createRecipesFromAppearanceStyles(appearanceStyles)
+    const routedStyles = appearanceStyles.filter((style) => (
+      isAppearanceStyleRoutedTo(style, 'style.border')
+      || isAppearanceStyleRoutedTo(style, 'style.divider')
+      || isAppearanceStyleRoutedTo(style, 'style.icon')
+      || isAppearanceStyleRoutedTo(style, 'style.shape')
+    ));
+    const recipes = createRecipesFromAppearanceStyles(routedStyles)
       .filter((preset) => isElementPresetApplicable(preset, selectedElement));
     return {
       border: recipes.filter((preset) => preset.kind === 'borderTreatment'),

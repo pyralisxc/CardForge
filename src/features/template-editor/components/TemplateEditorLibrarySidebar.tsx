@@ -125,6 +125,7 @@ export function TemplateEditorLibrarySidebar({
             resizeStrategy={commands.resizeStrategy}
             gridSize={canvas.gridSize || 20}
             frameKitRecipes={commands.frameKitRecipes}
+            matchingBacks={matchingBacks}
             frameAssets={currentTemplate.templateUsage === 'back-preset'
               ? elements.backFrameAssets
               : elements.frontFrameAssets}
@@ -144,6 +145,7 @@ export function TemplateEditorLibrarySidebar({
             onResetGridToTemplateDefault={commands.resetGridToTemplateDefault}
             onApplyFrameStyle={commands.applyFrameStyle}
             onApplyElementPresetRecipe={elements.applyElementPresetRecipe}
+            onOpenMatchingBack={commands.openTemplate}
             onFileUpload={commands.handleFileUpload}
             onUpdateCanvas={updateCanvas}
             onUpdateTemplate={updateTemplate}
