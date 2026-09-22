@@ -74,6 +74,7 @@ const writableProjectCapabilities = {
   canDownload: true,
   canEdit: true,
   canModifyContent: true,
+  canTrash: true,
   canDelete: true,
 };
 
