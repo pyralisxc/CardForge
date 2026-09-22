@@ -62,13 +62,13 @@ describe('Google Drive shared-folder capabilities', () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
       .mockResolvedValueOnce(Response.json({ id: 'shared_folder_123', name: 'Studio Team', mimeType: 'application/vnd.google-apps.folder', driveId: 'shared_drive_456', capabilities: { canAddChildren: true } }))
-      .mockResolvedValueOnce(Response.json({ files: [projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canDelete: false })] }));
+      .mockResolvedValueOnce(Response.json({ files: [projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canTrash: false, canDelete: false })] }));
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await listGoogleDriveProjects('user-1');
     expect(result.projects[0]).toMatchObject({
       fileId: 'drive_file_12345', driveId: 'shared_drive_456', resourceKey: 'resource-key',
-      capabilities: { canDownload: true, canEdit: true, canModifyContent: true, canDelete: false },
+      capabilities: { canDownload: true, canEdit: true, canModifyContent: true, canTrash: false, canDelete: false },
     });
     const folderUrl = new URL(String(fetchMock.mock.calls[1]![0]));
     expect(folderUrl.searchParams.get('supportsAllDrives')).toBe('true');
@@ -92,7 +92,7 @@ describe('Google Drive shared-folder capabilities', () => {
   it('does not update a shared Drive project when the native role cannot modify content', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
-      .mockResolvedValueOnce(Response.json(projectFile({ canDownload: true, canEdit: true, canModifyContent: false, canDelete: false })));
+      .mockResolvedValueOnce(Response.json(projectFile({ canDownload: true, canEdit: true, canModifyContent: false, canTrash: false, canDelete: false })));
     vi.stubGlobal('fetch', fetchMock);
     await expect(prepareGoogleDriveProjectUpload({
       ownerUserId: 'user-1', fileId: 'drive_file_12345', name: 'Shared Set', size: 10,
@@ -102,10 +102,10 @@ describe('Google Drive shared-folder capabilities', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('does not delete a shared Drive project when the native role cannot delete it', async () => {
+  it('does not move a shared Drive project to Trash when the native role cannot trash it', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
-      .mockResolvedValueOnce(Response.json(projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canDelete: false })));
+      .mockResolvedValueOnce(Response.json(projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canTrash: false, canDelete: false })));
     vi.stubGlobal('fetch', fetchMock);
     await expect(deleteGoogleDriveProject({
       ownerUserId: 'user-1', fileId: 'drive_file_12345', expectedProviderRevision: headToken('native-head-1'), expectedProjectRevision: 'a'.repeat(64),
