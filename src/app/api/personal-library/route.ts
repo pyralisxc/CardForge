@@ -29,13 +29,23 @@ export async function POST(request: Request) {
     const body = await parsePersonalLibraryJson(request);
     const provider = body.provider;
     const role = body.role;
-    const fileIds = Array.isArray(body.fileIds)
-      ? body.fileIds.filter((value): value is string => typeof value === 'string')
-      : [];
+    const files = Array.isArray(body.files)
+      ? body.files.flatMap((value) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+        const record = value as Record<string, unknown>;
+        if (typeof record.fileId !== 'string') return [];
+        return [{
+          fileId: record.fileId,
+          resourceKey: typeof record.resourceKey === 'string' ? record.resourceKey : null,
+        }];
+      })
+      : Array.isArray(body.fileIds)
+        ? body.fileIds.flatMap((value) => typeof value === 'string' ? [{ fileId: value, resourceKey: null }] : [])
+        : [];
     if (!isPersonalLibraryProvider(provider)) throw new Error('A supported connected-library provider is required.');
     if (!isPersonalLibraryRole(role)) throw new Error('A supported personal-library role is required.');
     if (provider !== 'google-drive') throw new Error('That personal-library provider is not available yet.');
-    return Response.json(await registerGoogleDrivePersonalLibraryFiles({ ownerUserId, fileIds, role }), {
+    return Response.json(await registerGoogleDrivePersonalLibraryFiles({ ownerUserId, files, role }), {
       status: 201,
       headers: { 'Cache-Control': 'no-store' },
     });

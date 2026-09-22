@@ -28,6 +28,7 @@ export interface GoogleDriveProjectCapabilities {
   canDownload: boolean;
   canEdit: boolean;
   canModifyContent: boolean;
+  canTrash: boolean;
   canDelete: boolean;
 }
 

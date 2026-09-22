@@ -199,7 +199,7 @@ describe('location failure and detach safety', () => {
     expect(mock.captureWorkspace).not.toHaveBeenCalled();
   });
 
-  it('clears only matching local bindings after the exact Drive file is deleted', async () => {
+  it('clears only matching local bindings after the exact Drive file is moved to Trash', async () => {
     mock.localSets = [{ id: 'set-c' }, { id: 'other' }];
     mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
     mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
@@ -214,7 +214,7 @@ describe('location failure and detach safety', () => {
     expect(mock.values.has('test:google-drive-work-binding:other')).toBe(true);
   });
 
-  it('does not delete a Drive file when local attachment metadata cannot be read', async () => {
+  it('does not trash a Drive file when local attachment metadata cannot be read', async () => {
     mock.read.mockRejectedValue(new Error('Storage unavailable'));
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
@@ -222,7 +222,7 @@ describe('location failure and detach safety', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('retains local bindings if the Drive deletion fails', async () => {
+  it('retains local bindings if the Drive Trash request fails', async () => {
     mock.values.set('test:google-drive-project-binding', { workId: 'set-c' });
     mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { message: 'Revision conflict' } }, { status: 409 })));
@@ -297,7 +297,10 @@ it('rejects template-only ordinary Open before materializing or persisting bindi
 
 it('preserves the prior binding and warns against repeating a null upload receipt', async () => {
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' })).mockResolvedValueOnce(Response.json(null)));
+  vi.stubGlobal('fetch', vi.fn()
+    .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+    .mockResolvedValueOnce(Response.json(null))
+    .mockResolvedValueOnce(new Response(null, { status: 404 })));
   await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('do not repeat this upload blindly');
   expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
 });
@@ -330,8 +333,10 @@ it.each([false, true])('initializes a newly saved Set for safe refresh (locally 
 
 it('preserves the prior binding when a successful upload omits the native content head', async () => {
   mock.values.set('test:google-drive-work-binding:set-c', driveBinding);
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
-    .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '2', name: 'C' })));
+  vi.stubGlobal('fetch', vi.fn()
+    .mockResolvedValueOnce(Response.json({ uploadSessionUrl: 'https://upload.test', name: 'C' }))
+    .mockResolvedValueOnce(Response.json({ id: driveBinding.fileId, version: '2', name: 'C' }))
+    .mockResolvedValueOnce(new Response(null, { status: 404 })));
   await expect(saveCardSetToGoogleDrive({ setId: 'set-c', name: 'C' })).rejects.toThrow('do not repeat this upload blindly');
   expect(mock.values.get('test:google-drive-work-binding:set-c')).toEqual(driveBinding);
 });

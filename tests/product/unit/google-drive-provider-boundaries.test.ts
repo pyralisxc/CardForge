@@ -74,6 +74,7 @@ const writableProjectCapabilities = {
   canDownload: true,
   canEdit: true,
   canModifyContent: true,
+  canTrash: true,
   canDelete: true,
 };
 
@@ -169,10 +170,12 @@ describe('Google Drive provider boundaries', () => {
       .mockResolvedValueOnce(new Response(null, { headers: { location: 'https://www.googleapis.com/upload/session' } }));
     if (failure === 'lost response') fetch.mockRejectedValueOnce(new Error('connection reset'));
     else fetch.mockResolvedValueOnce(failure === 'provider 503' ? new Response(null, { status: 503 }) : Response.json(failure === 'null receipt' ? null : failure === 'missing head' ? { id: 'drive-file-12345', version: '3', name: 'Saved' } : {}));
+    fetch.mockResolvedValueOnce(new Response(null, { status: 404 }));
     vi.stubGlobal('fetch', fetch);
     const error = await updateGoogleDriveProjectFromServer({ ownerUserId: 'user-1', fileId: 'drive-file-12345', name: 'Set', blob: new Blob(['new']), projectRevision: 'b'.repeat(64), expectedProviderRevision: headToken('1'), expectedProjectRevision: 'a'.repeat(64) }).catch((error: unknown) => error);
     expect(describeAgentBoundaryFailure(error)).toMatchObject({ status: 503, kind: 'unavailable', retryable: false, nextAction: expect.stringContaining('Do not repeat commit_project') });
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(fetch.mock.calls[4]?.[1]).toMatchObject({ method: 'PUT', headers: expect.objectContaining({ 'Content-Range': 'bytes */3' }) });
   });
 
   it('recognizes Google 403 rate-limit reasons as a retryable limit boundary', async () => {
@@ -278,10 +281,9 @@ describe('Google Drive provider boundaries', () => {
       appProperties: { cardforgeProject: '1', cardforgeProjectRevision: `${id}-revision` },
     });
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'first-token' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'first-token', expires_in: 3600 }), { status: 200 }))
       .mockResolvedValueOnce(Response.json(writableDriveFolder()))
       .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile1', '1')], nextPageToken: 'page-two' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'second-token' }), { status: 200 }))
       .mockResolvedValueOnce(Response.json(writableDriveFolder()))
       .mockResolvedValueOnce(new Response(JSON.stringify({ files: [project('drivefile2', '2')] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -292,7 +294,8 @@ describe('Google Drive provider boundaries', () => {
         { fileId: 'drivefile2', thumbnailLink: 'https://drive.example.test/drivefile2.png' },
       ], nextPageToken: null,
     });
-    const secondListUrl = new URL(String(fetchMock.mock.calls[5]?.[0]));
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('oauth2.googleapis.com/token'))).toHaveLength(1);
+    const secondListUrl = new URL(String(fetchMock.mock.calls[4]?.[0]));
     expect(secondListUrl.searchParams.get('pageToken')).toBe('page-two');
     expect(secondListUrl.searchParams.get('fields')).toContain('thumbnailLink');
   });
@@ -347,7 +350,7 @@ describe('Google Drive provider boundaries', () => {
     });
     expect(updateQuery.update).toHaveBeenCalledWith({
       status: 'error',
-      status_note: 'Google authorization expired or was revoked.',
+      status_note: 'Google authorization expired, was revoked, or is missing the required Drive permission.',
     });
   });
 
@@ -408,6 +411,7 @@ describe('Google Drive provider boundaries', () => {
       await expect(action).resolves.toMatchObject({ projectRevision: 'b'.repeat(64) });
       expect(fetch).toHaveBeenCalledTimes(3);
       expect(fetch.mock.calls[2]![1]).toMatchObject({ method: 'PATCH' });
+      expect(JSON.parse(fetch.mock.calls[2]![1]!.body as string)).not.toHaveProperty('name');
     }
   });
 });

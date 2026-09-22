@@ -131,9 +131,6 @@ describe('Google Drive connection status ownership', () => {
       status: 'active',
       statusNote: 'This Drive folder is read-only for the connected account.',
     });
-    expect(updates).toHaveLength(1);
-    expect(updates[0]).toHaveProperty('last_verified_at');
-    expect(updates[0]).not.toHaveProperty('status');
-    expect(updates[0]).not.toHaveProperty('status_note');
+    expect(updates).toHaveLength(0);
   });
 });

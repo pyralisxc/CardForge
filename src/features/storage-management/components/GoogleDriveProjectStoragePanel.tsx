@@ -386,7 +386,7 @@ export function GoogleDriveProjectStoragePanel({
                       })}
                       onDelete={() => void run(`delete:${project.fileId}`, async () => {
                         await deleteGoogleDriveProjectFromLibrary(project);
-                        toast({ title: 'Google Drive project deleted', description: `Removed “${project.name}” from Google Drive.` });
+                        toast({ title: 'Google Drive project moved to Trash', description: `Moved “${project.name}” to Google Drive Trash. Browser and local-folder copies were left unchanged.` });
                       })}
                     />
                   ))}
@@ -466,11 +466,11 @@ function GoogleDriveProjectRow({
           variant="ghost"
           disabled={Boolean(busyAction) || !project.projectRevision}
           onClick={() => {
-            if (window.confirm(`Delete “${project.name}” from Google Drive? This does not delete browser or local-folder copies.`)) onDelete();
+            if (window.confirm(`Move “${project.name}” to Google Drive Trash? Browser and local-folder copies will stay unchanged.`)) onDelete();
           }}
         >
           {busyAction === `delete:${project.fileId}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-          Delete
+          Move to Trash
         </Button>
       </div>
       {isBusy ? <span className="sr-only">Working on {project.name}</span> : null}

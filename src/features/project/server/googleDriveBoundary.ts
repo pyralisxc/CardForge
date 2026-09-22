@@ -14,7 +14,7 @@ export interface GoogleProviderFailure {
 }
 
 export type GoogleAccessTokenResult =
-  | { ok: true; accessToken: string }
+  | { ok: true; accessToken: string; expiresInSeconds: number | null }
   | { ok: false; failure: GoogleProviderFailure };
 
 const RATE_LIMIT_REASONS = new Set([
@@ -29,6 +29,7 @@ const GOOGLE_CLIENT_CONFIGURATION_ERRORS = new Set([
 ]);
 
 export const GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS = 15_000;
+export const GOOGLE_PROVIDER_CONTENT_TIMEOUT_MS = 60_000;
 
 const readableGoogleProviderMessage = (value: string | undefined): string | undefined => {
   const message = value?.trim();
@@ -120,9 +121,12 @@ export const requestGoogleAccessToken = async ({
     };
   }
 
-  const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload & { access_token?: string };
+  const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload & { access_token?: string; expires_in?: unknown };
   const accessToken = payload.access_token?.trim();
-  if (response.ok && accessToken) return { ok: true, accessToken };
+  const expiresInSeconds = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0
+    ? Math.floor(payload.expires_in)
+    : null;
+  if (response.ok && accessToken) return { ok: true, accessToken, expiresInSeconds };
   return {
     ok: false,
     failure: classifyGoogleProviderFailure(response.status, payload, 'token'),

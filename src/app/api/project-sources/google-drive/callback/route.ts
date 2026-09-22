@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -34,6 +34,13 @@ const accountRedirect = (status: 'connected' | 'error', returnTo: string | undef
     path: '/api/project-sources/google-drive',
     maxAge: 0,
   });
+  response.cookies.set('cardforge_google_drive_owner', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/api/project-sources/google-drive',
+    maxAge: 0,
+  });
   return response;
 };
 
@@ -43,8 +50,10 @@ export async function GET(request: Request) {
   const state = url.searchParams.get('state') ?? '';
   const providerError = url.searchParams.get('error');
   const providerErrorDescription = url.searchParams.get('error_description');
-  const expectedState = (await cookies()).get('cardforge_google_drive_oauth_state')?.value ?? '';
-  const returnTo = (await cookies()).get('cardforge_google_drive_return_to')?.value;
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get('cardforge_google_drive_oauth_state')?.value ?? '';
+  const expectedOwner = cookieStore.get('cardforge_google_drive_owner')?.value ?? '';
+  const returnTo = cookieStore.get('cardforge_google_drive_return_to')?.value;
   if (providerError) {
     return accountRedirect('error', returnTo, providerErrorDescription || providerError);
   }
@@ -53,6 +62,10 @@ export async function GET(request: Request) {
   }
   try {
     const { ownerUserId } = await getGoogleDriveProjectAccount();
+    const currentOwner = createHash('sha256').update(ownerUserId).digest('base64url');
+    if (!expectedOwner || !safeStateMatch(expectedOwner, currentOwner)) {
+      return accountRedirect('error', undefined, 'The CardForge account changed while Google Drive was connecting. Start the connection again from the account that should own it.');
+    }
     await connectGoogleDriveProjectStorage({ ownerUserId, code });
     return accountRedirect('connected', returnTo);
   } catch (error) {

@@ -2,17 +2,16 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
-  getUnexpectedGoogleDriveScopes,
   isGoogleDriveFileId,
   type GoogleDriveFolderSelection,
   type GoogleDrivePickerConfiguration,
 } from '../model/googleDriveProject';
-import { decryptProjectStorageToken } from './projectStorageTokenCrypto';
 import {
   getGoogleDriveProjectStorageConfiguration,
   ProjectStorageProviderError,
 } from './googleDriveProjectStore';
-import { readGoogleProviderFailure, requestGoogleAccessToken } from './googleDriveBoundary';
+import { resolveGoogleDriveConnectionAccess } from './googleDriveConnectionAuthority';
+import { GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS, readGoogleProviderFailure } from './googleDriveBoundary';
 
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -34,6 +33,7 @@ type GoogleDriveFolderMetadata = {
   mimeType?: string;
   driveId?: string;
   resourceKey?: string;
+  trashed?: boolean;
   capabilities?: { canAddChildren?: boolean };
 };
 
@@ -64,18 +64,7 @@ const getPickerConnection = async (ownerUserId: string): Promise<PickerConnectio
       nextAction: 'Connect Google Drive in Library → Locations.',
     });
   }
-  const row = data as unknown as PickerConnectionRow;
-  if (getUnexpectedGoogleDriveScopes(row.granted_scopes ?? []).length > 0) {
-    throw new ProjectStorageProviderError(
-      'Google granted Drive permissions broader than CardForge permits. The connection cannot be used.',
-      409,
-      {
-        kind: 'conflict',
-        nextAction: 'CardForge owner must remove broad Drive scopes from the Google Auth Platform client before retrying.',
-      },
-    );
-  }
-  return row;
+  return data as unknown as PickerConnectionRow;
 };
 
 const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<string> => {
@@ -83,46 +72,30 @@ const refreshPickerAccessToken = async (row: PickerConnectionRow): Promise<strin
   if (!config.configured) {
     throw new ProjectStorageProviderError('Google Drive project storage is not configured yet.', 503, { kind: 'unavailable' });
   }
-
-  let refreshToken: string;
-  try {
-    refreshToken = decryptProjectStorageToken({
-      ciphertext: row.refresh_token_ciphertext,
-      iv: row.refresh_token_iv,
-      authTag: row.refresh_token_auth_tag,
-    });
-  } catch (error) {
-    console.error('Unable to decrypt Google Drive refresh token for Picker:', error);
-    throw new ProjectStorageProviderError('The Google Drive connection needs to be reconnected.', 401, {
-      kind: 'authentication',
-      nextAction: 'Reconnect Google Drive in Library → Locations.',
-    });
-  }
-
-  const token = await requestGoogleAccessToken({
-    endpoint: GOOGLE_TOKEN_ENDPOINT,
-    refreshToken,
+  const access = await resolveGoogleDriveConnectionAccess({
+    row,
     clientId: config.clientId,
     clientSecret: config.clientSecret,
+    tokenEndpoint: GOOGLE_TOKEN_ENDPOINT,
   });
-  if (!token.ok) {
-    if (token.failure.reconnectRequired) {
+  if (!access.ok) {
+    if (access.failure.reconnectRequired) {
       await requireStore()
         .from('cardforge_project_storage_connections')
-        .update({ status: 'error', status_note: 'Google authorization expired or was revoked.' })
+        .update({ status: 'error', status_note: 'Google authorization expired, was revoked, or is missing the required Drive permission.' })
         .eq('id', row.id);
     }
     throw new ProjectStorageProviderError(
-      token.failure.providerMessage || (token.failure.reconnectRequired ? 'Google Drive authorization expired or was revoked.' : 'Google Drive could not refresh this connection.'),
-      token.failure.status,
+      access.failure.message,
+      access.failure.status,
       {
-        kind: token.failure.kind,
-        nextAction: token.failure.nextAction,
-        retryable: token.failure.status === 429 || token.failure.status >= 500,
+        kind: access.failure.kind,
+        nextAction: access.failure.nextAction,
+        retryable: access.failure.status === 429 || access.failure.status >= 500,
       },
     );
   }
-  return token.accessToken;
+  return access.accessToken;
 };
 
 const projectNumberFromOAuthClientId = (clientId: string): string => {
@@ -200,11 +173,12 @@ const readDriveFolder = async ({
   resourceKey?: string | null;
 }): Promise<GoogleDriveFolderMetadata> => {
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
-  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,capabilities(canAddChildren)');
+  url.searchParams.set('fields', 'id,name,mimeType,driveId,resourceKey,trashed,capabilities(canAddChildren)');
   url.searchParams.set('supportsAllDrives', 'true');
   const response = await fetch(url, {
     headers: folderHeaders(accessToken, folderId, resourceKey),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
     const failure = await readGoogleProviderFailure(response);
@@ -221,6 +195,12 @@ const readDriveFolder = async ({
   }
   const folder = await response.json() as GoogleDriveFolderMetadata;
   if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
+  if (folder.trashed === true) {
+    throw new ProjectStorageProviderError('The selected Google Drive project folder is in Trash.', 404, {
+      kind: 'not_found',
+      nextAction: 'Restore the folder in Google Drive or choose another project folder.',
+    });
+  }
   return folder;
 };
 
@@ -257,8 +237,8 @@ export const getGoogleDrivePickerConfiguration = async (
   ownerUserId: string,
 ): Promise<GoogleDrivePickerConfiguration> => {
   const row = await getPickerConnection(ownerUserId);
-  const picker = requirePickerEnvironment();
   const accessToken = await refreshPickerAccessToken(row);
+  const picker = requirePickerEnvironment();
   return {
     accessToken,
     contributorKey: picker.contributorKey,
@@ -333,6 +313,7 @@ export const createGoogleDriveProjectFolder = async ({
       mimeType: GOOGLE_DRIVE_FOLDER_MIME_TYPE,
     }),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
     const failure = await readGoogleProviderFailure(response);

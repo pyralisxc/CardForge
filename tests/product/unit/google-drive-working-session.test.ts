@@ -8,14 +8,14 @@ import {
   shouldPauseGoogleDriveAutosaveForError,
   shouldOfferGoogleDriveReconciliation,
 } from '@/features/project/client/googleDriveWorkingSession';
-import { GoogleDriveSaveLinkageError } from '@/features/project/client/googleDriveProjectTransfer';
+import { GoogleDriveSaveLinkageError, GoogleDriveUnknownCommitError } from '@/features/project/client/googleDriveProjectTransfer';
 
-const driveError = (kind: ConstructorParameters<typeof ApiClientError>[3]) => new ApiClientError(
+const driveError = (kind: ConstructorParameters<typeof ApiClientError>[3], retryable = false) => new ApiClientError(
   'Drive request failed.',
   409,
   `google_drive_${kind}`,
   kind,
-  false,
+  retryable,
   null,
 );
 
@@ -54,10 +54,18 @@ describe('Google Drive working-session safety', () => {
     ['authentication', true],
     ['not_found', true],
     ['unavailable', false],
-    ['limit', false],
+    ['limit', true],
     ['invalid', false],
   ] as const)('does not automatically retry an error that needs explicit creator recovery: %s', (kind, expected) => {
     expect(shouldPauseGoogleDriveAutosaveForError(driveError(kind))).toBe(expected);
+  });
+
+  it('backs off retryable provider unavailability until the metadata reconciliation loop succeeds', () => {
+    expect(shouldPauseGoogleDriveAutosaveForError(driveError('unavailable', true))).toBe(true);
+  });
+
+  it('pauses an unknown provider commit until Drive is revalidated', () => {
+    expect(shouldPauseGoogleDriveAutosaveForError(new GoogleDriveUnknownCommitError())).toBe(true);
   });
 
   it('does not pause unknown local errors as if Drive state were authoritative', () => {

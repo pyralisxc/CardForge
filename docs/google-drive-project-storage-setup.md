@@ -154,18 +154,20 @@ CardForge initiates resumable Drive uploads on the server so refresh/access cred
 
 ## Database migration
 
-Apply the repository migrations that create the server-only provider connection table/source lineage and preserve Google resource-key metadata for selected shared folders:
+Apply the repository migrations that create the server-only provider connection table/source lineage, allow an authorized account to exist before a project folder is selected, and preserve Google resource-key metadata for selected shared folders and connected assets:
 
 - `supabase/migrations/20260823154500_google_drive_project_storage.sql`
 - `supabase/migrations/20260911213000_google_drive_folder_resource_keys.sql`
+- `supabase/migrations/20260921225500_google_drive_explicit_folder_choice.sql`
+- `supabase/migrations/20260922012000_harden_google_drive_personal_library.sql`
 
-The connection table is RLS-enabled and revoked from `public`, `anon`, and `authenticated`; CardForge's server/service-role boundary owns provider credentials. `root_folder_resource_key` is nullable provider metadata, not an OAuth credential. CardForge stores it because some link-shared Drive folders require the same resource key on later verification, listing, reconnect, and child-creation requests even after the Picker handoff is over.
+The connection and personal-library tables are RLS-enabled and revoked from `public`, `anon`, and `authenticated`; CardForge's server/service-role boundary owns provider credentials and indexes. `root_folder_resource_key` and personal-library `provider_resource_key` are nullable provider metadata, not OAuth credentials. CardForge persists them only when Google returns them so later authorized reads can continue to work for protected link-shared resources.
 
 Preview uses the repository's `vercel-preview` migration flow against **Card Forge Staging**. Do not deploy the application code that selects `root_folder_resource_key` to an environment until that environment has the forward migration. Production receives the migration only through the normal production release process.
 
-## Production publishing gate
+## Production configuration gate
 
-Before changing the production Google Auth Platform project from Testing to In production:
+Production was published to an External, In production audience on September 21, 2026 with verified branding and only `openid`, `email`, and non-sensitive `drive.file`. Treat the following as the standing configuration/reverification gate rather than an unfinished launch checklist:
 
 1. Confirm the production Google Cloud project is separate from Preview/testing and contains no Preview/test callback or JavaScript origin.
 2. Confirm Drive API and Picker API are enabled in that production project.
@@ -175,7 +177,7 @@ Before changing the production Google Auth Platform project from Testing to In p
 6. Confirm the public homepage and Privacy Policy are reachable on the owned production domain and the Privacy Policy describes Google Drive authorization, use, storage, and disconnect behavior accurately.
 7. In Google Auth Platform → Branding, verify/publish the production brand and confirm the homepage, privacy-policy, terms, authorized-domain, and developer-contact values match the live CardForge production site.
 8. In Data Access and Verification Center, confirm only the intended identity scopes plus non-sensitive `drive.file` are declared and complete the verification Google requires for the production app.
-9. In Audience, move the production app out of Testing only after the verification state permits it; keep the Preview project in Testing.
+9. In Audience, confirm production remains **In production** and Preview/testing remains in its separate Testing project.
 10. Verify the full production authorization journey with a Google account that is **not** a Preview test user, then repeat open/save/disconnect and confirm the stored granted scopes contain no broader Drive permission.
 
 Do not broaden scopes, copy Preview credentials into production, or change the production audience merely to bypass a verification warning.
@@ -197,7 +199,7 @@ After deployment:
 11. Modify the attached project, wait for **Drive save pending** to become **Saved to Drive** in the Desk context, and verify the Drive provider revision advances.
 12. Create a competing newer Drive/CardForge revision and verify CardForge refuses a stale save rather than intentionally overwriting it.
 13. From an authenticated CardForge MCP connection, run `list_connected_projects`, `checkout_project`, make a normal CardForge edit/preview, then `commit_project` using exact source and working-document revisions.
-14. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
+14. Disconnect Google Drive and confirm project files remain in Drive while CardForge revokes/deletes only its connection state. Separately remove one Drive project from CardForge and confirm the provider file moves to recoverable Google Drive Trash rather than being permanently deleted.
 15. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
 16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
 17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id. A first-time connection or genuinely different Google account must remain connected with no project folder selected until the creator explicitly chooses an existing folder or creates a new one. If a previously selected folder is no longer authorized or available, retain that destination as needing attention until the user explicitly chooses another folder.
@@ -206,9 +208,21 @@ After deployment:
 20. Open the same Set in both accounts with clean browser copies. Save from account A and confirm account B refreshes the newer saved revision within the 30-second active-file window; returning focus to B should trigger the check immediately.
 21. Repeat while account B has local browser edits. A newer Drive save from account A must preserve B's local work, stop automatic saving, and present the existing remote-change reconciliation state rather than silently replacing either copy.
 22. Repeat with account B changed to read-only in Drive. B must continue receiving newer saved revisions when download permission remains available, while CardForge never enables Drive writes for that role.
+23. Rename an open Drive project directly in Google Drive without changing its contents, then save content from CardForge and confirm the external filename is preserved.
+24. Move an open project outside the selected project folder and confirm CardForge stops automatic writes and reports the source unavailable rather than rebinding it.
+25. Move an open project to Google Drive Trash and confirm the working session pauses; restore it and explicitly reconcile before another save. Repeat by trashing the selected project folder.
+26. Begin Google Drive authorization in CardForge account A, switch the browser session to CardForge account B before the callback, and confirm the OAuth completion is rejected rather than attaching A's transaction to B.
+27. Interrupt a browser resumable upload after Google acknowledges only part of the body. Confirm CardForge queries the upload session and resumes from Google's acknowledged byte range instead of blindly starting a second upload.
+28. Repeat the interrupted-upload path through authenticated MCP `commit_project` and confirm the same recovery behavior.
+29. Add a Connected Asset from a Workspace Shared Drive, materialize it, and confirm `supportsAllDrives` behavior works. For a Picker item with a resource key, reload before materialization and confirm the persisted key is reused.
+30. Change a Connected Asset between CardForge's metadata read and byte materialization and confirm CardForge rejects the stale read rather than recording newer bytes under the older provider revision.
+31. Select a large batch of Connected Assets, including files already indexed, and confirm capacity counts only new rows and a provider validation failure does not leave a half-indexed batch.
+32. Run the final independent-writer overlap test: writer A preflights, writer B commits a newer Drive revision, then A completes its resumable upload. Keep the residual atomic-race risk documented unless Google/observed behavior proves A cannot overwrite B in that exact window.
 
 If Picker visibly selects an item but CardForge immediately receives an app-authorization failure, verify the environment's Picker API key belongs to the same Google Cloud project as the active OAuth Web client. CardForge derives `setAppId(...)` from that OAuth client specifically to eliminate a second mutable project-number source of truth.
 
 ## Privacy boundary
 
 A selected project folder is a destination/source for CardForge-created/authorized project files. It is not permission to recursively inspect every pre-existing file beneath that folder. Existing personal-library assets are registered separately through explicit Picker selection under the narrow `drive.file` permission.
+
+CardForge's supported project-sharing contract is direct user/group sharing, explicitly authorized shared folders, and Workspace Shared Drives. CardForge does not promise arbitrary link-only project-file access outside the selected project folder. Connected Assets are different: because each asset is individually Picker-authorized and indexed, CardForge persists that item's resource key when Google returns one.

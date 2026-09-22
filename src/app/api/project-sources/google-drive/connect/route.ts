@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -10,14 +10,22 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    await getGoogleDriveProjectAccount();
+    const { ownerUserId } = await getGoogleDriveProjectAccount();
     const state = randomBytes(32).toString('base64url');
+    const ownerFingerprint = createHash('sha256').update(ownerUserId).digest('base64url');
     const returnTo = getSafeLocalReturnPath(
       new URL(request.url).searchParams.get('returnTo') ?? undefined,
       '/account?section=library&tool=locations',
     );
     const cookieStore = await cookies();
     cookieStore.set('cardforge_google_drive_oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/api/project-sources/google-drive',
+      maxAge: 10 * 60,
+    });
+    cookieStore.set('cardforge_google_drive_owner', ownerFingerprint, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

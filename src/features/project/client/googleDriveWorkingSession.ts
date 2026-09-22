@@ -9,6 +9,7 @@ import { useProjectStore } from '../store/workspaceStore';
 import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
 import {
   GoogleDriveSaveLinkageError,
+  GoogleDriveUnknownCommitError,
   getGoogleDriveWorkBinding,
   hasGoogleDriveWorkingChanges,
   probeGoogleDriveProject,
@@ -67,11 +68,14 @@ export const shouldPauseGoogleDriveAutosaveAfterRevalidation = (
 
 export const shouldPauseGoogleDriveAutosaveForError = (error: unknown) => (
   error instanceof GoogleDriveSaveLinkageError
+  || error instanceof GoogleDriveUnknownCommitError
   || (error instanceof ApiClientError && (
     error.kind === 'conflict'
     || error.kind === 'authorization'
     || error.kind === 'authentication'
     || error.kind === 'not_found'
+    || error.kind === 'limit'
+    || (error.kind === 'unavailable' && error.retryable)
   ))
 );
 
