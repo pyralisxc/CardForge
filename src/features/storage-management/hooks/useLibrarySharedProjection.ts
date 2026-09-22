@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import {
+  getDefaultStudioAssetDestinations,
+  type AppearanceStylePreset,
+  type CardAssetOption,
+  type StudioAssetDestination,
+  type TCGCardTemplate,
+} from '@/domain/templates';
 import {
   getAssetKindLabel,
   getPipelineStatusLabel,
@@ -39,6 +45,7 @@ export interface PublishedLibraryObject {
   description: string;
   specialtyTags: string[];
   useCaseTags: string[];
+  studioDestinations: StudioAssetDestination[];
 }
 
 export interface PipelineLibraryObject {
@@ -124,6 +131,10 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
+    studioDestinations: asset.studioDestinations ?? getDefaultStudioAssetDestinations({
+      kind: asset.kind === 'border' || asset.kind === 'frame' ? 'image' : asset.kind,
+      metadata: asset.style ? { payload: { kind: asset.style.kind } } : undefined,
+    }),
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -143,6 +154,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(font.value)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
+    studioDestinations: ['typography.font'],
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
     id: `published:set:${set.id}`,
@@ -162,6 +174,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: set.description,
     specialtyTags: set.specialtyTags,
     useCaseTags: set.useCaseTags,
+    studioDestinations: [],
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };

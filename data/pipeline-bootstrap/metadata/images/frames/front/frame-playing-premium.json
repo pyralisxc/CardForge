@@ -6,6 +6,7 @@
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],
   "studioDefaultDestination": "image.frame.front",
+  "compatibleOrientations": ["portrait"],
   "repositoryPathAliases": ["textures/arcane-forge/frame-playing-premium.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,

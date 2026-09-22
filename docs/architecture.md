@@ -58,7 +58,7 @@ Published discovery classification is an Owner operation in Content Health. The 
 
 `npm run pipeline:sync-defaults` imports missing stable IDs and referenced media without overwriting owner decisions or recreating tombstoned assets. Code owns finite Studio destinations/compatibility; Supabase owns live placement, ordering, featured state, and owner overrides.
 
-Template Studio consumes that routing rather than inferring every placement from an asset's broad kind. Explicit `studioDestinations` win over the finite kind fallback. Template-derived card treatments stay on the current face and physical format, and front Templates expose published same-format backs as navigable counterparts; these projections do not create a second catalog or duplicate the underlying revision.
+Template Studio consumes that routing rather than inferring every placement from an asset's broad kind. Explicit `studioDestinations` win over the finite kind fallback. Template-derived card treatments stay on the current face and physical format, and front Templates expose published same-format backs as navigable counterparts. Foundation and border artwork may declare compatible portrait, landscape, or square orientations; Studio filters explicit mismatches while treating unclassified artwork as generally compatible. Published Library details explain the contextual Studio destinations for non-Template resources rather than presenting a disabled generic open action. These projections do not create a second catalog or duplicate the underlying revision.
 
 ## Core ownership
 

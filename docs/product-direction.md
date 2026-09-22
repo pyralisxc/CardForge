@@ -306,7 +306,7 @@ Use **Contributor** for the creative/product role across public and private UI a
 
 The existing Forge Pipeline remains the shared reviewed-content owner.
 
-Studio should project each published resource where it is useful, not repeat every resource in every picker. Explicit Pipeline destinations override kind defaults. Counterpart suggestions must remain contextual: Template-derived treatments match the current face and physical format, while a front may reveal compatible published backs. Future family or specialty relationships should refine this same projection without creating duplicate assets or a second Studio catalog.
+Studio should project each published resource where it is useful, not repeat every resource in every picker. Explicit Pipeline destinations override kind defaults. Counterpart suggestions must remain contextual: Template-derived treatments match the current face and physical format, a front may reveal compatible published backs, and foundation or border artwork with declared orientation compatibility should not be offered to an opposing canvas orientation. Unclassified artwork remains broadly available rather than disappearing through inference. Published Library details should name contextual Studio placement instead of advertising a generic action that cannot be completed. Future family or specialty relationships should refine this same projection without creating duplicate assets or a second Studio catalog.
 
 Supported lifecycle concepts include draft, submitted, voting, publish candidate, published, archived, and rejected, with automatic ranking/capacity policy plus explicit Owner overrides.
 

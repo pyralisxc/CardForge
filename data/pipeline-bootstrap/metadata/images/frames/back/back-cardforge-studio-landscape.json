@@ -5,6 +5,7 @@
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],
   "studioDefaultDestination": "image.frame.back",
+  "compatibleOrientations": ["landscape"],
   "repositoryPathAliases": ["textures/arcane-forge/back-cardforge-studio-landscape.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,

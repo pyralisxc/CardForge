@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 import { projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
-import { createLibraryDetailRecord } from '@/features/storage-management/components/LibraryObjectPresentation';
+import { createLibraryDetailRecord, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 
 const localSet: AccountLibraryItem = {
   id: 'set:set-1',
@@ -83,5 +83,40 @@ describe('unified Library view', () => {
     expect(result?.unfilteredScopeItemCount).toBe(1);
     expect(result?.scopeItems).toHaveLength(0);
     expect(result?.viewItems).toHaveLength(0);
+  });
+
+  it('describes generic published assets by their contextual Studio placement without a dead open action', () => {
+    const [published] = projectPublishedLibraryObjects({
+      access: 'free', templates: { defaults: [] }, fonts: { fonts: [] }, sets: { items: [] },
+      assets: {
+        templates: [], textures: [], dividers: [], icons: [], elementPresets: [],
+        imageAssets: [{
+          id: 'portrait-foundation',
+          kind: 'image',
+          name: 'Portrait Foundation',
+          url: 'https://assets.example/portrait.webp',
+          studioDestinations: ['image.frame.front'],
+        }],
+      },
+      pipeline: { items: [] },
+    } as never);
+    const item = {
+      id: published.id,
+      scope: 'published' as const,
+      name: published.name,
+      kindLabel: published.kindLabel,
+      sourceLabel: published.sourceLabel,
+      statusLabel: 'Published',
+      summary: published.description,
+      updatedAt: null,
+      sizeBytes: published.sizeBytes,
+      previewUrl: published.previewUrl,
+      fontFamily: published.fontFamily,
+      published,
+    };
+
+    expect(createLibraryDetailRecord(item).meta).toContainEqual(['Studio placement', 'Front foundations']);
+    expect(createLibraryDetailRecord(item).meta).toContainEqual(['Design access', 'Available through contextual Design pickers']);
+    expect(getSharedLibraryActions(item)).toEqual([]);
   });
 });

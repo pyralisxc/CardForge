@@ -7,6 +7,7 @@ import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
+import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
 import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
@@ -133,7 +134,17 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ...(item.published.useCaseTags.length ? [['Use cases', item.published.useCaseTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
       ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
-      ['Design access', 'Ready to use'],
+      ...(item.published.studioDestinations.length ? [[
+        'Studio placement',
+        item.published.studioDestinations
+          .map((destination) => getStudioAssetDestinationDefinition(destination).shortLabel)
+          .join(' · '),
+      ] as const] : []),
+      ['Design access', item.published.kind === 'set'
+        ? 'Creates an independent Set'
+        : item.published.template
+          ? 'Open or copy into Design'
+          : 'Available through contextual Design pickers'],
     ],
   };
   return {
@@ -216,14 +227,12 @@ export const getSharedLibraryActions = (item: Extract<LibraryViewItem, { scope: 
       availability: { kind: 'available' as const }, commitment: 'publication' as const, automation: { kind: 'human-only' as const, owner: 'cardforge' as const }, result: 'mutation' as const,
     }] : []),
   ];
-  const actions: ActionDescriptor[] = [{
-    id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : item.published.template ? 'Use in Design' : 'Open object', ownerFeature: 'pipeline', supportedObjectKinds: ['published-asset'],
+  const actions: ActionDescriptor[] = item.published.kind === 'set' || item.published.template ? [{
+    id: 'library.use-published', label: item.published.kind === 'set' ? 'Create from this Set' : 'Use in Design', ownerFeature: 'pipeline', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'primary',
-    availability: item.published.kind === 'set' || item.published.template
-      ? { kind: 'available' }
-      : { kind: 'disabled', reason: 'This published object has no contextual editor.' },
+    availability: { kind: 'available' },
     commitment: 'none', automation: { kind: 'planned-mcp', capability: 'select a published catalog asset for Design' }, result: 'navigation',
-  }];
+  }] : [];
   if (item.published.template) actions.push({
     id: 'library.copy-published-template', label: 'Make editable copy', ownerFeature: 'template-editor', supportedObjectKinds: ['published-asset'],
     supportedSources: ['provider-native'], revisionPolicy: 'none', requiredPermission: 'guest', scope: 'object', hierarchy: 'supporting',

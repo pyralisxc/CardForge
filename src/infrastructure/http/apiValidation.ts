@@ -25,6 +25,7 @@ export const stylePresetPayloadSchema = z.object({
 
 const cardAssetAllowedTargetSchema = z.enum(['text', 'shape', 'divider', 'template', 'imageFrame', 'icon', 'image']);
 const tileModeSchema = z.enum(['repeat', 'stretch', 'contain']);
+const cardAssetOrientationSchema = z.enum(['portrait', 'landscape', 'square']);
 const studioAssetDestinationSchema = z.enum(STUDIO_ASSET_DESTINATIONS);
 export const cardAssetMetadataOverrideSchema = z.object({
   id: nonEmptyStringSchema.optional(),
@@ -45,6 +46,7 @@ export const cardAssetMetadataOverrideSchema = z.object({
   studioFeatured: z.boolean().optional(),
   studioRoutingMode: z.enum(['automatic', 'owner']).optional(),
   studioDefaultDestination: studioAssetDestinationSchema.optional(),
+  compatibleOrientations: z.array(cardAssetOrientationSchema).min(1).max(3).optional(),
   repositoryPathAliases: z.array(
     z.string().regex(/^(?:textures|parts|dividers|icons|images)\/(?!.*\.\.)[^\\]+$/),
   ).max(8).optional(),

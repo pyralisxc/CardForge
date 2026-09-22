@@ -105,7 +105,12 @@ describe('asset registry', () => {
         access_tier: 'paid',
         library_source: 'contributor',
         file_size_bytes: 8192,
-        metadata: { contributorId: 'contributor-1', defaultWidth: 300, defaultHeight: 180 },
+        metadata: {
+          contributorId: 'contributor-1',
+          defaultWidth: 300,
+          defaultHeight: 180,
+          compatibleOrientations: ['landscape'],
+        },
       },
       {
         asset_id: 'contributor-elementPresets-1',
@@ -139,7 +144,10 @@ describe('asset registry', () => {
       kind: 'template',
       accessTier: 'paid',
     });
-    expect(payload?.imageAssets[0]?.previewUrl).toBe('https://storage.example.test/image-preview.webp');
+    expect(payload?.imageAssets[0]).toMatchObject({
+      previewUrl: 'https://storage.example.test/image-preview.webp',
+      compatibleOrientations: ['landscape'],
+    });
     expect(payload?.elementPresets[0]).toMatchObject({
       id: 'contributor-elementPresets-1',
       kind: 'elementPreset',

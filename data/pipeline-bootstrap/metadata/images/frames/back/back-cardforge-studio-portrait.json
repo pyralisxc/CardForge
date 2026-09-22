@@ -5,6 +5,7 @@
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],
   "studioDefaultDestination": "image.frame.back",
+  "compatibleOrientations": ["portrait"],
   "repositoryPathAliases": ["textures/arcane-forge/back-cardforge-studio-portrait.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,

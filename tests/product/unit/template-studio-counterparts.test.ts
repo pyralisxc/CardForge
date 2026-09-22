@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { reconstructMinimalTemplateObject, type AppearanceStylePreset } from '@/domain/templates';
+import { reconstructMinimalTemplateObject, type AppearanceStylePreset, type CardAssetOption } from '@/domain/templates';
 import {
   createCompatibleFrameKitPresetRecipes,
   getAppearanceStyleStudioDestinations,
   isAppearanceStyleRoutedTo,
 } from '@/features/template-editor/lib/elementPresetRecipes';
+import { filterCompatibleTemplateAssets } from '@/features/template-editor/lib/templateAssetCompatibility';
 
 const makeStyle = (
   kind: AppearanceStylePreset['kind'],
@@ -70,5 +71,38 @@ describe('Template Studio Pipeline counterparts', () => {
       ttrpgFront,
       pokerBack,
     ], pokerBack).map((recipe) => recipe.label)).toEqual(['poker-back']);
+  });
+
+  it('keeps foundation and border choices compatible with the current orientation', () => {
+    const portraitTemplate = makePublishedTemplate({ id: 'poker-front', formatId: 'poker' });
+    const landscapeTemplate = reconstructMinimalTemplateObject({
+      id: 'business-front',
+      name: 'business-front',
+      formatId: 'us-business',
+      templateRegistryStatus: 'published',
+    });
+    const makeAsset = (
+      id: string,
+      compatibleOrientations?: CardAssetOption['compatibleOrientations'],
+    ): CardAssetOption => ({
+      id,
+      name: id,
+      url: `https://assets.example/${id}.webp`,
+      kind: 'image',
+      tileMode: 'contain',
+      seamless: false,
+      allowedTargets: ['template', 'imageFrame'],
+      compatibleOrientations,
+    });
+    const assets = [
+      makeAsset('portrait', ['portrait']),
+      makeAsset('landscape', ['landscape']),
+      makeAsset('unclassified'),
+    ];
+
+    expect(filterCompatibleTemplateAssets(assets, portraitTemplate).map((asset) => asset.id))
+      .toEqual(['portrait', 'unclassified']);
+    expect(filterCompatibleTemplateAssets(assets, landscapeTemplate).map((asset) => asset.id))
+      .toEqual(['landscape', 'unclassified']);
   });
 });

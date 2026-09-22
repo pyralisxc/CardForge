@@ -17,6 +17,7 @@ import type { TemplateEditorController } from '@/features/template-editor/hooks/
 import type { TemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
 import { useTemplatePanelSectionMemory } from '@/features/template-editor/hooks/useTemplatePanelSectionMemory';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
+import { filterCompatibleTemplateAssets } from '@/features/template-editor/lib/templateAssetCompatibility';
 
 interface TemplateEditorLibrarySidebarProps {
   backFaceTemplates: TCGCardTemplate[];
@@ -126,12 +127,12 @@ export function TemplateEditorLibrarySidebar({
             gridSize={canvas.gridSize || 20}
             frameKitRecipes={commands.frameKitRecipes}
             matchingBacks={matchingBacks}
-            frameAssets={currentTemplate.templateUsage === 'back-preset'
+            frameAssets={filterCompatibleTemplateAssets(currentTemplate.templateUsage === 'back-preset'
               ? elements.backFrameAssets
-              : elements.frontFrameAssets}
-            borderAssets={currentTemplate.templateUsage === 'back-preset'
+              : elements.frontFrameAssets, currentTemplate)}
+            borderAssets={filterCompatibleTemplateAssets(currentTemplate.templateUsage === 'back-preset'
               ? elements.backBorderAssets
-              : elements.frontBorderAssets}
+              : elements.frontBorderAssets, currentTemplate)}
             backgroundImageInputRef={commands.backgroundImageInputRef}
             borderImageInputRef={commands.borderImageInputRef}
             controlClassName={makerTheme.control}
