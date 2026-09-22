@@ -339,7 +339,13 @@ const uploadPackage = async (
   } catch {
     return await recoverResumableUpload(plan, blob);
   }
-  if (response.ok) return await parseUploadCompletion(response);
+  if (response.ok) {
+    try {
+      return await parseUploadCompletion(response);
+    } catch {
+      return await recoverResumableUpload(plan, blob);
+    }
+  }
   if (response.status === 308 || response.status >= 500) {
     return await recoverResumableUpload(plan, blob);
   }
