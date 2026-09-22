@@ -68,6 +68,31 @@ describe('Google Drive connection authority', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('drops a cached access token immediately when the connection is invalidated', async () => {
+    vi.stubEnv('CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY', encryptionKey);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'first-access', expires_in: 3600 }))
+      .mockResolvedValueOnce(Response.json({ access_token: 'second-access', expires_in: 3600 }));
+    vi.stubGlobal('fetch', fetch);
+    const row = connection();
+
+    await expect(resolveGoogleDriveConnectionAccess({
+      row,
+      clientId: 'google-client',
+      clientSecret: 'google-secret',
+    })).resolves.toMatchObject({ ok: true, accessToken: 'first-access', fromCache: false });
+
+    invalidateGoogleDriveAccessTokenCache(row.id);
+
+    await expect(resolveGoogleDriveConnectionAccess({
+      row,
+      clientId: 'google-client',
+      clientSecret: 'google-secret',
+    })).resolves.toMatchObject({ ok: true, accessToken: 'second-access', fromCache: false });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('does not cache invalid_grant and keeps reconnect semantics explicit', async () => {
     vi.stubEnv('CARDFORGE_STORAGE_TOKEN_ENCRYPTION_KEY', encryptionKey);
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
