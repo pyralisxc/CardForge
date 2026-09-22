@@ -12,7 +12,6 @@ import {
   GOOGLE_DRIVE_PROJECT_MIME_TYPE,
   GOOGLE_DRIVE_PROJECT_PROVIDER,
   isGoogleDriveFileId,
-  getUnexpectedGoogleDriveScopes,
   createGoogleDriveProviderRevision,
   isGoogleDriveWorkId,
   hasGoogleDriveProjectRevisionConflict,
