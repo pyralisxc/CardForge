@@ -296,7 +296,7 @@ export const registerGoogleDrivePersonalLibraryFiles = async ({
       .select('id', { count: 'exact', head: true })
       .eq('owner_user_id', ownerUserId),
     store.from('cardforge_personal_library_items')
-      .select('provider_file_id')
+      .select('provider_file_id,provider_resource_key')
       .eq('owner_user_id', ownerUserId)
       .eq('provider', 'google-drive')
       .in('provider_file_id', ids),
@@ -304,8 +304,11 @@ export const registerGoogleDrivePersonalLibraryFiles = async ({
   if (capacityRead.error || existingRead.error) {
     throw new PersonalLibraryStoreError('Unable to verify personal-library capacity.', 503, { kind: 'unavailable' });
   }
-  const existingIds = new Set((existingRead.data ?? []).map((row) => String(row.provider_file_id)));
-  const newCount = selections.filter((selection) => !existingIds.has(selection.fileId)).length;
+  const existingResourceKeys = new Map((existingRead.data ?? []).map((row) => [
+    String(row.provider_file_id),
+    normalizeResourceKey(typeof row.provider_resource_key === 'string' ? row.provider_resource_key : null),
+  ] as const));
+  const newCount = selections.filter((selection) => !existingResourceKeys.has(selection.fileId)).length;
   if ((capacityRead.count ?? 0) + newCount > MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT) {
     throw new PersonalLibraryStoreError(`The personal library can currently index up to ${MAX_PERSONAL_LIBRARY_ITEMS_PER_ACCOUNT} items per account.`, 413, { kind: 'limit' });
   }
@@ -314,10 +317,13 @@ export const registerGoogleDrivePersonalLibraryFiles = async ({
   const normalizedFiles = await mapWithConcurrency(
     selections,
     PERSONAL_LIBRARY_PROVIDER_READ_CONCURRENCY,
-    async (selection) => normalizeDriveFile(
-      await getDriveFile(accessToken, selection.fileId, selection.resourceKey ?? null),
-      role,
-    ),
+    async (selection) => {
+      const resourceKey = selection.resourceKey ?? existingResourceKeys.get(selection.fileId) ?? null;
+      return normalizeDriveFile(
+        await getDriveFile(accessToken, selection.fileId, resourceKey),
+        role,
+      );
+    },
   );
   const now = new Date().toISOString();
   const rows = normalizedFiles.map((normalized) => ({
