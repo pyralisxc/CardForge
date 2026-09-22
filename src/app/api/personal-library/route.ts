@@ -39,7 +39,9 @@ export async function POST(request: Request) {
           resourceKey: typeof record.resourceKey === 'string' ? record.resourceKey : null,
         }];
       })
-      : [];
+      : Array.isArray(body.fileIds)
+        ? body.fileIds.flatMap((value) => typeof value === 'string' ? [{ fileId: value, resourceKey: null }] : [])
+        : [];
     if (!isPersonalLibraryProvider(provider)) throw new Error('A supported connected-library provider is required.');
     if (!isPersonalLibraryRole(role)) throw new Error('A supported personal-library role is required.');
     if (provider !== 'google-drive') throw new Error('That personal-library provider is not available yet.');
