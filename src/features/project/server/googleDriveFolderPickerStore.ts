@@ -237,8 +237,8 @@ export const getGoogleDrivePickerConfiguration = async (
   ownerUserId: string,
 ): Promise<GoogleDrivePickerConfiguration> => {
   const row = await getPickerConnection(ownerUserId);
-  const picker = requirePickerEnvironment();
   const accessToken = await refreshPickerAccessToken(row);
+  const picker = requirePickerEnvironment();
   return {
     accessToken,
     contributorKey: picker.contributorKey,
