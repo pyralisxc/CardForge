@@ -59,6 +59,11 @@ export interface PersonalLibraryListResult {
   limit: number;
 }
 
+export interface PersonalLibraryDriveSelection {
+  fileId: string;
+  resourceKey?: string | null;
+}
+
 export interface PersonalLibraryRegisterResult {
   items: PersonalLibraryItem[];
   registeredCount: number;
