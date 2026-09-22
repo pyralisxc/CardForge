@@ -534,14 +534,14 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   <AlertDialog open={Boolean(pendingDeleteItem)} onOpenChange={(open) => { if (!open) setPendingDeleteItem(null); }}>
     <AlertDialogContent className="border-[var(--cf-border-strong)] bg-[var(--cf-surface)] text-[var(--cf-text)]">
       <AlertDialogHeader>
-        <AlertDialogTitle>Delete this copy?</AlertDialogTitle>
+        <AlertDialogTitle>{pendingDeleteItem?.references.localSetId ? 'Delete this device copy?' : 'Move this Drive copy to Trash?'}</AlertDialogTitle>
         <AlertDialogDescription className="leading-6 text-[var(--cf-text-muted)]">
           {pendingDeleteItem?.references.localSetId
             ? `Only the device copy of ${pendingDeleteItem.name} will be removed. Other verified locations remain unchanged.`
-            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be permanently removed at its exact current revision. Device and local-folder copies remain unchanged.`}
+            : `The Google Drive copy of ${pendingDeleteItem?.name ?? 'this Set'} will be moved to Drive Trash at its exact current revision. Device and local-folder copies remain unchanged.`}
         </AlertDialogDescription>
       </AlertDialogHeader>
-      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void confirmDeleteCopy()}>Delete named copy</AlertDialogAction></AlertDialogFooter>
+      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void confirmDeleteCopy()}>{pendingDeleteItem?.references.localSetId ? 'Delete device copy' : 'Move Drive copy to Trash'}</AlertDialogAction></AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
   </>;
