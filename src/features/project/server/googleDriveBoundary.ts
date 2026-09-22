@@ -29,6 +29,7 @@ const GOOGLE_CLIENT_CONFIGURATION_ERRORS = new Set([
 ]);
 
 export const GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS = 15_000;
+export const GOOGLE_PROVIDER_CONTENT_TIMEOUT_MS = 60_000;
 
 const readableGoogleProviderMessage = (value: string | undefined): string | undefined => {
   const message = value?.trim();
