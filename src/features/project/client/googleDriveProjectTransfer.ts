@@ -292,7 +292,7 @@ const recoverResumableUpload = async (
     }
     if (statusResponse.ok) return await parseUploadCompletion(statusResponse);
     if (statusResponse.status === 404) {
-      throw new ProjectPackageError('The Drive upload session expired before CardForge received a completed save receipt. Browser work is unchanged; retry the save to start a new revision-safe session.');
+      throw new ProjectPackageError('The Drive upload session can no longer prove whether the attempted revision committed. Browser work is unchanged. Reload Drive and compare the current revision before another save; do not repeat this upload blindly.');
     }
     if (statusResponse.status !== 308) {
       if (statusResponse.status >= 500) continue;
