@@ -37,6 +37,7 @@ import {
   validateGoogleDriveStoredScopes,
 } from './googleDriveConnectionAuthority';
 import {
+  GOOGLE_PROVIDER_CONTENT_TIMEOUT_MS,
   GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS,
   readGoogleProviderFailure,
 } from './googleDriveBoundary';
@@ -925,6 +926,46 @@ const unknownDriveCommit = () => new ProjectStorageProviderError(
   { kind: 'unavailable', retryable: false, nextAction: 'Do not repeat commit_project. Read the connected file’s current revision and compare it with this working document before another reviewed commit.' },
 );
 
+const parseServerUploadCompletion = async (response: Response): Promise<GoogleDriveUploadCompletion> => {
+  let result: GoogleDriveUploadCompletion;
+  try { result = await response.json() as GoogleDriveUploadCompletion; } catch { throw unknownDriveCommit(); }
+  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || typeof result.headRevisionId !== 'string' || !result.headRevisionId.trim()) {
+    throw unknownDriveCommit();
+  }
+  return result;
+};
+
+const nextServerResumableOffset = (rangeHeader: string | null, totalBytes: number): number => {
+  if (!rangeHeader) return 0;
+  const match = /^bytes=0-(\d+)$/u.exec(rangeHeader.trim());
+  if (!match) throw unknownDriveCommit();
+  const lastByte = Number(match[1]);
+  if (!Number.isSafeInteger(lastByte) || lastByte < 0 || lastByte >= totalBytes) throw unknownDriveCommit();
+  return lastByte + 1;
+};
+
+const serverUploadRequest = async ({
+  uploadSessionUrl,
+  body,
+  contentRange,
+}: {
+  uploadSessionUrl: string;
+  body: Blob | null;
+  contentRange: string;
+}): Promise<Response> => await fetch(uploadSessionUrl, {
+  method: 'PUT',
+  headers: {
+    ...(body ? {
+      'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
+      'Content-Length': String(body.size),
+    } : { 'Content-Length': '0' }),
+    'Content-Range': contentRange,
+  },
+  ...(body ? { body } : {}),
+  cache: 'no-store',
+  signal: AbortSignal.timeout(GOOGLE_PROVIDER_CONTENT_TIMEOUT_MS),
+});
+
 const completeServerUpload = async ({
   uploadSessionUrl,
   blob,
@@ -933,23 +974,62 @@ const completeServerUpload = async ({
   blob: Blob;
 }): Promise<GoogleDriveUploadCompletion> => {
   let response: Response;
-  try { response = await fetch(uploadSessionUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': GOOGLE_DRIVE_PROJECT_MIME_TYPE,
-      'Content-Length': String(blob.size),
-    },
-    body: blob,
-    cache: 'no-store',
-  }); } catch { throw unknownDriveCommit(); }
-  if (response.status >= 500) throw unknownDriveCommit();
-  if (!response.ok) throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
-  let result: GoogleDriveUploadCompletion;
-  try { result = await response.json() as GoogleDriveUploadCompletion; } catch { throw unknownDriveCommit(); }
-  if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || typeof result.headRevisionId !== 'string' || !result.headRevisionId.trim()) {
-    throw unknownDriveCommit();
+  try {
+    response = await serverUploadRequest({
+      uploadSessionUrl,
+      body: blob,
+      contentRange: `bytes 0-${blob.size - 1}/${blob.size}`,
+    });
+  } catch {
+    response = new Response(null, { status: 503 });
   }
-  return result;
+  if (response.ok) return await parseServerUploadCompletion(response);
+  if (response.status !== 308 && response.status < 500) {
+    throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let statusResponse: Response;
+    try {
+      statusResponse = await serverUploadRequest({
+        uploadSessionUrl,
+        body: null,
+        contentRange: `bytes */${blob.size}`,
+      });
+    } catch {
+      continue;
+    }
+    if (statusResponse.ok) return await parseServerUploadCompletion(statusResponse);
+    if (statusResponse.status === 404) {
+      throw new ProjectStorageProviderError('The Google Drive upload session expired before a completed receipt was returned.', 503, {
+        kind: 'unavailable',
+        retryable: true,
+        nextAction: 'Retry the reviewed commit from the current source revision to start a fresh upload session.',
+      });
+    }
+    if (statusResponse.status !== 308) {
+      if (statusResponse.status >= 500) continue;
+      throw await parseGoogleError(statusResponse, 'CardForge could not recover the interrupted Google Drive upload.');
+    }
+
+    const offset = nextServerResumableOffset(statusResponse.headers.get('Range'), blob.size);
+    if (offset >= blob.size) continue;
+    const remaining = blob.slice(offset);
+    let resumeResponse: Response;
+    try {
+      resumeResponse = await serverUploadRequest({
+        uploadSessionUrl,
+        body: remaining,
+        contentRange: `bytes ${offset}-${blob.size - 1}/${blob.size}`,
+      });
+    } catch {
+      continue;
+    }
+    if (resumeResponse.ok) return await parseServerUploadCompletion(resumeResponse);
+    if (resumeResponse.status === 308 || resumeResponse.status >= 500) continue;
+    throw await parseGoogleError(resumeResponse, 'CardForge could not resume the interrupted Google Drive upload.');
+  }
+  throw unknownDriveCommit();
 };
 
 export const updateGoogleDriveProjectFromServer = async ({
