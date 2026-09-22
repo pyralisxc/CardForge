@@ -411,6 +411,7 @@ describe('Google Drive provider boundaries', () => {
       await expect(action).resolves.toMatchObject({ projectRevision: 'b'.repeat(64) });
       expect(fetch).toHaveBeenCalledTimes(3);
       expect(fetch.mock.calls[2]![1]).toMatchObject({ method: 'PATCH' });
+      expect(JSON.parse(fetch.mock.calls[2]![1]!.body as string)).not.toHaveProperty('name');
     }
   });
 });
