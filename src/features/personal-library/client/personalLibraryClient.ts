@@ -7,6 +7,7 @@ import {
   MAX_PERSONAL_LIBRARY_REGISTER_BATCH,
   PERSONAL_LIBRARY_FONT_MIME_TYPES,
   PERSONAL_LIBRARY_IMAGE_MIME_TYPES,
+  type PersonalLibraryDriveSelection,
   type PersonalLibraryItem,
   type PersonalLibraryListResult,
   type PersonalLibraryRegisterResult,
@@ -29,15 +30,15 @@ export const loadPersonalLibrary = async (): Promise<PersonalLibraryListResult> 
 
 export const registerGoogleDrivePersonalLibraryItems = async ({
   role,
-  fileIds,
+  files,
 }: {
   role: PersonalLibraryRole;
-  fileIds: string[];
+  files: PersonalLibraryDriveSelection[];
 }): Promise<PersonalLibraryRegisterResult> => {
   const response = await observeProviderBoundaryResponse('google_drive', 'personal_register', () => fetch('/api/personal-library', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider: 'google-drive', role, fileIds }),
+    body: JSON.stringify({ provider: 'google-drive', role, files }),
   }));
   if (!response.ok) throw await readApiError(response, 'Unable to add the selected Google Drive files to your CardForge library.');
   return await response.json() as PersonalLibraryRegisterResult;
@@ -60,7 +61,7 @@ export const chooseGoogleDrivePersonalLibraryItems = async (
   }
   return await registerGoogleDrivePersonalLibraryItems({
     role,
-    fileIds: selected.map((item) => item.id),
+    files: selected.map((item) => ({ fileId: item.id, resourceKey: item.resourceKey ?? null })),
   });
 };
 
