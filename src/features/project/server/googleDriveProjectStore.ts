@@ -1015,13 +1015,7 @@ const completeServerUpload = async ({
       continue;
     }
     if (statusResponse.ok) return await parseServerUploadCompletion(statusResponse);
-    if (statusResponse.status === 404) {
-      throw new ProjectStorageProviderError('The Google Drive upload session expired before a completed receipt was returned.', 503, {
-        kind: 'unavailable',
-        retryable: true,
-        nextAction: 'Retry the reviewed commit from the current source revision to start a fresh upload session.',
-      });
-    }
+    if (statusResponse.status === 404) throw unknownDriveCommit();
     if (statusResponse.status !== 308) {
       if (statusResponse.status >= 500) continue;
       throw await parseGoogleError(statusResponse, 'CardForge could not recover the interrupted Google Drive upload.');
