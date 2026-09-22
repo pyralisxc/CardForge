@@ -32,6 +32,7 @@ import {
 } from '../model/projectPackage';
 import { decryptProjectStorageToken, encryptProjectStorageToken } from './projectStorageTokenCrypto';
 import {
+  invalidateGoogleDriveAccessTokenCache,
   resolveGoogleDriveConnectionAccess,
   validateGoogleDriveStoredScopes,
 } from './googleDriveConnectionAuthority';
@@ -1179,4 +1180,5 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
     console.error('Unable to delete Google Drive project connection:', error);
     throw new ProjectStorageProviderError('CardForge could not disconnect Google Drive.', 503, { kind: 'unavailable' });
   }
+  invalidateGoogleDriveAccessTokenCache(row.id);
 };
