@@ -195,6 +195,7 @@ export function GoogleDriveProjectStoragePanel({
   const canReplaceUnavailableFolder = loadError instanceof ApiClientError
     && ['authorization', 'conflict', 'not_found'].includes(loadError.kind);
   const selectedFolderName = library?.selectedFolder?.name ?? null;
+  const hasProjectFolder = Boolean(library?.selectedFolder?.id ?? library?.connection.rootFolderId);
 
   return (
     <>
@@ -273,7 +274,9 @@ export function GoogleDriveProjectStoragePanel({
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface)] p-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[var(--cf-text-strong)]">Connected as {connection.displayName ?? 'Google Drive'}</p>
-                {selectedFolderName ? <p className="mt-1 truncate text-sm font-semibold text-[var(--cf-accent-text)]" title={selectedFolderName}>Project folder: “{selectedFolderName}”</p> : null}
+                {selectedFolderName ? <p className="mt-1 truncate text-sm font-semibold text-[var(--cf-accent-text)]" title={selectedFolderName}>Project folder: “{selectedFolderName}”</p> : (
+                  <p className="mt-1 text-sm font-semibold text-[var(--cf-warning)]">Choose an existing project folder or create a new one before saving to Drive.</p>
+                )}
                 <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
                   {connection.statusNote || (connection.status === 'active' ? 'This Drive location is ready for Set saves and opens. A writable linked Set saves after you pause editing.' : 'This connection needs attention.')}
                 </p>
@@ -284,7 +287,7 @@ export function GoogleDriveProjectStoragePanel({
                   {busyAction === 'choose-folder' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderCog className="mr-2 h-4 w-4" />}
                   Choose project folder
                 </Button>
-                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles} onClick={addExistingProjects}>
+                <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder} onClick={addExistingProjects}>
                   {busyAction === 'authorize-existing' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
                   Add existing projects
                 </Button>
@@ -295,8 +298,8 @@ export function GoogleDriveProjectStoragePanel({
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={Boolean(busyAction) || !canUseProjectFiles}
-                  title="Creates a separate backup of every local Set in this browser. Use Save & move for a focused Set."
+                  disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder}
+                  title={hasProjectFolder ? 'Creates a separate backup of every local Set in this browser. Use Save & move for a focused Set.' : 'Choose or create a Drive project folder first.'}
                   onClick={() => void run('save-new', async () => {
                     const saved = await saveCurrentProjectToGoogleDrive({ name: activeSetName || 'CardForge Project', asNew: true, renderThumbnail: createGoogleDriveProjectThumbnail });
                     toast({ title: 'Workspace backup saved to Google Drive', description: `“${saved.name}” is a new independent Drive copy.` });
@@ -312,7 +315,7 @@ export function GoogleDriveProjectStoragePanel({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={Boolean(busyAction) || !canUseProjectFiles || (!binding.workId && binding.packageScope !== 'workspace')}
+                      disabled={Boolean(busyAction) || !canUseProjectFiles || !hasProjectFolder || (!binding.workId && binding.packageScope !== 'workspace')}
                       onClick={() => void run('update', async () => {
                         const saved = await saveCurrentProjectToGoogleDrive({ name: binding.name, renderThumbnail: createGoogleDriveProjectThumbnail });
                         toast({ title: 'Google Drive project updated', description: `Saved ${saved.workId ? 'the attached Set' : 'the workspace backup'} to “${saved.name}”.` });

@@ -24,7 +24,7 @@ type PickerConnectionRow = {
   refresh_token_iv: string;
   refresh_token_auth_tag: string;
   granted_scopes: string[] | null;
-  root_folder_id: string;
+  root_folder_id: string | null;
   root_folder_resource_key: string | null;
 };
 
@@ -263,14 +263,15 @@ export const getGoogleDrivePickerConfiguration = async (
     accessToken,
     contributorKey: picker.contributorKey,
     appId: picker.appId,
-    initialFolderId: isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
+    initialFolderId: row.root_folder_id && isGoogleDriveFileId(row.root_folder_id) ? row.root_folder_id : null,
   };
 };
 
 export const getGoogleDriveSelectedProjectFolder = async (
   ownerUserId: string,
-): Promise<GoogleDriveFolderSelection> => {
+): Promise<GoogleDriveFolderSelection | null> => {
   const row = await getPickerConnection(ownerUserId);
+  if (!row.root_folder_id) return null;
   if (!isGoogleDriveFileId(row.root_folder_id)) {
     throw new ProjectStorageProviderError('The selected Google Drive project folder id is invalid.', 409, { kind: 'conflict' });
   }

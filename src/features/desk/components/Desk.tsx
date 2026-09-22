@@ -759,7 +759,7 @@ export function Desk({
         onOpenChange={(open) => { if (!open) setLocationItem(null); }}
         isSignedIn={isSignedIn}
         canUseProjectFiles={experience.capabilities.canUseProjectFiles}
-        driveConnected={projection.driveConnection?.connected ?? false}
+        driveConnected={Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId)}
         localFolderSupported={projection.localFolderSupported}
         onChanged={projection.refresh}
       />

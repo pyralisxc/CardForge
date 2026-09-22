@@ -160,7 +160,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     }
     setCampaignTargetId(params.get('campaign'));
     const status = params.get('storage');
-    if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Google Drive is now available as a durable project and asset location.' });
+    if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Choose an existing project folder or create a new one before saving projects to Drive.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
     else setStorageCallback(null);
   }, [experience.contributor.canSubmit]);
@@ -450,7 +450,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
           onClose={() => runAction(actions[0]!)}
           presentation={activeToolSession?.presentation}
         >
-          <DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={projection.driveConnection?.connected ?? false} localFolderSupported={projection.localFolderSupported} />
+          <DefaultWorkLocationControl isSignedIn={isSignedIn} canUseProjectFiles={experience.capabilities.canUseProjectFiles} driveConnected={Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId)} localFolderSupported={projection.localFolderSupported} />
           {storageConnections ?? <EnvironmentBoundaryNotice title="Location tools are unavailable" message="CardForge could not compose the location controls. Existing work remains unchanged." />}
         </EnvironmentToolLayer>
       ) : null}
@@ -527,7 +527,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     onOpenChange={(open) => { if (!open) setLocationItem(null); }}
     isSignedIn={isSignedIn}
     canUseProjectFiles={experience.capabilities.canUseProjectFiles}
-    driveConnected={projection.driveConnection?.connected ?? false}
+    driveConnected={Boolean(projection.driveConnection?.connected && projection.driveConnection.rootFolderId)}
     localFolderSupported={projection.localFolderSupported}
     onChanged={projection.refresh}
   />

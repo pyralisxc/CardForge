@@ -185,8 +185,8 @@ Do not broaden scopes, copy Preview credentials into production, or change the p
 After deployment:
 
 1. Open Account → Library → Locations while signed in.
-2. Connect Google Drive and complete Google's consent flow.
-3. Confirm Locations names the currently selected project folder so the creator always knows where new Drive saves will go.
+2. Connect Google Drive and complete Google's consent flow. A first-time connection must not create or select a Drive folder automatically.
+3. Choose an existing project folder or create a new one explicitly, then confirm Locations names that selected folder so the creator always knows where new Drive saves will go.
 4. Open **Choose project folder** and confirm the native Google Picker starts at My Drive rather than inside the current CardForge destination.
 5. Select an existing personal/shared folder that the connected Google account can write to. CardForge must accept that existing folder; creating a new folder is not a prerequisite.
 6. Confirm the selected folder replaces the destination only, existing files are not moved, and Desk/Library refresh immediately without a page reload.
@@ -200,7 +200,7 @@ After deployment:
 14. Disconnect Google Drive and confirm project files remain in Drive while CardForge deletes/revokes only its connection state.
 15. Repeat the file/folder path with a file explicitly authorized by another collaborator and with a read-only role; CardForge must preserve the provider's actual capability instead of inferring write access from folder membership.
 16. Run the overlapping-write acceptance separately before claiming simultaneous external-write safety: session A reads/preflights, session B writes, then session A attempts its write. Keep source-deleting Drive Move disabled until that race has a proven safe outcome.
-17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id and does not create a new default CardForge folder. If the folder is no longer authorized or available, confirm the connection retains that destination as needing attention until the user explicitly chooses another folder. Connecting a genuinely different Google account may create that account's new default CardForge folder.
+17. Reconnect the **same Google account** after selecting a non-default personal/shared project folder. Confirm CardForge verifies and preserves that exact folder id. A first-time connection or genuinely different Google account must remain connected with no project folder selected until the creator explicitly chooses an existing folder or creates a new one. If a previously selected folder is no longer authorized or available, retain that destination as needing attention until the user explicitly chooses another folder.
 18. For a link-shared folder whose Picker result includes a `resourceKey`, select it, reload the page, close/reopen the browser, reconnect the same Google account, list existing CardForge projects, and save a new Set into the folder. Every later folder-referencing request must continue to work from the persisted resource key; success only during the initial Picker callback is not sufficient acceptance.
 19. Share one writable project folder with a second Google account. On the second account, choose that same shared folder and explicitly authorize the existing `.cardforge` file through Picker; do not broaden the Drive scope.
 20. Open the same Set in both accounts with clean browser copies. Save from account A and confirm account B refreshes the newer saved revision within the 30-second active-file window; returning focus to B should trigger the check immediately.
