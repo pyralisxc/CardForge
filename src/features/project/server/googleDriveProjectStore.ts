@@ -992,7 +992,13 @@ const completeServerUpload = async ({
   } catch {
     response = new Response(null, { status: 503 });
   }
-  if (response.ok) return await parseServerUploadCompletion(response);
+  if (response.ok) {
+    try {
+      return await parseServerUploadCompletion(response);
+    } catch {
+      response = new Response(null, { status: 503 });
+    }
+  }
   if (response.status !== 308 && response.status < 500) {
     throw await parseGoogleError(response, 'CardForge could not finish the Google Drive project upload.');
   }
