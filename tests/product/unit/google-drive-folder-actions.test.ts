@@ -24,6 +24,7 @@ const connectionRow = (rootFolderResourceKey: string | null = null, rootFolderId
     refresh_token_ciphertext: encrypted.ciphertext,
     refresh_token_iv: encrypted.iv,
     refresh_token_auth_tag: encrypted.authTag,
+    granted_scopes: ['openid', 'email', 'https://www.googleapis.com/auth/drive.file'],
     root_folder_id: rootFolderId,
     root_folder_resource_key: rootFolderResourceKey,
   };
