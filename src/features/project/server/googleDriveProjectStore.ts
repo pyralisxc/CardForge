@@ -295,6 +295,7 @@ const fetchGoogleUserInfo = async (accessToken: string): Promise<GoogleUserInfo>
   const response = await fetch(GOOGLE_USERINFO_ENDPOINT, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw await parseGoogleError(response, 'Google did not return the connected account identity.');
   return await response.json() as GoogleUserInfo;
@@ -526,6 +527,7 @@ const getDriveFileMetadata = async ({
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read that Google Drive project.');
   return await response.json() as GoogleDriveFile;
@@ -548,7 +550,11 @@ const getDriveFolderMetadata = async ({
   const url = new URL(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(folderId)}`);
   url.searchParams.set('fields', GOOGLE_DRIVE_FOLDER_FIELDS);
   url.searchParams.set('supportsAllDrives', 'true');
-  const response = await fetch(url, { headers: folderHeaders(accessToken, folderId, resourceKey), cache: 'no-store' });
+  const response = await fetch(url, {
+    headers: folderHeaders(accessToken, folderId, resourceKey),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
+  });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not read the selected Google Drive folder.');
   const folder = await response.json() as GoogleDriveFile;
   if (!folder.resourceKey && resourceKey) folder.resourceKey = resourceKey;
@@ -642,7 +648,7 @@ export const listGoogleDriveProjectsPage = async ({
   const accessToken = await refreshGoogleAccessToken(row);
   const folder = await getDriveFolderMetadata({ accessToken, folderId: rootFolderId, resourceKey: row.root_folder_resource_key });
   const url = new URL(`${GOOGLE_DRIVE_API}/files`);
-  url.searchParams.set('q', `'${rootFolderId}' in parents and trashed = false`);
+  url.searchParams.set('q', `'${rootFolderId}' in parents and trashed = false and mimeType = '${GOOGLE_DRIVE_PROJECT_MIME_TYPE}'`);
   url.searchParams.set('spaces', 'drive');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
@@ -657,6 +663,7 @@ export const listGoogleDriveProjectsPage = async ({
   const response = await fetch(url, {
     headers: folderHeaders(accessToken, rootFolderId, row.root_folder_resource_key),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not list Google Drive projects.');
   const payload = await response.json() as { files?: GoogleDriveFile[]; nextPageToken?: unknown };
@@ -715,6 +722,7 @@ export const getGoogleDriveProject = async ({
   const response = await fetch(mediaUrl, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_CONTENT_TIMEOUT_MS),
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not download that Google Drive project.');
   const contentLength = Number(response.headers.get('content-length')) || 0;
@@ -903,6 +911,7 @@ export const prepareGoogleDriveProjectUpload = async ({
     },
     body: JSON.stringify(metadata),
     cache: 'no-store',
+    signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw await parseGoogleError(response, 'CardForge could not prepare the Google Drive project upload.');
   const uploadSessionUrl = response.headers.get('location') ?? '';
@@ -1068,7 +1077,7 @@ export const updateGoogleDriveProjectFromServer = async ({
     modifiedTime: completed.modifiedTime ?? new Date().toISOString(),
     size: completed.size ?? String(blob.size),
     webViewLink: completed.webViewLink,
-    capabilities: { canDownload: true, canEdit: true, canModifyContent: true, canDelete: true },
+    capabilities: { canDownload: true, canEdit: true, canModifyContent: true, canTrash: true, canDelete: true },
     appProperties: completed.appProperties ?? {
       [GOOGLE_DRIVE_PROJECT_APP_PROPERTY]: GOOGLE_DRIVE_PROJECT_VALUE,
       [GOOGLE_DRIVE_PROJECT_REVISION_PROPERTY]: projectRevision,
@@ -1144,6 +1153,7 @@ export const disconnectGoogleDriveProjectStorage = async (ownerUserId: string): 
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ token: refreshToken }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(GOOGLE_PROVIDER_REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
     console.error('Unable to revoke Google Drive project token before disconnecting:', error);
