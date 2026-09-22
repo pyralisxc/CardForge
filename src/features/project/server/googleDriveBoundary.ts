@@ -14,7 +14,7 @@ export interface GoogleProviderFailure {
 }
 
 export type GoogleAccessTokenResult =
-  | { ok: true; accessToken: string }
+  | { ok: true; accessToken: string; expiresInSeconds: number | null }
   | { ok: false; failure: GoogleProviderFailure };
 
 const RATE_LIMIT_REASONS = new Set([
@@ -120,9 +120,12 @@ export const requestGoogleAccessToken = async ({
     };
   }
 
-  const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload & { access_token?: string };
+  const payload = await response.json().catch(() => ({})) as GoogleProviderErrorPayload & { access_token?: string; expires_in?: unknown };
   const accessToken = payload.access_token?.trim();
-  if (response.ok && accessToken) return { ok: true, accessToken };
+  const expiresInSeconds = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) && payload.expires_in > 0
+    ? Math.floor(payload.expires_in)
+    : null;
+  if (response.ok && accessToken) return { ok: true, accessToken, expiresInSeconds };
   return {
     ok: false,
     failure: classifyGoogleProviderFailure(response.status, payload, 'token'),
