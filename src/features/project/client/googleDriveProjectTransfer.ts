@@ -80,6 +80,16 @@ const persistWorkBinding = async (workId: string, binding: GoogleDriveProjectBin
 };
 
 /** A confirmed provider write must not become an apparently failed upload when local bookkeeping fails. */
+export class GoogleDriveUnknownCommitError extends ProjectPackageError {
+  readonly code = 'source_commit_unknown';
+  readonly retryable = false;
+
+  constructor(message = 'Drive may have saved this revision, but CardForge could not prove the final provider receipt. Browser work is unchanged. Reload Drive and compare the current revision before another save; do not repeat this upload blindly.') {
+    super(message);
+    this.name = 'GoogleDriveUnknownCommitError';
+  }
+}
+
 export class GoogleDriveSaveLinkageError extends ProjectPackageError {
   readonly code = 'source_committed_linkage_refresh_required';
   readonly sourceCommitted = true;
@@ -246,10 +256,10 @@ const prepareUpload = async ({
 const parseUploadCompletion = async (response: Response): Promise<GoogleDriveUploadCompletion> => {
   let result: GoogleDriveUploadCompletion;
   try { result = await response.json() as GoogleDriveUploadCompletion; } catch {
-    throw new ProjectPackageError('Drive may have saved the file, but its receipt was unreadable. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
+    throw new GoogleDriveUnknownCommitError('Drive may have saved the file, but its receipt was unreadable. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
   }
   if (!result || typeof result !== 'object' || !isGoogleDriveFileId(result.id) || typeof result.headRevisionId !== 'string' || !result.headRevisionId.trim()) {
-    throw new ProjectPackageError('Drive may have saved the file, but its receipt has no usable revision. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
+    throw new GoogleDriveUnknownCommitError('Drive may have saved the file, but its receipt has no usable revision. Check the file’s current revision in Drive before another save; do not repeat this upload blindly.');
   }
   return result;
 };
@@ -257,10 +267,10 @@ const parseUploadCompletion = async (response: Response): Promise<GoogleDriveUpl
 const nextResumableOffset = (rangeHeader: string | null, totalBytes: number): number => {
   if (!rangeHeader) return 0;
   const match = /^bytes=0-(\d+)$/u.exec(rangeHeader.trim());
-  if (!match) throw new ProjectPackageError('Drive returned an unreadable resumable-upload range. Browser work is unchanged; check Drive before retrying.');
+  if (!match) throw new GoogleDriveUnknownCommitError('Drive returned an unreadable resumable-upload range after an attempted save. Browser work is unchanged; check Drive before retrying.');
   const lastByte = Number(match[1]);
   if (!Number.isSafeInteger(lastByte) || lastByte < 0 || lastByte >= totalBytes) {
-    throw new ProjectPackageError('Drive returned an invalid resumable-upload range. Browser work is unchanged; check Drive before retrying.');
+    throw new GoogleDriveUnknownCommitError('Drive returned an invalid resumable-upload range after an attempted save. Browser work is unchanged; check Drive before retrying.');
   }
   return lastByte + 1;
 };
@@ -292,7 +302,7 @@ const recoverResumableUpload = async (
     }
     if (statusResponse.ok) return await parseUploadCompletion(statusResponse);
     if (statusResponse.status === 404) {
-      throw new ProjectPackageError('The Drive upload session can no longer prove whether the attempted revision committed. Browser work is unchanged. Reload Drive and compare the current revision before another save; do not repeat this upload blindly.');
+      throw new GoogleDriveUnknownCommitError('The Drive upload session can no longer prove whether the attempted revision committed. Browser work is unchanged. Reload Drive and compare the current revision before another save; do not repeat this upload blindly.');
     }
     if (statusResponse.status !== 308) {
       if (statusResponse.status >= 500) continue;
@@ -322,7 +332,7 @@ const recoverResumableUpload = async (
     const text = await resumeResponse.text().catch(() => '');
     throw new ProjectPackageError(text ? `Google Drive did not accept the resumed project upload. ${text.slice(0, 240)}` : 'Google Drive did not accept the resumed project upload.');
   }
-  throw new ProjectPackageError('The Drive upload response remains uncertain after recovery checks. Browser work is unchanged. Check the current Drive revision before another save; do not repeat this upload blindly.');
+  throw new GoogleDriveUnknownCommitError('The Drive upload response remains uncertain after recovery checks. Browser work is unchanged. Check the current Drive revision before another save; do not repeat this upload blindly.');
 };
 
 const uploadPackage = async (
