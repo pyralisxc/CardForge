@@ -312,7 +312,7 @@ Supported lifecycle concepts include draft, submitted, voting, publish candidate
 
 ### Voting
 
-Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence.
+Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence. Each Contributor has one positive preference per lineage and may move it atomically to another revision; that same Contributor may record one negative objection on any visible non-Trash revision. One person always contributes one unit of signal, self-voting is disabled, and Owner authority is an explicit audited override rather than a weighted community vote.
 
 Contributor voting follows the exact displayed revision anywhere a visible Pipeline object appears. Votes may be recorded after publication/archive/rejection as durable feedback, but only active review states may rebalance automatic publication policy:
 
@@ -333,6 +333,8 @@ For one lineage:
 1. show the current published revision if one exists;
 2. otherwise show the current/strongest active candidate;
 3. expand **Revisions** from the inspector for history and alternatives.
+
+The registry's exact `contributor_submission_id` is the live pointer. A newer row whose status still says published is history unless the registry points to it. The compact roles are Reviewing, Live, History, Trash, and Purged; Archive is a filtered presentation across History and recoverable Trash rather than a permanent lifecycle state.
 
 The revision inspector may expose state, votes, current-user vote, author, dates, comparison, source, and Use this revision.
 
@@ -358,7 +360,7 @@ Contributor ownership should support safe non-destructive lifecycle actions:
 - Retire own published contribution, subject to dependency/policy checks;
 - Restore/resubmit where policy allows.
 
-Permanent purge remains Owner-only and retains the existing explicit confirmation/tombstone authority boundary.
+Never-published work that is declined, withdrawn, expired, or superseded enters recoverable Trash. The Owner controls the minimum review age, inactivity window, Trash recovery window, and retention holds. After recovery expires, a service worker deletes the Storage object first and only then finalizes the database row; missing references and failed Storage deletion keep the record retryable. Previously published revisions remain History with a minimal publication receipt and are never treated as disposable failed content. The currently live registry pointer is never automatically purged or displaced by later dislikes.
 
 ## Library, Storage, and Source Ownership
 

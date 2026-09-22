@@ -258,8 +258,13 @@ export const projectPipelineLibraryObjects = (
   catalog: CardForgeCatalogManifest | null,
 ): PipelineLibraryObject[] => {
   const visuals = catalogLibraryVisuals(catalog);
+  const publishedSubmissionByLineage = new Map(
+    (catalog?.pipeline?.items ?? []).flatMap((item) => (
+      item.lineageId && item.submissionId ? [[item.lineageId, item.submissionId] as const] : []
+    )),
+  );
   return (
-  projectPipelineLibrary(program).map((item): PipelineLibraryObject => {
+  projectPipelineLibrary(program, publishedSubmissionByLineage).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
     const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
       .flatMap((identity) => identity ? [visuals.get(identity)] : [])

@@ -126,6 +126,9 @@ describe('contributor asset program rules', () => {
       paidAssetMinimumPositiveVotePercent: '80',
       allowContributorSelfVoting: false,
       ownerVoteWeight: '3',
+      reviewMinimumAgeDays: '40',
+      reviewInactivityDays: '3',
+      trashRetentionDays: '120',
       tierCapsByType: { templates: { free: '12', paid: '6' }, icons: { free: -1, paid: 'abc' } },
     });
 
@@ -137,7 +140,10 @@ describe('contributor asset program rules', () => {
     expect(settings.freeAssetMinimumPositiveVotePercent).toBe(60);
     expect(settings.paidAssetMinimumPositiveVotePercent).toBe(80);
     expect(settings.allowContributorSelfVoting).toBe(false);
-    expect(settings.ownerVoteWeight).toBe(3);
+    expect(settings.ownerVoteWeight).toBe(1);
+    expect(settings.reviewMinimumAgeDays).toBe(30);
+    expect(settings.reviewInactivityDays).toBe(DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewInactivityDays);
+    expect(settings.trashRetentionDays).toBe(90);
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });
     expect(settings.tierCapsByType.icons).toEqual(DEFAULT_PIPELINE_PROGRAM_SETTINGS.tierCapsByType.icons);
     expect(settings.publishCapsByType.templates).toBe(18);

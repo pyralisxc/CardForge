@@ -82,6 +82,25 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].reviewState).toBe('available');
   });
 
+  it('uses the registry pointer as the exact live revision when historical rows still say published', () => {
+    const olderLive = submission('published-r2', {
+      lineageId: 'lineage-1', status: 'published', revisionNumber: 2,
+      publishedAt: '2026-08-22T12:00:00.000Z',
+    });
+    const newerHistorical = submission('published-r3', {
+      lineageId: 'lineage-1', status: 'published', revisionNumber: 3,
+      publishedAt: '2026-08-24T12:00:00.000Z',
+    });
+
+    const projected = projectPipelineLibrary(
+      program([newerHistorical, olderLive]),
+      new Map([['lineage-1', 'published-r2']]),
+    );
+
+    expect(projected[0].submission.id).toBe('published-r2');
+    expect(projected[0].currentPublishedSubmission?.id).toBe('published-r2');
+  });
+
   it('projects the exact owned candidate revision as editable behind a published primary', () => {
     const published = submission('published-r2', {
       status: 'published', revisionNumber: 2, publishedAt: '2026-08-22T12:00:00.000Z',
@@ -96,7 +115,7 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].editableSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
-    expect(projected[0].reviewState).toBe('available');
+    expect(projected[0].reviewState).toBe('self');
   });
 
   it('keeps contributor lifecycle actions pinned to the exact eligible revision', () => {
@@ -136,7 +155,7 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].submission.id).toBe('candidate-r3');
     expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
-    expect(projected[0].reviewState).toBe('available');
+    expect(projected[0].reviewState).toBe('self');
   });
 
   it('does not expose a closed revision as a review target', () => {

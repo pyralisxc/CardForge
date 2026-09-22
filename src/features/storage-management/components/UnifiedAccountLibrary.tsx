@@ -115,6 +115,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [votingId, setVotingId] = useState<string | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const [heartMetrics, setHeartMetrics] = useState<Record<string, { count: number; hearted: boolean }>>({});
+  const [heartMetricsLoading, setHeartMetricsLoading] = useState(false);
+  const [heartMetricsFailed, setHeartMetricsFailed] = useState(false);
   const [storageCallback, setStorageCallback] = useState<{ title: string; message: string } | null>(null);
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
   const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
@@ -240,10 +242,12 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
 
   useEffect(() => {
     const lineageIds = [...new Set(scopeItems.flatMap((item) => pipelineLineageFor(item) ? [pipelineLineageFor(item)!] : []))];
-    if (!lineageIds.length) { setHeartMetrics({}); return; }
+    if (!lineageIds.length) { setHeartMetrics({}); setHeartMetricsLoading(false); setHeartMetricsFailed(false); return; }
     const query = new URLSearchParams();
     lineageIds.forEach((lineageId) => query.append('lineageId', lineageId));
     let cancelled = false;
+    setHeartMetricsLoading(true);
+    setHeartMetricsFailed(false);
     void fetch(`/api/pipeline/hearts?${query.toString()}`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Pipeline reactions are unavailable.'));
@@ -252,7 +256,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       .then(({ metrics }) => {
         if (!cancelled) setHeartMetrics(Object.fromEntries(metrics.map((metric) => [metric.lineageId, { count: metric.count, hearted: metric.hearted }])));
       })
-      .catch(() => { if (!cancelled) setHeartMetrics({}); });
+      .catch(() => { if (!cancelled) setHeartMetricsFailed(true); })
+      .finally(() => { if (!cancelled) setHeartMetricsLoading(false); });
     return () => { cancelled = true; };
   }, [scopeItems]);
 
@@ -418,6 +423,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         cardsFor={cardsFor}
         density={density}
         heartMetrics={heartMetrics}
+        heartMetricsFailed={heartMetricsFailed}
+        heartMetricsLoading={heartMetricsLoading}
         heartingId={heartingId}
         isSignedIn={isSignedIn}
         isOwner={experience.owner}

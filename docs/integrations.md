@@ -37,6 +37,8 @@ Production uses the Supabase project `Card Forge` (`mpmmhjjhdxjedbmuctiv`). Prev
 
 Forge Review source files and private Studio-document media use server-issued, short-lived signed Storage URLs or server-owned Storage operations so large bytes avoid Vercel request-body bottlenecks. Template revision media is normalized server-side to content-addressed WebP in the public contributor-assets bucket; `cardforge_pipeline_template_assets` records the binary owner and the immutable submission revision holds hash references. The registry's durable role is limited to the active revision pointer plus routing/discovery metadata, and its schema rejects cloned Template documents. The browser receives no general Supabase database authority: CardForge routes still authenticate the user, choose the owned object path, enforce product policy, and verify the stored object before committing shared records.
 
+Revision retention follows the same provider-native boundary: Supabase owns row locks, Vault authorization, and claim/finalize RPCs; `purge-pipeline-revisions` owns Storage deletion between those phases. CardForge never uses a database cascade as a substitute for deleting Storage bytes. The worker can expire inactive never-published reviews, reclaim an abandoned claim after its lease, and retry failures, but it cannot claim live, previously published, held, or registry-referenced revisions. Scheduling remains an explicit operations step after a controlled Staging proof.
+
 ## Stripe — checkout, subscriptions, and billing portal
 
 **Provider owns:** hosted Checkout, payment methods, subscription/customer state, the Billing Portal, and webhook delivery.

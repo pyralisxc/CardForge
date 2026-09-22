@@ -5,6 +5,59 @@ set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 do $$
 declare
+  lineage uuid := gen_random_uuid();
+  first_revision uuid := gen_random_uuid();
+  second_revision uuid := gen_random_uuid();
+  author_id text := 'governance-author-' || gen_random_uuid()::text;
+  reviewer_id text := 'governance-reviewer-' || gen_random_uuid()::text;
+begin
+  insert into public.cardforge_pipeline_asset_lineages(id) values (lineage);
+  insert into public.cardforge_contributor_asset_submissions
+    (id,lineage_id,contributor_id,asset_type,name,status,revision_number,submitted_at)
+  values
+    (first_revision,lineage,author_id,'icons','Preference one','voting',1,pg_catalog.now()),
+    (second_revision,lineage,author_id,'icons','Preference two','voting',2,pg_catalog.now());
+
+  perform public.cardforge_cast_contributor_asset_vote(first_revision, reviewer_id, 'positive', null);
+  perform public.cardforge_cast_contributor_asset_vote(second_revision, reviewer_id, 'positive', null);
+  if (select count(*) from public.cardforge_contributor_asset_votes
+      where lineage_id=lineage and contributor_id=reviewer_id and vote_value='positive') <> 1
+    or not exists (select 1 from public.cardforge_contributor_asset_votes
+      where submission_id=second_revision and contributor_id=reviewer_id and vote_value='positive') then
+    raise exception 'positive revision preference did not move atomically';
+  end if;
+
+  perform public.cardforge_cast_contributor_asset_vote(first_revision, reviewer_id, 'negative', null);
+  if not exists (select 1 from public.cardforge_contributor_asset_votes
+      where submission_id=first_revision and contributor_id=reviewer_id and vote_value='negative')
+    or not exists (select 1 from public.cardforge_contributor_asset_votes
+      where submission_id=second_revision and contributor_id=reviewer_id and vote_value='positive') then
+    raise exception 'revision objection incorrectly replaced the lineage preference';
+  end if;
+
+  begin
+    perform public.cardforge_cast_contributor_asset_vote(first_revision, author_id, 'positive', null);
+    raise exception 'self vote unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'contributor_asset_self_vote_not_permitted' then raise; end if;
+  end;
+
+  update public.cardforge_contributor_asset_submissions
+  set status='archived',automated_status='archived',calculated_access_tier='hidden',
+      automated_access_tier='hidden',trashed_at=pg_catalog.now(),
+      purge_after=pg_catalog.now()+interval '30 days',trash_reason='declined'
+  where id=first_revision;
+  begin
+    perform public.cardforge_cast_contributor_asset_vote(first_revision, reviewer_id, 'negative', null);
+    raise exception 'Trash vote unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'contributor_asset_vote_not_permitted' then raise; end if;
+  end;
+end;
+$$;
+
+do $$
+declare
   kind text;
   expected_kind text;
   registry_id text;
