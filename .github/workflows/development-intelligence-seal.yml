@@ -1,0 +1,36 @@
+name: Development Intelligence Seal
+
+on:
+  push:
+    branches:
+      - harden/drive-final-battle-pass
+
+permissions:
+  contents: write
+
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Seal Development Intelligence checkpoint
+        uses: pyralisxc/Development-Intelligence@7e42d721ee763d8907cdab44fe9b46640650225f # current analyzer
+        with:
+          project: pyralisxc/CardForge
+          mode: seal
+      - name: Commit sealed checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add .development-intelligence
+          if git diff --cached --quiet; then
+            echo "Checkpoint already sealed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Seal Development Intelligence checkpoint [skip ci]"
+          git push origin HEAD:harden/drive-final-battle-pass
