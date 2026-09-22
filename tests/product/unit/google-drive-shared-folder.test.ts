@@ -102,6 +102,23 @@ describe('Google Drive shared-folder capabilities', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('moves an exact current Drive project to recoverable Trash with PATCH', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ access_token: 'private-access', expires_in: 3600 }))
+      .mockResolvedValueOnce(Response.json(projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canTrash: true, canDelete: true })))
+      .mockResolvedValueOnce(Response.json({ ...projectFile({ canDownload: true, canEdit: true, canModifyContent: true, canTrash: true, canDelete: true }), trashed: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(deleteGoogleDriveProject({
+      ownerUserId: 'user-1', fileId: 'drive_file_12345', expectedProviderRevision: headToken('native-head-1'), expectedProjectRevision: 'a'.repeat(64),
+    })).resolves.toMatchObject({ fileId: 'drive_file_12345' });
+
+    expect(fetchMock.mock.calls[2]![1]).toMatchObject({
+      method: 'PATCH',
+      body: JSON.stringify({ trashed: true }),
+    });
+  });
+
   it('does not move a shared Drive project to Trash when the native role cannot trash it', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: 'private-access' }))
