@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from 'react';
+import { useState, type ChangeEvent, type RefObject } from 'react';
 import { Copy, FolderDown, FolderUp, Layers, Lock, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,32 @@ interface TemplateLibraryPanelProps {
   buttonClassName: string;
 }
 
+const TEMPLATE_QUICK_VIEW_LIMIT = 5;
+const CARD_BACK_QUICK_VIEW_LIMIT = 3;
+
+export const getTemplateQuickView = (
+  templates: readonly TCGCardTemplate[],
+  limit = TEMPLATE_QUICK_VIEW_LIMIT,
+): TCGCardTemplate[] => {
+  const selected: TCGCardTemplate[] = [];
+  const selectedIds = new Set<string>();
+  const categories = new Set<string>();
+  for (const template of templates) {
+    const category = template.templateCategory?.trim().toLowerCase();
+    if (!category || categories.has(category)) continue;
+    selected.push(template);
+    categories.add(category);
+    if (template.id) selectedIds.add(template.id);
+    if (selected.length === limit) return selected;
+  }
+  for (const template of templates) {
+    if (template.id ? selectedIds.has(template.id) : selected.includes(template)) continue;
+    selected.push(template);
+    if (selected.length === limit) break;
+  }
+  return selected;
+};
+
 export function TemplateLibraryPanel({
   canUseProjectFiles,
   showCardWatermark,
@@ -64,11 +90,18 @@ export function TemplateLibraryPanel({
   controlClassName,
   buttonClassName,
 }: TemplateLibraryPanelProps) {
+  const [showAllTemplates, setShowAllTemplates] = useState(false);
+  const [showAllCardBacks, setShowAllCardBacks] = useState(false);
   const frontUserTemplates = userTemplates.filter((template) => template.templateUsage !== 'back-preset');
   const allListedTemplates = [...defaultTemplates, ...frontUserTemplates, ...backFaceTemplates];
   const shouldShowUnsavedCurrentTemplate = Boolean(
     currentTemplateId && !allListedTemplates.some((template) => template.id === currentTemplateId)
   );
+  const quickTemplates = getTemplateQuickView(defaultTemplates);
+  const visibleTemplates = showAllTemplates ? defaultTemplates : quickTemplates;
+  const visibleCardBacks = showAllCardBacks
+    ? backFaceTemplates
+    : backFaceTemplates.slice(0, CARD_BACK_QUICK_VIEW_LIMIT);
 
   return (
     <WorkspaceSection title="Template" icon={Layers} defaultOpen panelClassName={panelClassName}>
@@ -141,7 +174,7 @@ export function TemplateLibraryPanel({
           ) : null}
         </div>
         <div className="space-y-1.5 pt-1">
-          {defaultTemplates.map((template) => (
+          {visibleTemplates.map((template) => (
             <button
               key={template.id}
               type="button"
@@ -156,13 +189,24 @@ export function TemplateLibraryPanel({
               </span>
             </button>
           ))}
+          {defaultTemplates.length > quickTemplates.length ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-full text-[10px] uppercase tracking-[0.12em] text-[#9a8f7c]"
+              onClick={() => setShowAllTemplates((value) => !value)}
+            >
+              {showAllTemplates ? 'Return to quick view' : `Browse all ${defaultTemplates.length} Templates`}
+            </Button>
+          ) : null}
         </div>
         {backFaceTemplates.length > 0 ? (
           <div data-card-back-library tabIndex={-1} className="scroll-mt-4 space-y-1.5 border-t border-[#1b2029] pt-2 outline-none">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[#757d8c]">
               Card Backs
             </p>
-            {backFaceTemplates.map((template) => (
+            {visibleCardBacks.map((template) => (
               <button
                 key={template.id}
                 type="button"
@@ -177,6 +221,17 @@ export function TemplateLibraryPanel({
                 </span>
               </button>
             ))}
+            {backFaceTemplates.length > CARD_BACK_QUICK_VIEW_LIMIT ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-full text-[10px] uppercase tracking-[0.12em] text-[#9a8f7c]"
+                onClick={() => setShowAllCardBacks((value) => !value)}
+              >
+                {showAllCardBacks ? 'Show fewer card backs' : `View all ${backFaceTemplates.length} card backs`}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>

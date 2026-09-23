@@ -12,9 +12,9 @@ import {
   type ContributorUploadAssetType,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { PipelineContributorSummary } from '@/features/pipeline/lib/pipelineProgram';
-import type { PipelineUploadPlan } from '@/features/pipeline/lib/pipelineUploadPolicy';
+import { getPipelineUploadTransportBlob, type PipelineUploadPlan } from '@/features/pipeline/lib/pipelineUploadPolicy';
 import {
-  pipelineSubmissionGuidance,
+  getPipelineSubmissionGuidance,
   getCandidateBrowseLabel,
   getCandidateSourceEmptyMessage,
   type PersonalLibraryFilter,
@@ -81,7 +81,7 @@ export function PipelineSubmissionPanel({
     loadError: personalLibraryError,
     refresh: refreshPersonalLibrary,
   } = usePipelineSubmissionCandidates();
-  const submissionGuidance = pipelineSubmissionGuidance[assetType];
+  const submissionGuidance = getPipelineSubmissionGuidance(assetType, studioDestination);
   const studioDestinationOptions = getPipelineStudioDestinationOptions(assetType);
   const expectedSourceSize = PIPELINE_STORAGE_ESTIMATE_BYTES[assetType];
 
@@ -168,7 +168,7 @@ export function PipelineSubmissionPanel({
 
       const uploadForm = new FormData();
       uploadForm.append('cacheControl', '3600');
-      uploadForm.append('', selectedFile);
+      uploadForm.append('', getPipelineUploadTransportBlob(selectedFile), selectedFile.name);
       const uploadResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload', () => fetch(uploadPlan.signedUrl, {
         method: 'PUT',
         headers: { 'x-upsert': 'false' },

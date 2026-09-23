@@ -7,7 +7,7 @@ import { buildPipelineContentReview, type PipelineContentReview } from './pipeli
 export type PipelineContentHealthSeverity = 'error' | 'warning';
 
 export interface PipelineContentHealthIssue {
-  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision';
+  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision';
   severity: PipelineContentHealthSeverity;
   objectId: string | null;
   objectName: string;
@@ -55,6 +55,11 @@ export const buildPipelineContentHealth = ({
     const destinations = getPipelineStudioDestinationOptions(submission.assetType);
     if (destinations.length && !submission.requestedStudioDestination) issues.push({ code: 'missing-route', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has no destination route.', repair: 'Choose its native Library/Design destination.' });
     if (submission.requestedStudioDestination && !destinations.includes(submission.requestedStudioDestination)) issues.push({ code: 'invalid-route', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has a destination incompatible with its kind.', repair: 'Review routing through the native Pipeline owner; Sets use package installation without a Studio destination.' });
+    const isSvg = submission.sourceMimeType === 'image/svg+xml' || /\.svg(?:$|[?#])/iu.test(submission.sourceUrl ?? '');
+    const isSafeVectorRoute = submission.assetType === 'icons'
+      || submission.assetType === 'dividers'
+      || (submission.assetType === 'imageAssets' && Boolean(submission.requestedStudioDestination?.startsWith('image.border.')));
+    if (isSvg && !isSafeVectorRoute) issues.push({ code: 'unsafe-vector-route', severity: 'error', objectId, objectName: submission.name, message: 'Published SVG is routed outside the reviewed Icon, Divider, or Border Overlay lanes.', repair: 'Archive it or publish a sanitized raster replacement in the matching Studio lane.' });
     if (!hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId, objectName: submission.name, message: 'Published revision is missing controlled taxonomy.', repair: 'Choose this published item in Content Health and save its specialty and use-case tags.' });
     if (!submission.sourceUrl && !submission.sourcePayload) issues.push({ code: 'missing-source', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has no readable source.', repair: 'Archive it or publish a verified replacement revision.' });
   });

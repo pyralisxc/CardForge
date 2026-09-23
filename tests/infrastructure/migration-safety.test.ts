@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  findRetiredPostCutoverReferences,
   findUnsafeMigrationChanges,
   isApprovedBootstrapRepair,
   parseMigrationChanges,
@@ -36,5 +37,20 @@ describe('migration safety guard', () => {
 
     expect(isApprovedBootstrapRepair(process.cwd(), approved)).toBe(true);
     expect(isApprovedBootstrapRepair(process.cwd(), unrelated)).toBe(false);
+  });
+
+  it('rejects retired Developer tables in post-cutover migrations', () => {
+    expect(findRetiredPostCutoverReferences(
+      'supabase/migrations/20260923175630_expand_pipeline_catalog_capacity.sql',
+      'update public.cardforge_developer_program_settings set updated_at = now();',
+    )).toEqual(['cardforge_developer_program_settings']);
+    expect(findRetiredPostCutoverReferences(
+      'supabase/migrations/20260923175630_expand_pipeline_catalog_capacity.sql',
+      'update public.cardforge_contributor_program_settings set updated_at = now();',
+    )).toEqual([]);
+    expect(findRetiredPostCutoverReferences(
+      'supabase/migrations/20260824000100_legacy_grants.sql',
+      'grant all on public.cardforge_developer_program_settings to service_role;',
+    )).toEqual([]);
   });
 });

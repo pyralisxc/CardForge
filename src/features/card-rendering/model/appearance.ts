@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { AppearanceBorder, AppearanceEffects, AppearanceGradient, AppearanceTexture, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
+import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 export const gradientToCss = (gradient?: AppearanceGradient): string | undefined => {
   if (!gradient || gradient.type === 'none' || gradient.stops.length === 0) return undefined;
@@ -43,7 +44,8 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
   const gradient = gradientToCss(material?.gradient);
   const assetSource = appearance.dividerAsset || appearance.assetSource;
   const asset = assetSource ? `url(${assetSource})` : undefined;
-  const backgroundImage = [asset, texture, gradient, appearance.rawCss?.backgroundImage].filter(Boolean).join(', ') || undefined;
+  const tintVector = appearance.assetRenderMode === 'tint' && isSvgAssetSource(assetSource);
+  const backgroundImage = [tintVector ? undefined : asset, texture, gradient, appearance.rawCss?.backgroundImage].filter(Boolean).join(', ') || undefined;
   const textureScale = material?.texture?.textureScale ?? appearance.textureScale;
   const blendMode = material?.texture?.blendMode ?? appearance.blendMode;
   const tileMode = appearance.tileMode ?? material?.texture?.tileMode;
@@ -61,6 +63,15 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
     backgroundRepeat: asset ? (tileMode === 'repeat' ? 'repeat' : 'no-repeat') : texture?.startsWith('url(') ? 'repeat' : undefined,
     backgroundPosition: asset && tileMode === 'contain' ? 'center' : undefined,
     backgroundBlendMode: blendMode,
+    maskImage: tintVector ? asset : undefined,
+    WebkitMaskImage: tintVector ? asset : undefined,
+    maskSize: tintVector ? assetBackgroundSize : undefined,
+    WebkitMaskSize: tintVector ? assetBackgroundSize : undefined,
+    maskRepeat: tintVector ? 'no-repeat' : undefined,
+    WebkitMaskRepeat: tintVector ? 'no-repeat' : undefined,
+    maskPosition: tintVector ? 'center' : undefined,
+    WebkitMaskPosition: tintVector ? 'center' : undefined,
+    ...(tintVector ? { backgroundColor: appearance.assetTintColor || material?.fillColor || '#ffffff' } : {}),
     ...borderStyle,
     boxShadow,
   };

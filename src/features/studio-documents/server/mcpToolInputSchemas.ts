@@ -21,6 +21,8 @@ const appearanceSchema = {
   properties: {
     assetSource: { type: 'string', maxLength: 20000 },
     assetKind: { type: 'string', enum: ['texture', 'divider', 'border', 'frame'] },
+    assetRenderMode: { type: 'string', enum: ['original', 'tint'] },
+    assetTintColor: { type: 'string', maxLength: 255 },
     blendMode: { type: 'string', maxLength: 100 },
     textureScale: { type: 'number', exclusiveMinimum: 0, maximum: 10000 },
     textureOpacity: { type: 'number', minimum: 0, maximum: 100 },
@@ -231,6 +233,7 @@ const elementSchema = {
     content: { type: 'string', maxLength: 20000 },
     imageSource: { type: 'string', maxLength: 20000 },
     iconImageSource: { type: 'string', maxLength: 20000 },
+    iconRenderMode: { type: 'string', enum: ['original', 'tint'] },
     iconName: { type: 'string', maxLength: 255 },
     shapeKind: { type: 'string', enum: [...CARDFORGE_FREEFORM_SHAPE_KINDS] },
     shapeRole: { type: 'string', enum: ['basic', 'panel', 'artFrame', 'rulesBox', 'titlePlate', 'statGem', 'costOrb', 'divider'] },

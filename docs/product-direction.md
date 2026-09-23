@@ -308,6 +308,10 @@ The existing Forge Pipeline remains the shared reviewed-content owner.
 
 Studio should project each published resource where it is useful, not repeat every resource in every picker. Explicit Pipeline destinations override kind defaults. Counterpart suggestions must remain contextual: Template-derived treatments match the current face and physical format, a front may reveal compatible published backs, and foundation or border artwork with declared orientation compatibility should not be offered to an opposing canvas orientation. Unclassified artwork remains broadly available rather than disappearing through inference. Published Library details should name contextual Studio placement instead of advertising a generic action that cannot be completed. Future family or specialty relationships should refine this same projection without creating duplicate assets or a second Studio catalog.
 
+The initial Template surface is a representative quick view, not the full catalog rendered at once. It prefers distinct creation domains, keeps the complete catalog in the selector, and lets the creator deliberately expand Templates or card backs in place. Catalog growth targets each supported use case with roughly three to five Starter Templates and two to five Creator Pass Templates, subject to quality review rather than filler quotas.
+
+SVG is a first-class but narrow design lane. Contributors may submit it for icons, dividers, and transparent border overlays only; CardForge sanitizes the source before publication, Studio gives icons and dividers original-color and tint controls, and border overlays preserve their authored color. Photographs, textures, and full-frame artwork remain raster lanes. Pipeline catalog capacity is owner-operated, modeled against a 500 MB asset allocation (half of the current Supabase Free Storage quota), and the owner UI distinguishes tracked Pipeline bytes from provider-authoritative organization usage.
+
 Supported lifecycle concepts include draft, submitted, voting, publish candidate, published, archived, and rejected, with automatic ranking/capacity policy plus explicit Owner overrides.
 
 ### Voting

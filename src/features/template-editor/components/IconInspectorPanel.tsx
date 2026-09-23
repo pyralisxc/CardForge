@@ -7,6 +7,7 @@ import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/pipeline/client/assets';
@@ -15,6 +16,7 @@ import type { ElementPresetRecipe } from '@/features/template-editor/lib/element
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 import { TemplateAssetLibraryPicker } from '@/features/template-editor/components/TemplateAssetLibraryPicker';
+import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 interface IconInspectorPanelProps {
   element: FreeformCardElement;
@@ -52,6 +54,7 @@ export function IconInspectorPanel({
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const iconAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const hasUploadedIconSource = Boolean(element.iconImageSource);
+  const hasVectorIconSource = isSvgAssetSource(element.iconImageSource);
 
   return (
     <div className="space-y-2">
@@ -61,7 +64,7 @@ export function IconInspectorPanel({
           className={controlClassName}
           placeholder="Uploaded icon URL or {{symbolUrl}}"
           value={element.iconImageSource || ''}
-          onChange={(event) => onUpdateElement({ iconImageSource: event.target.value }, false)}
+          onChange={(event) => onUpdateElement({ iconImageSource: event.target.value, iconRenderMode: isSvgAssetSource(event.target.value) ? 'original' : undefined }, false)}
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -73,13 +76,13 @@ export function IconInspectorPanel({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className={buttonClassName} onClick={() => onUpdateElement({ iconImageSource: undefined })}>
+            <Button type="button" variant="outline" size="icon" className={buttonClassName} onClick={() => onUpdateElement({ iconImageSource: undefined, iconRenderMode: undefined })}>
               <X className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Clear custom icon</TooltipContent>
         </Tooltip>
-        <input ref={iconUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ iconImageSource: dataUri }))} />
+        <input ref={iconUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ iconImageSource: dataUri, iconRenderMode: isSvgAssetSource(dataUri) ? 'original' : undefined }))} />
       </div>
 
       <div>
@@ -94,9 +97,9 @@ export function IconInspectorPanel({
             providerRole="icon"
             target={{ kind: 'template-element', ids: [element.id] }}
             onAddFromProvider={onAddFromProvider}
-            onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined })}
+            onApply={(asset) => onUpdateElement({ iconImageSource: asset.url, iconName: undefined, iconRenderMode: isSvgAssetSource(asset.url) ? 'original' : undefined })}
             builtInOptions={iconOptions.map((icon) => ({ name: icon, value: icon }))}
-            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined })}
+            onApplyBuiltIn={(iconName) => onUpdateElement({ iconName, iconImageSource: undefined, iconRenderMode: undefined })}
             onMaterializePersonal={onMaterializePersonal}
           />
           <Tooltip>
@@ -139,6 +142,20 @@ export function IconInspectorPanel({
           </>
         )}
       </div>
+      {hasVectorIconSource ? (
+        <div className="grid grid-cols-2 gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[var(--cf-editor-control)] p-2">
+          <div>
+            <Label htmlFor="element-icon-vector-mode" className="text-xs">Vector color</Label>
+            <Select value={element.iconRenderMode || 'original'} onValueChange={(value) => onUpdateElement({ iconRenderMode: value as 'original' | 'tint' })}>
+              <SelectTrigger id="element-icon-vector-mode"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="original">Original</SelectItem><SelectItem value="tint">Single-color tint</SelectItem></SelectContent>
+            </Select>
+          </div>
+          {element.iconRenderMode === 'tint' ? (
+            <div><Label htmlFor="element-icon-vector-tint" className="text-xs">Tint</Label><ColorField id="element-icon-vector-tint" value={element.fillColor || '#ffffff'} onChange={(value) => onUpdateElement({ fillColor: value }, false)} /></div>
+          ) : null}
+        </div>
+      ) : null}
       {!hasUploadedIconSource && (
         <div className="grid grid-cols-2 gap-2">
           <div>

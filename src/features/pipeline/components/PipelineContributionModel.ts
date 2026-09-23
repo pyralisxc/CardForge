@@ -2,6 +2,7 @@ import { type PipelineAccessTier, type ContributorUploadAssetType } from '@/feat
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
 import type { CardAssetOption } from '@/features/pipeline/lib/cardAssets';
 import { getPipelineImagePreviewUrl } from '@/features/pipeline/lib/pipelineLibrary';
+import type { StudioAssetDestination } from '@/domain/templates';
 
 export type PipelineSubmission = PipelineProgramView['submissions'][number];
 export type PersonalLibraryFilter = ContributorUploadAssetType | 'all';
@@ -53,8 +54,8 @@ export const pipelineSubmissionGuidance: Record<ContributorUploadAssetType, Pipe
     destination: 'Divider rails and section breaks',
     sourceLabel: 'Divider image',
     sourceHelp: 'Submit a horizontal or decorative divider asset that separates rules text, stats, titles, or card sections.',
-    acceptedFileTypes: 'PNG or WEBP',
-    accept: '.png,.webp,image/png,image/webp',
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
     notesHelp: 'Mention orientation, ideal width, whether it stretches, and which card sections it is meant to separate.',
     checklist: ['Clear at narrow widths', 'Stretch intent noted', 'Section role described'],
   },
@@ -62,8 +63,8 @@ export const pipelineSubmissionGuidance: Record<ContributorUploadAssetType, Pipe
     destination: 'Icon picker and symbol controls',
     sourceLabel: 'Icon image',
     sourceHelp: 'Submit a clean icon or symbol that remains readable at small sizes in stats, labels, costs, and badges.',
-    acceptedFileTypes: 'PNG or WEBP',
-    accept: '.png,.webp,image/png,image/webp',
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
     notesHelp: 'Mention semantic use, minimum readable size, color expectations, and whether it should be recolorable.',
     checklist: ['Readable at small size', 'Semantic use named', 'Transparent background preferred'],
   },
@@ -94,6 +95,21 @@ export const pipelineSubmissionGuidance: Record<ContributorUploadAssetType, Pipe
     notesHelp: 'Describe the Set’s purpose, card count, included Templates, specialties, and what a creator can safely customize.',
     checklist: ['One complete Set', 'Portable import verified', 'Editable contents reviewed'],
   },
+};
+
+export const getPipelineSubmissionGuidance = (
+  assetType: ContributorUploadAssetType,
+  destination: StudioAssetDestination | null,
+): PipelineSubmissionGuidance => {
+  const guidance = pipelineSubmissionGuidance[assetType];
+  if (assetType !== 'imageAssets' || !destination?.startsWith('image.border.')) return guidance;
+  return {
+    ...guidance,
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
+    sourceHelp: 'Submit a transparent full-card border overlay. Safe SVG borders remain sharp at every Studio and export size; photographic artwork belongs under Pictures or Frames.',
+    notesHelp: 'Mention the intended card orientation, safe area, stroke behavior, recoloring expectations, and source rights.',
+  };
 };
 
 export const tierClasses: Record<PipelineAccessTier, string> = {

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
+  estimatePipelineCatalogCapacityBytes,
+  PIPELINE_ASSET_STORAGE_BUDGET_BYTES,
   CONTRIBUTOR_UPLOAD_ASSET_TYPES,
   buildPipelineVotingPresetSettings,
   countPipelineMonthlyStats,
@@ -9,6 +11,7 @@ import {
 } from '@/features/pipeline/lib/pipelineItems';
 import {
   pipelineSubmissionGuidance,
+  getPipelineSubmissionGuidance,
   deduplicatePersonalLibraryItems,
   getCandidateBrowseLabel,
   getCandidateSourceEmptyMessage,
@@ -80,7 +83,10 @@ describe('contributor asset program rules', () => {
       expect(guidance.checklist).toHaveLength(3);
     }
 
-    expect(pipelineSubmissionGuidance.icons.accept).not.toContain('image/svg+xml');
+    expect(pipelineSubmissionGuidance.icons.accept).toContain('image/svg+xml');
+    expect(pipelineSubmissionGuidance.dividers.accept).toContain('image/svg+xml');
+    expect(getPipelineSubmissionGuidance('imageAssets', 'image.border.front').accept).toContain('image/svg+xml');
+    expect(getPipelineSubmissionGuidance('imageAssets', 'image.picture').accept).not.toContain('image/svg+xml');
     expect(pipelineSubmissionGuidance.fonts.accept).toContain('font/woff2');
     expect(pipelineSubmissionGuidance.sets.accept).toContain('.cardforge');
   });
@@ -88,7 +94,15 @@ describe('contributor asset program rules', () => {
   it('routes Sets through the portable package lane instead of Studio asset placement', () => {
     expect(getCandidateBrowseLabel('sets')).toContain('.cardforge');
     expect(getCandidateSourceEmptyMessage('sets')).toContain('Desk or in Studio');
-    expect(DEFAULT_PIPELINE_PROGRAM_SETTINGS.tierCapsByType.sets).toEqual({ free: 4, paid: 2 });
+    expect(DEFAULT_PIPELINE_PROGRAM_SETTINGS.tierCapsByType.sets).toEqual({ free: 11, paid: 6 });
+  });
+
+  it('reserves half of Free Storage while keeping production and staging cap models inside it', () => {
+    const oneEnvironment = estimatePipelineCatalogCapacityBytes();
+    expect(PIPELINE_ASSET_STORAGE_BUDGET_BYTES).toBe(500_000_000);
+    expect(oneEnvironment).toBeLessThan(PIPELINE_ASSET_STORAGE_BUDGET_BYTES / 2);
+    expect(oneEnvironment * 2).toBeLessThan(PIPELINE_ASSET_STORAGE_BUDGET_BYTES);
+    expect(DEFAULT_PIPELINE_PROGRAM_SETTINGS.tierCapsByType.templates).toEqual({ free: 55, paid: 33 });
   });
 
   it('gives font submissions a visible file-source affordance', () => {

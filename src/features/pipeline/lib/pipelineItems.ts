@@ -116,14 +116,14 @@ export interface ContributorSummary {
 }
 
 export const DEFAULT_PIPELINE_TIER_CAPS_BY_TYPE: PipelineTierCapsByType = {
-  templates: { free: 6, paid: 3 },
-  elementPresets: { free: 16, paid: 8 },
-  textures: { free: 16, paid: 8 },
-  dividers: { free: 16, paid: 8 },
-  icons: { free: 20, paid: 10 },
-  imageAssets: { free: 16, paid: 8 },
-  fonts: { free: 8, paid: 4 },
-  sets: { free: 4, paid: 2 },
+  templates: { free: 55, paid: 33 },
+  elementPresets: { free: 44, paid: 22 },
+  textures: { free: 33, paid: 16 },
+  dividers: { free: 44, paid: 22 },
+  icons: { free: 55, paid: 27 },
+  imageAssets: { free: 33, paid: 16 },
+  fonts: { free: 22, paid: 11 },
+  sets: { free: 11, paid: 6 },
 };
 
 export const derivePipelinePublishCapsByType = (
@@ -163,6 +163,17 @@ export const PIPELINE_STORAGE_ESTIMATE_BYTES: Record<PipelineType, number> = {
   fonts: 220 * 1024,
   sets: 2 * 1024 * 1024,
 };
+
+export const SUPABASE_FREE_STORAGE_QUOTA_BYTES = 1_000_000_000;
+export const PIPELINE_ASSET_STORAGE_BUDGET_RATIO = 0.5;
+export const PIPELINE_ASSET_STORAGE_BUDGET_BYTES =
+  SUPABASE_FREE_STORAGE_QUOTA_BYTES * PIPELINE_ASSET_STORAGE_BUDGET_RATIO;
+
+export const estimatePipelineCatalogCapacityBytes = (
+  caps: PipelineTierCapsByType = DEFAULT_PIPELINE_TIER_CAPS_BY_TYPE,
+): number => PIPELINE_TYPES.reduce((total, type) => (
+  total + (Math.max(0, caps[type].free) + Math.max(0, caps[type].paid)) * PIPELINE_STORAGE_ESTIMATE_BYTES[type]
+), 0);
 
 const clampInteger = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.round(value)));

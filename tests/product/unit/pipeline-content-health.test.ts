@@ -36,6 +36,29 @@ describe('Pipeline content health', () => {
       .toEqual(expect.arrayContaining([expect.objectContaining({ code: 'invalid-route' })]));
   });
 
+  it('flags legacy SVG sources outside the reviewed vector lanes', () => {
+    const unsafe = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'imageAssets',
+        requestedStudioDestination: 'image.picture',
+        sourceMimeType: 'image/svg+xml',
+        sourceUrl: 'https://example.com/picture.svg',
+      }),
+    });
+    const safe = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'icons',
+        requestedStudioDestination: 'element.icon',
+        sourceMimeType: 'image/svg+xml',
+        sourceUrl: 'https://example.com/icon.svg',
+      }),
+    });
+    expect(unsafe.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'unsafe-vector-route', severity: 'error' })]));
+    expect(safe.issues.some((issue) => issue.code === 'unsafe-vector-route')).toBe(false);
+  });
+
   it.each([
     ['3:4', 'event-badge', 75, 100],
     ['35:20', 'us-business', 88.9, 50.8],

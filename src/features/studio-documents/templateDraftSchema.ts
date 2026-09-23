@@ -63,6 +63,8 @@ const appearanceEffectsSchema = z.object({
 export const templateDraftAppearanceSchema = z.object({
   assetSource: boundedString(20_000).optional(),
   assetKind: z.enum(['texture', 'divider', 'border', 'frame']).optional(),
+  assetRenderMode: z.enum(['original', 'tint']).optional(),
+  assetTintColor: boundedString(255).optional(),
   blendMode: boundedString(100).optional(),
   textureScale: z.number().finite().positive().max(10_000).optional(),
   textureOpacity: z.number().finite().min(0).max(100).optional(),
@@ -105,6 +107,7 @@ export const templateDraftElementSchema = z.object({
   content: boundedString(20_000).optional(),
   imageSource: boundedString(20_000).optional(),
   iconImageSource: boundedString(20_000).optional(),
+  iconRenderMode: z.enum(['original', 'tint']).optional(),
   iconName: boundedString(255).optional(),
   shapeKind: z.enum(CARDFORGE_FREEFORM_SHAPE_KINDS).optional(),
   shapeRole: z.enum(['basic', 'panel', 'artFrame', 'rulesBox', 'titlePlate', 'statGem', 'costOrb', 'divider']).optional(),
