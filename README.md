@@ -23,6 +23,8 @@ A fresh maintainer or agent should be able to work from the repository without p
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
+For branch roles, CI cadence, exact-SHA Vercel Preview promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
+
 PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis, with the accepted CardForge checkpoint stored under `.development-intelligence/`; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.

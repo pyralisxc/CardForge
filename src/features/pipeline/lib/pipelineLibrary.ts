@@ -7,6 +7,7 @@ export type PipelineReviewState = 'available' | 'already-voted' | 'self' | 'clos
 export interface PipelineLibraryItem {
   id: string;
   submission: PipelineSubmission;
+  reviewSubmission: PipelineSubmission | null;
   editableSubmission: PipelineSubmission | null;
   retirableSubmission: PipelineSubmission | null;
   revisions: PipelineSubmission[];
@@ -81,6 +82,7 @@ export const getPipelineImagePreviewUrl = (
 
 export const projectPipelineLibrary = (
   program: Pick<PipelineProgramView, 'submissions' | 'votingQueue' | 'currentContributorIds' | 'settings'>,
+  publishedSubmissionByLineage: ReadonlyMap<string, string> = new Map(),
 ): PipelineLibraryItem[] => {
   const submissionById = new Map<string, PipelineSubmission>();
   [...program.submissions, ...program.votingQueue].forEach((submission) => {
@@ -96,9 +98,17 @@ export const projectPipelineLibrary = (
   const contributorIds = new Set(program.currentContributorIds);
   return [...lineages.entries()].map(([lineageId, submissions]): PipelineLibraryItem => {
     const revisions = submissions.toSorted(compareNewestRevision);
-    const currentPublishedSubmission = revisions
+    const exactPublishedSubmissionId = publishedSubmissionByLineage.get(lineageId);
+    const currentPublishedSubmission = (
+      exactPublishedSubmissionId
+        ? revisions.find((submission) => submission.id === exactPublishedSubmissionId)
+        : null
+    ) ?? revisions
       .filter((submission) => submission.status === 'published')
       .toSorted(compareNewestRevision)[0] ?? null;
+    const reviewSubmission = revisions
+      .filter(isContributorPipelineReviewable)
+      .toSorted(compareStrongestCandidate)[0] ?? null;
     const submission = currentPublishedSubmission
       ?? revisions.toSorted(compareStrongestCandidate)[0];
     const editableSubmission = revisions.find((revision) => (
@@ -108,21 +118,23 @@ export const projectPipelineLibrary = (
         || revision.status === 'voting'
         || revision.status === 'publish_candidate')
     )) ?? null;
-    const retirableSubmission = revisions.find((revision) => (
-      contributorIds.has(revision.contributorId) && revision.status === 'published'
-    )) ?? null;
+    const retirableSubmission = currentPublishedSubmission
+      && contributorIds.has(currentPublishedSubmission.contributorId)
+      ? currentPublishedSubmission
+      : null;
     const ownership: PipelineOwnership = revisions.some((revision) => contributorIds.has(revision.contributorId)) ? 'mine' : 'other';
-    const reviewState: PipelineReviewState = !isContributorPipelineReviewable(submission)
+    const reviewState: PipelineReviewState = !reviewSubmission
       ? 'closed'
-      : ownership === 'mine' && !program.settings.allowContributorSelfVoting
+      : contributorIds.has(reviewSubmission.contributorId) && !program.settings.allowContributorSelfVoting
         ? 'self'
-        : submission.currentUserVote
+        : reviewSubmission.currentUserVote
           ? 'already-voted'
           : 'available';
 
     return {
       id: lineageId,
       submission,
+      reviewSubmission,
       editableSubmission,
       retirableSubmission,
       revisions,

@@ -124,7 +124,7 @@ describe('contributor asset store helpers', () => {
       freeAssetMinimumPositiveVotePercent: 60,
       paidAssetMinimumPositiveVotePercent: 82,
       allowContributorSelfVoting: false,
-      ownerVoteWeight: 2,
+      ownerVoteWeight: 1,
       publishCapsByType: {
         templates: 14,
       },

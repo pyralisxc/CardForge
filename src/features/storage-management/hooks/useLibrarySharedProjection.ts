@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import {
+  getDefaultStudioAssetDestinations,
+  type AppearanceStylePreset,
+  type CardAssetOption,
+  type StudioAssetDestination,
+  type TCGCardTemplate,
+} from '@/domain/templates';
 import {
   getAssetKindLabel,
   getPipelineStatusLabel,
@@ -39,11 +45,13 @@ export interface PublishedLibraryObject {
   description: string;
   specialtyTags: string[];
   useCaseTags: string[];
+  studioDestinations: StudioAssetDestination[];
 }
 
 export interface PipelineLibraryObject {
   packageUrl?: string | null;
   submission: PipelineSubmission;
+  reviewSubmission: PipelineSubmission | null;
   editableSubmission: PipelineSubmission | null;
   retirableSubmission: PipelineSubmission | null;
   revisions: PipelineSubmission[];
@@ -124,6 +132,10 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(asset.id)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(asset.id)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(asset.id)?.useCaseTags ?? [],
+    studioDestinations: asset.studioDestinations ?? getDefaultStudioAssetDestinations({
+      kind: asset.kind === 'border' || asset.kind === 'frame' ? 'image' : asset.kind,
+      metadata: asset.style ? { payload: { kind: asset.style.kind } } : undefined,
+    }),
   }));
   const fonts = catalog.fonts.fonts.map((font): PublishedLibraryObject => ({
     id: `published:font:${font.value}`,
@@ -143,6 +155,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: pipelineByAssetId.get(font.value)?.description ?? '',
     specialtyTags: pipelineByAssetId.get(font.value)?.specialtyTags ?? [],
     useCaseTags: pipelineByAssetId.get(font.value)?.useCaseTags ?? [],
+    studioDestinations: ['typography.font'],
   }));
   const sets = (catalog.sets?.items ?? []).map((set): PublishedLibraryObject => ({
     id: `published:set:${set.id}`,
@@ -162,6 +175,7 @@ export const projectPublishedLibraryObjects = (catalog: CardForgeCatalogManifest
     description: set.description,
     specialtyTags: set.specialtyTags,
     useCaseTags: set.useCaseTags,
+    studioDestinations: [],
   }));
   return [...sets, ...assets, ...fonts].toSorted((left, right) => left.name.localeCompare(right.name));
 };
@@ -244,8 +258,13 @@ export const projectPipelineLibraryObjects = (
   catalog: CardForgeCatalogManifest | null,
 ): PipelineLibraryObject[] => {
   const visuals = catalogLibraryVisuals(catalog);
+  const publishedSubmissionByLineage = new Map(
+    (catalog?.pipeline?.items ?? []).flatMap((item) => (
+      item.lineageId && item.submissionId ? [[item.lineageId, item.submissionId] as const] : []
+    )),
+  );
   return (
-  projectPipelineLibrary(program).map((item): PipelineLibraryObject => {
+  projectPipelineLibrary(program, publishedSubmissionByLineage).map((item): PipelineLibraryObject => {
     const sourcePayload = item.submission.sourcePayload;
     const lineageVisual = [item.submission.targetRegistryAssetId, item.submission.registryAssetId, catalogNameKey(item.submission.name)]
       .flatMap((identity) => identity ? [visuals.get(identity)] : [])
@@ -257,6 +276,7 @@ export const projectPipelineLibraryObjects = (
         || set.id === item.currentPublishedSubmission?.targetRegistryAssetId
       ))?.packageUrl ?? null,
       submission: item.submission,
+      reviewSubmission: item.reviewSubmission,
       editableSubmission: item.editableSubmission,
       retirableSubmission: item.retirableSubmission,
       revisions: item.revisions,
@@ -335,6 +355,10 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
     await Promise.all([catalogRequest, pipelineRequest]);
   }, [activeScope, pipelineEnabled]);
 
+  const acceptProgram = useCallback((nextProgram: PipelineProgramView) => {
+    if (pipelineEnabledRef.current) setProgram(nextProgram);
+  }, []);
+
   useEffect(() => { void refresh(); }, [refresh]);
 
   return {
@@ -346,6 +370,7 @@ export function useLibrarySharedProjection({ pipelineEnabled, activeScope }: { p
     pipelineFailure: pipelineEnabled ? pipelineFailure : null,
     catalogLoading,
     pipelineLoading: pipelineEnabled && pipelineLoading,
+    acceptProgram,
     refresh,
   };
 }

@@ -10,6 +10,7 @@ export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 export type TemplateFieldAllowedFormatting = 'bold' | 'italic' | 'underline' | 'color' | 'highlight' | 'lists' | 'rulesMarkers';
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
+export type CardAssetOrientation = 'portrait' | 'landscape' | 'square';
 
 export interface CardAssetOption {
   id: string;
@@ -36,6 +37,7 @@ export interface CardAssetOption {
   studioFeatured?: boolean;
   studioRoutingMode?: StudioAssetRoutingMode;
   studioDefaultDestination?: StudioAssetDestination;
+  compatibleOrientations?: CardAssetOrientation[];
   style?: AppearanceStylePreset;
 }
 

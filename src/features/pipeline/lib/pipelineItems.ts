@@ -51,8 +51,13 @@ export interface PipelineProgramSettings {
   minimumVotesForGrading: number;
   freeAssetMinimumPositiveVotePercent: number;
   paidAssetMinimumPositiveVotePercent: number;
-  allowContributorSelfVoting: boolean;
-  ownerVoteWeight: number;
+  /** Revision preference is peer-only; retained for policy consumers during schema cutover. */
+  allowContributorSelfVoting: false;
+  /** Community math is unweighted; Owner authority remains an explicit override. */
+  ownerVoteWeight: 1;
+  reviewMinimumAgeDays: number;
+  reviewInactivityDays: number;
+  trashRetentionDays: number;
   publishCapsByType: PipelinePublishCapsByType;
   tierCapsByType: PipelineTierCapsByType;
 }
@@ -139,8 +144,11 @@ export const DEFAULT_PIPELINE_PROGRAM_SETTINGS: PipelineProgramSettings = {
   minimumVotesForGrading: 5,
   freeAssetMinimumPositiveVotePercent: 60,
   paidAssetMinimumPositiveVotePercent: 80,
-  allowContributorSelfVoting: true,
+  allowContributorSelfVoting: false,
   ownerVoteWeight: 1,
+  reviewMinimumAgeDays: 7,
+  reviewInactivityDays: 90,
+  trashRetentionDays: 30,
   publishCapsByType: DEFAULT_PIPELINE_PUBLISH_CAPS_BY_TYPE,
   tierCapsByType: DEFAULT_PIPELINE_TIER_CAPS_BY_TYPE,
 };
@@ -227,9 +235,6 @@ const normalizeInteger = (value: unknown, fallback: number, min: number, max: nu
   return Math.min(max, rounded);
 };
 
-const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
-  value === undefined ? fallback : value === true;
-
 export const normalizePipelinePublishCapsByType = (value: unknown): PipelinePublishCapsByType => {
   const input = isRecord(value) ? value : {};
 
@@ -275,8 +280,11 @@ export const normalizePipelineProgramSettingsInput = (
     minimumVotesForGrading: normalizeInteger(value.minimumVotesForGrading, DEFAULT_PIPELINE_PROGRAM_SETTINGS.minimumVotesForGrading, 1, 1000),
     freeAssetMinimumPositiveVotePercent: normalizeInteger(value.freeAssetMinimumPositiveVotePercent, DEFAULT_PIPELINE_PROGRAM_SETTINGS.freeAssetMinimumPositiveVotePercent, 1, 100),
     paidAssetMinimumPositiveVotePercent: normalizeInteger(value.paidAssetMinimumPositiveVotePercent, DEFAULT_PIPELINE_PROGRAM_SETTINGS.paidAssetMinimumPositiveVotePercent, 1, 100),
-    allowContributorSelfVoting: normalizeBoolean(value.allowContributorSelfVoting, DEFAULT_PIPELINE_PROGRAM_SETTINGS.allowContributorSelfVoting),
-    ownerVoteWeight: normalizeInteger(value.ownerVoteWeight, DEFAULT_PIPELINE_PROGRAM_SETTINGS.ownerVoteWeight, 1, 3),
+    allowContributorSelfVoting: false,
+    ownerVoteWeight: 1,
+    reviewMinimumAgeDays: normalizeInteger(value.reviewMinimumAgeDays, DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewMinimumAgeDays, 0, 30),
+    reviewInactivityDays: normalizeInteger(value.reviewInactivityDays, DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewInactivityDays, 7, 365),
+    trashRetentionDays: normalizeInteger(value.trashRetentionDays, DEFAULT_PIPELINE_PROGRAM_SETTINGS.trashRetentionDays, 1, 90),
     publishCapsByType: derivePipelinePublishCapsByType(tierCapsByType),
     tierCapsByType,
   };

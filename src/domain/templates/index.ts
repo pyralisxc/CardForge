@@ -12,6 +12,7 @@ export type {
   AppearanceTexture,
   AppearanceTextureKind,
   AppearanceTileMode,
+  CardAssetOrientation,
   CardAssetOption,
   FreeformAppearance,
   FreeformCanvas,

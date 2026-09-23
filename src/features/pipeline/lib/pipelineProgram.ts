@@ -82,6 +82,10 @@ export interface PipelineSubmission {
   revisionNumber: number | null;
   publishedAt: string | null;
   purgeState: 'pending' | null;
+  trashedAt?: string | null;
+  purgeAfter?: string | null;
+  trashReason?: 'declined' | 'withdrawn' | 'expired' | 'superseded' | null;
+  retentionHold?: boolean;
   submittedAt: string;
   updatedAt: string | null;
 }
@@ -156,6 +160,9 @@ export interface PipelineProgramSettingsRow {
   paid_asset_minimum_positive_vote_percent?: unknown;
   allow_contributor_self_voting?: unknown;
   owner_vote_weight?: unknown;
+  review_minimum_age_days?: unknown;
+  review_inactivity_days?: unknown;
+  trash_retention_days?: unknown;
   tier_caps_by_type?: unknown;
 }
 
@@ -197,6 +204,10 @@ export interface PipelineSubmissionRow {
   revision_number: number | null;
   published_at: string | null;
   purge_state: unknown;
+  trashed_at?: string | null;
+  purge_after?: string | null;
+  trash_reason?: unknown;
+  retention_hold?: boolean | null;
   submitted_at: string;
   updated_at: string | null;
 }
@@ -374,8 +385,9 @@ export const mapPipelineProgramSettingsRow = (
       minimumVotesForGrading: row.minimum_votes_for_grading,
       freeAssetMinimumPositiveVotePercent: row.free_asset_minimum_positive_vote_percent,
       paidAssetMinimumPositiveVotePercent: row.paid_asset_minimum_positive_vote_percent,
-      allowContributorSelfVoting: row.allow_contributor_self_voting,
-      ownerVoteWeight: row.owner_vote_weight,
+      reviewMinimumAgeDays: row.review_minimum_age_days,
+      reviewInactivityDays: row.review_inactivity_days,
+      trashRetentionDays: row.trash_retention_days,
       tierCapsByType: row.tier_caps_by_type,
     }
   : DEFAULT_PIPELINE_PROGRAM_SETTINGS);
@@ -440,6 +452,12 @@ export const mapPipelineSubmissionRow = (
   revisionNumber: row.revision_number,
   publishedAt: row.published_at,
   purgeState: row.purge_state === 'pending' ? 'pending' : null,
+  trashedAt: row.trashed_at ?? null,
+  purgeAfter: row.purge_after ?? null,
+  trashReason: row.trash_reason === 'declined' || row.trash_reason === 'withdrawn'
+    || row.trash_reason === 'expired' || row.trash_reason === 'superseded'
+    ? row.trash_reason : null,
+  retentionHold: row.retention_hold === true,
   submittedAt: row.submitted_at,
   updatedAt: row.updated_at,
 });

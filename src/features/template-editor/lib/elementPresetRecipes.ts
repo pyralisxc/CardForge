@@ -1,4 +1,5 @@
 import {
+  getDefaultStudioAssetDestinations,
   normalizeAppearanceForElement,
   type AppearanceStylePreset,
   type FreeformAppearance,
@@ -8,6 +9,7 @@ import {
   type FreeformShapeRole,
   type TCGCardTemplate,
 } from '@/domain/templates';
+import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
 
@@ -139,6 +141,34 @@ export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): Eleme
       cardBorderImageSource: template.cardBorderImageSource,
     },
   }));
+
+const normalizedTemplateUsage = (template: TCGCardTemplate): 'front' | 'back' => (
+  template.templateUsage === 'back-preset' ? 'back' : 'front'
+);
+
+export const createCompatibleFrameKitPresetRecipes = (
+  templates: TCGCardTemplate[],
+  currentTemplate: TCGCardTemplate,
+): ElementPresetRecipe[] => createFrameKitPresetRecipes(
+  templates.filter((template) => (
+    normalizedTemplateUsage(template) === normalizedTemplateUsage(currentTemplate)
+    && areTemplateFormatsCompatible(template, currentTemplate)
+  )),
+);
+
+export const getAppearanceStyleStudioDestinations = (
+  style: AppearanceStylePreset,
+) => style.studioDestinations?.length
+  ? style.studioDestinations
+  : getDefaultStudioAssetDestinations({
+      kind: 'elementPreset',
+      metadata: { payload: { kind: style.kind } },
+    });
+
+export const isAppearanceStyleRoutedTo = (
+  style: AppearanceStylePreset,
+  destination: ReturnType<typeof getAppearanceStyleStudioDestinations>[number],
+): boolean => getAppearanceStyleStudioDestinations(style).includes(destination);
 
 const appearanceKindToRecipeKind = (kind: AppearanceStylePreset['kind']): ElementPresetKind => {
   if (kind === 'shapeRole') return 'shapeRole';

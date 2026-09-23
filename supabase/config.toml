@@ -12,3 +12,6 @@ enabled = false
 
 [functions.purge-assistant-drafts]
 verify_jwt = false
+
+[functions.purge-pipeline-revisions]
+verify_jwt = false

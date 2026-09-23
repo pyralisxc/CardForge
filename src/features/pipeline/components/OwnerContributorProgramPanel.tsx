@@ -18,8 +18,6 @@ import {
   CompactNumberField,
   DecisionCard,
   NumberField,
-  ToggleField,
-  VoteWeightSelector,
 } from '@/features/pipeline/components/OwnerContributorProgramControls';
 import {
   PIPELINE_TYPES,
@@ -287,25 +285,15 @@ export function OwnerContributorProgramPanel({
               ))}
             </div>
           </div>
-          <VoteWeightSelector
-            value={settings.ownerVoteWeight}
-            onChange={(value) => setSettings({ ...settings, ownerVoteWeight: value })}
-          />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <NumberField label="Votes to decide" help="Votes required before automatic status and tier selection begins." value={settings.minimumVotesForGrading} onChange={(value) => setSettings({ ...settings, minimumVotesForGrading: value })} />
+            <NumberField label="Reviewers to decide" help="Distinct Contributors required before a revision can reach a final automatic decision." value={settings.minimumVotesForGrading} onChange={(value) => setSettings({ ...settings, minimumVotesForGrading: value })} />
             <NumberField label="Starter %" help="Minimum positive vote percentage for automatic Starter placement." value={settings.freeAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, freeAssetMinimumPositiveVotePercent: value })} />
             <NumberField label="Creator Pass %" help="Minimum positive vote percentage for automatic Creator Pass placement." value={settings.paidAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, paidAssetMinimumPositiveVotePercent: value })} />
+            <NumberField label="Minimum review days" help="A revision may be recommended immediately, but automatic publication or decline waits this many days." value={settings.reviewMinimumAgeDays} onChange={(value) => setSettings({ ...settings, reviewMinimumAgeDays: value })} />
+            <NumberField label="Inactive review days" help="Unresolved unpublished work moves to recoverable Trash after this many inactive days." value={settings.reviewInactivityDays} onChange={(value) => setSettings({ ...settings, reviewInactivityDays: value })} />
+            <NumberField label="Trash recovery days" help="Never-published work remains recoverable for this many days before permanent cleanup is allowed." value={settings.trashRetentionDays} onChange={(value) => setSettings({ ...settings, trashRetentionDays: value })} />
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 md:max-w-xl">
-        <ToggleField
-          label="Contributor self-voting"
-          help="Allow contributors, including the owner alias for site defaults, to vote on their own assets. Useful while the active review roster is small."
-          checked={settings.allowContributorSelfVoting}
-          onChange={(checked) => setSettings({ ...settings, allowContributorSelfVoting: checked })}
-        />
       </div>
 
       <div className="mt-6 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">

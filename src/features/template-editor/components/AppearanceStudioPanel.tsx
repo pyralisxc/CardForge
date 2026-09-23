@@ -179,7 +179,7 @@ export function AppearanceStudioPanel({
         </div>
       )}
       {filteredReviewedStyles.length > 0 && (
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Fill Styles</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Materials & Text Frames</Label>
       )}
       <div className="grid grid-cols-2 gap-1.5">
         {visibleReviewedStyles.map((style) => (
