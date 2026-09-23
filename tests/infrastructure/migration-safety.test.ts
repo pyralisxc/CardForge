@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
   findRetiredPostCutoverReferences,
@@ -52,5 +54,20 @@ describe('migration safety guard', () => {
       'supabase/migrations/20260824000100_legacy_grants.sql',
       'grant all on public.cardforge_developer_program_settings to service_role;',
     )).toEqual([]);
+  });
+
+  it('syncs an owner-decided revision after rebalance can move it into retention trash', () => {
+    const migration = readFileSync(
+      resolve(process.cwd(), 'supabase/migrations/20260923194000_sync_archived_pipeline_registry.sql'),
+      'utf8',
+    );
+    const rebalance = migration.indexOf('changed_count := public.cardforge_rebalance_contributor_asset_pipeline');
+    const sync = migration.indexOf('perform public.cardforge_sync_contributor_asset_registry(p_submission_id)');
+
+    expect(rebalance).toBeGreaterThan(-1);
+    expect(sync).toBeGreaterThan(rebalance);
+    expect(migration).toContain('where id = p_submission_id\n    and purge_state is null;');
+    expect(migration).toContain("where submission.status in ('archived', 'rejected')");
+    expect(migration).toContain("and registry.status = 'published'");
   });
 });
