@@ -1,5 +1,5 @@
 import {
-  getDefaultStudioAssetDestinations,
+  resolveStudioAssetDestinations,
   type AppearanceStyleLibrary,
   type StudioAssetDestination,
   type StudioRegistryAssetKind,
@@ -96,10 +96,11 @@ const catalogVersion = (
 };
 
 const rowDestinations = (row: PublishedRegistryAssetRow): StudioAssetDestination[] => (
-  row.studio_destinations
-  ?? getDefaultStudioAssetDestinations({
+  resolveStudioAssetDestinations({
     kind: row.asset_type as StudioRegistryAssetKind,
     metadata: row.metadata,
+    mode: row.studio_routing_mode,
+    destinations: row.studio_destinations,
   })
 );
 

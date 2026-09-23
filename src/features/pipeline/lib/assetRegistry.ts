@@ -5,8 +5,7 @@ import {
 } from '@/features/pipeline/lib/cardAssets';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
-  getDefaultStudioAssetDestinations,
-  normalizeStudioAssetDestinations,
+  resolveStudioAssetDestinations,
   type StudioAssetRoutingMode,
 } from '@/domain/templates';
 import {
@@ -85,9 +84,12 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
       name: row.name,
     },
   });
-  const destinations = row.studio_destinations === undefined
-    ? getDefaultStudioAssetDestinations({ kind: row.asset_type, metadata: row.metadata })
-    : normalizeStudioAssetDestinations(row.studio_destinations);
+  const destinations = resolveStudioAssetDestinations({
+    kind: row.asset_type,
+    metadata: row.metadata,
+    mode: row.studio_routing_mode,
+    destinations: row.studio_destinations,
+  });
   const studioOrder = Number(row.studio_sort_order);
   const studioRoutingMode: StudioAssetRoutingMode = row.studio_routing_mode === 'owner'
     ? 'owner'

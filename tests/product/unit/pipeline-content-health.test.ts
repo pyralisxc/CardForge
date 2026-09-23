@@ -59,6 +59,28 @@ describe('Pipeline content health', () => {
     expect(safe.issues.some((issue) => issue.code === 'unsafe-vector-route')).toBe(false);
   });
 
+  it('rejects retired storage references and Template face-route drift', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'templates',
+        requestedStudioDestination: 'template.front',
+        sourceUrl: null,
+        sourcePayload: {
+          id: 'back-template',
+          name: 'Back Template',
+          templateUsage: 'back-preset',
+          cardBackgroundImageUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/back.webp',
+        },
+      }),
+    });
+
+    expect(health.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'retired-source', severity: 'error' }),
+      expect.objectContaining({ code: 'route-content-mismatch', severity: 'error' }),
+    ]));
+  });
+
   it.each([
     ['3:4', 'event-badge', 75, 100],
     ['35:20', 'us-business', 88.9, 50.8],
