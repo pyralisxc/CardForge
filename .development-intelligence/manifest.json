@@ -3,9 +3,9 @@
   "schemaVersion": 2,
   "format": "sharded-ndjson",
   "analyzerVersion": "2.6.0-behavior-observations",
-  "sourceFingerprint": "b1236514b1b766cf496b6901ba85e6edac98d67a2b7f7e5ea9a234c829a5b4ed",
-  "topologyFingerprint": "d2c18653bc05d7b5d81b07b18672da1146342f6660255a96bc95f69332df96e0",
-  "evidenceFingerprint": "df2bfcdc253aeac30ebdf795b100744ce0f34e01609b26023b4c7ee494cd1eb1",
+  "sourceFingerprint": "a538033fea40be58978a9fbb4762e8d2a00be6dc77bdbcd215862ae8cf1c716e",
+  "topologyFingerprint": "141b748686731dd7d708ba86cfaaa50065bbb618a646c6d854ece89d805f8ac5",
+  "evidenceFingerprint": "bd16b18ab02927ebc61551daca44a1c5cbdfc58645300df998d1ca2949a32a4c",
   "shards": [
     "0.ndjson",
     "1.ndjson",
@@ -25,7 +25,7 @@
     "f.ndjson"
   ],
   "summary": {
-    "nodes": 172,
+    "nodes": 174,
     "edges": 380,
     "unresolved": 0,
     "candidate": 11,
@@ -34,7 +34,7 @@
       "feature": 31,
       "mcp": 30,
       "provider": 9,
-      "route": 26
+      "route": 28
     }
   }
 }
