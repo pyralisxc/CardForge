@@ -143,4 +143,24 @@ describe('Pipeline content health', () => {
     expect(health.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining(['missing-lineage', 'missing-preview', 'duplicate-name', 'invalid-package', 'missing-taxonomy']));
     expect(health.errors).toBeGreaterThan(0);
   });
+
+  it('allows the same display name in different asset lanes', () => {
+    const health = buildPipelineContentHealth({
+      catalog: {
+        version: 'test', access: 'free',
+        templates: { defaults: [], userTemplates: [] },
+        styles: { version: 1, styles: [] },
+        assets: { templates: [], textures: [], dividers: [], icons: [], imageAssets: [], elementPresets: [], registry: { configured: true, source: 'database', total: 0 } },
+        fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } },
+        sets: { items: [] },
+        pipeline: { items: [
+          { id: 'style', lineageId: 'style-lineage', name: 'Gem Center', assetType: 'elementPreset', previewUrl: '/style.png', access: 'free', source: 'official', fileSizeBytes: 1, updatedAt: null },
+          { id: 'divider', lineageId: 'divider-lineage', name: 'Gem Center', assetType: 'divider', previewUrl: '/divider.png', access: 'free', source: 'official', fileSizeBytes: 1, updatedAt: null },
+        ] },
+      },
+      program: null,
+    });
+
+    expect(health.issues.some((issue) => issue.code === 'duplicate-name')).toBe(false);
+  });
 });

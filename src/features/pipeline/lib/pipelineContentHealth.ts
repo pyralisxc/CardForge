@@ -35,7 +35,7 @@ export const buildPipelineContentHealth = ({
   const published = catalog?.pipeline?.items ?? [];
   const names = new Map<string, typeof published>();
   published.forEach((item) => {
-    const key = item.name.trim().toLocaleLowerCase();
+    const key = `${item.assetType}:${item.name.trim().toLocaleLowerCase()}`;
     names.set(key, [...(names.get(key) ?? []), item]);
     if (!item.lineageId) issues.push({ code: 'missing-lineage', severity: 'error', objectId: item.id, objectName: item.name, message: 'Published object has no lineage identity.', repair: 'Create a revision-safe lineage link before the next publication.' });
     if (!item.previewUrl) issues.push({ code: 'missing-preview', severity: 'warning', objectId: item.lineageId ?? item.id, objectName: item.name, message: 'Published object has no visual preview.', repair: 'Add a validated preview on the next revision.' });
