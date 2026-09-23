@@ -42,6 +42,15 @@ begin
     if sqlerrm <> 'contributor_asset_self_vote_not_permitted' then raise; end if;
   end;
 
+  begin
+    insert into public.cardforge_contributor_asset_votes
+      (submission_id,lineage_id,contributor_id,vote_value,vote_weight)
+    values (first_revision,lineage,author_id,'negative',1);
+    raise exception 'direct self vote unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'contributor_asset_self_vote_not_permitted' then raise; end if;
+  end;
+
   update public.cardforge_contributor_asset_submissions
   set status='archived',automated_status='archived',calculated_access_tier='hidden',
       automated_access_tier='hidden',trashed_at=pg_catalog.now(),
