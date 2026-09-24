@@ -4,6 +4,7 @@ import { DEFAULT_PIPELINE_PROGRAM_SETTINGS } from '@/features/pipeline/lib/pipel
 import {
   getPipelineImagePreviewUrl,
   isContributorPipelineReviewable,
+  isContributorPipelineVoteable,
   projectPipelineLibrary,
 } from '@/features/pipeline/lib/pipelineLibrary';
 import type { PipelineSubmission } from '@/features/pipeline/lib/pipelineProgram';
@@ -115,7 +116,7 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].editableSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
-    expect(projected[0].reviewState).toBe('self');
+    expect(projected[0].reviewState).toBe('available');
   });
 
   it('keeps contributor lifecycle actions pinned to the exact eligible revision', () => {
@@ -155,7 +156,7 @@ describe('Pipeline Library projection', () => {
     expect(projected[0].submission.id).toBe('candidate-r3');
     expect(projected[0].reviewSubmission?.id).toBe('candidate-r3');
     expect(projected[0].ownership).toBe('mine');
-    expect(projected[0].reviewState).toBe('self');
+    expect(projected[0].reviewState).toBe('available');
   });
 
   it('does not expose a closed revision as a review target', () => {
@@ -174,6 +175,12 @@ describe('Pipeline Library projection', () => {
     expect(isContributorPipelineReviewable(submission('submitted'))).toBe(true);
     expect(isContributorPipelineReviewable(submission('live', { status: 'published' }))).toBe(false);
     expect(isContributorPipelineReviewable(submission('archived', { status: 'archived' }))).toBe(false);
+    expect(isContributorPipelineVoteable(submission('submitted'))).toBe(true);
+    expect(isContributorPipelineVoteable(submission('live', { status: 'published' }))).toBe(true);
+    expect(isContributorPipelineVoteable(submission('history', { status: 'archived', publishedAt: '2026-08-22T12:00:00.000Z' }))).toBe(true);
+    expect(isContributorPipelineVoteable(submission('rejected', { status: 'rejected' }))).toBe(true);
+    expect(isContributorPipelineVoteable(submission('draft', { status: 'draft' }))).toBe(false);
+    expect(isContributorPipelineVoteable(submission('trash', { status: 'archived', trashedAt: '2026-08-24T12:00:00.000Z' }))).toBe(false);
   });
 
   it('admits only real image previews and rejects packages, fonts, and structured endpoints', () => {

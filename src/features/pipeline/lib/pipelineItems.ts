@@ -51,8 +51,8 @@ export interface PipelineProgramSettings {
   minimumVotesForGrading: number;
   freeAssetMinimumPositiveVotePercent: number;
   paidAssetMinimumPositiveVotePercent: number;
-  /** Revision preference is peer-only; retained for policy consumers during schema cutover. */
-  allowContributorSelfVoting: false;
+  /** An author may give their own exact revision one unweighted review signal. */
+  allowContributorSelfVoting: boolean;
   /** Community math is unweighted; Owner authority remains an explicit override. */
   ownerVoteWeight: 1;
   reviewMinimumAgeDays: number;
@@ -144,7 +144,7 @@ export const DEFAULT_PIPELINE_PROGRAM_SETTINGS: PipelineProgramSettings = {
   minimumVotesForGrading: 5,
   freeAssetMinimumPositiveVotePercent: 60,
   paidAssetMinimumPositiveVotePercent: 80,
-  allowContributorSelfVoting: false,
+  allowContributorSelfVoting: true,
   ownerVoteWeight: 1,
   reviewMinimumAgeDays: 7,
   reviewInactivityDays: 90,
@@ -291,7 +291,9 @@ export const normalizePipelineProgramSettingsInput = (
     minimumVotesForGrading: normalizeInteger(value.minimumVotesForGrading, DEFAULT_PIPELINE_PROGRAM_SETTINGS.minimumVotesForGrading, 1, 1000),
     freeAssetMinimumPositiveVotePercent: normalizeInteger(value.freeAssetMinimumPositiveVotePercent, DEFAULT_PIPELINE_PROGRAM_SETTINGS.freeAssetMinimumPositiveVotePercent, 1, 100),
     paidAssetMinimumPositiveVotePercent: normalizeInteger(value.paidAssetMinimumPositiveVotePercent, DEFAULT_PIPELINE_PROGRAM_SETTINGS.paidAssetMinimumPositiveVotePercent, 1, 100),
-    allowContributorSelfVoting: false,
+    allowContributorSelfVoting: typeof value.allowContributorSelfVoting === 'boolean'
+      ? value.allowContributorSelfVoting
+      : DEFAULT_PIPELINE_PROGRAM_SETTINGS.allowContributorSelfVoting,
     ownerVoteWeight: 1,
     reviewMinimumAgeDays: normalizeInteger(value.reviewMinimumAgeDays, DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewMinimumAgeDays, 0, 30),
     reviewInactivityDays: normalizeInteger(value.reviewInactivityDays, DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewInactivityDays, 7, 365),

@@ -316,7 +316,7 @@ Supported lifecycle concepts include draft, submitted, voting, publish candidate
 
 ### Voting
 
-Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence. Each Contributor has one positive preference per lineage and may move it atomically to another revision; that same Contributor may record one negative objection on any visible non-Trash revision. One person always contributes one unit of signal, self-voting is disabled, and Owner authority is an explicit audited override rather than a weighted community vote.
+Votes attach to the exact submission/revision, not to an eternal asset name. A new substantive revision earns its own signal. Previous revision votes remain historical evidence. Each Contributor has one positive preference per lineage and may move it atomically to another revision; that same Contributor may record one negative objection on any visible non-Trash revision. Contributors and the Owner may vote on their own submitted work. One person always contributes one unit of signal, and Owner authority is an explicit audited override rather than a weighted community vote. Voting begins after draft submission. Hearts remain a separate reaction to the lineage.
 
 Contributor voting follows the exact displayed revision anywhere a visible Pipeline object appears. Votes may be recorded after publication/archive/rejection as durable feedback, but only active review states may rebalance automatic publication policy:
 

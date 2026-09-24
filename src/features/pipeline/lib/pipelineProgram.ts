@@ -385,6 +385,7 @@ export const mapPipelineProgramSettingsRow = (
       minimumVotesForGrading: row.minimum_votes_for_grading,
       freeAssetMinimumPositiveVotePercent: row.free_asset_minimum_positive_vote_percent,
       paidAssetMinimumPositiveVotePercent: row.paid_asset_minimum_positive_vote_percent,
+      allowContributorSelfVoting: row.allow_contributor_self_voting,
       reviewMinimumAgeDays: row.review_minimum_age_days,
       reviewInactivityDays: row.review_inactivity_days,
       trashRetentionDays: row.trash_retention_days,

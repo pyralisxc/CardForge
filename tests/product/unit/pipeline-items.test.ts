@@ -138,7 +138,7 @@ describe('contributor asset program rules', () => {
       minimumVotesForGrading: '3',
       freeAssetMinimumPositiveVotePercent: '60',
       paidAssetMinimumPositiveVotePercent: '80',
-      allowContributorSelfVoting: false,
+      allowContributorSelfVoting: true,
       ownerVoteWeight: '3',
       reviewMinimumAgeDays: '40',
       reviewInactivityDays: '3',
@@ -153,7 +153,7 @@ describe('contributor asset program rules', () => {
     expect(settings.minimumVotesForGrading).toBe(3);
     expect(settings.freeAssetMinimumPositiveVotePercent).toBe(60);
     expect(settings.paidAssetMinimumPositiveVotePercent).toBe(80);
-    expect(settings.allowContributorSelfVoting).toBe(false);
+    expect(settings.allowContributorSelfVoting).toBe(true);
     expect(settings.ownerVoteWeight).toBe(1);
     expect(settings.reviewMinimumAgeDays).toBe(30);
     expect(settings.reviewInactivityDays).toBe(DEFAULT_PIPELINE_PROGRAM_SETTINGS.reviewInactivityDays);

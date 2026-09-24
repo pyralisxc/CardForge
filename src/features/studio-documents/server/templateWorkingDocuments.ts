@@ -328,6 +328,6 @@ export const submitTemplateWorkingDocumentToPipeline = async ({
 
   return {
     draft,
-    openInPipelineUrl: `/account?section=library&scope=pipeline&tool=contribute&submission=${encodeURIComponent(draft.id)}`,
+    openInPipelineUrl: `/account?section=library&scope=pipeline&tool=edit-contribution&submission=${encodeURIComponent(draft.id)}`,
   };
 };

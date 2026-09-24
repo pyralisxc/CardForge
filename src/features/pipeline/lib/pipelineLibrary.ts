@@ -70,6 +70,12 @@ export const isContributorPipelineReviewable = (
   submission: PipelineSubmission,
 ): boolean => REVIEWABLE_STATUSES.has(submission.status);
 
+export const isContributorPipelineVoteable = (
+  submission: PipelineSubmission,
+): boolean => submission.status !== 'draft'
+  && !submission.trashedAt
+  && !submission.purgeState;
+
 export const getPipelineImagePreviewUrl = (
   submission: Pick<PipelineSubmission, 'previewUrl' | 'sourceMimeType'>,
 ): string | null => {

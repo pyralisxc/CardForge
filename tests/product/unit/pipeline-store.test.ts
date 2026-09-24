@@ -112,7 +112,7 @@ describe('contributor asset store helpers', () => {
       minimum_votes_for_grading: 6,
       free_asset_minimum_positive_vote_percent: 60,
       paid_asset_minimum_positive_vote_percent: 82,
-      allow_contributor_self_voting: false,
+      allow_contributor_self_voting: true,
       owner_vote_weight: 2,
       tier_caps_by_type: { templates: { free: 10, paid: 4 } },
     })).toMatchObject({
@@ -123,7 +123,7 @@ describe('contributor asset store helpers', () => {
       minimumVotesForGrading: 6,
       freeAssetMinimumPositiveVotePercent: 60,
       paidAssetMinimumPositiveVotePercent: 82,
-      allowContributorSelfVoting: false,
+      allowContributorSelfVoting: true,
       ownerVoteWeight: 1,
       publishCapsByType: {
         templates: 14,
