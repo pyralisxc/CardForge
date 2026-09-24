@@ -10,7 +10,7 @@
   "templateDescription": "A business/name card for staff cards, networking cards, and branded handouts.",
   "templateOrder": 4,
   "templatePreviewData": {
-    "CompanyLogo": "/card-assets/images/default-company-logo.svg",
+    "CompanyLogo": "",
     "CompanyName": "Northstar Studio",
     "FullName": "Avery Quinn",
     "Role": "Creative Director",

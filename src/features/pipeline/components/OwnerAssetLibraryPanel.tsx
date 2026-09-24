@@ -8,6 +8,9 @@ import { AssetRow } from './PipelineSubmissionRows';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
 import { getTemplatePreviewId } from './PipelineContributionModel';
 import {
+  estimatePipelineCatalogCapacityBytes,
+  PIPELINE_ASSET_STORAGE_BUDGET_BYTES,
+  PIPELINE_ASSET_STORAGE_BUDGET_RATIO,
   PIPELINE_STATUSES,
   PIPELINE_TYPES,
   type PipelineAccessTierOverride,
@@ -80,6 +83,11 @@ export function OwnerAssetLibraryPanel({
     ? 0
     : (currentPage - 1) * program.submissionPage.pageSize + 1;
   const lastItemNumber = Math.min(currentPage * program.submissionPage.pageSize, program.submissionPage.total);
+  const projectedCatalogBytes = estimatePipelineCatalogCapacityBytes(program.settings.tierCapsByType);
+  const trackedBudgetPercent = Math.min(
+    100,
+    (program.managedStorageBytes / PIPELINE_ASSET_STORAGE_BUDGET_BYTES) * 100,
+  );
 
   const openManager = (submission: PipelineProgramView['submissions'][number]) => {
     setManagingId(submission.id);
@@ -169,9 +177,11 @@ export function OwnerAssetLibraryPanel({
           </Button>
         </div>
       ) : null}
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <LibrarySummary label="Managed files" value={String(program.managedFileCount)} detail="Supabase objects owned by this pipeline" />
-        <LibrarySummary label="Managed storage" value={formatBytes(program.managedStorageBytes)} detail="Known source-file size" />
+        <LibrarySummary label="Tracked Pipeline storage" value={formatBytes(program.managedStorageBytes)} detail={`${trackedBudgetPercent.toFixed(1)}% of the asset budget; provider usage remains authoritative`} />
+        <LibrarySummary label="Asset budget" value={formatBytes(PIPELINE_ASSET_STORAGE_BUDGET_BYTES)} detail={`${PIPELINE_ASSET_STORAGE_BUDGET_RATIO * 100}% of the Supabase Free Storage quota`} />
+        <LibrarySummary label="Catalog cap model" value={formatBytes(projectedCatalogBytes)} detail="Estimated maximum for one populated environment" />
         <LibrarySummary label="Owner deletable" value={String(program.totalSubmissionCount)} detail="Votes and publication do not limit owner authority" />
       </div>
       <div className="mt-4 grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 md:grid-cols-[minmax(14rem,1fr)_minmax(12rem,0.7fr)_minmax(12rem,0.7fr)]">

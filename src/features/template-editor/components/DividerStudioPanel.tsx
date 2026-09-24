@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import type { FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
+import { ColorField } from '@/features/template-editor/components/ColorField';
+import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 interface DividerStudioPanelProps {
   element: FreeformCardElement;
@@ -47,6 +49,7 @@ export function DividerStudioPanel({
     ...appearance,
     dividerAsset: asset.url,
     assetKind: 'divider',
+    assetRenderMode: isSvgAssetSource(asset.url) ? 'original' : undefined,
     textureOpacity: asset.defaultOpacity ?? 100,
     blendMode: asset.defaultBlendMode ?? 'normal',
     tileMode: asset.tileMode ?? 'stretch',
@@ -56,6 +59,8 @@ export function DividerStudioPanel({
   }));
 
   const hasAssetBackedDivider = Boolean(selectedAppearance?.dividerAsset || selectedAppearance?.assetSource);
+  const dividerSource = selectedAppearance?.dividerAsset || selectedAppearance?.assetSource;
+  const hasVectorDivider = isSvgAssetSource(dividerSource);
 
   return (
     <div className="space-y-2 rounded-[6px] border border-[var(--cf-editor-border)] bg-[#0b0f15] p-2">
@@ -128,6 +133,20 @@ export function DividerStudioPanel({
           <Switch id="divider-flip" checked={Boolean(element.flipX)} onCheckedChange={(checked) => onUpdateElement({ flipX: checked })} />
         </div>
       </div>
+      {hasVectorDivider ? (
+        <div className="grid grid-cols-2 gap-2 rounded-[5px] border border-[var(--cf-editor-border)] bg-[var(--cf-editor-control)] p-2">
+          <div>
+            <Label htmlFor="divider-vector-mode" className="text-xs">Vector color</Label>
+            <Select value={selectedAppearance?.assetRenderMode || 'original'} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, assetRenderMode: value as 'original' | 'tint' }))}>
+              <SelectTrigger id="divider-vector-mode"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="original">Original</SelectItem><SelectItem value="tint">Single-color tint</SelectItem></SelectContent>
+            </Select>
+          </div>
+          {selectedAppearance?.assetRenderMode === 'tint' ? (
+            <div><Label htmlFor="divider-vector-tint" className="text-xs">Tint</Label><ColorField id="divider-vector-tint" value={selectedAppearance.assetTintColor || '#ffffff'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, assetTintColor: value }), false)} /></div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

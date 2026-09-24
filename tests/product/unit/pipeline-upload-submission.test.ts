@@ -13,6 +13,7 @@ import {
   validateUploadedAssetBytes,
   validatePipelineUploadDescriptor,
 } from '@/features/pipeline/lib/pipelineUploadSubmission';
+import { getPipelineUploadTransportBlob } from '@/features/pipeline/lib/pipelineUploadPolicy';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerClient: vi.fn(),
@@ -69,7 +70,8 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   const remove = vi.fn().mockResolvedValue({ error: null });
   const download = vi.fn().mockResolvedValue({ data: validPng(), error: null });
   const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example/gold-divider.png' } });
-  const from = vi.fn().mockReturnValue({ createSignedUploadUrl, list, remove, download, getPublicUrl });
+  const update = vi.fn().mockResolvedValue({ error: null });
+  const from = vi.fn().mockReturnValue({ createSignedUploadUrl, list, remove, download, getPublicUrl, update });
   const databaseQuery = {
     select: vi.fn(),
     eq: vi.fn(),
@@ -79,7 +81,7 @@ const setupStorage = (storedSize = VALID_PNG_BYTES.byteLength, submittedUpload =
   databaseQuery.eq.mockReturnValue(databaseQuery);
   const databaseFrom = vi.fn().mockReturnValue(databaseQuery);
   mockedGetSupabaseServerClient.mockReturnValue({ storage: { from }, from: databaseFrom } as never);
-  return { createSignedUploadUrl, list, remove, download };
+  return { createSignedUploadUrl, list, remove, download, update };
 };
 
 const uploadedFile = {
@@ -95,11 +97,34 @@ describe('contributor asset upload submission', () => {
     mockedCreatePipelineSubmission.mockReset();
   });
 
+  it('keeps unsanitized SVG inert during direct-to-storage transport', () => {
+    const svg = new Blob(['<svg viewBox="0 0 1 1"><script>alert(1)</script></svg>'], { type: 'image/svg+xml' });
+    expect(getPipelineUploadTransportBlob(svg).type).toBe('application/octet-stream');
+    expect(getPipelineUploadTransportBlob(validPng()).type).toBe('image/png');
+  });
+
+  it('quarantines raw SVG under a non-vector storage extension', async () => {
+    setupStorage();
+
+    const plan = await preparePipelineUpload({
+      contributorId: 'contributor-1',
+      maxFileSizeMb: 25,
+      assetType: 'icons',
+      studioDestination: 'element.icon',
+      fileName: 'custom-icon.svg',
+      fileSizeBytes: 512,
+      mimeType: 'image/svg+xml',
+    });
+
+    expect(plan.storagePath).toMatch(/^contributor-1\/icons\/.+\.cfsvg$/u);
+    expect(plan.mimeType).toBe('image/svg+xml');
+  });
+
   it.each(['textures', 'dividers', 'icons', 'imageAssets'] as const)('decodes all supported raster formats for %s', async (assetType) => {
     for (const extension of ['png', 'jpg', 'webp'] as const) {
       const bytes = await sharp(VALID_PNG_BYTES).toFormat(extension === 'jpg' ? 'jpeg' : extension).toBuffer();
       await expect(validateUploadedAssetBytes({ assetType, extension, mimeType: `image/${extension === 'jpg' ? 'jpeg' : extension}` }, new Blob([bytes])))
-        .resolves.toBeUndefined();
+        .resolves.toBeNull();
     }
   });
 
@@ -183,6 +208,32 @@ describe('contributor asset upload submission', () => {
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
+  it('replaces an inertly transported SVG with sanitized vector bytes before registration', async () => {
+    const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#fff" d="M2 2h20v20H2z"/></svg>';
+    const sourceBlob = new Blob([source], { type: 'application/octet-stream' });
+    const storage = setupStorage(sourceBlob.size);
+    storage.download.mockResolvedValue({ data: sourceBlob, error: null });
+    mockedCreatePipelineSubmission.mockResolvedValue();
+
+    await createUploadedPipelineSubmission({
+      contributorId: 'contributor-1', contributorEmail: 'contributor@example.com', maxFileSizeMb: 25,
+      assetType: 'icons', studioDestination: 'element.icon', ...taxonomy, name: 'Safe Vector', description: '', previewUrl: '',
+      uploadedFile: {
+        storagePath: 'contributor-1/icons/safe-vector.cfsvg', fileName: 'safe-vector.svg',
+        fileSizeBytes: sourceBlob.size, mimeType: 'image/svg+xml',
+      },
+    });
+
+    expect(storage.update).toHaveBeenCalledWith(
+      'contributor-1/icons/safe-vector.cfsvg',
+      expect.any(Buffer),
+      { contentType: 'image/svg+xml', cacheControl: '31536000' },
+    );
+    expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({
+      input: expect.objectContaining({ assetType: 'icons', sourceMimeType: 'image/svg+xml' }),
+    }));
+  });
+
   it('returns the owner-chosen file boundary when a source is too large', () => {
     expect(() => validatePipelineUploadDescriptor({
       assetType: 'imageAssets',
@@ -223,20 +274,60 @@ describe('contributor asset upload submission', () => {
       fileSizeBytes: 256,
       mimeType: 'image/jpeg',
       maxFileSizeMb: 25,
-    })).toThrow('PNG or WEBP');
+    })).toThrow('SVG, PNG, or WEBP');
   });
 
-  it('rejects direct SVG uploads before any active content reaches shared storage', () => {
-    setupStorage();
-
-    expect(() => validatePipelineUploadDescriptor({
-      assetType: 'icons',
-      studioDestination: 'element.icon',
-      fileName: 'active-icon.svg',
+  it.each([
+    ['icons', 'element.icon'],
+    ['dividers', 'element.divider'],
+    ['imageAssets', 'image.border.front'],
+  ] as const)('accepts SVG only in the safe vector lane for %s', (assetType, studioDestination) => {
+    expect(validatePipelineUploadDescriptor({
+      assetType,
+      studioDestination,
+      fileName: 'scalable-art.svg',
       fileSizeBytes: 256,
       mimeType: 'image/svg+xml',
       maxFileSizeMb: 25,
-    })).toThrow('Direct SVG uploads are not accepted');
+    })).toMatchObject({ extension: 'svg', mimeType: 'image/svg+xml' });
+  });
+
+  it.each([
+    ['textures', 'appearance.texture'],
+    ['imageAssets', 'image.picture'],
+    ['imageAssets', 'image.frame.front'],
+  ] as const)('rejects SVG outside the safe vector lane for %s', (assetType, studioDestination) => {
+    expect(() => validatePipelineUploadDescriptor({
+      assetType,
+      studioDestination,
+      fileName: 'misrouted.svg',
+      fileSizeBytes: 256,
+      mimeType: 'image/svg+xml',
+      maxFileSizeMb: 25,
+    })).toThrow('SVG is reserved');
+  });
+
+  it('sanitizes a safe SVG and rejects active or externally referenced content', async () => {
+    const safeSvg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="240" height="240" viewBox="0 0 24 24"><title>Safe icon</title><defs><path id="shape" d="M2 2h20v20H2z"/></defs><use xlink:href="#shape" fill="#fff"/></svg>';
+    const sanitized = await validateUploadedAssetBytes(
+      { assetType: 'icons', extension: 'svg', mimeType: 'image/svg+xml' },
+      new Blob([safeSvg], { type: 'image/svg+xml' }),
+    );
+    expect(sanitized?.toString('utf8')).toContain('xlink:href="#shape"');
+    expect(sanitized?.toString('utf8')).not.toContain('width="240"');
+
+    for (const unsafeSvg of [
+      '<svg viewBox="0 0 24 24"><script>alert(1)</script></svg>',
+      '<svg viewBox="0 0 24 24"><path onclick="alert(1)" d="M0 0h1v1z"/></svg>',
+      '<svg viewBox="0 0 24 24"><use href="https://example.com/icon.svg#x"/></svg>',
+      '<svg viewBox="0 0 24 24"><foreignObject><div>unsafe</div></foreignObject></svg>',
+      '<svg><path d="M0 0h1v1z"/></svg>',
+    ]) {
+      await expect(validateUploadedAssetBytes(
+        { assetType: 'icons', extension: 'svg', mimeType: 'image/svg+xml' },
+        new Blob([unsafeSvg], { type: 'image/svg+xml' }),
+      )).rejects.toThrow();
+    }
   });
 
   it('binds declared MIME to the extension and rejects malformed raster bytes', async () => {
@@ -279,7 +370,7 @@ describe('contributor asset upload submission', () => {
   it.each(['woff2', 'woff', 'ttf', 'otf'])('decodes a real %s font', async (extension) => {
     const bytes = await readFile(`tests/fixtures/fonts/test.${extension}`);
     await expect(validateUploadedAssetBytes({ assetType: 'fonts', extension, mimeType: `font/${extension}` },
-      new Blob([bytes]))).resolves.toBeUndefined();
+      new Blob([bytes]))).resolves.toBeNull();
   });
 
   it('rejects a mislabeled font before public registration', async () => {

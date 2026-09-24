@@ -6,6 +6,13 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const MIGRATION_ROOT = 'supabase/migrations/';
+const CONTRIBUTOR_CUTOVER_VERSION = '20260831015135';
+const RETIRED_DEVELOPER_TABLES = [
+  'cardforge_developer_profiles',
+  'cardforge_developer_program_settings',
+  'cardforge_developer_asset_submissions',
+  'cardforge_developer_asset_votes',
+];
 
 // These exact contents are the one-time repairs required for the committed
 // migration chain to bootstrap a brand-new Supabase project. The hash lock
@@ -29,6 +36,15 @@ export const parseMigrationChanges = (output) => output
   .filter(({ paths }) => paths.some((filePath) => filePath.replaceAll('\\', '/').startsWith(MIGRATION_ROOT)));
 
 export const findUnsafeMigrationChanges = (changes) => changes.filter(({ status }) => status !== 'A' && status !== '??');
+
+export const findRetiredPostCutoverReferences = (filePath, contents) => {
+  const normalizedPath = filePath.replaceAll('\\', '/');
+  const version = path.basename(normalizedPath).match(/^(\d+)/u)?.[1];
+  if (!version || version <= CONTRIBUTOR_CUTOVER_VERSION) return [];
+  return RETIRED_DEVELOPER_TABLES.filter((table) => (
+    new RegExp(`\\bpublic\\.${table}\\b`, 'u').test(contents)
+  ));
+};
 
 export const isApprovedBootstrapRepair = (root, { status, paths }) => {
   if (status !== 'M' || paths.length !== 1) return false;
@@ -92,6 +108,25 @@ export const checkMigrationSafety = ({ root, base }) => {
       .join('\n');
     throw new Error(
       `Existing Supabase migrations are immutable. Add a forward migration instead:\n${details}`,
+    );
+  }
+
+  const retiredReferences = changes
+    .flatMap(({ paths }) => paths)
+    .map((filePath) => ({
+      filePath,
+      references: findRetiredPostCutoverReferences(
+        filePath,
+        readFileSync(path.resolve(root, filePath), 'utf8'),
+      ),
+    }))
+    .filter(({ references }) => references.length > 0);
+  if (retiredReferences.length > 0) {
+    const details = retiredReferences
+      .map(({ filePath, references }) => `  ${filePath}: ${references.join(', ')}`)
+      .join('\n');
+    throw new Error(
+      `Post-cutover migrations must use the canonical Contributor tables:\n${details}`,
     );
   }
 

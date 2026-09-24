@@ -4,6 +4,7 @@ import {
   getCompatibleStudioAssetDestinations,
   getDefaultStudioAssetDestinations,
   normalizeStudioAssetDestinations,
+  resolveStudioAssetDestinations,
 } from '@/domain/templates';
 
 describe('Studio asset destinations', () => {
@@ -51,5 +52,26 @@ describe('Studio asset destinations', () => {
       'element.icon',
       'image.border.front',
     ])).toEqual(['element.icon', 'image.border.front']);
+  });
+
+  it('derives automatic placement from current content instead of stale stored routes', () => {
+    expect(resolveStudioAssetDestinations({
+      kind: 'template',
+      metadata: { templateUsage: 'back-preset' },
+      mode: 'automatic',
+      destinations: ['template.front'],
+    })).toEqual(['template.back']);
+    expect(resolveStudioAssetDestinations({
+      kind: 'image',
+      metadata: { studioDefaultDestination: 'image.frame.back' },
+      mode: 'automatic',
+      destinations: ['image.picture'],
+    })).toEqual(['image.frame.back']);
+    expect(resolveStudioAssetDestinations({
+      kind: 'image',
+      metadata: { studioDefaultDestination: 'image.frame.back' },
+      mode: 'owner',
+      destinations: ['image.picture'],
+    })).toEqual(['image.picture']);
   });
 });

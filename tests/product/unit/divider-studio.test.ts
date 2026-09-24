@@ -30,9 +30,24 @@ describe('Divider Studio source selection', () => {
     const props = picker.render.mock.calls.at(-1)![0] as ComponentProps<typeof TemplateAssetLibraryPicker>;
     expect(props).toMatchObject({ kind: 'divider', assets: [asset], personalRoles: ['divider'], providerRole: 'divider', target: { kind: 'template-element', ids: ['selected-divider'] } });
     props.onApply(asset);
-    expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
+    expect(appearance).toMatchObject({ dividerAsset: asset.url, assetKind: 'divider', assetRenderMode: 'original', shapeRole: 'divider', textureOpacity: 85, tileMode: 'stretch', material: { baseColor: 'transparent', textColor: '#123456' }, border: { kind: 'none', width: 0 } });
     expect(appearanceToStyle(appearance).backgroundImage).toBe(`url(${asset.url})`);
     expect(element).toEqual(before);
     expect(updateElement).not.toHaveBeenCalled();
+  });
+
+  it('renders a reviewed SVG divider as a recolorable mask when tint mode is selected', () => {
+    const style = appearanceToStyle({
+      dividerAsset: 'https://cdn.example.test/divider.svg?revision=2',
+      assetKind: 'divider',
+      assetRenderMode: 'tint',
+      assetTintColor: '#d5ad54',
+      tileMode: 'stretch',
+    });
+
+    expect(style.backgroundImage).toBeUndefined();
+    expect(style.backgroundColor).toBe('#d5ad54');
+    expect(style.maskImage).toBe('url(https://cdn.example.test/divider.svg?revision=2)');
+    expect(style.maskSize).toBe('100% 100%');
   });
 });

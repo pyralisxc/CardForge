@@ -68,7 +68,7 @@ const fetchContributorSettings = async (): Promise<{ configured: boolean; settin
     return { configured: false, settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS };
   }
 
-  const settingsColumns = 'max_active_contributors,monthly_submission_limit,max_submission_file_size_mb,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,review_minimum_age_days,review_inactivity_days,trash_retention_days,tier_caps_by_type';
+  const settingsColumns = 'max_active_contributors,monthly_submission_limit,max_submission_file_size_mb,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,review_minimum_age_days,review_inactivity_days,trash_retention_days,tier_caps_by_type';
   const { data, error } = await supabase
     .from('cardforge_contributor_program_settings')
     .select(settingsColumns)

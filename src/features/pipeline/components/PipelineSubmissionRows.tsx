@@ -218,7 +218,7 @@ export function AssetRow({
             </span>
           </div>
           <p className="mt-1 text-xs text-[var(--cf-text-muted)]">
-            {getPipelineTypeLabel(submission.assetType, { plural: false })} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
+            {getPipelineTypeLabel(submission.assetType, { plural: false })} - +{submission.positiveVotes} / -{submission.negativeVotes} - {submission.positiveVotes + submission.negativeVotes > 0 ? `vote approval ${submission.qualityScore}%` : 'not yet rated'}
           </p>
           <div className="mt-2 grid gap-1">
             <div className="h-1.5 overflow-hidden bg-[#2b2116]" aria-hidden="true">

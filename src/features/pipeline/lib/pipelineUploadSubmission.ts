@@ -28,11 +28,12 @@ import {
   ProjectPackageError,
 } from '@/features/project/server';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
+import { sanitizePipelineSvg } from './safeSvg';
 
 const ALLOWED_MIME_TYPES = new Set<string>(PIPELINE_UPLOAD_ALLOWED_MIME_TYPES);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
-const BORDER_OVERLAY_EXTENSIONS = new Set(['png', 'webp']);
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
+const BORDER_OVERLAY_EXTENSIONS = new Set(['png', 'webp', 'svg']);
 const SET_EXTENSIONS = new Set(['cardforge']);
 
 const sanitizePathSegment = (value: string, fallback: string, maxLength = 100): string => (
@@ -55,6 +56,7 @@ const getFileExtension = (fileName: string, mimeType: string): string => {
   if (mimeType === 'image/png') return 'png';
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/webp') return 'webp';
+  if (mimeType === 'image/svg+xml') return 'svg';
   if (mimeType === 'font/woff2') return 'woff2';
   if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
   if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
@@ -80,6 +82,7 @@ const MIME_TYPES_BY_EXTENSION: Readonly<Record<string, ReadonlySet<string>>> = {
   png: new Set(['image/png']),
   jpg: new Set(['image/jpeg']),
   webp: new Set(['image/webp']),
+  svg: new Set(['image/svg+xml']),
   woff2: new Set(['font/woff2', 'application/octet-stream']),
   woff: new Set(['font/woff', 'application/font-woff', 'application/octet-stream']),
   ttf: new Set(['font/ttf', 'application/x-font-ttf', 'application/octet-stream']),
@@ -148,6 +151,10 @@ export const validatePipelineUploadDescriptor = ({
   const extension = getFileExtension(normalizedFileName, normalizedMimeType);
   const isFontUpload = assetType === 'fonts';
   const isSetUpload = assetType === 'sets';
+  const isVectorUpload = extension === 'svg';
+  const vectorDestinationAllowed = assetType === 'icons'
+    || assetType === 'dividers'
+    || (assetType === 'imageAssets' && normalizedDestination !== null && isBorderOverlayDestination(normalizedDestination));
   const extensionAllowed = isSetUpload
     ? SET_EXTENSIONS.has(extension)
     : isFontUpload
@@ -163,13 +170,19 @@ export const validatePipelineUploadDescriptor = ({
         ? 'Upload a portable .cardforge Set package.'
         : isFontUpload
         ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
-        : 'Upload PNG, JPG, or WEBP artwork. Direct SVG uploads are not accepted because active SVG content cannot be safely published unchanged.',
+        : 'Upload PNG, JPG, WEBP, or a supported SVG vector asset.',
+      400,
+    );
+  }
+  if (isVectorUpload && !vectorDestinationAllowed) {
+    throw new PipelineStoreError(
+      'SVG is reserved for Icons, Dividers, and transparent Border Overlays, where vector resizing and tint controls improve Studio editing.',
       400,
     );
   }
   if (normalizedDestination && isBorderOverlayDestination(normalizedDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
     throw new PipelineStoreError(
-      'Professional border overlays must use PNG or WEBP so transparency can be preserved.',
+      'Professional border overlays must use SVG, PNG, or WEBP so transparency can be preserved.',
       400,
     );
   }
@@ -193,11 +206,17 @@ const getContributorStoragePrefix = (contributorId: string): string => sanitizeP
 const createStoragePath = (
   contributorId: string,
   descriptor: ValidatedUploadDescriptor,
-): string => [
-  getContributorStoragePrefix(contributorId),
-  descriptor.assetType,
-  `${Date.now()}-${sanitizeFileStem(descriptor.fileName)}-${nanoid(12)}.${descriptor.extension}`,
-].join('/');
+): string => {
+  // Contributor bytes land in a public bucket before server validation. Keep
+  // raw SVG away from an executable-looking extension until it has been
+  // replaced in place by CardForge's sanitized subset and correct MIME type.
+  const transportExtension = descriptor.extension === 'svg' ? 'cfsvg' : descriptor.extension;
+  return [
+    getContributorStoragePrefix(contributorId),
+    descriptor.assetType,
+    `${Date.now()}-${sanitizeFileStem(descriptor.fileName)}-${nanoid(12)}.${transportExtension}`,
+  ].join('/');
+};
 
 const requireSupabase = () => {
   const supabase = getSupabaseServerClient();
@@ -295,9 +314,19 @@ const startsWithBytes = (bytes: Uint8Array, signature: readonly number[]): boole
 export const validateUploadedAssetBytes = async (
   descriptor: Pick<ValidatedUploadDescriptor, 'assetType' | 'extension' | 'mimeType'>,
   data: Blob,
-): Promise<void> => {
-  if (descriptor.assetType === 'sets') return;
+): Promise<Buffer | null> => {
+  if (descriptor.assetType === 'sets') return null;
   const buffer = Buffer.from(await data.arrayBuffer());
+  if (descriptor.extension === 'svg') {
+    const sanitized = sanitizePipelineSvg(buffer.toString('utf8'));
+    try {
+      const metadata = await sharp(sanitized, { failOn: 'error' }).metadata();
+      if (metadata.format !== 'svg' || !metadata.width || !metadata.height) throw new Error('Unexpected vector metadata.');
+    } catch {
+      throw new PipelineStoreError('The uploaded SVG cannot be rendered safely.', 400, { kind: 'invalid' });
+    }
+    return sanitized;
+  }
   const bytes = new Uint8Array(buffer);
   const magicMatches = descriptor.extension === 'png'
     ? startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -344,6 +373,7 @@ export const validateUploadedAssetBytes = async (
       throw new PipelineStoreError('The uploaded image is malformed or cannot be decoded safely.', 400, { kind: 'invalid' });
     }
   }
+  return null;
 };
 
 const downloadUploadedObject = async (storagePath: string): Promise<Blob> => {
@@ -446,7 +476,19 @@ export const createUploadedPipelineSubmission = async ({
       throw new PipelineStoreError('The uploaded file bytes changed during validation. Upload the file again.', 409);
     }
     if (descriptor.assetType === 'sets') await assertUploadedSetPackage(uploadedBytes);
-    else await validateUploadedAssetBytes(descriptor, uploadedBytes);
+    else {
+      const normalizedBytes = await validateUploadedAssetBytes(descriptor, uploadedBytes);
+      if (normalizedBytes) {
+        const { error: normalizationError } = await storage.update(uploadedFile.storagePath, normalizedBytes, {
+          contentType: 'image/svg+xml',
+          cacheControl: '31536000',
+        });
+        if (normalizationError) {
+          throw new PipelineStoreError('The SVG was valid but CardForge could not store its safe vector form.', 503);
+        }
+        descriptor.fileSizeBytes = normalizedBytes.byteLength;
+      }
+    }
     const { data } = storage.getPublicUrl(uploadedFile.storagePath);
     await createPipelineSubmission({
       contributorId,

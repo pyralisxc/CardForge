@@ -56,8 +56,8 @@
 .objectCopy strong { color: var(--cf-text-strong); font-size: .79rem; }
 .objectCopy > span:not(.objectTopline), .objectCopy p { color: var(--cf-text-subtle); font-size: .64rem; }
 .objectCopy p { display: none; }
-.reactionActions { display: flex; flex-wrap: wrap; gap: .25rem; padding: 0 .6rem .6rem; }
-.reactionActions button { width: auto; min-height: 2.4rem; gap: .3rem; padding-inline: .65rem; font-size: .67rem; }
+.reactionActions { display: flex; flex-wrap: nowrap; gap: .25rem; padding: 0 .6rem .6rem; }
+.reactionActions button { width: auto; min-width: 0; min-height: 2.75rem; gap: .3rem; padding-inline: .35rem; font-size: .67rem; }
 .reactionActions button:disabled { cursor: not-allowed; opacity: .45; }
 @media (max-width: 40rem) {
   .reactionActions { flex-wrap: nowrap; padding-inline: .35rem; }

@@ -422,7 +422,7 @@
   },
   "templateOrder": 5,
   "templatePreviewData": {
-    "EventLogo": "/card-assets/images/default-event-logo.svg",
+    "EventLogo": "",
     "EventName": "ForgeCon 2026",
     "AttendeeName": "Morgan Lee",
     "BadgeType": "Speaker",

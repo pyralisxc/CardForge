@@ -152,3 +152,17 @@ export const normalizeStudioAssetDestinations = (value: unknown): StudioAssetDes
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter(isStudioAssetDestination))];
 };
+
+export const resolveStudioAssetDestinations = ({
+  kind,
+  metadata,
+  mode,
+  destinations,
+}: {
+  kind: StudioRegistryAssetKind;
+  metadata?: unknown;
+  mode?: unknown;
+  destinations?: unknown;
+}): StudioAssetDestination[] => mode === 'owner'
+  ? normalizeStudioAssetDestinations(destinations)
+  : getDefaultStudioAssetDestinations({ kind, metadata });

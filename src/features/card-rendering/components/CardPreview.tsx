@@ -24,6 +24,7 @@ import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './Rich
 import { CardTextContent } from './CardTextContent';
 import { VectorShapeElement } from './VectorShapeElement';
 import type { DisplayCard } from '@/domain/rendering';
+import { isSvgAssetSource } from '@/domain/templates/vectorAssets';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -68,7 +69,19 @@ function ProjectBinaryFrame({
 }: React.HTMLAttributes<HTMLDivElement>) {
   const backgroundImage = useProjectBinaryAssetValue(typeof style?.backgroundImage === 'string' ? style.backgroundImage : undefined);
   const borderImageSource = useProjectBinaryAssetValue(typeof style?.borderImageSource === 'string' ? style.borderImageSource : undefined);
-  return <div {...props} style={{ ...style, backgroundImage, borderImageSource }} />;
+  const maskSource = typeof style?.maskImage === 'string'
+    ? style.maskImage
+    : typeof style?.WebkitMaskImage === 'string'
+      ? style.WebkitMaskImage
+      : undefined;
+  const resolvedMask = useProjectBinaryAssetValue(maskSource);
+  return <div {...props} style={{
+    ...style,
+    backgroundImage,
+    borderImageSource,
+    maskImage: style?.maskImage ? resolvedMask : undefined,
+    WebkitMaskImage: style?.WebkitMaskImage ? resolvedMask : undefined,
+  }} />;
 }
 
 export function CardPreview({
@@ -331,24 +344,30 @@ export function CardPreview({
             || iconImageUrl.startsWith('cardforge-browser-asset://')
             || iconImageUrl.startsWith('/')
           )) {
+            const tintVector = element.iconRenderMode === 'tint' && isSvgAssetSource(iconImageUrl);
             return (
               <ProjectBinaryFrame key={element.id} style={{ ...baseStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-freeform-element-id={element.id}>
-                <ProjectBinaryImage
-                  source={iconImageUrl}
-                  alt={`Icon for ${element.name}`}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    minWidth: 0,
-                    minHeight: 0,
-                    objectFit: 'contain',
-                    objectPosition: 'center',
-                    borderRadius: 'inherit',
-                    display: 'block',
-                  }}
-                />
+                {tintVector ? (
+                  <ProjectBinaryFrame
+                    role="img"
+                    aria-label={`Icon for ${element.name}`}
+                    style={{
+                      width: '100%', height: '100%', backgroundColor: element.fillColor || element.strokeColor || element.textColor || '#ffffff',
+                      maskImage: `url(${iconImageUrl})`, WebkitMaskImage: `url(${iconImageUrl})`,
+                      maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat',
+                      maskPosition: 'center', WebkitMaskPosition: 'center',
+                    }}
+                  />
+                ) : (
+                  <ProjectBinaryImage
+                    source={iconImageUrl}
+                    alt={`Icon for ${element.name}`}
+                    style={{
+                      width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', minWidth: 0, minHeight: 0,
+                      objectFit: 'contain', objectPosition: 'center', borderRadius: 'inherit', display: 'block',
+                    }}
+                  />
+                )}
               </ProjectBinaryFrame>
             );
           }

@@ -9,7 +9,8 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineReviewable } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
+import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
 
@@ -148,6 +149,7 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
     ],
   };
   const reviewSubmission = item.pipeline.reviewSubmission;
+  const displayedRevision = item.pipeline.submission;
   return {
     id: item.id, kind: 'pipeline-asset', eyebrow: `${item.kindLabel} · Pipeline`, title: item.name,
     summary: item.summary, status: item.statusLabel,
@@ -157,13 +159,13 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ['Contributor', item.pipeline.submission.contributorDisplayName ?? item.pipeline.submission.contributorEmail ?? 'CardForge contributor'],
       ['Ownership', item.pipeline.ownership === 'mine' ? 'Your contribution' : 'Shared Pipeline'],
       ['Lifecycle', item.statusLabel],
-      ['Review', item.pipeline.reviewState === 'available' ? 'Vote available' : item.pipeline.reviewState === 'already-voted' ? 'Your vote is recorded' : item.pipeline.reviewState === 'self' ? 'Self-voting disabled' : 'Review closed'],
+      ['Review', displayedRevision.trashedAt ? 'Unavailable in Trash' : isContributorPipelineVoteable(displayedRevision) ? 'Revision feedback available' : 'Voting begins after submission'],
       ['Displayed revision', String(item.pipeline.submission.revisionNumber ?? 1)],
       ...(item.pipeline.currentPublishedSubmission ? [['Published revision', String(item.pipeline.currentPublishedSubmission.revisionNumber ?? 1)] as const] : []),
       ...(reviewSubmission ? [['Reviewing revision', String(reviewSubmission.revisionNumber ?? 1)] as const] : []),
-      ['Review signals', reviewSubmission ? `${reviewSubmission.positiveVotes} up · ${reviewSubmission.negativeVotes} down` : 'No revision in review'],
+      ['Displayed revision votes', `${displayedRevision.positiveVotes} up · ${displayedRevision.negativeVotes} down`],
       ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
-      ['Quality', `${item.pipeline.submission.qualityScore}/100`],
+      ['Quality', displayedRevision.positiveVotes + displayedRevision.negativeVotes ? `${displayedRevision.qualityScore}/100` : 'Not yet rated'],
       ['Revisions', String(item.pipeline.revisions.length)],
       ['Updated', formatDate(item.updatedAt)],
     ],
@@ -194,12 +196,30 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
         <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{revisionRole}</span></div>
-        {canReview && isContributorPipelineReviewable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
+        {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
           <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
         </div> : null}
       </li>;
     })}</ol></div>
+  </section>;
+}
+
+export function PublishedRevisionFeedback({ revision, name, canReview, votingId, selfVoteBlocked, onVoteRevision }: {
+  revision: PipelineSubmission;
+  name: string;
+  canReview: boolean;
+  votingId: string | null;
+  selfVoteBlocked: boolean;
+  onVoteRevision: (submissionId: string, name: string, value: 'positive' | 'negative') => void;
+}) {
+  return <section className={styles.pipelineDetail} aria-label="Published revision feedback">
+    <h3>Revision {revision.revisionNumber ?? 1} feedback</h3>
+    <p>Hearts appreciate the whole work. Thumbs review this exact published revision.</p>
+    {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes}>
+      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, name, 'positive')} aria-label={`Vote up on ${name} revision ${revision.revisionNumber ?? 1}`}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+      <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, name, 'negative')} aria-label={`Vote down on ${name} revision ${revision.revisionNumber ?? 1}`}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+    </div> : null}
   </section>;
 }
 

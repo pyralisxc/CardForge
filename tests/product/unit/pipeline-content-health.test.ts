@@ -36,6 +36,51 @@ describe('Pipeline content health', () => {
       .toEqual(expect.arrayContaining([expect.objectContaining({ code: 'invalid-route' })]));
   });
 
+  it('flags legacy SVG sources outside the reviewed vector lanes', () => {
+    const unsafe = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'imageAssets',
+        requestedStudioDestination: 'image.picture',
+        sourceMimeType: 'image/svg+xml',
+        sourceUrl: 'https://example.com/picture.svg',
+      }),
+    });
+    const safe = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'icons',
+        requestedStudioDestination: 'element.icon',
+        sourceMimeType: 'image/svg+xml',
+        sourceUrl: 'https://example.com/icon.svg',
+      }),
+    });
+    expect(unsafe.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'unsafe-vector-route', severity: 'error' })]));
+    expect(safe.issues.some((issue) => issue.code === 'unsafe-vector-route')).toBe(false);
+  });
+
+  it('rejects retired storage references and Template face-route drift', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        assetType: 'templates',
+        requestedStudioDestination: 'template.front',
+        sourceUrl: null,
+        sourcePayload: {
+          id: 'back-template',
+          name: 'Back Template',
+          templateUsage: 'back-preset',
+          cardBackgroundImageUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/back.webp',
+        },
+      }),
+    });
+
+    expect(health.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'retired-source', severity: 'error' }),
+      expect.objectContaining({ code: 'route-content-mismatch', severity: 'error' }),
+    ]));
+  });
+
   it.each([
     ['3:4', 'event-badge', 75, 100],
     ['35:20', 'us-business', 88.9, 50.8],
@@ -97,5 +142,25 @@ describe('Pipeline content health', () => {
     expect(health.checkedCount).toBe(2);
     expect(health.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining(['missing-lineage', 'missing-preview', 'duplicate-name', 'invalid-package', 'missing-taxonomy']));
     expect(health.errors).toBeGreaterThan(0);
+  });
+
+  it('allows the same display name in different asset lanes', () => {
+    const health = buildPipelineContentHealth({
+      catalog: {
+        version: 'test', access: 'free',
+        templates: { defaults: [], userTemplates: [] },
+        styles: { version: 1, styles: [] },
+        assets: { templates: [], textures: [], dividers: [], icons: [], imageAssets: [], elementPresets: [], registry: { configured: true, source: 'database', total: 0 } },
+        fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } },
+        sets: { items: [] },
+        pipeline: { items: [
+          { id: 'style', lineageId: 'style-lineage', name: 'Gem Center', assetType: 'elementPreset', previewUrl: '/style.png', access: 'free', source: 'official', fileSizeBytes: 1, updatedAt: null },
+          { id: 'divider', lineageId: 'divider-lineage', name: 'Gem Center', assetType: 'divider', previewUrl: '/divider.png', access: 'free', source: 'official', fileSizeBytes: 1, updatedAt: null },
+        ] },
+      },
+      program: null,
+    });
+
+    expect(health.issues.some((issue) => issue.code === 'duplicate-name')).toBe(false);
   });
 });

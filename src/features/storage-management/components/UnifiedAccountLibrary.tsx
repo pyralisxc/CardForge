@@ -41,6 +41,7 @@ import { LibraryCollection } from './LibraryCollection';
 import {
   LibraryDetailVisual,
   PipelineDetailContent,
+  PublishedRevisionFeedback,
   createLibraryDetailRecord as detailRecord,
   pipelineLineageFor,
   type LibraryViewItem,
@@ -111,6 +112,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [discardToolRequested, setDiscardToolRequested] = useState(false);
   const [contributionTargetSetId, setContributionTargetSetId] = useState<string | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<PipelineSubmission | null>(null);
+  const [requestedSubmissionId, setRequestedSubmissionId] = useState<string | null>(null);
   const [campaignTargetId, setCampaignTargetId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
@@ -149,7 +151,9 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     const requestedScope = params.get('scope');
     if (requestedScope === 'published' || requestedScope === 'pipeline' || requestedScope === 'campaigns') setScope(requestedScope);
     const tool = params.get('tool');
-    if (tool === 'contribute' && experience.contributor.canSubmit) {
+    if ((tool === 'edit-contribution' || tool === 'contribute') && params.get('submission') && experience.contributor.canSubmit) {
+      setRequestedSubmissionId(params.get('submission'));
+    } else if (tool === 'contribute' && experience.contributor.canSubmit) {
       const setId = params.get('submitSet');
       setToolStack(openEnvironmentToolSession([], createLibraryToolSession('contribute', setId ? [setId] : [])));
       setContributionTargetSetId(setId);
@@ -166,6 +170,19 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
     else setStorageCallback(null);
   }, [experience.contributor.canSubmit]);
+  useEffect(() => {
+    if (!requestedSubmissionId || !shared.program) return;
+    const submission = shared.program.submissions.find((candidate) => candidate.id === requestedSubmissionId);
+    if (submission && shared.program.currentContributorIds.includes(submission.contributorId)
+      && !submission.trashedAt && !submission.purgeState
+      && ['draft', 'submitted', 'voting', 'publish_candidate'].includes(submission.status)) {
+      setEditingSubmission(submission);
+      setToolStack(openEnvironmentToolSession([], createLibraryToolSession('edit-contribution', [submission.id])));
+    } else {
+      toast({ title: 'Pipeline draft unavailable', description: 'This exact revision cannot be edited here. Find your current revision in Pipeline Library.', variant: 'destructive' });
+    }
+    setRequestedSubmissionId(null);
+  }, [requestedSubmissionId, shared.program, toast]);
   useEffect(() => {
     if (scope === activeScope) return;
     setScope(activeScope);
@@ -186,6 +203,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   });
   const currentItem = selection.objectId ? itemMap.get(selection.objectId) ?? null : null;
   const contentHealth = useMemo(() => buildPipelineContentHealth({ catalog: shared.catalog, program: shared.program }), [shared.catalog, shared.program]);
+  const publishedRevisionByLineage = useMemo(() => new Map(
+    shared.pipelineItems.flatMap((item) => item.currentPublishedSubmission?.lineageId
+      ? [[item.currentPublishedSubmission.lineageId, item.currentPublishedSubmission] as const]
+      : []),
+  ), [shared.pipelineItems]);
   const currentRecord = currentItem ? detailRecord(currentItem) : null;
   const cardsBySetId = useMemo(() => {
     const bySet = new Map<string, DisplayCard[]>();
@@ -380,6 +402,16 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         && !shared.program.settings.allowContributorSelfVoting
         && shared.program.currentContributorIds.includes(contributorId)
       )}
+    /> : currentItem?.scope === 'published' && currentItem.published.lineageId && publishedRevisionByLineage.get(currentItem.published.lineageId) ? <PublishedRevisionFeedback
+      revision={publishedRevisionByLineage.get(currentItem.published.lineageId)!}
+      name={currentItem.name}
+      canReview={experience.contributor.canReview}
+      votingId={votingId}
+      selfVoteBlocked={Boolean(
+        shared.program && !shared.program.settings.allowContributorSelfVoting
+        && shared.program.currentContributorIds.includes(publishedRevisionByLineage.get(currentItem.published.lineageId)!.contributorId)
+      )}
+      onVoteRevision={(submissionId, name, value) => void vote(submissionId, name, value)}
     /> : undefined}
     actions={actions}
     accountControl={<PublicAuthControls />}
@@ -419,6 +451,11 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         campaignNotice={initialCampaignNotice}
         campaignTargetId={campaignTargetId}
         canReview={experience.contributor.canReview}
+        isSelfVoteBlocked={(contributorId) => Boolean(
+          shared.program
+          && !shared.program.settings.allowContributorSelfVoting
+          && shared.program.currentContributorIds.includes(contributorId)
+        )}
         canSubmit={experience.contributor.canSubmit}
         cardsFor={cardsFor}
         density={density}
@@ -437,6 +474,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
         onSharedTypeChange={setSharedType}
         onToggleHeart={(item) => void toggleHeart(item)}
         onVote={(submissionId, name, value) => void vote(submissionId, name, value)}
+        publishedRevisionByLineage={publishedRevisionByLineage}
         personalActions={personalActions}
         projection={projection}
         scopeDefinition={scopeDefinition}

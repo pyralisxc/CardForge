@@ -26,10 +26,17 @@ export interface PipelineUploadedFile {
   mimeType: string;
 }
 
+export const getPipelineUploadTransportBlob = (file: Blob): Blob => (
+  file.type === 'image/svg+xml'
+    ? new Blob([file], { type: 'application/octet-stream' })
+    : file
+);
+
 export const PIPELINE_UPLOAD_ALLOWED_MIME_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',
+  'image/svg+xml',
   'application/json',
   'font/woff2',
   'font/woff',

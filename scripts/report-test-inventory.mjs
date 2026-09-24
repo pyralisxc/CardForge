@@ -36,6 +36,7 @@ const productDomains = [
 const sourceReaderContracts = [
   ['tests/infrastructure/agent-efficiency.test.ts', 'repository command and routing contract'],
   ['tests/infrastructure/legacy-server-table-grants.test.ts', 'cross-migration least-privilege contract'],
+  ['tests/infrastructure/migration-safety.test.ts', 'forward-only migration and Pipeline publication synchronization contract'],
   ['tests/infrastructure/repository-security.test.ts', 'repository security and secret-hygiene contract'],
   ['tests/product/unit/api-validation.test.ts', 'published asset-metadata artifacts'],
   ['tests/product/unit/cardforge-plugin.test.ts', 'published plugin and submission artifacts'],

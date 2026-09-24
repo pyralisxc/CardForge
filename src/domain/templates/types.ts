@@ -95,6 +95,8 @@ export interface AppearanceEffects {
 export interface FreeformAppearance {
   assetSource?: string;
   assetKind?: 'texture' | 'divider' | 'border' | 'frame';
+  assetRenderMode?: 'original' | 'tint';
+  assetTintColor?: string;
   blendMode?: string;
   textureScale?: number;
   textureOpacity?: number;
@@ -160,6 +162,7 @@ export interface FreeformCardElement {
   content?: string;
   imageSource?: string;
   iconImageSource?: string;
+  iconRenderMode?: 'original' | 'tint';
   iconName?: string;
   shapeKind?: FreeformShapeKind;
   shapeRole?: FreeformShapeRole;
