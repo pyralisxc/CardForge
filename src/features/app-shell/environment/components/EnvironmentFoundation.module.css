@@ -1163,6 +1163,24 @@
     box-shadow: 0 -1rem 2.5rem rgb(0 0 0 / 28%);
   }
 
+  /* Compact screens devote the workspace to the active sheet task. The shell
+     navigation remains available, while the retained scene no longer competes
+     with Locations, contribution, or other long-form tool content. */
+  .toolLayer[data-presentation="sheet"] {
+    align-items: stretch;
+    padding-top: 0;
+  }
+
+  .toolLayer[data-presentation="sheet"] .toolSceneReveal,
+  .toolLayer[data-presentation="sheet"] .toolScrim {
+    display: none;
+  }
+
+  .toolLayer[data-presentation="sheet"] .toolPanel {
+    max-height: 100%;
+    border-top: 0;
+  }
+
   /* Desk tools already keep their identity and close action in the context
      rail. Give their first decision room on compact screens instead of making
      the user scroll through the retained scene before reaching the tool. */

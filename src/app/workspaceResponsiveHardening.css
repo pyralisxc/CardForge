@@ -212,6 +212,49 @@
   overscroll-behavior: contain;
 }
 
+/* Contribution tools can live in the desktop side sheet or in the full-width
+   mobile sheet. Their composition follows the available panel, not the outer
+   browser breakpoint, so a wide desktop never forces a six-column form into a
+   narrow tool surface. */
+[data-pipeline-contribution-panel] {
+  container-type: inline-size;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+[data-pipeline-contribution-panel] :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-pipeline-contribution-panel] > *,
+[data-pipeline-candidate-grid] > *,
+[data-pipeline-taxonomy-grid] > * {
+  min-width: 0;
+}
+
+@container (min-width: 36rem) {
+  [data-pipeline-asset-picks] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  [data-pipeline-taxonomy-grid] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 48rem) {
+  [data-pipeline-candidate-grid] {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.8fr);
+  }
+}
+
+@container (min-width: 68rem) {
+  [data-pipeline-asset-picks] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 /* Context actions should compress before they wrap into a second header. */
 [data-desk-context-rail] {
   flex-wrap: nowrap !important;

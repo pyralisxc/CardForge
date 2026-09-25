@@ -498,7 +498,7 @@ export function Desk({
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>
-          <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open project${workItems.length === 1 ? '' : 's'}`} tone={projection.isLoading ? 'warning' : 'neutral'} />
+          <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${workItems.length} open work`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
           <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} onClick={requestBrowserWorkspaceRecovery} title="Open browser workspace, recovery, and backup tools" />
           {browserStoragePersistence.status === 'best-effort' ? (

@@ -114,6 +114,7 @@ export function OwnerStudioRoutingPanel() {
                 <div className="flex flex-wrap gap-1.5">
                   {STUDIO_ASSET_DESTINATION_DEFINITIONS.filter((definition) => definition.group === group).map((definition) => {
                     const count = routingPage?.counts.find((item) => item.destination === definition.id);
+                    const countLabel = count ? `${count.liveCount}/${count.totalCount}` : '—/—';
                     return (
                       <button
                         key={definition.id}
@@ -127,7 +128,7 @@ export function OwnerStudioRoutingPanel() {
                         )}
                         onClick={() => { setDestination(definition.id); setPage(1); }}
                       >
-                        {definition.shortLabel} <span className="text-[#8e795e]">{count?.liveCount ?? 0}/{count?.totalCount ?? 0}</span>
+                        {definition.shortLabel} <span className="text-[#8e795e]" aria-label={count ? `${count.liveCount} live of ${count.totalCount} total` : 'Count loading'}>{countLabel}</span>
                       </button>
                     );
                   })}
@@ -157,6 +158,12 @@ export function OwnerStudioRoutingPanel() {
         <div className="border border-[var(--cf-danger-border)] bg-[var(--cf-danger-surface-muted)] p-4 text-sm text-[var(--cf-danger)]">
           <p>{loadError}</p>
           <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void loadRouting()}>Retry</Button>
+        </div>
+      ) : null}
+
+      {!loadError && isLoading && !routingPage ? (
+        <div role="status" className="border border-dashed border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-5 text-sm text-[var(--cf-text-muted)]">
+          Loading Studio Map…
         </div>
       ) : null}
 

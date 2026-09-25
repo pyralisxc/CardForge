@@ -695,6 +695,14 @@
   text-align: center;
 }
 
+.emptyDeskOverlay {
+  position: absolute;
+  z-index: 4;
+  inset: 2.75rem 0 0;
+  min-height: 0;
+  background: color-mix(in srgb, var(--cf-surface-inset) 94%, transparent);
+}
+
 .emptyDeskInner {
   display: grid;
   max-width: 24rem;

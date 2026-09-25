@@ -228,7 +228,7 @@ export function PipelineSubmissionPanel({
   };
 
   return (
-    <div className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
+    <div data-pipeline-contribution-panel className="min-w-0 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-serif text-xl text-[var(--cf-text-strong)]">Submit to the Pipeline</h3>
@@ -242,7 +242,7 @@ export function PipelineSubmissionPanel({
               Asset family
               <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
             </label>
-            <div className="grid grid-cols-2 gap-px overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-border)] sm:grid-cols-3 lg:grid-cols-6" role="group" aria-label="Submission quick picks">
+            <div data-pipeline-asset-picks className="grid grid-cols-2 gap-px overflow-hidden border border-[var(--cf-border)] bg-[var(--cf-border)]" role="group" aria-label="Submission quick picks">
               {CONTRIBUTOR_UPLOAD_ASSET_TYPES.map((type) => {
                 const isActive = assetType === type;
                 return (
@@ -289,7 +289,7 @@ export function PipelineSubmissionPanel({
             </select>
             <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">{submissionGuidance.destination}</span>
           </label> : <div className="grid gap-1 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-sm"><strong className="text-[var(--cf-accent-text)]">Published Set destination</strong><span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Sets become immutable starters in Desk and Pipeline Library. Creators receive a new independent browser copy.</span></div>}
-          <div className="grid gap-3 md:grid-cols-2">
+          <div data-pipeline-taxonomy-grid className="grid gap-3">
             <ControlledTaxonomySelect
               label="Specialties"
               selectedIds={specialtyTags}
@@ -320,7 +320,7 @@ export function PipelineSubmissionPanel({
               Candidate source
               <FieldHelp text="Choose from your browser library, drag a local file here, or browse your file directory. All three routes submit through the same review pipeline." />
             </span>
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
+            <div data-pipeline-candidate-grid className="grid min-w-0 gap-3">
               <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-[var(--cf-accent-text)]">

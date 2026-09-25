@@ -105,7 +105,13 @@ export function useDeskCamera({
     const grid = viewportRef.current;
     if (!grid || focused) return;
     const update = () => {
-      const next = { width: Math.max(1, grid.clientWidth), height: Math.max(1, grid.clientHeight) };
+      const measuredWidth = grid.clientWidth;
+      const measuredHeight = grid.clientHeight;
+      // Filtering can briefly collapse or detach the viewport during React
+      // layout. That is not a real camera resize: accepting it would replace
+      // a useful viewport with a 1px fit and leave the Desk reading as 0%.
+      if (measuredWidth < 2 || measuredHeight < 2) return;
+      const next = { width: measuredWidth, height: measuredHeight };
       const previous = viewportStateRef.current;
       const previousGeometry = getDeskCameraGeometry(previous, zoomRef.current);
       let nextGeometry = getDeskCameraGeometry(next, 0);

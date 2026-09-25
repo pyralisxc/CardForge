@@ -79,7 +79,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByText('Access', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Connections', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Security', { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/1 open project/)).toBeVisible();
+    await expect(page.getByText('1 open work', { exact: true })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
@@ -104,6 +104,27 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('region', { name: 'Storage and connections' })).toBeVisible();
     await expect(page).toHaveURL(/\/account(?:\?|$)/);
     await page.getByRole('button', { name: 'Done', exact: true }).click();
+  });
+
+  test('@golden zero-result filtering keeps the Desk camera recoverable', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 720 });
+    await seedGuestScaleWorkspace(page, 100);
+    await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    const viewport = page.locator('[data-desk-viewport]');
+    const search = page.getByPlaceholder('Search Desk work');
+    await expect(viewport).toBeVisible();
+    await search.fill('no matching work exists');
+    await expect(page.getByText('No work matches this view', { exact: true })).toBeVisible();
+    await expect(viewport).toHaveAttribute('data-camera-mode', 'whole');
+    await expect(viewport).toHaveAttribute('data-relative-zoom', '1.00');
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(0.1);
+
+    await page.getByRole('button', { name: 'Show My work', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    await expect(viewport).toHaveAttribute('data-camera-mode', 'fit-work');
+    await expect.poll(async () => Number(await viewport.getAttribute('data-relative-zoom'))).toBeGreaterThan(1);
   });
 
   test('@golden Desk action menu exposes truthful actions, hands off focus cleanly, and persists deletion', async ({ page }) => {

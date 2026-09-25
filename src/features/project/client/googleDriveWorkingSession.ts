@@ -172,14 +172,6 @@ export function useGoogleDriveWorkingSession({
         setState({ phase: 'unlinked', message: 'Browser work', receipt: null });
         return;
       }
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
-        // The `online` listener resumes a dirty linked Set. Retrying every idle
-        // interval while the browser remains offline only burns work and obscures
-        // the actionable offline state.
-        queuedRef.current = false;
-        return;
-      }
       let dirty: boolean;
       try {
         dirty = await hasGoogleDriveWorkingChanges(binding);
@@ -189,6 +181,14 @@ export function useGoogleDriveWorkingSession({
       }
       if (!dirty) {
         if (generation === generationRef.current) setState({ phase: 'clean', message: 'Saved to Drive', receipt: binding });
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        setState({ phase: 'offline', message: 'Offline · Drive save pending', receipt: binding });
+        // The `online` listener resumes a dirty linked Set. Retrying every idle
+        // interval while the browser remains offline only burns work and obscures
+        // the actionable offline state.
+        queuedRef.current = false;
         return;
       }
       if (generation === generationRef.current) setState({ phase: 'saving', message: 'Saving to Drive…', receipt: binding });
@@ -225,9 +225,9 @@ export function useGoogleDriveWorkingSession({
     // reconcile() will schedule the save if it finds a real linked document.
     if (!enabled || !setId || writableRef.current === false || !bindingRef.current) return;
     clearTimer();
-    setState((current) => current.phase === 'saving'
-      ? current
-      : { phase: 'dirty', message: 'Drive save pending', receipt: current.receipt });
+    // Store subscriptions include camera, selection, and other UI-only changes.
+    // Keep the visible receipt authoritative until saveNow compares the canonical
+    // project package and proves that the linked document is actually dirty.
     timerRef.current = setTimeout(() => { void saveNowRef.current(); }, DRIVE_AUTOSAVE_DELAY_MS);
   }, [clearTimer, enabled, setId]);
 
