@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   ENVIRONMENT_ZONES,
+  deriveEnvironmentPresentation,
   EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
@@ -330,6 +331,14 @@ export function Desk({
   const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
   const contextDepth = storageOpen || remoteWorkspaceItem || activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
+  const presentation = deriveEnvironmentPresentation({
+    focusDepth: contextDepth === 'desk' ? 'zone' : contextDepth,
+    activity: artifactEditing || activeTool?.toolId === 'design'
+      ? 'edit'
+      : storageOpen || activeTool
+        ? 'task'
+        : 'none',
+  });
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
@@ -494,7 +503,7 @@ export function Desk({
           onDuplicateSelected={duplicateSelectedCards}
           onDeleteSelected={() => setPendingDeleteCards(selectedCards)}
         />}
-        focusDepth={contextDepth === 'desk' ? 'zone' : contextDepth}
+        presentation={presentation}
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>

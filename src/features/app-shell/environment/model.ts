@@ -7,6 +7,32 @@ export type ZoneId = NavigationZoneId;
 export type ZoneAccess = 'guest' | 'member' | 'contributor' | 'owner';
 export type ZoneViewportPolicy = 'flow' | 'desk';
 
+export type EnvironmentFocusDepth = 'zone' | 'collection' | 'set' | 'object' | 'artifact' | 'tool';
+export type EnvironmentPresentationActivity = 'none' | 'edit' | 'task';
+export type EnvironmentPresentationMode = 'browse' | 'focus' | 'edit' | 'task';
+
+export interface EnvironmentPresentation {
+  mode: EnvironmentPresentationMode;
+  focusDepth: EnvironmentFocusDepth;
+}
+
+export const deriveEnvironmentPresentation = ({
+  focusDepth,
+  activity = 'none',
+}: {
+  focusDepth: EnvironmentFocusDepth;
+  activity?: EnvironmentPresentationActivity;
+}): EnvironmentPresentation => ({
+  mode: activity === 'edit'
+    ? 'edit'
+    : activity === 'task'
+      ? 'task'
+      : focusDepth === 'zone'
+        ? 'browse'
+        : 'focus',
+  focusDepth,
+});
+
 export interface ZoneDefinition {
   id: NavigationZoneId;
   href: string;

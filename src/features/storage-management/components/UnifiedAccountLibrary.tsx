@@ -15,7 +15,7 @@ import type { AccountExperienceProjection } from '@/features/account/client/expe
 import { PublicAuthControls } from '@/features/account/client/auth';
 import {
   ENVIRONMENT_ZONES, EnvironmentBoundaryNotice, EnvironmentShell, EnvironmentStatus, EnvironmentToolLayer,
-  closeEnvironmentDetail, closeEnvironmentToolSession, createSelectionSession, getVisibleEnvironmentZones,
+  closeEnvironmentDetail, closeEnvironmentToolSession, createSelectionSession, deriveEnvironmentPresentation, getVisibleEnvironmentZones,
   openEnvironmentDetail, openEnvironmentToolSession, setEnvironmentToolSessionDirty,
   type EnvironmentToolSession, type EnvironmentViewer, type SelectionSession,
 } from '@/features/app-shell/client/environment';
@@ -387,10 +387,15 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   };
 
   const scopeDefinition = scopeDefinitions.find((definition) => definition.id === activeScope)!;
+  const presentation = deriveEnvironmentPresentation({
+    focusDepth: activeTool ? 'tool' : currentRecord ? 'object' : 'zone',
+    activity: activeTool === 'design' ? 'edit' : activeTool ? 'task' : 'none',
+  });
   return <>
   <EnvironmentShell
     ariaLabel="CardForge Library" brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }} viewer={viewer}
     zones={zones} activeZone="library" viewportPolicy="desk" primaryScroll="contained" detail={activeTool ? null : currentRecord}
+    presentation={presentation}
     detailVisual={currentItem ? <LibraryDetailVisual key={currentItem.id} item={currentItem} cards={cardsFor(currentItem)} template={templateFor(currentItem)} /> : undefined}
     detailContent={currentItem?.scope === 'pipeline' ? <PipelineDetailContent
       item={currentItem}
