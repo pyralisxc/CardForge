@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify accepted Development Intelligence checkpoint
-        uses: pyralisxc/Development-Intelligence@7e42d721ee763d8907cdab44fe9b46640650225f # current analyzer
+        uses: pyralisxc/Development-Intelligence@1230321f6f4ddd79810345f3a351adce9251def2 # current analyzer
         with:
           project: pyralisxc/CardForge
 
