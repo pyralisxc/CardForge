@@ -1,7 +1,11 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { applyProjectDocumentToWorkspace, captureCurrentProjectDocument } from '@/features/project/client/projectWorkspaceDocument';
+import {
+  applyProjectDocumentToWorkspace,
+  captureCurrentProjectDocument,
+  hasProjectDocumentStateChanged,
+} from '@/features/project/client/projectWorkspaceDocument';
 import { useProjectStore } from '@/features/project/store/workspaceStore';
 import { createIndexedDbStorage } from '@/features/project/persistence/indexedDbStorage';
 import { setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
@@ -14,6 +18,15 @@ describe('project import durability', () => {
     useProjectStore.setState({ cardSets: [], activeCardSet: null, storedCards: [], userTemplates: [], appearanceStyles: [] });
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('distinguishes UI-only store changes from project document changes', () => {
+    const expected = useProjectStore.getState();
+    useProjectStore.setState({ studioView: expected.studioView === 'template' ? 'generate' : 'template' });
+    expect(hasProjectDocumentStateChanged(expected, useProjectStore.getState())).toBe(false);
+
+    useProjectStore.setState({ cardSets: [{ id: 'changed-set', name: 'Changed work' }] });
+    expect(hasProjectDocumentStateChanged(expected, useProjectStore.getState())).toBe(true);
+  });
 
   it('keeps unrelated Sets and remaps a colliding imported Set before committing the complete workspace', async () => {
     const originalSet = { id: 'existing', name: 'Local work' };

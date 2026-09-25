@@ -26,7 +26,12 @@ import {
   removeStructuredBrowserValue,
   writeStructuredBrowserValue,
 } from '../persistence/structuredBrowserStorage';
-import { applyProjectDocumentToWorkspace, captureCardSetProjectDocument, captureCurrentProjectDocument } from './projectWorkspaceDocument';
+import {
+  applyProjectDocumentToWorkspace,
+  captureCardSetProjectDocument,
+  captureCurrentProjectDocument,
+  hasProjectDocumentStateChanged,
+} from './projectWorkspaceDocument';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
 
@@ -215,7 +220,9 @@ const createProjectPackage = async (name: string, workId?: string, identities?: 
     : localSnapshot;
   const blob = await createCardForgeProjectPackageBlob(snapshot);
   assertBindingScope(namespace);
-  if (useProjectStore.getState() !== expectedState) throw new ProjectPackageError('The Set changed while preparing its Drive save. Retry with the current work.');
+  if (hasProjectDocumentStateChanged(expectedState, useProjectStore.getState())) {
+    throw new ProjectPackageError('The Set changed while preparing its Drive save. Retry with the current work.');
+  }
   return { document, snapshot, blob, localProjectRevision: localSnapshot.manifest.projectRevision };
 };
 
