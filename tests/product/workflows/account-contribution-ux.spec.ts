@@ -281,6 +281,19 @@ test.describe('account contribution surfaces', () => {
     await expectNoWcagViolations(page);
   });
 
+  test('keeps shared Library counts non-authoritative while the catalog loads', async ({ page }) => {
+    await page.route('**/api/catalog', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      await route.continue();
+    });
+    await page.goto('/account?section=library&scope=pipeline', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+
+    await expect(page.getByText('Loading objects', { exact: true })).toBeVisible();
+    await expect(page.getByText('0 objects', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Preparing pipeline', { exact: true })).toBeVisible();
+    await expect(page.getByText('Pipeline is ready', { exact: true })).toHaveCount(0);
+  });
+
   test('retired account and program routes are cold-cut to 404', async ({ page }) => {
     for (const route of ['/developer', '/developer/cockpit', '/developer-terms', '/profile', '/environment-lab', '/creator-pool']) {
       const response = await page.goto(route, { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });

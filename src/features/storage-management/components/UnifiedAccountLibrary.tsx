@@ -425,7 +425,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     statusContent={<>
       <EnvironmentStatus label={`${scopeDefinition.label} · ${activeStatus.label}`} tone={activeStatus.kind === 'unavailable' || activeStatus.kind === 'partial' ? 'warning' : activeStatus.kind === 'ready' ? 'success' : 'neutral'} />
       <EnvironmentStatus label="Storage" icon={HardDrive} tone={projection.failures.length ? 'warning' : 'success'} onClick={openLocations} title="Open Locations & connections" />
-      <EnvironmentStatus label={activeScope === 'campaigns' ? 'Marketing work' : `${unfilteredScopeItemCount} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone="neutral" />
+      <EnvironmentStatus label={activeScope === 'campaigns' ? 'Marketing work' : activeLoading ? 'Loading objects' : `${unfilteredScopeItemCount} object${unfilteredScopeItemCount === 1 ? '' : 's'}`} tone={activeLoading ? 'warning' : 'neutral'} />
     </>}
     footerContent={activeTool ? <span>{activeTool === 'locations' ? 'Nothing moves between locations automatically' : activeTool === 'edit-contribution' ? 'Only your current Pipeline submission details will change' : activeTool === 'design' ? 'Design changes stay with the selected local Template' : 'Submission preserves the selected source until you confirm'}</span> : currentRecord ? <span>{currentRecord.title} selected</span> : <span>Work stays in its named location until you move it.</span>}
     onCommand={() => searchRef.current?.focus()}

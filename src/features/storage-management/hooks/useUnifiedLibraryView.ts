@@ -102,7 +102,9 @@ export function useUnifiedLibraryView({
       ? projection.isLoading
       : activeScope === 'pipeline' && pipelineAccess
         ? shared.pipelineLoading || shared.catalogLoading
-        : shared.catalogLoading;
+          || (!shared.program && !shared.pipelineFailure)
+          || (!shared.catalog && !shared.catalogFailure)
+        : shared.catalogLoading || (!shared.catalog && !shared.catalogFailure);
   const unfilteredScopeItemCount = activeScope === 'personal' ? projection.items.length : scopeItems.length;
   const activeStatus = activeScope === 'campaigns'
     ? { kind: 'ready' as const, label: 'Workspace' }

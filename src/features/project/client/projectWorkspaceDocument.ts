@@ -36,6 +36,31 @@ export interface ProjectWorkspaceApplySummary {
   skippedCount: number;
 }
 
+/**
+ * Workspace UI state shares the same Zustand object as portable project data.
+ * Snapshot preparation may span IndexedDB reads, so compare only the fields
+ * that the project document actually serializes. Selection, tool, and camera
+ * changes must not turn a coherent document into a false concurrency failure.
+ */
+export const hasProjectDocumentStateChanged = (
+  expected: ProjectState,
+  current: ProjectState,
+): boolean => (
+  expected.defaultTemplates !== current.defaultTemplates
+  || expected.userTemplates !== current.userTemplates
+  || expected.cardSets !== current.cardSets
+  || expected.activeCardSet !== current.activeCardSet
+  || expected.storedCards !== current.storedCards
+  || expected.appearanceStyles !== current.appearanceStyles
+  || expected.selectedPaperSize !== current.selectedPaperSize
+  || expected.pdfMarginMm !== current.pdfMarginMm
+  || expected.pdfCardSpacingMm !== current.pdfCardSpacingMm
+  || expected.pdfIncludeCutLines !== current.pdfIncludeCutLines
+  || expected.pdfDuplexLayout !== current.pdfDuplexLayout
+  || expected.exportMode !== current.exportMode
+  || expected.exportDpi !== current.exportDpi
+);
+
 const templateSnapshotFingerprint = (template: TCGCardTemplate): string => JSON.stringify(template);
 
 /**
@@ -122,7 +147,7 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
     readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
     readProjectFonts(),
   ]);
-  if (getProjectPersistenceScope() !== scope || useProjectStore.getState() !== state) {
+  if (getProjectPersistenceScope() !== scope || hasProjectDocumentStateChanged(state, useProjectStore.getState())) {
     throw new Error('The workspace or account changed while the editable snapshot was being prepared. Retry from the current workspace.');
   }
 

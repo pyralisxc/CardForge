@@ -35,21 +35,21 @@ begin
     raise exception 'revision objection incorrectly replaced the lineage preference';
   end if;
 
-  begin
-    perform public.cardforge_cast_contributor_asset_vote(first_revision, author_id, 'positive', null);
-    raise exception 'self vote unexpectedly accepted';
-  exception when others then
-    if sqlerrm <> 'contributor_asset_self_vote_not_permitted' then raise; end if;
-  end;
+  perform public.cardforge_cast_contributor_asset_vote(first_revision, author_id, 'positive', null);
+  if not exists (select 1 from public.cardforge_contributor_asset_votes
+      where submission_id=first_revision and contributor_id=author_id
+        and vote_value='positive' and vote_weight=1) then
+    raise exception 'author self vote was not recorded as one unweighted vote';
+  end if;
 
-  begin
-    insert into public.cardforge_contributor_asset_votes
-      (submission_id,lineage_id,contributor_id,vote_value,vote_weight)
-    values (first_revision,lineage,author_id,'negative',1);
-    raise exception 'direct self vote unexpectedly accepted';
-  exception when others then
-    if sqlerrm <> 'contributor_asset_self_vote_not_permitted' then raise; end if;
-  end;
+  insert into public.cardforge_contributor_asset_votes
+    (submission_id,lineage_id,contributor_id,vote_value,vote_weight)
+  values (second_revision,lineage,author_id,'negative',99);
+  if not exists (select 1 from public.cardforge_contributor_asset_votes
+      where submission_id=second_revision and contributor_id=author_id
+        and vote_value='negative' and vote_weight=1) then
+    raise exception 'direct author vote did not normalize to one unweighted vote';
+  end if;
 
   update public.cardforge_contributor_asset_submissions
   set status='archived',automated_status='archived',calculated_access_tier='hidden',

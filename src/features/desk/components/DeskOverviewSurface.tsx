@@ -240,7 +240,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         <summary>{sourceStatusSummary}</summary>
         <ul>{sourceStatusDetails.map((source) => <li key={source.id}><strong>{source.label}</strong><span>{source.failure?.message ?? sourcePhaseLabel[source.phase] ?? 'Status unavailable'}</span></li>)}</ul>
       </details> : null}
-      {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.visibleWork.length ? <><div
+      {props.isLoading && !props.workItemsCount ? <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Preparing your desk</strong></div></div> : props.workItemsCount ? <><div
         id="desk-world-viewport"
         ref={props.workGridRef}
         className={styles.workGrid}
@@ -248,6 +248,8 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         data-scene-viewport
         data-focused={Boolean(props.focusedItemId)}
         data-zoom={props.camera.zoom.toFixed(2)}
+        data-relative-zoom={props.camera.relativeZoom.toFixed(2)}
+        data-camera-mode={props.camera.mode}
         onScroll={props.camera.onScroll}
         onPointerDownCapture={props.camera.onPointerDownCapture}
         onPointerMoveCapture={props.camera.onPointerMoveCapture}
@@ -272,7 +274,12 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             })}
           </div>
         </div>
-      </div>{props.camera.showMinimap ? <button
+      </div>{props.visibleWork.length === 0 ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`}><div className={styles.emptyDeskInner}>
+        <FolderPlus aria-hidden="true" />
+        <strong>No work matches this view</strong>
+        <p className={styles.emptyCopy}>Clear the search or change the active view and filters.</p>
+        <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onResetViews(); }}>Show My work</Button>
+      </div></div> : null}{props.camera.showMinimap && props.visibleWork.length > 0 ? <button
         type="button"
         className={styles.deskMinimap}
         aria-label="Desk minimap. Choose a point to center the camera."
@@ -290,9 +297,9 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         height: `${props.camera.minimapViewport.height * 100}%`,
       }} /></button> : null}</> : <div className={styles.emptyDesk}><div className={styles.emptyDeskInner}>
         <FolderPlus aria-hidden="true" />
-        <strong>{props.workItemsCount ? 'No work matches this view' : 'Your desk is ready'}</strong>
-        <p className={styles.emptyCopy}>{props.workItemsCount ? 'Clear the search or change the active view and filters.' : 'A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.'}</p>
-        {props.workItemsCount ? <Button type="button" variant="outline" onClick={() => { props.onQueryChange(''); props.onResetViews(); }}>Show My work</Button> : <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onCreate}>Create your first Set</Button><Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button></div>}
+        <strong>Your desk is ready</strong>
+        <p className={styles.emptyCopy}>A Set keeps related cards together. Create one from scratch or a published starter, or open saved work from Library.</p>
+        <div className="flex flex-wrap justify-center gap-2"><Button type="button" onClick={props.onCreate}>Create your first Set</Button><Button type="button" variant="outline" onClick={() => props.onNavigate('/account?section=library')}>Open Library</Button></div>
       </div></div>}
     </section>
   </div>;

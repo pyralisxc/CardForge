@@ -114,6 +114,7 @@ export function useDeskLayout({
       && (!normalizedQuery || [item.name, ...item.details, workSourceLabel(item)].join(' ').toLocaleLowerCase().includes(normalizedQuery))
     )).toSorted((left, right) => normalizedDeskOrder.indexOf(left.id) - normalizedDeskOrder.indexOf(right.id));
   }, [normalizedDeskOrder, query, sourceFilters, tagFilters, tagMatch, typeFilters, viewIds, workItems]);
+  const visibleItemIds = useMemo(() => visibleWork.map((item) => item.id), [visibleWork]);
 
   const {
     beginDrag,
@@ -135,6 +136,7 @@ export function useDeskLayout({
     // projection. Filtering or a later-arriving provider therefore cannot
     // drop positions, pins, or relative order.
     itemIds: persistedDeskOrder,
+    visibleItemIds,
     focused,
     snapToGrid,
     selectedIds,

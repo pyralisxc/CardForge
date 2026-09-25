@@ -58,6 +58,7 @@ const rectFromPoints = (left: number, top: number, right: number, bottom: number
 export function useDeskSpatialLayout({
   positionKey,
   itemIds,
+  visibleItemIds,
   focused,
   snapToGrid,
   selectedIds,
@@ -65,6 +66,7 @@ export function useDeskSpatialLayout({
 }: {
   positionKey: string;
   itemIds: readonly string[];
+  visibleItemIds: readonly string[];
   focused: boolean;
   snapToGrid: boolean;
   selectedIds: readonly string[];
@@ -108,7 +110,7 @@ export function useDeskSpatialLayout({
   ), [framingItems, selectedIds]);
   const camera = useDeskCamera({
     focused,
-    hasItems: itemIds.length > 0,
+    hasItems: visibleItemIds.length > 0,
     workBounds,
     selectionBounds,
     viewportRef: workGridRef,
@@ -116,6 +118,7 @@ export function useDeskSpatialLayout({
   });
 
   const itemKey = itemIds.join('\u0000');
+  const visibleItemKey = visibleItemIds.join('\u0000');
   useLayoutEffect(() => {
     const world = workWorldRef.current;
     if (focused || !positionsWritable || !world) return;
@@ -148,7 +151,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [focused, itemKey, positions, positionsWritable]);
+  }, [focused, itemKey, positions, positionsWritable, visibleItemKey]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];

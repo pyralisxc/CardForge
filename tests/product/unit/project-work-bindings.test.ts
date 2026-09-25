@@ -29,6 +29,7 @@ vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   captureCardSetProjectDocument: mock.captureSet,
   captureCurrentProjectDocument: mock.captureWorkspace,
   applyProjectDocumentToWorkspace: mock.apply,
+  hasProjectDocumentStateChanged: () => false,
 }));
 vi.mock('@/features/project/client/browserProjectPackage', () => ({ buildBrowserCardForgeProjectSnapshot: mock.build, decodeBrowserProjectFile: mock.decode }));
 vi.mock('@/features/project/lib/projectPackageCodec', () => ({
