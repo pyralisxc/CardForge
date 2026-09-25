@@ -293,7 +293,8 @@
   }
 }
 
-/* Mobile and narrow windows are the same product hierarchy, more compressed. */
+/* Mobile and narrow windows keep the same product owners while the shared
+   shell adapts chrome around Browse, Focus, Edit, and Task presentation. */
 @media (max-width: 767px) {
   [aria-label="CardForge Desk"],
   [aria-label="CardForge Library"] {
@@ -327,16 +328,16 @@
   /* Once Desk focus moves inside a Set, the context rail and global actions
      share one header row. Search is still available through Commands, so it
      must not create a second band over the spatial scene. */
-  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :first-child {
+  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :first-child {
     grid-column: 1 !important;
     grid-row: 1;
   }
 
-  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :nth-child(2) {
+  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :nth-child(2) {
     display: none !important;
   }
 
-  [aria-label="CardForge Desk"] > [data-focus-depth]:not([data-focus-depth="zone"]) header[data-context="true"][data-has-search="true"] > :last-child {
+  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :last-child {
     grid-column: 2;
     grid-row: 1;
   }

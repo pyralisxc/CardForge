@@ -182,7 +182,7 @@
     grid-row: 1;
   }
 
-  .shell[data-focus-depth]:not([data-focus-depth="zone"]) .commandBand[data-has-search="true"] > :nth-child(2) {
+  .shell[data-presentation-mode]:not([data-presentation-mode="browse"]) .commandBand[data-has-search="true"] > :nth-child(2) {
     display: none;
   }
 }
@@ -1164,8 +1164,8 @@
   }
 
   /* Compact screens devote the workspace to the active sheet task. The shell
-     navigation remains available, while the retained scene no longer competes
-     with Locations, contribution, or other long-form tool content. */
+     retains the exact object context above it, while global navigation and the
+     background scene no longer compete with long-form tool content. */
   .toolLayer[data-presentation="sheet"] {
     align-items: stretch;
     padding-top: 0;
@@ -1184,11 +1184,11 @@
   /* Desk tools already keep their identity and close action in the context
      rail. Give their first decision room on compact screens instead of making
      the user scroll through the retained scene before reaching the tool. */
-  .toolLayer[data-rail-owned="true"] {
+  .toolLayer[data-rail-owned="true"]:not([data-presentation="sheet"]) {
     padding-top: 14%;
   }
 
-  .toolLayer[data-rail-owned="true"] .toolPanel {
+  .toolLayer[data-rail-owned="true"]:not([data-presentation="sheet"]) .toolPanel {
     max-height: 86%;
   }
 
@@ -1259,15 +1259,19 @@
     overflow: hidden;
     padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
-  .shell[data-viewport="desk"][data-focus-depth]:not([data-focus-depth="zone"]) {
+  .shell[data-viewport="desk"][data-presentation-mode]:not([data-presentation-mode="browse"]) {
     padding-bottom: env(safe-area-inset-bottom);
   }
   .shell[data-viewport="desk"] .primarySurface { flex: 1; height: auto; min-height: 0; }
   .shell[data-viewport="desk"] .commandStack,
   .shell[data-viewport="desk"] .statusBar { flex-shrink: 0; }
 
-  .shell[data-focus-depth]:not([data-focus-depth="zone"]) .mobileNav {
+  .shell[data-presentation-mode]:not([data-presentation-mode="browse"]) .mobileNav {
     display: none;
+  }
+
+  .shell[data-presentation-mode]:not([data-presentation-mode="browse"]) .statusBar {
+    display: none !important;
   }
 
   .shell[data-viewport="desk"] .primarySurface[data-scroll="contained"] {

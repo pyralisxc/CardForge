@@ -17,7 +17,7 @@ test.describe('mobile Desk controls', () => {
   test('@golden keeps Desk filtering in a compact, touchable disclosure', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'browse');
 
     const toolbar = page.locator('[data-desk="overview"] [data-desk-toolbar]');
     const filters = page.locator('[data-mobile-desk-filters]');
@@ -53,12 +53,13 @@ test.describe('mobile Desk controls', () => {
   test('@golden opens, selects, and dismisses shared dropdown controls by touch', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-    await expect(page.locator('[data-desk-context-rail][data-depth="desk"]')).toBeVisible();
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'browse');
 
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await setButton.tap();
     await setButton.press('Enter');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'focus');
 
     const arrangement = page.getByRole('combobox', { name: 'Arrange cards' });
     await page.getByRole('button', { name: /^Organize/ }).tap();
@@ -112,7 +113,7 @@ test.describe('mobile Desk controls', () => {
     await expect(page.getByRole('button', { name: `Selected ${longName}. Press Enter to open.` })).toBeFocused();
   });
 
-  test('@golden keeps Generate docked beside the persistent creative scene', async ({ page }) => {
+  test('@golden keeps Generate bounded as a mobile Task while preserving Desk context', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
@@ -124,6 +125,7 @@ test.describe('mobile Desk controls', () => {
     const tool = page.getByRole('region', { name: 'Generate into 100 Card Scale Set' });
     await expect(tool).toBeVisible();
     await expect(tool).toHaveAttribute('data-presentation', 'sheet');
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'task');
     await expect(page.locator('[data-desk-context-rail][data-depth="tool"]')).toContainText('Generate');
     await expect(page.locator('[data-scene-artifact="scale-card-1"]')).toHaveAttribute('data-scene-depth', 'board');
     await expect(page.locator('[class*="mobileNav"]')).toBeHidden();
@@ -133,8 +135,8 @@ test.describe('mobile Desk controls', () => {
         page.locator('main[data-scroll="contained"]').boundingBox(),
       ]);
       if (!toolPanel || !primary) return false;
-      return toolPanel.y >= primary.y + 80
-        && toolPanel.y + toolPanel.height <= primary.y + primary.height + 1;
+      return Math.abs(toolPanel.y - primary.y) <= 1
+        && Math.abs(toolPanel.height - primary.height) <= 1;
     }).toBe(true);
 
     await page.locator('[data-desk-context-rail][data-depth="tool"]').getByRole('button', { name: 'Done' }).tap();
@@ -155,9 +157,14 @@ test.describe('mobile Desk controls', () => {
     await page.locator('button[data-artifact-id="scale-card-1"]').focus();
     await page.keyboard.press('Enter');
     await expect(visual).toHaveAttribute('data-scene-depth', 'focus');
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'focus');
     await expectTouchTarget(page.getByRole('button', { name: 'Back to Set', exact: true }));
     await expectTouchTarget(home);
     await test.info().attach('first-use-artifact-navigation', { body: await page.screenshot(), contentType: 'image/png' });
+    await page.getByRole('button', { name: 'Edit', exact: true }).tap();
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'edit');
+    await page.getByRole('button', { name: 'Done', exact: true }).press('Enter');
+    await expect(page.locator('[aria-label="CardForge Desk"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'focus');
     await home.tap();
     await expect(visual).toHaveAttribute('data-scene-depth', 'stack');
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
@@ -169,7 +176,7 @@ test.describe('mobile Desk controls', () => {
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await setButton.tap();
-    await page.getByRole('button', { name: 'Open', exact: true }).tap();
+    await setButton.press('Enter');
     await page.getByRole('button', { name: 'Design', exact: true }).tap();
 
     const editorTools = page.getByRole('button', { name: 'Open editor tools', exact: true });
@@ -199,7 +206,7 @@ test.describe('mobile Desk controls', () => {
     await rail.getByRole('button', { name: 'Review & close' }).tap();
     await expect(page.getByRole('alertdialog', { name: 'Close Design with unsaved changes?' })).toBeVisible();
     await page.getByRole('button', { name: 'Keep editing' }).tap();
-    await expect(page.getByRole('region', { name: 'Design Artifacts' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Design', exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 844 });
     const home = rail.getByRole('button', { name: 'Return to Desk', exact: true });
     await expectTouchTarget(home);
@@ -225,7 +232,7 @@ test.describe('desktop Desk return', () => {
   test('@golden keeps the Desk camera, search, selection, and artifact node when its zone link is activated', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-    const search = page.getByRole('textbox', { name: 'Search open work', exact: true });
+    const search = page.getByRole('textbox', { name: 'Search Desk work', exact: true });
     await search.fill('100');
     await page.getByRole('button', { name: 'Zoom Desk in', exact: true }).click();
     const viewport = page.locator('[data-desk-viewport]');

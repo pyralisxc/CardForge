@@ -17,6 +17,7 @@ import {
   ENVIRONMENT_ZONES,
   createActionDefinition,
   createActionRuntime,
+  deriveEnvironmentPresentation,
   getVisibleEnvironmentZones,
   type ActionDescriptor,
   type EnvironmentSettingRecord,
@@ -220,6 +221,10 @@ export function AccountProfileEnvironment({
       zones={zones}
       activeZone="profile"
       viewportPolicy="flow"
+      presentation={deriveEnvironmentPresentation({
+        focusDepth: activeUtility ? 'tool' : 'zone',
+        activity: activeUtility ? 'task' : 'none',
+      })}
       detail={null}
       actions={actions}
       accountControl={<PublicAuthControls />}
