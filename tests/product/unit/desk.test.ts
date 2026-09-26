@@ -264,7 +264,7 @@ describe('Desk model', () => {
     expect(movedFar).toEqual({
       'set:edge': { x: 5_100, y: 5_100, z: 3 },
     });
-    expect(getDeskWorldSize([{ id: 'set:edge', ...movedFar['set:edge']!, width: 200, height: 240 }])).toEqual({
+    expect(getDeskWorldSize([{ ...movedFar['set:edge']!, width: 200, height: 240 }])).toEqual({
       width: 5_332,
       height: 5_372,
     });
