@@ -31,6 +31,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
   const userTemplates = useProjectStore((state) => state.userTemplates);
   const createCardSet = useProjectStore((state) => state.createCardSet);
+  const closeEditDialog = useProjectStore((state) => state.closeEditDialog);
   const setActiveCardSetId = useProjectStore((state) => state.setActiveCardSetId);
   const renameCardSet = useProjectStore((state) => state.renameCardSet);
   const duplicateCardSet = useProjectStore((state) => state.duplicateCardSet);
@@ -39,6 +40,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const reorderGeneratedCard = useProjectStore((state) => state.reorderGeneratedCard);
   const addGeneratedCards = useProjectStore((state) => state.addGeneratedCards);
   const removeGeneratedCards = useProjectStore((state) => state.removeGeneratedCards);
+  const updateGeneratedCard = useProjectStore((state) => state.updateGeneratedCard);
   const reviseGeneratedCards = useProjectStore((state) => state.reviseGeneratedCards);
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
   const generatorSelectedTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
@@ -129,10 +131,10 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
 
   return {
     actions: {
-      addCardSetTag, addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
+      addCardSetTag, addGeneratedCards, closeEditDialog, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
       removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
       setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId,
-      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateCardSetMetadata, updateCardSetOrganization,
+      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateGeneratedCard, updateCardSetMetadata, updateCardSetOrganization,
     },
     state: {
       activeCardSet, activeCardSetId, allArtifactsSelected: focusedCards.length > 0 && focusedCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),

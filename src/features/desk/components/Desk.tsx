@@ -35,7 +35,6 @@ import {
   useBrowserStoragePersistence,
   useBrowserWorkspaceSaveStatus,
 } from '@/features/project/client/ui';
-import { useProjectStore } from '@/features/project/client/workspace';
 import {
   getAccountLibraryWorkPreview,
   WorkLocationDialog,
@@ -175,6 +174,7 @@ export function Desk({
     cardQuery,
     cardStageRef,
     closeRemoteWorkspace,
+    closeEditDialog,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -261,6 +261,7 @@ export function Desk({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
+    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
@@ -299,6 +300,7 @@ export function Desk({
     templates,
     togglePin,
     updateOrganization,
+    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
@@ -351,7 +353,6 @@ export function Desk({
   const designCard = (card: DisplayCard, face: CardFace = 'front') => {
     const template = face === 'back' ? card.backingTemplate : card.template;
     if (!template?.id || !focusedLocalSetId) return;
-    const project = useProjectStore.getState();
     const selected = selectedCards.some((candidate) => candidate.uniqueId === card.uniqueId) ? selectedCards : [card];
     const compatibleSelection = selected.every((candidate) => (
       face === 'back' ? candidate.backingTemplate?.id === template.id : candidate.template.id === template.id
@@ -363,8 +364,8 @@ export function Desk({
         description: 'The selection uses different Templates, so this Design scope starts with the focused Artifact only. Edit one design group at a time to avoid changing unrelated layouts.',
       });
     }
-    project.closeEditDialog();
-    project.setTemplateEditorSelectedTemplateId(template.id);
+    closeEditDialog();
+    setTemplateEditorSelectedTemplateId(template.id);
     setDesignIntent({ kind: 'artifact-design', artifactIds, face });
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
@@ -605,7 +606,7 @@ export function Desk({
               editingArtifactId={artifactEditId}
               onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
               onArtifactEditDirtyChange={setArtifactEditDirty}
-              onSaveArtifact={(card) => { useProjectStore.getState().updateGeneratedCard(card); finishArtifactEdit(); }}
+              onSaveArtifact={(card) => { updateGeneratedCard(card); finishArtifactEdit(); }}
               onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={openSelectedRevision}

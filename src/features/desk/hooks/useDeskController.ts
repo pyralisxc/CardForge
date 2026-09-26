@@ -263,9 +263,9 @@ export function useDeskController({
     moveTargetId,
   });
   const {
-    addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
+    addGeneratedCards, closeEditDialog, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
-    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision,
+    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateGeneratedCard,
     updateCardSetMetadata,
   } = projectActions;
   const {
@@ -653,6 +653,7 @@ export function useDeskController({
     cardQuery,
     cardStageRef,
     closeRemoteWorkspace: () => setRemoteWorkspaceId(null),
+    closeEditDialog,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -729,6 +730,7 @@ export function useDeskController({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
+    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
@@ -770,6 +772,7 @@ export function useDeskController({
     tagFilter,
     templates,
     togglePin,
+    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
