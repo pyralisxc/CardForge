@@ -14,7 +14,15 @@ import {
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
 import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
-import { projectClientPointToSpatialWorld, useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
+import {
+  getSpatialAnchoredZoomTarget,
+  getSpatialCenteredScroll,
+  getSpatialViewportGeometry,
+  projectClientPointToSpatialWorld,
+  projectSpatialScrollToWorldOrigin,
+  useSpatialGestures,
+  type SpatialPoint,
+} from '@/components/ui/spatial-viewport';
 
 import {
   buildFocusedArtifactLayout,
@@ -153,8 +161,13 @@ export function FocusedSetArtifactSurface({
   const relativeZoom = session.camera.zoom / fitZoom;
   const scaledWorldWidth = layout.width * session.camera.zoom;
   const scaledWorldHeight = layout.height * session.camera.zoom;
-  const worldOffsetX = Math.max(0, (viewportSize.width - scaledWorldWidth) / 2);
-  const worldOffsetY = Math.max(0, (viewportSize.height - scaledWorldHeight) / 2);
+  const cameraGeometry = useMemo(() => getSpatialViewportGeometry({
+    viewport: viewportSize,
+    world: { width: layout.width, height: layout.height },
+    zoom: session.camera.zoom,
+  }), [layout.height, layout.width, session.camera.zoom, viewportSize]);
+  const worldOffsetX = cameraGeometry.offsetX;
+  const worldOffsetY = cameraGeometry.offsetY;
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
   const workFrame = useMemo(() => getFocusedArtifactFrame({
     layout,
@@ -226,8 +239,11 @@ export function FocusedSetArtifactSurface({
       : effectiveMode === 'fit-selection'
         ? selectionFrame
         : workFrame;
-    const offsetX = Math.max(0, (viewportSize.width - layout.width * frame.zoom) / 2);
-    const offsetY = Math.max(0, (viewportSize.height - layout.height * frame.zoom) / 2);
+    const geometry = getSpatialViewportGeometry({
+      viewport: viewportSize,
+      world: { width: layout.width, height: layout.height },
+      zoom: frame.zoom,
+    });
     cameraModeRef.current = effectiveMode;
     setCameraMode(effectiveMode);
     relativeZoomRef.current = frame.zoom / fitZoom;
@@ -239,9 +255,13 @@ export function FocusedSetArtifactSurface({
         : setCreatorCamera(current, frame)
     ));
     suppressCameraScrollRef.current = true;
-    viewport.scrollTo({ left: frame.x * frame.zoom + offsetX, top: frame.y * frame.zoom + offsetY, behavior });
+    viewport.scrollTo({
+      left: frame.x * frame.zoom + geometry.offsetX,
+      top: frame.y * frame.zoom + geometry.offsetY,
+      behavior,
+    });
     requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize.height, viewportSize.width, visibleSelectionEntries.length, workFrame]);
+  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -263,14 +283,19 @@ export function FocusedSetArtifactSurface({
       setSession((current) => setCreatorCamera(current, { ...current.camera, zoom: customZoom }));
       return;
     }
+    const geometry = getSpatialViewportGeometry({
+      viewport: viewportSize,
+      world: { width: layout.width, height: layout.height },
+      zoom: customZoom,
+    });
     viewport.scrollTo({
-      left: session.camera.x * customZoom + worldOffsetX,
-      top: session.camera.y * customZoom + worldOffsetY,
+      left: session.camera.x * customZoom + geometry.offsetX,
+      top: session.camera.y * customZoom + geometry.offsetY,
       behavior: 'auto',
     });
     // Scroll is the camera's physical owner. Do not write each scroll event back
     // into the viewport: that fights trackpad/touch scrolling between renders.
-  }, [artifactFocusId, fitZoom, session.camera.x, session.camera.y, session.camera.zoom, setId, setSemanticCamera, setSession, worldOffsetX, worldOffsetY]);
+  }, [artifactFocusId, fitZoom, layout.height, layout.width, session.camera.x, session.camera.y, session.camera.zoom, setId, setSemanticCamera, setSession, viewportSize]);
 
   useEffect(() => {
     const previousArtifactFocusId = previousArtifactFocusIdRef.current;
@@ -488,19 +513,24 @@ export function FocusedSetArtifactSurface({
     const rect = node.getBoundingClientRect();
     const local = point ? { x: point.clientX - rect.left, y: point.clientY - rect.top } : { x: node.clientWidth / 2, y: node.clientHeight / 2 };
     const previous = previousPoint ? { x: previousPoint.clientX - rect.left, y: previousPoint.clientY - rect.top } : local;
-    const worldX = (node.scrollLeft + previous.x - worldOffsetX) / session.camera.zoom;
-    const worldY = (node.scrollTop + previous.y - worldOffsetY) / session.camera.zoom;
-    const nextOffsetX = Math.max(0, (viewportSize.width - layout.width * normalized) / 2);
-    const nextOffsetY = Math.max(0, (viewportSize.height - layout.height * normalized) / 2);
-    const scrollLeft = worldX * normalized + nextOffsetX - local.x;
-    const scrollTop = worldY * normalized + nextOffsetY - local.y;
-    const x = Math.max(0, (scrollLeft - nextOffsetX) / normalized);
-    const y = Math.max(0, (scrollTop - nextOffsetY) / normalized);
+    const nextGeometry = getSpatialViewportGeometry({
+      viewport: viewportSize,
+      world: { width: layout.width, height: layout.height },
+      zoom: normalized,
+    });
+    const target = getSpatialAnchoredZoomTarget({
+      scroll: { left: node.scrollLeft, top: node.scrollTop },
+      viewport: viewportSize,
+      currentGeometry: cameraGeometry,
+      nextGeometry,
+      focalPoint: local,
+      previousFocalPoint: previous,
+    });
     cameraModeRef.current = nearlyEqual(normalized, fitZoom) ? 'whole' : 'custom';
     setCameraMode(cameraModeRef.current);
     relativeZoomRef.current = normalized / fitZoom;
-    if (normalized === session.camera.zoom) node.scrollTo({ left: Math.max(0, scrollLeft), top: Math.max(0, scrollTop) });
-    setSession((current) => setCreatorCamera(current, { x, y, zoom: normalized }));
+    if (normalized === session.camera.zoom) node.scrollTo(target.scroll);
+    setSession((current) => setCreatorCamera(current, { ...target.worldOrigin, zoom: normalized }));
   };
   const gestures = useSpatialGestures({ viewportRef, zoom: session.camera.zoom, changeZoom: setZoom, disabled: Boolean(artifactFocusId), cancelDrag: () => {
     dragRef.current = null;
@@ -524,13 +554,17 @@ export function FocusedSetArtifactSurface({
     const bounds = event.currentTarget.getBoundingClientRect();
     const x = Math.max(0, Math.min(layout.width, (event.clientX - bounds.left) / Math.max(1, bounds.width) * layout.width));
     const y = Math.max(0, Math.min(layout.height, (event.clientY - bounds.top) / Math.max(1, bounds.height) * layout.height));
+    const scroll = getSpatialCenteredScroll({
+      point: { x, y },
+      viewport: viewportSize,
+      geometry: cameraGeometry,
+    });
     const camera = {
-      x: Math.max(0, Math.min(Math.max(0, layout.width - viewportSize.width / session.camera.zoom), x - viewportSize.width / session.camera.zoom / 2)),
-      y: Math.max(0, Math.min(Math.max(0, layout.height - viewportSize.height / session.camera.zoom), y - viewportSize.height / session.camera.zoom / 2)),
+      ...projectSpatialScrollToWorldOrigin(scroll, cameraGeometry),
       zoom: session.camera.zoom,
     };
     setSession((current) => setCreatorCamera(current, camera));
-    node.scrollTo({ left: camera.x * camera.zoom + worldOffsetX, top: camera.y * camera.zoom + worldOffsetY });
+    node.scrollTo(scroll);
   };
   const selectionRect = (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = marqueeRef.current?.start;
@@ -595,10 +629,13 @@ export function FocusedSetArtifactSurface({
           setCameraMode('custom');
           relativeZoomRef.current = session.camera.zoom / fitZoom;
           const viewport = event.currentTarget;
+          const origin = projectSpatialScrollToWorldOrigin({
+            left: viewport.scrollLeft,
+            top: viewport.scrollTop,
+          }, cameraGeometry);
           setSession((current) => setCreatorCamera(current, {
             ...current.camera,
-            x: Math.max(0, (viewport.scrollLeft - worldOffsetX) / current.camera.zoom),
-            y: Math.max(0, (viewport.scrollTop - worldOffsetY) / current.camera.zoom),
+            ...origin,
           }));
         }}
       >
