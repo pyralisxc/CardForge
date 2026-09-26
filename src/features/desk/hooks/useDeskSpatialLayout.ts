@@ -14,10 +14,10 @@ import { projectClientPointToSpatialWorld } from '@/components/ui/spatial-viewpo
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
-  DESK_SURFACE_WIDTH,
   getDefaultDeskWorldPosition,
   getDeskMarqueeSelection,
   getDeskWorldBounds,
+  getDeskWorldSize,
   moveDeskWorldSelection,
   normalizeDeskWorldGeometry,
   type DeskRect,
@@ -105,13 +105,19 @@ export function useDeskSpatialLayout({
     id,
     storedPositions[id] ?? getDefaultDeskWorldPosition(index),
   ])), [itemIds, storedPositions]);
-  const workBounds = useMemo(() => getDeskWorldBounds(framingItems), [framingItems]);
+  const worldItems = useMemo(() => framingItems.map((item) => ({
+    ...item,
+    ...(positions[item.id] ?? {}),
+  })), [framingItems, positions]);
+  const worldSize = useMemo(() => getDeskWorldSize(worldItems), [worldItems]);
+  const workBounds = useMemo(() => getDeskWorldBounds(worldItems), [worldItems]);
   const selectionBounds = useMemo(() => getDeskWorldBounds(
-    framingItems.filter((item) => selectedIds.includes(item.id)),
-  ), [framingItems, selectedIds]);
+    worldItems.filter((item) => selectedIds.includes(item.id)),
+  ), [selectedIds, worldItems]);
   const camera = useDeskCamera({
     focused,
     hasItems: visibleItemIds.length > 0,
+    worldSize,
     workBounds,
     selectionBounds,
     viewportRef: workGridRef,
@@ -127,7 +133,7 @@ export function useDeskSpatialLayout({
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
     const measureVisibleWork = () => {
       const bounds = world.getBoundingClientRect();
-      const scale = Math.max(Number.EPSILON, bounds.width / DESK_SURFACE_WIDTH);
+      const scale = Math.max(Number.EPSILON, bounds.width / Math.max(1, worldSize.width));
       const next = collectDeskWorldItems({
         tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
         bounds,
@@ -152,7 +158,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [focused, itemKey, positions, positionsWritable, visibleItemKey]);
+  }, [focused, itemKey, positions, positionsWritable, visibleItemKey, worldSize.height, worldSize.width]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];
@@ -319,5 +325,6 @@ export function useDeskSpatialLayout({
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,
+    worldSize,
   };
 }

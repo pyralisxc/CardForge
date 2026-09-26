@@ -203,6 +203,7 @@ export function useDeskController({
     visibleWork,
     workGridRef,
     workWorldRef,
+    worldSize: deskWorldSize,
   } = useDeskLayout({
     persistenceScope,
     workItems,
@@ -784,6 +785,7 @@ export function useDeskController({
     workCards,
     workGridRef,
     workWorldRef,
+    deskWorldSize,
     workItems,
     workTemplate,
     zones,

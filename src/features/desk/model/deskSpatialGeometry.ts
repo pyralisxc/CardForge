@@ -1,11 +1,12 @@
 /**
- * One canonical bounded Desk field. Placement, persistence, camera projection,
- * marquee selection, and framing all use this same coordinate extent so users
- * never see camera space that cannot also hold authored work.
+ * Desk uses the same elastic-world principle as focused Set layout: authored
+ * objects define the usable extent. The minimum keeps an empty/small Desk
+ * comfortable; dragging work farther right/down grows the world, and moving it
+ * inward removes unused space again.
  */
-export const DESK_SURFACE_WIDTH = 1520;
-export const DESK_SURFACE_HEIGHT = 1140;
-export const DESK_MAX_RELATIVE_ZOOM = 8;
+export const DESK_MIN_WORLD_WIDTH = 960;
+export const DESK_MIN_WORLD_HEIGHT = 640;
+export const DESK_WORLD_PADDING = 32;
 export const DESK_FRAME_PADDING = 44;
 
 export interface DeskWorldPosition {
@@ -20,6 +21,11 @@ export interface DeskWorldGeometry {
 }
 
 export interface DeskViewport {
+  width: number;
+  height: number;
+}
+
+export interface DeskWorldSize {
   width: number;
   height: number;
 }
@@ -62,8 +68,8 @@ export const normalizeDeskWorldPosition = (value: unknown, fallbackZ = 0): DeskW
   const candidate = value as Partial<DeskWorldPosition>;
   if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return null;
   return {
-    x: clamp(Math.round(finite(candidate.x)), 0, DESK_SURFACE_WIDTH),
-    y: clamp(Math.round(finite(candidate.y)), 0, DESK_SURFACE_HEIGHT),
+    x: Math.max(0, Math.round(finite(candidate.x))),
+    y: Math.max(0, Math.round(finite(candidate.y))),
     z: clamp(Math.round(finite(candidate.z, fallbackZ)), 0, 10_000),
   };
 };
@@ -86,28 +92,30 @@ export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry =>
   return { version: 2, positions };
 };
 
-export const getDeskWorldProjection = (viewport: DeskViewport) => {
+export const getDeskWorldProjection = (viewport: DeskViewport, world: DeskWorldSize) => {
   const width = Math.max(1, viewport.width);
   const height = Math.max(1, viewport.height);
-  const scale = Math.min(width / DESK_SURFACE_WIDTH, height / DESK_SURFACE_HEIGHT);
-  const offsetX = Math.max(0, (width - DESK_SURFACE_WIDTH * scale) / 2);
-  const offsetY = Math.max(0, (height - DESK_SURFACE_HEIGHT * scale) / 2);
+  const worldWidth = Math.max(1, world.width);
+  const worldHeight = Math.max(1, world.height);
+  const scale = Math.max(Number.EPSILON, Math.min(1, width / worldWidth, height / worldHeight));
+  const offsetX = Math.max(0, (width - worldWidth * scale) / 2);
+  const offsetY = Math.max(0, (height - worldHeight * scale) / 2);
   return { scale, offsetX, offsetY };
 };
 
 /**
- * The Desk has one bounded world. Whole is its minimum useful camera scale:
- * the complete Desk is visible and panning is unnecessary. Semantic fits and
- * Custom zoom move only inward from that floor, so there is no off-Desk area.
+ * Whole Desk is the complete current authored world, matching focused Set
+ * behavior. The camera never zooms below that fit and has the same bounded
+ * close-work ceiling as Set view.
  */
-export const getDeskCameraGeometry = (viewport: DeskViewport, requestedZoom: number) => {
+export const getDeskCameraGeometry = (viewport: DeskViewport, world: DeskWorldSize, requestedZoom: number) => {
   const width = Math.max(1, viewport.width);
   const height = Math.max(1, viewport.height);
-  const projection = getDeskWorldProjection(viewport);
+  const projection = getDeskWorldProjection(viewport, world);
   const fitZoom = Math.max(Number.EPSILON, projection.scale);
-  const zoom = clamp(requestedZoom, fitZoom, fitZoom * DESK_MAX_RELATIVE_ZOOM);
-  const worldWidth = DESK_SURFACE_WIDTH * zoom;
-  const worldHeight = DESK_SURFACE_HEIGHT * zoom;
+  const zoom = clamp(requestedZoom, fitZoom, Math.max(2, fitZoom * 3));
+  const worldWidth = Math.max(1, world.width) * zoom;
+  const worldHeight = Math.max(1, world.height) * zoom;
   return {
     zoom,
     fitZoom,
@@ -138,6 +146,33 @@ export const getDeskWorldBounds = (items: readonly Pick<DeskWorldItemRect, 'x' |
   };
 };
 
+/** Derives the Desk world from the current authored Set extents, like Set view. */
+export const getDeskWorldSize = (
+  items: readonly Pick<DeskWorldItemRect, 'x' | 'y' | 'width' | 'height'>[],
+  minimum: DeskWorldSize = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
+  padding = DESK_WORLD_PADDING,
+): DeskWorldSize => {
+  const valid = items.filter((item) => (
+    Number.isFinite(item.x)
+    && Number.isFinite(item.y)
+    && Number.isFinite(item.width)
+    && Number.isFinite(item.height)
+    && item.width > 0
+    && item.height > 0
+  ));
+  const safePadding = Math.max(0, finite(padding, DESK_WORLD_PADDING));
+  return {
+    width: Math.max(
+      Math.max(1, minimum.width),
+      ...valid.map((item) => item.x + item.width + safePadding),
+    ),
+    height: Math.max(
+      Math.max(1, minimum.height),
+      ...valid.map((item) => item.y + item.height + safePadding),
+    ),
+  };
+};
+
 /**
  * Frames a content slice inside the stable Desk world. This is camera-only:
  * the target is derived from authored bounds and never normalizes or rewrites
@@ -145,14 +180,16 @@ export const getDeskWorldBounds = (items: readonly Pick<DeskWorldItemRect, 'x' |
  */
 export const getDeskFramingTarget = ({
   viewport,
+  world,
   bounds,
   padding = DESK_FRAME_PADDING,
 }: {
   viewport: DeskViewport;
+  world: DeskWorldSize;
   bounds: DeskRect | null;
   padding?: number;
 }): DeskFramingTarget => {
-  const whole = getDeskCameraGeometry(viewport, 0);
+  const whole = getDeskCameraGeometry(viewport, world, 0);
   if (!bounds) return { geometry: whole, scroll: { left: 0, top: 0 } };
   const targetWidth = Math.max(1, bounds.right - bounds.left);
   const targetHeight = Math.max(1, bounds.bottom - bounds.top);
@@ -161,7 +198,7 @@ export const getDeskFramingTarget = ({
     Math.max(1, viewport.width - safePadding * 2) / targetWidth,
     Math.max(1, viewport.height - safePadding * 2) / targetHeight,
   );
-  const geometry = getDeskCameraGeometry(viewport, requestedZoom);
+  const geometry = getDeskCameraGeometry(viewport, world, requestedZoom);
   const centerX = (bounds.left + bounds.right) / 2;
   const centerY = (bounds.top + bounds.bottom) / 2;
   return {
@@ -202,18 +239,9 @@ export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition =>
   const slot = DEFAULT_DESK_SLOTS[safeIndex % DEFAULT_DESK_SLOTS.length]!;
   const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
   return {
-    x: clamp(slot.x + pile * 18, 0, DESK_SURFACE_WIDTH),
-    y: clamp(slot.y + pile * 16, 0, DESK_SURFACE_HEIGHT),
+    x: Math.max(0, slot.x + pile * 18),
+    y: Math.max(0, slot.y + pile * 16),
     z: safeIndex,
-  };
-};
-
-export const projectDeskWorldPosition = (position: DeskWorldPosition, viewport: DeskViewport) => {
-  const projection = getDeskWorldProjection(viewport);
-  return {
-    x: Math.round(projection.offsetX + position.x * projection.scale),
-    y: Math.round(projection.offsetY + position.y * projection.scale),
-    z: position.z,
   };
 };
 
@@ -257,11 +285,9 @@ export const moveDeskWorldSelection = ({
   if (selected.length === 0) return {};
   const minimumX = Math.min(...selected.map((item) => item.x));
   const minimumY = Math.min(...selected.map((item) => item.y));
-  const maximumX = Math.max(...selected.map((item) => item.x + item.width));
-  const maximumY = Math.max(...selected.map((item) => item.y + item.height));
   const place = (value: number) => Math.round(value / Math.max(1, snap)) * Math.max(1, snap);
-  const dx = clamp(place(delta.x), -minimumX, DESK_SURFACE_WIDTH - maximumX);
-  const dy = clamp(place(delta.y), -minimumY, DESK_SURFACE_HEIGHT - maximumY);
+  const dx = Math.max(place(delta.x), -minimumX);
+  const dy = Math.max(place(delta.y), -minimumY);
   return Object.fromEntries(selected.map((item) => [item.id, {
     x: Math.round(item.x + dx),
     y: Math.round(item.y + dy),
