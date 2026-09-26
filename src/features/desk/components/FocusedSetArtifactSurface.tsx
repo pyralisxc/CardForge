@@ -261,7 +261,7 @@ export function FocusedSetArtifactSurface({
       behavior,
     });
     requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize.height, viewportSize.width, visibleSelectionEntries.length, workFrame]);
+  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
