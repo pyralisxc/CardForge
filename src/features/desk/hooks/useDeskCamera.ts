@@ -10,7 +10,12 @@ import {
   type RefObject,
   type UIEvent as ReactUIEvent,
 } from 'react';
-import { useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
+import {
+  getSpatialAnchoredZoomTarget,
+  getSpatialCenteredScroll,
+  useSpatialGestures,
+  type SpatialPoint,
+} from '@/components/ui/spatial-viewport';
 
 import {
   DESK_SURFACE_HEIGHT,
@@ -36,9 +41,6 @@ export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<t
   onScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
 };
 
-const clampScroll = (value: number, surface: number, viewport: number) => (
-  Math.max(0, Math.min(Math.max(0, surface - viewport), value))
-);
 
 export function useDeskCamera({
   focused,
@@ -123,14 +125,14 @@ export function useDeskCamera({
 
       if (cameraModeRef.current === 'custom') {
         nextGeometry = getDeskCameraGeometry(next, nextGeometry.fitZoom * previousGeometry.relativeZoom);
-        const worldCenter = {
-          x: (grid.scrollLeft + previous.width / 2 - previousGeometry.offsetX) / previousGeometry.zoom,
-          y: (grid.scrollTop + previous.height / 2 - previousGeometry.offsetY) / previousGeometry.zoom,
-        };
-        target = {
-          left: clampScroll(worldCenter.x * nextGeometry.zoom + nextGeometry.offsetX - next.width / 2, nextGeometry.surfaceWidth, next.width),
-          top: clampScroll(worldCenter.y * nextGeometry.zoom + nextGeometry.offsetY - next.height / 2, nextGeometry.surfaceHeight, next.height),
-        };
+        target = getSpatialAnchoredZoomTarget({
+          scroll: { left: grid.scrollLeft, top: grid.scrollTop },
+          viewport: next,
+          currentGeometry: previousGeometry,
+          nextGeometry,
+          focalPoint: { x: next.width / 2, y: next.height / 2 },
+          previousFocalPoint: { x: previous.width / 2, y: previous.height / 2 },
+        }).scroll;
       } else {
         const semantic = getSemanticTarget(cameraModeRef.current, next);
         nextGeometry = semantic.geometry;
@@ -184,14 +186,16 @@ export function useDeskCamera({
     const previousLocalPoint = previousPoint
       ? { x: previousPoint.clientX - bounds.left, y: previousPoint.clientY - bounds.top }
       : localPoint;
-    const worldPoint = {
-      x: (grid.scrollLeft + previousLocalPoint.x - currentGeometry.offsetX) / currentGeometry.zoom,
-      y: (grid.scrollTop + previousLocalPoint.y - currentGeometry.offsetY) / currentGeometry.zoom,
-    };
-    const target = nextGeometry.relativeZoom <= 1.0001 ? { left: 0, top: 0 } : {
-      left: clampScroll(worldPoint.x * nextGeometry.zoom + nextGeometry.offsetX - localPoint.x, nextGeometry.surfaceWidth, currentViewport.width),
-      top: clampScroll(worldPoint.y * nextGeometry.zoom + nextGeometry.offsetY - localPoint.y, nextGeometry.surfaceHeight, currentViewport.height),
-    };
+    const target = nextGeometry.relativeZoom <= 1.0001
+      ? { left: 0, top: 0 }
+      : getSpatialAnchoredZoomTarget({
+          scroll: { left: grid.scrollLeft, top: grid.scrollTop },
+          viewport: currentViewport,
+          currentGeometry,
+          nextGeometry,
+          focalPoint: localPoint,
+          previousFocalPoint: previousLocalPoint,
+        }).scroll;
 
     const nextMode = nextGeometry.relativeZoom <= 1.0001 ? 'whole' : 'custom';
     cameraModeRef.current = nextMode;
@@ -216,10 +220,11 @@ export function useDeskCamera({
     const grid = viewportRef.current;
     if (!grid) return;
     const current = getDeskCameraGeometry(viewportStateRef.current, zoomRef.current);
-    const target = {
-      left: clampScroll(point.x * current.zoom + current.offsetX - viewportStateRef.current.width / 2, current.surfaceWidth, viewportStateRef.current.width),
-      top: clampScroll(point.y * current.zoom + current.offsetY - viewportStateRef.current.height / 2, current.surfaceHeight, viewportStateRef.current.height),
-    };
+    const target = getSpatialCenteredScroll({
+      point,
+      viewport: viewportStateRef.current,
+      geometry: current,
+    });
     enterCustom();
     scrollProgrammatically(grid, target);
   }, [enterCustom, scrollProgrammatically, viewportRef]);

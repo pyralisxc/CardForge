@@ -12,6 +12,123 @@ export interface SpatialViewportProjection {
   offsetY?: number;
 }
 
+export interface SpatialViewportSize {
+  width: number;
+  height: number;
+}
+
+export interface SpatialWorldSize {
+  width: number;
+  height: number;
+}
+
+export interface SpatialScrollPosition {
+  left: number;
+  top: number;
+}
+
+export interface SpatialViewportGeometry {
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+  surfaceWidth: number;
+  surfaceHeight: number;
+}
+
+export const clampSpatialScroll = (value: number, surface: number, viewport: number) => (
+  Math.max(0, Math.min(Math.max(0, surface - viewport), value))
+);
+
+export const getSpatialViewportGeometry = ({
+  viewport,
+  world,
+  zoom,
+}: {
+  viewport: SpatialViewportSize;
+  world: SpatialWorldSize;
+  zoom: number;
+}): SpatialViewportGeometry => {
+  const safeZoom = Math.max(Number.EPSILON, zoom);
+  const scaledWidth = Math.max(1, world.width) * safeZoom;
+  const scaledHeight = Math.max(1, world.height) * safeZoom;
+  return {
+    zoom: safeZoom,
+    offsetX: Math.max(0, (Math.max(1, viewport.width) - scaledWidth) / 2),
+    offsetY: Math.max(0, (Math.max(1, viewport.height) - scaledHeight) / 2),
+    surfaceWidth: Math.max(Math.max(1, viewport.width), scaledWidth),
+    surfaceHeight: Math.max(Math.max(1, viewport.height), scaledHeight),
+  };
+};
+
+export const projectSpatialScrollToWorldOrigin = (
+  scroll: SpatialScrollPosition,
+  geometry: SpatialViewportGeometry,
+) => ({
+  x: Math.max(0, (scroll.left - geometry.offsetX) / Math.max(Number.EPSILON, geometry.zoom)),
+  y: Math.max(0, (scroll.top - geometry.offsetY) / Math.max(Number.EPSILON, geometry.zoom)),
+});
+
+export const getSpatialCenteredScroll = ({
+  point,
+  viewport,
+  geometry,
+}: {
+  point: { x: number; y: number };
+  viewport: SpatialViewportSize;
+  geometry: SpatialViewportGeometry;
+}): SpatialScrollPosition => ({
+  left: clampSpatialScroll(
+    point.x * geometry.zoom + geometry.offsetX - viewport.width / 2,
+    geometry.surfaceWidth,
+    viewport.width,
+  ),
+  top: clampSpatialScroll(
+    point.y * geometry.zoom + geometry.offsetY - viewport.height / 2,
+    geometry.surfaceHeight,
+    viewport.height,
+  ),
+});
+
+export const getSpatialAnchoredZoomTarget = ({
+  scroll,
+  viewport,
+  currentGeometry,
+  nextGeometry,
+  focalPoint,
+  previousFocalPoint = focalPoint,
+}: {
+  scroll: SpatialScrollPosition;
+  viewport: SpatialViewportSize;
+  currentGeometry: SpatialViewportGeometry;
+  nextGeometry: SpatialViewportGeometry;
+  focalPoint?: { x: number; y: number };
+  previousFocalPoint?: { x: number; y: number };
+}) => {
+  const local = focalPoint ?? { x: viewport.width / 2, y: viewport.height / 2 };
+  const previous = previousFocalPoint ?? local;
+  const worldPoint = {
+    x: (scroll.left + previous.x - currentGeometry.offsetX) / Math.max(Number.EPSILON, currentGeometry.zoom),
+    y: (scroll.top + previous.y - currentGeometry.offsetY) / Math.max(Number.EPSILON, currentGeometry.zoom),
+  };
+  const nextScroll = {
+    left: clampSpatialScroll(
+      worldPoint.x * nextGeometry.zoom + nextGeometry.offsetX - local.x,
+      nextGeometry.surfaceWidth,
+      viewport.width,
+    ),
+    top: clampSpatialScroll(
+      worldPoint.y * nextGeometry.zoom + nextGeometry.offsetY - local.y,
+      nextGeometry.surfaceHeight,
+      viewport.height,
+    ),
+  };
+  return {
+    worldPoint,
+    scroll: nextScroll,
+    worldOrigin: projectSpatialScrollToWorldOrigin(nextScroll, nextGeometry),
+  };
+};
+
 /** Canonical client -> world projection for creator spatial surfaces. */
 export const projectClientPointToSpatialWorld = (
   point: SpatialPoint,

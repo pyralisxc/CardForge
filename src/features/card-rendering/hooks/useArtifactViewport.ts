@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
+import { getSpatialAnchoredZoomTarget, useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
 
 interface ArtifactViewportOptions {
   aspectRatio: string | undefined;
@@ -88,10 +88,26 @@ export function useArtifactViewport({
       const width = fitWidth * next, height = width * aspect.height / aspect.width;
       const nextWorldWidth = Math.max(viewport.width, width + horizontalPadding);
       const nextWorldHeight = Math.max(viewport.height, height + verticalPadding);
-      pendingScroll.current = {
-        left: Math.max(0, (node.scrollLeft + previous.x - (worldWidth - visualWidth) / 2) / zoom * next + (nextWorldWidth - width) / 2 - local.x),
-        top: Math.max(0, (node.scrollTop + previous.y - (worldHeight - visualHeight) / 2) / zoom * next + (nextWorldHeight - height) / 2 - local.y),
-      };
+      pendingScroll.current = getSpatialAnchoredZoomTarget({
+        scroll: { left: node.scrollLeft, top: node.scrollTop },
+        viewport,
+        currentGeometry: {
+          zoom,
+          offsetX: (worldWidth - visualWidth) / 2,
+          offsetY: (worldHeight - visualHeight) / 2,
+          surfaceWidth: worldWidth,
+          surfaceHeight: worldHeight,
+        },
+        nextGeometry: {
+          zoom: next,
+          offsetX: (nextWorldWidth - width) / 2,
+          offsetY: (nextWorldHeight - height) / 2,
+          surfaceWidth: nextWorldWidth,
+          surfaceHeight: nextWorldHeight,
+        },
+        focalPoint: local,
+        previousFocalPoint: previous,
+      }).scroll;
       if (next === zoom) { node.scrollTo(pendingScroll.current); pendingScroll.current = null; }
     }
     setIsAutoFit(false);
