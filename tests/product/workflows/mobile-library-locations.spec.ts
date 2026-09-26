@@ -84,6 +84,12 @@ test.describe('mobile Library location tools', () => {
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+    await expect(page.locator('header').getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+
+    const deskViewport = page.locator('[data-desk-viewport]');
+    await expect(deskViewport).toBeVisible();
+    const deskBounds = await deskViewport.boundingBox();
+    expect(deskBounds?.height).toBeGreaterThan(480);
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
