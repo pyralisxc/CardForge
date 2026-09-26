@@ -8,7 +8,6 @@ import {
   Cloud,
   FileArchive,
   HardDrive,
-  Search,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -24,7 +23,6 @@ import type { DesignToolIntent, WorkbenchBusinessIdentity } from '@/features/cre
 import { markSignUpIntent } from '@/features/analytics/client/tracking';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
@@ -417,10 +415,6 @@ export function Desk({
     else if (activeTool?.toolId === 'generate') { setGenerationRevisionScopeIds([]); closeGenerate(); }
     else closeDesignContext();
   };
-  const searchValue = focusedItem ? cardQuery : query;
-  const setSearchValue = focusedItem ? setCardQuery : setQuery;
-  const searchPlaceholder = focusedItem ? 'Search cards in this Set' : 'Search Desk work';
-  const hasSearchableWork = !focusedItem || focusedCards.length > 0;
   const storageNeedsAttention = projection.failures.length > 0
     || projection.sourceStatuses.some((source) => source.phase === 'loading' || source.phase === 'incomplete' || source.phase === 'unavailable' || source.phase === 'permission-required' || source.phase === 'expired');
   const saveStatusLabel = browserSaveStatus === 'saving'
@@ -458,13 +452,8 @@ export function Desk({
         actionContext={focusedItem ? workDetailRecord(focusedItem) : null}
         actions={actions}
         accountControl={<PublicAuthControls />}
-        search={hasSearchableWork ? <label className="relative block min-w-0 w-[min(32rem,42vw)] max-w-full">
-          <span className="sr-only">{searchPlaceholder}</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--cf-text-subtle)]" aria-hidden="true" />
-          <Input ref={searchRef} value={searchValue} onChange={(event) => setSearchValue(event.target.value)} className="h-10 w-full pl-9" placeholder={searchPlaceholder} />
-        </label> : undefined}
         showPrimaryAction={!focusedItem}
-        contextBand={<DeskContextRail
+        contextBand={contextDepth === 'desk' ? undefined : <DeskContextRail
           depth={contextDepth}
           setName={focusedItem?.name}
           artifactName={focusedArtifact ? getCardTitle(focusedArtifact, selectedCardIndex) : undefined}
@@ -544,6 +533,7 @@ export function Desk({
             showGrid={showGrid}
             snapToGrid={snapToGrid}
             query={query}
+            searchRef={searchRef}
             sourceFilters={deskViewPreferences.preferences.sources}
             sourceFacets={sourceFacets}
             typeFilters={deskViewPreferences.preferences.types}

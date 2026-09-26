@@ -245,7 +245,7 @@ describe('Desk model', () => {
     expect(getDefaultDeskWorldPosition(8)).toEqual({ x: 502, y: 184, z: 8 });
   });
 
-  it('moves a Desk selection together across the full bounded world, preserving offsets', () => {
+  it('moves a Desk selection together across the full canonical surface, preserving offsets', () => {
     const items = [
       { id: 'set:one', x: 10, y: 100, z: 1, width: 200, height: 240 },
       { id: 'set:two', x: 250, y: 120, z: 2, width: 200, height: 240 },
@@ -254,6 +254,23 @@ describe('Desk model', () => {
       'set:one': { x: 0, y: 0, z: 1 },
       'set:two': { x: 240, y: 20, z: 2 },
     });
+
+    expect(moveDeskWorldSelection({
+      items: [{ id: 'set:edge', x: 100, y: 100, z: 3, width: 200, height: 240 }],
+      selectedIds: ['set:edge'],
+      delta: { x: 5_000, y: 5_000 },
+    })).toEqual({
+      'set:edge': { x: DESK_SURFACE_WIDTH - 200, y: DESK_SURFACE_HEIGHT - 240, z: 3 },
+    });
+  });
+
+  it('preserves persisted positions throughout the same full Desk surface used by the camera', () => {
+    expect(normalizeDeskWorldGeometry({
+      version: 2,
+      positions: {
+        'set:beyond-old-box': { x: 1380, y: 920, z: 4 },
+      },
+    }).positions['set:beyond-old-box']).toEqual({ x: 1380, y: 920, z: 4 });
   });
 
   it('collects the Desk object data contract used by real spatial controls', () => {
