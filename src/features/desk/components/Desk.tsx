@@ -175,6 +175,7 @@ export function Desk({
     cardStageRef,
     closeRemoteWorkspace,
     closeEditDialog,
+    commitTemplateChange,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -203,6 +204,7 @@ export function Desk({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    focusedSet,
     workingLocationStatus,
     generationCards,
     generationSet,
@@ -281,6 +283,7 @@ export function Desk({
     setTagDraft,
     setTagFilter,
     undoLastBulkRevision,
+    unreferenceTemplateFromCardSet,
     resetToDesk,
     returnToSet,
     shouldSuppressActivation,
@@ -565,6 +568,8 @@ export function Desk({
               localSetId={focusedLocalSetId}
               remoteIcon={<WorkSourceIcon item={item} />}
               focusedCards={focusedCards}
+              currentSet={focusedSet}
+              templates={templates}
               visibleCards={visibleCards}
               sortedCards={sortedCards}
               groups={organizedGroups}
@@ -592,6 +597,8 @@ export function Desk({
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
               onDesignTemplate={(templateId) => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design', templateId)}
+              onCommitTemplateChange={commitTemplateChange}
+              onUnreferenceTemplate={unreferenceTemplateFromCardSet}
               onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
               onCardQueryChange={setCardQuery}
               onOrganizationChange={updateOrganization}

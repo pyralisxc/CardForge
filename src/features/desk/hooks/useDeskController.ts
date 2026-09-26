@@ -263,14 +263,14 @@ export function useDeskController({
     moveTargetId,
   });
   const {
-    addGeneratedCards, closeEditDialog, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
+    addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
-    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateGeneratedCard,
+    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard,
     updateCardSetMetadata,
   } = projectActions;
   const {
     activeCardSet, activeCardSetId, allArtifactsSelected, allVisibleCardsSelected, availableFields, cardSets,
-    displayCards, effectiveMoveTargetId, focusedCards, generationCards, generationSet,
+    displayCards, effectiveMoveTargetId, focusedCards, focusedSet, generationCards, generationSet,
     generatorSelectedBackingTemplateId, generatorSelectedTemplateId, organization, organizedGroups, otherSets, reflectiveGroupings,
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
     storedCards, visibleCards,
@@ -654,6 +654,7 @@ export function useDeskController({
     cardStageRef,
     closeRemoteWorkspace: () => setRemoteWorkspaceId(null),
     closeEditDialog,
+    commitTemplateChange,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -678,6 +679,7 @@ export function useDeskController({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    focusedSet,
     workingLocationStatus,
     generationCards,
     generationSet,
@@ -750,6 +752,7 @@ export function useDeskController({
     setTagFilters,
     tagFilters,
     undoLastBulkRevision,
+    unreferenceTemplateFromCardSet,
     requestHistoryBack,
     requestDeskReturn,
     resetToDesk,
