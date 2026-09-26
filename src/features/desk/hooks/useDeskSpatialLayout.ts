@@ -10,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
+import { projectClientPointToSpatialWorld } from '@/components/ui/spatial-viewport';
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
@@ -253,10 +254,11 @@ export function useDeskSpatialLayout({
     camera.enterCustom();
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    const point = {
-      x: (event.clientX - bounds.left) / camera.zoom,
-      y: (event.clientY - bounds.top) / camera.zoom,
-    };
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
     marqueeRef.current = {
       pointerId: event.pointerId,
       startX: point.x,
@@ -271,12 +273,12 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    setMarquee(rectFromPoints(
-      state.startX,
-      state.startY,
-      (event.clientX - bounds.left) / camera.zoom,
-      (event.clientY - bounds.top) / camera.zoom,
-    ));
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
+    setMarquee(rectFromPoints(state.startX, state.startY, point.x, point.y));
   }, [camera.zoom]);
 
   const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -284,12 +286,12 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    const selectedRect = rectFromPoints(
-      state.startX,
-      state.startY,
-      (event.clientX - bounds.left) / camera.zoom,
-      (event.clientY - bounds.top) / camera.zoom,
-    );
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
+    const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);

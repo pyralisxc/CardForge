@@ -10,7 +10,7 @@ import {
   type RefObject,
   type UIEvent as ReactUIEvent,
 } from 'react';
-import { useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
+import { useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
 
 import {
   DESK_SURFACE_HEIGHT,

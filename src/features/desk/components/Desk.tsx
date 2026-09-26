@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import {
   ENVIRONMENT_ZONES,
-  deriveEnvironmentPresentation,
+  deriveCreatorSurfaceContext,
   EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
@@ -328,15 +328,17 @@ export function Desk({
     : null;
   const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
-  const contextDepth = storageOpen || remoteWorkspaceItem || activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const presentation = deriveEnvironmentPresentation({
-    focusDepth: contextDepth === 'desk' ? 'zone' : contextDepth,
+  const creatorSurface = deriveCreatorSurfaceContext({
+    session: interactionSession,
+    toolActive: Boolean(storageOpen || remoteWorkspaceItem || activeTool),
     activity: artifactEditing || activeTool?.toolId === 'design'
       ? 'edit'
-      : storageOpen || activeTool
+      : storageOpen || remoteWorkspaceItem || activeTool
         ? 'task'
         : 'none',
   });
+  const contextDepth = creatorSurface.depth;
+  const presentation = creatorSurface.presentation;
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
