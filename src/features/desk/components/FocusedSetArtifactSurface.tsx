@@ -579,7 +579,7 @@ export function FocusedSetArtifactSurface({
       <div
         className={styles.artifactContextField}
         data-artifact-context-field
-        data-obscured={Boolean(focusedEntry)}
+        data-surface-authority={focusedEntry ? 'context' : 'primary'}
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
