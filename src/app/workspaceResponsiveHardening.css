@@ -164,14 +164,6 @@
   margin-top: 0 !important;
 }
 
-/* The logical world and viewport share one visual surface. World bounds still
-   constrain placement and camera math, but they are not drawn as a second Desk
-   floating inside the workspace. */
-[data-desk-viewport] > div > div[data-grid] {
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
 /* There is one view-control capability with two presentations. Full controls
    are used while they fit; the compact wrapper takes over below 901px. */
 [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
