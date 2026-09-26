@@ -23,6 +23,21 @@ test.describe('mobile Library location tools', () => {
     const tool = page.getByRole('region', { name: 'Locations & connections', exact: true });
     await expect(tool).toBeVisible();
     await expect(page.locator('[aria-label="CardForge Library"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'task');
+
+    const taskPanel = tool.locator(':scope > section');
+    const taskGeometry = await taskPanel.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportHeight: innerHeight,
+        overflowY: style.overflowY,
+      };
+    });
+    expect(taskGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(taskGeometry.bottom).toBeLessThanOrEqual(taskGeometry.viewportHeight + 1);
+    expect(['auto', 'scroll']).toContain(taskGeometry.overflowY);
     const mobileNav = page.locator('[class*="mobileNav"]');
     await expect(mobileNav).toBeHidden();
     await expect.poll(async () => {
@@ -84,6 +99,12 @@ test.describe('mobile Library location tools', () => {
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+    await expect(page.locator('header').getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+
+    const deskViewport = page.locator('[data-desk-viewport]');
+    await expect(deskViewport).toBeVisible();
+    const deskBounds = await deskViewport.boundingBox();
+    expect(deskBounds?.height).toBeGreaterThan(480);
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
