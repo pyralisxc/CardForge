@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 
-import { isActionApplicable, type ActionDescriptor, type EnvironmentViewer, type ZoneDefinition, type ZoneId, type ZoneViewportPolicy } from '../model';
+import { isActionApplicable, type ActionDescriptor, type EnvironmentPresentation, type EnvironmentViewer, type ZoneDefinition, type ZoneId, type ZoneViewportPolicy } from '../model';
 import type { EnvironmentDetailRecord } from '../presentation';
 import { EnvironmentCommandBand } from './EnvironmentCommandBand';
 import { EnvironmentCommandPalette } from './EnvironmentCommandPalette';
@@ -28,7 +28,7 @@ interface EnvironmentShellProps {
   search?: ReactNode;
   accountControl?: ReactNode;
   contextBand?: ReactNode;
-  focusDepth?: 'zone' | 'set' | 'artifact' | 'tool';
+  presentation: EnvironmentPresentation;
   statusContent: ReactNode;
   footerContent: ReactNode;
   surfaceRef?: MutableRefObject<HTMLElement | null>;
@@ -40,12 +40,12 @@ interface EnvironmentShellProps {
   onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, focusDepth = 'zone', statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
   const resolvedSurfaceRef = surfaceRef ?? ownedSurfaceRef;
-  const mobileNavigationPersistent = focusDepth === 'zone';
+  const mobileNavigationPersistent = presentation.mode === 'browse';
   const containedMobileNavigation = viewportPolicy === 'desk' && mobileNavigationPersistent;
   const activeDefinition = zones.find((zone) => zone.id === activeZone) ?? zones[0];
   const applicableContext = detail ?? actionContext;
@@ -88,7 +88,8 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         className={`${styles.shell} ${containedMobileNavigation ? 'max-md:!pb-[calc(4.25rem+env(safe-area-inset-bottom))]' : ''}`}
         data-detail-open={Boolean(detail)}
         data-viewport={viewportPolicy}
-        data-focus-depth={focusDepth}
+        data-focus-depth={presentation.focusDepth}
+        data-presentation-mode={presentation.mode}
       >
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>

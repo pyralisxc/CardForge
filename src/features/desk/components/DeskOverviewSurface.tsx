@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { FolderPlus, LayoutGrid, Loader2, Maximize2, Minus, Plus, SlidersHorizontal } from 'lucide-react';
+import { FolderPlus, LayoutGrid, Loader2, Maximize2, Minus, Plus, Search, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +52,7 @@ export interface DeskOverviewSurfaceProps {
   showGrid: boolean;
   snapToGrid: boolean;
   query: string;
+  searchRef: RefObject<HTMLInputElement>;
   sourceFilters: AccountLibrarySource[];
   sourceFacets: DeskSourceFacet[];
   typeFilters: string[];
@@ -228,6 +229,11 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     /> : null}
     <section className={styles.workSurface} data-grid={props.showGrid} aria-label="Open Sets on Desk">
       <div className={styles.deskToolbar} data-desk-toolbar>
+        <label className={styles.searchField}>
+          <span className="sr-only">Search Desk work</span>
+          <Search aria-hidden="true" />
+          <Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Search Desk work" />
+        </label>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         <details className={styles.mobileDeskFilters} data-mobile-desk-filters>
           <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>

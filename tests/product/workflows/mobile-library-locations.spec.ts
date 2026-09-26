@@ -15,21 +15,43 @@ test.describe('mobile Library location tools', () => {
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
-  test('@golden keeps Locations controls scrollable above the fixed navigation in a constrained viewport', async ({ page }) => {
+  test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/account?section=library&tool=locations', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
     const tool = page.getByRole('region', { name: 'Locations & connections', exact: true });
     await expect(tool).toBeVisible();
-    const mobileNav = page.locator('[class*="mobileNav"]');
-    await expect(mobileNav).toBeVisible();
+    await expect(page.locator('[aria-label="CardForge Library"] > [data-presentation-mode]')).toHaveAttribute('data-presentation-mode', 'task');
 
-    const [toolZ, navZ] = await Promise.all([
-      tool.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
-      mobileNav.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
-    ]);
-    expect(toolZ).toBeGreaterThan(navZ);
+    const taskPanel = tool.locator(':scope > section');
+    const taskGeometry = await taskPanel.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportHeight: innerHeight,
+        overflowY: style.overflowY,
+      };
+    });
+    expect(taskGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(taskGeometry.bottom).toBeLessThanOrEqual(taskGeometry.viewportHeight + 1);
+    expect(['auto', 'scroll']).toContain(taskGeometry.overflowY);
+    const mobileNav = page.locator('[class*="mobileNav"]');
+    await expect(mobileNav).toBeHidden();
+    await expect.poll(async () => {
+      const [toolPanel, primary] = await Promise.all([
+        tool.locator(':scope > section').boundingBox(),
+        page.locator('main').boundingBox(),
+      ]);
+      return Boolean(
+        toolPanel
+        && primary
+        && Math.abs(toolPanel.y - primary.y) <= 1
+        && Math.abs(toolPanel.height - primary.height) <= 1
+      );
+    }).toBe(true);
 
     const storage = tool.getByRole('region', { name: 'Storage and connections', exact: true });
     const deviceLocation = storage.getByRole('button', { name: /This device/ });
@@ -77,9 +99,19 @@ test.describe('mobile Library location tools', () => {
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+    const appHeader = page.locator('header[data-context="false"]');
+    await expect(appHeader).toBeVisible();
+    await expect(appHeader.getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+    await expect(appHeader.getByPlaceholder('Search Desk work')).toHaveCount(0);
+
+    const deskViewport = page.locator('[data-desk-viewport]');
+    await expect(deskViewport).toBeVisible();
+    const deskBounds = await deskViewport.boundingBox();
+    expect(deskBounds?.height).toBeGreaterThan(480);
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
+    await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
     const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
     await expectTouchTarget(filters);
     await expectTouchTarget(toolbar.getByRole('button', { name: 'Desk view controls', exact: true }));
@@ -102,6 +134,7 @@ test.describe('mobile Library location tools', () => {
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
     await expect(mobileNav).toBeHidden();
+    await expect(status).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
@@ -129,15 +162,11 @@ test.describe('mobile Library location tools', () => {
     await expect.poll(async () => page.evaluate(() => {
       const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
-      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
       return Boolean(
         stage
         && controls
-        && footer
         && controls.top >= stage.bottom - 1
-        && controls.bottom <= footer.top + 1
-        && footer.right <= innerWidth + 1
-        && footer.bottom <= innerHeight + 1
+        && controls.bottom <= innerHeight + 1
         && document.documentElement.scrollWidth <= innerWidth + 2
       );
     })).toBe(true);
@@ -150,13 +179,11 @@ test.describe('mobile Library location tools', () => {
       const workspace = document.querySelector('[data-focused-artifact-workspace]');
       const stage = workspace?.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = workspace?.querySelector('[aria-label="Focused Artifact tools"]')?.getBoundingClientRect();
-      const footer = document.querySelector('footer[aria-label="Environment status"]')?.getBoundingClientRect();
       return Boolean(
         stage
         && controls
-        && footer
         && controls.top >= stage.bottom - 1
-        && controls.bottom <= footer.top + 1
+        && controls.bottom <= innerHeight + 1
         && document.documentElement.scrollWidth <= innerWidth + 2
       );
     })).toBe(true);
