@@ -98,6 +98,10 @@ export function useDeskCamera({
     setMode(target.mode);
     zoomRef.current = target.geometry.zoom;
     setZoom(target.geometry.zoom);
+    // Suppress layout-driven scroll events immediately. Waiting until the next
+    // frame lets a responsive reflow incorrectly turn this semantic camera
+    // action back into Custom before the programmatic scroll begins.
+    suppressScrollRef.current = true;
     requestAnimationFrame(() => scrollProgrammatically(grid, target.scroll, behavior));
   }, [getSemanticTarget, scrollProgrammatically, viewportRef]);
 

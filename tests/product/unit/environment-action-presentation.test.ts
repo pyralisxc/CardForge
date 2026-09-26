@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EnvironmentCommandBand } from '@/features/app-shell/environment/components/EnvironmentCommandBand';
 import { EnvironmentDesktopInspector } from '@/features/app-shell/environment/components/EnvironmentDetail';
 import { EnvironmentShell } from '@/features/app-shell/environment/components/EnvironmentShell';
-import type { ActionDescriptor } from '@/features/app-shell/environment/model';
+import { deriveEnvironmentPresentation, type ActionDescriptor } from '@/features/app-shell/environment/model';
 import type { EnvironmentDetailRecord } from '@/features/app-shell/environment/presentation';
 
 const baseAction: ActionDescriptor = {
@@ -67,6 +67,7 @@ describe('Environment action presentation', () => {
       zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'member', showInPrivateRail: true, viewportPolicy: 'flow' }],
       activeZone: 'library',
       viewportPolicy: 'flow',
+      presentation: deriveEnvironmentPresentation({ focusDepth: 'object' }),
       detail: unavailableRecord,
       actions: [revisionBound],
       statusContent: createElement('span', null, 'Ready'),
@@ -76,6 +77,7 @@ describe('Environment action presentation', () => {
       onCloseDetail: vi.fn(),
     }, createElement('p', null, 'Library content')));
     expect(markup).not.toContain('Open in Studio');
+    expect(markup).toContain('data-presentation-mode="focus"');
 
     const multiLocationRecord: EnvironmentDetailRecord = {
       ...record,
@@ -92,6 +94,7 @@ describe('Environment action presentation', () => {
       zones: [{ id: 'library', href: '/account?section=library', label: 'Library', shortLabel: 'Library', minimumAccess: 'member', showInPrivateRail: true, viewportPolicy: 'flow' }],
       activeZone: 'library',
       viewportPolicy: 'flow',
+      presentation: deriveEnvironmentPresentation({ focusDepth: 'object' }),
       detail: multiLocationRecord,
       actions: [localRevisionBound],
       statusContent: createElement('span', null, 'Ready'),

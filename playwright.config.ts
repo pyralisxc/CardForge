@@ -14,6 +14,7 @@ export default defineConfig({
   },
   webServer: process.env.CARDFORGE_E2E_SKIP_WEBSERVER ? undefined : {
     command: 'npm run dev',
+    env: { CARDFORGE_E2E_BROWSER: 'true' },
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,
