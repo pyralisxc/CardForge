@@ -203,6 +203,7 @@ export function Desk({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    workingLocationStatus,
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,
@@ -462,6 +463,7 @@ export function Desk({
           toolName={toolName}
           toolDirty={activeTool?.dirty}
           localSet={Boolean(focusedLocalSetId)}
+          workingLocationStatus={workingLocationStatus}
           pinned={Boolean(focusedItem && pinnedIds.includes(focusedItem.id))}
           renaming={renaming}
           renameDraft={renameDraft}
