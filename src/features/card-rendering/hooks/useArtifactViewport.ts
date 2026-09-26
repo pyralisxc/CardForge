@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useSpatialGestures, type SpatialPoint } from './useSpatialGestures';
+import { useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
 
 interface ArtifactViewportOptions {
   aspectRatio: string | undefined;

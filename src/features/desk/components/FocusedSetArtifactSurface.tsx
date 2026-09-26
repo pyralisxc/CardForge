@@ -13,7 +13,8 @@ import {
   setCreatorCamera,
   type CreatorInteractionSession,
 } from '@/features/app-shell/client/environment';
-import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces, useSpatialGestures, type SpatialPoint } from '@/features/card-rendering/client';
+import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
+import { projectClientPointToSpatialWorld, useSpatialGestures, type SpatialPoint } from '@/components/ui/spatial-viewport';
 
 import {
   buildFocusedArtifactLayout,
@@ -508,11 +509,14 @@ export function FocusedSetArtifactSurface({
     setMarquee(null);
   } });
   const worldPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const node = event.currentTarget, bounds = node.getBoundingClientRect();
-    return {
-      x: (node.scrollLeft + event.clientX - bounds.left - worldOffsetX) / session.camera.zoom,
-      y: (node.scrollTop + event.clientY - bounds.top - worldOffsetY) / session.camera.zoom,
-    };
+    const node = event.currentTarget;
+    return projectClientPointToSpatialWorld(event, node.getBoundingClientRect(), {
+      zoom: session.camera.zoom,
+      scrollLeft: node.scrollLeft,
+      scrollTop: node.scrollTop,
+      offsetX: worldOffsetX,
+      offsetY: worldOffsetY,
+    });
   };
   const centerSetCamera = (event: ReactMouseEvent<HTMLButtonElement>) => {
     const node = viewportRef.current;

@@ -3,6 +3,24 @@
 import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 
 export type SpatialPoint = { clientX: number; clientY: number };
+
+export interface SpatialViewportProjection {
+  zoom: number;
+  scrollLeft: number;
+  scrollTop: number;
+  offsetX?: number;
+  offsetY?: number;
+}
+
+/** Canonical client -> world projection for creator spatial surfaces. */
+export const projectClientPointToSpatialWorld = (
+  point: SpatialPoint,
+  bounds: { left: number; top: number },
+  projection: SpatialViewportProjection,
+) => ({
+  x: (projection.scrollLeft + point.clientX - bounds.left - (projection.offsetX ?? 0)) / Math.max(Number.EPSILON, projection.zoom),
+  y: (projection.scrollTop + point.clientY - bounds.top - (projection.offsetY ?? 0)) / Math.max(Number.EPSILON, projection.zoom),
+});
 type Gesture = { start: SpatialPoint; last: SpatialPoint; mode: 'pending' | 'drag' | 'pan' | 'pinch'; target: HTMLElement };
 const pinch = (points: SpatialPoint[]) => ({
   distance: Math.max(1, Math.hypot(points[1].clientX - points[0].clientX, points[1].clientY - points[0].clientY)),
