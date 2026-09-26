@@ -1,14 +1,10 @@
-export const DESK_WORLD_WIDTH = 1200;
-export const DESK_WORLD_HEIGHT = 720;
 /**
- * Saved positions identify a Set's anchor inside the stable 1200 × 720 Desk.
- * The rendered surface reserves room beyond the furthest legal anchor for the
- * Set itself, so Fit includes complete objects rather than only their origins.
- * This preserves every saved coordinate while making the bounded surface true
- * for older layouts and tall representative stacks.
+ * One canonical bounded Desk field. Placement, persistence, camera projection,
+ * marquee selection, and framing all use this same coordinate extent so users
+ * never see camera space that cannot also hold authored work.
  */
-export const DESK_SURFACE_WIDTH = DESK_WORLD_WIDTH + 320;
-export const DESK_SURFACE_HEIGHT = DESK_WORLD_HEIGHT + 420;
+export const DESK_SURFACE_WIDTH = 1520;
+export const DESK_SURFACE_HEIGHT = 1140;
 export const DESK_MAX_RELATIVE_ZOOM = 8;
 export const DESK_FRAME_PADDING = 44;
 
@@ -66,8 +62,8 @@ export const normalizeDeskWorldPosition = (value: unknown, fallbackZ = 0): DeskW
   const candidate = value as Partial<DeskWorldPosition>;
   if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return null;
   return {
-    x: clamp(Math.round(finite(candidate.x)), 0, DESK_WORLD_WIDTH),
-    y: clamp(Math.round(finite(candidate.y)), 0, DESK_WORLD_HEIGHT),
+    x: clamp(Math.round(finite(candidate.x)), 0, DESK_SURFACE_WIDTH),
+    y: clamp(Math.round(finite(candidate.y)), 0, DESK_SURFACE_HEIGHT),
     z: clamp(Math.round(finite(candidate.z, fallbackZ)), 0, 10_000),
   };
 };
@@ -197,17 +193,17 @@ const DEFAULT_DESK_SLOTS = [
 ] as const;
 
 /**
- * New Sets receive a stable place in the bounded world instead of inheriting
- * the dimensions of whichever device first opened the Desk. Additional Sets
- * form small piles over these anchors rather than expanding an infinite plane.
+ * New Sets receive a stable place in the canonical Desk field instead of
+ * inheriting the dimensions of whichever device first opened it. Additional
+ * Sets form small piles over these anchors without creating a second extent.
  */
 export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition => {
   const safeIndex = Math.max(0, Math.floor(index));
   const slot = DEFAULT_DESK_SLOTS[safeIndex % DEFAULT_DESK_SLOTS.length]!;
   const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
   return {
-    x: clamp(slot.x + pile * 18, 0, DESK_WORLD_WIDTH),
-    y: clamp(slot.y + pile * 16, 0, DESK_WORLD_HEIGHT),
+    x: clamp(slot.x + pile * 18, 0, DESK_SURFACE_WIDTH),
+    y: clamp(slot.y + pile * 16, 0, DESK_SURFACE_HEIGHT),
     z: safeIndex,
   };
 };
@@ -264,8 +260,8 @@ export const moveDeskWorldSelection = ({
   const maximumX = Math.max(...selected.map((item) => item.x + item.width));
   const maximumY = Math.max(...selected.map((item) => item.y + item.height));
   const place = (value: number) => Math.round(value / Math.max(1, snap)) * Math.max(1, snap);
-  const dx = clamp(place(delta.x), -minimumX, DESK_WORLD_WIDTH - maximumX);
-  const dy = clamp(place(delta.y), -minimumY, DESK_WORLD_HEIGHT - maximumY);
+  const dx = clamp(place(delta.x), -minimumX, DESK_SURFACE_WIDTH - maximumX);
+  const dy = clamp(place(delta.y), -minimumY, DESK_SURFACE_HEIGHT - maximumY);
   return Object.fromEntries(selected.map((item) => [item.id, {
     x: Math.round(item.x + dx),
     y: Math.round(item.y + dy),

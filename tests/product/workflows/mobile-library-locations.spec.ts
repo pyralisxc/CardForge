@@ -99,7 +99,10 @@ test.describe('mobile Library location tools', () => {
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
-    await expect(page.locator('header').getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+    const appHeader = page.locator('header[data-context="false"]');
+    await expect(appHeader).toBeVisible();
+    await expect(appHeader.getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+    await expect(appHeader.getByPlaceholder('Search Desk work')).toHaveCount(0);
 
     const deskViewport = page.locator('[data-desk-viewport]');
     await expect(deskViewport).toBeVisible();
@@ -108,6 +111,7 @@ test.describe('mobile Library location tools', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
+    await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
     const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
     await expectTouchTarget(filters);
     await expectTouchTarget(toolbar.getByRole('button', { name: 'Desk view controls', exact: true }));

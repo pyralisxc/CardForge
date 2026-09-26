@@ -69,48 +69,6 @@
   padding: 0.3rem 0.55rem;
 }
 
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"] > :first-child:empty {
-  display: none !important;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has(> :first-child:empty) > :nth-child(2) {
-  grid-column: 1;
-  width: min(32rem, 100%);
-  min-width: 0;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has(> :first-child:empty) > :last-child {
-  grid-column: 2;
-}
-
-/* Desk selection is object state, not shell navigation. Selecting one or many
-   Sets must not manufacture a new top rail. Direct drag, keyboard commands,
-   double-click/open, and each Set's overflow menu own those interactions. */
-[data-desk-context-rail][data-depth="desk"] {
-  display: none !important;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) {
-  grid-template-columns: minmax(0, 1fr) auto !important;
-  gap: 0.4rem !important;
-  min-height: 3.4rem;
-  padding: 0.3rem 0.55rem;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
-  display: none !important;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :nth-child(2) {
-  grid-column: 1;
-  width: min(32rem, 100%);
-  min-width: 0;
-}
-
-[aria-label="CardForge Desk"] header[data-context="true"][data-has-search="true"]:has([data-desk-context-rail][data-depth="desk"]) > :last-child {
-  grid-column: 2;
-}
-
 /* The whole remaining center rectangle is the Desk. Controls sit outside the
    camera viewport instead of occupying logical world coordinates or covering
    movable Sets. */
@@ -162,14 +120,6 @@
 [data-desk-viewport] > div:first-child {
   min-height: 100% !important;
   margin-top: 0 !important;
-}
-
-/* The logical world and viewport share one visual surface. World bounds still
-   constrain placement and camera math, but they are not drawn as a second Desk
-   floating inside the workspace. */
-[data-desk-viewport] > div > div[data-grid] {
-  border: 0 !important;
-  box-shadow: none !important;
 }
 
 /* There is one view-control capability with two presentations. Full controls
@@ -325,29 +275,6 @@
     min-width: 0;
   }
 
-  /* Once Desk focus moves inside a Set, the context rail and global actions
-     share one header row. Search is still available through Commands, so it
-     must not create a second band over the spatial scene. */
-  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :first-child {
-    grid-column: 1 !important;
-    grid-row: 1;
-  }
-
-  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :nth-child(2) {
-    display: none !important;
-  }
-
-  [aria-label="CardForge Desk"] > [data-presentation-mode]:not([data-presentation-mode="browse"]) header[data-context="true"][data-has-search="true"] > :last-child {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  /* Desk-depth selection is intentionally rail-less on every viewport. Undo
-     the generic mobile first-column placement when that hidden rail is present. */
-  [aria-label="CardForge Desk"] header[data-context="true"]:has([data-desk-context-rail][data-depth="desk"]) > :first-child {
-    display: none !important;
-  }
-
   /* Feature CSS used to drop the third status item on phones. The compact
      status rail now scrolls horizontally, so preserve every status truth
      instead of silently removing save/object state from the mobile product. */
@@ -377,26 +304,17 @@
     min-height: 44px !important;
   }
 
-  /* The visible local search was retired, so the old three-column toolbar was
-     leaving an empty first column. Compact Desk is now exactly Filters + View. */
+  /* Search, Filters, and View share the native three-column Desk toolbar.
+     Only overflow behavior and touch targets need hardening here. */
   [data-desk-toolbar] {
-    grid-template-columns: minmax(0, 1fr) auto !important;
     min-height: 2.7rem;
     overflow: visible !important;
-  }
-
-  [data-mobile-desk-filters] {
-    grid-column: 1 !important;
   }
 
   [data-mobile-desk-filters] > summary,
   [data-desk-toolbar] button[aria-label="Desk view controls"] {
     min-width: 44px !important;
     min-height: 44px !important;
-  }
-
-  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
-    grid-column: 2 !important;
   }
 
   [data-storage-connections-scroll] {
