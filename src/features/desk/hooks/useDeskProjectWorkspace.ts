@@ -31,6 +31,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
   const userTemplates = useProjectStore((state) => state.userTemplates);
   const createCardSet = useProjectStore((state) => state.createCardSet);
+  const commitTemplateChange = useProjectStore((state) => state.commitTemplateChange);
   const closeEditDialog = useProjectStore((state) => state.closeEditDialog);
   const setActiveCardSetId = useProjectStore((state) => state.setActiveCardSetId);
   const renameCardSet = useProjectStore((state) => state.renameCardSet);
@@ -49,6 +50,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setGeneratorSelectedTemplateId);
   const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
+  const unreferenceTemplateFromCardSet = useProjectStore((state) => state.unreferenceTemplateFromCardSet);
   const updateCardSetOrganization = useProjectStore((state) => state.updateCardSetOrganization);
   const updateCardSetMetadata = useProjectStore((state) => state.updateCardSetMetadata);
   const addCardSetTag = useProjectStore((state) => state.addCardSetTag);
@@ -131,17 +133,17 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
 
   return {
     actions: {
-      addCardSetTag, addGeneratedCards, closeEditDialog, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
+      addCardSetTag, addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, moveGeneratedCardsToSet,
       removeGeneratedCards, renameCardSet, reorderGeneratedCard, reviseGeneratedCards, setActiveCardSetId, setCardPositions,
       setCardsTag, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId,
-      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, updateGeneratedCard, updateCardSetMetadata, updateCardSetOrganization,
+      setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard, updateCardSetMetadata, updateCardSetOrganization,
     },
     state: {
       activeCardSet, activeCardSetId, allArtifactsSelected: focusedCards.length > 0 && focusedCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),
       allVisibleCardsSelected: visibleCards.length > 0 && visibleCards.every((card) => options.selectedCardIds.includes(card.uniqueId)),
       availableFields, reflectiveGroupings: reflectiveOrganization.groupings, cardSets, displayCards,
       effectiveMoveTargetId: otherSets.some((set) => set.id === options.moveTargetId) ? options.moveTargetId : otherSets[0]?.id ?? '',
-      focusedCards, generationCards, generationSet, generatorSelectedBackingTemplateId, generatorSelectedTemplateId,
+      focusedCards, focusedSet, generationCards, generationSet, generatorSelectedBackingTemplateId, generatorSelectedTemplateId,
       organization, organizedGroups: [...groups.entries()], otherSets, richTextHighlightColor,
       selectedCard, selectedCardIndex: selectedCard ? focusedCards.findIndex((card) => card.uniqueId === selectedCard.uniqueId) : -1,
       selectedCards, selectionScope: getArtifactSelectionScope(options.selectedCardIds, visibleCards.map((card) => card.uniqueId)),

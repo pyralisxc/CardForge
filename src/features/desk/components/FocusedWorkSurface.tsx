@@ -12,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { useToast } from '@/components/ui/use-toast';
 import type { CardFace, CardSet, CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
-import { extractTemplateFieldDefinitions } from '@/domain/templates';
+import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
 import { setCreatorLens, type CreatorInteractionSession } from '@/features/app-shell/client/environment';
 import { getArtifactWorkState } from '@/features/card-generator/client';
-import { selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import type { TemplateCommitChangeInput } from '@/features/project/client/workspace';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { ArtifactSelectionScope } from '../model/focusedArtifactLayout';
@@ -30,6 +30,8 @@ export interface FocusedWorkSurfaceProps {
   localSetId: string | null;
   remoteIcon: ReactNode;
   focusedCards: DisplayCard[];
+  currentSet: CardSet | null;
+  templates: TCGCardTemplate[];
   canExportClean: boolean;
   canUseProjectFiles: boolean;
   visibleCards: DisplayCard[];
@@ -59,6 +61,8 @@ export interface FocusedWorkSurfaceProps {
   onOpenWork: () => void;
   onOpenDesign: () => void;
   onDesignTemplate: (templateId: string) => void;
+  onCommitTemplateChange: (input: TemplateCommitChangeInput) => string;
+  onUnreferenceTemplate: (setId: string, templateId: string) => boolean;
   onOpenGenerate: () => void;
   onCardQueryChange: (value: string) => void;
   onOrganizationChange: (patch: Partial<Omit<CardSetOrganization, 'tags' | 'positions'>>) => void;
@@ -87,11 +91,8 @@ export interface FocusedWorkSurfaceProps {
 
 export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
   const { toast } = useToast();
-  const cardSets = useProjectStore((state) => state.cardSets);
-  const templates = useProjectStore(selectAllTemplates);
-  const commitTemplateChange = useProjectStore((state) => state.commitTemplateChange);
-  const unreferenceTemplateFromCardSet = useProjectStore((state) => state.unreferenceTemplateFromCardSet);
-  const currentSet = props.localSetId ? cardSets.find((set) => set.id === props.localSetId) ?? null : null;
+  const currentSet = props.currentSet;
+  const templates = props.templates;
   const artifactFocused = Boolean(props.session.focusPath.artifactId);
   const groupFields = props.availableFields.filter((field) => field.groupable && !field.semanticGrouping);
   const sortFields = props.availableFields.filter((field) => field.sortable);
@@ -110,7 +111,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
     const previousKeys = new Set(extractTemplateFieldDefinitions(previous).filter((field) => !field.isStaticBaseText).map((field) => field.key));
     const nextKeys = new Set(extractTemplateFieldDefinitions(next).filter((field) => !field.isStaticBaseText).map((field) => field.key));
     const removedFieldKeys = [...previousKeys].filter((key) => !nextKeys.has(key));
-    commitTemplateChange({
+    props.onCommitTemplateChange({
       template: next,
       source: next.templateSource,
       sourceTemplateId: fromTemplateId,
@@ -119,7 +120,7 @@ export function FocusedWorkSurface(props: FocusedWorkSurfaceProps) {
       removedFieldKeys,
       setId: currentSet.id,
     });
-    unreferenceTemplateFromCardSet(currentSet.id, fromTemplateId);
+    props.onUnreferenceTemplate(currentSet.id, fromTemplateId);
     toast({
       title: 'Template revision updated',
       description: `${artifactIds.length} Artifact${artifactIds.length === 1 ? '' : 's'} now use “${next.name}”${removedFieldKeys.length ? `; removed fields were cleared from those Artifacts` : ''}.`,
