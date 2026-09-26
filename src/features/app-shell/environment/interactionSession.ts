@@ -5,6 +5,12 @@ import {
   type EnvironmentToolPresentation,
   type EnvironmentToolSession,
 } from './toolSession';
+import {
+  deriveEnvironmentPresentation,
+  type EnvironmentFocusDepth,
+  type EnvironmentPresentation,
+  type EnvironmentPresentationActivity,
+} from './model';
 
 export interface CreatorFocusPath {
   setId: string | null;
@@ -38,6 +44,45 @@ export interface CreatorInteractionSession {
 }
 
 export type CreatorContextClosed = 'tool' | 'inspection' | 'artifact-focus' | 'set-focus' | 'none';
+export type CreatorSurfaceDepth = 'desk' | 'set' | 'artifact' | 'tool';
+
+export interface CreatorSurfaceContext {
+  depth: CreatorSurfaceDepth;
+  focusDepth: EnvironmentFocusDepth;
+  presentation: EnvironmentPresentation;
+  setId: string | null;
+  artifactId: string | null;
+  activeTool: CreatorToolSession | null;
+}
+
+export const deriveCreatorSurfaceContext = ({
+  session,
+  activity = 'none',
+  toolActive = false,
+}: {
+  session: CreatorInteractionSession;
+  activity?: EnvironmentPresentationActivity;
+  /** Use for bounded environment tasks that intentionally sit outside the creator tool stack. */
+  toolActive?: boolean;
+}): CreatorSurfaceContext => {
+  const activeTool = session.toolStack.at(-1) ?? null;
+  const depth: CreatorSurfaceDepth = toolActive || activeTool
+    ? 'tool'
+    : session.focusPath.artifactId
+      ? 'artifact'
+      : session.focusPath.setId
+        ? 'set'
+        : 'desk';
+  const focusDepth: EnvironmentFocusDepth = depth === 'desk' ? 'zone' : depth;
+  return {
+    depth,
+    focusDepth,
+    presentation: deriveEnvironmentPresentation({ focusDepth, activity }),
+    setId: session.focusPath.setId,
+    artifactId: session.focusPath.artifactId,
+    activeTool,
+  };
+};
 
 const DEFAULT_CAMERA: CreatorCamera = { x: 0, y: 0, zoom: 1 };
 
