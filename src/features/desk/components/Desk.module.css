@@ -1916,7 +1916,7 @@
   }
 
   .workGrid {
-    height: auto;
+    height: 100%;
     min-height: 0;
     flex: 1 1 auto;
     scrollbar-width: none;

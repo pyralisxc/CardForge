@@ -15,6 +15,43 @@ test.describe('mobile Library location tools', () => {
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   };
 
+  test('@golden keeps long Profile task utilities viewport-contained and scroll-owned on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto('/account?section=profile&utility=billing', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+
+    const shell = page.locator('[aria-label="CardForge profile"] > [data-presentation-mode]');
+    await expect(shell).toHaveAttribute('data-presentation-mode', 'task');
+
+    const tool = page.getByRole('region', { name: 'Manage access, billing, and usage', exact: true });
+    await expect(tool).toBeVisible();
+
+    const panel = tool.locator(':scope > section');
+    const geometry = await panel.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        viewportHeight: innerHeight,
+        overflowY: style.overflowY,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      };
+    });
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
+    expect(['auto', 'scroll']).toContain(geometry.overflowY);
+    if (geometry.scrollHeight > geometry.clientHeight + 1) {
+      const moved = await panel.evaluate((element) => {
+        const before = element.scrollTop;
+        element.scrollTop = element.scrollHeight;
+        return { before, after: element.scrollTop };
+      });
+      expect(moved.after).toBeGreaterThan(moved.before);
+    }
+  });
+
   test('@golden gives Locations the compact Task viewport while keeping its controls scrollable', async ({ page }) => {
     await seedGuestScaleWorkspace(page, 100);
     await page.setViewportSize({ width: 320, height: 640 });
@@ -84,6 +121,12 @@ test.describe('mobile Library location tools', () => {
 
     const command = page.getByRole('button', { name: 'Open commands', exact: true });
     await expectTouchTarget(command);
+    await expect(page.locator('header').getByRole('link', { name: 'Open the CardForge public site', exact: true })).toBeVisible();
+
+    const deskViewport = page.locator('[data-desk-viewport]');
+    await expect(deskViewport).toBeVisible();
+    const deskBounds = await deskViewport.boundingBox();
+    expect(deskBounds?.height).toBeGreaterThan(480);
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
