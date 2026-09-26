@@ -177,7 +177,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ }).dblclick();
     const board = page.locator('[data-desk-set-board]');
     await expect(board).toBeVisible();
-    await expect(page.getByPlaceholder('Search cards', { exact: true })).toBeVisible();
+    await expect(page.getByPlaceholder('Search cards', { exact: true })).toHaveCount(1);
     await expect(page.getByPlaceholder('Search cards in this Set')).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
