@@ -1271,6 +1271,26 @@
     overflow: hidden;
     padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
+
+  /* Task/Edit presentations are active workspaces, not page-length overlays.
+     Keep one viewport-bound surface so the tool panel owns vertical scrolling. */
+  .shell[data-presentation-mode="task"],
+  .shell[data-presentation-mode="edit"] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .shell[data-presentation-mode="task"] .primarySurface,
+  .shell[data-presentation-mode="edit"] .primarySurface {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
   .shell[data-viewport="desk"][data-presentation-mode]:not([data-presentation-mode="browse"]) {
     padding-bottom: env(safe-area-inset-bottom);
   }
