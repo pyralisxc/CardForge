@@ -242,7 +242,7 @@ export function FocusedArtifactWorkspace({
     />)}
   </div> : undefined;
 
-  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal="explicit" data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
+  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-surface-authority="primary" data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal="explicit" data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
     <div
       ref={viewport.viewportRef}
       tabIndex={-1}
