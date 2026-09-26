@@ -20,7 +20,12 @@ import {
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { openGoogleDriveProject } from '@/features/project/client/provider-google-drive';
+import {
+  openGoogleDriveProject,
+  shouldOfferGoogleDriveReconciliation,
+  useGoogleDriveWorkingSession,
+  type GoogleDriveWorkingSessionPhase,
+} from '@/features/project/client/provider-google-drive';
 import { openRememberedLocalProject } from '@/features/project/client/provider-local-folder';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -41,6 +46,14 @@ import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
 import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
 import { usePublishedSetStarters } from './usePublishedSetStarters';
 import { useDeskProjectWorkspace } from './useDeskProjectWorkspace';
+
+const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
+  phase === 'offline'
+  || phase === 'read-only'
+  || phase === 'remote-changed'
+  || phase === 'recovery-required'
+  || phase === 'error'
+);
 
 interface DeskControllerOptions {
   persistenceScope: ProjectPersistenceScope;
@@ -207,6 +220,23 @@ export function useDeskController({
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
+  const driveWorkingSession = useGoogleDriveWorkingSession({
+    setId: focusedLocalSetId,
+    name: focusedItem?.name ?? 'CardForge Set',
+    enabled: Boolean(focusedLocalSetId),
+  });
+  const driveWorkingState = driveWorkingSession.state;
+  const workingLocationStatus = driveWorkingState.phase === 'unlinked' ? null : {
+    phase: driveWorkingState.phase,
+    message: driveWorkingState.message,
+    needsAttention: driveWorkingNeedsAttention(driveWorkingState.phase),
+    onRepair: driveWorkingState.phase === 'recovery-required'
+      ? () => { void driveWorkingSession.repairLink(); }
+      : undefined,
+    onReconcile: shouldOfferGoogleDriveReconciliation(driveWorkingState.phase)
+      ? () => { void driveWorkingSession.reconcile(); }
+      : undefined,
+  };
   useEffect(() => {
     if (remoteWorkspaceId && !remoteWorkspaceItem) setRemoteWorkspaceId(null);
   }, [remoteWorkspaceId, remoteWorkspaceItem]);
@@ -647,6 +677,7 @@ export function useDeskController({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    workingLocationStatus,
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,
