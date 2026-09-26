@@ -130,6 +130,7 @@ export function useDeskLayout({
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,
+    worldSize,
   } = useDeskSpatialLayout({
     positionKey: `${DESK_ORDER_KEY}:positions:${persistenceScope}`,
     // The stored world contains every authorized item, not only the filtered
@@ -171,5 +172,6 @@ export function useDeskLayout({
     visibleWork,
     workGridRef,
     workWorldRef,
+    worldSize,
   };
 }

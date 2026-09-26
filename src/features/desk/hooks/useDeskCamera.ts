@@ -13,17 +13,17 @@ import {
 import {
   getSpatialAnchoredZoomTarget,
   getSpatialCenteredScroll,
+  projectSpatialScrollToWorldOrigin,
   useSpatialGestures,
   type SpatialPoint,
 } from '@/components/ui/spatial-viewport';
 
 import {
-  DESK_SURFACE_HEIGHT,
-  DESK_SURFACE_WIDTH,
   getDeskCameraGeometry,
   getDeskFramingTarget,
   type DeskCameraMode,
   type DeskRect,
+  type DeskWorldSize,
 } from '../model/deskSpatialGeometry';
 
 export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<typeof useSpatialGestures> & {
@@ -45,6 +45,7 @@ export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<t
 export function useDeskCamera({
   focused,
   hasItems,
+  worldSize,
   workBounds,
   selectionBounds,
   viewportRef,
@@ -52,6 +53,7 @@ export function useDeskCamera({
 }: {
   focused: boolean;
   hasItems: boolean;
+  worldSize: DeskWorldSize;
   workBounds: DeskRect | null;
   selectionBounds: DeskRect | null;
   viewportRef: RefObject<HTMLDivElement>;
@@ -81,16 +83,16 @@ export function useDeskCamera({
 
   const getSemanticTarget = useCallback((requestedMode: Exclude<DeskCameraMode, 'custom'>, nextViewport = viewportStateRef.current) => {
     if (requestedMode === 'whole' || !hasItems) {
-      return { mode: 'whole' as const, ...getDeskFramingTarget({ viewport: nextViewport, bounds: null }) };
+      return { mode: 'whole' as const, ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: null }) };
     }
     if (requestedMode === 'fit-selection' && selectionBounds) {
-      return { mode: 'fit-selection' as const, ...getDeskFramingTarget({ viewport: nextViewport, bounds: selectionBounds }) };
+      return { mode: 'fit-selection' as const, ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: selectionBounds }) };
     }
     return {
       mode: 'fit-work' as const,
-      ...getDeskFramingTarget({ viewport: nextViewport, bounds: workBounds }),
+      ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: workBounds }),
     };
-  }, [hasItems, selectionBounds, workBounds]);
+  }, [hasItems, selectionBounds, workBounds, worldSize]);
 
   const applySemanticMode = useCallback((requestedMode: Exclude<DeskCameraMode, 'custom'>, behavior: ScrollBehavior = 'auto') => {
     const grid = viewportRef.current;
@@ -119,12 +121,12 @@ export function useDeskCamera({
       if (measuredWidth < 2 || measuredHeight < 2) return;
       const next = { width: measuredWidth, height: measuredHeight };
       const previous = viewportStateRef.current;
-      const previousGeometry = getDeskCameraGeometry(previous, zoomRef.current);
-      let nextGeometry = getDeskCameraGeometry(next, 0);
+      const previousGeometry = getDeskCameraGeometry(previous, worldSize, zoomRef.current);
+      let nextGeometry = getDeskCameraGeometry(next, worldSize, 0);
       let target = { left: 0, top: 0 };
 
       if (cameraModeRef.current === 'custom') {
-        nextGeometry = getDeskCameraGeometry(next, nextGeometry.fitZoom * previousGeometry.relativeZoom);
+        nextGeometry = getDeskCameraGeometry(next, worldSize, nextGeometry.fitZoom * previousGeometry.relativeZoom);
         target = getSpatialAnchoredZoomTarget({
           scroll: { left: grid.scrollLeft, top: grid.scrollTop },
           viewport: next,
@@ -151,7 +153,7 @@ export function useDeskCamera({
     const observer = new ResizeObserver(update);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [focused, getSemanticTarget, scrollProgrammatically, viewportRef]);
+  }, [focused, getSemanticTarget, scrollProgrammatically, viewportRef, worldSize]);
 
   useLayoutEffect(() => {
     const grid = viewportRef.current;
@@ -165,7 +167,7 @@ export function useDeskCamera({
     applySemanticMode(cameraModeRef.current);
   }, [applySemanticMode, focused, selectionBounds, workBounds]);
 
-  const geometry = useMemo(() => getDeskCameraGeometry(viewport, zoom), [viewport, zoom]);
+  const geometry = useMemo(() => getDeskCameraGeometry(viewport, worldSize, zoom), [viewport, worldSize, zoom]);
 
   const enterCustom = useCallback(() => {
     if (cameraModeRef.current === 'custom') return;
@@ -177,8 +179,8 @@ export function useDeskCamera({
     const grid = viewportRef.current;
     if (!grid) return;
     const currentViewport = viewportStateRef.current;
-    const currentGeometry = getDeskCameraGeometry(currentViewport, zoomRef.current);
-    const nextGeometry = getDeskCameraGeometry(currentViewport, nextZoom);
+    const currentGeometry = getDeskCameraGeometry(currentViewport, worldSize, zoomRef.current);
+    const nextGeometry = getDeskCameraGeometry(currentViewport, worldSize, nextZoom);
     const bounds = grid.getBoundingClientRect();
     const localPoint = focalPoint
       ? { x: focalPoint.clientX - bounds.left, y: focalPoint.clientY - bounds.top }
@@ -203,9 +205,9 @@ export function useDeskCamera({
     zoomRef.current = nextGeometry.zoom;
     setZoom(nextGeometry.zoom);
     requestAnimationFrame(() => scrollProgrammatically(grid, target));
-  }, [scrollProgrammatically, viewportRef]);
+  }, [scrollProgrammatically, viewportRef, worldSize]);
 
-  const gestures = useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag: onPinchStart, disabled: focused });
+  const gestures = useSpatialGestures({ viewportRef, zoom: geometry.zoom, changeZoom, cancelDrag: onPinchStart, disabled: focused });
 
   const onScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
     if (focused || event.currentTarget.dataset.focused === 'true' || suppressScrollRef.current) return;
@@ -219,7 +221,7 @@ export function useDeskCamera({
   const centerOnWorldPoint = useCallback((point: { x: number; y: number }) => {
     const grid = viewportRef.current;
     if (!grid) return;
-    const current = getDeskCameraGeometry(viewportStateRef.current, zoomRef.current);
+    const current = getDeskCameraGeometry(viewportStateRef.current, worldSize, zoomRef.current);
     const target = getSpatialCenteredScroll({
       point,
       viewport: viewportStateRef.current,
@@ -227,7 +229,7 @@ export function useDeskCamera({
     });
     enterCustom();
     scrollProgrammatically(grid, target);
-  }, [enterCustom, scrollProgrammatically, viewportRef]);
+  }, [enterCustom, scrollProgrammatically, viewportRef, worldSize]);
 
   return {
     ...geometry,
@@ -240,19 +242,22 @@ export function useDeskCamera({
     canZoomOut: geometry.relativeZoom > 1.0001,
     hasSelectionTarget: Boolean(selectionBounds),
     showMinimap: mode === 'custom' && (geometry.surfaceWidth > viewport.width + 1 || geometry.surfaceHeight > viewport.height + 1),
-    minimapViewport: {
-      left: scrollPosition.left / Math.max(1, geometry.surfaceWidth),
-      top: scrollPosition.top / Math.max(1, geometry.surfaceHeight),
-      width: Math.min(1, viewport.width / Math.max(1, geometry.surfaceWidth)),
-      height: Math.min(1, viewport.height / Math.max(1, geometry.surfaceHeight)),
-    },
+    minimapViewport: (() => {
+      const origin = projectSpatialScrollToWorldOrigin(scrollPosition, geometry);
+      return {
+        left: origin.x / Math.max(1, worldSize.width),
+        top: origin.y / Math.max(1, worldSize.height),
+        width: Math.min(1, viewport.width / geometry.zoom / Math.max(1, worldSize.width)),
+        height: Math.min(1, viewport.height / geometry.zoom / Math.max(1, worldSize.height)),
+      };
+    })(),
     centerOnWorldPoint,
     onScroll,
     ...gestures,
   };
 }
 
-export const deskMinimapPointToWorld = (point: { x: number; y: number }) => ({
-  x: Math.max(0, Math.min(1, point.x)) * DESK_SURFACE_WIDTH,
-  y: Math.max(0, Math.min(1, point.y)) * DESK_SURFACE_HEIGHT,
+export const deskMinimapPointToWorld = (point: { x: number; y: number }, world: DeskWorldSize) => ({
+  x: Math.max(0, Math.min(1, point.x)) * Math.max(1, world.width),
+  y: Math.max(0, Math.min(1, point.y)) * Math.max(1, world.height),
 });
