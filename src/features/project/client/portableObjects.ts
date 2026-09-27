@@ -11,7 +11,10 @@ import { readLocalLibraryResources } from './localLibraryResources';
 import { captureCardSetProjectDocument } from './projectWorkspaceDocument';
 
 export type PortableProjectAssetCollection = 'texture' | 'divider' | 'icon' | 'image';
-export type PortableProjectAsset = LocalLibraryResource & { collection: PortableProjectAssetCollection };
+export type PortableProjectAsset = LocalLibraryResource & {
+  collection: PortableProjectAssetCollection;
+  projectAssetId: string;
+};
 
 const extensionForMimeType = (mimeType: string): string => {
   if (mimeType === 'image/svg+xml') return 'svg';
@@ -21,27 +24,23 @@ const extensionForMimeType = (mimeType: string): string => {
   return 'bin';
 };
 
-const extensionForSource = (source: string): string => {
-  if (source.startsWith('data:')) {
-    const mimeType = source.match(/^data:([^;,]+)/)?.[1] ?? '';
-    return extensionForMimeType(mimeType);
-  }
-  const extension = source.split('?')[0]?.split('.').pop()?.toLowerCase();
-  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp'].includes(extension) ? extension : 'asset';
-};
-
 export const usePortableProjectSets = () => useProjectStore((state) => state.cardSets);
 
 export const readPortableProjectAssets = async (): Promise<PortableProjectAsset[]> => {
   const result = await readLocalLibraryResources();
   const relevantFailure = result.failures.find((failure) => failure.collection !== 'font');
   if (relevantFailure) throw relevantFailure.error;
-  return result.resources.filter((resource): resource is PortableProjectAsset => (
-    resource.collection === 'texture'
-    || resource.collection === 'divider'
-    || resource.collection === 'icon'
-    || resource.collection === 'image'
-  ));
+  return result.resources.flatMap((resource): PortableProjectAsset[] => {
+    if (resource.collection !== 'texture'
+      && resource.collection !== 'divider'
+      && resource.collection !== 'icon'
+      && resource.collection !== 'image') return [];
+    const prefix = `asset:${resource.collection}:`;
+    const projectAssetId = resource.objectId.startsWith(prefix)
+      ? resource.objectId.slice(prefix.length)
+      : resource.objectId;
+    return [{ ...resource, collection: resource.collection, projectAssetId }];
+  });
 };
 
 export const materializePortableProjectAssetFile = async (
@@ -64,7 +63,7 @@ export const materializePortableProjectAssetFile = async (
   if (!response.ok) throw new Error(`Unable to read ${asset.name}.`);
   const blob = await response.blob();
   const mimeType = blob.type || (asset.source.startsWith('data:image/svg+xml') ? 'image/svg+xml' : 'application/octet-stream');
-  const extension = mimeType === 'application/octet-stream' ? extensionForSource(asset.source) : extensionForMimeType(mimeType);
+  const extension = extensionForMimeType(mimeType);
   return new File([blob], `${fileNameStem}.${extension}`, { type: mimeType });
 };
 

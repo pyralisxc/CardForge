@@ -58,13 +58,13 @@ export function usePipelineSubmissionCandidates() {
       const assetType = assetTypeByCollection[asset.collection];
       const fileNameStem = slugifyFileName(asset.name || asset.id, assetType);
       return {
-        id: `${assetType}-${asset.objectId}`,
+        id: `${assetType}-${asset.projectAssetId}`,
         name: asset.name || asset.objectId,
         sourceLabel: sourceLabelByCollection[asset.collection],
         assetType,
         fileName: `${fileNameStem}.${getExtensionForAssetUrl(asset.source)}`,
         helperText: asset.packName ? `Library asset from ${asset.packName}.` : 'Saved device art from CardForge.',
-        previewUrl: asset.previewSource,
+        previewUrl: asset.source,
         createFile: async () => materializePortableProjectAssetFile(asset, fileNameStem),
       };
     });
