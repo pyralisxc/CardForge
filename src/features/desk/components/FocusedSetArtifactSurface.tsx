@@ -30,7 +30,6 @@ import {
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
   getFocusedArtifactFitZoom,
-  moveFocusedArtifactSelection,
   moveFocusedArtifactSelectionWithRebase,
   projectVisibleArtifacts,
   type ArtifactBrowseDirection,

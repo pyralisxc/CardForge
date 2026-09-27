@@ -19,7 +19,6 @@ import {
   getDeskMarqueeSelection,
   getDeskWorldBounds,
   getDeskWorldSize,
-  moveDeskWorldSelection,
   moveDeskWorldSelectionWithRebase,
   normalizeDeskWorldGeometry,
   type DeskRect,
@@ -213,7 +212,7 @@ export function useDeskSpatialLayout({
       startScroll: { left: grid?.scrollLeft ?? 0, top: grid?.scrollTop ?? 0 },
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-  }, [camera, collectWorldItems, onSelectionChange, positions, selectedIds]);
+  }, [camera, onSelectionChange, positions, selectedIds]);
 
   const moveDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
