@@ -502,6 +502,7 @@ export function FocusedSetArtifactSurface({
     setCameraMode('custom');
     suppressedClickRef.current = null;
     const artifactId = entry.identity.artifactId;
+    selectionAnchorRef.current = artifactId;
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
     dragRef.current = {
       pointerId: event.pointerId,
@@ -776,6 +777,7 @@ export function FocusedSetArtifactSurface({
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
                   data-selected={selected ? 'true' : 'false'}
+                  data-selection-anchor={selected && (selectionAnchorRef.current ?? session.selection[0]) === artifactId ? 'true' : 'false'}
                   data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
