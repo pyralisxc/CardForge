@@ -975,7 +975,7 @@
   -webkit-touch-callout: none;
 }
 
-.contentStage[data-grid="true"] {
+.contentStage[data-grid="true"] .artifactWorld {
   background-image:
     linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px);
@@ -996,7 +996,20 @@
 
 .artifactWorld .artifactTile {
   position: absolute;
+  z-index: 1;
   touch-action: none;
+}
+
+.artifactWorld .artifactTile[data-selected="true"] {
+  z-index: 3;
+}
+
+.artifactWorld .artifactTile[data-selection-anchor="true"] {
+  z-index: 4;
+}
+
+.artifactWorld .artifactTile[data-dragging="true"] {
+  z-index: 5;
 }
 
 .artifactWorld .cardButton {

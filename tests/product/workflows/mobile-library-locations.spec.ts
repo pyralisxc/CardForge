@@ -168,7 +168,9 @@ test.describe('mobile Library location tools', () => {
     const artifactStage = page.locator('[data-desk-artifact-stage]');
     const viewControls = page.locator('[data-set-view-controls]');
     await expect(artifactStage).toHaveAttribute('data-grid', 'true');
-    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    const artifactWorld = artifactStage.locator('[data-artifact-world]');
+    expect(await artifactWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
     expect(await page.evaluate(() => {
       const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();

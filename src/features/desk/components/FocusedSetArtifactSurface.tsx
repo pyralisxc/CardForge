@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
-import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
+import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
-import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
@@ -141,7 +141,7 @@ export function FocusedSetArtifactSurface({
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
-  const [faces] = useArtifactFaces();
+  const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
   const marqueeRef = useRef<{ start: ArtifactPosition; additive: string[] } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -212,13 +212,20 @@ export function FocusedSetArtifactSurface({
     width: viewportSize.width / session.camera.zoom,
     height: viewportSize.height / session.camera.zoom,
   }), [layout, session.camera, viewportSize]);
+  const visibleArtifactIds = useMemo(
+    () => new Set(visibleEntries.map((entry) => entry.identity.artifactId)),
+    [visibleEntries],
+  );
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
-  const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  // Keep the canonical scene renderer for normal Set-sized projections. Large
-  // fitted collections use an image-led thumbnail tier instead of erasing the
-  // creator's work into generic numbered boxes.
-  const useFullPreview = projectedEntries.length <= 160;
+  // World membership is stable once the Set is opened. Viewport projection may
+  // choose a lighter preview tier, but it must never mount/unmount Artifacts or
+  // replay their Set-to-Desk entrance as the camera pans.
+  const projectedEntries = layout.entries;
+  // Keep the canonical scene renderer for normal Set-sized worlds. Large
+  // collections keep every world object mounted but use the cheaper thumbnail
+  // tier so visibility remains a rendering concern rather than presentation state.
+  const useFullPreview = layout.entries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -495,6 +502,7 @@ export function FocusedSetArtifactSurface({
     setCameraMode('custom');
     suppressedClickRef.current = null;
     const artifactId = entry.identity.artifactId;
+    selectionAnchorRef.current = artifactId;
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
     dragRef.current = {
       pointerId: event.pointerId,
@@ -760,13 +768,17 @@ export function FocusedSetArtifactSurface({
               const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
               const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
               const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
-              const showThumbnailImage = previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
+              const showThumbnailImage = visibleArtifactIds.has(artifactId)
+                && previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
                 <div
                   key={artifactId}
                   className={styles.artifactTile}
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
+                  data-selected={selected ? 'true' : 'false'}
+                  data-selection-anchor={selected && (selectionAnchorRef.current ?? session.selection[0]) === artifactId ? 'true' : 'false'}
+                  data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
                   id={`artifact-field-${artifactId}`}
@@ -774,6 +786,7 @@ export function FocusedSetArtifactSurface({
                   className={styles.cardButton}
                   data-artifact-id={artifactId}
                   data-artifact-type={entry.identity.artifactType}
+                  data-viewport-visible={visibleArtifactIds.has(artifactId) ? 'true' : 'false'}
                   data-focused={session.focusPath.artifactId === artifactId}
                   aria-label={`${entry.title}. ${entry.subtitle}`}
                   aria-pressed={selected}
@@ -790,7 +803,7 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
-                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
+                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
                     <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
                       <ArtifactThumbnail
                         card={card}
@@ -809,6 +822,13 @@ export function FocusedSetArtifactSurface({
                   <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
                   {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
                 </button>
+                {hasCardBacking(card) ? <button
+                  type="button"
+                  className={styles.deskTileFlip}
+                  onClick={() => setFace(artifactId, face === 'front' ? 'back' : 'front')}
+                  aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${entry.title}`}
+                  title={`Show ${face === 'front' ? 'back' : 'front'}`}
+                ><RefreshCcw size={15} aria-hidden="true" /></button> : null}
                 </div>
               );
             })}

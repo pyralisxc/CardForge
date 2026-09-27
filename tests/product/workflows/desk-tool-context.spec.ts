@@ -96,7 +96,7 @@ for (const mobile of [false, true]) {
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
       const frontAccent = await frontTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
       const backAccent = await backTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
-      const visual = page.locator('[data-scene-artifact="scale-card-1"]');
+      const visual = page.locator('[data-scene-slot="scale-card-1"][data-scene-slot-depth="board"][data-scene-inline-board="true"]');
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-style', 'dashed');
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', frontAccent);
       await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
@@ -144,8 +144,9 @@ for (const mobile of [false, true]) {
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-      await visual.getByRole('button', { name: /^Show back of/ }).click();
-      await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
+      const focusedVisual = page.locator('[data-scene-artifact="scale-card-1"][data-scene-depth="focus"]');
+      await focusedVisual.getByRole('button', { name: /^Show back of/ }).click();
+      await expect(focusedVisual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
       if (mobile) {
         await rail.getByRole('button', { name: 'More Artifact actions', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Design Template', exact: true }).click();
