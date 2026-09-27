@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers, Minus, Plus, RefreshCcw, Pencil } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import {
@@ -43,8 +43,7 @@ export function CardEditor({ card, onSave, onDuplicate, onClose, onDirtyChange, 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const backingFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const { toast } = useToast();
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
+  const { richTextHighlightColor, setRichTextHighlightColor: setRichTextHighlightColorAction } = useEditorPreferences();
   const previewTemplate = previewFace === 'back' ? card?.backingTemplate : card?.template;
   const previewCanvas = card ? getCardFaceCanvas(card, previewFace) : null;
   const artifactViewport = useArtifactViewport({

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from 'react';
+
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectState } from '@/features/project/client/workspace';
@@ -46,7 +48,7 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const undoLastBulkRevision = useProjectStore((state) => state.undoLastBulkRevision);
   const generatorSelectedTemplateId = useProjectStore((state) => state.generatorSelectedTemplateId);
   const generatorSelectedBackingTemplateId = useProjectStore((state) => state.generatorSelectedBackingTemplateId);
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const { richTextHighlightColor } = useEditorPreferences();
   const setGeneratorSelectedTemplateId = useProjectStore((state) => state.setGeneratorSelectedTemplateId);
   const setGeneratorSelectedBackingTemplateId = useProjectStore((state) => state.setGeneratorSelectedBackingTemplateId);
   const setTemplateEditorSelectedTemplateId = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);

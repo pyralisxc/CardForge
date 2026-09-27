@@ -5,6 +5,7 @@ import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand
 
 import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
+import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
 
 import {
   createScopedProjectStorage,
@@ -51,7 +52,6 @@ type WorkspacePersistedState = Pick<
   | 'storedCards'
   | 'selectedPaperSize'
   | 'studioView'
-  | 'richTextHighlightColor'
   | 'cardSets'
   | 'activeCardSet'
   | 'generatorSelectedTemplateId'
@@ -196,7 +196,6 @@ export const useProjectStore = create<ProjectState>()(
           storedCards: state.storedCards,
           selectedPaperSize: state.selectedPaperSize,
           studioView: normalizeStudioView(state.studioView),
-          richTextHighlightColor: state.richTextHighlightColor,
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
           generatorSelectedTemplateId: state.generatorSelectedTemplateId,
@@ -218,18 +217,21 @@ export const useProjectStore = create<ProjectState>()(
           }, 0);
         },
         skipHydration: true,
-        version: 4,
-        migrate: (persistedState, version) => {
+        version: 5,
+        migrate: async (persistedState, version) => {
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
             singleCardGeneratorSelectedBackingTemplateId,
+            richTextHighlightColor: legacyRichTextHighlightColor,
             ...current
           } = persistedState as WorkspacePersistedState & {
             activeTab?: unknown;
             singleCardGeneratorSelectedTemplateId?: string | null;
             singleCardGeneratorSelectedBackingTemplateId?: string | null;
+            richTextHighlightColor?: unknown;
           };
+          if (version < 5) await migrateLegacyEditorPreferences(legacyRichTextHighlightColor);
           return {
             ...current,
             generatorSelectedTemplateId: current.generatorSelectedTemplateId !== undefined

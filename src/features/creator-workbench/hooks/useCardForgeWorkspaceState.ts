@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards, useProjectStore } from '@/features/project/client/workspace';
 import { splitTemplatesForWorkspace } from '@/features/creator-workbench/lib/workspaceState';
 
@@ -10,7 +11,7 @@ export function useCardForgeWorkspaceState() {
   const userTemplatesFromStore = useProjectStore((state) => state.userTemplates);
   const templatesFromStore = useProjectStore(selectAllTemplates);
   const appearanceStyles = useProjectStore((state) => state.appearanceStyles);
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const { richTextHighlightColor } = useEditorPreferences();
   const storedCards = useProjectStore((state) => state.storedCards);
   const generatedDisplayCards = useProjectStore(selectGeneratedDisplayCards);
 
