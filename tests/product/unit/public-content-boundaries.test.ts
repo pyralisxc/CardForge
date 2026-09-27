@@ -20,7 +20,7 @@ import { getSiteContentBlocks, updateSiteContentBlock } from '@/features/public-
 import { getSiteMedia, updateSiteMedia } from '@/features/public-site/server/siteMediaStore';
 import { getFounderProfile } from '@/features/public-site/server/founderProfileStore';
 import { getPublicSiteConfiguration } from '@/features/public-site/server/siteConfigurationStore';
-import { revalidateSiteContentCache } from '@/features/public-site/server/publicContentCache';
+import { getCachedAllSiteContentBlocks, getCachedSiteContentBlocks, revalidateSiteContentCache } from '@/features/public-site/server/publicContentCache';
 import { revalidateSiteMediaCache } from '@/features/public-site/server/publicSiteMediaCache';
 import { revalidateFounderProfile } from '@/features/public-site/server/founderProfileCache';
 import { revalidatePublicSiteConfiguration } from '@/features/public-site/server/publicSiteConfigurationCache';
@@ -50,6 +50,14 @@ describe('public content cache inputs', () => {
     await expect(getSiteContentBlocks()).rejects.toMatchObject({ status: 503 });
     provider.error = null;
     expect((await getSiteContentBlocks()).find((block) => block.slug === slug)?.body).toBe('Owner-authored fixture copy');
+  });
+  it('uses compiled public copy per request without caching it when the provider is transiently unavailable', async () => {
+    provider.error = { code: 'PGRST303', message: 'JWT issued at future' };
+    await expect(getCachedAllSiteContentBlocks()).resolves.toEqual(DEFAULT_SITE_CONTENT_BLOCKS);
+    await expect(getCachedSiteContentBlocks('contributor')).resolves.toEqual(
+      DEFAULT_SITE_CONTENT_BLOCKS.filter((block) => block.group === 'contributor'),
+    );
+    expect(provider.reads).toHaveBeenCalledTimes(2);
   });
   it('acknowledges a copy write without a fallible post-write reread', async () => {
     provider.error = { message: 'reads unavailable after save' };

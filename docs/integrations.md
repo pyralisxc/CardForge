@@ -117,7 +117,7 @@ Assistant-draft cleanup uses the provider-native Supabase path: `pg_cron` invoke
 
 **CardForge owns:** the canonical public URL policy in `src/infrastructure/http/publicUrl.ts`, deployment gates, and which live provider settings are required. `VERCEL_PROJECT_PRODUCTION_URL` and `VERCEL_URL` are consumed as Vercel-provided facts rather than duplicated deployment records.
 
-Public copy, configuration, media, and founder-profile reads use Next's native cache. Unconfigured local development retains defaults; a configured provider read failure throws so Next can preserve its last successful cached value instead of caching fallback content. Cache invalidation failures remain visible after owner saves. Image restoration returns a committed receipt even when follow-up refresh or owner history is unavailable; the editor requires reload before another media action so retry cannot swap the restored image back.
+Public copy, configuration, media, and founder-profile reads use Next's native cache. Unconfigured local development retains defaults; a configured public-copy provider read failure throws inside the cached reader so Next can preserve its last successful cached value instead of caching fallback content. Outside that cache boundary, the public presentation may use compiled default copy for the current request so transient provider/JWT failures cannot break a deployment build. Cache invalidation failures remain visible after owner saves. Image restoration returns a committed receipt even when follow-up refresh or owner history is unavailable; the editor requires reload before another media action so retry cannot swap the restored image back.
 
 ### Preview environment boundary
 
