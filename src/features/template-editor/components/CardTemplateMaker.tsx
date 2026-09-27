@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/shared/classNames';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { useToast } from '@/components/ui/use-toast';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
@@ -151,8 +151,7 @@ export function CardTemplateMaker({
     if (id !== null) requestAnimationFrame(() => { canvasRef.current?.focus(); });
   }, [selectElementInController]);
   const gridSize = canvas.gridSize || 20;
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
+  const { richTextHighlightColor, setRichTextHighlightColor: setRichTextHighlightColorAction } = useEditorPreferences();
   const elements = useTemplateEditorElements({ appearanceStyles, canUploadCustomAssets, controller, gridSize, onSaveAppearanceStyle, selectElement, toast });
   const { addElement, deleteSelected, duplicateSelected } = elements;
   const {

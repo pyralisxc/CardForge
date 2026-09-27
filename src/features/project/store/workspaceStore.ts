@@ -5,6 +5,7 @@ import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand
 
 import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
+import { migrateLegacyEditorPreferences } from '../client/editorPreferenceStorage';
 
 import {
   createScopedProjectStorage,
@@ -51,7 +52,6 @@ type WorkspacePersistedState = Pick<
   | 'storedCards'
   | 'selectedPaperSize'
   | 'studioView'
-  | 'richTextHighlightColor'
   | 'cardSets'
   | 'activeCardSet'
   | 'generatorSelectedTemplateId'
@@ -85,6 +85,7 @@ const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePer
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
 let workspaceHydrationError: unknown = null;
+const pendingLegacyEditorPreferenceMigrations = new Map<ProjectPersistenceScope, unknown>();
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -196,7 +197,6 @@ export const useProjectStore = create<ProjectState>()(
           storedCards: state.storedCards,
           selectedPaperSize: state.selectedPaperSize,
           studioView: normalizeStudioView(state.studioView),
-          richTextHighlightColor: state.richTextHighlightColor,
           cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
           generatorSelectedTemplateId: state.generatorSelectedTemplateId,
@@ -218,18 +218,28 @@ export const useProjectStore = create<ProjectState>()(
           }, 0);
         },
         skipHydration: true,
-        version: 4,
+        version: 5,
         migrate: (persistedState, version) => {
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
             singleCardGeneratorSelectedBackingTemplateId,
+            richTextHighlightColor: legacyRichTextHighlightColor,
             ...current
           } = persistedState as WorkspacePersistedState & {
             activeTab?: unknown;
             singleCardGeneratorSelectedTemplateId?: string | null;
             singleCardGeneratorSelectedBackingTemplateId?: string | null;
+            richTextHighlightColor?: unknown;
           };
+          const scope = getProjectPersistenceScope();
+          if (scope !== 'unscoped-disabled') {
+            if (version < 5 && legacyRichTextHighlightColor !== undefined) {
+              pendingLegacyEditorPreferenceMigrations.set(scope, legacyRichTextHighlightColor);
+            } else {
+              pendingLegacyEditorPreferenceMigrations.delete(scope);
+            }
+          }
           return {
             ...current,
             generatorSelectedTemplateId: current.generatorSelectedTemplateId !== undefined
@@ -274,11 +284,18 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
       // Zustand reports hydration errors through its callback, not rehydrate's promise.
       // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      pendingLegacyEditorPreferenceMigrations.delete(scope);
       signal?.throwIfAborted();
       throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
     }
+    const legacyEditorPreference = pendingLegacyEditorPreferenceMigrations.get(scope);
+    pendingLegacyEditorPreferenceMigrations.delete(scope);
     hydratedPersistenceScope = scope;
     useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+    if (legacyEditorPreference !== undefined) {
+      // Preference persistence must never delay or invalidate Project hydration.
+      void migrateLegacyEditorPreferences(legacyEditorPreference, scope);
+    }
   });
   hydrationTask = { scope, promise, signal };
   try {
