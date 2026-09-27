@@ -775,6 +775,8 @@ export function FocusedSetArtifactSurface({
                   className={styles.artifactTile}
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
+                  data-selected={selected ? 'true' : 'false'}
+                  data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
                   id={`artifact-field-${artifactId}`}

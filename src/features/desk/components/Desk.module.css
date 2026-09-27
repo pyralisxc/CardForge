@@ -996,7 +996,16 @@
 
 .artifactWorld .artifactTile {
   position: absolute;
+  z-index: 1;
   touch-action: none;
+}
+
+.artifactWorld .artifactTile[data-selected="true"] {
+  z-index: 3;
+}
+
+.artifactWorld .artifactTile[data-dragging="true"] {
+  z-index: 4;
 }
 
 .artifactWorld .cardButton {
