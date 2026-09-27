@@ -14,6 +14,7 @@ import {
   getDeskWorldSize,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
+  moveDeskWorldSelectionWithRebase,
   normalizeDeskWorldGeometry,
 } from '@/features/desk/model/deskSpatialGeometry';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
@@ -255,6 +256,14 @@ describe('Desk model', () => {
       'set:one': { x: 0, y: 0, z: 1 },
       'set:two': { x: 240, y: 20, z: 2 },
     });
+    const rebased = moveDeskWorldSelectionWithRebase({
+      items: [...items, { id: 'set:three', x: 480, y: 180, z: 3 }],
+      selectedIds: ['set:one', 'set:two'],
+      delta: { x: -100, y: -100 },
+    });
+    expect(rebased.originShift).toEqual({ x: 90, y: 0 });
+    expect(rebased.affectedIds).toEqual(['set:one', 'set:two', 'set:three']);
+    expect(rebased.positions['set:three']).toEqual({ x: 570, y: 180, z: 3 });
 
     const movedFar = moveDeskWorldSelection({
       items: [{ id: 'set:edge', x: 100, y: 100, z: 3, width: 200, height: 240 }],

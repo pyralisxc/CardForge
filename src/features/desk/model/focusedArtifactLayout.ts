@@ -1,3 +1,4 @@
+import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 
 export const FOCUSED_ARTIFACT_OVERSCAN = 180;
@@ -283,7 +284,7 @@ export const projectVisibleArtifacts = (
   ));
 };
 
-export const moveFocusedArtifactSelection = ({
+export const moveFocusedArtifactSelectionWithRebase = ({
   entries,
   selectedIds,
   delta,
@@ -293,15 +294,29 @@ export const moveFocusedArtifactSelection = ({
   selectedIds: readonly string[];
   delta: ArtifactPosition;
   snapToGrid: boolean;
-}): Record<string, ArtifactPosition> => {
+}) => {
   const selected = new Set(selectedIds);
   const snap = (value: number) => snapToGrid ? Math.round(value / 24) * 24 : Math.round(value);
-  return Object.fromEntries(entries.flatMap((entry) => selected.has(entry.identity.artifactId)
+  const items = entries.map((entry) => ({
+    id: entry.identity.artifactId,
+    x: entry.position.x,
+    y: entry.position.y,
+  }));
+  const proposed = Object.fromEntries(entries.flatMap((entry) => selected.has(entry.identity.artifactId)
     ? [[entry.identity.artifactId, {
-        x: Math.max(0, snap(entry.position.x + delta.x)),
-        y: Math.max(0, snap(entry.position.y + delta.y)),
+        x: snap(entry.position.x + delta.x),
+        y: snap(entry.position.y + delta.y),
       }] as const]
     : []));
+  return rebaseSpatialWorldMove({ items, proposed });
+};
+
+export const moveFocusedArtifactSelection = (
+  input: Parameters<typeof moveFocusedArtifactSelectionWithRebase>[0],
+): Record<string, ArtifactPosition> => {
+  const selected = new Set(input.selectedIds);
+  const result = moveFocusedArtifactSelectionWithRebase(input);
+  return Object.fromEntries(Object.entries(result.positions).filter(([id]) => selected.has(id)));
 };
 
 /**
