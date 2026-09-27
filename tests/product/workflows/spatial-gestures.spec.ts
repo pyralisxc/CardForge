@@ -172,8 +172,9 @@ test.describe('spatial touch workspace', () => {
     // the moved card deliberately readable before changing camera semantics.
     const cancelPoint = await center(card);
     await touch('touchStart', [{ ...cancelPoint, id: 6 }]);
-    await expect(card).toHaveAttribute('data-spatial-held', 'true');
+    await page.waitForTimeout(400);
     await touch('touchMove', [{ x: cancelPoint.x + 35, y: cancelPoint.y + 35, id: 6 }]);
+    await expect(tile).not.toHaveAttribute('style', movedPosition!);
     await touch('touchCancel', []);
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();

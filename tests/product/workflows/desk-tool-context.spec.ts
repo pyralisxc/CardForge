@@ -96,7 +96,7 @@ for (const mobile of [false, true]) {
       await expect(frontTemplate).toHaveCSS('border-top-style', 'solid');
       const frontAccent = await frontTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
       const backAccent = await backTemplate.evaluate((node) => getComputedStyle(node).borderTopColor);
-      const visual = page.locator('[data-scene-artifact="scale-card-1"]');
+      const visual = page.locator('[data-scene-slot="scale-card-1"][data-scene-slot-depth="board"][data-scene-inline-board="true"]');
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-style', 'dashed');
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', frontAccent);
       await expect(page.locator('[data-scene-depth="board"][data-scene-moving="true"]')).toHaveCount(0);
