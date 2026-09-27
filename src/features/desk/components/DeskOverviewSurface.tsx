@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { FolderPlus, LayoutGrid, Loader2, Maximize2, Minus, Plus, Search, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -116,6 +116,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const [organizationTag, setOrganizationTag] = useState('');
   const [renameFrom, setRenameFrom] = useState('');
   const [renameTo, setRenameTo] = useState('');
+  const mobileFiltersRef = useRef<HTMLDetailsElement>(null);
   const selectedWorkKey = props.selectedWorkItems.map((item) => item.id).toSorted().join('|');
   useEffect(() => {
     setIsOrganizingSelection(false);
@@ -124,6 +125,26 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     setRenameFrom('');
     setRenameTo('');
   }, [selectedWorkKey]);
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const details = mobileFiltersRef.current;
+      if (!details?.open || !(event.target instanceof Node)) return;
+      if (details.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest('[data-cardforge-dropdown-content]')) return;
+      details.open = false;
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const details = mobileFiltersRef.current;
+      if (details?.open) details.open = false;
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
   const saveView = () => {
     if (!props.onSaveView(viewName)) return;
     setViewName('');
@@ -206,17 +227,17 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="icon" variant="ghost" title={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
     <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
   </div>;
-  const compactViewControls = <DropdownMenu>
+  const compactViewControls = <DropdownMenu modal={false}>
     <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[901px]:hidden" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={() => props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15)}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.relativeZoom * 100)}%</DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
-      <DropdownMenuItem onSelect={props.camera.fit}><Maximize2 aria-hidden="true" />Fit visible work</DropdownMenuItem>
-      <DropdownMenuItem disabled={!props.camera.hasSelectionTarget} onSelect={props.camera.fitSelection}>Fit selection</DropdownMenuItem>
-      <DropdownMenuItem onSelect={props.camera.whole}>Whole Desk</DropdownMenuItem>
+      <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={(event) => { event.preventDefault(); props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15); }}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.relativeZoom * 100)}%</DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15); }}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.camera.fit(); }}><Maximize2 aria-hidden="true" />Fit visible work</DropdownMenuItem>
+      <DropdownMenuItem disabled={!props.camera.hasSelectionTarget} onSelect={(event) => { event.preventDefault(); props.camera.fitSelection(); }}>Fit selection</DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.camera.whole(); }}>Whole Desk</DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={props.onShowGridChange}><LayoutGrid aria-hidden="true" />{props.showGrid ? 'Hide grid' : 'Show grid'}</DropdownMenuItem>
-      <DropdownMenuItem onSelect={props.onSnapToGridChange}>{props.snapToGrid ? 'Disable Snap' : 'Enable Snap'}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.onShowGridChange(); }}><LayoutGrid aria-hidden="true" />{props.showGrid ? 'Hide grid' : 'Show grid'}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.onSnapToGridChange(); }}>{props.snapToGrid ? 'Disable Snap' : 'Enable Snap'}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>;
 
@@ -236,7 +257,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <Input ref={props.searchRef} value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="Search Desk work" />
         </label>
         <div className={styles.deskFilterRow} aria-label="Desk views and filters">{renderDeskFilters()}</div>
-        <details className={styles.mobileDeskFilters} data-mobile-desk-filters>
+        <details ref={mobileFiltersRef} className={styles.mobileDeskFilters} data-mobile-desk-filters>
           <summary aria-label="Open Desk filters"><SlidersHorizontal aria-hidden="true" /><span>Filters</span><span className={styles.mobileDeskFilterSummary}>{props.activeRestrictionsLabel}</span></summary>
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
@@ -272,7 +293,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
         <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
-          <div ref={props.workWorldRef} className={styles.deskWorld} data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
+          <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;

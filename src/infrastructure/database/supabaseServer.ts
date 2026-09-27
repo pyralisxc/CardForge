@@ -13,7 +13,7 @@ const getSupabaseServerSecret = (): string | null => (
   || null
 );
 
-const SUPABASE_FUTURE_JWT_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
+const SUPABASE_FUTURE_JWT_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000, 4_000, 8_000] as const;
 
 /** PostgREST can briefly reject a valid secret-key request after a gateway refresh or clock skew. */
 export const fetchSupabaseServerRead: typeof fetch = async (input, init) => {

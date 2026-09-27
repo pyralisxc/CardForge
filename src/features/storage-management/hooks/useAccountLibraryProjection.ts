@@ -8,7 +8,7 @@ import { loadCardForgeStudioBootstrap } from '@/features/pipeline/client';
 import { getGoogleDriveProjectBinding, loadGoogleDriveProjectLibrary, openGoogleDriveProject, type GoogleDriveProjectListResult } from '@/features/project/client/provider-google-drive';
 import { getLocalProjectFolderStatus, listLocalProjectWorkBindings, type LocalProjectFolderStatus, type LocalProjectWorkBindingStatus } from '@/features/project/client/provider-local-folder';
 import { PROJECT_FONT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
-import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
+import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
@@ -240,12 +240,9 @@ export function useAccountLibraryProjection({
   const kind = kindFilters[0] ?? 'all';
   const source = sourceFilters[0] ?? 'all';
 
-  const cardSets = useProjectStore((state) => state.cardSets);
-  const activeSetId = useProjectStore((state) => state.activeCardSet?.id ?? null);
-  const storedCards = useProjectStore((state) => state.storedCards);
-  const userTemplates = useProjectStore((state) => state.userTemplates);
-  const setDefaultTemplatesFromFiles = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
-  const updateCardSetMetadata = useProjectStore((state) => state.updateCardSetMetadata);
+  const projectWorkspace = useProjectLibraryWorkspace();
+  const { cardSets, activeSetId, storedCards, userTemplates } = projectWorkspace;
+  const { setDefaultTemplatesFromFiles, updateSetMetadata, activateSet, openTemplateDesign } = projectWorkspace.actions;
   useEffect(() => {
     let cancelled = false;
     // Prevent an older account's in-flight source from publishing a value or
@@ -263,7 +260,7 @@ export function useAccountLibraryProjection({
     setWorkingDraftSource(null);
     setSourceFailures([]);
     setTemplateCatalogReady(false);
-    void hydrateProjectWorkspaceForScope(persistenceScope)
+    void hydrateProjectLibraryWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setHydrated(true); })
       .catch((error) => {
         if (cancelled) return;
@@ -569,7 +566,7 @@ export function useAccountLibraryProjection({
   const home = useMemo(() => resolveAccountHomeLibraryProjection(items, activeSetId), [activeSetId, items]);
 
   const updatePersonalOrganization = useCallback((item: AccountLibraryItem, patch: { type?: string; tags?: string[] }): boolean => {
-    if (item.references.localSetId) return updateCardSetMetadata(item.references.localSetId, patch);
+    if (item.references.localSetId) return updateSetMetadata(item.references.localSetId, patch);
     if (!privateOrganizationReady) return false;
     setPrivateOrganization((current) => {
       const existing = current[item.id] ?? { tags: [] };
@@ -582,7 +579,7 @@ export function useAccountLibraryProjection({
       return updated;
     });
     return true;
-  }, [organizationPreferenceKey, privateOrganizationReady, updateCardSetMetadata]);
+  }, [organizationPreferenceKey, privateOrganizationReady, updateSetMetadata]);
 
   const openItem = useCallback(async (item: AccountLibraryItem, returnTo: string = createLibraryReturnHref()) : Promise<string> => {
     const navigate = (href: string) => { router.push(href); return href; };
@@ -592,13 +589,11 @@ export function useAccountLibraryProjection({
         return navigate(createStudioHref({ documentId: item.references.workingDraftId, revision: item.revision, returnTo }));
       }
       if (item.references.localSetId) {
-        useProjectStore.getState().setActiveCardSetId(item.references.localSetId);
+        activateSet(item.references.localSetId);
         return navigate(createDeskReturnHref(`set:${item.references.localSetId}`));
       }
       if (item.references.localTemplateId) {
-        const store = useProjectStore.getState();
-        store.setTemplateEditorSelectedTemplateId(item.references.localTemplateId);
-        store.setStudioView('template');
+        openTemplateDesign(item.references.localTemplateId);
         const params = new URLSearchParams({ section: 'library', scope: 'personal', tool: 'design', artifact: item.references.localTemplateId });
         return navigate(`/account?${params.toString()}`);
       }
@@ -621,7 +616,7 @@ export function useAccountLibraryProjection({
     } finally {
       setBusyItemId(null);
     }
-  }, [router]);
+  }, [activateSet, openTemplateDesign, router]);
 
   return {
     items,

@@ -32,7 +32,7 @@ import {
   type GoogleDriveProjectListResult,
   type GoogleDriveProjectSummary,
 } from '@/features/project/client/provider-google-drive';
-import { hydrateProjectWorkspaceForScope, useProjectStore } from '@/features/project/client/workspace';
+import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 
 const formatBytes = (bytes: number) => {
@@ -55,7 +55,7 @@ export function GoogleDriveProjectStoragePanel({
   const router = useRouter();
   const returnTo = useSafeCurrentReturnPath('/account?section=library&tool=locations');
   const { toast } = useToast();
-  const activeSetName = useProjectStore((state) => state.activeCardSet?.name ?? 'No Set selected');
+  const { activeSetName } = useProjectLibraryWorkspace();
   const [ready, setReady] = useState(false);
   const [library, setLibrary] = useState<GoogleDriveProjectListResult | null>(null);
   const [binding, setBinding] = useState<GoogleDriveProjectBinding | null>(null);
@@ -68,7 +68,7 @@ export function GoogleDriveProjectStoragePanel({
   useEffect(() => {
     let cancelled = false;
     setReady(false);
-    void hydrateProjectWorkspaceForScope(persistenceScope)
+    void hydrateProjectLibraryWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setReady(true); })
       .catch((error) => {
         if (cancelled) return;

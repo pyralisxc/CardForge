@@ -13,7 +13,7 @@ type SpatialWorkspacePreferences = {
 
 const DEFAULT_SPATIAL_PREFERENCES: SpatialWorkspacePreferences = {
   showGrid: true,
-  snapToGrid: true,
+  snapToGrid: false,
 };
 
 export function useSpatialWorkspacePreferences() {

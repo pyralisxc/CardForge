@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BROWSER_STORAGE_DATABASE, compareAndSetBrowserWorkspaceValue, createBrowserKeyValueStorage, getBrowserWorkspaceSaveStatus } from '@/features/project/persistence/indexedDbStorage';
 import { createScopedProjectStorage, restoreBrowserWorkspaceRecovery, setProjectPersistenceScope } from '@/features/project/persistence/projectPersistenceScope';
 import { BrowserWorkspaceConflictError, parseBrowserWorkspaceRecord } from '@/features/project/persistence/workspaceRevision';
+import { clearEditorPreferenceStorage, readEditorPreferenceStorage } from '@/features/project/client/editorPreferenceStorage';
 import * as structured from '@/features/project/persistence/structuredBrowserStorage';
 
 const payload = (name: string) => JSON.stringify({ state: { name }, version: 4 });
@@ -111,6 +112,34 @@ describe('workspace recovery failure safety', () => {
     await expect(storage.setItem('workspace', '{}')).rejects.toThrow('readable JSON');
     expect(getBrowserWorkspaceSaveStatus()).toBe('failed');
     await expect(storage.getItem('workspace')).resolves.toBe(payload('safe'));
+  });
+
+  it('hydrates a v4 workspace before handing its legacy editor preference to the new owner', async () => {
+    const scope = `account:legacy-editor-${sequence}` as const;
+    setProjectPersistenceScope(scope);
+    const raw = createBrowserKeyValueStorage(`project-workspace:${scope}`);
+    await clearEditorPreferenceStorage(scope);
+    await raw.setItem('workspace', JSON.stringify({
+      state: {
+        userTemplates: [],
+        appearanceStyles: [],
+        storedCards: [],
+        cardSets: [{ id: 'legacy-set', name: 'Legacy Set' }],
+        activeCardSet: { id: 'legacy-set', name: 'Legacy Set' },
+        richTextHighlightColor: '#12abef',
+      },
+      version: 4,
+    }));
+
+    const { hydrateProjectWorkspaceForScope, useProjectStore } = await import('@/features/project/store/workspaceStore');
+    await hydrateProjectWorkspaceForScope(scope);
+
+    expect(useProjectStore.getState().cardSets).toEqual([{ id: 'legacy-set', name: 'Legacy Set' }]);
+    expect(useProjectStore.getState()).not.toHaveProperty('richTextHighlightColor');
+    await expect.poll(async () => (await readEditorPreferenceStorage(scope))?.richTextHighlightColor ?? null)
+      .toBe('#12abef');
+    expect(useProjectStore.persist.getOptions().partialize!(useProjectStore.getState()))
+      .not.toHaveProperty('richTextHighlightColor');
   });
 
   it('fails account hydration and disables autosave until a readable retry succeeds', async () => {

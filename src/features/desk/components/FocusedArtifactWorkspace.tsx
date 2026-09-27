@@ -12,9 +12,15 @@ import { getCardFaceCanvas, getCardFaceTemplate, type DisplayCard } from '@/doma
 import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 import { buildArtifactFieldTargetMap, completeCardDataWithTemplateDefaults, GeneratorFieldGroups, getMissingRequiredFieldLabels, initializeCardDataFromTemplate, type ArtifactFieldTarget } from '@/features/card-generator/client';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { useToast } from '@/components/ui/use-toast';
 import type { ArtifactBrowseDirection } from '../model/focusedArtifactLayout';
+import {
+  isFocusedArtifactDirectPointer,
+  isFocusedArtifactDoubleTap,
+  resolveFocusedArtifactSwipe,
+  type FocusedArtifactTap,
+} from '../model/focusedArtifactInteraction';
 
 import styles from './Desk.module.css';
 
@@ -30,6 +36,7 @@ interface FocusedArtifactWorkspaceProps {
   subtitle: string;
   availableDirections: Readonly<Record<ArtifactBrowseDirection, boolean>>;
   onBrowse: (direction: ArtifactBrowseDirection) => void;
+  onExitFocus: () => void;
   onEdit: () => void;
   editing: boolean;
   onCancelEdit: () => void;
@@ -45,13 +52,6 @@ const directionForKey = (key: string): ArtifactBrowseDirection | null => (
         : key === 'ArrowRight' ? 'right'
           : null
 );
-
-const directionForSwipe = (deltaX: number, deltaY: number): ArtifactBrowseDirection | null => {
-  if (Math.hypot(deltaX, deltaY) < 56) return null;
-  return Math.abs(deltaX) >= Math.abs(deltaY)
-    ? deltaX > 0 ? 'right' : 'left'
-    : deltaY > 0 ? 'down' : 'up';
-};
 
 const targetStyle = (target: ArtifactFieldTarget, canvas: NonNullable<ReturnType<typeof getCardFaceCanvas>>): React.CSSProperties => ({
   left: `${((target.element.x + target.element.width / 2) / Math.max(1, canvas.width)) * 100}%`,
@@ -74,6 +74,7 @@ export function FocusedArtifactWorkspace({
   subtitle,
   availableDirections,
   onBrowse,
+  onExitFocus,
   onEdit,
   editing,
   onCancelEdit,
@@ -83,8 +84,7 @@ export function FocusedArtifactWorkspace({
 }: FocusedArtifactWorkspaceProps) {
   const [face] = useArtifactFace(artifactId);
   const { toast } = useToast();
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColor = useProjectStore((state) => state.setRichTextHighlightColor);
+  const { richTextHighlightColor, setRichTextHighlightColor } = useEditorPreferences();
   const initialFront = useMemo(() => initializeCardDataFromTemplate(card.template, card.data, true), [card.data, card.template]);
   const initialBack = useMemo(() => initializeCardDataFromTemplate(card.backingTemplate, card.backingData, true), [card.backingData, card.backingTemplate]);
   const [frontData, setFrontData] = useState<CardData>(initialFront[1]);
@@ -111,13 +111,27 @@ export function FocusedArtifactWorkspace({
     maxWidth: 520,
     verticalPadding: 144,
   });
-  const swipeRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null);
+  const swipeRef = useRef<{
+    pointerId: number;
+    pointerType: string;
+    startX: number;
+    startY: number;
+    startTime: number;
+    artifactTargetId: string | null;
+  } | null>(null);
+  const activeDirectPointersRef = useRef(new Set<number>());
+  const tapRef = useRef<FocusedArtifactTap | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0, active: false });
 
   useEffect(() => {
     setFrontData(initialFront[1]);
     setBackData(initialBack[1]);
     setSelectedTargetId(null);
     setShowAllFields(false);
+    swipeRef.current = null;
+    tapRef.current = null;
+    activeDirectPointersRef.current.clear();
+    setSwipeOffset({ x: 0, y: 0, active: false });
   }, [card.uniqueId, initialBack, initialFront]);
   useEffect(() => onDirtyChange(editing && dirty), [dirty, editing, onDirtyChange]);
   useEffect(() => {
@@ -137,28 +151,92 @@ export function FocusedArtifactWorkspace({
   const canStartSwipe = (event: ReactPointerEvent<HTMLDivElement>) => (
     !editing
     && viewport.isAutoFit
-    && event.pointerType === 'touch'
+    && isFocusedArtifactDirectPointer(event.pointerType)
     && event.isPrimary
     && event.target instanceof Node
     && event.currentTarget.contains(event.target)
   );
+  const resetSwipeFeedback = () => setSwipeOffset({ x: 0, y: 0, active: false });
   const handlePointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (editing && event.target instanceof Element && event.target.closest('[data-artifact-field-target]')) return;
     viewport.gestures.onPointerDownCapture(event);
-    if (event.pointerType === 'touch' && swipeRef.current?.pointerId !== event.pointerId) swipeRef.current = null;
-    if (canStartSwipe(event)) swipeRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    if (!isFocusedArtifactDirectPointer(event.pointerType)) return;
+
+    activeDirectPointersRef.current.add(event.pointerId);
+    if (activeDirectPointersRef.current.size > 1) {
+      swipeRef.current = null;
+      tapRef.current = null;
+      resetSwipeFeedback();
+      return;
+    }
+
+    if (swipeRef.current?.pointerId !== event.pointerId) swipeRef.current = null;
+    if (!canStartSwipe(event)) return;
+    const artifactTarget = event.target instanceof Element
+      ? event.target.closest<HTMLElement>('button[data-focused="true"][data-artifact-id]')
+      : null;
+    swipeRef.current = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+      startTime: event.timeStamp,
+      artifactTargetId: artifactTarget?.dataset.artifactId ?? null,
+    };
+  };
+  const handlePointerMoveCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    viewport.gestures.onPointerMoveCapture(event);
+    const swipe = swipeRef.current;
+    if (!swipe || swipe.pointerId !== event.pointerId || activeDirectPointersRef.current.size !== 1) return;
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    if (Math.hypot(deltaX, deltaY) < 6) return;
+    const damp = (value: number) => Math.max(-72, Math.min(72, value * 0.34));
+    setSwipeOffset({ x: damp(deltaX), y: damp(deltaY), active: true });
   };
   const handlePointerUpCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     const swipe = swipeRef.current;
     viewport.gestures.onPointerUpCapture(event);
+    if (isFocusedArtifactDirectPointer(event.pointerType)) activeDirectPointersRef.current.delete(event.pointerId);
     if (!swipe || swipe.pointerId !== event.pointerId) return;
+
     swipeRef.current = null;
-    const direction = directionForSwipe(event.clientX - swipe.startX, event.clientY - swipe.startY);
-    if (direction) browse(direction);
+    resetSwipeFeedback();
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    const durationMs = Math.max(1, event.timeStamp - swipe.startTime);
+    const direction = resolveFocusedArtifactSwipe({ deltaX, deltaY, durationMs });
+    if (direction) {
+      tapRef.current = null;
+      browse(direction);
+      return;
+    }
+
+    const movement = Math.hypot(deltaX, deltaY);
+    if (!swipe.artifactTargetId || movement > 12 || durationMs > 320) {
+      tapRef.current = null;
+      return;
+    }
+    const nextTap: FocusedArtifactTap = {
+      artifactId: swipe.artifactTargetId,
+      pointerType: swipe.pointerType,
+      x: event.clientX,
+      y: event.clientY,
+      at: event.timeStamp,
+    };
+    if (isFocusedArtifactDoubleTap(tapRef.current, nextTap)) {
+      tapRef.current = null;
+      onEdit();
+      return;
+    }
+    tapRef.current = nextTap;
   };
   const handlePointerCancelCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     viewport.gestures.onPointerCancelCapture(event);
+    activeDirectPointersRef.current.delete(event.pointerId);
     if (swipeRef.current?.pointerId === event.pointerId) swipeRef.current = null;
+    tapRef.current = null;
+    resetSwipeFeedback();
   };
   const handleFocusedArtifactKey = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (editing) return;
@@ -242,7 +320,7 @@ export function FocusedArtifactWorkspace({
     />)}
   </div> : undefined;
 
-  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-surface-authority="primary" data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal="explicit" data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
+  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-surface-authority="primary" data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal={editing ? 'explicit' : 'background'} data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
     <div
       ref={viewport.viewportRef}
       tabIndex={-1}
@@ -253,18 +331,34 @@ export function FocusedArtifactWorkspace({
       data-artifact-scroll-contained
       data-auto-fit={viewport.isAutoFit ? 'true' : 'false'}
       onPointerDownCapture={handlePointerDownCapture}
-      onPointerMoveCapture={viewport.gestures.onPointerMoveCapture}
+      onPointerMoveCapture={handlePointerMoveCapture}
       onPointerUpCapture={handlePointerUpCapture}
       onPointerCancelCapture={handlePointerCancelCapture}
       onClickCapture={viewport.gestures.onClickCapture}
+      onClick={(event) => {
+        if (editing || event.defaultPrevented) return;
+        if (event.target instanceof Element && event.target.closest('[data-focused-artifact-frame]')) return;
+        onExitFocus();
+      }}
       onContextMenu={viewport.gestures.onContextMenu}
       style={{ overflow: viewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'none' }}
       aria-label={`${setName} focused Artifact viewport`}
       aria-describedby={`focused-artifact-browse-${artifactId}`}
     >
-      <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">{editing ? 'Artifact Edit is active. Choose a highlighted field on the card, or use All fields for a complete accessible list.' : 'When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls.'}</p>
+      <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">{editing ? 'Artifact Edit is active. Choose a highlighted field on the card, or use All fields for a complete accessible list.' : 'When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls. Tap or click open space outside the card to return to the Set.'}</p>
       <div className={styles.focusedArtifactWorld} style={{ width: viewport.worldWidth, height: viewport.worldHeight }}>
-        <div className={styles.focusedArtifactFrame} style={{ width: viewport.visualWidth, minHeight: viewport.visualHeight }} data-card-face={face}>
+        <div
+          className={styles.focusedArtifactFrame}
+          data-focused-artifact-frame
+          style={{
+            width: viewport.visualWidth,
+            minHeight: viewport.visualHeight,
+            '--artifact-swipe-x': `${swipeOffset.x}px`,
+            '--artifact-swipe-y': `${swipeOffset.y}px`,
+          } as React.CSSProperties}
+          data-card-face={face}
+          data-swipe-active={swipeOffset.active ? 'true' : 'false'}
+        >
           {editing ? <div className={styles.focusedArtifactEditFrame} data-artifact-edit-frame>
             <ArtifactSlot card={previewCard} face={face} width={viewport.visualWidth} depth="edit" flipLabel={title} watermark={!canExportClean} interactionOverlay={interactionOverlay} />
           </div> : <button

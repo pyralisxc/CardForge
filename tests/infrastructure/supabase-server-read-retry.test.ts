@@ -31,6 +31,8 @@ describe('Supabase server reads', () => {
       .mockResolvedValueOnce(futureJwt())
       .mockResolvedValueOnce(futureJwt())
       .mockResolvedValueOnce(futureJwt())
+      .mockResolvedValueOnce(futureJwt())
+      .mockResolvedValueOnce(futureJwt())
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     globalThis.fetch = request;
 
@@ -39,7 +41,7 @@ describe('Supabase server reads', () => {
     const response = await responsePromise;
 
     expect(response.status).toBe(200);
-    expect(request).toHaveBeenCalledTimes(5);
+    expect(request).toHaveBeenCalledTimes(7);
     expect(request.mock.calls.slice(1).every(([, init]) => init?.cache === 'no-store')).toBe(true);
   });
 
@@ -54,7 +56,7 @@ describe('Supabase server reads', () => {
     const response = await responsePromise;
 
     expect(response.status).toBe(401);
-    expect(request).toHaveBeenCalledTimes(5);
+    expect(request).toHaveBeenCalledTimes(7);
   });
 
   it('does not retry a different authentication failure or a write', async () => {

@@ -9,6 +9,7 @@ import {
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
+  moveFocusedArtifactSelectionWithRebase,
   projectVisibleArtifacts,
 } from '@/features/desk/model/focusedArtifactLayout';
 
@@ -170,6 +171,30 @@ describe('focused Artifact spatial layout', () => {
       ['card-visible', 'card-hidden-1', 'card-hidden-2'],
       ['card-visible', 'card-other'],
     )).toEqual({ visible: 1, hidden: 2, total: 3 });
+  });
+
+  it('rebases the complete authored Set when a selected Artifact crosses the top or left origin', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 960,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'One', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 10, y: 12 } },
+          { identity: identity(2), title: 'Two', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 180, y: 120 } },
+        ],
+      }],
+    });
+    const moved = moveFocusedArtifactSelectionWithRebase({
+      entries: layout.entries,
+      selectedIds: ['card-1'],
+      delta: { x: -40, y: -50 },
+      snapToGrid: false,
+    });
+    expect(moved.originShift).toEqual({ x: 30, y: 38 });
+    expect(moved.affectedIds).toEqual(['card-1', 'card-2']);
+    expect(moved.positions['card-1']).toEqual({ x: 0, y: 0 });
+    expect(moved.positions['card-2']).toEqual({ x: 210, y: 158 });
   });
 
   it('browses focused Artifacts by displayed geometry rather than collection order', () => {

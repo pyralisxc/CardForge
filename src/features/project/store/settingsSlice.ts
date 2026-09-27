@@ -43,7 +43,6 @@ const withTemplateReference = (set: CardSet, templateId: string): CardSet => {
 export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => ({
   selectedPaperSize: PAPER_SIZES[0],
   studioView: 'template',
-  richTextHighlightColor: '#ffd700',
   cardSets: [],
   activeCardSet: null,
   generatorSelectedTemplateId: null,
@@ -58,7 +57,6 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
 
   setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
   setStudioView: (view) => set({ studioView: normalizeStudioView(view) }),
-  setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
   createCardSet: (name) => {
     const id = `set-${nanoid()}`;
     set((state) => activateCardSet(state, {

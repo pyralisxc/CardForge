@@ -1,3 +1,5 @@
+import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
+
 /**
  * Desk uses the same elastic-world principle as focused Set layout: authored
  * objects define the usable extent. The minimum keeps an empty/small Desk
@@ -270,29 +272,38 @@ export const collectDeskWorldItems = ({
   }];
 });
 
-export const moveDeskWorldSelection = ({
+export const moveDeskWorldSelectionWithRebase = ({
   items,
   selectedIds,
   delta,
   snap = 1,
 }: {
-  items: readonly DeskWorldItemRect[];
+  items: readonly Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>[];
   selectedIds: readonly string[];
   delta: { x: number; y: number };
   snap?: number;
-}): Record<string, DeskWorldPosition> => {
-  const selected = items.filter((item) => selectedIds.includes(item.id));
-  if (selected.length === 0) return {};
-  const minimumX = Math.min(...selected.map((item) => item.x));
-  const minimumY = Math.min(...selected.map((item) => item.y));
-  const place = (value: number) => Math.round(value / Math.max(1, snap)) * Math.max(1, snap);
-  const dx = Math.max(place(delta.x), -minimumX);
-  const dy = Math.max(place(delta.y), -minimumY);
-  return Object.fromEntries(selected.map((item) => [item.id, {
-    x: Math.round(item.x + dx),
-    y: Math.round(item.y + dy),
-    z: item.z,
-  }]));
+}) => {
+  const selected = new Set(selectedIds);
+  const step = Math.max(1, snap);
+  const placeDelta = (value: number) => Math.round(value / step) * step;
+  const proposed = Object.fromEntries(items.flatMap((item) => selected.has(item.id)
+    ? [[item.id, { x: item.x + placeDelta(delta.x), y: item.y + placeDelta(delta.y) }] as const]
+    : []));
+  const rebased = rebaseSpatialWorldMove({ items, proposed });
+  const zById = new Map(items.map((item) => [item.id, item.z]));
+  return {
+    ...rebased,
+    positions: Object.fromEntries(Object.entries(rebased.positions).map(([id, position]) => [id, {
+      ...position,
+      z: zById.get(id) ?? 0,
+    }])),
+  };
+};
+
+export const moveDeskWorldSelection = (input: Parameters<typeof moveDeskWorldSelectionWithRebase>[0]): Record<string, DeskWorldPosition> => {
+  const selected = new Set(input.selectedIds);
+  const result = moveDeskWorldSelectionWithRebase(input);
+  return Object.fromEntries(Object.entries(result.positions).filter(([id]) => selected.has(id)));
 };
 
 export const getDeskMarqueeSelection = (

@@ -596,6 +596,7 @@ export function Desk({
               setSession={setInteractionSession}
               stageRef={cardStageRef}
               onFocusArtifact={focusArtifactContext}
+              onReturnToSet={returnToSet}
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
               onDesignTemplate={(templateId) => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design', templateId)}

@@ -29,9 +29,11 @@ const getBrowserAssetId = (reference: string): string | null => (
     : null
 );
 
-export const isProjectBinaryAssetReference = (value: string | null | undefined): value is string => (
-  typeof value === 'string' && getBrowserAssetId(value) !== null
-);
+export function isProjectBinaryAssetReference(value: string): boolean;
+export function isProjectBinaryAssetReference(value: string | null | undefined): value is string;
+export function isProjectBinaryAssetReference(value: string | null | undefined): boolean {
+  return typeof value === 'string' && getBrowserAssetId(value) !== null;
+}
 
 const getScopedAssetStorageKey = (scope: string, assetId: string) => (
   `project-content-asset:${encodeURIComponent(scope)}:${assetId}`

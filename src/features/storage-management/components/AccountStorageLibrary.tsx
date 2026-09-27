@@ -13,7 +13,7 @@ import { CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUST
 import { getBrowserStorageHealth, type BrowserStorageHealth } from '@/features/project/client/persistence-storage';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { getProjectAssetStorage, readTypedProjectAssetListFromStorage } from '@/features/project/client/assets';
-import { hydrateProjectWorkspaceForScope, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import { hydrateProjectLibraryWorkspaceForScope, useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { AssistantDraftLibrary } from './AssistantDraftLibrary';
 
 interface AccountStorageLibraryProps {
@@ -75,16 +75,15 @@ export function AccountStorageLibrary({
   const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
   const [draftRefreshVersion, setDraftRefreshVersion] = useState(0);
 
-  const cardSets = useProjectStore((state) => state.cardSets);
-  const storedCards = useProjectStore((state) => state.storedCards);
-  const defaultTemplates = useProjectStore((state) => state.defaultTemplates);
-  const userTemplates = useProjectStore((state) => state.userTemplates);
+  const projectWorkspace = useProjectLibraryWorkspace();
+  const { cardSets, storedCards, templates, userTemplates } = projectWorkspace;
+  const { activateSet, deleteSet } = projectWorkspace.actions;
 
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
     setHydrationError(null);
-    void hydrateProjectWorkspaceForScope(persistenceScope)
+    void hydrateProjectLibraryWorkspaceForScope(persistenceScope)
       .then(() => { if (!cancelled) setHydrated(true); })
       .catch((error) => {
         if (cancelled) return;
@@ -122,14 +121,13 @@ export function AccountStorageLibrary({
 
   const portableSetBytes = useMemo(() => {
     if (!hydrated) return {};
-    const templates = selectAllTemplates({ defaultTemplates, userTemplates });
     const next: Record<string, number> = {};
     cardSets.forEach((set) => {
       const transfer = createCardSetTransfer({ set, storedCards, templates, customAssets });
       next[set.id] = new Blob([JSON.stringify(transfer)]).size;
     });
     return next;
-  }, [cardSets, customAssets, defaultTemplates, hydrated, storedCards, userTemplates]);
+  }, [cardSets, customAssets, hydrated, storedCards, templates]);
 
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -147,16 +145,15 @@ export function AccountStorageLibrary({
   const showDrafts = focus === 'overview' || focus === 'drafts';
 
   const removeLocalSet = useCallback((setId: string) => {
-    const state = useProjectStore.getState();
-    const target = state.cardSets.find((set) => set.id === setId);
+    const target = cardSets.find((set) => set.id === setId);
     if (!target) return;
-    if (!state.deleteCardSet(setId)) return;
+    if (!deleteSet(setId)) return;
     toast({
       title: 'Set removed from this device',
       description: `“${target.name}” and its local cards were removed here. Shared Templates and assets were left alone.`,
     });
     void refreshDeviceDetails();
-  }, [refreshDeviceDetails, toast]);
+  }, [cardSets, deleteSet, refreshDeviceDetails, toast]);
 
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby={embedded ? undefined : 'storage-library-title'}>
@@ -203,7 +200,7 @@ export function AccountStorageLibrary({
                       <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} card{(cardCounts.get(set.id) ?? 0) === 1 ? '' : 's'} · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { useProjectStore.getState().setActiveCardSetId(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
+                      <Button size="sm" variant="outline" onClick={() => { activateSet(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
                       <Button
                         size="sm"
                         variant="ghost"

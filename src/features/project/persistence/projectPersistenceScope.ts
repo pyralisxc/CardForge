@@ -27,6 +27,7 @@ const workspaceWriterId = typeof globalThis.crypto?.randomUUID === 'function'
 let workspaceRevisionChannel: BroadcastChannel | null = null;
 
 export const BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT = 'cardforge:workspace-remote-change';
+export const PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT = 'cardforge:project-persistence-scope-change';
 
 const getWorkspaceRevisionKey = (namespace: string, key: string) => `${namespace}:${key}`;
 
@@ -66,7 +67,11 @@ const getWorkspaceRevisionChannel = () => {
 };
 
 export const setProjectPersistenceScope = (scope: ProjectPersistenceScope) => {
+  if (activeProjectPersistenceScope === scope) return;
   activeProjectPersistenceScope = scope;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT, { detail: { scope } }));
+  }
 };
 
 export const getProjectPersistenceScope = () => activeProjectPersistenceScope;

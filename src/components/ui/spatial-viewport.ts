@@ -138,6 +138,82 @@ export const projectClientPointToSpatialWorld = (
   x: (projection.scrollLeft + point.clientX - bounds.left - (projection.offsetX ?? 0)) / Math.max(Number.EPSILON, projection.zoom),
   y: (projection.scrollTop + point.clientY - bounds.top - (projection.offsetY ?? 0)) / Math.max(Number.EPSILON, projection.zoom),
 });
+
+export const scrollSpatialViewportProgrammatically = ({
+  viewport,
+  target,
+  behavior = 'auto',
+  onRelease,
+  smoothSettleMs = 96,
+  smoothFallbackMs = 1_600,
+}: {
+  viewport: HTMLElement;
+  target: SpatialScrollPosition;
+  behavior?: ScrollBehavior;
+  onRelease: () => void;
+  smoothSettleMs?: number;
+  smoothFallbackMs?: number;
+}): (() => void) => {
+  let active = true;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let firstFrame: number | null = null;
+  let secondFrame: number | null = null;
+
+  const cleanup = () => {
+    viewport.removeEventListener('scroll', onScroll);
+    viewport.removeEventListener('scrollend', release);
+    viewport.removeEventListener('pointerdown', release);
+    viewport.removeEventListener('wheel', release);
+    if (settleTimer !== null) clearTimeout(settleTimer);
+    if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+    if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+    if (secondFrame !== null) cancelAnimationFrame(secondFrame);
+    settleTimer = null;
+    fallbackTimer = null;
+    firstFrame = null;
+    secondFrame = null;
+  };
+  const cancel = () => {
+    if (!active) return;
+    active = false;
+    cleanup();
+  };
+  function release() {
+    if (!active) return;
+    active = false;
+    cleanup();
+    onRelease();
+  }
+  function onScroll() {
+    if (!active || behavior !== 'smooth') return;
+    if (settleTimer !== null) clearTimeout(settleTimer);
+    settleTimer = setTimeout(release, smoothSettleMs);
+  }
+
+  // Direct manipulation immediately returns camera ownership to the viewport.
+  viewport.addEventListener('pointerdown', release, { passive: true });
+  viewport.addEventListener('wheel', release, { passive: true });
+
+  const distance = Math.hypot(viewport.scrollLeft - target.left, viewport.scrollTop - target.top);
+  if (behavior === 'smooth' && distance > 0.5) {
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    viewport.addEventListener('scrollend', release, { once: true });
+    fallbackTimer = setTimeout(release, smoothFallbackMs);
+    viewport.scrollTo({ ...target, behavior });
+  } else {
+    viewport.scrollTo({ ...target, behavior });
+    firstFrame = requestAnimationFrame(() => {
+      firstFrame = null;
+      secondFrame = requestAnimationFrame(() => {
+        secondFrame = null;
+        release();
+      });
+    });
+  }
+
+  return cancel;
+};
 type Gesture = { start: SpatialPoint; last: SpatialPoint; mode: 'pending' | 'drag' | 'pan' | 'pinch'; target: HTMLElement };
 const pinch = (points: SpatialPoint[]) => ({
   distance: Math.max(1, Math.hypot(points[1].clientX - points[0].clientX, points[1].clientY - points[0].clientY)),

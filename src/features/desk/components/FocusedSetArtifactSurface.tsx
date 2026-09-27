@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
-import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
+import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
-import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
@@ -20,16 +20,18 @@ import {
   getSpatialViewportGeometry,
   projectClientPointToSpatialWorld,
   projectSpatialScrollToWorldOrigin,
+  scrollSpatialViewportProgrammatically,
   useSpatialGestures,
   type SpatialPoint,
 } from '@/components/ui/spatial-viewport';
+import { getSpatialOriginCompensatedScroll } from '@/components/ui/spatial-world';
 
 import {
   buildFocusedArtifactLayout,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
   getFocusedArtifactFitZoom,
-  moveFocusedArtifactSelection,
+  moveFocusedArtifactSelectionWithRebase,
   projectVisibleArtifacts,
   type ArtifactBrowseDirection,
   type FocusedArtifactLayoutEntry,
@@ -53,6 +55,7 @@ interface FocusedSetArtifactSurfaceProps {
   showGrid: boolean;
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
+  onReturnToSet: () => void;
   onEditArtifact: (artifactId: string) => void;
   editingArtifactId: string | null;
   onCancelArtifactEdit: () => void;
@@ -70,11 +73,16 @@ type DragState = {
   selectedIds: string[];
   moved: boolean;
   latestPositions: Record<string, ArtifactPosition>;
+  latestAffectedIds: string[];
+  latestOriginShift: ArtifactPosition;
+  startScroll: { left: number; top: number };
+  startCamera: { x: number; y: number; zoom: number };
 };
 
 type SpatialHistoryEntry = {
   before: Record<string, ArtifactPosition>;
   after: Record<string, ArtifactPosition>;
+  originShift: ArtifactPosition;
 };
 
 type SetCameraMode = 'fit-work' | 'fit-selection' | 'whole' | 'custom';
@@ -104,6 +112,7 @@ export function FocusedSetArtifactSurface({
   showGrid,
   stageRef,
   onFocusArtifact,
+  onReturnToSet,
   onEditArtifact,
   editingArtifactId,
   onCancelArtifactEdit,
@@ -113,6 +122,8 @@ export function FocusedSetArtifactSurface({
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef(session.camera);
+  cameraRef.current = session.camera;
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
@@ -124,12 +135,13 @@ export function FocusedSetArtifactSurface({
   const [cameraMode, setCameraMode] = useState<SetCameraMode>('fit-work');
   const relativeZoomRef = useRef(1);
   const suppressCameraScrollRef = useRef(false);
+  const programmaticCameraScrollCancelRef = useRef<(() => void) | null>(null);
   const undoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const redoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
-  const [faces] = useArtifactFaces();
+  const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
   const marqueeRef = useRef<{ start: ArtifactPosition; additive: string[] } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -159,8 +171,18 @@ export function FocusedSetArtifactSurface({
     viewportHeight: viewportSize.height,
   }), [layout, viewportSize.height, viewportSize.width]);
   const relativeZoom = session.camera.zoom / fitZoom;
-  const scaledWorldWidth = layout.width * session.camera.zoom;
-  const scaledWorldHeight = layout.height * session.camera.zoom;
+  const dragWorldSize = useMemo(() => {
+    if (Object.keys(dragPreview).length === 0) return { width: layout.width, height: layout.height };
+    return layout.entries.reduce((size, entry) => {
+      const position = dragPreview[entry.identity.artifactId] ?? entry.position;
+      return {
+        width: Math.max(size.width, position.x + entry.width + 24),
+        height: Math.max(size.height, position.y + entry.height + 30),
+      };
+    }, { width: layout.width, height: layout.height });
+  }, [dragPreview, layout]);
+  const scaledWorldWidth = dragWorldSize.width * session.camera.zoom;
+  const scaledWorldHeight = dragWorldSize.height * session.camera.zoom;
   const cameraGeometry = useMemo(() => getSpatialViewportGeometry({
     viewport: viewportSize,
     world: { width: layout.width, height: layout.height },
@@ -190,13 +212,20 @@ export function FocusedSetArtifactSurface({
     width: viewportSize.width / session.camera.zoom,
     height: viewportSize.height / session.camera.zoom,
   }), [layout, session.camera, viewportSize]);
+  const visibleArtifactIds = useMemo(
+    () => new Set(visibleEntries.map((entry) => entry.identity.artifactId)),
+    [visibleEntries],
+  );
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
-  const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  // Keep the canonical scene renderer for normal Set-sized projections. Large
-  // fitted collections use an image-led thumbnail tier instead of erasing the
-  // creator's work into generic numbered boxes.
-  const useFullPreview = projectedEntries.length <= 160;
+  // World membership is stable once the Set is opened. Viewport projection may
+  // choose a lighter preview tier, but it must never mount/unmount Artifacts or
+  // replay their Set-to-Desk entrance as the camera pans.
+  const projectedEntries = layout.entries;
+  // Keep the canonical scene renderer for normal Set-sized worlds. Large
+  // collections keep every world object mounted but use the cheaper thumbnail
+  // tier so visibility remains a rendering concern rather than presentation state.
+  const useFullPreview = layout.entries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -230,6 +259,32 @@ export function FocusedSetArtifactSurface({
     setHistoryRevision((current) => current + 1);
   }, [setId]);
 
+  const scrollCameraProgrammatically = useCallback((
+    viewport: HTMLDivElement,
+    target: { left: number; top: number },
+    behavior: ScrollBehavior = 'auto',
+  ) => {
+    programmaticCameraScrollCancelRef.current?.();
+    suppressCameraScrollRef.current = true;
+    let cancel = () => {};
+    cancel = scrollSpatialViewportProgrammatically({
+      viewport,
+      target,
+      behavior,
+      onRelease: () => {
+        if (programmaticCameraScrollCancelRef.current !== cancel) return;
+        programmaticCameraScrollCancelRef.current = null;
+        suppressCameraScrollRef.current = false;
+      },
+    });
+    programmaticCameraScrollCancelRef.current = cancel;
+  }, []);
+
+  useEffect(() => () => {
+    programmaticCameraScrollCancelRef.current?.();
+    programmaticCameraScrollCancelRef.current = null;
+  }, []);
+
   const setSemanticCamera = useCallback((requestedMode: Exclude<SetCameraMode, 'custom'>, behavior: ScrollBehavior = 'auto') => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -254,14 +309,14 @@ export function FocusedSetArtifactSurface({
         ? current
         : setCreatorCamera(current, frame)
     ));
+    programmaticCameraScrollCancelRef.current?.();
+    programmaticCameraScrollCancelRef.current = null;
     suppressCameraScrollRef.current = true;
-    viewport.scrollTo({
+    requestAnimationFrame(() => scrollCameraProgrammatically(viewport, {
       left: frame.x * frame.zoom + geometry.offsetX,
       top: frame.y * frame.zoom + geometry.offsetY,
-      behavior,
-    });
-    requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
+    }, behavior));
+  }, [fitZoom, layout.width, layout.height, scrollCameraProgrammatically, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -288,14 +343,13 @@ export function FocusedSetArtifactSurface({
       world: { width: layout.width, height: layout.height },
       zoom: customZoom,
     });
-    viewport.scrollTo({
-      left: session.camera.x * customZoom + geometry.offsetX,
-      top: session.camera.y * customZoom + geometry.offsetY,
-      behavior: 'auto',
+    scrollCameraProgrammatically(viewport, {
+      left: cameraRef.current.x * customZoom + geometry.offsetX,
+      top: cameraRef.current.y * customZoom + geometry.offsetY,
     });
-    // Scroll is the camera's physical owner. Do not write each scroll event back
-    // into the viewport: that fights trackpad/touch scrolling between renders.
-  }, [artifactFocusId, fitZoom, layout.height, layout.width, session.camera.x, session.camera.y, session.camera.zoom, setId, setSemanticCamera, setSession, viewportSize]);
+    // Physical scroll owns continuous Custom camera motion. React only reprojects
+    // the stored camera into the viewport when a structural dependency changes.
+  }, [artifactFocusId, fitZoom, layout.height, layout.width, scrollCameraProgrammatically, session.camera.zoom, setId, setSemanticCamera, setSession, viewportSize]);
 
   useEffect(() => {
     const previousArtifactFocusId = previousArtifactFocusIdRef.current;
@@ -367,13 +421,24 @@ export function FocusedSetArtifactSurface({
     right: Boolean(artifactFocusId && getDirectionalArtifactNeighbor({ entries: layout.entries, artifactId: artifactFocusId, direction: 'right' })),
   }), [artifactFocusId, layout.entries]);
 
-  const commitSpatialMove = (after: Record<string, ArtifactPosition>, artifactIds: readonly string[]) => {
+  const commitSpatialMove = (
+    after: Record<string, ArtifactPosition>,
+    artifactIds: readonly string[],
+    originShift: ArtifactPosition = { x: 0, y: 0 },
+  ) => {
     const before = Object.fromEntries(artifactIds.flatMap((artifactId) => {
       const entry = entryById.get(artifactId);
       return entry ? [[artifactId, entry.position] as const] : [];
     }));
-    if (Object.keys(before).length === 0 || Object.keys(after).length === 0) return;
-    undoStackRef.current = [...undoStackRef.current.slice(-(MAX_SPATIAL_HISTORY - 1)), { before, after }];
+    const historyAfter = Object.fromEntries(artifactIds.flatMap((artifactId) => (
+      after[artifactId] ? [[artifactId, after[artifactId]] as const] : []
+    )));
+    if (Object.keys(before).length === 0 || Object.keys(historyAfter).length === 0) return;
+    undoStackRef.current = [...undoStackRef.current.slice(-(MAX_SPATIAL_HISTORY - 1)), {
+      before,
+      after: historyAfter,
+      originShift,
+    }];
     redoStackRef.current = [];
     setHistoryRevision((current) => current + 1);
     onMoveArtifacts(organization.arrangement === 'manual' ? after : {
@@ -382,11 +447,30 @@ export function FocusedSetArtifactSurface({
     });
   };
 
+  const compensateCameraForOriginShift = (originShift: ArtifactPosition, direction: 1 | -1 = 1) => {
+    if (originShift.x === 0 && originShift.y === 0) return;
+    const node = viewportRef.current;
+    const delta = { x: originShift.x * direction, y: originShift.y * direction };
+    if (node) {
+      node.scrollTo(getSpatialOriginCompensatedScroll({
+        scroll: { left: node.scrollLeft, top: node.scrollTop },
+        originShift: delta,
+        zoom: session.camera.zoom,
+      }));
+    }
+    setSession((current) => setCreatorCamera(current, {
+      ...current.camera,
+      x: Math.max(0, current.camera.x + delta.x),
+      y: Math.max(0, current.camera.y + delta.y),
+    }));
+  };
+
   const undoSpatialMove = () => {
     const entry = undoStackRef.current.pop();
     if (!entry) return;
     redoStackRef.current.push(entry);
     onMoveArtifacts(entry.before);
+    compensateCameraForOriginShift(entry.originShift, -1);
     setHistoryRevision((current) => current + 1);
   };
 
@@ -395,18 +479,21 @@ export function FocusedSetArtifactSurface({
     if (!entry) return;
     undoStackRef.current.push(entry);
     onMoveArtifacts(entry.after);
+    compensateCameraForOriginShift(entry.originShift, 1);
     setHistoryRevision((current) => current + 1);
   };
 
   const nudgeSelection = (artifactId: string, delta: ArtifactPosition) => {
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
     updateSelection(selectedIds);
-    commitSpatialMove(moveFocusedArtifactSelection({
+    const moved = moveFocusedArtifactSelectionWithRebase({
       entries: layout.entries,
       selectedIds,
       delta,
       snapToGrid,
-    }), selectedIds);
+    });
+    commitSpatialMove(moved.positions, moved.affectedIds, moved.originShift);
+    compensateCameraForOriginShift(moved.originShift);
   };
 
   const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -415,6 +502,7 @@ export function FocusedSetArtifactSurface({
     setCameraMode('custom');
     suppressedClickRef.current = null;
     const artifactId = entry.identity.artifactId;
+    selectionAnchorRef.current = artifactId;
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
     dragRef.current = {
       pointerId: event.pointerId,
@@ -424,6 +512,10 @@ export function FocusedSetArtifactSurface({
       selectedIds,
       moved: false,
       latestPositions: {},
+      latestAffectedIds: selectedIds,
+      latestOriginShift: { x: 0, y: 0 },
+      startScroll: { left: viewportRef.current?.scrollLeft ?? 0, top: viewportRef.current?.scrollTop ?? 0 },
+      startCamera: { ...session.camera },
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -438,14 +530,30 @@ export function FocusedSetArtifactSurface({
     if (!drag.moved && Math.hypot(delta.x, delta.y) < 5) return;
     if (!drag.moved && !session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
     drag.moved = true;
-    const nextPositions = moveFocusedArtifactSelection({
+    const moved = moveFocusedArtifactSelectionWithRebase({
       entries: layout.entries,
       selectedIds: drag.selectedIds,
       delta,
       snapToGrid,
     });
-    drag.latestPositions = nextPositions;
-    setDragPreview(nextPositions);
+    drag.latestPositions = moved.positions;
+    drag.latestAffectedIds = moved.affectedIds;
+    drag.latestOriginShift = moved.originShift;
+    setDragPreview(moved.positions);
+    const node = viewportRef.current;
+    if (node) {
+      const target = getSpatialOriginCompensatedScroll({
+        scroll: drag.startScroll,
+        originShift: moved.originShift,
+        zoom: drag.startCamera.zoom,
+      });
+      requestAnimationFrame(() => node.scrollTo(target));
+    }
+    setSession((current) => setCreatorCamera(current, {
+      ...current.camera,
+      x: drag.startCamera.x + moved.originShift.x,
+      y: drag.startCamera.y + moved.originShift.y,
+    }));
   };
 
   const endArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -454,14 +562,18 @@ export function FocusedSetArtifactSurface({
     dragRef.current = null;
     if (drag.moved) {
       suppressedClickRef.current = drag.artifactId;
-      commitSpatialMove(drag.latestPositions, drag.selectedIds);
+      commitSpatialMove(drag.latestPositions, drag.latestAffectedIds, drag.latestOriginShift);
     }
     setDragPreview({});
   };
 
   const cancelArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    const node = viewportRef.current;
+    if (node) node.scrollTo(drag.startScroll);
+    setSession((current) => setCreatorCamera(current, drag.startCamera));
     setDragPreview({});
   };
 
@@ -640,7 +752,7 @@ export function FocusedSetArtifactSurface({
         }}
       >
         <div className={styles.artifactWorldSizer} style={{ width: Math.max(viewportSize.width, scaledWorldWidth), height: Math.max(viewportSize.height, scaledWorldHeight) }}>
-          <div data-artifact-world className={styles.artifactWorld} style={{ left: worldOffsetX, top: worldOffsetY, width: layout.width, height: layout.height, transform: `scale(${session.camera.zoom})` }}>
+          <div data-artifact-world className={styles.artifactWorld} style={{ left: worldOffsetX, top: worldOffsetY, width: dragWorldSize.width, height: dragWorldSize.height, transform: `scale(${session.camera.zoom})` }}>
             {marquee ? <span className={styles.deskMarquee} style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }} aria-hidden="true" /> : null}
             {organization.arrangement !== 'manual' && organization.groupBy !== 'none' ? layout.groups.map((group) => (
               <div key={group.label} className={styles.artifactGroupLabel} style={{ left: group.x, top: group.y, width: group.width }}><strong>{group.label}</strong><span>{group.count}</span></div>
@@ -656,13 +768,17 @@ export function FocusedSetArtifactSurface({
               const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
               const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
               const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
-              const showThumbnailImage = previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
+              const showThumbnailImage = visibleArtifactIds.has(artifactId)
+                && previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
                 <div
                   key={artifactId}
                   className={styles.artifactTile}
                   style={{ left: position.x, top: position.y, width: entry.width, minHeight: entry.height }}
                   data-card-face={face}
+                  data-selected={selected ? 'true' : 'false'}
+                  data-selection-anchor={selected && (selectionAnchorRef.current ?? session.selection[0]) === artifactId ? 'true' : 'false'}
+                  data-dragging={dragPreview[artifactId] ? 'true' : 'false'}
                 >
                 <button
                   id={`artifact-field-${artifactId}`}
@@ -670,6 +786,7 @@ export function FocusedSetArtifactSurface({
                   className={styles.cardButton}
                   data-artifact-id={artifactId}
                   data-artifact-type={entry.identity.artifactType}
+                  data-viewport-visible={visibleArtifactIds.has(artifactId) ? 'true' : 'false'}
                   data-focused={session.focusPath.artifactId === artifactId}
                   aria-label={`${entry.title}. ${entry.subtitle}`}
                   aria-pressed={selected}
@@ -686,7 +803,7 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
-                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
+                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
                     <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
                       <ArtifactThumbnail
                         card={card}
@@ -701,10 +818,17 @@ export function FocusedSetArtifactSurface({
                       </span>
                     </span>
                   )}
-                  <strong>{entry.title}</strong>
+                  <strong className={styles.artifactTileTitle} title={entry.title}>{entry.title}</strong>
                   <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
-                  {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
+                  {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
                 </button>
+                {hasCardBacking(card) ? <button
+                  type="button"
+                  className={styles.deskTileFlip}
+                  onClick={() => setFace(artifactId, face === 'front' ? 'back' : 'front')}
+                  aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${entry.title}`}
+                  title={`Show ${face === 'front' ? 'back' : 'front'}`}
+                ><RefreshCcw size={15} aria-hidden="true" /></button> : null}
                 </div>
               );
             })}
@@ -758,6 +882,7 @@ export function FocusedSetArtifactSurface({
         subtitle={focusedEntry.subtitle}
         availableDirections={focusedArtifactDirections}
         onBrowse={browseFocusedArtifact}
+        onExitFocus={onReturnToSet}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
         editing={editingArtifactId === focusedEntry.identity.artifactId}
         onCancelEdit={onCancelArtifactEdit}
