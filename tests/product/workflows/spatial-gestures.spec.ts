@@ -67,9 +67,13 @@ test.describe('spatial touch workspace', () => {
     await workspace.getByRole('button', { name: 'Browse this Set', exact: true }).click();
     await page.getByRole('button', { name: 'Open Artifact to the left', exact: true }).click();
     await expect(focusedCard).toHaveAttribute('data-artifact-id', 'scale-card-2');
-    // Browsing creates artifact history; this named action must still return
-    // directly to the Set rather than stopping at the previous card.
-    await page.getByRole('button', { name: 'Back to Set', exact: true }).click();
+    // Browsing creates artifact history; open space is a direct return affordance
+    // and must leave focus without replaying previous Artifact history.
+    const stageBox = (await stage.boundingBox())!;
+    const frameBox = (await workspace.locator('[data-focused-artifact-frame]').boundingBox())!;
+    const backdropPoint = { x: stageBox.x + 8, y: stageBox.y + 8 };
+    expect(backdropPoint.x < frameBox.x || backdropPoint.y < frameBox.y).toBe(true);
+    await page.touchscreen.tap(backdropPoint.x, backdropPoint.y);
     await expect(workspace).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
   });

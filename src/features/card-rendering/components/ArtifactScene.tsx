@@ -13,6 +13,7 @@ type Depth = 'stack' | 'board' | 'focus' | 'edit';
 const priority: Record<Depth, number> = { stack: 0, board: 1, focus: 2, edit: 3 };
 const RENDER_WIDTH = 560;
 const INLINE_FLIP_MIN_SCREEN_WIDTH = 128;
+const CONTEXT_ARTIFACT_OPACITY = 0.28;
 
 interface SceneSlot {
   node: HTMLElement;
@@ -136,7 +137,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       }
       const projection: Projection = {
         ...slot, travelClip, x: rect.left, y: rect.top, width: rect.width,
-        opacity: slot.node.closest('[data-surface-authority="context"]') ? 0 : 1,
+        opacity: slot.node.closest('[data-surface-authority="context"]') ? CONTEXT_ARTIFACT_OPACITY : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
       selected.set(slot.card.uniqueId, projection);

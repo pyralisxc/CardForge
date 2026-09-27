@@ -36,6 +36,7 @@ interface FocusedArtifactWorkspaceProps {
   subtitle: string;
   availableDirections: Readonly<Record<ArtifactBrowseDirection, boolean>>;
   onBrowse: (direction: ArtifactBrowseDirection) => void;
+  onExitFocus: () => void;
   onEdit: () => void;
   editing: boolean;
   onCancelEdit: () => void;
@@ -73,6 +74,7 @@ export function FocusedArtifactWorkspace({
   subtitle,
   availableDirections,
   onBrowse,
+  onExitFocus,
   onEdit,
   editing,
   onCancelEdit,
@@ -318,7 +320,7 @@ export function FocusedArtifactWorkspace({
     />)}
   </div> : undefined;
 
-  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-surface-authority="primary" data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal="explicit" data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
+  return <div className={styles.artifactWorkspace} data-focused-artifact-workspace data-surface-authority="primary" data-artifact-edit-workspace={editing ? '' : undefined} data-focus-dismissal={editing ? 'explicit' : 'background'} data-editing={editing ? 'true' : 'false'} data-zoom={viewport.zoom.toFixed(2)}>
     <div
       ref={viewport.viewportRef}
       tabIndex={-1}
@@ -333,15 +335,21 @@ export function FocusedArtifactWorkspace({
       onPointerUpCapture={handlePointerUpCapture}
       onPointerCancelCapture={handlePointerCancelCapture}
       onClickCapture={viewport.gestures.onClickCapture}
+      onClick={(event) => {
+        if (editing || event.defaultPrevented) return;
+        if (event.target instanceof Element && event.target.closest('[data-focused-artifact-frame]')) return;
+        onExitFocus();
+      }}
       onContextMenu={viewport.gestures.onContextMenu}
       style={{ overflow: viewport.isAutoFit ? 'hidden' : 'auto', touchAction: 'none' }}
       aria-label={`${setName} focused Artifact viewport`}
       aria-describedby={`focused-artifact-browse-${artifactId}`}
     >
-      <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">{editing ? 'Artifact Edit is active. Choose a highlighted field on the card, or use All fields for a complete accessible list.' : 'When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls.'}</p>
+      <p id={`focused-artifact-browse-${artifactId}`} className="sr-only">{editing ? 'Artifact Edit is active. Choose a highlighted field on the card, or use All fields for a complete accessible list.' : 'When this card is fitted, swipe up, down, left, or right to browse the nearby cards in this Set. Arrow keys offer the same navigation while this card is focused. Use the Browse button for visible direction controls. Tap or click open space outside the card to return to the Set.'}</p>
       <div className={styles.focusedArtifactWorld} style={{ width: viewport.worldWidth, height: viewport.worldHeight }}>
         <div
           className={styles.focusedArtifactFrame}
+          data-focused-artifact-frame
           style={{
             width: viewport.visualWidth,
             minHeight: viewport.visualHeight,

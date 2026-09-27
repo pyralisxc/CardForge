@@ -170,11 +170,16 @@ test.describe('large Artifact browser evidence', () => {
     await expect(page.getByRole('button', { name: 'Design', exact: true })).toBeVisible();
     await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
     const focusedWorkspace = page.locator('[data-focused-artifact-workspace]');
-    await expect(focusedWorkspace).toHaveAttribute('data-focus-dismissal', 'explicit');
-    const focusedWorkspaceBox = await focusedWorkspace.boundingBox();
-    expect(focusedWorkspaceBox).not.toBeNull();
-    await page.mouse.click(focusedWorkspaceBox!.x + 8, focusedWorkspaceBox!.y + 8);
-    await expect.poll(() => new URL(page.url()).searchParams.get('artifact')).toBe(firstId);
+    await expect(focusedWorkspace).toHaveAttribute('data-focus-dismissal', 'background');
+    const contextField = page.locator('[data-artifact-context-field][data-surface-authority="context"]');
+    await expect(contextField).toBeVisible();
+    expect(await contextField.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return Number.parseFloat(style.opacity) > 0 && style.pointerEvents === 'none';
+    })).toBe(true);
+    const contextSceneArtifact = page.locator('[data-scene-depth="board"]').first();
+    await expect(contextSceneArtifact).toBeVisible();
+    expect(await contextSceneArtifact.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect.poll(async () => focusedStage.locator(`[data-artifact-id="${firstId}"]`).evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
     await expect.poll(async () => {
       const focusedArtifactBox = await focusedStage.locator(`[data-artifact-id="${firstId}"]`).boundingBox();

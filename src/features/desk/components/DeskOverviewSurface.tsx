@@ -293,7 +293,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
         <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
-          <div ref={props.workWorldRef} className={styles.deskWorld} data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
+          <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;

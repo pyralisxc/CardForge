@@ -54,6 +54,7 @@ interface FocusedSetArtifactSurfaceProps {
   showGrid: boolean;
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
+  onReturnToSet: () => void;
   onEditArtifact: (artifactId: string) => void;
   editingArtifactId: string | null;
   onCancelArtifactEdit: () => void;
@@ -110,6 +111,7 @@ export function FocusedSetArtifactSurface({
   showGrid,
   stageRef,
   onFocusArtifact,
+  onReturnToSet,
   onEditArtifact,
   editingArtifactId,
   onCancelArtifactEdit,
@@ -831,6 +833,7 @@ export function FocusedSetArtifactSurface({
         subtitle={focusedEntry.subtitle}
         availableDirections={focusedArtifactDirections}
         onBrowse={browseFocusedArtifact}
+        onExitFocus={onReturnToSet}
         onEdit={() => onEditArtifact(focusedEntry.identity.artifactId)}
         editing={editingArtifactId === focusedEntry.identity.artifactId}
         onCancelEdit={onCancelArtifactEdit}

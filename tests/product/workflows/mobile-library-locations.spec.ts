@@ -110,6 +110,10 @@ test.describe('mobile Library location tools', () => {
     expect(deskBounds?.height).toBeGreaterThan(480);
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
+    const deskWorld = page.locator('[data-desk-world]');
+    await expect(deskWorld).toHaveAttribute('data-grid', 'true');
+    expect(await deskWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
     const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
@@ -122,6 +126,8 @@ test.describe('mobile Library location tools', () => {
     const viewMenu = page.getByRole('menu');
     await expect(viewMenu).toBeVisible();
     const gridToggle = viewMenu.getByRole('menuitem', { name: /grid$/i });
+    await gridToggle.tap();
+    await expect(viewMenu).toBeVisible();
     await gridToggle.tap();
     await expect(viewMenu).toBeVisible();
     await page.getByPlaceholder('Search Desk work').tap();
@@ -161,6 +167,8 @@ test.describe('mobile Library location tools', () => {
 
     const artifactStage = page.locator('[data-desk-artifact-stage]');
     const viewControls = page.locator('[data-set-view-controls]');
+    await expect(artifactStage).toHaveAttribute('data-grid', 'true');
+    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
     expect(await page.evaluate(() => {
       const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();
@@ -195,6 +203,7 @@ test.describe('mobile Library location tools', () => {
     await selectedCard.focus();
     await selectedCard.press('Enter');
     await expect(page.locator('[data-focused-artifact-workspace]')).toBeVisible();
+    await expect(page.locator('[data-mobile-environment-navigation]')).toHaveCount(0);
     await expect.poll(async () => page.evaluate(() => {
       const workspace = document.querySelector('[data-focused-artifact-workspace]');
       const stage = workspace?.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
