@@ -1,6 +1,6 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
-import type { SiteContentBlock, SiteContentGroup } from '../model/siteContent';
+import { DEFAULT_SITE_CONTENT_BLOCKS, type SiteContentBlock, type SiteContentGroup } from '../model/siteContent';
 import { getSiteContentBlocks, PublicSiteStoreError } from './contentStore';
 
 export const SITE_CONTENT_TAG = 'public:site-content';
@@ -13,11 +13,23 @@ const readCachedSiteContent = unstable_cache(
   { tags: [SITE_CONTENT_TAG], revalidate: 3600 },
 );
 
-export const getCachedAllSiteContentBlocks = (): Promise<SiteContentBlock[]> => readCachedSiteContent();
+const readPublicSiteContent = async (): Promise<SiteContentBlock[]> => {
+  try {
+    return await readCachedSiteContent();
+  } catch (error) {
+    // Keep the provider read fail-closed so a transient outage can never be
+    // cached as authored truth. The public presentation may still use the
+    // compiled defaults for this request, including during deployment builds.
+    console.error('Unable to load public site content; using compiled defaults for this request.', error);
+    return DEFAULT_SITE_CONTENT_BLOCKS;
+  }
+};
+
+export const getCachedAllSiteContentBlocks = (): Promise<SiteContentBlock[]> => readPublicSiteContent();
 
 export const getCachedSiteContentBlocks = (
   group: SiteContentGroup,
-): Promise<SiteContentBlock[]> => readCachedSiteContent().then((blocks) => (
+): Promise<SiteContentBlock[]> => readPublicSiteContent().then((blocks) => (
   blocks.filter((block) => block.group === group)
 ));
 
