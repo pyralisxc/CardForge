@@ -122,6 +122,8 @@ export function FocusedSetArtifactSurface({
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef(session.camera);
+  cameraRef.current = session.camera;
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
@@ -335,8 +337,8 @@ export function FocusedSetArtifactSurface({
       zoom: customZoom,
     });
     scrollCameraProgrammatically(viewport, {
-      left: session.camera.x * customZoom + geometry.offsetX,
-      top: session.camera.y * customZoom + geometry.offsetY,
+      left: cameraRef.current.x * customZoom + geometry.offsetX,
+      top: cameraRef.current.y * customZoom + geometry.offsetY,
     });
     // Physical scroll owns continuous Custom camera motion. React only reprojects
     // the stored camera into the viewport when a structural dependency changes.
