@@ -189,10 +189,13 @@ test.describe('spatial touch workspace', () => {
     // Cancellation is an object-local gesture; exercise it while Fit Work keeps
     // the moved card deliberately readable before changing camera semantics.
     const cancelPoint = await center(card);
+    await expect.poll(() => page.evaluate(({ x, y }) => (
+      document.elementFromPoint(x, y)?.closest('button[data-artifact-id]')?.getAttribute('data-artifact-id') ?? null
+    ), cancelPoint)).toBe('scale-card-1');
     await touch('touchStart', [{ ...cancelPoint, id: 6 }]);
     await page.waitForTimeout(400);
-    await touch('touchMove', [{ x: cancelPoint.x + 35, y: cancelPoint.y + 35, id: 6 }]);
-    await expect(tile).not.toHaveAttribute('style', movedPosition!);
+    await touch('touchMove', [{ x: cancelPoint.x + 120, y: cancelPoint.y + 96, id: 6 }]);
+    await expect.poll(() => tile.getAttribute('style')).not.toBe(movedPosition!);
     await touch('touchCancel', []);
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
