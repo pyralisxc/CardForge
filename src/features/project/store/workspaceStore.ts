@@ -233,10 +233,12 @@ export const useProjectStore = create<ProjectState>()(
             richTextHighlightColor?: unknown;
           };
           const scope = getProjectPersistenceScope();
-          if (version < 5 && legacyRichTextHighlightColor !== undefined) {
-            pendingLegacyEditorPreferenceMigrations.set(scope, legacyRichTextHighlightColor);
-          } else {
-            pendingLegacyEditorPreferenceMigrations.delete(scope);
+          if (scope !== 'unscoped-disabled') {
+            if (version < 5 && legacyRichTextHighlightColor !== undefined) {
+              pendingLegacyEditorPreferenceMigrations.set(scope, legacyRichTextHighlightColor);
+            } else {
+              pendingLegacyEditorPreferenceMigrations.delete(scope);
+            }
           }
           return {
             ...current,
