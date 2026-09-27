@@ -217,7 +217,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     </div> : null}
     </> : null}
   </>;
-  const fullViewControls = <div className={`${styles.spatialControls} max-[900px]:hidden`} aria-label="Desk view controls">
+  const fullViewControls = <div className={`${styles.spatialControls} ${styles.fullSpatialControls}`} aria-label="Desk view controls">
     <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" disabled={!props.camera.canZoomOut} onClick={() => props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
     <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.relativeZoom * 100)}%</span>
     <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
@@ -228,7 +228,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
   </div>;
   const compactViewControls = <DropdownMenu modal={false}>
-    <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[901px]:hidden" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={(event) => { event.preventDefault(); props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15); }}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.relativeZoom * 100)}%</DropdownMenuItem>
       <DropdownMenuItem onSelect={(event) => { event.preventDefault(); props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15); }}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
@@ -262,7 +262,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           <div className={styles.mobileDeskFilterPanel} aria-label="Desk views and filters">{renderDeskFilters()}</div>
         </details>
         {fullViewControls}
-        <div className={`${styles.spatialControls} min-[901px]:hidden`} aria-label="Compact Desk view controls">{compactViewControls}</div>
+        <div className={`${styles.spatialControls} ${styles.compactSpatialControls}`} aria-label="Compact Desk view controls">{compactViewControls}</div>
       </div>
       {sourceStatusDetails.length ? <details className={styles.sourceStatusNotice}>
         <summary>{sourceStatusSummary}</summary>
@@ -292,7 +292,18 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         tabIndex={props.focusedItemId ? -1 : 0}
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
-        <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
+        <div
+          className={styles.deskWorldSizer}
+          data-focused={Boolean(props.focusedItemId)}
+          data-grid={props.showGrid}
+          style={{
+            width: props.camera.surfaceWidth,
+            height: props.camera.surfaceHeight,
+            '--desk-grid-step': `${24 * props.camera.zoom}px`,
+            '--desk-grid-origin-x': `${props.camera.offsetX}px`,
+            '--desk-grid-origin-y': `${props.camera.offsetY}px`,
+          } as CSSProperties}
+        >
           <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {

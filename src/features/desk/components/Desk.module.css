@@ -297,10 +297,18 @@
   gap: 0.1rem;
 }
 
-.desktopSpatialControls {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
+.compactSpatialControls {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .fullSpatialControls {
+    display: none;
+  }
+
+  .compactSpatialControls {
+    display: flex;
+  }
 }
 
 .workGrid {
@@ -366,6 +374,15 @@
   position: relative;
   min-width: 100%;
   min-height: 100%;
+  background-color: var(--cf-surface-inset);
+}
+
+.deskWorldSizer[data-grid="true"] {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px);
+  background-position: var(--desk-grid-origin-x, 0) var(--desk-grid-origin-y, 0);
+  background-size: var(--desk-grid-step, 24px) var(--desk-grid-step, 24px);
 }
 
 .deskWorld {
@@ -376,13 +393,6 @@
   background: transparent;
   box-shadow: none;
   transform-origin: top left;
-}
-
-.deskWorld[data-grid="true"] {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
 .deskWorldSizer[data-focused="true"],
@@ -1975,10 +1985,6 @@
     justify-content: flex-end;
   }
 
-  .desktopSpatialControls {
-    display: none;
-  }
-
   .searchField {
     width: 100%;
   }
@@ -1995,8 +2001,8 @@
   }
 
   .deskWorldSizer {
-    min-height: calc(100% - 3.75rem);
-    margin-top: 3.75rem;
+    min-height: 100%;
+    margin-top: 0;
   }
 
   .workVisual,
