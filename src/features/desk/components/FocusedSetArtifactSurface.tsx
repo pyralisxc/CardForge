@@ -20,6 +20,7 @@ import {
   getSpatialViewportGeometry,
   projectClientPointToSpatialWorld,
   projectSpatialScrollToWorldOrigin,
+  scrollSpatialViewportProgrammatically,
   useSpatialGestures,
   type SpatialPoint,
 } from '@/components/ui/spatial-viewport';
@@ -121,6 +122,8 @@ export function FocusedSetArtifactSurface({
   onMoveArtifacts,
 }: FocusedSetArtifactSurfaceProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef(session.camera);
+  cameraRef.current = session.camera;
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
@@ -132,6 +135,7 @@ export function FocusedSetArtifactSurface({
   const [cameraMode, setCameraMode] = useState<SetCameraMode>('fit-work');
   const relativeZoomRef = useRef(1);
   const suppressCameraScrollRef = useRef(false);
+  const programmaticCameraScrollCancelRef = useRef<(() => void) | null>(null);
   const undoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const redoStackRef = useRef<SpatialHistoryEntry[]>([]);
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
@@ -248,6 +252,32 @@ export function FocusedSetArtifactSurface({
     setHistoryRevision((current) => current + 1);
   }, [setId]);
 
+  const scrollCameraProgrammatically = useCallback((
+    viewport: HTMLDivElement,
+    target: { left: number; top: number },
+    behavior: ScrollBehavior = 'auto',
+  ) => {
+    programmaticCameraScrollCancelRef.current?.();
+    suppressCameraScrollRef.current = true;
+    let cancel = () => {};
+    cancel = scrollSpatialViewportProgrammatically({
+      viewport,
+      target,
+      behavior,
+      onRelease: () => {
+        if (programmaticCameraScrollCancelRef.current !== cancel) return;
+        programmaticCameraScrollCancelRef.current = null;
+        suppressCameraScrollRef.current = false;
+      },
+    });
+    programmaticCameraScrollCancelRef.current = cancel;
+  }, []);
+
+  useEffect(() => () => {
+    programmaticCameraScrollCancelRef.current?.();
+    programmaticCameraScrollCancelRef.current = null;
+  }, []);
+
   const setSemanticCamera = useCallback((requestedMode: Exclude<SetCameraMode, 'custom'>, behavior: ScrollBehavior = 'auto') => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -272,14 +302,14 @@ export function FocusedSetArtifactSurface({
         ? current
         : setCreatorCamera(current, frame)
     ));
+    programmaticCameraScrollCancelRef.current?.();
+    programmaticCameraScrollCancelRef.current = null;
     suppressCameraScrollRef.current = true;
-    viewport.scrollTo({
+    requestAnimationFrame(() => scrollCameraProgrammatically(viewport, {
       left: frame.x * frame.zoom + geometry.offsetX,
       top: frame.y * frame.zoom + geometry.offsetY,
-      behavior,
-    });
-    requestAnimationFrame(() => requestAnimationFrame(() => { suppressCameraScrollRef.current = false; }));
-  }, [fitZoom, layout.width, layout.height, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
+    }, behavior));
+  }, [fitZoom, layout.width, layout.height, scrollCameraProgrammatically, selectionFrame, setSession, viewportSize, visibleSelectionEntries.length, workFrame]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -306,14 +336,13 @@ export function FocusedSetArtifactSurface({
       world: { width: layout.width, height: layout.height },
       zoom: customZoom,
     });
-    viewport.scrollTo({
-      left: session.camera.x * customZoom + geometry.offsetX,
-      top: session.camera.y * customZoom + geometry.offsetY,
-      behavior: 'auto',
+    scrollCameraProgrammatically(viewport, {
+      left: cameraRef.current.x * customZoom + geometry.offsetX,
+      top: cameraRef.current.y * customZoom + geometry.offsetY,
     });
-    // Scroll is the camera's physical owner. Do not write each scroll event back
-    // into the viewport: that fights trackpad/touch scrolling between renders.
-  }, [artifactFocusId, fitZoom, layout.height, layout.width, session.camera.x, session.camera.y, session.camera.zoom, setId, setSemanticCamera, setSession, viewportSize]);
+    // Physical scroll owns continuous Custom camera motion. React only reprojects
+    // the stored camera into the viewport when a structural dependency changes.
+  }, [artifactFocusId, fitZoom, layout.height, layout.width, scrollCameraProgrammatically, session.camera.zoom, setId, setSemanticCamera, setSession, viewportSize]);
 
   useEffect(() => {
     const previousArtifactFocusId = previousArtifactFocusIdRef.current;
