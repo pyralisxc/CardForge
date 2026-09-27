@@ -39,6 +39,14 @@ test.describe('spatial touch workspace', () => {
     const cdp = await context.newCDPSession(page);
     const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: Array<{ x: number; y: number; id: number }>) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
 
+    await touch('touchStart', [{ ...point, id: 9 }]);
+    await touch('touchEnd', []);
+    await touch('touchStart', [{ ...point, id: 10 }]);
+    await touch('touchEnd', []);
+    await expect(workspace).toHaveAttribute('data-editing', 'true');
+    await controls.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(workspace).toHaveAttribute('data-editing', 'false');
+
     await touch('touchStart', [{ ...point, id: 1 }]);
     await touch('touchMove', [{ x: point.x + 96, y: point.y, id: 1 }]);
     await touch('touchEnd', []);
