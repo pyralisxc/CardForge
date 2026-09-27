@@ -121,7 +121,7 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNa
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
-      </nav>
+      </nav> : null}
     </>
   );
 }
