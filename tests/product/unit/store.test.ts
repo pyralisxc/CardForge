@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplateObject } from '@/domain/templates';
-import { clearEditorPreferenceStorage, readEditorPreferenceStorage } from '@/features/project/client/editorPreferenceStorage';
+import { clearEditorPreferenceStorage, readEditorPreferenceStorage, writeEditorPreferenceStorage } from '@/features/project/client/editorPreferenceStorage';
+import { setProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { selectAllTemplates, selectGeneratedDisplayCards, useProjectStore } from '@/features/project/client/workspace';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -811,6 +812,7 @@ describe('app store helpers', () => {
 
 describe('persisted Generator selection migration', () => {
   it('preserves v3 selections, migrates the editor preference, and removes retired keys from new writes', async () => {
+    setProjectPersistenceScope('account:editor-pref-migration');
     await clearEditorPreferenceStorage();
     const options = useProjectStore.persist.getOptions();
     const migrated = await options.migrate!({
@@ -831,6 +833,19 @@ describe('persisted Generator selection migration', () => {
     expect(serialized).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
     expect(serialized).not.toHaveProperty('richTextHighlightColor');
     expect(options.version).toBe(5);
+  });
+
+  it('keeps editor preferences isolated by persistence scope', async () => {
+    setProjectPersistenceScope('account:editor-a');
+    await clearEditorPreferenceStorage();
+    await writeEditorPreferenceStorage({ richTextHighlightColor: '#123456' });
+
+    setProjectPersistenceScope('account:editor-b');
+    await clearEditorPreferenceStorage();
+    await expect(readEditorPreferenceStorage()).resolves.toBeNull();
+
+    setProjectPersistenceScope('account:editor-a');
+    await expect(readEditorPreferenceStorage()).resolves.toEqual({ richTextHighlightColor: '#123456' });
   });
 
   it('retains older Studio-tab migration and explicit cleared current selections', async () => {

@@ -3,8 +3,12 @@ import {
   removeProjectPreference,
   writeProjectPreference,
 } from '../persistence/preferences';
+import { getProjectPersistenceScope } from '../persistence/projectPersistenceScope';
 
 const EDITOR_PREFERENCES_STORAGE_KEY = 'editor-preferences:v1';
+type EditorPreferenceScope = ReturnType<typeof getProjectPersistenceScope>;
+const editorPreferenceKey = (scope: EditorPreferenceScope = getProjectPersistenceScope()) =>
+  `${EDITOR_PREFERENCES_STORAGE_KEY}:${scope}`;
 export const EDITOR_PREFERENCES_CHANGED_EVENT = 'cardforge:editor-preferences-change';
 
 export interface StoredEditorPreferences {
@@ -19,23 +23,28 @@ const normalizeHighlightColor = (value: unknown): string => (
     : DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR
 );
 
-const publishChange = () => {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EDITOR_PREFERENCES_CHANGED_EVENT));
+const publishChange = (scope: EditorPreferenceScope) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(EDITOR_PREFERENCES_CHANGED_EVENT, { detail: { scope } }));
+  }
 };
 
-export const readEditorPreferenceStorage = async (): Promise<StoredEditorPreferences | null> => {
-  const stored = await readProjectPreferenceSafely<Partial<StoredEditorPreferences>>(EDITOR_PREFERENCES_STORAGE_KEY);
+export const readEditorPreferenceStorage = async (
+  scope: EditorPreferenceScope = getProjectPersistenceScope(),
+): Promise<StoredEditorPreferences | null> => {
+  const stored = await readProjectPreferenceSafely<Partial<StoredEditorPreferences>>(editorPreferenceKey(scope));
   if (stored.kind !== 'available') return null;
   return { richTextHighlightColor: normalizeHighlightColor(stored.value.richTextHighlightColor) };
 };
 
 export const writeEditorPreferenceStorage = async (
   preferences: StoredEditorPreferences,
+  scope: EditorPreferenceScope = getProjectPersistenceScope(),
 ): Promise<void> => {
-  await writeProjectPreference(EDITOR_PREFERENCES_STORAGE_KEY, {
+  await writeProjectPreference(editorPreferenceKey(scope), {
     richTextHighlightColor: normalizeHighlightColor(preferences.richTextHighlightColor),
   });
-  publishChange();
+  publishChange(scope);
 };
 
 /**
@@ -45,17 +54,20 @@ export const writeEditorPreferenceStorage = async (
  */
 export const migrateLegacyEditorPreferences = async (
   legacyHighlightColor: unknown,
+  scope: EditorPreferenceScope = getProjectPersistenceScope(),
 ): Promise<void> => {
-  const current = await readProjectPreferenceSafely<Partial<StoredEditorPreferences>>(EDITOR_PREFERENCES_STORAGE_KEY);
+  const current = await readProjectPreferenceSafely<Partial<StoredEditorPreferences>>(editorPreferenceKey(scope));
   if (current.kind !== 'missing') return;
   if (typeof legacyHighlightColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(legacyHighlightColor.trim())) return;
-  await writeProjectPreference(EDITOR_PREFERENCES_STORAGE_KEY, {
+  await writeProjectPreference(editorPreferenceKey(scope), {
     richTextHighlightColor: normalizeHighlightColor(legacyHighlightColor),
   });
-  publishChange();
+  publishChange(scope);
 };
 
-export const clearEditorPreferenceStorage = async (): Promise<void> => {
-  await removeProjectPreference(EDITOR_PREFERENCES_STORAGE_KEY);
-  publishChange();
+export const clearEditorPreferenceStorage = async (
+  scope: EditorPreferenceScope = getProjectPersistenceScope(),
+): Promise<void> => {
+  await removeProjectPreference(editorPreferenceKey(scope));
+  publishChange(scope);
 };
