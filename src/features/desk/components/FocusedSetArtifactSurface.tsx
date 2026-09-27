@@ -774,9 +774,9 @@ export function FocusedSetArtifactSurface({
                       </span>
                     </span>
                   )}
-                  <strong>{entry.title}</strong>
+                  <strong className={styles.artifactTileTitle} title={entry.title}>{entry.title}</strong>
                   <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
-                  {organization.groupBy !== 'none' ? <small>{entry.groupLabel}</small> : null}
+                  {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
                 </button>
                 </div>
               );

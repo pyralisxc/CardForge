@@ -272,9 +272,6 @@
   font-size: 0.75rem;
 }
 
-.workOrganization {
-  color: var(--cf-accent-text);
-}
 
 .deskOrganizer {
   display: flex;
@@ -597,31 +594,48 @@
 
 .workMeta {
   display: grid;
-  max-width: 17rem;
+  width: min(14.5rem, 100%);
+  max-width: 100%;
   justify-items: center;
-  gap: 0.1rem;
-  margin-top: 0.55rem;
-  padding: 0.25rem 0.55rem;
-  background: color-mix(in srgb, var(--cf-canvas) 92%, transparent);
+  gap: 0.16rem;
+  margin-top: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--cf-canvas) 88%, transparent);
 }
 
-.workMeta strong,
-.workMeta span {
-  display: block;
+.workMetaTitle,
+.workMetaSummary,
+.workOrganization {
   width: 100%;
+  max-width: 100%;
   overflow: hidden;
+  text-align: center;
+}
+
+.workMetaTitle {
+  color: var(--cf-text-strong);
+  font-size: 0.8rem;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.workMeta strong {
-  color: var(--cf-text-strong);
-  font-size: 0.8rem;
-}
-
-.workMeta span {
+.workMetaSummary {
+  display: -webkit-box;
   color: var(--cf-text-muted);
   font-size: 0.62rem;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.workOrganization {
+  color: var(--cf-accent-text);
+  font-size: 0.6rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tileActions {
@@ -1039,22 +1053,50 @@
   outline-offset: 2px;
 }
 
-.cardButton strong {
+.artifactTileTitle {
+  display: block;
   max-width: 100%;
+  margin-top: 0.4rem;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 0.45rem;
   color: var(--cf-text-strong);
   font-size: 0.7rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cardTemplateLabel { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.cardButton span {
+.cardTemplateLabel,
+.cardGroupLabel {
+  display: block;
+  max-width: 100%;
   margin-top: 0.1rem;
+  overflow: hidden;
   color: var(--cf-text-subtle);
   font-size: 0.6rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contentStage:not([data-arrangement="manual"]) .cardGroupLabel {
+  display: none;
+}
+
+.setArtifactWorkspace[data-artifact-density="compact"] .cardButton {
+  padding: 0.4rem;
+}
+
+.setArtifactWorkspace[data-artifact-density="dense"] .cardButton {
+  padding: 0.32rem;
+}
+
+.setArtifactWorkspace[data-artifact-density="dense"] .cardTemplateLabel {
+  display: none;
+}
+
+.setArtifactWorkspace[data-artifact-density="dense"] .artifactTileTitle {
+  margin-top: 0.28rem;
+  font-size: 0.64rem;
 }
 
 .setArtifactWorkspace {
