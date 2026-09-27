@@ -76,7 +76,7 @@ export function AccountStorageLibrary({
   const [draftRefreshVersion, setDraftRefreshVersion] = useState(0);
 
   const projectWorkspace = useProjectLibraryWorkspace();
-  const { cardSets, storedCards, templates } = projectWorkspace;
+  const { cardSets, storedCards, templates, userTemplates } = projectWorkspace;
   const { activateSet, deleteSet } = projectWorkspace.actions;
 
   useEffect(() => {
