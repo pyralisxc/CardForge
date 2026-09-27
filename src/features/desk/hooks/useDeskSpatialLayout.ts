@@ -232,7 +232,7 @@ export function useDeskSpatialLayout({
     drag.latestPositions = moved.positions;
     setStoredPositions((current) => ({ ...current, ...moved.positions }));
     const grid = workGridRef.current;
-    if (grid && (moved.originShift.x > 0 || moved.originShift.y > 0)) {
+    if (grid) {
       const target = getSpatialOriginCompensatedScroll({
         scroll: drag.startScroll,
         originShift: moved.originShift,

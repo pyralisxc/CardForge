@@ -502,22 +502,20 @@ export function FocusedSetArtifactSurface({
     drag.latestAffectedIds = moved.affectedIds;
     drag.latestOriginShift = moved.originShift;
     setDragPreview(moved.positions);
-    if (moved.originShift.x > 0 || moved.originShift.y > 0) {
-      const node = viewportRef.current;
-      if (node) {
-        const target = getSpatialOriginCompensatedScroll({
-          scroll: drag.startScroll,
-          originShift: moved.originShift,
-          zoom: drag.startCamera.zoom,
-        });
-        requestAnimationFrame(() => node.scrollTo(target));
-      }
-      setSession((current) => setCreatorCamera(current, {
-        ...current.camera,
-        x: drag.startCamera.x + moved.originShift.x,
-        y: drag.startCamera.y + moved.originShift.y,
-      }));
+    const node = viewportRef.current;
+    if (node) {
+      const target = getSpatialOriginCompensatedScroll({
+        scroll: drag.startScroll,
+        originShift: moved.originShift,
+        zoom: drag.startCamera.zoom,
+      });
+      requestAnimationFrame(() => node.scrollTo(target));
     }
+    setSession((current) => setCreatorCamera(current, {
+      ...current.camera,
+      x: drag.startCamera.x + moved.originShift.x,
+      y: drag.startCamera.y + moved.originShift.y,
+    }));
   };
 
   const endArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
