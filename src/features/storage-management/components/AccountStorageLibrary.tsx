@@ -77,6 +77,7 @@ export function AccountStorageLibrary({
 
   const projectWorkspace = useProjectLibraryWorkspace();
   const { cardSets, storedCards, templates } = projectWorkspace;
+  const { activateSet, deleteSet } = projectWorkspace.actions;
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +113,7 @@ export function AccountStorageLibrary({
     } catch (error) {
       toast({ title: 'Local library unavailable', description: error instanceof Error ? error.message : 'Your saved artwork could not be read. Try Refresh again.', variant: 'destructive' });
     }
-  }, [cardSets, projectWorkspace.actions, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (hydrated) void refreshDeviceDetails();
@@ -146,13 +147,13 @@ export function AccountStorageLibrary({
   const removeLocalSet = useCallback((setId: string) => {
     const target = cardSets.find((set) => set.id === setId);
     if (!target) return;
-    if (!projectWorkspace.actions.deleteSet(setId)) return;
+    if (!deleteSet(setId)) return;
     toast({
       title: 'Set removed from this device',
       description: `“${target.name}” and its local cards were removed here. Shared Templates and assets were left alone.`,
     });
     void refreshDeviceDetails();
-  }, [refreshDeviceDetails, toast]);
+  }, [cardSets, deleteSet, refreshDeviceDetails, toast]);
 
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby={embedded ? undefined : 'storage-library-title'}>
@@ -199,7 +200,7 @@ export function AccountStorageLibrary({
                       <p className="mt-1 text-xs text-[#bba57c]">{cardCounts.get(set.id) ?? 0} card{(cardCounts.get(set.id) ?? 0) === 1 ? '' : 's'} · {formatBytes(portableSetBytes[set.id])} portable estimate · device only</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { projectWorkspace.actions.activateSet(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
+                      <Button size="sm" variant="outline" onClick={() => { activateSet(set.id); router.push(createDeskReturnHref(`set:${set.id}`)); }}>Open</Button>
                       <Button
                         size="sm"
                         variant="ghost"
