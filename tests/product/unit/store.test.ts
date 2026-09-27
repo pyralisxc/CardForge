@@ -811,7 +811,7 @@ describe('app store helpers', () => {
 });
 
 describe('persisted Generator selection migration', () => {
-  it('preserves v3 selections, migrates the editor preference, and removes retired keys from new writes', async () => {
+  it('preserves v3 selections and removes the retired editor key from new Project writes', async () => {
     setProjectPersistenceScope('account:editor-pref-migration');
     await clearEditorPreferenceStorage();
     const options = useProjectStore.persist.getOptions();
@@ -825,7 +825,6 @@ describe('persisted Generator selection migration', () => {
     expect(migrated).not.toHaveProperty('singleCardGeneratorSelectedTemplateId');
     expect(migrated).not.toHaveProperty('singleCardGeneratorSelectedBackingTemplateId');
     expect(migrated).not.toHaveProperty('richTextHighlightColor');
-    await expect(readEditorPreferenceStorage()).resolves.toEqual({ richTextHighlightColor: '#12abef' });
     useProjectStore.setState(migrated);
     const serialized = options.partialize!(useProjectStore.getState());
     expect(serialized).toMatchObject({ generatorSelectedTemplateId: 'authored-front', generatorSelectedBackingTemplateId: 'authored-back' });

@@ -56,9 +56,9 @@ export const migrateLegacyEditorPreferences = async (
   legacyHighlightColor: unknown,
   scope: EditorPreferenceScope = getProjectPersistenceScope(),
 ): Promise<void> => {
+  if (typeof legacyHighlightColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(legacyHighlightColor.trim())) return;
   const current = await readProjectPreferenceSafely<Partial<StoredEditorPreferences>>(editorPreferenceKey(scope));
   if (current.kind !== 'missing') return;
-  if (typeof legacyHighlightColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(legacyHighlightColor.trim())) return;
   await writeProjectPreference(editorPreferenceKey(scope), {
     richTextHighlightColor: normalizeHighlightColor(legacyHighlightColor),
   });

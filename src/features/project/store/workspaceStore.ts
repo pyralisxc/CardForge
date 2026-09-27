@@ -85,6 +85,7 @@ const createHydratingWorkspaceJsonStorage = () => createJSONStorage<WorkspacePer
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 let hydrationTask: { scope: ProjectPersistenceScope; promise: Promise<void>; signal?: AbortSignal } | null = null;
 let workspaceHydrationError: unknown = null;
+const pendingLegacyEditorPreferenceMigrations = new Map<ProjectPersistenceScope, unknown>();
 
 const getCompatibleGeneratorBackingId = (
   templates: ReturnType<typeof selectAllTemplates>,
@@ -218,7 +219,7 @@ export const useProjectStore = create<ProjectState>()(
         },
         skipHydration: true,
         version: 5,
-        migrate: async (persistedState, version) => {
+        migrate: (persistedState, version) => {
           const {
             activeTab,
             singleCardGeneratorSelectedTemplateId,
@@ -231,7 +232,12 @@ export const useProjectStore = create<ProjectState>()(
             singleCardGeneratorSelectedBackingTemplateId?: string | null;
             richTextHighlightColor?: unknown;
           };
-          if (version < 5) await migrateLegacyEditorPreferences(legacyRichTextHighlightColor);
+          const scope = getProjectPersistenceScope();
+          if (version < 5 && legacyRichTextHighlightColor !== undefined) {
+            pendingLegacyEditorPreferenceMigrations.set(scope, legacyRichTextHighlightColor);
+          } else {
+            pendingLegacyEditorPreferenceMigrations.delete(scope);
+          }
           return {
             ...current,
             generatorSelectedTemplateId: current.generatorSelectedTemplateId !== undefined
@@ -276,11 +282,18 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
       // Zustand reports hydration errors through its callback, not rehydrate's promise.
       // Disable autosave until retry succeeds so initial state cannot replace unreadable work.
       useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+      pendingLegacyEditorPreferenceMigrations.delete(scope);
       signal?.throwIfAborted();
       throw workspaceHydrationError ?? new Error('The browser workspace could not be restored.');
     }
+    const legacyEditorPreference = pendingLegacyEditorPreferenceMigrations.get(scope);
+    pendingLegacyEditorPreferenceMigrations.delete(scope);
     hydratedPersistenceScope = scope;
     useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+    if (legacyEditorPreference !== undefined) {
+      // Preference persistence must never delay or invalidate Project hydration.
+      void migrateLegacyEditorPreferences(legacyEditorPreference, scope);
+    }
   });
   hydrationTask = { scope, promise, signal };
   try {
