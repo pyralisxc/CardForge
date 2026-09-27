@@ -266,7 +266,7 @@ describe('Desk model', () => {
     expect(rebased.positions['set:three']).toEqual({ x: 570, y: 180, z: 3 });
 
     const movedFar = moveDeskWorldSelection({
-      items: [{ id: 'set:edge', x: 100, y: 100, z: 3, width: 200, height: 240 }],
+      items: [{ id: 'set:edge', x: 100, y: 100, z: 3 }],
       selectedIds: ['set:edge'],
       delta: { x: 5_000, y: 5_000 },
     });

@@ -529,7 +529,8 @@ export function FocusedSetArtifactSurface({
   };
 
   const cancelArtifactMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     const node = viewportRef.current;
     if (node) node.scrollTo(drag.startScroll);
