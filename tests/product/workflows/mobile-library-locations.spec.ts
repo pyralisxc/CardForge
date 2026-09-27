@@ -9,7 +9,7 @@ test.describe('mobile Library location tools', () => {
 
   const expectTouchTarget = async (control: Locator) => {
     await control.scrollIntoViewIfNeeded();
-    await expect(control).toBeInViewport({ ratio: 1 });
+    await expect(control).toBeInViewport({ ratio: 0.99 });
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);

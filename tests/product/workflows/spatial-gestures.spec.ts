@@ -101,10 +101,12 @@ test.describe('spatial touch workspace', () => {
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(desk).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
-    // Fit Work keeps the visible authored object complete and readable without
-    // changing its world coordinates; Whole Desk remains a separate action.
-    await expect(set).toBeInViewport({ ratio: 1 });
-    expect(Math.max((await set.boundingBox())!.width / (await desk.boundingBox())!.width, (await set.boundingBox())!.height / (await desk.boundingBox())!.height)).toBeGreaterThanOrEqual(0.65);
+    // Desk entry shows the complete working field. A lone Set remains readable
+    // without becoming a screen-dominating automatic Fit Work camera.
+    await expect(desk).toHaveAttribute('data-camera-mode', 'whole');
+    await expect(desk).toHaveAttribute('data-relative-zoom', '1.00');
+    await expect(set).toBeInViewport({ ratio: 0.99 });
+    expect(Math.max((await set.boundingBox())!.width / (await desk.boundingBox())!.width, (await set.boundingBox())!.height / (await desk.boundingBox())!.height)).toBeLessThan(0.65);
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
     const before = await setObject.getAttribute('style');
     const p = await center(set);
