@@ -136,7 +136,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       }
       const projection: Projection = {
         ...slot, travelClip, x: rect.left, y: rect.top, width: rect.width,
-        opacity: slot.node.closest('[data-obscured="true"]') ? 0.22 : 1,
+        opacity: slot.node.closest('[data-surface-authority="context"]') ? 0 : 1,
         clip: `inset(${top}px ${Math.max(0, window.innerWidth - right)}px ${Math.max(0, window.innerHeight - bottom)}px ${left}px)`,
       };
       selected.set(slot.card.uniqueId, projection);

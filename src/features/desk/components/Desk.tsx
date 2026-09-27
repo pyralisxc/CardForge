@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import {
   ENVIRONMENT_ZONES,
-  deriveEnvironmentPresentation,
+  deriveCreatorSurfaceContext,
   EnvironmentBoundaryNotice,
   EnvironmentShell,
   EnvironmentStatus,
@@ -35,7 +35,6 @@ import {
   useBrowserStoragePersistence,
   useBrowserWorkspaceSaveStatus,
 } from '@/features/project/client/ui';
-import { useProjectStore } from '@/features/project/client/workspace';
 import {
   getAccountLibraryWorkPreview,
   WorkLocationDialog,
@@ -175,6 +174,8 @@ export function Desk({
     cardQuery,
     cardStageRef,
     closeRemoteWorkspace,
+    closeEditDialog,
+    commitTemplateChange,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -187,6 +188,7 @@ export function Desk({
     creatingPublishedSetId,
     deleteCardSet,
     deskPositions,
+    deskWorldSize,
     deskCamera,
     deskMarquee,
     deskViewPreferences,
@@ -203,6 +205,8 @@ export function Desk({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    focusedSet,
+    workingLocationStatus,
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,
@@ -260,6 +264,7 @@ export function Desk({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
+    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
@@ -279,6 +284,7 @@ export function Desk({
     setTagDraft,
     setTagFilter,
     undoLastBulkRevision,
+    unreferenceTemplateFromCardSet,
     resetToDesk,
     returnToSet,
     shouldSuppressActivation,
@@ -298,6 +304,7 @@ export function Desk({
     templates,
     togglePin,
     updateOrganization,
+    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
@@ -328,15 +335,17 @@ export function Desk({
     : null;
   const artifactEditing = Boolean(focusedArtifactId && artifactEditId === focusedArtifactId);
   const primarySelectedSet = visibleWork.find((item) => selectedDeskIds.includes(item.id)) ?? null;
-  const contextDepth = storageOpen || remoteWorkspaceItem || activeTool ? 'tool' : focusedArtifact ? 'artifact' : focusedItem ? 'set' : 'desk';
-  const presentation = deriveEnvironmentPresentation({
-    focusDepth: contextDepth === 'desk' ? 'zone' : contextDepth,
+  const creatorSurface = deriveCreatorSurfaceContext({
+    session: interactionSession,
+    toolActive: Boolean(storageOpen || remoteWorkspaceItem || activeTool),
     activity: artifactEditing || activeTool?.toolId === 'design'
       ? 'edit'
-      : storageOpen || activeTool
+      : storageOpen || remoteWorkspaceItem || activeTool
         ? 'task'
         : 'none',
   });
+  const contextDepth = creatorSurface.depth;
+  const presentation = creatorSurface.presentation;
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
@@ -348,7 +357,6 @@ export function Desk({
   const designCard = (card: DisplayCard, face: CardFace = 'front') => {
     const template = face === 'back' ? card.backingTemplate : card.template;
     if (!template?.id || !focusedLocalSetId) return;
-    const project = useProjectStore.getState();
     const selected = selectedCards.some((candidate) => candidate.uniqueId === card.uniqueId) ? selectedCards : [card];
     const compatibleSelection = selected.every((candidate) => (
       face === 'back' ? candidate.backingTemplate?.id === template.id : candidate.template.id === template.id
@@ -360,8 +368,8 @@ export function Desk({
         description: 'The selection uses different Templates, so this Design scope starts with the focused Artifact only. Edit one design group at a time to avoid changing unrelated layouts.',
       });
     }
-    project.closeEditDialog();
-    project.setTemplateEditorSelectedTemplateId(template.id);
+    closeEditDialog();
+    setTemplateEditorSelectedTemplateId(template.id);
     setDesignIntent({ kind: 'artifact-design', artifactIds, face });
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
@@ -460,6 +468,7 @@ export function Desk({
           toolName={toolName}
           toolDirty={activeTool?.dirty}
           localSet={Boolean(focusedLocalSetId)}
+          workingLocationStatus={workingLocationStatus}
           pinned={Boolean(focusedItem && pinnedIds.includes(focusedItem.id))}
           renaming={renaming}
           renameDraft={renameDraft}
@@ -526,6 +535,7 @@ export function Desk({
             pinnedIds={pinnedIds}
             selectedIds={selectedDeskIds}
             positions={deskPositions}
+            worldSize={deskWorldSize}
             marquee={deskMarquee}
             isLoading={projection.isLoading}
             failure={projection.failures[0] ?? null}
@@ -560,6 +570,8 @@ export function Desk({
               localSetId={focusedLocalSetId}
               remoteIcon={<WorkSourceIcon item={item} />}
               focusedCards={focusedCards}
+              currentSet={focusedSet}
+              templates={templates}
               visibleCards={visibleCards}
               sortedCards={sortedCards}
               groups={organizedGroups}
@@ -587,6 +599,8 @@ export function Desk({
               onOpenWork={() => openWorkLane(item, 'open')}
               onOpenDesign={() => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design')}
               onDesignTemplate={(templateId) => focusedLocalSetId && openContextStudio(focusedLocalSetId, 'design', templateId)}
+              onCommitTemplateChange={commitTemplateChange}
+              onUnreferenceTemplate={unreferenceTemplateFromCardSet}
               onOpenGenerate={() => { setGenerationRevisionScopeIds([]); openWorkLane(item, 'generate'); }}
               onCardQueryChange={setCardQuery}
               onOrganizationChange={updateOrganization}
@@ -601,7 +615,7 @@ export function Desk({
               editingArtifactId={artifactEditId}
               onCancelArtifactEdit={() => requestArtifactExit(() => undefined)}
               onArtifactEditDirtyChange={setArtifactEditDirty}
-              onSaveArtifact={(card) => { useProjectStore.getState().updateGeneratedCard(card); finishArtifactEdit(); }}
+              onSaveArtifact={(card) => { updateGeneratedCard(card); finishArtifactEdit(); }}
               onDesignArtifact={(card, face) => { finishArtifactEdit(); designCard(card, face); }}
               onDuplicateSelected={duplicateSelectedCards}
               onReviseSelected={openSelectedRevision}

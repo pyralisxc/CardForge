@@ -24,7 +24,7 @@ import { deskMinimapPointToWorld, type DeskCamera } from '../hooks/useDeskCamera
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
 import type { DeskOrganizationFacet, DeskSourceFacet } from '../model/desk';
 import type { DeskSavedView, DeskTagMatch, DeskViewId } from '../hooks/useDeskViewPreferences';
-import { DESK_SURFACE_HEIGHT, DESK_SURFACE_WIDTH } from '../model/deskSpatialGeometry';
+import type { DeskWorldSize } from '../model/deskSpatialGeometry';
 import { DeskWorkObject } from './DeskWorkObject';
 import styles from './Desk.module.css';
 
@@ -45,6 +45,7 @@ export interface DeskOverviewSurfaceProps {
   pinnedIds: string[];
   selectedIds: string[];
   positions: Record<string, DeskPosition>;
+  worldSize: DeskWorldSize;
   marquee: { left: number; top: number; right: number; bottom: number } | null;
   isLoading: boolean;
   failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
@@ -196,9 +197,9 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     </> : null}
   </>;
   const fullViewControls = <div className={`${styles.spatialControls} max-[900px]:hidden`} aria-label="Desk view controls">
-    <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" disabled={!props.camera.canZoomOut} onClick={() => props.camera.changeZoom(props.camera.zoom - 0.1)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
-    <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.zoom * 100)}%</span>
-    <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + 0.1)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
+    <Button type="button" size="icon" variant="ghost" title="Zoom Desk out" disabled={!props.camera.canZoomOut} onClick={() => props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15)} aria-label="Zoom Desk out"><Minus aria-hidden="true" /></Button>
+    <span className={styles.contextZoom} aria-live="polite">{Math.round(props.camera.relativeZoom * 100)}%</span>
+    <Button type="button" size="icon" variant="ghost" title="Zoom Desk in" onClick={() => props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15)} aria-label="Zoom Desk in"><Plus aria-hidden="true" /></Button>
     <Button type="button" size="sm" variant="ghost" aria-pressed={props.camera.mode === 'fit-work'} onClick={props.camera.fit}>Fit Work</Button>
     <Button type="button" size="sm" variant="ghost" disabled={!props.camera.hasSelectionTarget} aria-pressed={props.camera.mode === 'fit-selection'} onClick={props.camera.fitSelection}>Selection</Button>
     <Button type="button" size="sm" variant="ghost" aria-pressed={props.camera.mode === 'whole'} onClick={props.camera.whole}>Whole Desk</Button>
@@ -208,8 +209,8 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
   const compactViewControls = <DropdownMenu>
     <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[901px]:hidden" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={() => props.camera.changeZoom(props.camera.zoom - 0.1)}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.zoom * 100)}%</DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => props.camera.changeZoom(props.camera.zoom + 0.1)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
+      <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={() => props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15)}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.relativeZoom * 100)}%</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => props.camera.changeZoom(props.camera.zoom + props.camera.fitZoom * 0.15)}><Plus aria-hidden="true" />Zoom in</DropdownMenuItem>
       <DropdownMenuItem onSelect={props.camera.fit}><Maximize2 aria-hidden="true" />Fit visible work</DropdownMenuItem>
       <DropdownMenuItem disabled={!props.camera.hasSelectionTarget} onSelect={props.camera.fitSelection}>Fit selection</DropdownMenuItem>
       <DropdownMenuItem onSelect={props.camera.whole}>Whole Desk</DropdownMenuItem>
@@ -271,7 +272,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
         <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
-          <div ref={props.workWorldRef} className={styles.deskWorld} data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: DESK_SURFACE_WIDTH, height: DESK_SURFACE_HEIGHT, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
+          <div ref={props.workWorldRef} className={styles.deskWorld} data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
@@ -294,7 +295,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
           props.camera.centerOnWorldPoint(deskMinimapPointToWorld({
             x: (event.clientX - bounds.left) / Math.max(1, bounds.width),
             y: (event.clientY - bounds.top) / Math.max(1, bounds.height),
-          }));
+          }, props.worldSize));
         }}
       ><span style={{
         left: `${props.camera.minimapViewport.left * 100}%`,

@@ -17,6 +17,7 @@ export {
 export {
   closeCreatorContext,
   createCreatorInteractionSession,
+  deriveCreatorSurfaceContext,
   focusCreatorArtifact,
   focusCreatorSet,
   inspectCreatorArtifact,
@@ -79,6 +80,8 @@ export type {
   CreatorFocusPath,
   CreatorInteractionSession,
   CreatorLens,
+  CreatorSurfaceContext,
+  CreatorSurfaceDepth,
   CreatorToolPresentation,
   CreatorToolSession,
 } from '../environment/interactionSession';

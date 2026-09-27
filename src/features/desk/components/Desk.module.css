@@ -1079,21 +1079,20 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  transition: opacity 220ms ease, transform 260ms ease, filter 220ms ease;
+  transition: opacity 180ms ease;
 }
 
-.artifactContextField[data-obscured="true"] {
+.artifactContextField[data-surface-authority="context"] {
   height: 100%;
-  opacity: 0.68;
-  filter: saturate(0.86) brightness(0.9);
+  opacity: 0;
   pointer-events: none;
 }
 
-.artifactContextField[data-obscured="true"] .cameraControls {
+.artifactContextField[data-surface-authority="context"] .cameraControls {
   opacity: 0;
 }
 
-.artifactContextField[data-obscured="true"] .cardButton[data-focused="true"] {
+.artifactContextField[data-surface-authority="context"] .cardButton[data-focused="true"] {
   opacity: 0;
 }
 

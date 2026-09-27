@@ -10,13 +10,14 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
+import { projectClientPointToSpatialWorld } from '@/components/ui/spatial-viewport';
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
-  DESK_SURFACE_WIDTH,
   getDefaultDeskWorldPosition,
   getDeskMarqueeSelection,
   getDeskWorldBounds,
+  getDeskWorldSize,
   moveDeskWorldSelection,
   normalizeDeskWorldGeometry,
   type DeskRect,
@@ -104,13 +105,19 @@ export function useDeskSpatialLayout({
     id,
     storedPositions[id] ?? getDefaultDeskWorldPosition(index),
   ])), [itemIds, storedPositions]);
-  const workBounds = useMemo(() => getDeskWorldBounds(framingItems), [framingItems]);
+  const worldItems = useMemo(() => framingItems.map((item) => ({
+    ...item,
+    ...(positions[item.id] ?? {}),
+  })), [framingItems, positions]);
+  const worldSize = useMemo(() => getDeskWorldSize(worldItems), [worldItems]);
+  const workBounds = useMemo(() => getDeskWorldBounds(worldItems), [worldItems]);
   const selectionBounds = useMemo(() => getDeskWorldBounds(
-    framingItems.filter((item) => selectedIds.includes(item.id)),
-  ), [framingItems, selectedIds]);
+    worldItems.filter((item) => selectedIds.includes(item.id)),
+  ), [selectedIds, worldItems]);
   const camera = useDeskCamera({
     focused,
     hasItems: visibleItemIds.length > 0,
+    worldSize,
     workBounds,
     selectionBounds,
     viewportRef: workGridRef,
@@ -126,7 +133,7 @@ export function useDeskSpatialLayout({
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
     const measureVisibleWork = () => {
       const bounds = world.getBoundingClientRect();
-      const scale = Math.max(Number.EPSILON, bounds.width / DESK_SURFACE_WIDTH);
+      const scale = Math.max(Number.EPSILON, bounds.width / Math.max(1, worldSize.width));
       const next = collectDeskWorldItems({
         tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
         bounds,
@@ -151,7 +158,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [focused, itemKey, positions, positionsWritable, visibleItemKey]);
+  }, [focused, itemKey, positions, positionsWritable, visibleItemKey, worldSize.height, worldSize.width]);
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];
@@ -253,10 +260,11 @@ export function useDeskSpatialLayout({
     camera.enterCustom();
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    const point = {
-      x: (event.clientX - bounds.left) / camera.zoom,
-      y: (event.clientY - bounds.top) / camera.zoom,
-    };
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
     marqueeRef.current = {
       pointerId: event.pointerId,
       startX: point.x,
@@ -271,12 +279,12 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    setMarquee(rectFromPoints(
-      state.startX,
-      state.startY,
-      (event.clientX - bounds.left) / camera.zoom,
-      (event.clientY - bounds.top) / camera.zoom,
-    ));
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
+    setMarquee(rectFromPoints(state.startX, state.startY, point.x, point.y));
   }, [camera.zoom]);
 
   const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -284,12 +292,12 @@ export function useDeskSpatialLayout({
     if (!state || state.pointerId !== event.pointerId) return;
     const bounds = workWorldRef.current?.getBoundingClientRect();
     if (!bounds) return;
-    const selectedRect = rectFromPoints(
-      state.startX,
-      state.startY,
-      (event.clientX - bounds.left) / camera.zoom,
-      (event.clientY - bounds.top) / camera.zoom,
-    );
+    const point = projectClientPointToSpatialWorld(event, bounds, {
+      zoom: camera.zoom,
+      scrollLeft: 0,
+      scrollTop: 0,
+    });
+    const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);
@@ -317,5 +325,6 @@ export function useDeskSpatialLayout({
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,
+    worldSize,
   };
 }

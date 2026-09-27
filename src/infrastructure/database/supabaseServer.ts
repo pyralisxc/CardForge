@@ -13,16 +13,19 @@ const getSupabaseServerSecret = (): string | null => (
   || null
 );
 
-/** PostgREST can briefly reject a valid secret-key request after a gateway refresh. */
+const SUPABASE_FUTURE_JWT_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
+
+/** PostgREST can briefly reject a valid secret-key request after a gateway refresh or clock skew. */
 export const fetchSupabaseServerRead: typeof fetch = async (input, init) => {
   const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
   let response = await fetch(input, init);
   if (method !== 'GET') return response;
 
-  for (let attempt = 0; attempt < 2 && response.status === 401; attempt += 1) {
+  for (const delayMs of SUPABASE_FUTURE_JWT_RETRY_DELAYS_MS) {
+    if (response.status !== 401) break;
     const error = await response.clone().json().catch(() => null) as { code?: string; message?: string } | null;
     if (error?.code !== 'PGRST303' || error.message !== 'JWT issued at future') break;
-    await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
     response = await fetch(input, { ...init, cache: 'no-store' });
   }
   return response;

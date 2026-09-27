@@ -20,7 +20,12 @@ import {
 } from '@/features/app-shell/client/environment';
 import { createDeskReturnHref, normalizeStudioReturnTo, readSurfaceReturnContext, storeSurfaceReturnContext } from '@/features/app-shell/client/navigation';
 import type { AccountExperienceProjection } from '@/features/account/client/experience';
-import { openGoogleDriveProject } from '@/features/project/client/provider-google-drive';
+import {
+  openGoogleDriveProject,
+  shouldOfferGoogleDriveReconciliation,
+  useGoogleDriveWorkingSession,
+  type GoogleDriveWorkingSessionPhase,
+} from '@/features/project/client/provider-google-drive';
 import { openRememberedLocalProject } from '@/features/project/client/provider-local-folder';
 import { useSpatialWorkspacePreferences } from '@/features/project/client/workspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
@@ -41,6 +46,14 @@ import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
 import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
 import { usePublishedSetStarters } from './usePublishedSetStarters';
 import { useDeskProjectWorkspace } from './useDeskProjectWorkspace';
+
+const driveWorkingNeedsAttention = (phase: GoogleDriveWorkingSessionPhase) => (
+  phase === 'offline'
+  || phase === 'read-only'
+  || phase === 'remote-changed'
+  || phase === 'recovery-required'
+  || phase === 'error'
+);
 
 interface DeskControllerOptions {
   persistenceScope: ProjectPersistenceScope;
@@ -190,6 +203,7 @@ export function useDeskController({
     visibleWork,
     workGridRef,
     workWorldRef,
+    worldSize: deskWorldSize,
   } = useDeskLayout({
     persistenceScope,
     workItems,
@@ -207,6 +221,23 @@ export function useDeskController({
   const focusedItem = focusedWorkId ? itemById.get(focusedWorkId) ?? null : null;
   const inspectorItem = inspectorWorkId ? itemById.get(inspectorWorkId) ?? null : null;
   const focusedLocalSetId = focusedItem?.references.localSetId ?? null;
+  const driveWorkingSession = useGoogleDriveWorkingSession({
+    setId: focusedLocalSetId,
+    name: focusedItem?.name ?? 'CardForge Set',
+    enabled: Boolean(focusedLocalSetId),
+  });
+  const driveWorkingState = driveWorkingSession.state;
+  const workingLocationStatus = driveWorkingState.phase === 'unlinked' ? null : {
+    phase: driveWorkingState.phase,
+    message: driveWorkingState.message,
+    needsAttention: driveWorkingNeedsAttention(driveWorkingState.phase),
+    onRepair: driveWorkingState.phase === 'recovery-required'
+      ? () => { void driveWorkingSession.repairLink(); }
+      : undefined,
+    onReconcile: shouldOfferGoogleDriveReconciliation(driveWorkingState.phase)
+      ? () => { void driveWorkingSession.reconcile(); }
+      : undefined,
+  };
   useEffect(() => {
     if (remoteWorkspaceId && !remoteWorkspaceItem) setRemoteWorkspaceId(null);
   }, [remoteWorkspaceId, remoteWorkspaceItem]);
@@ -233,14 +264,14 @@ export function useDeskController({
     moveTargetId,
   });
   const {
-    addGeneratedCards, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
+    addGeneratedCards, closeEditDialog, commitTemplateChange, createCardSet, deleteCardSet, duplicateCardSet, removeGeneratedCards, renameCardSet, reviseGeneratedCards,
     setActiveCardSetId, setCardPositions, setCardsTag, setGeneratorSelectedBackingTemplateId,
-    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision,
+    setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, undoLastBulkRevision, unreferenceTemplateFromCardSet, updateGeneratedCard,
     updateCardSetMetadata,
   } = projectActions;
   const {
     activeCardSet, activeCardSetId, allArtifactsSelected, allVisibleCardsSelected, availableFields, cardSets,
-    displayCards, effectiveMoveTargetId, focusedCards, generationCards, generationSet,
+    displayCards, effectiveMoveTargetId, focusedCards, focusedSet, generationCards, generationSet,
     generatorSelectedBackingTemplateId, generatorSelectedTemplateId, organization, organizedGroups, otherSets, reflectiveGroupings,
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
     storedCards, visibleCards,
@@ -623,6 +654,8 @@ export function useDeskController({
     cardQuery,
     cardStageRef,
     closeRemoteWorkspace: () => setRemoteWorkspaceId(null),
+    closeEditDialog,
+    commitTemplateChange,
     createPublishedWorkingCopy,
     closeContextStudio,
     closeGenerate,
@@ -647,6 +680,8 @@ export function useDeskController({
     focusedCards,
     focusedItem,
     focusedLocalSetId,
+    focusedSet,
+    workingLocationStatus,
     generationCards,
     generationSet,
     generatorSelectedBackingTemplateId,
@@ -698,6 +733,7 @@ export function useDeskController({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
+    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
@@ -717,6 +753,7 @@ export function useDeskController({
     setTagFilters,
     tagFilters,
     undoLastBulkRevision,
+    unreferenceTemplateFromCardSet,
     requestHistoryBack,
     requestDeskReturn,
     resetToDesk,
@@ -739,6 +776,7 @@ export function useDeskController({
     tagFilter,
     templates,
     togglePin,
+    updateGeneratedCard,
     updateSelectedWorkOrganization,
     viewGeneratedCards,
     viewer,
@@ -747,6 +785,7 @@ export function useDeskController({
     workCards,
     workGridRef,
     workWorldRef,
+    deskWorldSize,
     workItems,
     workTemplate,
     zones,
