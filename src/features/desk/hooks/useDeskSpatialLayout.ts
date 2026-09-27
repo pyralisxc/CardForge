@@ -15,6 +15,9 @@ import { getSpatialOriginCompensatedScroll } from '@/components/ui/spatial-world
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
+  confineDeskWorldItems,
+  DESK_MIN_WORLD_HEIGHT,
+  DESK_MIN_WORLD_WIDTH,
   getDefaultDeskWorldPosition,
   getDeskMarqueeSelection,
   getDeskWorldBounds,
@@ -36,7 +39,7 @@ type DeskDragState = {
   pointerId: number;
   startX: number;
   startY: number;
-  items: Array<Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>>;
+  items: Array<Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z' | 'width' | 'height'>>;
   selectedIds: string[];
   moved: boolean;
   latestPositions: Record<string, DeskWorldPosition>;
@@ -181,6 +184,20 @@ export function useDeskSpatialLayout({
     if (positionsWritable) void writeProjectPreference(positionKey, { version: 2, positions: next });
   }, [positionKey, positionsWritable]);
 
+  useEffect(() => {
+    if (!positionsWritable || !worldItems.length) return;
+    const confined = confineDeskWorldItems(worldItems);
+    const changed = Object.entries(confined).some(([id, position]) => (
+      positions[id]?.x !== position.x || positions[id]?.y !== position.y
+    ));
+    if (!changed) return;
+    setStoredPositions((current) => {
+      const next = { ...current, ...confined };
+      persistPositions(next);
+      return next;
+    });
+  }, [persistPositions, positions, positionsWritable, worldItems]);
+
   const beginDrag = useCallback((itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options: { additive?: boolean } = {}) => {
     if (event.button !== 0) return;
     camera.enterCustom();
@@ -191,7 +208,13 @@ export function useDeskSpatialLayout({
         ? [...selectedIds, itemId]
         : [itemId];
     if (!selectedIds.includes(itemId)) onSelectionChange(selected, itemId);
-    const authoredItems = Object.entries(positions).map(([id, position]) => ({ id, ...position }));
+    const measuredById = new Map(collectWorldItems().map((item) => [item.id, item]));
+    const authoredItems = Object.entries(positions).map(([id, position]) => ({
+      id,
+      ...position,
+      width: measuredById.get(id)?.width ?? 232,
+      height: measuredById.get(id)?.height ?? 360,
+    }));
     if (!authoredItems.some((item) => selected.includes(item.id))) return;
     const topZ = Math.max(0, ...authoredItems.map((position) => position.z)) + 1;
     let liftIndex = 0;
@@ -212,7 +235,7 @@ export function useDeskSpatialLayout({
       startScroll: { left: grid?.scrollLeft ?? 0, top: grid?.scrollTop ?? 0 },
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-  }, [camera, onSelectionChange, positions, selectedIds]);
+  }, [camera, collectWorldItems, onSelectionChange, positions, selectedIds]);
 
   const moveDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
@@ -227,6 +250,7 @@ export function useDeskSpatialLayout({
       selectedIds: drag.selectedIds,
       delta: { x: dx, y: dy },
       snap: snapToGrid ? 24 : 1,
+      boundary: { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
     });
     drag.latestPositions = moved.positions;
     setStoredPositions((current) => ({ ...current, ...moved.positions }));
@@ -255,12 +279,19 @@ export function useDeskSpatialLayout({
 
   const nudgeSelection = useCallback((delta: { x: number; y: number }) => {
     camera.enterCustom();
-    const authoredItems = Object.entries(positions).map(([id, position]) => ({ id, ...position }));
+    const measuredById = new Map(collectWorldItems().map((item) => [item.id, item]));
+    const authoredItems = Object.entries(positions).map(([id, position]) => ({
+      id,
+      ...position,
+      width: measuredById.get(id)?.width ?? 232,
+      height: measuredById.get(id)?.height ?? 360,
+    }));
     const moved = moveDeskWorldSelectionWithRebase({
       items: authoredItems,
       selectedIds,
       delta,
       snap: snapToGrid ? 24 : 1,
+      boundary: { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
     });
     const next = { ...storedPositions, ...moved.positions };
     setStoredPositions(next);
@@ -274,7 +305,7 @@ export function useDeskSpatialLayout({
       });
       requestAnimationFrame(() => grid.scrollTo(target));
     }
-  }, [camera, persistPositions, positions, selectedIds, snapToGrid, storedPositions]);
+  }, [camera, collectWorldItems, persistPositions, positions, selectedIds, snapToGrid, storedPositions]);
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
     // React portal events bubble through this component tree even when their DOM

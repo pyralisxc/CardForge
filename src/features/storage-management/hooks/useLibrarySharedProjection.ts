@@ -287,7 +287,14 @@ export const projectPipelineLibraryObjects = (
       reviewState: item.reviewState,
       previewUrl: getPipelineImagePreviewUrl(item.submission) ?? lineageVisual.previewUrl,
       fontFamily: lineageVisual.fontFamily,
-      template: isRepositoryTemplate(sourcePayload) ? sourcePayload : lineageVisual.template,
+      // The registry catalog is the canonical, hydrated payload for the exact
+      // live revision. Historical submission rows intentionally retain their
+      // immutable authored payload, which may still contain pre-publication
+      // asset references. Candidates have no registry pointer yet and must use
+      // their own exact hydrated source payload.
+      template: item.currentPublishedSubmission?.id === item.submission.id && lineageVisual.template
+        ? lineageVisual.template
+        : isRepositoryTemplate(sourcePayload) ? sourcePayload : lineageVisual.template,
       style: isRepositoryStyle(sourcePayload) ? sourcePayload : lineageVisual.style,
     };
   })

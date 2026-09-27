@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { useUnifiedLibraryView } from '@/features/storage-management/hooks/useUnifiedLibraryView';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 import { projectPublishedLibraryObjects } from '@/features/storage-management/hooks/useLibrarySharedProjection';
-import { createLibraryDetailRecord, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
+import { createLibraryDetailRecord, getPipelineRevisionLabel, getSharedLibraryActions } from '@/features/storage-management/components/LibraryObjectPresentation';
 
 const localSet: AccountLibraryItem = {
   id: 'set:set-1',
@@ -23,6 +23,12 @@ const localSet: AccountLibraryItem = {
 };
 
 describe('unified Library view', () => {
+  it('does not invent revision 1 for legacy rows and keeps their immutable ids distinguishable', () => {
+    expect(getPipelineRevisionLabel({ id: 'legacy-first-identity', revisionNumber: null })).toBe('Legacy revision · legacy-f');
+    expect(getPipelineRevisionLabel({ id: 'legacy-second-identity', revisionNumber: null })).toBe('Legacy revision · legacy-s');
+    expect(getPipelineRevisionLabel({ id: 'known', revisionNumber: 3 })).toBe('Revision 3');
+  });
+
   it.each(['business card', 'business-card', 'networking'])('keeps published usage guidance and classification visible and searchable: %s', (query) => {
     const publishedItems = projectPublishedLibraryObjects({
       access: 'free', templates: { defaults: [] }, fonts: { fonts: [] }, sets: { items: [] },

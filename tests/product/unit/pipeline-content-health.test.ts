@@ -7,6 +7,7 @@ import type { PipelineProgramView, PipelineSubmission } from '@/features/pipelin
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PipelineContentHealthPanel } from '@/features/pipeline/components/PipelineContentHealthPanel';
+import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogManifest';
 
 const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => ({
   submissions: [{
@@ -79,6 +80,33 @@ describe('Pipeline content health', () => {
       expect.objectContaining({ code: 'retired-source', severity: 'error' }),
       expect.objectContaining({ code: 'route-content-mismatch', severity: 'error' }),
     ]));
+  });
+
+  it('audits only the registry-pointed live revision when immutable history still says published', () => {
+    const active = programWith({ id: 'active-r2', revisionNumber: 2 });
+    active.submissions.push({
+      ...active.submissions[0]!,
+      id: 'historical-r1',
+      revisionNumber: 1,
+      sourceUrl: 'https://example.supabase.co/storage/v1/object/public/cardforge-developer-assets/retired.webp',
+    });
+    const catalog = {
+      version: 'test', access: 'free',
+      templates: { defaults: [], userTemplates: [] },
+      styles: { version: 1, styles: [] },
+      assets: { templates: [], textures: [], dividers: [], icons: [], imageAssets: [], elementPresets: [], registry: { configured: true, source: 'database', total: 1 } },
+      fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } },
+      sets: { items: [] },
+      pipeline: { items: [{
+        id: 'registry-id', submissionId: 'active-r2', lineageId: 'lineage-id', name: 'Published object',
+        assetType: 'set', previewUrl: 'https://example.com/preview.webp', access: 'free', source: 'official',
+        fileSizeBytes: 1024, updatedAt: '2026-09-01T00:00:00Z',
+      }] },
+    } as unknown as CardForgeCatalogManifest;
+
+    const health = buildPipelineContentHealth({ catalog, program: active });
+
+    expect(health.issues.some((issue) => issue.code === 'retired-source')).toBe(false);
   });
 
   it.each([

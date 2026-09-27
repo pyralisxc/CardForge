@@ -79,7 +79,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByText('Access', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Connections', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Security', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('1 open work', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 visible work', { exact: true })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');

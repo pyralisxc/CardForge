@@ -221,11 +221,43 @@ describe('Pipeline Library projection', () => {
       },
       fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } },
       sets: { items: [] },
-    } as CardForgeCatalogManifest;
+    } as unknown as CardForgeCatalogManifest;
 
     const projected = projectPipelineLibraryObjects(program([publishedImage]), catalog);
 
     expect(projected[0].previewUrl).toBe('/card-assets/ember-art-preview.webp');
+  });
+
+  it('uses the canonical hydrated catalog Template for the exact live revision', () => {
+    const staleSubmissionTemplate = {
+      id: 'template-arcane', name: 'Arcane', aspectRatio: '63:88',
+      cardBackgroundImageUrl: 'cardforge-pipeline-asset://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    };
+    const hydratedCatalogTemplate = {
+      ...staleSubmissionTemplate,
+      cardBackgroundImageUrl: 'https://assets.example.test/template-assets/arcane.webp',
+    };
+    const published = submission('published-template-r2', {
+      lineageId: 'arcane-lineage', status: 'published', revisionNumber: 2,
+      targetRegistryAssetId: 'template-arcane', sourcePayload: staleSubmissionTemplate,
+    });
+    const catalog = {
+      version: 'test', access: 'contributor', templates: { defaults: [hydratedCatalogTemplate], userTemplates: [] }, styles: { version: 1, styles: [] },
+      assets: {
+        textures: [], dividers: [], icons: [], imageAssets: [], elementPresets: [],
+        templates: [{ id: 'template-arcane', name: 'Arcane', kind: 'template', url: '/api/templates#template-arcane' }],
+        registry: { configured: true, source: 'database', total: 1 },
+      },
+      fonts: { fonts: [], registry: { configured: true, source: 'database', total: 0 } }, sets: { items: [] },
+      pipeline: { items: [{
+        id: 'template-arcane', submissionId: 'published-template-r2', lineageId: 'arcane-lineage', name: 'Arcane',
+        assetType: 'template', previewUrl: '/api/templates#template-arcane', access: 'free', source: 'official', fileSizeBytes: 1024, updatedAt: null,
+      }] },
+    } as unknown as CardForgeCatalogManifest;
+
+    const projected = projectPipelineLibraryObjects(program([published]), catalog);
+
+    expect(projected[0].template?.cardBackgroundImageUrl).toBe('https://assets.example.test/template-assets/arcane.webp');
   });
 
   it('reuses the published font family for a Pipeline font sample', () => {

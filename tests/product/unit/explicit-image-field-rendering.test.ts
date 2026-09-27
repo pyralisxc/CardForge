@@ -117,4 +117,12 @@ describe('explicit image field rendering contracts', () => {
     expect(frame?.imageSource).toBe('https://example.test/frame.webp');
     expect(frame && resolveFreeformImageUrl(frame, card.data)).toBe('https://example.test/frame.webp');
   });
+
+  it('leaves an unresolved optional image empty instead of requesting a remote placeholder', () => {
+    expect(resolveFreeformImageUrl({
+      ...artworkElement,
+      content: '{{companyLogo}}',
+      imageSource: '{{companyLogo}}',
+    }, { companyLogo: '' }, 'Company logo')).toBe('');
+  });
 });
