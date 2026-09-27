@@ -14,6 +14,7 @@ import {
   getSpatialAnchoredZoomTarget,
   getSpatialCenteredScroll,
   projectSpatialScrollToWorldOrigin,
+  scrollSpatialViewportProgrammatically,
   useSpatialGestures,
   type SpatialPoint,
 } from '@/components/ui/spatial-viewport';
@@ -64,21 +65,38 @@ export function useDeskCamera({
   const zoomRef = useRef(1);
   const cameraModeRef = useRef<DeskCameraMode>('fit-work');
   const suppressScrollRef = useRef(false);
+  const programmaticScrollCancelRef = useRef<(() => void) | null>(null);
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
   const [zoom, setZoom] = useState(1);
   const [mode, setMode] = useState<DeskCameraMode>('fit-work');
   const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => () => {
+    programmaticScrollCancelRef.current?.();
+    programmaticScrollCancelRef.current = null;
+  }, []);
 
   const scrollProgrammatically = useCallback((grid: HTMLDivElement, target: { left: number; top: number }, behavior: ScrollBehavior = 'auto') => {
+    programmaticScrollCancelRef.current?.();
     suppressScrollRef.current = true;
     scrollRef.current = target;
     setScrollPosition(target);
-    grid.scrollTo({ ...target, behavior });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      suppressScrollRef.current = false;
-    }));
+    let cancel = () => {};
+    cancel = scrollSpatialViewportProgrammatically({
+      viewport: grid,
+      target,
+      behavior,
+      onRelease: () => {
+        if (programmaticScrollCancelRef.current !== cancel) return;
+        programmaticScrollCancelRef.current = null;
+        suppressScrollRef.current = false;
+        const settled = { left: grid.scrollLeft, top: grid.scrollTop };
+        scrollRef.current = settled;
+        setScrollPosition(settled);
+      },
+    });
+    programmaticScrollCancelRef.current = cancel;
   }, []);
 
   const getSemanticTarget = useCallback((requestedMode: Exclude<DeskCameraMode, 'custom'>, nextViewport = viewportStateRef.current) => {
@@ -102,9 +120,10 @@ export function useDeskCamera({
     setMode(target.mode);
     zoomRef.current = target.geometry.zoom;
     setZoom(target.geometry.zoom);
-    // Suppress layout-driven scroll events immediately. Waiting until the next
-    // frame lets a responsive reflow incorrectly turn this semantic camera
-    // action back into Custom before the programmatic scroll begins.
+    // Suppress layout-driven scroll events immediately. The shared scroll owner
+    // keeps semantic control until native smooth motion actually settles.
+    programmaticScrollCancelRef.current?.();
+    programmaticScrollCancelRef.current = null;
     suppressScrollRef.current = true;
     requestAnimationFrame(() => scrollProgrammatically(grid, target.scroll, behavior));
   }, [getSemanticTarget, scrollProgrammatically, viewportRef]);
