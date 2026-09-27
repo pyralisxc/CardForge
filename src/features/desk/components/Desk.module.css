@@ -1214,8 +1214,14 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translate3d(var(--artifact-swipe-x, 0), var(--artifact-swipe-y, 0), 0);
   filter: drop-shadow(0 1.5rem 2rem rgb(0 0 0 / 38%));
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.focusedArtifactFrame[data-swipe-active="true"] {
+  transition: none;
 }
 
 .focusedArtifactButton {
@@ -2184,7 +2190,8 @@
   .workTileMain,
   .workVisual,
   .cardButton,
-  .focusWorkspace {
+  .focusWorkspace,
+  .focusedArtifactFrame {
     transition: none;
   }
 

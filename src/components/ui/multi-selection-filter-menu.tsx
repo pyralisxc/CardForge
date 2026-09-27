@@ -49,11 +49,12 @@ export function MultiSelectionFilterMenu<T extends string>({
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem disabled={values.length === 0} onSelect={() => onChange([])}>Clear all</DropdownMenuItem>
+      <DropdownMenuItem disabled={values.length === 0} onSelect={(event) => { event.preventDefault(); onChange([]); }}>Clear all</DropdownMenuItem>
       <DropdownMenuSeparator />
       {options.map((option) => <DropdownMenuCheckboxItem
         key={option.value}
         checked={valueSet.has(option.value)}
+        onSelect={(event) => event.preventDefault()}
         onCheckedChange={() => toggle(option.value)}
       >{option.label}</DropdownMenuCheckboxItem>)}
     </DropdownMenuContent>

@@ -114,8 +114,28 @@ test.describe('mobile Library location tools', () => {
     await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
     const filters = toolbar.locator('[data-mobile-desk-filters] > summary[aria-label="Open Desk filters"]');
     await expectTouchTarget(filters);
-    await expectTouchTarget(toolbar.getByRole('button', { name: 'Desk view controls', exact: true }));
+    const viewMenuTrigger = toolbar.getByRole('button', { name: 'Desk view controls', exact: true });
+    await expectTouchTarget(viewMenuTrigger);
     await expect(toolbar.getByRole('button', { name: 'Zoom Desk out', exact: true })).toBeHidden();
+
+    await viewMenuTrigger.tap();
+    const viewMenu = page.getByRole('menu');
+    await expect(viewMenu).toBeVisible();
+    const gridToggle = viewMenu.getByRole('menuitem', { name: /grid$/i });
+    await gridToggle.tap();
+    await expect(viewMenu).toBeVisible();
+    await page.getByPlaceholder('Search Desk work').tap();
+    await expect(viewMenu).toBeHidden();
+
+    await filters.tap();
+    await expect(toolbar.locator('[data-mobile-desk-filters]')).toHaveAttribute('open', '');
+    const viewsFilter = toolbar.getByRole('button', { name: 'Choose Desk views', exact: true });
+    await viewsFilter.tap();
+    const filterMenu = page.getByRole('menu');
+    await filterMenu.getByRole('menuitemcheckbox', { name: 'My work', exact: true }).tap();
+    await expect(filterMenu).toBeVisible();
+    await page.getByPlaceholder('Search Desk work').tap();
+    await expect(toolbar.locator('[data-mobile-desk-filters]')).not.toHaveAttribute('open', '');
 
     const status = page.locator('footer[aria-label="Environment status"]');
     await expect(status).toBeVisible();
