@@ -166,16 +166,17 @@ test.describe('spatial touch workspace', () => {
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
-    await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
-    await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
-    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
-    // Cancellation leaves the last committed move untouched.
+    // Cancellation is an object-local gesture; exercise it while Fit Work keeps
+    // the moved card deliberately readable before changing camera semantics.
     const cancelPoint = await center(card);
     await touch('touchStart', [{ ...cancelPoint, id: 6 }]);
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
     await touch('touchMove', [{ x: cancelPoint.x + 35, y: cancelPoint.y + 35, id: 6 }]);
     await touch('touchCancel', []);
     await expect(tile).toHaveAttribute('style', movedPosition!);
+    await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
+    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     const box = (await world.boundingBox())!;
     await touch('touchStart', [{ x: box.x + 3, y: box.y + 3, id: 7 }]);
     await expect(stage).toHaveAttribute('data-spatial-held', 'true');
