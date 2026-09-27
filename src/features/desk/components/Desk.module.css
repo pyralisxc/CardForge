@@ -380,8 +380,8 @@
 
 .deskWorld[data-grid="true"] {
   background-image:
-    linear-gradient(rgb(255 255 255 / 3%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 3%) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -977,8 +977,8 @@
 
 .contentStage[data-grid="true"] {
   background-image:
-    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 48%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -1126,7 +1126,8 @@
 
 .artifactContextField[data-surface-authority="context"] {
   height: 100%;
-  opacity: 0;
+  opacity: 0.34;
+  filter: saturate(0.72) brightness(0.72);
   pointer-events: none;
 }
 
@@ -1146,7 +1147,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--cf-surface-raised) 18%, transparent) 0 22%, color-mix(in srgb, var(--cf-canvas) 42%, transparent) 54%, transparent 82%);
+  background: transparent;
   overflow: hidden;
 }
 
@@ -1243,7 +1244,16 @@
   height: 100%;
   min-height: 0;
   margin-top: 0;
+  background:
+    radial-gradient(circle at center,
+      color-mix(in srgb, var(--cf-canvas) 82%, transparent) 0 24%,
+      color-mix(in srgb, var(--cf-canvas) 46%, transparent) 56%,
+      transparent 84%);
   scrollbar-gutter: auto;
+}
+
+.artifactWorkspace[data-editing="true"] .contentStage {
+  background: var(--cf-canvas);
 }
 
 .focusedArtifactWorld {

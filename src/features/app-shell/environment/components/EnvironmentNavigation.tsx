@@ -93,12 +93,12 @@ export function EnvironmentNavigation({ zones, activeZone, brand, onActiveZoneNa
         </nav>
       </aside>
 
-      <nav
+      {mobilePersistent ? <nav
         className={`${styles.mobileNav} md:!hidden`}
         aria-label="CardForge zones"
+        data-mobile-environment-navigation
         style={{
           gridTemplateColumns: `repeat(${coreZones.length + (protectedZones.length > 0 ? 1 : 0)}, minmax(0, 1fr))`,
-          ...(mobilePersistent ? { display: 'grid' } : {}),
         }}
       >
         {coreZones.map((zone) => (
