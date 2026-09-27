@@ -8,6 +8,8 @@ test.describe('spatial touch workspace', () => {
     await seedGuestScaleWorkspace(page, 100);
     await page.goto('/account');
     await openScaleSet(page, 100);
+    const spatialArtifacts = page.locator('[data-desk-artifact-stage] button[data-artifact-id]');
+    await expect(spatialArtifacts).toHaveCount(100);
     const boardCard = page.locator('button[data-artifact-id="scale-card-1"]');
     await boardCard.focus();
     await boardCard.press('Enter');

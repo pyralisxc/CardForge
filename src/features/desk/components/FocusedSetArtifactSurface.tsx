@@ -212,13 +212,20 @@ export function FocusedSetArtifactSurface({
     width: viewportSize.width / session.camera.zoom,
     height: viewportSize.height / session.camera.zoom,
   }), [layout, session.camera, viewportSize]);
+  const visibleArtifactIds = useMemo(
+    () => new Set(visibleEntries.map((entry) => entry.identity.artifactId)),
+    [visibleEntries],
+  );
   const artifactFocusId = session.focusPath.artifactId;
   const focusedEntry = artifactFocusId ? entryById.get(artifactFocusId) ?? null : null;
-  const projectedEntries = focusedEntry && !visibleEntries.includes(focusedEntry) ? [...visibleEntries, focusedEntry] : visibleEntries;
-  // Keep the canonical scene renderer for normal Set-sized projections. Large
-  // fitted collections use an image-led thumbnail tier instead of erasing the
-  // creator's work into generic numbered boxes.
-  const useFullPreview = projectedEntries.length <= 160;
+  // World membership is stable once the Set is opened. Viewport projection may
+  // choose a lighter preview tier, but it must never mount/unmount Artifacts or
+  // replay their Set-to-Desk entrance as the camera pans.
+  const projectedEntries = layout.entries;
+  // Keep the canonical scene renderer for normal Set-sized worlds. Large
+  // collections keep every world object mounted but use the cheaper thumbnail
+  // tier so visibility remains a rendering concern rather than presentation state.
+  const useFullPreview = layout.entries.length <= 160;
   const orderedGroups = useMemo(() => {
     const entriesByGroup = new Map<string, FocusedArtifactLayoutEntry[]>();
     for (const entry of layout.entries) {
@@ -760,7 +767,8 @@ export function FocusedSetArtifactSurface({
               const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
               const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
               const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
-              const showThumbnailImage = previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
+              const showThumbnailImage = visibleArtifactIds.has(artifactId)
+                && previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
                 <div
                   key={artifactId}
@@ -774,6 +782,7 @@ export function FocusedSetArtifactSurface({
                   className={styles.cardButton}
                   data-artifact-id={artifactId}
                   data-artifact-type={entry.identity.artifactType}
+                  data-viewport-visible={visibleArtifactIds.has(artifactId) ? 'true' : 'false'}
                   data-focused={session.focusPath.artifactId === artifactId}
                   aria-label={`${entry.title}. ${entry.subtitle}`}
                   aria-pressed={selected}
