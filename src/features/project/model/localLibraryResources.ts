@@ -15,6 +15,7 @@ export interface LocalLibraryResource {
   fontValue?: string;
   mimeType?: string;
   sizeBytes: number | null;
+  packName?: string;
   status: 'available' | 'missing-source' | 'unavailable';
 }
 
@@ -36,6 +37,7 @@ export const projectLocalLibraryAsset = (collection: Exclude<LocalLibraryCollect
     source,
     previewSource: typeof asset.previewUrl === 'string' && asset.previewUrl.trim() ? asset.previewUrl : source,
     sizeBytes: knownSize(asset.fileSizeBytes),
+    ...(asset.packName ? { packName: asset.packName } : {}),
     status: source ? 'available' : 'missing-source',
   };
 };
