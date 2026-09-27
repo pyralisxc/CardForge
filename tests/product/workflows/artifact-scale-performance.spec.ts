@@ -177,6 +177,9 @@ test.describe('large Artifact browser evidence', () => {
       const style = getComputedStyle(node);
       return Number.parseFloat(style.opacity) > 0 && style.pointerEvents === 'none';
     })).toBe(true);
+    const contextSceneArtifact = page.locator('[data-scene-depth="board"]').first();
+    await expect(contextSceneArtifact).toBeVisible();
+    expect(await contextSceneArtifact.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect.poll(async () => focusedStage.locator(`[data-artifact-id="${firstId}"]`).evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
     await expect.poll(async () => {
       const focusedArtifactBox = await focusedStage.locator(`[data-artifact-id="${firstId}"]`).boundingBox();
