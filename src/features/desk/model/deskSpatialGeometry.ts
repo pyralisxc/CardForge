@@ -1,10 +1,9 @@
 import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
 
 /**
- * Desk uses the same elastic-world principle as focused Set layout: authored
- * objects define the usable extent. The minimum keeps an empty/small Desk
- * comfortable; dragging work farther right/down grows the world, and moving it
- * inward removes unused space again.
+ * Desk has one bounded usable field. Imported legacy coordinates are read
+ * losslessly first, then measured objects are confined to this field; direct
+ * manipulation cannot grow a hidden off-screen extent.
  */
 export const DESK_MIN_WORLD_WIDTH = 960;
 export const DESK_MIN_WORLD_HEIGHT = 640;
@@ -277,15 +276,39 @@ export const moveDeskWorldSelectionWithRebase = ({
   selectedIds,
   delta,
   snap = 1,
+  boundary,
 }: {
-  items: readonly Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>[];
+  items: readonly (Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'> & Partial<Pick<DeskWorldItemRect, 'width' | 'height'>>)[];
   selectedIds: readonly string[];
   delta: { x: number; y: number };
   snap?: number;
+  boundary?: DeskWorldSize;
 }) => {
   const selected = new Set(selectedIds);
   const step = Math.max(1, snap);
   const placeDelta = (value: number) => Math.round(value / step) * step;
+  if (boundary) {
+    const selectedItems = items.filter((item) => selected.has(item.id)).map((item) => ({
+      ...item,
+      width: Math.max(1, item.width ?? 1),
+      height: Math.max(1, item.height ?? 1),
+    }));
+    const selectedBounds = getDeskWorldBounds(selectedItems);
+    if (!selectedBounds) return { positions: {}, affectedIds: [], originShift: { x: 0, y: 0 } };
+    const boundedDelta = {
+      x: clamp(placeDelta(delta.x), -selectedBounds.left, boundary.width - selectedBounds.right),
+      y: clamp(placeDelta(delta.y), -selectedBounds.top, boundary.height - selectedBounds.bottom),
+    };
+    return {
+      positions: Object.fromEntries(selectedItems.map((item) => [item.id, {
+        x: Math.round(item.x + boundedDelta.x),
+        y: Math.round(item.y + boundedDelta.y),
+        z: item.z,
+      }])),
+      affectedIds: selectedItems.map((item) => item.id),
+      originShift: { x: 0, y: 0 },
+    };
+  }
   const proposed = Object.fromEntries(items.flatMap((item) => selected.has(item.id)
     ? [[item.id, { x: item.x + placeDelta(delta.x), y: item.y + placeDelta(delta.y) }] as const]
     : []));
@@ -299,6 +322,15 @@ export const moveDeskWorldSelectionWithRebase = ({
     }])),
   };
 };
+
+export const confineDeskWorldItems = (
+  items: readonly DeskWorldItemRect[],
+  boundary: DeskWorldSize = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
+): Record<string, DeskWorldPosition> => Object.fromEntries(items.map((item) => [item.id, {
+  x: Math.round(clamp(item.x, 0, Math.max(0, boundary.width - item.width))),
+  y: Math.round(clamp(item.y, 0, Math.max(0, boundary.height - item.height))),
+  z: item.z,
+}]));
 
 export const moveDeskWorldSelection = (input: Parameters<typeof moveDeskWorldSelectionWithRebase>[0]): Record<string, DeskWorldPosition> => {
   const selected = new Set(input.selectedIds);

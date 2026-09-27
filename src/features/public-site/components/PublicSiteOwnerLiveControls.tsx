@@ -159,6 +159,7 @@ export function PublicSiteOwnerLiveControls({
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 
   return <>
+    <div className={inlineSlug ? 'h-36 sm:h-28' : 'h-24'} aria-hidden="true" data-owner-live-controls-reserve />
     <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
       <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">Owner preview</span>
       {contextualBlocks.length ? <Button type="button" size="sm" variant={inlineMode ? 'default' : 'outline'} onClick={() => setInlineMode((value) => !value)}>{inlineMode ? 'Editing rendered copy' : 'Edit rendered copy'}</Button> : null}

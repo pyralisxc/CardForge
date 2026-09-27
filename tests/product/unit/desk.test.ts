@@ -4,6 +4,7 @@ import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskW
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
+  confineDeskWorldItems,
   DESK_MIN_WORLD_HEIGHT,
   DESK_MIN_WORLD_WIDTH,
   getDefaultDeskWorldPosition,
@@ -276,6 +277,28 @@ describe('Desk model', () => {
     expect(getDeskWorldSize([{ ...movedFar['set:edge']!, width: 200, height: 240 }])).toEqual({
       width: 5_332,
       height: 5_372,
+    });
+  });
+
+  it('confines interactive movement and restored positions to the bounded usable Desk', () => {
+    const boundary = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT };
+    const items = [
+      { id: 'set:one', x: 700, y: 260, z: 1, width: 220, height: 320 },
+      { id: 'set:two', x: 460, y: 200, z: 2, width: 200, height: 300 },
+    ];
+    const moved = moveDeskWorldSelectionWithRebase({
+      items,
+      selectedIds: ['set:one'],
+      delta: { x: 500, y: 500 },
+      boundary,
+    });
+    expect(moved.positions['set:one']).toEqual({ x: 740, y: 320, z: 1 });
+    expect(moved.originShift).toEqual({ x: 0, y: 0 });
+
+    expect(confineDeskWorldItems([
+      { id: 'set:far', x: 4_200, y: 2_600, z: 4, width: 232, height: 360 },
+    ], boundary)).toEqual({
+      'set:far': { x: 728, y: 280, z: 4 },
     });
   });
 

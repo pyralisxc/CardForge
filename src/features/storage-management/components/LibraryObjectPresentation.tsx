@@ -71,12 +71,21 @@ function SharedLibraryVisual({ item, previewUrl }: { item: LibraryViewItem; prev
   const [previewFailed, setPreviewFailed] = useState(false);
   const template = item.scope === 'published' ? item.published.template : item.scope === 'pipeline' ? item.pipeline.template : null;
   const style = item.scope === 'published' ? item.published.style : item.scope === 'pipeline' ? item.pipeline.style : null;
+  if (item.scope === 'published' && item.published.kind === 'set') {
+    return <span className={styles.objectFallback} aria-label={`${item.name} complete Set`}><Boxes aria-hidden="true" /><small>Complete Set</small></span>;
+  }
   if (template) return <AuthoredObjectPreview template={template} label={item.name} size="standard" />;
   if (style) return <span className={styles.stylePreview} style={appearanceToStyle(style.appearance)} aria-label={`${item.name} style preview`} />;
   if (previewUrl && !previewFailed) return <img src={previewUrl} alt="" className={styles.objectImage} onError={() => setPreviewFailed(true)} />;
   if (item.fontFamily || (item.scope === 'pipeline' && item.pipeline.submission.assetType === 'fonts')) return <span className={styles.fontSample} style={{ fontFamily: item.fontFamily ?? undefined }}>Aa</span>;
   return <span className={styles.objectFallback}><SourceIcon item={item} /></span>;
 }
+
+export const getPipelineRevisionLabel = (revision: Pick<PipelineSubmission, 'id' | 'revisionNumber'>): string => (
+  revision.revisionNumber == null
+    ? `Legacy revision · ${revision.id.slice(0, 8)}`
+    : `Revision ${revision.revisionNumber}`
+);
 
 function PersonalLibraryVisual({ item }: { item: Extract<LibraryViewItem, { scope: 'personal' }> }) {
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -160,9 +169,9 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ['Ownership', item.pipeline.ownership === 'mine' ? 'Your contribution' : 'Shared Pipeline'],
       ['Lifecycle', item.statusLabel],
       ['Review', displayedRevision.trashedAt ? 'Unavailable in Trash' : isContributorPipelineVoteable(displayedRevision) ? 'Revision feedback available' : 'Voting begins after submission'],
-      ['Displayed revision', String(item.pipeline.submission.revisionNumber ?? 1)],
-      ...(item.pipeline.currentPublishedSubmission ? [['Published revision', String(item.pipeline.currentPublishedSubmission.revisionNumber ?? 1)] as const] : []),
-      ...(reviewSubmission ? [['Reviewing revision', String(reviewSubmission.revisionNumber ?? 1)] as const] : []),
+      ['Displayed revision', getPipelineRevisionLabel(item.pipeline.submission)],
+      ...(item.pipeline.currentPublishedSubmission ? [['Published revision', getPipelineRevisionLabel(item.pipeline.currentPublishedSubmission)] as const] : []),
+      ...(reviewSubmission ? [['Reviewing revision', getPipelineRevisionLabel(reviewSubmission)] as const] : []),
       ['Displayed revision votes', `${displayedRevision.positiveVotes} up · ${displayedRevision.negativeVotes} down`],
       ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
       ['Quality', displayedRevision.positiveVotes + displayedRevision.negativeVotes ? `${displayedRevision.qualityScore}/100` : 'Not yet rated'],
@@ -195,10 +204,10 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
               ? 'History'
               : getPipelineStatusLabel(revision.status);
       return <li key={revision.id}>
-        <div className={styles.revisionOpen}><span>Revision {revision.revisionNumber ?? 1}</span><span>{revisionRole}</span></div>
-        {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} revision ${revision.revisionNumber ?? 1}`}>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
-          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} revision ${revision.revisionNumber ?? 1}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
+        <div className={styles.revisionOpen}><span>{getPipelineRevisionLabel(revision)}</span><span>{revisionRole}</span></div>
+        {canReview && isContributorPipelineVoteable(revision) ? <div className={styles.revisionVotes} aria-label={`Votes for ${item.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`}>
+          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'positive'} onClick={() => onVoteRevision(revision.id, revision.name, 'positive')} aria-label={`Vote up on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote up on this exact revision'}><ThumbsUp aria-hidden="true" />{revision.positiveVotes}</button>
+          <button type="button" disabled={votingId === revision.id || selfVoteBlocked} data-active={revision.currentUserVote === 'negative'} onClick={() => onVoteRevision(revision.id, revision.name, 'negative')} aria-label={`Vote down on ${revision.name} ${getPipelineRevisionLabel(revision).toLocaleLowerCase()}`} title={selfVoteBlocked ? 'Contributor self-voting is disabled by the owner.' : 'Vote down on this exact revision'}><ThumbsDown aria-hidden="true" />{revision.negativeVotes}</button>
         </div> : null}
       </li>;
     })}</ol></div>

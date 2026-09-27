@@ -59,7 +59,7 @@ const isRenderableImageSource = (value?: string): value is string =>
 export const resolveFreeformImageUrl = (
   element: FreeformCardElement,
   data: CardData,
-  fallbackText = 'Artwork'
+  _fallbackText = 'Artwork'
 ): string => {
   const imageFieldKey = getImageFieldKeyForElement(element);
   const keyedFieldValue = data[imageFieldKey];
@@ -73,5 +73,5 @@ export const resolveFreeformImageUrl = (
   const keyedValue = source ? data[source] : undefined;
   if (typeof keyedValue === 'string' && isRenderableImageSource(keyedValue)) return keyedValue;
 
-  return `https://placehold.co/${Math.max(80, Math.round(element.width || 300))}x${Math.max(80, Math.round(element.height || 200))}.png?text=${encodeURIComponent(fallbackText || 'Image')}`;
+  return '';
 };

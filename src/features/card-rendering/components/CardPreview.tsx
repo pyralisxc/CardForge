@@ -313,25 +313,27 @@ export function CardPreview({
           const imageUrl = resolveFreeformImageUrl(renderElement, dataToRender, descriptiveArtworkText);
           return (
             <ProjectBinaryFrame key={renderElement.id} style={baseStyle} data-freeform-element-id={renderElement.id}>
-              <ProjectBinaryImage
-                source={imageUrl}
-                alt={`Image for ${renderElement.name}`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  minWidth: 0,
-                  minHeight: 0,
-                  objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
-                  objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
-                  transform: imageResolution?.imageStyle.transform,
-                  transformOrigin: 'center',
-                  borderRadius: 'inherit',
-                  display: 'block',
-                }}
-                data-ai-hint={dataAiHintKeywords}
-              />
+              {imageUrl ? (
+                <ProjectBinaryImage
+                  source={imageUrl}
+                  alt={`Image for ${renderElement.name}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    minWidth: 0,
+                    minHeight: 0,
+                    objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
+                    objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
+                    transform: imageResolution?.imageStyle.transform,
+                    transformOrigin: 'center',
+                    borderRadius: 'inherit',
+                    display: 'block',
+                  }}
+                  data-ai-hint={dataAiHintKeywords}
+                />
+              ) : null}
             </ProjectBinaryFrame>
           );
         }
