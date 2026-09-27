@@ -297,10 +297,18 @@
   gap: 0.1rem;
 }
 
-.desktopSpatialControls {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
+.compactSpatialControls {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .fullSpatialControls {
+    display: none;
+  }
+
+  .compactSpatialControls {
+    display: flex;
+  }
 }
 
 .workGrid {
@@ -1975,10 +1983,6 @@
   .spatialControls {
     grid-column: 3;
     justify-content: flex-end;
-  }
-
-  .desktopSpatialControls {
-    display: none;
   }
 
   .searchField {
