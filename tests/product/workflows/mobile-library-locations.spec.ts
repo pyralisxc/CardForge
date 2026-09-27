@@ -128,6 +128,8 @@ test.describe('mobile Library location tools', () => {
     const gridToggle = viewMenu.getByRole('menuitem', { name: /grid$/i });
     await gridToggle.tap();
     await expect(viewMenu).toBeVisible();
+    await gridToggle.tap();
+    await expect(viewMenu).toBeVisible();
     await page.getByPlaceholder('Search Desk work').tap();
     await expect(viewMenu).toBeHidden();
 
