@@ -300,6 +300,14 @@ describe('Desk model', () => {
     ], boundary)).toEqual({
       'set:far': { x: 728, y: 280, z: 4 },
     });
+
+    const oversized = moveDeskWorldSelectionWithRebase({
+      items: [{ id: 'set:wide', x: 0, y: 0, z: 5, width: 1_200, height: 700 }],
+      selectedIds: ['set:wide'],
+      delta: { x: 200, y: 200 },
+      boundary,
+    });
+    expect(oversized.positions['set:wide']).toEqual({ x: 0, y: 0, z: 5 });
   });
 
   it('preserves persisted positions beyond the former fixed Desk box', () => {

@@ -295,9 +295,12 @@ export const moveDeskWorldSelectionWithRebase = ({
     }));
     const selectedBounds = getDeskWorldBounds(selectedItems);
     if (!selectedBounds) return { positions: {}, affectedIds: [], originShift: { x: 0, y: 0 } };
+    const confineDelta = (requested: number, minimum: number, maximum: number) => (
+      minimum <= maximum ? clamp(requested, minimum, maximum) : minimum
+    );
     const boundedDelta = {
-      x: clamp(placeDelta(delta.x), -selectedBounds.left, boundary.width - selectedBounds.right),
-      y: clamp(placeDelta(delta.y), -selectedBounds.top, boundary.height - selectedBounds.bottom),
+      x: confineDelta(placeDelta(delta.x), -selectedBounds.left, boundary.width - selectedBounds.right),
+      y: confineDelta(placeDelta(delta.y), -selectedBounds.top, boundary.height - selectedBounds.bottom),
     };
     return {
       positions: Object.fromEntries(selectedItems.map((item) => [item.id, {
