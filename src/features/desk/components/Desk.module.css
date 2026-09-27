@@ -301,13 +301,22 @@
   display: none;
 }
 
-@media (max-width: 900px) {
+/* Keep the overlay on one deliberate row on common laptop widths. The full
+   camera strip is useful on wide canvases; below that, the compact View menu
+   preserves the same actions without forcing filters onto a second line. */
+@media (max-width: 1400px) {
   .fullSpatialControls {
     display: none;
   }
 
   .compactSpatialControls {
     display: flex;
+  }
+}
+
+@media (min-width: 1050px) and (max-width: 1400px) {
+  .deskFilterRow {
+    flex-wrap: nowrap;
   }
 }
 
