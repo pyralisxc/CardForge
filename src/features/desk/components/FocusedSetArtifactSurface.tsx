@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
-import { Minus, Plus, Redo2, Undo2 } from 'lucide-react';
+import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
-import { getCardFaceCanvas, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
@@ -141,7 +141,7 @@ export function FocusedSetArtifactSurface({
   const [viewportSize, setViewportSize] = useState({ width: 900, height: 520 });
   const [dragPreview, setDragPreview] = useState<Record<string, ArtifactPosition>>({});
   const [navigatorFocusId, setNavigatorFocusId] = useState<string | null>(null);
-  const [faces] = useArtifactFaces();
+  const [faces, setFace] = useArtifactFaces();
   const [historyRevision, setHistoryRevision] = useState(0);
   const marqueeRef = useRef<{ start: ArtifactPosition; additive: string[] } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -799,7 +799,7 @@ export function FocusedSetArtifactSurface({
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
-                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" flipLabel={entry.title} setId={setId} watermark={!canExportClean} /> : (
+                  {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
                     <span className={styles.artifactLodPreview} data-artifact-thumbnail={artifactId} aria-hidden="true">
                       <ArtifactThumbnail
                         card={card}
@@ -818,6 +818,13 @@ export function FocusedSetArtifactSurface({
                   <span className={styles.cardTemplateLabel} title={`Card from ${visibleTemplate.name}`}>Card · {visibleTemplate.name}</span>
                   {organization.groupBy !== 'none' ? <small className={styles.cardGroupLabel} title={entry.groupLabel}>{entry.groupLabel}</small> : null}
                 </button>
+                {hasCardBacking(card) ? <button
+                  type="button"
+                  className={styles.deskTileFlip}
+                  onClick={() => setFace(artifactId, face === 'front' ? 'back' : 'front')}
+                  aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${entry.title}`}
+                  title={`Show ${face === 'front' ? 'back' : 'front'}`}
+                ><RefreshCcw size={15} aria-hidden="true" /></button> : null}
                 </div>
               );
             })}

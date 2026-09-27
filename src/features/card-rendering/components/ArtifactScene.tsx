@@ -39,6 +39,7 @@ interface SceneRegistry {
   register: (id: string, slot: SceneSlot) => () => void;
   refresh: () => void;
   activeSetId: string | null;
+  settledDepths: Record<string, Depth>;
 }
 const RegistryContext = createContext<SceneRegistry | null>(null);
 const FaceContext = createContext<{
@@ -49,7 +50,14 @@ const SceneCardContent = memo(function SceneCardContent({ card, face, watermark,
   return <><CardPreview card={card} face={face} targetWidthPx={RENDER_WIDTH} interactionOverlay={interactionOverlay} />{watermark ? <CardWatermarkOverlay /> : null}</>;
 });
 
-function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Projection; origin: Projection; immediate: boolean; onFlip: (id: string, face: CardFace) => void }) {
+function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, onSettled }: {
+  item: Projection;
+  origin: Projection;
+  immediate: boolean;
+  inlineSettled: boolean;
+  onFlip: (id: string, face: CardFace) => void;
+  onSettled: (id: string, depth: Depth) => void;
+}) {
   const [settledDepth, setSettledDepth] = useState<Depth | null>(null);
   const present = useIsPresent();
   const activeSetId = usePresenceData();
@@ -72,11 +80,14 @@ function SceneArtifactFrame({ item, origin, immediate, onFlip }: { item: Project
       data-scene-template={template.id}
       data-scene-moving={travelling}
       initial={{ x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0 }}
-      animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: item.opacity }}
+      animate={{ x: item.x, y: item.y, scale: item.width / RENDER_WIDTH, rotate: item.rotation, opacity: inlineSettled ? 0 : item.opacity }}
       exit={culled || immediate ? { opacity: 0, transition: { duration: 0 } } : { x: origin.x, y: origin.y, scale: origin.width / RENDER_WIDTH, rotate: origin.rotation, opacity: 0, transition: { opacity: { delay: 0.3, duration: 0.15 } } }}
-      onAnimationComplete={() => setSettledDepth(item.depth)}
-      transition={immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
-      style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
+      onAnimationComplete={() => {
+        setSettledDepth(item.depth);
+        onSettled(item.card.uniqueId, item.depth);
+      }}
+      transition={inlineSettled ? { duration: 0 } : immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
+      style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible', transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
     >
       {item.interactionOverlay
         ? <SceneCardContent card={item.card} face={item.face} watermark={item.watermark} interactionOverlay={item.interactionOverlay} />
@@ -105,6 +116,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   const [projections, setProjections] = useState<Projection[]>([]);
   const [directMotion, setDirectMotion] = useState(false);
   const [faces, setFaces] = useState<Record<string, CardFace>>({});
+  const [settledDepths, setSettledDepths] = useState<Record<string, Depth>>({});
   const reducedMotion = useReducedMotion();
   const directUntil = useRef(0);
   const dragging = useRef(false);
@@ -187,7 +199,10 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
   }, [refresh]);
   // Every parent commit can change layout without resizing the card itself.
   useLayoutEffect(refresh, [children, refresh]);
-  const registry = useMemo(() => ({ register, refresh, activeSetId }), [activeSetId, register, refresh]);
+  const markSettled = useCallback((id: string, depth: Depth) => {
+    setSettledDepths((current) => current[id] === depth ? current : { ...current, [id]: depth });
+  }, []);
+  const registry = useMemo(() => ({ register, refresh, activeSetId, settledDepths }), [activeSetId, refresh, register, settledDepths]);
   const setFace = useCallback((id: string, face: CardFace) => setFaces((current) => ({ ...current, [id]: face })), []);
   const faceState = useMemo(() => ({ faces, setFace }), [faces, setFace]);
   const immediate = Boolean(reducedMotion) || directMotion;
@@ -201,7 +216,16 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
           const origin = origins.current.get(item.setId) ?? item;
-          return <SceneArtifactFrame key={item.card.uniqueId} item={item} origin={origin} immediate={Boolean(reducedMotion) || (immediate && previousDepth.current.get(item.card.uniqueId) === item.depth)} onFlip={setFace} />;
+          const inlineSettled = item.depth === 'board' && settledDepths[item.card.uniqueId] === 'board';
+          return <SceneArtifactFrame
+            key={item.card.uniqueId}
+            item={item}
+            origin={origin}
+            immediate={Boolean(reducedMotion) || (immediate && previousDepth.current.get(item.card.uniqueId) === item.depth)}
+            inlineSettled={inlineSettled}
+            onFlip={setFace}
+            onSettled={markSettled}
+          />;
         })}
       </AnimatePresence>
     </div>
@@ -249,5 +273,22 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   }, [card, depth, flipLabel, id, interactionOverlay, order, persistentFace, rotation, scene, resolvedSetId, watermark]);
   useLayoutEffect(() => { scene?.refresh(); });
   if (!scene) return <CardPreview card={card} face={face} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />;
-  return <span ref={node} data-scene-slot={card.uniqueId} data-scene-slot-depth={depth} style={{ display: 'block', width, height: geometry.visualHeightPx }} />;
+  const inlineBoard = depth === 'board' && scene.settledDepths[card.uniqueId] === 'board';
+  return <span
+    ref={node}
+    data-scene-slot={card.uniqueId}
+    data-scene-slot-depth={depth}
+    data-scene-inline-board={inlineBoard ? 'true' : 'false'}
+    style={{ position: 'relative', display: 'block', width, height: geometry.visualHeightPx }}
+  >
+    {inlineBoard ? <>
+      <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
+      {watermark ? <CardWatermarkOverlay /> : null}
+      <span
+        data-artifact-template-border
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: -3, border: `2px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4, pointerEvents: 'none' }}
+      />
+    </> : null}
+  </span>;
 }

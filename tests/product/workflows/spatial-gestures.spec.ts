@@ -10,6 +10,8 @@ test.describe('spatial touch workspace', () => {
     await openScaleSet(page, 100);
     const spatialArtifacts = page.locator('[data-desk-artifact-stage] button[data-artifact-id]');
     await expect(spatialArtifacts).toHaveCount(100);
+    const firstBoardSlot = page.locator('[data-scene-slot="scale-card-1"][data-scene-slot-depth="board"]');
+    await expect(firstBoardSlot).toHaveAttribute('data-scene-inline-board', 'true');
     const boardCard = page.locator('button[data-artifact-id="scale-card-1"]');
     await boardCard.focus();
     await boardCard.press('Enter');
