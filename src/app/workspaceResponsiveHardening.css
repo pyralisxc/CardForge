@@ -69,74 +69,9 @@
   padding: 0.3rem 0.55rem;
 }
 
-/* The whole remaining center rectangle is the Desk. Controls sit outside the
-   camera viewport instead of occupying logical world coordinates or covering
-   movable Sets. */
-[aria-label="CardForge Desk"] section[aria-label="Open Sets on Desk"] {
-  display: flex !important;
-  min-height: 0 !important;
-  flex: 1 1 auto;
-  flex-direction: column;
-  border-top: 0 !important;
-  border-bottom: 0 !important;
-}
-
-/* Desk controls are one compact action rail immediately above the camera. */
-[data-desk-toolbar] {
-  position: relative !important;
-  z-index: 12;
-  top: auto !important;
-  right: auto !important;
-  left: auto !important;
-  max-width: none !important;
-  min-height: 2.75rem;
-  flex: 0 0 auto;
-  flex-wrap: nowrap !important;
-  gap: 0.2rem !important;
-  padding: 0.2rem 0.4rem !important;
-  border-top: 0 !important;
-  border-right: 0 !important;
-  border-left: 0 !important;
-  box-shadow: none !important;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-
-[data-desk-toolbar]::-webkit-scrollbar {
-  display: none;
-}
-
-[data-desk-viewport] {
-  width: 100%;
-  height: 100% !important;
-  min-height: 0 !important;
-  flex: 1 1 auto;
-}
-
-/* Mobile feature CSS used to reserve 3.75rem inside the world for the old
-   overlaid toolbar. The toolbar now lives outside the camera, so the world
-   begins at the viewport origin on every device. */
-[data-desk-viewport] > div:first-child {
-  min-height: 100% !important;
-  margin-top: 0 !important;
-}
-
-/* There is one view-control capability with two presentations. Full controls
-   are used while they fit; the compact wrapper takes over below 901px. */
-[data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
-  display: none !important;
-}
-
-@media (max-width: 900px) {
-  [data-desk-toolbar] > [aria-label="Desk view controls"] {
-    display: none !important;
-  }
-
-  [data-desk-toolbar] > [aria-label="Compact Desk view controls"] {
-    display: flex !important;
-  }
-}
+/* Desk owns its camera, toolbar overlay, and world presentation in its feature
+   stylesheet. This shared shell file intentionally does not reposition those
+   layers: doing so creates a second spatial owner and exposes the world edge. */
 
 /* The focused Set is a camera depth, not a narrower page nested in the Desk. */
 [data-desk="focused"],
@@ -302,13 +237,6 @@
   [data-desk-context-rail] button {
     min-width: 44px !important;
     min-height: 44px !important;
-  }
-
-  /* Search, Filters, and View share the native three-column Desk toolbar.
-     Only overflow behavior and touch targets need hardening here. */
-  [data-desk-toolbar] {
-    min-height: 2.7rem;
-    overflow: visible !important;
   }
 
   [data-mobile-desk-filters] > summary,

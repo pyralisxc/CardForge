@@ -292,7 +292,18 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         tabIndex={props.focusedItemId ? -1 : 0}
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
       >
-        <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
+        <div
+          className={styles.deskWorldSizer}
+          data-focused={Boolean(props.focusedItemId)}
+          data-grid={props.showGrid}
+          style={{
+            width: props.camera.surfaceWidth,
+            height: props.camera.surfaceHeight,
+            '--desk-grid-step': `${24 * props.camera.zoom}px`,
+            '--desk-grid-origin-x': `${props.camera.offsetX}px`,
+            '--desk-grid-origin-y': `${props.camera.offsetY}px`,
+          } as CSSProperties}
+        >
           <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {
