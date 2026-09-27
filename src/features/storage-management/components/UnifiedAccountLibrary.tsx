@@ -23,7 +23,7 @@ import type { WorkbenchBusinessIdentity } from '@/features/creator-workbench/cli
 import { EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE } from '@/features/contributor-access/client';
 import { buildPipelineContentHealth, PipelineContentHealthPanel, type PipelineSubmission } from '@/features/pipeline/client';
 import { deleteGoogleDriveProjectCopy } from '@/features/project/client/provider-google-drive';
-import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore } from '@/features/project/client/workspace';
+import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 import { type ProjectPersistenceScope } from '@/features/project/client/persistence-workspace';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -124,9 +124,8 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const [pendingDeleteItem, setPendingDeleteItem] = useState<AccountLibraryItem | null>(null);
   const surfaceRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const displayCards = useProjectStore(selectAllGeneratedDisplayCards);
-  const templates = useProjectStore(selectAllTemplates);
-  const cardSets = useProjectStore((state) => state.cardSets);
+  const projectWorkspace = useProjectLibraryWorkspace();
+  const { displayCards, templates, cardSets } = projectWorkspace;
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const scopeDefinitions = getLibraryScopeDefinitions({ contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const visibleZones = getVisibleEnvironmentZones(viewer);
@@ -159,9 +158,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       setContributionTargetSetId(setId);
     } else if (tool === 'design' && params.get('artifact')) {
       const templateId = params.get('artifact')!;
-      const store = useProjectStore.getState();
-      store.setTemplateEditorSelectedTemplateId(templateId);
-      store.setStudioView('template');
+      projectWorkspace.actions.openTemplateDesign(templateId);
       setToolStack(openEnvironmentToolSession([], createLibraryToolSession('design', [templateId])));
     }
     setCampaignTargetId(params.get('campaign'));
@@ -366,7 +363,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (!item) return;
     try {
       if (item.references.localSetId) {
-        if (!useProjectStore.getState().deleteCardSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
+        if (!projectWorkspace.actions.deleteSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
       } else if (item.references.driveFileId && item.references.driveProviderRevision && item.references.driveProjectRevision) {
         await deleteGoogleDriveProjectCopy({
           fileId: item.references.driveFileId,

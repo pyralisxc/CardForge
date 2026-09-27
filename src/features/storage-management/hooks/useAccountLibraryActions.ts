@@ -12,7 +12,7 @@ import {
 import { createDeskReturnHref } from '@/features/app-shell/client/navigation';
 import { createSendToPipelineActionDescriptor, type PipelineSubmission } from '@/features/pipeline/client';
 import { createPublishedSetCopy } from '@/features/project/client/published-sets';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { useProjectLibraryWorkspace } from '@/features/project/client/libraryWorkspace';
 
 import type { AccountLibraryItem } from '../model/accountLibrary';
 import { getAccountLibraryEnvironmentActions } from '../model/accountLibraryEnvironment';
@@ -76,6 +76,14 @@ export function useAccountLibraryActions({
   setPendingDeleteItem,
 }: UseAccountLibraryActionsOptions) {
   const { toast } = useToast();
+  const projectWorkspace = useProjectLibraryWorkspace();
+  const {
+    openTemplateDesign,
+    duplicateSet,
+    duplicateTemplate,
+    prepareTemplateForDesign,
+    installTemplate,
+  } = projectWorkspace.actions;
 
   const personalActions = (item: AccountLibraryItem): ActionDescriptor[] => [
     ...getAccountLibraryEnvironmentActions(item, {
@@ -88,9 +96,7 @@ export function useAccountLibraryActions({
   ];
 
   const openDesignTool = (templateId: string, focusReturnId: string) => {
-    const store = useProjectStore.getState();
-    store.setTemplateEditorSelectedTemplateId(templateId);
-    store.setStudioView('template');
+    openTemplateDesign(templateId);
     setDesignReturnFocusId(focusReturnId);
     openTool('design', [templateId]);
     closeDetail();
@@ -121,8 +127,8 @@ export function useAccountLibraryActions({
   const duplicatePersonalItem = (item: AccountLibraryItem) => {
     if (!item.references.localSetId && !item.references.localTemplateId) throw new Error('This Library object cannot be duplicated locally.');
     const duplicateId = item.references.localSetId
-      ? useProjectStore.getState().duplicateCardSet(item.references.localSetId)
-      : useProjectStore.getState().cloneTemplate(item.references.localTemplateId!);
+      ? duplicateSet(item.references.localSetId)
+      : duplicateTemplate(item.references.localTemplateId!);
     if (!duplicateId) throw new Error('CardForge could not create an independent device copy.');
     toast({ title: `${item.kind === 'template' ? 'Template' : 'Set'} duplicated`, description: `${item.name} now has an independent device copy.` });
     projection.refresh();
@@ -145,9 +151,7 @@ export function useAccountLibraryActions({
     }
     const template = item.published.template;
     if (!template) throw new Error('This published object does not provide a contextual editor or a Set package.');
-    const store = useProjectStore.getState();
-    const publishedTemplateId = store.addOrUpdateTemplate(template, 'default');
-    const selectedTemplateId = copyTemplate ? store.cloneTemplate(publishedTemplateId) : publishedTemplateId;
+    const selectedTemplateId = prepareTemplateForDesign(template, { source: 'default', copy: copyTemplate });
     if (!selectedTemplateId) throw new Error('CardForge could not prepare this Template for Design.');
     if (copyTemplate) toast({ title: 'Editable copy created', description: `${item.name} is now in your personal Templates.` });
     return { kind: 'navigation' as const, href: openDesignTool(selectedTemplateId, `library-object-${item.id}`), ...(copyTemplate ? { changedIds: [selectedTemplateId] } : {}) };
@@ -245,7 +249,7 @@ export function useAccountLibraryActions({
       testPipeline: () => {
         const item = requirePipeline();
         if (!item.pipeline.template) throw new Error('This Pipeline revision has no Template to test.');
-        const templateId = useProjectStore.getState().addOrUpdateTemplate({ ...item.pipeline.template, id: null }, 'user');
+        const templateId = installTemplate({ ...item.pipeline.template, id: null }, 'user');
         if (!templateId) throw new Error('CardForge could not prepare this exact revision for Design.');
         toast({ title: 'Exact Pipeline revision prepared', description: `${item.name} is open as a local test copy. The shared revision is unchanged.` });
         return { kind: 'navigation', href: openDesignTool(templateId, `library-object-${item.id}`), changedIds: [templateId] };
