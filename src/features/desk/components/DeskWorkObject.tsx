@@ -9,7 +9,7 @@ import type { CardFace } from '@/domain/cards';
 import type { AccountLibraryItem } from '@/features/storage-management/client';
 
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
-import { DESK_METADATA_SEPARATOR, getDeskWorkKeyboardIntent, joinDeskMetadata, workSourceLabel } from '../model/desk';
+import { DESK_METADATA_SEPARATOR, getDeskWorkKeyboardIntent, getDeskWorkPresentationMeta } from '../model/desk';
 import styles from './Desk.module.css';
 
 interface DeskWorkObjectProps {
@@ -52,6 +52,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const lastPointerTypeRef = useRef('mouse');
   const suppressTouchSelectionClickRef = useRef(false);
   const openSet = () => props.onFocus(props.item);
+  const presentationMeta = getDeskWorkPresentationMeta(props.item);
   const positionStyle = props.position
     ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
     : undefined;
@@ -117,7 +118,11 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
       aria-label={`${props.selected ? 'Selected' : 'Select'} ${props.item.name}. Drag to move; press Enter to open.`}
     >
       <div className={styles.workVisual} data-desk-set-stack data-card-face={face}>{props.preview(face)}</div>
-      <span className={styles.workMeta}><strong>{props.item.name}</strong><span>{joinDeskMetadata(props.item.details) || workSourceLabel(props.item)}</span>{props.item.organization.type || props.item.organization.tags.length ? <span className={styles.workOrganization}>{joinDeskMetadata([props.item.organization.type, ...props.item.organization.tags].filter((value): value is string => Boolean(value)))}</span> : null}<span>{workSourceLabel(props.item)}</span></span>
+      <span className={styles.workMeta}>
+        <strong className={styles.workMetaTitle} title={props.item.name}>{props.item.name}</strong>
+        <span className={styles.workMetaSummary} title={presentationMeta.summary}>{presentationMeta.summary}</span>
+        {presentationMeta.organization ? <span className={styles.workOrganization} title={presentationMeta.organization}>{presentationMeta.organization}</span> : null}
+      </span>
     </button>
     {props.focused ? props.focusedSurface : <>
       {props.canFlip ? <button type="button" className={styles.deskTileFlip} onClick={() => props.artifactIds.forEach((id) => setFace(id, face === 'front' ? 'back' : 'front'))} aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${props.item.name}`} title={`Show ${face === 'front' ? 'back' : 'front'}`}><RefreshCcw size={15} aria-hidden="true" /></button> : null}

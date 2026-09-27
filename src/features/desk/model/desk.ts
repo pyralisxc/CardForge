@@ -129,6 +129,38 @@ export const workSourceLabel = (item: AccountLibraryItem): string => (
   item.locations.map((location) => location.label).join(' + ') || 'Unknown source'
 );
 
+export interface DeskWorkPresentationMeta {
+  summary: string;
+  organization: string | null;
+}
+
+/**
+ * Desk preview chrome is intentionally compact: title is rendered separately,
+ * then one useful work/source summary, then optional creator organization.
+ * Device-only work does not need a redundant "This device" line when its
+ * existing details already explain the local state.
+ */
+export const getDeskWorkPresentationMeta = (item: AccountLibraryItem): DeskWorkPresentationMeta => {
+  const detailParts = item.details.map((part) => part.trim()).filter(Boolean);
+  const sources = new Set(item.locations.map((location) => location.source));
+  const ordinaryDeviceOnly = sources.size === 1 && sources.has('device');
+  const source = workSourceLabel(item);
+  const summaryParts = [...detailParts];
+  if (!ordinaryDeviceOnly || summaryParts.length === 0) {
+    const normalized = new Set(summaryParts.map((part) => part.toLocaleLowerCase()));
+    if (!normalized.has(source.toLocaleLowerCase())) summaryParts.push(source);
+  }
+  const organizationParts = [
+    item.organization.type,
+    ...item.organization.tags,
+  ].filter((value): value is string => Boolean(value?.trim()));
+
+  return {
+    summary: joinDeskMetadata(summaryParts) || source,
+    organization: organizationParts.length ? joinDeskMetadata(organizationParts) : null,
+  };
+};
+
 export const getCardTitle = (card: DisplayCard, index: number): string => String(
   card.data.cardName
     ?? card.data.name
