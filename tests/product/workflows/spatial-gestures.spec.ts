@@ -168,6 +168,24 @@ test.describe('spatial touch workspace', () => {
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
+    // Fit Work may use smooth programmatic scrolling. Wait for the camera to
+    // settle before sampling object coordinates so this gesture exercises the
+    // card rather than racing its previous screen position.
+    await stage.evaluate((node) => new Promise<void>((resolve) => {
+      let settle: ReturnType<typeof setTimeout> | null = setTimeout(resolve, 140);
+      const finish = () => {
+        if (settle !== null) clearTimeout(settle);
+        settle = null;
+        node.removeEventListener('scroll', onScroll);
+        resolve();
+      };
+      const onScroll = () => {
+        if (settle !== null) clearTimeout(settle);
+        settle = setTimeout(finish, 140);
+      };
+      node.addEventListener('scroll', onScroll, { passive: true });
+      setTimeout(finish, 1_700);
+    }));
     // Cancellation is an object-local gesture; exercise it while Fit Work keeps
     // the moved card deliberately readable before changing camera semantics.
     const cancelPoint = await center(card);

@@ -144,7 +144,8 @@ for (const mobile of [false, true]) {
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-      await visual.getByRole('button', { name: /^Show back of/ }).click();
+      const artifactTile = page.locator('button[data-artifact-id="scale-card-1"]').locator('..');
+      await artifactTile.getByRole('button', { name: /^Show back of/ }).click();
       await expect(visual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
       if (mobile) {
         await rail.getByRole('button', { name: 'More Artifact actions', exact: true }).click();
