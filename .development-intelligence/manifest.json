@@ -3,7 +3,7 @@
   "schemaVersion": 2,
   "format": "sharded-ndjson",
   "analyzerVersion": "2.6.0-behavior-observations",
-  "sourceFingerprint": "3b9317597fb492f3bad7fba849c7c35fd67e35312fa9ff64c90241566d024ac3",
+  "sourceFingerprint": "8fb68e7f0d81eabd806845f9a766fdf4041af15b1b26ebabc85ba0dd66f4a0df",
   "topologyFingerprint": "e9ba5b0dd2903f70156b5aac49e36fe4761a4002507925982e5dc88f364da840",
   "evidenceFingerprint": "2526f8f92a06234738f9f07457488060a3f5ff6fe7f24af3e6b6fca87e3717bb",
   "shards": [
