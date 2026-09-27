@@ -616,7 +616,7 @@ export function useAccountLibraryProjection({
     } finally {
       setBusyItemId(null);
     }
-  }, [router]);
+  }, [activateSet, openTemplateDesign, router]);
 
   return {
     items,

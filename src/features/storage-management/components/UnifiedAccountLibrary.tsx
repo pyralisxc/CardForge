@@ -126,6 +126,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
   const searchRef = useRef<HTMLInputElement | null>(null);
   const projectWorkspace = useProjectLibraryWorkspace();
   const { displayCards, templates, cardSets } = projectWorkspace;
+  const { deleteSet, openTemplateDesign } = projectWorkspace.actions;
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const scopeDefinitions = getLibraryScopeDefinitions({ contributor: pipelineAccess, campaigns: campaignAccess, owner: experience.owner });
   const visibleZones = getVisibleEnvironmentZones(viewer);
@@ -158,7 +159,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
       setContributionTargetSetId(setId);
     } else if (tool === 'design' && params.get('artifact')) {
       const templateId = params.get('artifact')!;
-      projectWorkspace.actions.openTemplateDesign(templateId);
+      openTemplateDesign(templateId);
       setToolStack(openEnvironmentToolSession([], createLibraryToolSession('design', [templateId])));
     }
     setCampaignTargetId(params.get('campaign'));
@@ -166,7 +167,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (status === 'google-drive-connected') setStorageCallback({ title: 'Google Drive connected', message: 'Choose an existing project folder or create a new one before saving projects to Drive.' });
     else if (status === 'google-drive-error') setStorageCallback({ title: 'Google Drive could not be connected', message: params.get('message') || 'Review Locations & connections and try again. Existing work remains unchanged.' });
     else setStorageCallback(null);
-  }, [experience.contributor.canSubmit]);
+  }, [experience.contributor.canSubmit, openTemplateDesign]);
   useEffect(() => {
     if (!requestedSubmissionId || !shared.program) return;
     const submission = shared.program.submissions.find((candidate) => candidate.id === requestedSubmissionId);
@@ -363,7 +364,7 @@ export function UnifiedAccountLibrary({ persistenceScope, experience, businessId
     if (!item) return;
     try {
       if (item.references.localSetId) {
-        if (!projectWorkspace.actions.deleteSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
+        if (!deleteSet(item.references.localSetId)) throw new Error('The device copy could not be removed.');
       } else if (item.references.driveFileId && item.references.driveProviderRevision && item.references.driveProjectRevision) {
         await deleteGoogleDriveProjectCopy({
           fileId: item.references.driveFileId,
