@@ -227,7 +227,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
     <Button type="button" size="icon" variant="ghost" title={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-label={props.showGrid ? 'Hide Desk grid' : 'Show Desk grid'} aria-pressed={props.showGrid} onClick={props.onShowGridChange}><LayoutGrid aria-hidden="true" /></Button>
     <Button type="button" size="sm" variant="ghost" title="Snap moved Sets to the Desk grid" aria-pressed={props.snapToGrid} onClick={props.onSnapToGridChange}>Snap</Button>
   </div>;
-  const compactViewControls = <DropdownMenu>
+  const compactViewControls = <DropdownMenu modal={false}>
     <DropdownMenuTrigger asChild><Button type="button" size="sm" variant="ghost" className="min-[901px]:hidden" aria-label="Desk view controls" title="Desk view controls"><Maximize2 aria-hidden="true" /><span>View</span></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem disabled={!props.camera.canZoomOut} onSelect={(event) => { event.preventDefault(); props.camera.changeZoom(props.camera.zoom - props.camera.fitZoom * 0.15); }}><Minus aria-hidden="true" />Zoom out · {Math.round(props.camera.relativeZoom * 100)}%</DropdownMenuItem>

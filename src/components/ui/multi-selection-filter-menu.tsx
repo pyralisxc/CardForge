@@ -40,7 +40,7 @@ export function MultiSelectionFilterMenu<T extends string>({
     ? values.filter((entry) => entry !== value)
     : [...values, value]);
 
-  return <DropdownMenu>
+  return <DropdownMenu modal={false}>
     <DropdownMenuTrigger asChild>
       <Button type="button" variant="outline" className={cn('justify-between gap-2', className)} aria-label={ariaLabel}>
         <ListFilter className="h-4 w-4 shrink-0" aria-hidden="true" />
