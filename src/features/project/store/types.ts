@@ -60,7 +60,6 @@ export interface OutputSlice {
 export interface SettingsSlice {
   selectedPaperSize: PaperSize;
   studioView: StudioView;
-  richTextHighlightColor: string;
   cardSets: CardSet[];
   activeCardSet: CardSet | null;
   generatorSelectedTemplateId: string | null;
@@ -74,7 +73,6 @@ export interface SettingsSlice {
   exportDpi: number;
   setSelectedPaperSize: (size: PaperSize) => void;
   setStudioView: (view: StudioView) => void;
-  setRichTextHighlightColor: (color: string) => void;
   createCardSet: (name?: string) => string;
   setActiveCardSetId: (id: string) => void;
   renameCardSet: (id: string, name: string) => boolean;

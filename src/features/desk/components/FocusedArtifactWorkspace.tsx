@@ -12,7 +12,7 @@ import { getCardFaceCanvas, getCardFaceTemplate, type DisplayCard } from '@/doma
 import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 import { buildArtifactFieldTargetMap, completeCardDataWithTemplateDefaults, GeneratorFieldGroups, getMissingRequiredFieldLabels, initializeCardDataFromTemplate, type ArtifactFieldTarget } from '@/features/card-generator/client';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
-import { useProjectStore } from '@/features/project/client/workspace';
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { useToast } from '@/components/ui/use-toast';
 import type { ArtifactBrowseDirection } from '../model/focusedArtifactLayout';
 
@@ -83,8 +83,7 @@ export function FocusedArtifactWorkspace({
 }: FocusedArtifactWorkspaceProps) {
   const [face] = useArtifactFace(artifactId);
   const { toast } = useToast();
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColor = useProjectStore((state) => state.setRichTextHighlightColor);
+  const { richTextHighlightColor, setRichTextHighlightColor } = useEditorPreferences();
   const initialFront = useMemo(() => initializeCardDataFromTemplate(card.template, card.data, true), [card.data, card.template]);
   const initialBack = useMemo(() => initializeCardDataFromTemplate(card.backingTemplate, card.backingData, true), [card.backingData, card.backingTemplate]);
   const [frontData, setFrontData] = useState<CardData>(initialFront[1]);

@@ -18,6 +18,7 @@ export type {
 export { adoptGuestWorkspaceForAccount } from '../persistence/guestWorkspaceAdoption';
 export {
   BROWSER_WORKSPACE_REMOTE_CHANGE_EVENT,
+  PROJECT_PERSISTENCE_SCOPE_CHANGE_EVENT,
   createProjectPersistenceScope,
   createScopedProjectStorage,
   getProjectPersistenceScope,

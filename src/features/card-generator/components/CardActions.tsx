@@ -1,6 +1,7 @@
 "use client";
 
 import type { DisplayCard } from '@/domain/rendering';
+import { useEditorPreferences } from '@/features/editor-preferences/client';
 import { useProjectStore } from '@/features/project/client/workspace';
 import { ExportCardImageButton } from './ExportCardImageButton';
 import { ExportCardTransferButton } from './ExportCardTransferButton';
@@ -10,7 +11,7 @@ import { ShareCardButton } from './ShareCardButton';
 export function CardActions({ card, canExportClean, canUseProjectFiles, compact = false }: { card: DisplayCard; canExportClean: boolean; canUseProjectFiles: boolean; compact?: boolean }) {
   const exportMode = useProjectStore((state) => state.exportMode);
   const exportDpi = useProjectStore((state) => state.exportDpi);
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const { richTextHighlightColor } = useEditorPreferences();
   const settings = { card, exportMode, exportDpi, richTextHighlightColor };
 
   return <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Card downloads and sharing">
