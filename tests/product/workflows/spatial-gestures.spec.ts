@@ -73,7 +73,7 @@ test.describe('spatial touch workspace', () => {
     const frameBox = (await workspace.locator('[data-focused-artifact-frame]').boundingBox())!;
     const backdropPoint = { x: stageBox.x + 8, y: stageBox.y + 8 };
     expect(backdropPoint.x < frameBox.x || backdropPoint.y < frameBox.y).toBe(true);
-    await page.touchscreen.tap(backdropPoint.x, backdropPoint.y);
+    await stage.tap({ position: { x: backdropPoint.x - stageBox.x, y: backdropPoint.y - stageBox.y } });
     await expect(workspace).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('focused-artifact-browse.png') });
   });
