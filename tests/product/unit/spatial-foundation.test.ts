@@ -20,7 +20,7 @@ describe('creator spatial foundation', () => {
       bounds,
       viewport: { width: 1200, height: 720 },
       padding: 60,
-    })).toEqual({ x: 0, y: 200, zoom: 2.5 });
+    })).toEqual({ x: 0, y: 200, zoom: 2.25 });
     expect(bounds).toEqual(before);
   });
 

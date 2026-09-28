@@ -62,6 +62,27 @@ describe('focused Artifact spatial layout', () => {
     });
   });
 
+  it('preserves real relative physical size for mixed-format Artifacts', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 960,
+      groups: [{
+        label: 'Mixed formats',
+        artifacts: [
+          { ...artifacts(1)[0]!, physicalSizeMm: { widthMm: 63, heightMm: 88 }, position: { x: 20, y: 20 } },
+          { ...artifacts(1)[0]!, identity: identity(2), physicalSizeMm: { widthMm: 215.9, heightMm: 279.4 }, position: { x: 500, y: 20 } },
+        ],
+      }],
+    });
+    const poker = layout.entries[0]!;
+    const letter = layout.entries[1]!;
+
+    expect(letter.contentWidth / poker.contentWidth).toBeCloseTo(215.9 / 63, 8);
+    expect(letter.contentHeight / poker.contentHeight).toBeCloseTo(279.4 / 88, 8);
+    expect(letter.width).toBeGreaterThan(poker.width * 3);
+    expect(letter.height).toBeGreaterThan(poker.height * 2.5);
+  });
+
   it('fits every Artifact inside the bounded Set overview without changing the world bounds', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'grid',

@@ -6,7 +6,7 @@ import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
-import { getCardFaceCanvas, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardPhysicalSizeMm, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import {
   focusCreatorArtifact,
   selectCreatorArtifacts,
@@ -156,6 +156,7 @@ export function FocusedSetArtifactSurface({
       subtitle: card.template.name,
       groupLabel: label,
       position: organization.positions[card.uniqueId],
+      physicalSizeMm: getCardPhysicalSizeMm(card),
     })),
   })), [cardIndexById, groups, organization.positions, setId]);
 
@@ -765,9 +766,9 @@ export function FocusedSetArtifactSurface({
               if (!card) return null;
               const face = faces[artifactId] ?? 'front';
               const visibleTemplate = face === 'back' && card.backingTemplate ? card.backingTemplate : card.template;
-              const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.width - 20, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
-              const previewWidth = (entry.width - 20) * Math.min(1, (entry.height - 64) / previewLayout.visualHeightPx);
-              const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.width - 20);
+              const previewLayout = getCardPreviewLayout({ targetWidthPx: entry.contentWidth, aspectRatio: visibleTemplate.aspectRatio, canvas: getCardFaceCanvas(card, face), isPrintMode: false });
+              const previewWidth = entry.contentWidth * Math.min(1, entry.contentHeight / previewLayout.visualHeightPx);
+              const previewHeight = previewLayout.visualHeightPx * previewWidth / Math.max(1, entry.contentWidth);
               const showThumbnailImage = visibleArtifactIds.has(artifactId)
                 && previewWidth * session.camera.zoom >= ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH;
               return (
