@@ -86,7 +86,6 @@ export function TemplateSettingsPanel({
   onApplyElementPresetRecipe,
   onOpenMatchingBack,
   onFileUpload,
-  onUpdateCanvas,
   onUpdateTemplate,
   personalItems,
   onAddFromProvider,

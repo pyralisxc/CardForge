@@ -250,13 +250,13 @@ describe('Desk model', () => {
     expect(items[2]).toEqual({ id: 'set:three', x: 480, y: 180, z: 3, width: 200, height: 240 });
 
     const signedBounds = getDeskWorldBounds([
-      { id: 'left', x: -400, y: -200, z: 1, width: 200, height: 240 },
-      { id: 'right', x: 500, y: 300, z: 2, width: 200, height: 240 },
+      { x: -400, y: -200, width: 200, height: 240 },
+      { x: 500, y: 300, width: 200, height: 240 },
     ]);
     expect(signedBounds).toEqual({ left: -400, top: -200, right: 700, bottom: 540 });
     expect(getDeskWorldSize([
-      { id: 'left', x: -400, y: -200, z: 1, width: 200, height: 240 },
-      { id: 'right', x: 500, y: 300, z: 2, width: 200, height: 240 },
+      { x: -400, y: -200, width: 200, height: 240 },
+      { x: 500, y: 300, width: 200, height: 240 },
     ])).toEqual({ width: 1164, height: 804 });
   });
 

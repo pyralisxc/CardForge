@@ -33,6 +33,12 @@ const TRAVEL_MS = 220;
 
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
 const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
+const CAMERA_EPSILON = 0.0005;
+const sameCamera = (left: SpatialCamera2D, right: SpatialCamera2D) => (
+  Math.abs(left.x - right.x) <= CAMERA_EPSILON
+  && Math.abs(left.y - right.y) <= CAMERA_EPSILON
+  && Math.abs(left.zoom - right.zoom) <= CAMERA_EPSILON
+);
 
 export function useSetSpatialCamera({
   resetKey,
@@ -81,6 +87,7 @@ export function useSetSpatialCamera({
       y: finite(next.y),
       zoom: clamp(finite(next.zoom, 1), MIN_ZOOM, MAX_ZOOM),
     };
+    if (sameCamera(cameraRef.current, normalized)) return;
     cameraRef.current = normalized;
     onCameraChange(normalized);
   }, [onCameraChange]);
