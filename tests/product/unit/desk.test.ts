@@ -9,6 +9,7 @@ import {
   getDeskWorldSize,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
+  migrateLegacyDeskPositionToMm,
   moveDeskWorldSelectionWithRebase,
   normalizeDeskWorldGeometry,
 } from '@/features/desk/model/deskSpatialGeometry';
@@ -208,8 +209,8 @@ describe('Desk model', () => {
     expect(geometry).toEqual({
       version: 4,
       positions: {
-        'set:one': { x: 120, y: 160, z: 0 },
-        'set:far': { x: 4_200, y: 2_600, z: 1 },
+        'set:one': migrateLegacyDeskPositionToMm({ x: 120, y: 160, z: 0 }),
+        'set:far': migrateLegacyDeskPositionToMm({ x: 4_200, y: 2_600, z: 1 }),
       },
     });
   });
@@ -225,8 +226,8 @@ describe('Desk model', () => {
   });
 
   it('gives unplaced Sets stable content-space anchors independent of device size', () => {
-    expect(getDefaultDeskWorldPosition(0)).toEqual({ x: 484, y: 168, z: 0 });
-    expect(getDefaultDeskWorldPosition(8)).toEqual({ x: 502, y: 184, z: 8 });
+    expect(getDefaultDeskWorldPosition(0)).toEqual(migrateLegacyDeskPositionToMm({ x: 484, y: 168, z: 0 }));
+    expect(getDefaultDeskWorldPosition(8)).toEqual(migrateLegacyDeskPositionToMm({ x: 502, y: 184, z: 8 }));
   });
 
   it('moves a Desk selection through signed space without relocating siblings', () => {
@@ -257,7 +258,7 @@ describe('Desk model', () => {
     expect(getDeskWorldSize([
       { x: -400, y: -200, width: 200, height: 240 },
       { x: 500, y: 300, width: 200, height: 240 },
-    ])).toEqual({ width: 1164, height: 804 });
+    ])).toEqual({ width: 1124, height: 764 });
   });
 
   it('preserves persisted positions beyond the former fixed Desk box', () => {
@@ -266,7 +267,9 @@ describe('Desk model', () => {
       positions: {
         'set:beyond-old-box': { x: 4_200, y: 2_600, z: 4 },
       },
-    }).positions['set:beyond-old-box']).toEqual({ x: 4_200, y: 2_600, z: 4 });
+    }).positions['set:beyond-old-box']).toEqual(
+      migrateLegacyDeskPositionToMm({ x: 4_200, y: 2_600, z: 4 }),
+    );
     expect(normalizeDeskWorldGeometry({
       version: 4,
       positions: {

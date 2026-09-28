@@ -316,8 +316,12 @@ export const buildFocusedArtifactLayout = ({
     }
   }
 
-  const minimumSceneWidth = Math.max(maximumWidth + 48, Math.round(minimumWidth));
-  const minimumSceneHeight = Math.max(minimumHeight, 360);
+  const minimumSceneWidth = arrangement === 'manual'
+    ? Math.max(maximumWidth + 48, Math.round(minimumWidth))
+    : maximumWidth + 48;
+  const minimumSceneHeight = arrangement === 'manual'
+    ? Math.max(minimumHeight, 360)
+    : 360;
   const rawLeft = entries.length ? Math.min(...entries.map((entry) => entry.position.x)) - 24 : -minimumSceneWidth / 2;
   const rawTop = entries.length ? Math.min(...entries.map((entry) => entry.position.y)) - 30 : -minimumSceneHeight / 2;
   const rawRight = entries.length ? Math.max(...entries.map((entry) => entry.position.x + entry.width)) + 24 : minimumSceneWidth / 2;

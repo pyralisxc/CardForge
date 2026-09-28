@@ -83,7 +83,7 @@ describe('focused Artifact spatial layout', () => {
     expect(letter.height).toBeGreaterThan(poker.height * 2.5);
   });
 
-  it('fits every Artifact inside the bounded Set overview without changing the world bounds', () => {
+  it('fits every Artifact inside the derived Set overview without changing authored positions', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'grid',
       minimumWidth: 960,
@@ -159,6 +159,7 @@ describe('focused Artifact spatial layout', () => {
       entries: [],
       viewportWidth: 390,
       viewportHeight: 640,
+      padding: 24,
     });
     expect(wholeFrame.zoom).toBe(whole);
     expect(wholeFrame.x).toBeCloseTo(layout.bounds.x + layout.bounds.width / 2);
