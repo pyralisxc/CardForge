@@ -1,5 +1,5 @@
-import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
+import { fitSpatialCameraToRect, type SpatialRect } from '@/domain/spatial';
 
 export const FOCUSED_ARTIFACT_OVERSCAN = 180;
 export type FocusedArtifactArrangement = 'manual' | 'grid' | 'stack';
@@ -44,6 +44,8 @@ export interface FocusedArtifactGroupLayout {
 export interface FocusedArtifactLayout {
   entries: FocusedArtifactLayoutEntry[];
   groups: FocusedArtifactGroupLayout[];
+  /** Signed authored-space extent including presentation breathing room. */
+  bounds: SpatialRect;
   width: number;
   height: number;
   density: FocusedArtifactDensity;
@@ -104,7 +106,7 @@ const getArtifactPresentationExtent = (
 };
 
 const finiteCoordinate = (value: number | undefined, fallback: number): number => (
-  Number.isFinite(value) ? Math.max(0, Number(value)) : fallback
+  Number.isFinite(value) ? Number(value) : fallback
 );
 
 /**
@@ -168,25 +170,22 @@ const getBalancedColumnCount = ({
   return best.columns;
 };
 
-/**
- * Whole Set is the complete bounded overview and the camera floor. Semantic
- * fits may move inward while remaining camera-only; neither path rewrites
- * Artifact positions or arrangement.
- */
+/** Whole Set is a derived camera target over signed authored bounds. */
 export const getFocusedArtifactFitZoom = ({
   layout,
   viewportWidth,
   viewportHeight,
 }: {
-  layout: Pick<FocusedArtifactLayout, 'width' | 'height' | 'artifactWidth'>;
+  layout: Pick<FocusedArtifactLayout, 'bounds'>;
   viewportWidth: number;
   viewportHeight: number;
-}): number => {
-  const width = Math.max(1, viewportWidth);
-  const height = Math.max(1, viewportHeight);
-  const geometricFit = Math.min(1, width / Math.max(1, layout.width), height / Math.max(1, layout.height));
-  return Math.max(Number.EPSILON, geometricFit);
-};
+}): number => fitSpatialCameraToRect({
+  bounds: layout.bounds,
+  viewport: { width: viewportWidth, height: viewportHeight },
+  padding: 24,
+  minZoom: 0.04,
+  maxZoom: 4,
+}).zoom;
 
 export interface FocusedArtifactFrame {
   x: number;
@@ -207,25 +206,22 @@ export const getFocusedArtifactFrame = ({
   viewportHeight: number;
   padding?: number;
 }): FocusedArtifactFrame => {
-  const wholeZoom = getFocusedArtifactFitZoom({ layout, viewportWidth, viewportHeight });
-  if (entries.length === 0) return { x: 0, y: 0, zoom: wholeZoom };
-  const left = Math.min(...entries.map((entry) => entry.position.x));
-  const top = Math.min(...entries.map((entry) => entry.position.y));
-  const right = Math.max(...entries.map((entry) => entry.position.x + entry.width));
-  const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height));
-  const safePadding = Math.max(0, Math.min(padding, Math.min(viewportWidth, viewportHeight) * 0.3));
-  const requested = Math.min(
-    Math.max(1, viewportWidth - safePadding * 2) / Math.max(1, right - left),
-    Math.max(1, viewportHeight - safePadding * 2) / Math.max(1, bottom - top),
-  );
-  const zoom = Math.max(wholeZoom, Math.min(Math.max(2, wholeZoom * 3), requested));
-  const visibleWidth = viewportWidth / zoom;
-  const visibleHeight = viewportHeight / zoom;
-  return {
-    x: Math.max(0, Math.min(Math.max(0, layout.width - visibleWidth), (left + right) / 2 - visibleWidth / 2)),
-    y: Math.max(0, Math.min(Math.max(0, layout.height - visibleHeight), (top + bottom) / 2 - visibleHeight / 2)),
-    zoom,
-  };
+  const targetBounds = entries.length === 0
+    ? layout.bounds
+    : (() => {
+        const left = Math.min(...entries.map((entry) => entry.position.x));
+        const top = Math.min(...entries.map((entry) => entry.position.y));
+        const right = Math.max(...entries.map((entry) => entry.position.x + entry.width));
+        const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height));
+        return { x: left, y: top, width: right - left, height: bottom - top };
+      })();
+  return fitSpatialCameraToRect({
+    bounds: targetBounds,
+    viewport: { width: viewportWidth, height: viewportHeight },
+    padding,
+    minZoom: 0.04,
+    maxZoom: 4,
+  });
 };
 
 export const buildFocusedArtifactLayout = ({
@@ -308,14 +304,30 @@ export const buildFocusedArtifactLayout = ({
     }
   }
 
-  const widthFloor = arrangement === 'manual' ? Math.max(maximumWidth + 48, Math.round(minimumWidth)) : maximumWidth + 48;
-  const contentWidth = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.x + entry.width + 24), widthFloor);
-  const contentHeight = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.y + entry.height + 30), Math.max(minimumHeight, 360, groupTop));
+  const minimumSceneWidth = Math.max(maximumWidth + 48, Math.round(minimumWidth));
+  const minimumSceneHeight = Math.max(minimumHeight, 360);
+  const rawLeft = entries.length ? Math.min(...entries.map((entry) => entry.position.x)) - 24 : -minimumSceneWidth / 2;
+  const rawTop = entries.length ? Math.min(...entries.map((entry) => entry.position.y)) - 30 : -minimumSceneHeight / 2;
+  const rawRight = entries.length ? Math.max(...entries.map((entry) => entry.position.x + entry.width)) + 24 : minimumSceneWidth / 2;
+  const rawBottom = entries.length ? Math.max(...entries.map((entry) => entry.position.y + entry.height)) + 30 : minimumSceneHeight / 2;
+  const contentWidth = rawRight - rawLeft;
+  const contentHeight = rawBottom - rawTop;
+  const centerX = (rawLeft + rawRight) / 2;
+  const centerY = (rawTop + rawBottom) / 2;
+  const width = Math.max(minimumSceneWidth, contentWidth);
+  const height = Math.max(minimumSceneHeight, contentHeight);
+  const bounds = {
+    x: centerX - width / 2,
+    y: centerY - height / 2,
+    width,
+    height,
+  };
   return {
     entries,
     groups: groupLayouts,
-    width: contentWidth,
-    height: contentHeight,
+    bounds,
+    width,
+    height,
     density: presentation.density,
     artifactWidth: Math.max(presentation.width, ...entries.map((entry) => entry.width)),
     artifactHeight: Math.max(presentation.height, ...entries.map((entry) => entry.height)),
@@ -352,27 +364,20 @@ export const moveFocusedArtifactSelectionWithRebase = ({
 }) => {
   const selected = new Set(selectedIds);
   const snap = (value: number) => snapToGrid ? Math.round(value / 24) * 24 : Math.round(value);
-  const items = entries.map((entry) => ({
-    id: entry.identity.artifactId,
-    x: entry.position.x,
-    y: entry.position.y,
-  }));
-  const proposed = Object.fromEntries(entries.flatMap((entry) => selected.has(entry.identity.artifactId)
-    ? [[entry.identity.artifactId, {
-        x: snap(entry.position.x + delta.x),
-        y: snap(entry.position.y + delta.y),
-      }] as const]
-    : []));
-  return rebaseSpatialWorldMove({ items, proposed });
+  const affected = entries.filter((entry) => selected.has(entry.identity.artifactId));
+  return {
+    positions: Object.fromEntries(affected.map((entry) => [entry.identity.artifactId, {
+      x: snap(entry.position.x + delta.x),
+      y: snap(entry.position.y + delta.y),
+    }])),
+    affectedIds: affected.map((entry) => entry.identity.artifactId),
+    originShift: { x: 0, y: 0 },
+  };
 };
 
 export const moveFocusedArtifactSelection = (
   input: Parameters<typeof moveFocusedArtifactSelectionWithRebase>[0],
-): Record<string, ArtifactPosition> => {
-  const selected = new Set(input.selectedIds);
-  const result = moveFocusedArtifactSelectionWithRebase(input);
-  return Object.fromEntries(Object.entries(result.positions).filter(([id]) => selected.has(id)));
-};
+): Record<string, ArtifactPosition> => moveFocusedArtifactSelectionWithRebase(input).positions;
 
 /**
  * Focused Artifact browsing follows the displayed Desk geometry, not the
