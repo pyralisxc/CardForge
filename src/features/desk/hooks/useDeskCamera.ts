@@ -63,12 +63,12 @@ export function useDeskCamera({
   const scrollRef = useRef({ left: 0, top: 0 });
   const viewportStateRef = useRef({ width: 1200, height: 720 });
   const zoomRef = useRef(1);
-  const cameraModeRef = useRef<DeskCameraMode>('whole');
+  const cameraModeRef = useRef<DeskCameraMode>('fit-work');
   const suppressScrollRef = useRef(false);
   const programmaticScrollCancelRef = useRef<(() => void) | null>(null);
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
   const [zoom, setZoom] = useState(1);
-  const [mode, setMode] = useState<DeskCameraMode>('whole');
+  const [mode, setMode] = useState<DeskCameraMode>('fit-work');
   const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
