@@ -34,6 +34,7 @@ describe('card format ownership', () => {
 
     const poker = CARD_FORMATS[0];
     expect(getCardFormatMeasurement(poker, 'mm')).toMatchObject({ width: 63, height: 88, suffix: 'mm' });
+    expect(getCardFormatMeasurement(poker, 'cm')).toMatchObject({ width: 6.3, height: 8.8, suffix: 'cm' });
     expect(getCardFormatMeasurement(poker, 'in')).toMatchObject({ width: 2.48, height: 3.46, suffix: 'in' });
     expect(getCardFormatMeasurement(poker, 'px')).toMatchObject({ width: 630, height: 880, suffix: 'px' });
 
@@ -124,8 +125,19 @@ describe('card format ownership', () => {
     });
   });
 
-  it('accepts custom measurements in millimeters, inches, or canvas pixels', () => {
+  it('accepts custom measurements in millimeters, centimeters, inches, or canvas pixels', () => {
     const template = reconstructMinimalTemplateObject({ id: 'custom-source', name: 'Custom source', formatId: 'poker' });
+
+    expect(buildCustomDimensionTemplateUpdate({
+      widthValue: '6.3',
+      heightValue: '8.8',
+      unit: 'cm',
+      template,
+    })).toMatchObject({
+      formatId: 'custom',
+      trimWidthMm: 63,
+      trimHeightMm: 88,
+    });
 
     expect(buildCustomDimensionTemplateUpdate({
       widthValue: '2.5',

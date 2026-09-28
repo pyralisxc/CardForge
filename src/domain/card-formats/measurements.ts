@@ -11,6 +11,12 @@ const round = (value: number, precision: number): number => {
   return Math.round(value * factor) / factor;
 };
 
+const millimetersToUnit = (valueMm: number, unit: Exclude<CardMeasurementUnit, 'px'>): number => {
+  if (unit === 'in') return round(valueMm / 25.4, 2);
+  if (unit === 'cm') return round(valueMm / 10, 2);
+  return valueMm;
+};
+
 export const getCardFormatMeasurement = (
   format: CardFormat,
   unit: CardMeasurementUnit,
@@ -24,8 +30,8 @@ export const getCardFormatMeasurement = (
     };
   }
 
-  const width = unit === 'in' ? round(format.widthMm / 25.4, 2) : format.widthMm;
-  const height = unit === 'in' ? round(format.heightMm / 25.4, 2) : format.heightMm;
+  const width = millimetersToUnit(format.widthMm, unit);
+  const height = millimetersToUnit(format.heightMm, unit);
   return {
     width,
     height,
@@ -47,7 +53,7 @@ export const getTemplateCardMeasurement = (
       label: `${resolved.canvasWidthPx} × ${resolved.canvasHeightPx} px`,
     };
   }
-  const width = unit === 'in' ? round(resolved.widthMm / 25.4, 2) : resolved.widthMm;
-  const height = unit === 'in' ? round(resolved.heightMm / 25.4, 2) : resolved.heightMm;
+  const width = millimetersToUnit(resolved.widthMm, unit);
+  const height = millimetersToUnit(resolved.heightMm, unit);
   return { width, height, suffix: unit, label: `${width} × ${height} ${unit}` };
 };

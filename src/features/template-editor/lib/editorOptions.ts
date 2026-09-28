@@ -1,3 +1,4 @@
+import type { CardMeasurementUnit } from '@/domain/card-formats';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
@@ -29,8 +30,9 @@ export const CARD_BORDER_STYLES: Array<{
   { label: 'None', value: 'none' },
 ];
 
-export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
+export const DIMENSION_UNITS: Array<{ label: string; value: CardMeasurementUnit }> = [
   { label: 'Millimeters (mm)', value: 'mm' },
+  { label: 'Centimeters (cm)', value: 'cm' },
   { label: 'Inches (in)', value: 'in' },
   { label: 'Canvas pixels (px)', value: 'px' },
 ];
