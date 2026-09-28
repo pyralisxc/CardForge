@@ -6,6 +6,7 @@ import { MousePointer2 } from 'lucide-react';
 import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import type { CardData } from '@/domain/cards';
+import type { CardMeasurementUnit } from '@/domain/card-formats';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import {
   CANVAS_GUTTER,
@@ -26,11 +27,13 @@ const buildRulerLabels = ({
   canvasLength,
   gridSize,
   zoom,
+  pixelsPerUnit,
 }: {
   axis: 'x' | 'y';
   canvasLength: number;
   gridSize: number;
   zoom: number;
+  pixelsPerUnit: number;
 }) => {
   const labelStep = gridSize * 5;
   const rawStep = labelStep * zoom;
@@ -46,7 +49,8 @@ const buildRulerLabels = ({
     const position = CANVAS_GUTTER + n * screenStep;
     if (position < 0 || position > totalLength) continue;
 
-    const value = Math.round(n * screenStep / zoom);
+    const rawValue = n * screenStep / zoom / Math.max(Number.EPSILON, pixelsPerUnit);
+    const value = Math.round(rawValue * 100) / 100;
     labels.push(
       <span
         key={n}
@@ -77,6 +81,8 @@ interface TemplateCanvasStageProps {
   canvasRef: { current: HTMLDivElement | null };
   currentTemplate: TCGCardTemplate;
   gridSize: number;
+  rulerUnit: CardMeasurementUnit;
+  rulerPixelsPerUnit: { x: number; y: number };
   livePreviewData: CardData;
   previewMode: boolean;
   richTextHighlightColor: string;
@@ -105,6 +111,8 @@ export function TemplateCanvasStage({
   canvasRef,
   currentTemplate,
   gridSize,
+  rulerUnit,
+  rulerPixelsPerUnit,
   livePreviewData,
   previewMode,
   richTextHighlightColor,
@@ -133,7 +141,7 @@ export function TemplateCanvasStage({
           <span className="truncate sm:hidden">Tap again: layer below · Hold: actions</span>
           <span className="hidden sm:inline">Tap/click a selected layer again for the layer below. Hold or right-click for actions. Drag to move.</span>
         </span>
-        <span className="shrink-0 font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>
+        <span className="shrink-0 font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} × {canvas.height} px · rulers {rulerUnit}</span>
       </div>
       <div
         ref={(stage) => {
@@ -175,7 +183,7 @@ export function TemplateCanvasStage({
               ...rulerTickBackground('x', gridSize, zoom),
             }}
           >
-            {buildRulerLabels({ axis: 'x', canvasLength: canvas.width, gridSize, zoom })}
+            {buildRulerLabels({ axis: 'x', canvasLength: canvas.width, gridSize, zoom, pixelsPerUnit: rulerPixelsPerUnit.x })}
           </div>
           <div aria-hidden="true" style={{ position: 'absolute', left: CANVAS_RULER_WIDTH + CANVAS_GUTTER, top: 0, width: 1, height: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
           <div aria-hidden="true" style={{ position: 'absolute', left: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.width * zoom, top: 0, width: 1, height: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />
@@ -191,7 +199,7 @@ export function TemplateCanvasStage({
               ...rulerTickBackground('y', gridSize, zoom),
             }}
           >
-            {buildRulerLabels({ axis: 'y', canvasLength: canvas.height, gridSize, zoom })}
+            {buildRulerLabels({ axis: 'y', canvasLength: canvas.height, gridSize, zoom, pixelsPerUnit: rulerPixelsPerUnit.y })}
           </div>
           <div aria-hidden="true" style={{ position: 'absolute', top: CANVAS_RULER_WIDTH + CANVAS_GUTTER, left: 0, height: 1, width: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
           <div aria-hidden="true" style={{ position: 'absolute', top: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.height * zoom, left: 0, height: 1, width: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />

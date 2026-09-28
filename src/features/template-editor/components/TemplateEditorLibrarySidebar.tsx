@@ -124,7 +124,7 @@ export function TemplateEditorLibrarySidebar({
             customHeightValue={commands.customHeightValue}
             customUnit={commands.customUnit}
             resizeStrategy={commands.resizeStrategy}
-            gridSize={canvas.gridSize || 20}
+            gridSize={commands.gridSizeValue}
             frameKitRecipes={commands.frameKitRecipes}
             matchingBacks={matchingBacks}
             frameAssets={filterCompatibleTemplateAssets(currentTemplate.templateUsage === 'back-preset'
@@ -144,6 +144,7 @@ export function TemplateEditorLibrarySidebar({
             onApplyCardFormat={commands.applyCardFormat}
             onApplyCustomDimensions={commands.applyCustomDimensions}
             onResetGridToTemplateDefault={commands.resetGridToTemplateDefault}
+            onGridSizeChange={commands.setGridSizeValue}
             onApplyFrameStyle={commands.applyFrameStyle}
             onApplyElementPresetRecipe={elements.applyElementPresetRecipe}
             onOpenMatchingBack={commands.openTemplate}

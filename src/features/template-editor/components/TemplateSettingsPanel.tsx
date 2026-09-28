@@ -47,6 +47,7 @@ interface TemplateSettingsPanelProps {
   onApplyCardFormat: (formatId: CardFormatId) => void;
   onApplyCustomDimensions: () => void;
   onResetGridToTemplateDefault: () => void;
+  onGridSizeChange: (value: number) => void;
   onApplyFrameStyle: (frameStyle: string) => void;
   onApplyElementPresetRecipe: (recipe: ElementPresetRecipe) => void;
   onOpenMatchingBack: (template: TCGCardTemplate) => void;
@@ -80,6 +81,7 @@ export function TemplateSettingsPanel({
   onApplyCardFormat,
   onApplyCustomDimensions,
   onResetGridToTemplateDefault,
+  onGridSizeChange,
   onApplyFrameStyle,
   onApplyElementPresetRecipe,
   onOpenMatchingBack,
@@ -190,7 +192,7 @@ export function TemplateSettingsPanel({
       <Button type="button" variant="outline" size="sm" onClick={onApplyCustomDimensions} className={cn(buttonClassName, 'w-full text-xs')}>Apply custom size</Button>
       <div>
         <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="maker-grid-size" className="text-xs text-[#b7bdc9]">Grid Size (px)</Label>
+          <Label htmlFor="maker-grid-size" className="text-xs text-[#b7bdc9]">Grid Size ({customUnit})</Label>
           <Button type="button" variant="outline" size="sm" onClick={onResetGridToTemplateDefault} className={cn(buttonClassName, 'h-7 px-2 text-[10px]')}>
             Reset Grid
           </Button>
@@ -199,12 +201,13 @@ export function TemplateSettingsPanel({
           id="maker-grid-size"
           className={controlClassName}
           type="number"
-          min={1}
-          max={200}
+          min={customUnit === 'px' ? 1 : 0.01}
+          max={customUnit === 'px' ? 1000 : customUnit === 'in' ? 10 : customUnit === 'cm' ? 25 : 250}
+          step={customUnit === 'px' ? 1 : customUnit === 'in' ? 0.01 : 0.1}
           value={gridSize}
           onChange={(event) => {
-            const value = Math.round(Number(event.target.value));
-            if (value >= 1 && value <= 200) onUpdateCanvas({ gridSize: value });
+            const value = Number(event.target.value);
+            if (Number.isFinite(value) && value > 0) onGridSizeChange(value);
           }}
         />
       </div>

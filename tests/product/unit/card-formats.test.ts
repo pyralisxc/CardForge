@@ -12,6 +12,8 @@ import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain
 import {
   buildCardFormatTemplateUpdate,
   buildCustomDimensionTemplateUpdate,
+  getTemplateGridMeasurement,
+  getTemplateGridSizePx,
 } from '@/features/template-editor/lib/makerDimensions';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
@@ -161,6 +163,34 @@ describe('card format ownership', () => {
       trimHeightMm: 88,
       freeformCanvas: { width: 630, height: 880 },
     });
+  });
+
+  it('shows and edits one Studio grid in the creator-selected physical unit', () => {
+    const template = reconstructMinimalTemplateObject({
+      id: 'physical-grid',
+      name: 'Physical grid',
+      formatId: 'poker',
+      freeformCanvas: { width: 630, height: 880, gridSize: 20, elements: [] },
+    });
+
+    expect(getTemplateGridMeasurement({ template, gridSizePx: 20, unit: 'mm' })).toBe(2);
+    expect(getTemplateGridMeasurement({ template, gridSizePx: 20, unit: 'cm' })).toBe(0.2);
+    expect(getTemplateGridSizePx({ template, value: 0.25, unit: 'in' })).toBeCloseTo(63.5, 3);
+  });
+
+  it('preserves physical grid spacing when changing card format', () => {
+    const source = reconstructMinimalTemplateObject({
+      id: 'grid-format-source',
+      name: 'Grid format source',
+      formatId: 'poker',
+      freeformCanvas: { width: 630, height: 880, gridSize: 20, elements: [] },
+    });
+    const update = buildCardFormatTemplateUpdate({
+      formatId: 'tarot',
+      resizeStrategy: 'fit',
+      template: source,
+    });
+    expect(update.freeformCanvas?.gridSize).toBeCloseTo(20, 3);
   });
 
   it('resizes into standard formats without distorting element proportions', () => {
