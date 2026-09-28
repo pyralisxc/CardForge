@@ -41,6 +41,7 @@ export function useSetSpatialCamera({
   viewport,
   camera,
   wholeBounds,
+  wholeFrame,
   workFrame,
   selectionFrame,
   hasSelection,
@@ -53,6 +54,7 @@ export function useSetSpatialCamera({
   viewport: SpatialViewportSize;
   camera: CreatorCamera;
   wholeBounds: SpatialRect;
+  wholeFrame: SpatialCamera2D;
   workFrame: SpatialCamera2D;
   selectionFrame: SpatialCamera2D;
   hasSelection: boolean;
@@ -116,18 +118,11 @@ export function useSetSpatialCamera({
   const semanticTarget = useCallback((requested: Exclude<SetCameraMode, 'custom'>) => {
     if (requested === 'fit-selection' && hasSelection) return { mode: 'fit-selection' as const, camera: selectionFrame };
     if (requested === 'fit-work') return { mode: 'fit-work' as const, camera: workFrame };
-    const center = {
-      x: wholeBounds.x + wholeBounds.width / 2,
-      y: wholeBounds.y + wholeBounds.height / 2,
-    };
     return {
       mode: 'whole' as const,
-      camera: {
-        ...center,
-        zoom: Math.min(workFrame.zoom, selectionFrame.zoom || workFrame.zoom),
-      },
+      camera: wholeFrame,
     };
-  }, [hasSelection, selectionFrame, wholeBounds, workFrame]);
+  }, [hasSelection, selectionFrame, wholeFrame, workFrame]);
 
   const applyMode = useCallback((requested: Exclude<SetCameraMode, 'custom'>, smooth = true) => {
     const target = semanticTarget(requested);

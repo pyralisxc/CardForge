@@ -999,11 +999,17 @@
   -webkit-touch-callout: none;
 }
 
-.contentStage[data-grid="true"] .artifactWorld {
+.contentStage[data-desk-artifact-stage] {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+.contentStage[data-desk-artifact-stage][data-grid="true"] {
   background-image:
     linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-position: var(--artifact-grid-origin-x, 0) var(--artifact-grid-origin-y, 0);
+  background-size: var(--artifact-grid-step, 24px) var(--artifact-grid-step, 24px);
 }
 
 .artifactWorldSizer,
