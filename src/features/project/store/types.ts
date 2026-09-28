@@ -98,7 +98,11 @@ export interface OrganizationSlice {
   renameCardSetTag: (setId: string, tagId: string, label: string) => boolean;
   removeCardSetTag: (setId: string, tagId: string) => boolean;
   setCardsTag: (cardIds: string[], tagId: string, applied: boolean) => number;
-  setCardPositions: (setId: string, positions: CardSetOrganization['positions']) => boolean;
+  setCardPositions: (
+    setId: string,
+    positions: CardSetOrganization['positions'],
+    options?: { spatialVersion?: 2; preserveArrangement?: boolean },
+  ) => boolean;
 }
 
 export interface WorkspaceLifecycleSlice {

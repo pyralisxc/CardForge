@@ -16,6 +16,7 @@ import {
 import { ArtifactSlot, ArtifactThumbnail, CardWatermarkOverlay, getTemplateAccent, useArtifactFaces } from '@/features/card-rendering/client';
 import {
   buildFocusedArtifactLayout,
+  DEFAULT_SET_GRID_SIZE_MM,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
   moveFocusedArtifactSelectionWithRebase,
@@ -142,8 +143,8 @@ export function FocusedSetArtifactSurface({
   const layout = useMemo(() => buildFocusedArtifactLayout({
     arrangement: organization.arrangement,
     groups: layoutGroups,
-    minimumWidth: 960,
-    minimumHeight: 640,
+    minimumWidth: 160,
+    minimumHeight: 120,
   }), [layoutGroups, organization.arrangement]);
   const entryById = useMemo(() => new Map(layout.entries.map((entry) => [entry.identity.artifactId, entry])), [layout.entries]);
   const workFrame = useMemo(() => getFocusedArtifactFrame({
@@ -366,6 +367,7 @@ export function FocusedSetArtifactSurface({
       selectedIds,
       delta,
       snapToGrid,
+      gridStep: organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM,
     });
     commitSpatialMove(moved.positions, moved.affectedIds);
   };
@@ -388,6 +390,7 @@ export function FocusedSetArtifactSurface({
       selectedIds: drag.selectedIds,
       delta,
       snapToGrid,
+      gridStep: organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM,
     });
     drag.latestPositions = moved.positions;
     drag.latestAffectedIds = moved.affectedIds;
@@ -472,7 +475,7 @@ export function FocusedSetArtifactSurface({
   };
 
   const handleArtifactKey = (artifactId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const amount = event.shiftKey ? 24 : 4;
+    const amount = event.shiftKey ? (organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM) : 1;
     const delta = event.key === 'ArrowLeft' ? { x: -amount, y: 0 }
       : event.key === 'ArrowRight' ? { x: amount, y: 0 }
         : event.key === 'ArrowUp' ? { x: 0, y: -amount }
@@ -530,6 +533,7 @@ export function FocusedSetArtifactSurface({
         tabIndex={-1}
         className={styles.contentStage}
         data-desk-artifact-stage
+        data-set-spatial-stage
         data-scene-viewport
         data-arrangement={organization.arrangement}
         data-density={layout.density}
@@ -539,7 +543,7 @@ export function FocusedSetArtifactSurface({
         data-at-fit={camera.mode !== 'custom'}
         data-grid={showGrid && organization.arrangement === 'manual'}
         style={{
-          '--artifact-grid-step': `${24 * camera.camera.zoom}px`,
+          '--artifact-grid-step': `${(organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM) * camera.camera.zoom}px`,
           '--artifact-grid-origin-x': `${camera.offsetX}px`,
           '--artifact-grid-origin-y': `${camera.offsetY}px`,
         } as CSSProperties}
@@ -550,9 +554,8 @@ export function FocusedSetArtifactSurface({
         {...camera.gestures}
         onPointerDown={(event) => {
           if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
-          camera.modeRef.current = 'custom';
-          setCameraMode('custom');
-          marqueeRef.current = { start: worldPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
+          camera.enterCustom();
+          marqueeRef.current = { start: camera.projectClientPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => { const rect = selectionRect(event); if (rect) setMarquee(rect); }}

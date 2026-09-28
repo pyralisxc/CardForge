@@ -14,6 +14,29 @@ import {
 } from '@/features/desk/model/deskSpatialGeometry';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
 
+describe('Set spatial organization normalization', () => {
+  it('preserves signed physical positions and lattice metadata in portable work', () => {
+    const set = normalizeCardSet({
+      id: 'physical-set',
+      name: 'Physical Set',
+      organization: {
+        spatialVersion: 2,
+        gridSizeMm: 2.5,
+        arrangement: 'manual',
+        groupBy: 'none',
+        sort: 'manual',
+        tags: [],
+        positions: { card: { x: -12.5, y: 25 } },
+      },
+    });
+    expect(set?.organization).toMatchObject({
+      spatialVersion: 2,
+      gridSizeMm: 2.5,
+      positions: { card: { x: -12.5, y: 25 } },
+    });
+  });
+});
+
 describe('Desk tool template context', () => {
   const cards = [
     { uniqueId: 'first', templateId: 'set-front', backingTemplateId: 'set-back', data: {} },

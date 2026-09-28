@@ -52,13 +52,13 @@ describe('focused Artifact spatial layout', () => {
 
   it('uses discrete presentation density instead of one hard-coded Artifact size', () => {
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 8, availableWidth: 1_920 })).toMatchObject({
-      density: 'comfortable', width: 176, height: 256,
+      density: 'comfortable', width: 63, height: 88,
     });
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 30, availableWidth: 1_000 })).toMatchObject({
-      density: 'compact', width: 144, height: 210,
+      density: 'compact', width: 63, height: 88,
     });
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 100, availableWidth: 1_000 })).toMatchObject({
-      density: 'dense', width: 112, height: 164,
+      density: 'dense', width: 63, height: 88,
     });
   });
 
@@ -116,7 +116,7 @@ describe('focused Artifact spatial layout', () => {
 
     expect(grid.density).toBe('comfortable');
     expect(stack.density).toBe('compact');
-    expect(stack.artifactWidth).toBeLessThan(grid.artifactWidth);
+    expect(stack.artifactWidth).toBe(grid.artifactWidth);
     expect((stack.entries[1]?.position.x ?? 0) - (stack.entries[0]?.position.x ?? 0)).toBeLessThan(stack.artifactWidth);
   });
 
@@ -235,6 +235,34 @@ describe('focused Artifact spatial layout', () => {
     expect(signedLayout.entries[0]?.position).toEqual({ x: -300, y: -220 });
     expect(signedLayout.bounds.x).toBeLessThan(-300);
     expect(signedLayout.bounds.y).toBeLessThan(-220);
+  });
+
+  it('migrates legacy Set positions once into physical millimeters', async () => {
+    const { LEGACY_SET_UNITS_PER_MM, migrateLegacySetPositionsToMm } = await import('@/features/desk/model/focusedArtifactLayout');
+    const migrated = migrateLegacySetPositionsToMm({
+      one: { x: LEGACY_SET_UNITS_PER_MM * 63, y: LEGACY_SET_UNITS_PER_MM * 88 },
+    });
+    expect(migrated.one).toEqual({ x: 63, y: 88 });
+  });
+
+  it('snaps manual Artifact movement in the Set physical lattice', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 160,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'One', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 2, y: 3 } },
+        ],
+      }],
+    });
+    expect(moveFocusedArtifactSelection({
+      entries: layout.entries,
+      selectedIds: ['card-1'],
+      delta: { x: 5.2, y: 6.8 },
+      snapToGrid: true,
+      gridStep: 5,
+    })).toEqual({ 'card-1': { x: 5, y: 10 } });
   });
 
   it('browses focused Artifacts by displayed geometry rather than collection order', () => {

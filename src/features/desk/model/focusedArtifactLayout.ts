@@ -1,7 +1,19 @@
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import { fitSpatialCameraToRect, type SpatialRect } from '@/domain/spatial';
 
-export const FOCUSED_ARTIFACT_OVERSCAN = 180;
+export const FOCUSED_ARTIFACT_OVERSCAN = 48;
+export const SET_SPATIAL_VERSION = 2 as const;
+export const DEFAULT_SET_GRID_SIZE_MM = 5;
+/** One-time deterministic bridge from legacy comfortable-card layout units. */
+export const LEGACY_SET_UNITS_PER_MM = 176 / 63;
+
+export const migrateLegacySetPositionsToMm = (
+  positions: Readonly<Record<string, ArtifactPosition>>,
+): Record<string, ArtifactPosition> => Object.fromEntries(Object.entries(positions).map(([id, position]) => [id, {
+  x: Math.round(position.x / LEGACY_SET_UNITS_PER_MM * 1000) / 1000,
+  y: Math.round(position.y / LEGACY_SET_UNITS_PER_MM * 1000) / 1000,
+}]));
+
 export type FocusedArtifactArrangement = 'manual' | 'grid' | 'stack';
 export type FocusedArtifactDensity = 'comfortable' | 'compact' | 'dense';
 
@@ -73,13 +85,13 @@ interface FocusedArtifactPresentation {
 }
 
 const PRESENTATIONS: Record<FocusedArtifactDensity, FocusedArtifactPresentation> = {
-  comfortable: { density: 'comfortable', width: 176, height: 256, unitsPerMm: 176 / 63, gapX: 24, gapY: 32, stackOffset: 34 },
-  compact: { density: 'compact', width: 144, height: 210, unitsPerMm: 144 / 63, gapX: 20, gapY: 28, stackOffset: 26 },
-  dense: { density: 'dense', width: 112, height: 164, unitsPerMm: 112 / 63, gapX: 16, gapY: 22, stackOffset: 20 },
+  comfortable: { density: 'comfortable', width: 63, height: 88, unitsPerMm: 1, gapX: 8, gapY: 10, stackOffset: 10 },
+  compact: { density: 'compact', width: 63, height: 88, unitsPerMm: 1, gapX: 6, gapY: 8, stackOffset: 8 },
+  dense: { density: 'dense', width: 63, height: 88, unitsPerMm: 1, gapX: 4, gapY: 6, stackOffset: 6 },
 };
 
-const ARTIFACT_TILE_INLINE_CHROME = 20;
-const ARTIFACT_TILE_BLOCK_CHROME = 64;
+const ARTIFACT_TILE_INLINE_CHROME = 6;
+const ARTIFACT_TILE_BLOCK_CHROME = 18;
 
 const getArtifactPresentationExtent = (
   artifact: FocusedArtifactSeed,
@@ -88,8 +100,8 @@ const getArtifactPresentationExtent = (
   const widthMm = Number(artifact.physicalSizeMm?.widthMm);
   const heightMm = Number(artifact.physicalSizeMm?.heightMm);
   if (widthMm > 0 && heightMm > 0) {
-    const contentWidth = widthMm * presentation.unitsPerMm;
-    const contentHeight = heightMm * presentation.unitsPerMm;
+    const contentWidth = widthMm;
+    const contentHeight = heightMm;
     return {
       contentWidth,
       contentHeight,
@@ -356,14 +368,19 @@ export const moveFocusedArtifactSelectionWithRebase = ({
   selectedIds,
   delta,
   snapToGrid,
+  gridStep = DEFAULT_SET_GRID_SIZE_MM,
 }: {
   entries: readonly FocusedArtifactLayoutEntry[];
   selectedIds: readonly string[];
   delta: ArtifactPosition;
   snapToGrid: boolean;
+  gridStep?: number;
 }) => {
   const selected = new Set(selectedIds);
-  const snap = (value: number) => snapToGrid ? Math.round(value / 24) * 24 : Math.round(value);
+  const safeGridStep = Number.isFinite(gridStep) && gridStep > 0 ? gridStep : DEFAULT_SET_GRID_SIZE_MM;
+  const snap = (value: number) => snapToGrid
+    ? Math.round(value / safeGridStep) * safeGridStep
+    : Math.round(value * 1000) / 1000;
   const affected = entries.filter((entry) => selected.has(entry.identity.artifactId));
   return {
     positions: Object.fromEntries(affected.map((entry) => [entry.identity.artifactId, {

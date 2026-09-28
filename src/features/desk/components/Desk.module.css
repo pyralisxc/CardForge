@@ -999,12 +999,12 @@
   -webkit-touch-callout: none;
 }
 
-.contentStage[data-desk-artifact-stage] {
+.contentStage[data-set-spatial-stage] {
   overflow: hidden;
   scrollbar-gutter: auto;
 }
 
-.contentStage[data-desk-artifact-stage][data-grid="true"] {
+.contentStage[data-set-spatial-stage][data-grid="true"] {
   background-image:
     linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px);
