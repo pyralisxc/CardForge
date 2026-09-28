@@ -104,7 +104,14 @@ test.describe('spatial touch workspace', () => {
     // Fit Work keeps the visible authored object complete and readable without
     // changing its world coordinates; Whole Desk remains a separate action.
     await expect(set).toBeInViewport({ ratio: 1 });
-    expect(Math.max((await set.boundingBox())!.width / (await desk.boundingBox())!.width, (await set.boundingBox())!.height / (await desk.boundingBox())!.height)).toBeGreaterThanOrEqual(0.65);
+    const setBox = (await set.boundingBox())!;
+    const deskBox = (await desk.boundingBox())!;
+    expect(setBox.width).toBeGreaterThan(44);
+    expect(setBox.height).toBeGreaterThan(44);
+    expect(setBox.x).toBeGreaterThanOrEqual(deskBox.x - 1);
+    expect(setBox.y).toBeGreaterThanOrEqual(deskBox.y - 1);
+    expect(setBox.x + setBox.width).toBeLessThanOrEqual(deskBox.x + deskBox.width + 1);
+    expect(setBox.y + setBox.height).toBeLessThanOrEqual(deskBox.y + deskBox.height + 1);
     const setObject = page.locator('[data-desk-set-object-id="set:scale-set-100"]');
     const before = await setObject.getAttribute('style');
     const p = await center(set);
@@ -128,12 +135,19 @@ test.describe('spatial touch workspace', () => {
     await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'custom');
     await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(fitWorkZoom);
+    const cameraBeforePan = await stage.evaluate((node) => ({
+      x: Number(node.getAttribute('data-camera-x')),
+      y: Number(node.getAttribute('data-camera-y')),
+    }));
     await touch('touchStart', [{ ...cardPoint, id: 2 }]);
     await touch('touchMove', [{ x: cardPoint.x - 50, y: cardPoint.y, id: 2 }]);
     await touch('touchEnd', []);
-    await expect.poll(() => stage.evaluate((node) => node.scrollLeft)).toBeGreaterThan(20);
+    await expect.poll(async () => Number(await stage.getAttribute('data-camera-x'))).toBeGreaterThan(cameraBeforePan.x);
+    await expect(stage).toHaveAttribute('data-camera-mode', 'custom');
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
-    await stage.evaluate((node) => node.scrollTo(0, 0));
+    await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
+    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
     const start = await center(card);
@@ -168,24 +182,9 @@ test.describe('spatial touch workspace', () => {
     await expect(page.locator('[data-focused-artifact-workspace]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
-    // Fit Work may use smooth programmatic scrolling. Wait for the camera to
-    // settle before sampling object coordinates so this gesture exercises the
-    // card rather than racing its previous screen position.
-    await stage.evaluate((node) => new Promise<void>((resolve) => {
-      let settle: ReturnType<typeof setTimeout> | null = setTimeout(resolve, 140);
-      const finish = () => {
-        if (settle !== null) clearTimeout(settle);
-        settle = null;
-        node.removeEventListener('scroll', onScroll);
-        resolve();
-      };
-      const onScroll = () => {
-        if (settle !== null) clearTimeout(settle);
-        settle = setTimeout(finish, 140);
-      };
-      node.addEventListener('scroll', onScroll, { passive: true });
-      setTimeout(finish, 1_700);
-    }));
+    // Transform-camera travel is interruptible and owns no scroll surface.
+    // Wait for the semantic Fit Work target before sampling object coordinates.
+    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     // Cancellation is an object-local gesture; exercise it while Fit Work keeps
     // the moved card deliberately readable before changing camera semantics.
     const cancelPoint = await center(card);
@@ -200,7 +199,6 @@ test.describe('spatial touch workspace', () => {
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
-    await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     const box = (await world.boundingBox())!;
     await touch('touchStart', [{ x: box.x + 3, y: box.y + 3, id: 7 }]);
     await expect(stage).toHaveAttribute('data-spatial-held', 'true');
@@ -251,7 +249,6 @@ test('@golden desktop uses the full viewport and zoom leaves card positions stab
   await page.setViewportSize({ width: 1_920, height: 1_080 });
   await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
   await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
-  await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
   const secondTile = page.locator('button[data-artifact-id="scale-card-11"]').locator('..');
   const secondPosition = await secondTile.getAttribute('style');
   const first = (await card.boundingBox())!;

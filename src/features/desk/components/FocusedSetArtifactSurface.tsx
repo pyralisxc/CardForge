@@ -540,6 +540,8 @@ export function FocusedSetArtifactSurface({
         data-zoom={camera.camera.zoom.toFixed(2)}
         data-relative-zoom={camera.relativeZoom.toFixed(2)}
         data-camera-mode={camera.mode}
+        data-camera-x={camera.camera.x.toFixed(3)}
+        data-camera-y={camera.camera.y.toFixed(3)}
         data-at-fit={camera.mode !== 'custom'}
         data-grid={showGrid && organization.arrangement === 'manual'}
         style={{

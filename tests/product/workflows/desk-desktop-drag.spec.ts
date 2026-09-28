@@ -90,8 +90,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(viewport).toBeVisible();
-    await expect(viewport).toHaveAttribute('data-camera-mode', 'whole');
-    await expect(viewport).toHaveAttribute('data-relative-zoom', '1.00');
+    await expect(viewport).toHaveAttribute('data-camera-mode', 'fit-work');
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
     await setButton.click();

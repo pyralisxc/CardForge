@@ -57,6 +57,10 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Design', exact: true }).click();
       const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design).toBeVisible();
+      const spatialPlane = page.locator('[data-desk-plane]');
+      await expect(spatialPlane).toBeVisible();
+      await expect(spatialPlane).not.toHaveAttribute('data-scene-hidden', 'true');
+      await expect(page.locator('[data-desk-tool-surface][data-scene-visible="true"]')).toBeVisible();
       if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Scale Fixture Template');
       else {
         await page.getByRole('button', { name: 'Card Setup', exact: true }).click();

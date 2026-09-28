@@ -236,8 +236,12 @@ test.describe('desktop Desk return', () => {
     await search.fill('100');
     await page.getByRole('button', { name: 'Zoom Desk in', exact: true }).click();
     const viewport = page.locator('[data-desk-viewport]');
-    await viewport.evaluate((element) => { element.scrollLeft = 80; element.scrollTop = 40; });
-    const camera = await viewport.evaluate((element) => ({ x: element.scrollLeft, y: element.scrollTop, zoom: element.getAttribute('data-zoom') }));
+    const camera = await viewport.evaluate((element) => ({
+      x: element.getAttribute('data-camera-x'),
+      y: element.getAttribute('data-camera-y'),
+      zoom: element.getAttribute('data-zoom'),
+      mode: element.getAttribute('data-camera-mode'),
+    }));
     const visual = page.locator('[data-scene-artifact="scale-card-1"]');
     const original = await visual.elementHandle();
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
@@ -249,7 +253,12 @@ test.describe('desktop Desk return', () => {
     await expect(search).toHaveValue('100');
     await expect(set).toHaveAttribute('aria-pressed', 'true');
     await expect(set).toBeFocused();
-    await expect.poll(() => viewport.evaluate((element) => ({ x: element.scrollLeft, y: element.scrollTop, zoom: element.getAttribute('data-zoom') }))).toEqual(camera);
+    await expect.poll(() => viewport.evaluate((element) => ({
+      x: element.getAttribute('data-camera-x'),
+      y: element.getAttribute('data-camera-y'),
+      zoom: element.getAttribute('data-zoom'),
+      mode: element.getAttribute('data-camera-mode'),
+    }))).toEqual(camera);
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     await original!.dispose();
     await test.info().attach('first-use-desktop-return', { body: await page.screenshot(), contentType: 'image/png' });
