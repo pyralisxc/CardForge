@@ -527,7 +527,7 @@ export function Desk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-scene-hidden={Boolean(studioTool?.tool === 'design')} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
@@ -754,6 +754,7 @@ export function Desk({
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
+          sceneVisible={studioTool.tool === 'design'}
           railOwned
         >
           <DeskDesignWorkspace

@@ -2,13 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, MoreHorizontal, Navigation, Pencil, Plus, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Layers, Minus, MoreHorizontal, Navigation, Pencil, Plus, RefreshCcw, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { CardData, CardFace } from '@/domain/cards';
-import { getCardFaceCanvas, getCardFaceTemplate, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardFaceTemplate, hasCardBacking, type DisplayCard } from '@/domain/rendering';
 import { ArtifactSlot, useArtifactFace, useArtifactViewport } from '@/features/card-rendering/client';
 import { buildArtifactFieldTargetMap, completeCardDataWithTemplateDefaults, GeneratorFieldGroups, getMissingRequiredFieldLabels, initializeCardDataFromTemplate, type ArtifactFieldTarget } from '@/features/card-generator/client';
 import { optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client/persistence-storage';
@@ -82,7 +82,7 @@ export function FocusedArtifactWorkspace({
   onSave,
   onDesign,
 }: FocusedArtifactWorkspaceProps) {
-  const [face] = useArtifactFace(artifactId);
+  const [face, setFace] = useArtifactFace(artifactId);
   const { toast } = useToast();
   const { richTextHighlightColor, setRichTextHighlightColor } = useEditorPreferences();
   const initialFront = useMemo(() => initializeCardDataFromTemplate(card.template, card.data, true), [card.data, card.template]);
@@ -416,6 +416,14 @@ export function FocusedArtifactWorkspace({
     </aside> : null}
 
     <div className={styles.artifactWorkspaceControls} aria-label="Focused Artifact tools">
+      {hasCardBacking(card) ? <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => setFace(face === 'front' ? 'back' : 'front')}
+        aria-label={`Show ${face === 'front' ? 'back' : 'front'} of ${title}`}
+        title={`Show ${face === 'front' ? 'back' : 'front'}`}
+      ><RefreshCcw className="h-4 w-4" aria-hidden="true" /><span>{face === 'front' ? 'Back' : 'Front'}</span></Button> : null}
       {editing ? <Button className={styles.artifactPrimaryAction} type="button" size="sm" onClick={() => { if (dirty) save(); else onCancelEdit(); }}><Check className="mr-1.5 h-4 w-4" aria-hidden="true" />{dirty ? 'Save & Done' : 'Done'}</Button> : <Popover>
         <PopoverTrigger asChild>
           <Button type="button" size="sm" variant="ghost" data-artifact-browse aria-label="Browse this Set" title="Browse this Set"><Navigation className="h-4 w-4" aria-hidden="true" /><span className={styles.artifactBrowseLabel}>Browse</span></Button>

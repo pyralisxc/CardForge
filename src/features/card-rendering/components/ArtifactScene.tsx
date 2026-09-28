@@ -257,7 +257,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
           const origin = inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
-          const inlineSettled = item.depth === 'board' && settledDepths[item.card.uniqueId] === 'board';
+          const inlineSettled = item.depth !== 'stack' && settledDepths[item.card.uniqueId] === item.depth;
           return <SceneArtifactFrame
             key={item.card.uniqueId}
             item={item}
@@ -308,15 +308,18 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   const resolvedSetId = setId || scene?.activeSetId || '';
   const template = getCardFaceTemplate(card, persistentFace);
   const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: template.aspectRatio, canvas: getCardFaceCanvas(card, persistentFace), isPrintMode: false });
-  const inlineBoard = Boolean(scene && depth === 'board' && scene.settledDepths[card.uniqueId] === 'board');
+  const inlineSettled = Boolean(scene && depth !== 'stack' && scene.settledDepths[card.uniqueId] === depth);
+  const inlineBoard = inlineSettled && depth === 'board';
   const register = scene?.register;
   const refresh = scene?.refresh;
   useLayoutEffect(() => {
+    // Board has many nodes, so once settled it unregisters completely. The one
+    // active focus/edit destination remains registered for exact reverse travel.
     if (!register || !node.current || inlineBoard) return;
     return register(id, { node: node.current, card, face: persistentFace, depth, setId: resolvedSetId, rotation, order, watermark, flipLabel, interactionOverlay });
   }, [card, depth, flipLabel, id, inlineBoard, interactionOverlay, order, persistentFace, register, resolvedSetId, rotation, watermark]);
   useLayoutEffect(() => {
-    if (!inlineBoard) refresh?.();
+    if (!inlineSettled) refresh?.();
   });
   if (!scene) return <CardPreview card={card} face={face} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />;
   return <span
@@ -324,9 +327,10 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     data-scene-slot={card.uniqueId}
     data-scene-slot-depth={depth}
     data-scene-inline-board={inlineBoard ? 'true' : 'false'}
+    data-scene-inline-settled={inlineSettled ? depth : undefined}
     style={{ position: 'relative', display: 'block', width, height: geometry.visualHeightPx }}
   >
-    {inlineBoard ? <>
+    {inlineSettled ? <>
       <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
       {watermark ? <CardWatermarkOverlay /> : null}
       <span
