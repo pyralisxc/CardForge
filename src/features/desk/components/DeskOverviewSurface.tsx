@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import type { AccountLibraryItem, AccountLibraryOrganizationOperation, AccountLibrarySource } from '@/features/storage-management/client';
 import type { BoundaryFailureKind } from '@/shared/boundaryFailure';
 
-import { deskMinimapPointToWorld, type DeskCamera } from '../hooks/useDeskCamera';
+import type { DeskCamera } from '../hooks/useDeskCamera';
 import type { DeskPosition } from '../hooks/useDeskSpatialLayout';
 import type { DeskOrganizationFacet, DeskSourceFacet } from '../model/desk';
 import type { DeskSavedView, DeskTagMatch, DeskViewId } from '../hooks/useDeskViewPreferences';
@@ -278,6 +278,14 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         data-zoom={props.camera.zoom.toFixed(2)}
         data-relative-zoom={props.camera.relativeZoom.toFixed(2)}
         data-camera-mode={props.camera.mode}
+        data-camera-x={props.camera.x.toFixed(2)}
+        data-camera-y={props.camera.y.toFixed(2)}
+        data-grid={props.showGrid}
+        style={{
+          '--desk-grid-step': `${24 * props.camera.zoom}px`,
+          '--desk-grid-origin-x': `${props.camera.offsetX}px`,
+          '--desk-grid-origin-y': `${props.camera.offsetY}px`,
+        } as CSSProperties}
         onScroll={props.camera.onScroll}
         onPointerDownCapture={props.camera.onPointerDownCapture}
         onPointerMoveCapture={props.camera.onPointerMoveCapture}
@@ -290,10 +298,10 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         onPointerUp={props.focusedItemId ? undefined : props.endMarquee}
         onPointerCancel={props.focusedItemId ? undefined : props.endMarquee}
         tabIndex={props.focusedItemId ? -1 : 0}
-        aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore the bounded Desk.'}
+        aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore your spatial Desk.'}
       >
         <div className={styles.deskWorldSizer} data-focused={Boolean(props.focusedItemId)} style={{ width: props.camera.surfaceWidth, height: props.camera.surfaceHeight }}>
-          <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} data-grid={props.showGrid} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
+          <div ref={props.workWorldRef} className={styles.deskWorld} data-desk-world data-focused={Boolean(props.focusedItemId)} style={{ width: props.worldSize.width, height: props.worldSize.height, transform: `translate(${props.camera.offsetX}px, ${props.camera.offsetY}px) scale(${props.camera.zoom})` }}>
             {props.marquee ? <span className={styles.deskMarquee} aria-hidden="true" style={{ left: props.marquee.left, top: props.marquee.top, width: props.marquee.right - props.marquee.left, height: props.marquee.bottom - props.marquee.top } as CSSProperties} /> : null}
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
@@ -313,10 +321,10 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         aria-label="Desk minimap. Choose a point to center the camera."
         onClick={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
-          props.camera.centerOnWorldPoint(deskMinimapPointToWorld({
+          props.camera.centerOnMinimapPoint({
             x: (event.clientX - bounds.left) / Math.max(1, bounds.width),
             y: (event.clientY - bounds.top) / Math.max(1, bounds.height),
-          }, props.worldSize));
+          });
         }}
       ><span style={{
         left: `${props.camera.minimapViewport.left * 100}%`,

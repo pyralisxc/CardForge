@@ -25,6 +25,38 @@ export const normalizeSpatialCamera = (camera: SpatialCamera2D): SpatialCamera2D
   zoom: positive(camera.zoom),
 });
 
+export const fitSpatialCameraToRect = ({
+  bounds,
+  viewport,
+  padding = 0,
+  minZoom = 0.04,
+  maxZoom = 4,
+}: {
+  bounds: SpatialRect;
+  viewport: SpatialViewportSize;
+  padding?: number;
+  minZoom?: number;
+  maxZoom?: number;
+}): SpatialCamera2D => {
+  const viewportWidth = positive(viewport.width);
+  const viewportHeight = positive(viewport.height);
+  const width = positive(bounds.width);
+  const height = positive(bounds.height);
+  const maximumPadding = Math.max(0, Math.min(viewportWidth, viewportHeight) / 2 - 1);
+  const safePadding = clamp(finite(padding), 0, maximumPadding);
+  const minimumZoom = positive(minZoom, 0.04);
+  const maximumZoom = Math.max(minimumZoom, positive(maxZoom, 4));
+  const zoom = clamp(Math.min(
+    Math.max(1, viewportWidth - safePadding * 2) / width,
+    Math.max(1, viewportHeight - safePadding * 2) / height,
+  ), minimumZoom, maximumZoom);
+  return {
+    x: finite(bounds.x) + width / 2,
+    y: finite(bounds.y) + height / 2,
+    zoom,
+  };
+};
+
 export const projectSpatialWorldToScreen = (
   point: SpatialPoint,
   camera: SpatialCamera2D,

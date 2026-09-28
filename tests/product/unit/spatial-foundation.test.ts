@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   composeSpatialTranslation,
+  fitSpatialCameraToRect,
   getSpatialEdgePanScreenVelocity,
   getSpatialLocalTranslation,
   getSpatialRectUnion,
@@ -12,6 +13,17 @@ import {
 } from '@/domain/spatial';
 
 describe('creator spatial foundation', () => {
+  it('frames signed authored bounds without changing them', () => {
+    const bounds = { x: -240, y: 80, width: 480, height: 240 };
+    const before = { ...bounds };
+    expect(fitSpatialCameraToRect({
+      bounds,
+      viewport: { width: 1200, height: 720 },
+      padding: 60,
+    })).toEqual({ x: 0, y: 200, zoom: 2.5 });
+    expect(bounds).toEqual(before);
+  });
+
   it('round-trips signed world coordinates through an orthographic camera', () => {
     const camera = { x: -320, y: 180, zoom: 1.75 };
     const viewport = { width: 1280, height: 720 };
