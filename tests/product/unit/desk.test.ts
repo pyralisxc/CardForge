@@ -206,12 +206,22 @@ describe('Desk model', () => {
       bad: { x: 'no', y: 2 },
     });
     expect(geometry).toEqual({
-      version: 3,
+      version: 4,
       positions: {
         'set:one': { x: 120, y: 160, z: 0 },
         'set:far': { x: 4_200, y: 2_600, z: 1 },
       },
     });
+  });
+
+  it('migrates legacy Desk pixels once into signed physical millimeters', async () => {
+    const { LEGACY_DESK_UNITS_PER_MM, normalizeDeskWorldGeometry } = await import('@/features/desk/model/deskSpatialGeometry');
+    const geometry = normalizeDeskWorldGeometry({
+      version: 3,
+      positions: { one: { x: LEGACY_DESK_UNITS_PER_MM * 100, y: -LEGACY_DESK_UNITS_PER_MM * 50, z: 1 } },
+    });
+    expect(geometry.version).toBe(4);
+    expect(geometry.positions.one).toEqual({ x: 100, y: -50, z: 1 });
   });
 
   it('gives unplaced Sets stable content-space anchors independent of device size', () => {
@@ -258,7 +268,7 @@ describe('Desk model', () => {
       },
     }).positions['set:beyond-old-box']).toEqual({ x: 4_200, y: 2_600, z: 4 });
     expect(normalizeDeskWorldGeometry({
-      version: 3,
+      version: 4,
       positions: {
         'set:signed': { x: -420, y: -260, z: 5 },
       },

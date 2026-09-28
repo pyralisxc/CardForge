@@ -13,11 +13,14 @@ import {
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
+  DEFAULT_DESK_GRID_SIZE_MM,
+  DESK_SPATIAL_VERSION,
   getDefaultDeskWorldPosition,
   getDeskMarqueeSelection,
   getDeskWorldBounds,
   getDeskWorldSize,
   moveDeskWorldSelectionWithRebase,
+  isLegacyDeskWorldGeometry,
   normalizeDeskWorldGeometry,
   type DeskRect,
   type DeskWorldItemRect,
@@ -114,8 +117,13 @@ export function useDeskSpatialLayout({
     setFramingItems([]);
     void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
       if (cancelled || result.kind === 'unavailable') return;
-      setStoredPositions(normalizeDeskWorldGeometry(result.kind === 'available' ? result.value : null).positions);
+      const raw = result.kind === 'available' ? result.value : null;
+      const geometry = normalizeDeskWorldGeometry(raw);
+      setStoredPositions(geometry.positions);
       setPositionsWritable(true);
+      if (result.kind === 'available' && isLegacyDeskWorldGeometry(raw)) {
+        void writeProjectPreference(positionKey, geometry);
+      }
     });
     return () => { cancelled = true; };
   }, [positionKey]);
@@ -190,7 +198,7 @@ export function useDeskSpatialLayout({
   }, [camera.zoom, positions]);
 
   const persistPositions = useCallback((next: Record<string, DeskWorldPosition>) => {
-    if (positionsWritable) void writeProjectPreference(positionKey, { version: 3, positions: next });
+    if (positionsWritable) void writeProjectPreference(positionKey, { version: DESK_SPATIAL_VERSION, positions: next });
   }, [positionKey, positionsWritable]);
 
   const processDragPointer = useCallback((drag: DeskDragState, pointer: ClientPoint) => {
@@ -211,7 +219,7 @@ export function useDeskSpatialLayout({
       items: drag.items,
       selectedIds: drag.selectedIds,
       delta,
-      snap: snapToGrid ? 24 : 1,
+      snap: snapToGrid ? DEFAULT_DESK_GRID_SIZE_MM : 0,
     });
     drag.latestPositions = moved.positions;
     setStoredPositions((current) => ({ ...current, ...moved.positions }));
@@ -306,7 +314,7 @@ export function useDeskSpatialLayout({
       items: authoredItems,
       selectedIds,
       delta,
-      snap: snapToGrid ? 24 : 1,
+      snap: snapToGrid ? DEFAULT_DESK_GRID_SIZE_MM : 0,
     });
     const next = { ...storedPositions, ...moved.positions };
     setStoredPositions(next);

@@ -48,3 +48,14 @@
 .fallback[data-size='large'] { min-block-size: 14rem; }
 .fallback svg { inline-size: 2rem; block-size: 2rem; }
 .fallback[data-size='large'] svg { inline-size: 3rem; block-size: 3rem; }
+
+.stack[data-physical-scale='true'] {
+  inline-size: 100%;
+  min-block-size: 0;
+  block-size: 100%;
+  padding-block-end: 0 !important;
+}
+.stack[data-physical-scale='true'] .card[data-card-position='1'] { transform: translate(-6%, 3%); }
+.stack[data-physical-scale='true'] .card[data-card-position='2'] { transform: translate(6%, 4%); }
+.stack[data-physical-scale='true'] .card[data-card-position='3'] { transform: translate(-10%, 7%); }
+.stack[data-physical-scale='true'] .card[data-card-position='4'] { transform: translate(10%, 8%); }

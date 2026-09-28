@@ -436,7 +436,8 @@
   position: absolute;
   top: var(--desk-y);
   left: var(--desk-x);
-  width: 14.5rem;
+  width: var(--desk-width, 82px);
+  min-height: var(--desk-height, 126px);
   z-index: var(--desk-z);
   transform: none;
 }
@@ -517,6 +518,15 @@
   touch-action: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+.workTile[data-positioned="true"] .workTileMain {
+  min-height: var(--desk-height, 126px);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.workTile[data-positioned="true"] .workVisual {
+  min-height: var(--desk-visual-height, 90px);
 }
 
 .workGrid[data-arrange-mode="true"] .workTileMain {

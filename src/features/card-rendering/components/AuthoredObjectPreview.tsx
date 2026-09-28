@@ -1,6 +1,6 @@
 "use client";
 
-import { getCardFaceCanvas, getCardFaceTemplate, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
+import { getCardFaceCanvas, getCardFaceTemplate, getCardPhysicalSizeMm, getCardPreviewLayout, type DisplayCard } from '@/domain/rendering';
 import type { CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
@@ -19,6 +19,7 @@ export interface AuthoredObjectPreviewProps {
   face?: CardFace;
   setId?: string;
   sceneHidden?: boolean;
+  physicalScale?: boolean;
 }
 
 const widthBySize = {
@@ -50,6 +51,7 @@ export function AuthoredObjectPreview({
   face = 'front',
   setId,
   sceneHidden = false,
+  physicalScale = false,
 }: AuthoredObjectPreviewProps) {
   const [faces] = useArtifactFaces();
   const renderedCards = cards.slice(0, 5);
@@ -60,7 +62,7 @@ export function AuthoredObjectPreview({
   const visualCards = fallbackCard ? [fallbackCard] : renderedCards;
   const width = widthBySize[size];
   // Transforms do not reserve layout space. Keep the fan clear of its Set label.
-  const fanClearance = visualCards.length > 1 ? Math.max(...visualCards.map((card) => {
+  const fanClearance = !physicalScale && visualCards.length > 1 ? Math.max(...visualCards.map((card) => {
     const visibleFace = faces[card.uniqueId] ?? face;
     const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: getCardFaceTemplate(card, visibleFace).aspectRatio, canvas: getCardFaceCanvas(card, visibleFace), isPrintMode: false });
     return geometry.visualHeightPx * 0.18 + width * 0.25 + 8;
@@ -76,12 +78,15 @@ export function AuthoredObjectPreview({
   }
 
   return (
-    <span className={cn(styles.stack, className)} style={{ paddingBlockEnd: fanClearance }} data-size={size} data-scene-hidden={sceneHidden} aria-label={`${label} preview`}>
-      {visualCards.map((card, index) => (
-        <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
-          <ArtifactSlot card={card} face={face} width={width} depth="stack" setId={setId} rotation={[0, -7, 7, -14, 14][index]} order={5 - index} />
-        </span>
-      ))}
+    <span className={cn(styles.stack, className)} style={{ paddingBlockEnd: fanClearance }} data-size={size} data-physical-scale={physicalScale || undefined} data-scene-hidden={sceneHidden} aria-label={`${label} preview`}>
+      {visualCards.map((card, index) => {
+        const cardWidth = physicalScale ? getCardPhysicalSizeMm(card).widthMm : width;
+        return (
+          <span key={card.uniqueId} className={styles.card} data-card-position={index} data-preview-artifact-id={card.uniqueId} aria-hidden="true">
+            <ArtifactSlot card={card} face={face} width={cardWidth} depth="stack" setId={setId} rotation={[0, -7, 7, -14, 14][index]} order={5 - index} />
+          </span>
+        );
+      })}
     </span>
   );
 }

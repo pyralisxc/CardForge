@@ -73,6 +73,7 @@ export interface DeskOverviewSurfaceProps {
   canSubmit: boolean;
   renderWorkPreview: (item: AccountLibraryItem, featured: boolean, focused: boolean, face: CardFace) => ReactNode;
   previewArtifactIds: (item: AccountLibraryItem) => string[];
+  presentationSize: (item: AccountLibraryItem) => { width: number; height: number; visualHeight: number; physical: boolean };
   canFlipWork: (item: AccountLibraryItem) => boolean;
   renderFocusedSurface: (item: AccountLibraryItem) => ReactNode;
   beginDrag: (itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options?: { additive?: boolean }) => void;
@@ -282,7 +283,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         data-camera-y={props.camera.y.toFixed(2)}
         data-grid={props.showGrid}
         style={{
-          '--desk-grid-step': `${24 * props.camera.zoom}px`,
+          '--desk-grid-step': `${10 * props.camera.zoom}px`,
           '--desk-grid-origin-x': `${props.camera.offsetX}px`,
           '--desk-grid-origin-y': `${props.camera.offsetY}px`,
         } as CSSProperties}
@@ -306,7 +307,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             {props.visibleWork.map((item) => {
               const featured = item.id === props.activeWorkId;
               const focused = item.id === props.focusedItemId;
-              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={false} obscured={Boolean(props.focusedItemId) && !focused} pinned={props.pinnedIds.includes(item.id)} position={props.positions[item.id]} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onTogglePin={props.onTogglePin} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
+              return <DeskWorkObject key={item.id} item={item} active={featured} featured={featured} focused={focused} selected={props.selectedIds.includes(item.id)} arrangeMode={false} obscured={Boolean(props.focusedItemId) && !focused} pinned={props.pinnedIds.includes(item.id)} position={props.positions[item.id]} presentationSize={props.presentationSize(item)} canUseProjectFiles={props.canUseProjectFiles} canSubmit={props.canSubmit} preview={(face) => props.renderWorkPreview(item, featured, focused, face)} canFlip={props.canFlipWork(item)} artifactIds={props.previewArtifactIds(item)} focusedSurface={focused ? props.renderFocusedSurface(item) : null} beginDrag={props.beginDrag} moveDrag={props.moveDrag} endDrag={props.endDrag} shouldSuppressActivation={props.shouldSuppressActivation} onSelect={props.onSelectWork} onFocus={props.onFocusWork} onTogglePin={props.onTogglePin} onOpenLane={props.onOpenLane} onOpenLocation={props.onOpenLocation} onOpenPipeline={props.onOpenPipeline} onDuplicate={props.onDuplicate} onInspect={props.onInspect} onDelete={props.onDelete} />;
             })}
           </div>
         </div>

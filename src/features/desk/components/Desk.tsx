@@ -311,6 +311,7 @@ export function Desk({
     visibleCards,
     visibleWork,
     workCards,
+    workFootprint,
     workGridRef,
     workWorldRef,
     workItems,
@@ -561,8 +562,9 @@ export function Desk({
             camera={deskCamera}
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
-            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} physicalScale emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
+            presentationSize={workFootprint}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
               canExportClean={experience.capabilities.canExportClean}

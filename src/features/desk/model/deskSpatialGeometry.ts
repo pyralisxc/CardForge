@@ -3,9 +3,13 @@
  * current scene for framing/minimap purposes but never normalize or relocate
  * authored Set positions.
  */
-export const DESK_MIN_WORLD_WIDTH = 960;
-export const DESK_MIN_WORLD_HEIGHT = 640;
-export const DESK_WORLD_PADDING = 32;
+export const DESK_SPATIAL_VERSION = 4 as const;
+export const DEFAULT_DESK_GRID_SIZE_MM = 10;
+/** Legacy Desk tile scale (14.5rem ≈ 232 CSS px) mapped to an 82 mm Set proxy. */
+export const LEGACY_DESK_UNITS_PER_MM = 232 / 82;
+export const DESK_MIN_WORLD_WIDTH = 340;
+export const DESK_MIN_WORLD_HEIGHT = 226;
+export const DESK_WORLD_PADDING = 12;
 
 export interface DeskWorldPosition {
   x: number;
@@ -14,7 +18,7 @@ export interface DeskWorldPosition {
 }
 
 export interface DeskWorldGeometry {
-  version: 3;
+  version: typeof DESK_SPATIAL_VERSION;
   positions: Record<string, DeskWorldPosition>;
 }
 
@@ -57,29 +61,46 @@ export const normalizeDeskWorldPosition = (value: unknown, fallbackZ = 0): DeskW
   const candidate = value as Partial<DeskWorldPosition>;
   if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return null;
   return {
-    x: Math.round(finite(candidate.x)),
-    y: Math.round(finite(candidate.y)),
+    x: Math.round(finite(candidate.x) * 1000) / 1000,
+    y: Math.round(finite(candidate.y) * 1000) / 1000,
     z: clamp(Math.round(finite(candidate.z, fallbackZ)), 0, 10_000),
   };
 };
 
 /**
- * v2 and older bare maps remain readable. Their existing positive coordinates
- * are preserved exactly and future writes use v3 signed geometry.
+ * v4 is canonical signed millimeter geometry. v2/v3/bare layouts are the old
+ * presentation-pixel space and convert exactly once through one uniform scale.
  */
-export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { version: 3, positions: {} };
+export const isLegacyDeskWorldGeometry = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as { version?: unknown; positions?: unknown } & Record<string, unknown>;
-  const versioned = (record.version === 2 || record.version === 3)
+  if (record.version === DESK_SPATIAL_VERSION) return false;
+  return Boolean(record.positions && typeof record.positions === 'object') || Object.keys(record).length > 0;
+};
+
+export const migrateLegacyDeskPositionToMm = (position: DeskWorldPosition): DeskWorldPosition => ({
+  x: Math.round(position.x / LEGACY_DESK_UNITS_PER_MM * 1000) / 1000,
+  y: Math.round(position.y / LEGACY_DESK_UNITS_PER_MM * 1000) / 1000,
+  z: position.z,
+});
+
+export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { version: DESK_SPATIAL_VERSION, positions: {} };
+  }
+  const record = value as { version?: unknown; positions?: unknown } & Record<string, unknown>;
+  const versioned = [2, 3, DESK_SPATIAL_VERSION].includes(Number(record.version))
     && record.positions
     && typeof record.positions === 'object';
   const source = versioned ? record.positions as Record<string, unknown> : record;
+  const legacy = record.version !== DESK_SPATIAL_VERSION;
   const positions = Object.fromEntries(Object.entries(source).flatMap(([id, position], index) => {
     if (id === 'version' || id === 'positions') return [];
     const normalized = normalizeDeskWorldPosition(position, index);
-    return normalized ? [[id, normalized] as const] : [];
+    if (!normalized) return [];
+    return [[id, legacy ? migrateLegacyDeskPositionToMm(normalized) : normalized] as const];
   }));
-  return { version: 3, positions };
+  return { version: DESK_SPATIAL_VERSION, positions };
 };
 
 export const getDeskWorldBounds = (
@@ -121,7 +142,7 @@ export const getDeskWorldSize = (
   };
 };
 
-const DEFAULT_DESK_SLOTS = [
+const DEFAULT_DESK_SLOTS_LEGACY = [
   { x: 484, y: 168 },
   { x: 116, y: 142 },
   { x: 842, y: 202 },
@@ -134,13 +155,13 @@ const DEFAULT_DESK_SLOTS = [
 
 export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition => {
   const safeIndex = Math.max(0, Math.floor(index));
-  const slot = DEFAULT_DESK_SLOTS[safeIndex % DEFAULT_DESK_SLOTS.length]!;
-  const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
-  return {
+  const slot = DEFAULT_DESK_SLOTS_LEGACY[safeIndex % DEFAULT_DESK_SLOTS_LEGACY.length]!;
+  const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS_LEGACY.length);
+  return migrateLegacyDeskPositionToMm({
     x: slot.x + pile * 18,
     y: slot.y + pile * 16,
     z: safeIndex,
-  };
+  });
 };
 
 export const collectDeskWorldItems = ({
@@ -177,7 +198,7 @@ export const moveDeskWorldSelectionWithRebase = ({
   items,
   selectedIds,
   delta,
-  snap = 1,
+  snap = 0,
 }: {
   items: readonly Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>[];
   selectedIds: readonly string[];
@@ -185,13 +206,15 @@ export const moveDeskWorldSelectionWithRebase = ({
   snap?: number;
 }) => {
   const selected = new Set(selectedIds);
-  const step = Math.max(1, snap);
-  const placeDelta = (value: number) => Math.round(value / step) * step;
+  const step = Number.isFinite(snap) && snap > 0 ? snap : 0;
+  const placeDelta = (value: number) => step > 0
+    ? Math.round(value / step) * step
+    : Math.round(value * 1000) / 1000;
   const affected = items.filter((item) => selected.has(item.id));
   return {
     positions: Object.fromEntries(affected.map((item) => [item.id, {
-      x: Math.round(item.x + placeDelta(delta.x)),
-      y: Math.round(item.y + placeDelta(delta.y)),
+      x: Math.round((item.x + placeDelta(delta.x)) * 1000) / 1000,
+      y: Math.round((item.y + placeDelta(delta.y)) * 1000) / 1000,
       z: item.z,
     }])),
     originShift: { x: 0, y: 0 },
