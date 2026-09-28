@@ -21,11 +21,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Verify accepted Development Intelligence checkpoint
-        uses: pyralisxc/Development-Intelligence@76615549ddd17be93b3690dc6ae3a20869285581 # checkpointless-action Preview proof
+      - name: Run Development Intelligence analysis
+        uses: pyralisxc/Development-Intelligence@76615549ddd17be93b3690dc6ae3a20869285581 # checkpointless analysis
         with:
           project: pyralisxc/CardForge
-          mode: check
+          mode: analyze
 
   verify:
     runs-on: ubuntu-latest
