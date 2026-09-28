@@ -272,9 +272,9 @@ export function FocusedSetArtifactSurface({
     }
   }, [artifactFocusId, focusedEntry]);
 
-  const updateSelection = (ids: readonly string[]) => {
+  const updateSelection = useCallback((ids: readonly string[]) => {
     setSession((current) => selectCreatorArtifacts(current, ids));
-  };
+  }, [setSession]);
 
   const toggleArtifact = (artifactId: string, range: boolean, additive: boolean) => {
     const orderedIds = layout.entries.map((entry) => entry.identity.artifactId);
@@ -396,7 +396,7 @@ export function FocusedSetArtifactSurface({
     drag.latestAffectedIds = moved.affectedIds;
     setDragPreview(moved.positions);
     return true;
-  }, [camera, layout.entries, session.selection, snapToGrid]);
+  }, [camera, layout.entries, organization.gridSizeMm, session.selection, snapToGrid, updateSelection]);
 
   const ensureEdgePanLoop = useCallback(() => {
     if (edgePanFrameRef.current !== null) return;

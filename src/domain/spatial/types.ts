@@ -10,13 +10,13 @@ export interface SpatialSize {
 
 export interface SpatialRect extends SpatialPoint, SpatialSize {}
 
-export interface SpatialTransform2D extends SpatialPoint {}
+export type SpatialTransform2D = SpatialPoint;
 
 export interface SpatialCamera2D extends SpatialPoint {
   zoom: number;
 }
 
-export interface SpatialViewportSize extends SpatialSize {}
+export type SpatialViewportSize = SpatialSize;
 
 export interface SpatialLattice {
   origin: SpatialPoint;
