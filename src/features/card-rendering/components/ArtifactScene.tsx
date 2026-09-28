@@ -89,11 +89,11 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
       transition={inlineSettled ? { duration: 0 } : immediate ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32, mass: 0.9, opacity: { duration: 0.18 } }}
       style={{ position: 'absolute', left: 0, top: 0, width: RENDER_WIDTH, visibility: inlineSettled ? 'hidden' : 'visible', transformOrigin: '0 0', filter: 'drop-shadow(0 12px 18px rgb(0 0 0 / 24%))', '--artifact-hit-scale': screenScale / Math.max(previewScale, 0.001) } as React.CSSProperties}
     >
-      {item.interactionOverlay
+      {item.interactionOverlay && !inlineSettled
         ? <SceneCardContent card={item.card} face={item.face} watermark={item.watermark} interactionOverlay={item.interactionOverlay} />
         : <div aria-hidden="true" inert><SceneCardContent card={item.card} face={item.face} watermark={item.watermark} /></div>}
       {item.depth !== 'stack' ? <span data-artifact-template-border aria-hidden="true" style={{ position: 'absolute', inset: -3 * screenScale, border: `${2 * screenScale}px dashed ${getTemplateAccent(template.id ?? template.name)}`, borderRadius: 4 * screenScale, pointerEvents: 'none' }} /> : null}
-      {canOwnInlineFlip && item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
+      {!inlineSettled && canOwnInlineFlip && item.flipLabel && item.opacity === 1 && hasCardBacking(item.card) ? <button
         type="button"
         onClick={() => onFlip(item.card.uniqueId, item.face === 'front' ? 'back' : 'front')}
         aria-label={`Show ${item.face === 'front' ? 'back' : 'front'} of ${item.flipLabel}`}

@@ -125,7 +125,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeVisible();
     await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
     await expect(viewport).toHaveAttribute('data-camera-mode', 'fit-work');
-    await expect.poll(async () => Number(await viewport.getAttribute('data-relative-zoom'))).toBeGreaterThan(1);
+    await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeInViewport({ ratio: 0.99 });
   });
 
   test('@golden Desk action menu exposes truthful actions, hands off focus cleanly, and persists deletion', async ({ page }) => {

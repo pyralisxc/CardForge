@@ -154,11 +154,11 @@ export function useDeskCamera({
         }),
       };
     }
-    if (requestedMode === 'fit-work' && hasItems && workBounds) {
+    if (requestedMode === 'fit-work' && hasItems) {
       return {
         mode: 'fit-work' as const,
         camera: fitSpatialCameraToRect({
-          bounds: toSpatialRect(workBounds),
+          bounds: workBounds ? toSpatialRect(workBounds) : wholeRect,
           viewport: nextViewport,
           padding: DESK_FIT_PADDING,
           minZoom: MIN_DESK_ZOOM,

@@ -148,8 +148,9 @@ for (const mobile of [false, true]) {
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-      const focusedVisual = page.locator('[data-scene-artifact="scale-card-1"][data-scene-depth="focus"]');
-      await focusedVisual.getByRole('button', { name: /^Show back of/ }).click();
+      const focusedWorkspace = page.locator('[data-focused-artifact-workspace]');
+      const focusedVisual = focusedWorkspace.locator('[data-scene-slot="scale-card-1"][data-scene-slot-depth="focus"][data-scene-inline-settled="focus"]');
+      await focusedWorkspace.getByRole('button', { name: /^Show back of/ }).click();
       await expect(focusedVisual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
       if (mobile) {
         await rail.getByRole('button', { name: 'More Artifact actions', exact: true }).click();

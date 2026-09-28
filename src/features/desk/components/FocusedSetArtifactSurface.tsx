@@ -383,7 +383,10 @@ export function FocusedSetArtifactSurface({
       point.clientY - drag.startClient.clientY,
     );
     if (!drag.moved && screenDistance < 5) return false;
-    if (!drag.moved && !session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
+    if (!drag.moved) {
+      camera.enterCustom();
+      if (!session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
+    }
     drag.moved = true;
     const moved = moveFocusedArtifactSelectionWithRebase({
       entries: layout.entries,
@@ -423,7 +426,6 @@ export function FocusedSetArtifactSurface({
   const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     const startCamera = camera.capture();
-    camera.enterCustom();
     suppressedClickRef.current = null;
     const artifactId = entry.identity.artifactId;
     selectionAnchorRef.current = artifactId;
