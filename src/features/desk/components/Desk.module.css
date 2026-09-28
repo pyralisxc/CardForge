@@ -311,6 +311,23 @@
   }
 }
 
+@media (min-width: 1050px) and (max-width: 1400px) {
+  .searchField {
+    width: 13rem;
+  }
+
+  .deskFilterRow {
+    flex-wrap: nowrap;
+  }
+
+  /* The active view is already named by the view trigger. Suppress the
+     duplicate prose at laptop widths so the complete camera strip stays on
+     the same overlay row. */
+  .deskRestrictionLabel {
+    display: none;
+  }
+}
+
 .workGrid {
   position: relative;
   display: block;
