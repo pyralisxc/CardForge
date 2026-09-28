@@ -4,7 +4,7 @@ Use this page after `AGENTS.md` to find the smallest trustworthy slice of CardFo
 
 Run `npm run verify:focused` to derive the route from the current Git diff. For a proposed path before editing, run `npm run verify:focused -- <path>`; omit `--run` by calling `node scripts/report-affected-verification.mjs <path>` when only a report is wanted. Push one coherent candidate and let the required GitHub `verify` job own `npm run verify:full`; run it locally only for high-risk work or a local/CI discrepancy.
 
-For broad cross-feature/current-topology questions, use Development Intelligence as the structural discovery layer, then inspect the routed CardForge owner/source before changing behavior. The accepted repository checkpoint lives under `.development-intelligence/`; it is derived evidence, not product intent.
+For broad cross-feature/current-topology questions, use Development Intelligence as the structural discovery layer, then inspect the routed CardForge owner/source before changing behavior. DI canonical persistence owns accepted machine semantic authority; current CardForge source remains the implementation truth and DI evidence remains distinct from product intent.
 
 ## Studio surfaces and navigation
 
@@ -73,7 +73,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 ## Platform and repository tooling
 
 - Owners: `src/infrastructure` for adapters, `src/shared` for framework-independent utilities, `src/components/ui` for generic primitives, `scripts` for repository checks, and `tests/infrastructure` for their guardrails.
-- Development Intelligence: external repository-intelligence owner for semantic topology, dependency relationships, and blast-radius discovery. CardForge stores only the accepted `.development-intelligence/` checkpoint; current source and `architecture:check` remain authoritative for local enforcement.
+- Development Intelligence: external repository-intelligence owner for semantic topology, dependency relationships, blast-radius discovery, and accepted machine semantic authority. CardForge stores no parallel machine graph checkpoint; current source and `architecture:check` remain authoritative for local enforcement.
 - Read: `docs/architecture.md#dependency-rules`, `docs/testing.md`, and the affected provider section only for an external adapter.
 - Tests: direct imports or the matching infrastructure fixture. `npm run architecture:report` is deliberately opt-in; `architecture:check` is the quiet enforcement path.
 - Risk: Product by default; High when security, migration, secrets, auth, permissions, or provider behavior changes.
@@ -81,7 +81,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 ## Command ownership
 
 - During implementation: `npm run verify:focused` or `npm run verify:focused -- <paths>`.
-- Development Intelligence acceptance: `.development-intelligence/` is the repository-owned accepted semantic checkpoint. The `development-intelligence` CI job checks it with an immutable Development Intelligence action SHA; intentional source changes must reseal it in the same reviewed candidate.
+- Development Intelligence acceptance: DI canonical persistence owns accepted semantic state and revision-bound review/verification. The `development-intelligence` CI job runs checkpointless analysis with an immutable DI action SHA; semantic deltas are reviewed in DI before Preview-to-Main promotion.
 - Architecture enforcement: `npm run architecture:check`; changed-file signal: `npm run architecture:changed`; deep analysis: `npm run architecture:report`.
 - Final candidate: focused evidence locally; required GitHub `verify` runs `npm run verify:full` as the authoritative deterministic gate.
 - Test inventory: `npm run test:inventory` only when coverage growth or cleanup is the question.

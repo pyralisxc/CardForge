@@ -25,7 +25,7 @@ A fresh maintainer or agent should be able to work from the repository without p
 
 For branch roles, CI cadence, exact-SHA Vercel Preview promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
 
-PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis, with the accepted CardForge checkpoint stored under `.development-intelligence/`; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
+PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
 Cameron may use global Founder-to-Feature or Lean Repository Execution skills in ChatGPT/Codex, but CardForge does not depend on them. The repo-local copies specialize those methods for CardForge and win on CardForge-specific ownership, provider, verification, and documentation rules.
 
@@ -49,7 +49,7 @@ npm run verify:full
 
 Pass one or more paths after `npm run verify:focused --` to route an explicit slice. `npm run architecture:report` is the opt-in repository-wide architecture analysis; the normal architecture check stays concise.
 
-Current repository-topology and blast-radius audits use Development Intelligence rather than a CardForge-owned parallel graph engine. When the Development Intelligence integration is available, use it for broad structural discovery; use the accepted `.development-intelligence/` checkpoint and current source as the repository-side evidence. CardForge-local architecture enforcement remains `npm run architecture:check` / `npm run architecture:report`.
+Current repository-topology and blast-radius audits use Development Intelligence rather than a CardForge-owned parallel graph engine. When the Development Intelligence integration is available, use it for broad structural discovery; use current CardForge source together with DI's revision-bound evidence and accepted semantic state rather than a repository-local graph checkpoint. CardForge-local architecture enforcement remains `npm run architecture:check` / `npm run architecture:report`.
 
 Maintained operational commands:
 
@@ -135,7 +135,7 @@ Use `.env.example` as the complete variable catalog. `SUPABASE_SERVICE_ROLE_KEY`
 
 Agents normally run focused/affected checks locally. The required GitHub `verify` job is authoritative for the complete deterministic non-browser gate, while the existing golden Playwright job runs only when the shared affected-verification router identifies a browser-owned change. Vercel's native successful-deployment event starts a smaller exact-deployment Preview smoke and an immediate production route and starter-catalog smoke; the six-hour production health schedule remains the deeper operational check. Provider-backed auth, owner, billing, email, and protected workflows still require a real signed-in production check on `cardforges.com` when affected.
 
-CI also verifies the repository-owned `.development-intelligence/` semantic checkpoint with Development Intelligence pinned to an immutable reviewed commit. Source, semantic topology, evidence, analyzer compatibility, schema support, and checkpoint integrity must all remain current; reseal the checkpoint as part of the same reviewed candidate whenever intentional source changes make it stale.
+CI runs Development Intelligence in checkpointless analysis mode pinned to an immutable reviewed commit. The exact CardForge revision must remain fully analyzable, derived semantic candidates must remain factual and non-authoritative, and semantic acceptance/verification is owned by DI's Preview-to-Main review lifecycle rather than by generated files committed to CardForge.
 
 Persistent tests protect durable security/access/billing/destructive-data/migration/rendering/export contracts and known regressions. Do not accumulate tests or abstractions merely to preserve development history.
 
@@ -146,7 +146,7 @@ Extended contributor lanes and native Meta publishing remain separate release ga
 ### Canonical living truth
 
 - `docs/architecture.md`: current shipped ownership, invariants, and source-of-truth behavior.
-- `.development-intelligence/`: accepted rebuildable semantic/topology checkpoint produced by Development Intelligence; derived evidence, not product intent.
+- **Development Intelligence (external):** rebuildable repository topology plus durable accepted semantic/review authority. Its graph evidence is derived from current source and remains distinct from CardForge product intent.
 - `docs/product-direction.md`: intended product meaning, boundaries, and delivery sequence.
 - `docs/integrations.md`: provider-native ownership and human journey traces.
 - `docs/operations.md`: current release, provider, roadmap, and recovery procedures.
