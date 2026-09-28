@@ -3,7 +3,13 @@
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 
-import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import {
+  getCanvasElementParentWorldOrigin,
+  resolveCanvasElementWorldGeometry,
+  type FreeformCanvas,
+  type FreeformCardElement,
+  type TCGCardTemplate,
+} from '@/domain/templates';
 import { getElementDepthStack, resolvePointerPressSelection, scaleElementWithParentResize } from '@/domain/templates/editorGeometry';
 import { getDescendantIds } from '@/features/template-editor/lib/layerTree';
 import {
@@ -16,8 +22,8 @@ import {
 type ElementContextAction = (element: FreeformCardElement) => void;
 
 type DragState =
-  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number }
-  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number };
+  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; originalWorld: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number }
+  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; originalWorld: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number };
 
 interface PressState {
   pointerId: number;
@@ -162,7 +168,17 @@ export function useCanvasPointerInteractions({
     if (targetElement.locked) return;
     const descendantIds = getDescendantIds(targetElement.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false, startSlop: movementSlopPx / zoom };
+    dragStateRef.current = {
+      mode: 'move',
+      id: targetElement.id,
+      startX: point.x,
+      startY: point.y,
+      original: targetElement,
+      originalWorld: resolveCanvasElementWorldGeometry(targetElement, canvas.elements),
+      childOriginals,
+      hasMoved: false,
+      startSlop: movementSlopPx / zoom,
+    };
   }, [canvas.elements, clearActivePress, getCanvasPoint, handleElementContextMenu, previewMode, selectElement, selectedElementId, zoom]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement, handle: ResizeHandle) => {
@@ -172,9 +188,21 @@ export function useCanvasPointerInteractions({
     clearActivePress();
     selectElement(element.id);
     const point = getCanvasPoint(event);
-    const descendantIds = getDescendantIds(element.id, canvas.elements);
+    const canonicalElement = canvas.elements.find((candidate) => candidate.id === element.id) ?? element;
+    const descendantIds = getDescendantIds(canonicalElement.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
+    dragStateRef.current = {
+      mode: 'resize',
+      id: canonicalElement.id,
+      handle,
+      startX: point.x,
+      startY: point.y,
+      original: canonicalElement,
+      originalWorld: resolveCanvasElementWorldGeometry(canonicalElement, canvas.elements),
+      childOriginals,
+      hasMoved: false,
+      startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP,
+    };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }, [canvas.elements, clearActivePress, getCanvasPoint, previewMode, selectElement, zoom]);
 
@@ -203,30 +231,31 @@ export function useCanvasPointerInteractions({
     }
 
     if (dragState.mode === 'move') {
-      const nextPosition = calculateMovedElementPosition({
-        original: dragState.original,
+      const nextWorld = calculateMovedElementPosition({
+        original: dragState.originalWorld,
         deltaX,
         deltaY,
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
         snapValue,
       });
-      const actualDeltaX = nextPosition.x - dragState.original.x;
-      const actualDeltaY = nextPosition.y - dragState.original.y;
-      const { childOriginals } = dragState;
+      const parentWorld = getCanvasElementParentWorldOrigin(dragState.original, canvas.elements);
+      const nextLocal = {
+        x: nextWorld.x - parentWorld.x,
+        y: nextWorld.y - parentWorld.y,
+      };
       updateCanvas({
-        elements: canvas.elements.map((element) => {
-          if (element.id === dragState.id) return { ...element, x: nextPosition.x, y: nextPosition.y };
-          const originalChild = childOriginals.get(element.id);
-          if (originalChild) return { ...element, x: originalChild.x + actualDeltaX, y: originalChild.y + actualDeltaY };
-          return element;
-        }),
+        elements: canvas.elements.map((element) => (
+          element.id === dragState.id
+            ? { ...element, x: nextLocal.x, y: nextLocal.y }
+            : element
+        )),
       }, false);
       return;
     }
 
     const nextParentBounds = calculateResizedElementBounds({
-      original: dragState.original,
+      original: dragState.originalWorld,
       handle: dragState.handle,
       deltaX,
       deltaY,
@@ -238,9 +267,12 @@ export function useCanvasPointerInteractions({
     updateCanvas({
       elements: canvas.elements.map((element) => {
         if (element.id === dragState.id) {
+          const parentWorld = getCanvasElementParentWorldOrigin(dragState.original, canvas.elements);
           return {
             ...element,
             ...nextParentBounds,
+            x: nextParentBounds.x - parentWorld.x,
+            y: nextParentBounds.y - parentWorld.y,
           };
         }
 

@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 
 import { getCardFormat, resolveTemplateCardFormat } from '@/domain/card-formats';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from './appearanceNormalization';
+import { FREEFORM_HIERARCHY_VERSION, migrateLegacyAbsoluteHierarchy } from './hierarchyGeometry';
 import { TCG_ASPECT_RATIO } from './constants';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from './types';
 
@@ -83,6 +84,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
     overrides.height || DEFAULT_FREEFORM_CANVAS_HEIGHT
   ),
   ...overrides,
+  hierarchyVersion: FREEFORM_HIERARCHY_VERSION,
   elements: Array.isArray(overrides.elements) ? overrides.elements : [
     createDefaultFreeformElement('shape', {
       id: 'default-frame',
@@ -160,16 +162,20 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
 export const reconstructFreeformCanvas = (canvas?: Partial<FreeformCanvas>): FreeformCanvas => {
   const defaults = createDefaultFreeformCanvas();
   const sourceElements = Array.isArray(canvas?.elements) ? canvas.elements : defaults.elements;
+  const hierarchyElements = canvas?.hierarchyVersion === FREEFORM_HIERARCHY_VERSION
+    ? sourceElements
+    : migrateLegacyAbsoluteHierarchy(sourceElements);
   return {
     width: Number(canvas?.width) > 0 ? Number(canvas?.width) : defaults.width,
     height: Number(canvas?.height) > 0 ? Number(canvas?.height) : defaults.height,
+    hierarchyVersion: FREEFORM_HIERARCHY_VERSION,
     gridSize: Number(canvas?.gridSize) > 0
       ? Number(canvas?.gridSize)
       : getDefaultGridSizeForCanvas(
           Number(canvas?.width) > 0 ? Number(canvas?.width) : defaults.width,
           Number(canvas?.height) > 0 ? Number(canvas?.height) : defaults.height
         ),
-    elements: sourceElements.map((element, index) => {
+    elements: hierarchyElements.map((element, index) => {
       const isDivider = element.type === 'shape' && (element.shapeKind === 'line' || element.shapeRole === 'divider');
       const normalizedShapeKind = element.shapeKind === 'capsule' ? 'rectangle' : element.shapeKind;
       const normalizedAppearance = isDivider

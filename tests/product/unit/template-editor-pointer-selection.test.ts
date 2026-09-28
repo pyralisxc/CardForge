@@ -24,6 +24,14 @@ describe('Template editor pointer selection', () => {
     expect(getElementDepthStack(layers, point).map((element) => element.id)).toEqual(['top', 'middle', 'bottom']);
   });
 
+  it('hit-tests child-local geometry in composed canvas space', () => {
+    const grouped = [
+      layer('group', 1, { x: 100, y: 100, width: 120, height: 120 }),
+      layer('child', 4, { parentId: 'group', x: 10, y: 15, width: 40, height: 40 }),
+    ];
+    expect(getElementDepthStack(grouped, { x: 120, y: 125 }).map((element) => element.id)).toEqual(['child', 'group']);
+  });
+
   it('selects the directly pressed layer when the current selection is outside the hit stack', () => {
     expect(resolvePointerPressSelection({
       clickedElementId: 'top',

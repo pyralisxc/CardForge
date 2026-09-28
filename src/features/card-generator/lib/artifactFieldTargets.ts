@@ -1,6 +1,7 @@
 import { getGeneratorImageFieldKeyForElement } from '@/domain/rendering';
 import {
   extractTemplateFieldDefinitions,
+  resolveCanvasElementsForRender,
   type FreeformCardElement,
   type TCGCardTemplate,
   type TemplateFieldDefinition,
@@ -19,7 +20,8 @@ export interface ArtifactFieldTargetMap {
 }
 
 const visibleElements = (template: TCGCardTemplate): FreeformCardElement[] => {
-  const elements = template.freeformCanvas?.elements ?? [];
+  const sourceElements = template.freeformCanvas?.elements ?? [];
+  const elements = resolveCanvasElementsForRender(sourceElements);
   const elementById = new Map(elements.map((element) => [element.id, element]));
   return elements.filter((element) => {
     if (element.visible === false) return false;

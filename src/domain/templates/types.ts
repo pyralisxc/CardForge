@@ -206,6 +206,8 @@ export interface FreeformCanvas {
   width: number;
   height: number;
   gridSize?: number;
+  /** v2 stores child x/y relative to parentId; roots remain canvas-local. */
+  hierarchyVersion?: 2;
   elements: FreeformCardElement[];
 }
 

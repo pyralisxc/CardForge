@@ -13,7 +13,7 @@ import {
   resolveImageElementOverrides,
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
-import { isDividerElement } from '@/domain/templates';
+import { isDividerElement, resolveCanvasElementsForRender } from '@/domain/templates';
 import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
@@ -253,8 +253,9 @@ export function CardPreview({
     const canvas = canvasToRender;
     const scaleX = renderWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
-    const elementById = new Map((canvas.elements || []).map(el => [el.id, el]));
-    return [...(canvas.elements || [])]
+    const resolvedElements = resolveCanvasElementsForRender(canvas.elements || []);
+    const elementById = new Map(resolvedElements.map(el => [el.id, el]));
+    return [...resolvedElements]
       .sort((a, b) => a.zIndex - b.zIndex)
       .filter((element) => {
         if (element.visible === false) return false;

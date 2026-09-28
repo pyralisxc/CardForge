@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import Link from 'next/link';
 import { GitPullRequestArrow, LockKeyhole } from 'lucide-react';
-import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import { resolveCanvasElementWorldGeometry, type AppearanceStylePreset, type FreeformCardElement, type TCGCardTemplate } from '@/domain/templates';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -271,10 +271,11 @@ export function CardTemplateMaker({
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
   const livePreviewData = useMemo(() => currentTemplate.templatePreviewData ?? {}, [currentTemplate.templatePreviewData]);
-  const renderEditableElement = useCallback((element: FreeformCardElement) => (
-    <TemplateEditableElement
+  const renderEditableElement = useCallback((element: FreeformCardElement) => {
+    const worldElement = resolveCanvasElementWorldGeometry(element, canvas.elements);
+    return <TemplateEditableElement
       key={element.id}
-      element={element}
+      element={worldElement}
       livePreviewData={livePreviewData}
       selected={selectedElementId === element.id}
       zoom={zoom}
@@ -282,8 +283,8 @@ export function CardTemplateMaker({
       onElementEdit={openElementInspector}
       onElementPointerDown={handleElementPointerDown}
       onResizePointerDown={handleResizePointerDown}
-    />
-  ), [handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
+    />;
+  }, [canvas.elements, handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
   const canvasFrameStyle: React.CSSProperties = { width: canvas.width, height: canvas.height, transform: `scale(${zoom})`, transformOrigin: 'top left' };
   if (!draftPersistenceHydrated) return <div className="flex min-h-[60vh] items-center justify-center rounded border border-[var(--cf-editor-border)] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]" role="status" aria-live="polite">Loading editor workspace…</div>;
 

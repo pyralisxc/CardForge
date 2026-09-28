@@ -1,4 +1,5 @@
 import type { FreeformCardElement } from '@/domain/templates';
+import { resolveCanvasElementsForRender } from './hierarchyGeometry';
 
 export interface CanvasPoint {
   x: number;
@@ -31,7 +32,7 @@ function isPointInsideElement(element: FreeformCardElement, point: CanvasPoint) 
 }
 
 export function getElementDepthStack(elements: FreeformCardElement[], point: CanvasPoint) {
-  return elements
+  return resolveCanvasElementsForRender(elements)
     .filter((element) => element.visible !== false)
     .filter((element) => isPointInsideElement(element, point))
     .sort((left, right) => right.zIndex - left.zIndex);
@@ -75,8 +76,8 @@ export function resolvePointerPressSelection({
 
 export function scaleElementWithParentResize(
   element: FreeformCardElement,
-  originalParent: Pick<FreeformCardElement, 'x' | 'y' | 'width' | 'height'>,
-  nextParent: Pick<FreeformCardElement, 'x' | 'y' | 'width' | 'height'>,
+  originalParent: Pick<FreeformCardElement, 'width' | 'height'>,
+  nextParent: Pick<FreeformCardElement, 'width' | 'height'>,
 ) {
   const scaleX = nextParent.width / Math.max(originalParent.width, MIN_SCALE_BASE);
   const scaleY = nextParent.height / Math.max(originalParent.height, MIN_SCALE_BASE);
@@ -84,8 +85,8 @@ export function scaleElementWithParentResize(
 
   return {
     ...element,
-    x: nextParent.x + (element.x - originalParent.x) * scaleX,
-    y: nextParent.y + (element.y - originalParent.y) * scaleY,
+    x: element.x * scaleX,
+    y: element.y * scaleY,
     width: Math.max(MIN_CHILD_SIZE, element.width * scaleX),
     height: Math.max(MIN_CHILD_SIZE, element.height * scaleY),
     fontSizePx: element.fontSizePx
