@@ -160,6 +160,7 @@ export function Desk({
   const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
+  const [touchMultiSelect, setTouchMultiSelect] = useState(false);
   const pendingArtifactExitRef = useRef<(() => void) | null>(null);
   const {
     actions,
@@ -350,6 +351,10 @@ export function Desk({
   });
   const contextDepth = creatorSurface.depth;
   const presentation = creatorSurface.presentation;
+  useEffect(() => {
+    if (contextDepth !== 'set') setTouchMultiSelect(false);
+  }, [contextDepth, focusedLocalSetId]);
+
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
@@ -512,6 +517,8 @@ export function Desk({
         persistentStatusContent={<DeskQuickActions
           depth={contextDepth}
           selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
+          multiSelectActive={contextDepth === 'set' && touchMultiSelect}
+          onMultiSelectChange={contextDepth === 'set' ? setTouchMultiSelect : undefined}
           onFitWork={contextDepth === 'desk' ? deskCamera.fit : undefined}
           onFitSelection={contextDepth === 'desk' ? deskCamera.fitSelection : undefined}
           onSelectShown={contextDepth === 'set' && visibleCards.length ? () => setSelectedCardIds((current) => [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]) : undefined}
@@ -611,6 +618,7 @@ export function Desk({
               latestGeneratedIds={latestGeneratedIds}
               showGrid={showGrid}
               snapToGrid={snapToGrid}
+              touchMultiSelect={touchMultiSelect}
               session={interactionSession}
               setSession={setInteractionSession}
               stageRef={cardStageRef}

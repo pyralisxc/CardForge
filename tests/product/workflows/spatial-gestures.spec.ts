@@ -236,12 +236,31 @@ test.describe('spatial touch workspace', () => {
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
-    const box = (await world.boundingBox())!;
-    await touch('touchStart', [{ x: box.x + 3, y: box.y + 3, id: 7 }]);
-    await expect(stage).toHaveAttribute('data-spatial-held', 'true');
-    await touch('touchMove', [{ x: box.x + 320, y: box.y + 185, id: 7 }]);
-    await touch('touchEnd', []);
+
+    // Touch multi-selection is explicit rather than overloading empty-space hold.
+    // Camera navigation remains available while Select Multiple changes only tap semantics.
+    const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
+    await quickActionsTrigger.click();
+    const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+    await quickActions.getByRole('button', { name: 'Select Multiple', exact: true }).click();
+    await expect(quickActions.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await quickActionsTrigger.click();
+
+    const secondCard = page.locator('[data-artifact-world] button[data-artifact-id="scale-card-2"]');
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const alreadySelected = await secondCard.getAttribute('aria-pressed');
+      if (alreadySelected === 'true') break;
+      await secondCard.tap();
+    }
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
     expect(await stage.locator('button[aria-pressed="true"]').count()).toBeGreaterThan(1);
+
+    await quickActionsTrigger.click();
+    await quickActions.getByRole('button', { name: 'Done selecting', exact: true }).click();
+    await quickActionsTrigger.click();
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
     await page.screenshot({ path: testInfo.outputPath('mobile-set.png') });
     // Selection is visual state. Deliberate focus is a separate activation.
     await card.tap();

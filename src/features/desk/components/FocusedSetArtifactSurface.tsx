@@ -42,6 +42,7 @@ interface FocusedSetArtifactSurfaceProps {
   session: CreatorInteractionSession;
   setSession: Dispatch<SetStateAction<CreatorInteractionSession>>;
   snapToGrid: boolean;
+  touchMultiSelect: boolean;
   showGrid: boolean;
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
@@ -99,6 +100,7 @@ export function FocusedSetArtifactSurface({
   session,
   setSession,
   snapToGrid,
+  touchMultiSelect,
   showGrid,
   stageRef,
   onFocusArtifact,
@@ -251,7 +253,7 @@ export function FocusedSetArtifactSurface({
 
     const artifactId = nearest.target.dataset.artifactId;
     const range = event.shiftKey;
-    const additive = event.metaKey || event.ctrlKey;
+    const additive = event.metaKey || event.ctrlKey || touchMultiSelect;
     return {
       target: nearest.target,
       allowHold: true,
@@ -390,6 +392,11 @@ export function FocusedSetArtifactSurface({
     additive: boolean,
     at: number,
   ) {
+    if (touchMultiSelect) {
+      touchTapRef.current = null;
+      toggleArtifact(artifactId, false, true);
+      return;
+    }
     const previous = touchTapRef.current;
     if (
       previous
@@ -579,7 +586,7 @@ export function FocusedSetArtifactSurface({
         drag.artifactId,
         { clientX: event.clientX, clientY: event.clientY },
         event.shiftKey,
-        event.metaKey || event.ctrlKey,
+        event.metaKey || event.ctrlKey || touchMultiSelect,
         event.timeStamp,
       );
       suppressedClickRef.current = drag.artifactId;
@@ -651,7 +658,7 @@ export function FocusedSetArtifactSurface({
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
-      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
+      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space to pan and pinch to zoom. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -749,7 +756,7 @@ export function FocusedSetArtifactSurface({
                   }}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
-                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (lastArtifactPointerTypeRef.current === 'touch' && touchMultiSelect));
                   }}
                 >
                   {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (

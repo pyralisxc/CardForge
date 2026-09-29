@@ -10,6 +10,8 @@ type DeskQuickActionsDepth = 'desk' | 'set' | 'artifact' | 'tool';
 interface DeskQuickActionsProps {
   depth: DeskQuickActionsDepth;
   selectedCount: number;
+  multiSelectActive?: boolean;
+  onMultiSelectChange?: (active: boolean) => void;
   onFitWork?: () => void;
   onFitSelection?: () => void;
   onSelectShown?: () => void;
@@ -23,7 +25,7 @@ const TouchGuide = ({ depth }: { depth: DeskQuickActionsDepth }) => (
       <dt className="font-medium">Pan</dt><dd className="text-[var(--cf-text-muted)]">Drag empty space</dd>
       <dt className="font-medium">Zoom</dt><dd className="text-[var(--cf-text-muted)]">Pinch around the area you want</dd>
       <dt className="font-medium">Select</dt><dd className="text-[var(--cf-text-muted)]">Tap an object</dd>
-      {depth === 'set' ? <><dt className="font-medium">Move</dt><dd className="text-[var(--cf-text-muted)]">Hold an Artifact, then drag</dd></> : null}
+      {depth === 'set' ? <><dt className="font-medium">Multi-select</dt><dd className="text-[var(--cf-text-muted)]">Turn on Select Multiple, then tap to add or remove Artifacts</dd><dt className="font-medium">Move</dt><dd className="text-[var(--cf-text-muted)]">Hold an Artifact, then drag</dd></> : null}
       {depth === 'artifact' ? <><dt className="font-medium">Direction</dt><dd className="text-[var(--cf-text-muted)]">Quick swipe to browse nearby Artifacts</dd><dt className="font-medium">Edit</dt><dd className="text-[var(--cf-text-muted)]">Double tap</dd></> : null}
     </dl>
   </section>
@@ -43,11 +45,12 @@ const DesktopGuide = ({ depth }: { depth: DeskQuickActionsDepth }) => (
   </section>
 );
 
-export function DeskQuickActions({ depth, selectedCount, onFitWork, onFitSelection, onSelectShown, onClearSelection }: DeskQuickActionsProps) {
+export function DeskQuickActions({ depth, selectedCount, multiSelectActive = false, onMultiSelectChange, onFitWork, onFitSelection, onSelectShown, onClearSelection }: DeskQuickActionsProps) {
   return <Popover>
     <PopoverTrigger asChild>
       <Button type="button" size="sm" variant="ghost" className="h-8 min-h-8 shrink-0 gap-1.5 px-2 text-xs" aria-label="Quick actions">
         <Zap className="h-3.5 w-3.5" aria-hidden="true" />Quick actions
+        {multiSelectActive ? <span className="rounded border border-[var(--cf-accent-strong)] px-1.5 py-0.5 text-[10px] text-[var(--cf-accent-strong)]">Selecting</span> : null}
         {selectedCount > 0 ? <span className="rounded border border-[var(--cf-border-subtle)] px-1.5 py-0.5 text-[10px]">{selectedCount} selected</span> : null}
       </Button>
     </PopoverTrigger>
@@ -57,7 +60,8 @@ export function DeskQuickActions({ depth, selectedCount, onFitWork, onFitSelecti
         <div><strong className="block text-sm">Spatial quick actions</strong><span className="text-xs text-[var(--cf-text-muted)]">Touch and desktop stay visible together.</span></div>
       </header>
       <div className="grid sm:grid-cols-2"><TouchGuide depth={depth} /><DesktopGuide depth={depth} /></div>
-      {onFitWork || onFitSelection || onSelectShown || onClearSelection ? <div className="flex flex-wrap gap-2 border-t border-[var(--cf-border-subtle)] p-3">
+      {onMultiSelectChange || onFitWork || onFitSelection || onSelectShown || onClearSelection ? <div className="flex flex-wrap gap-2 border-t border-[var(--cf-border-subtle)] p-3">
+        {onMultiSelectChange ? <Button type="button" size="sm" variant={multiSelectActive ? 'default' : 'outline'} aria-pressed={multiSelectActive} onClick={() => onMultiSelectChange(!multiSelectActive)}>{multiSelectActive ? 'Done selecting' : 'Select Multiple'}</Button> : null}
         {onFitWork ? <Button type="button" size="sm" variant="outline" onClick={onFitWork}>Fit Work</Button> : null}
         {onFitSelection ? <Button type="button" size="sm" variant="outline" onClick={onFitSelection} disabled={selectedCount === 0}>Fit Selection</Button> : null}
         {onSelectShown ? <Button type="button" size="sm" variant="outline" onClick={onSelectShown}>Select shown</Button> : null}
