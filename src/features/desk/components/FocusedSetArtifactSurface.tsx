@@ -19,7 +19,7 @@ import {
   DEFAULT_SET_GRID_SIZE_MM,
   getDirectionalArtifactNeighbor,
   getFocusedArtifactFrame,
-  moveFocusedArtifactSelectionWithRebase,
+  moveFocusedArtifactSelectionResult,
   projectVisibleArtifacts,
   type ArtifactBrowseDirection,
   type FocusedArtifactLayoutEntry,
@@ -362,7 +362,7 @@ export function FocusedSetArtifactSurface({
   const nudgeSelection = (artifactId: string, delta: ArtifactPosition) => {
     const selectedIds = session.selection.includes(artifactId) ? session.selection : [artifactId];
     updateSelection(selectedIds);
-    const moved = moveFocusedArtifactSelectionWithRebase({
+    const moved = moveFocusedArtifactSelectionResult({
       entries: layout.entries,
       selectedIds,
       delta,
@@ -388,7 +388,7 @@ export function FocusedSetArtifactSurface({
       if (!session.selection.includes(drag.artifactId)) updateSelection(drag.selectedIds);
     }
     drag.moved = true;
-    const moved = moveFocusedArtifactSelectionWithRebase({
+    const moved = moveFocusedArtifactSelectionResult({
       entries: layout.entries,
       selectedIds: drag.selectedIds,
       delta,

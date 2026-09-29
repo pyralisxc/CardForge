@@ -10,7 +10,7 @@ import {
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
   migrateLegacyDeskPositionToMm,
-  moveDeskWorldSelectionWithRebase,
+  moveDeskWorldSelectionResult,
   normalizeDeskWorldGeometry,
 } from '@/features/desk/model/deskSpatialGeometry';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
@@ -240,12 +240,11 @@ describe('Desk model', () => {
       'set:one': { x: -90, y: 0, z: 1 },
       'set:two': { x: 150, y: 20, z: 2 },
     });
-    const moved = moveDeskWorldSelectionWithRebase({
+    const moved = moveDeskWorldSelectionResult({
       items,
       selectedIds: ['set:one', 'set:two'],
       delta: { x: -100, y: -100 },
     });
-    expect(moved.originShift).toEqual({ x: 0, y: 0 });
     expect(moved.affectedIds).toEqual(['set:one', 'set:two']);
     expect(moved.positions['set:three']).toBeUndefined();
     expect(items[2]).toEqual({ id: 'set:three', x: 480, y: 180, z: 3, width: 200, height: 240 });

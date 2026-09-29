@@ -77,17 +77,15 @@ interface FocusedArtifactPresentation {
   /** Fallback extent for unresolved/non-physical Artifacts. */
   width: number;
   height: number;
-  /** Presentation scale for physical millimeters at this LOD density. */
-  unitsPerMm: number;
   gapX: number;
   gapY: number;
   stackOffset: number;
 }
 
 const PRESENTATIONS: Record<FocusedArtifactDensity, FocusedArtifactPresentation> = {
-  comfortable: { density: 'comfortable', width: 63, height: 88, unitsPerMm: 1, gapX: 8, gapY: 10, stackOffset: 10 },
-  compact: { density: 'compact', width: 63, height: 88, unitsPerMm: 1, gapX: 6, gapY: 8, stackOffset: 8 },
-  dense: { density: 'dense', width: 63, height: 88, unitsPerMm: 1, gapX: 4, gapY: 6, stackOffset: 6 },
+  comfortable: { density: 'comfortable', width: 63, height: 88, gapX: 8, gapY: 10, stackOffset: 10 },
+  compact: { density: 'compact', width: 63, height: 88, gapX: 6, gapY: 8, stackOffset: 8 },
+  dense: { density: 'dense', width: 63, height: 88, gapX: 4, gapY: 6, stackOffset: 6 },
 };
 
 const ARTIFACT_TILE_INLINE_CHROME = 6;
@@ -367,7 +365,7 @@ export const projectVisibleArtifacts = (
   ));
 };
 
-export const moveFocusedArtifactSelectionWithRebase = ({
+export const moveFocusedArtifactSelectionResult = ({
   entries,
   selectedIds,
   delta,
@@ -392,13 +390,12 @@ export const moveFocusedArtifactSelectionWithRebase = ({
       y: snap(entry.position.y + delta.y),
     }])),
     affectedIds: affected.map((entry) => entry.identity.artifactId),
-    originShift: { x: 0, y: 0 },
   };
 };
 
 export const moveFocusedArtifactSelection = (
-  input: Parameters<typeof moveFocusedArtifactSelectionWithRebase>[0],
-): Record<string, ArtifactPosition> => moveFocusedArtifactSelectionWithRebase(input).positions;
+  input: Parameters<typeof moveFocusedArtifactSelectionResult>[0],
+): Record<string, ArtifactPosition> => moveFocusedArtifactSelectionResult(input).positions;
 
 /**
  * Focused Artifact browsing follows the displayed Desk geometry, not the

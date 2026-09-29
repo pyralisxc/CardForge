@@ -19,7 +19,7 @@ import {
   getDeskMarqueeSelection,
   getDeskWorldBounds,
   getDeskWorldSize,
-  moveDeskWorldSelectionWithRebase,
+  moveDeskWorldSelectionResult,
   isLegacyDeskWorldGeometry,
   normalizeDeskWorldGeometry,
   type DeskRect,
@@ -215,7 +215,7 @@ export function useDeskSpatialLayout({
     );
     if (!drag.moved && screenDistance < 5) return false;
     drag.moved = true;
-    const moved = moveDeskWorldSelectionWithRebase({
+    const moved = moveDeskWorldSelectionResult({
       items: drag.items,
       selectedIds: drag.selectedIds,
       delta,
@@ -310,7 +310,7 @@ export function useDeskSpatialLayout({
   const nudgeSelection = useCallback((delta: { x: number; y: number }) => {
     camera.enterCustom();
     const authoredItems = Object.entries(positions).map(([id, position]) => ({ id, ...position }));
-    const moved = moveDeskWorldSelectionWithRebase({
+    const moved = moveDeskWorldSelectionResult({
       items: authoredItems,
       selectedIds,
       delta,

@@ -9,7 +9,7 @@ import {
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
-  moveFocusedArtifactSelectionWithRebase,
+  moveFocusedArtifactSelectionResult,
   projectVisibleArtifacts,
 } from '@/features/desk/model/focusedArtifactLayout';
 
@@ -210,13 +210,12 @@ describe('focused Artifact spatial layout', () => {
         ],
       }],
     });
-    const moved = moveFocusedArtifactSelectionWithRebase({
+    const moved = moveFocusedArtifactSelectionResult({
       entries: layout.entries,
       selectedIds: ['card-1'],
       delta: { x: -40, y: -50 },
       snapToGrid: false,
     });
-    expect(moved.originShift).toEqual({ x: 0, y: 0 });
     expect(moved.affectedIds).toEqual(['card-1']);
     expect(moved.positions['card-1']).toEqual({ x: -30, y: -38 });
     expect(moved.positions['card-2']).toBeUndefined();

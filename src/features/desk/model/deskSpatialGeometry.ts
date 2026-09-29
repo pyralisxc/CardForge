@@ -190,11 +190,7 @@ export const collectDeskWorldItems = ({
   }];
 });
 
-/**
- * Compatibility name retained while callers migrate from the previous rebase
- * model. Signed movement never shifts siblings; originShift is always zero.
- */
-export const moveDeskWorldSelectionWithRebase = ({
+export const moveDeskWorldSelectionResult = ({
   items,
   selectedIds,
   delta,
@@ -217,14 +213,13 @@ export const moveDeskWorldSelectionWithRebase = ({
       y: Math.round((item.y + placeDelta(delta.y)) * 1000) / 1000,
       z: item.z,
     }])),
-    originShift: { x: 0, y: 0 },
     affectedIds: affected.map((item) => item.id),
   };
 };
 
 export const moveDeskWorldSelection = (
-  input: Parameters<typeof moveDeskWorldSelectionWithRebase>[0],
-): Record<string, DeskWorldPosition> => moveDeskWorldSelectionWithRebase(input).positions;
+  input: Parameters<typeof moveDeskWorldSelectionResult>[0],
+): Record<string, DeskWorldPosition> => moveDeskWorldSelectionResult(input).positions;
 
 export const getDeskMarqueeSelection = (
   items: readonly (DeskWorldItemRect & { hidden?: boolean })[],
