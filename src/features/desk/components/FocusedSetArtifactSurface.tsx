@@ -253,7 +253,7 @@ export function FocusedSetArtifactSurface({
     return {
       target: nearest.target,
       allowHold: true,
-      onTap: (at) => {
+      onTap: (at: number) => {
         if (artifactId) handleTouchTap(artifactId, point, range, additive, at);
       },
     };
