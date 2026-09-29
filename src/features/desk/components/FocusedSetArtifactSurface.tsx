@@ -115,6 +115,7 @@ export function FocusedSetArtifactSurface({
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
+  const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
@@ -202,6 +203,7 @@ export function FocusedSetArtifactSurface({
 
   const cameraApiRef = useRef<ReturnType<typeof useSetSpatialCamera> | null>(null);
   const resolvePointerTarget = (point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
+    lastArtifactPointerTypeRef.current = event.pointerType;
     if (event.pointerType !== 'touch') return null;
     const stage = viewportRef.current;
     if (!stage) return null;
@@ -547,6 +549,7 @@ export function FocusedSetArtifactSurface({
   }
 
   const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
+    lastArtifactPointerTypeRef.current = event.pointerType;
     beginArtifactMoveFromPointer(entry, event, event.currentTarget);
   };
 
@@ -741,10 +744,11 @@ export function FocusedSetArtifactSurface({
                   onPointerCancel={cancelArtifactMove}
                   onLostPointerCapture={cancelArtifactMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
-                  onDoubleClick={() => focusArtifact(artifactId)}
+                  onDoubleClick={() => {
+                    if (lastArtifactPointerTypeRef.current !== 'touch') focusArtifact(artifactId);
+                  }}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
-                    if (event.detail >= 2) { focusArtifact(artifactId); return; }
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
                   }}
                 >
