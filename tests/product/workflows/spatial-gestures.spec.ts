@@ -100,6 +100,7 @@ test.describe('spatial touch workspace', () => {
     const desk = page.locator('[data-desk-viewport]');
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(desk).toBeVisible();
+    await expect(desk).toHaveAttribute('data-ready', 'true');
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
     // Fit Work keeps the visible authored object complete and readable without
     // changing its world coordinates; Whole Desk remains a separate action.

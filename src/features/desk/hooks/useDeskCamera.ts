@@ -330,7 +330,6 @@ export function useDeskCamera({
     changeZoom,
     panByScreen,
     cancelDrag: onPinchStart,
-    interruptMotion: cancelCameraAnimation,
     disabled: focused,
   });
 

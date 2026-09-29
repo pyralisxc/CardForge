@@ -340,6 +340,16 @@
   touch-action: none;
 }
 
+.workGrid[data-ready="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workGrid[data-ready="true"] {
+  opacity: 1;
+  transition: opacity 140ms ease-out;
+}
+
 .workGrid[data-grid="true"] {
   background-image:
     linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),

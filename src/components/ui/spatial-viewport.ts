@@ -232,19 +232,17 @@ const originatesInsideViewport = (event: { currentTarget: HTMLElement; target: E
  * only events whose DOM target is actually inside this viewport may start or suppress a
  * gesture. This keeps menus, dialogs, and tool overlays from being captured as canvas input.
  */
-export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, interruptMotion, disabled = false, allowHold = true }: {
+export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, disabled = false, allowHold = true }: {
   viewportRef: RefObject<HTMLDivElement | null>;
   zoom: number;
   changeZoom: (zoom: number, point?: SpatialPoint, previousPoint?: SpatialPoint) => void;
   panByScreen?: (delta: { x: number; y: number }) => void;
   cancelDrag?: () => void;
-  /** Direct canvas input owns the surface immediately, even during semantic camera travel. */
-  interruptMotion?: () => void;
   disabled?: boolean;
   allowHold?: boolean;
 }) {
-  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, interruptMotion, disabled });
-  current.current = { zoom, changeZoom, panByScreen, cancelDrag, interruptMotion, disabled };
+  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, disabled });
+  current.current = { zoom, changeZoom, panByScreen, cancelDrag, disabled };
   const points = useRef(new Map<number, SpatialPoint>());
   const gesture = useRef<Gesture | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -289,7 +287,6 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
   return {
     onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (disabled || !originatesInsideViewport(event)) return;
-      current.current.interruptMotion?.();
       if (event.pointerType !== 'touch') { suppressClick.current = false; return; }
       const point = { clientX: event.clientX, clientY: event.clientY };
       points.current.set(event.pointerId, point);

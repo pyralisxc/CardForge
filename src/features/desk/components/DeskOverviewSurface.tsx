@@ -47,6 +47,7 @@ export interface DeskOverviewSurfaceProps {
   positions: Record<string, DeskPosition>;
   worldSize: DeskWorldSize;
   marquee: { left: number; top: number; right: number; bottom: number } | null;
+  sceneReady: boolean;
   isLoading: boolean;
   failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
   sourceStatuses: readonly { id: string; label: string; phase: string; failure: { message: string } | null }[];
@@ -276,6 +277,8 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         data-desk-viewport
         data-scene-viewport
         data-focused={Boolean(props.focusedItemId)}
+        data-ready={props.sceneReady || Boolean(props.focusedItemId)}
+        aria-busy={!props.sceneReady && !props.focusedItemId}
         data-zoom={props.camera.zoom.toFixed(2)}
         data-relative-zoom={props.camera.relativeZoom.toFixed(2)}
         data-camera-mode={props.camera.mode}
@@ -311,7 +314,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             })}
           </div>
         </div>
-      </div>{props.visibleWork.length === 0 ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`}><div className={styles.emptyDeskInner}>
+      </div>{!props.sceneReady && !props.focusedItemId ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`} data-desk-preparing aria-live="polite"><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Arranging your Desk</strong><p className={styles.emptyCopy}>Placing Sets and preparing their previews.</p></div></div> : null}{props.visibleWork.length === 0 ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`}><div className={styles.emptyDeskInner}>
         <FolderPlus aria-hidden="true" />
         <strong>No work matches this view</strong>
         <p className={styles.emptyCopy}>Clear the search or change the active view and filters.</p>

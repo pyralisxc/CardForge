@@ -188,6 +188,7 @@ export function Desk({
     creatingPublishedSetId,
     deleteCardSet,
     deskPositions,
+    deskSceneReady,
     deskWorldSize,
     deskCamera,
     deskMarquee,
@@ -538,6 +539,7 @@ export function Desk({
             positions={deskPositions}
             worldSize={deskWorldSize}
             marquee={deskMarquee}
+            sceneReady={deskSceneReady}
             isLoading={projection.isLoading}
             failure={projection.failures[0] ?? null}
             sourceStatuses={projection.sourceStatuses}
