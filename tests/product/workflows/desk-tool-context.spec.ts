@@ -115,39 +115,7 @@ for (const mobile of [false, true]) {
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
 
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
-      if (mobile) {
-        await firstCard.evaluate((node) => {
-          const target = node as HTMLElement & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
-          target.__cardforgePointerTrace = [];
-          for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture', 'click'] as const) {
-            target.addEventListener(type, (event) => {
-              const pointer = event as PointerEvent;
-              target.__cardforgePointerTrace?.push({
-                type,
-                pointerType: pointer.pointerType ?? null,
-                pointerId: pointer.pointerId ?? null,
-                ariaPressed: target.getAttribute('aria-pressed'),
-                held: target.getAttribute('data-spatial-held'),
-                sceneMoving: document.querySelector('[data-scene-depth="board"][data-scene-moving="true"]') !== null,
-                cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
-              });
-            }, { capture: true });
-          }
-        });
-        await firstCard.tap();
-        const trace = await firstCard.evaluate((node) => {
-          const target = node as HTMLElement & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
-          return {
-            events: target.__cardforgePointerTrace ?? [],
-            ariaPressed: target.getAttribute('aria-pressed'),
-            held: target.getAttribute('data-spatial-held'),
-            sceneMoving: document.querySelector('[data-scene-depth="board"][data-scene-moving="true"]') !== null,
-            sceneBoardCount: document.querySelectorAll('[data-scene-depth="board"]').length,
-            inlineBoardCount: document.querySelectorAll('[data-scene-inline-board="true"]').length,
-          };
-        });
-        await testInfo.attach('mobile-card-tap-pointer-trace', { body: JSON.stringify(trace, null, 2), contentType: 'application/json' });
-      } else await firstCard.click();
+      if (mobile) await firstCard.tap(); else await firstCard.click();
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
       await firstCard.focus();
       await firstCard.press('Enter');

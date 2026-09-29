@@ -187,6 +187,7 @@ export function Desk({
     createWork,
     creatingPublishedSetId,
     deleteCardSet,
+    deskArrival,
     deskPositions,
     deskSceneReady,
     deskWorldSize,
@@ -448,7 +449,8 @@ export function Desk({
   };
 
   return (
-    <ArtifactScene activeSetId={focusedLocalSetId}>
+    <div className={styles.creatorEnvironment} data-desk-arrival-phase={deskArrival.phase}>
+      <ArtifactScene activeSetId={focusedLocalSetId}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
@@ -840,6 +842,17 @@ export function Desk({
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
-    </ArtifactScene>
+      </ArtifactScene>
+      {!deskArrival.ready ? <div className={styles.environmentArrival} data-desk-arrival={deskArrival.phase} role="status" aria-live="polite" aria-label="Preparing CardForge Desk">
+        <div className={styles.environmentArrivalContent}>
+          <Boxes aria-hidden="true" />
+          <span className={styles.environmentArrivalBrand}>CardForge</span>
+          <strong>{deskArrival.phase === 'acquiring' ? 'Opening your Desk' : 'Arranging your Desk'}</strong>
+          <p>{deskArrival.phase === 'acquiring'
+            ? 'Gathering your work and workspace settings.'
+            : 'Placing Sets, framing the workspace, and preparing interaction.'}</p>
+        </div>
+      </div> : null}
+    </div>
   );
 }

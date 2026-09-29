@@ -314,7 +314,7 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
             })}
           </div>
         </div>
-      </div>{!props.sceneReady && !props.focusedItemId ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`} data-desk-preparing aria-live="polite"><div className={styles.emptyDeskInner}><Loader2 className="animate-spin" aria-hidden="true" /><strong>Arranging your Desk</strong><p className={styles.emptyCopy}>Placing Sets and preparing their previews.</p></div></div> : null}{props.visibleWork.length === 0 ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`}><div className={styles.emptyDeskInner}>
+      </div>{props.visibleWork.length === 0 ? <div className={`${styles.emptyDesk} ${styles.emptyDeskOverlay}`}><div className={styles.emptyDeskInner}>
         <FolderPlus aria-hidden="true" />
         <strong>No work matches this view</strong>
         <p className={styles.emptyCopy}>Clear the search or change the active view and filters.</p>
