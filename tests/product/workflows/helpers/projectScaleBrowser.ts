@@ -204,6 +204,7 @@ export const openScaleSet = async (page: Page, cardCount: ProjectScale, options:
   const startedAt = Date.now();
   const setButton = page.getByRole('button', { name: new RegExp(`^(Select|Selected) ${cardCount} Card Scale Set`) });
   const persistentPreview = page.locator('[data-scene-artifact="scale-card-1"]');
+  await expect(page.locator('[data-desk-viewport]')).toHaveAttribute('data-ready', 'true');
   await setButton.click();
   await expect(setButton).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-desk="overview"]')).toBeVisible();

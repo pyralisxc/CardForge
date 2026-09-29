@@ -188,12 +188,20 @@ export function useDeskSpatialLayout({
     const frame = requestAnimationFrame(() => {
       measureVisibleWork();
       settleTimeout = setTimeout(() => {
-        settleFrame = requestAnimationFrame(() => {
-          measureVisibleWork();
+        const revealWhenStable = () => {
+          const movingStack = document.querySelector('[data-artifact-scene] [data-scene-depth="stack"][data-scene-moving="true"]');
+          if (movingStack) {
+            settleFrame = requestAnimationFrame(revealWhenStable);
+            return;
+          }
           if (!scenePresentedRef.current && itemIds.length > 0) {
             scenePresentedRef.current = true;
             setSceneReady(true);
           }
+        };
+        settleFrame = requestAnimationFrame(() => {
+          measureVisibleWork();
+          revealWhenStable();
         });
       }, 180);
     });
