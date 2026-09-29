@@ -159,6 +159,26 @@ test.describe('spatial touch workspace', () => {
     await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
+
+    // Fit Work intentionally makes this 100-card board too dense for a finger to
+    // acquire one Artifact confidently. A tap clarifies the local neighborhood
+    // without guessing selection or changing authored geometry.
+    const clarityZoomBefore = Number(await stage.getAttribute('data-zoom'));
+    await card.tap();
+    await expect(card).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(clarityZoomBefore);
+    await expect(tile).toHaveAttribute('style', originalPosition!);
+
+    // Continue the accordion only as far as needed for a direct touch target.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const bounds = await card.boundingBox();
+      if (bounds && Math.min(bounds.width, bounds.height) >= 32) break;
+      const zoomBefore = Number(await stage.getAttribute('data-zoom'));
+      await card.tap();
+      await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
+      await expect(tile).toHaveAttribute('style', originalPosition!);
+    }
+
     const start = await center(card);
     await touch('touchStart', [{ ...start, id: 3 }]);
     await expect(card).toHaveAttribute('data-spatial-held', 'true');

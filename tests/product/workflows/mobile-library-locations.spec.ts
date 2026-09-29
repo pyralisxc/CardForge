@@ -161,7 +161,11 @@ test.describe('mobile Library location tools', () => {
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
     await expect(mobileNav).toBeHidden();
-    await expect(status).toBeHidden();
+    // Focused creator depth hides global status truth but keeps the contextual
+    // Quick Actions bottom-rail entry available on touch devices.
+    await expect(status).toBeVisible();
+    await expect(status.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
+    await expect(status.getByTitle('Open Locations & connections')).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);

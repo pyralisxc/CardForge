@@ -124,7 +124,12 @@ for (const mobile of [false, true]) {
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
 
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
-      if (mobile) await firstCard.tap(); else await firstCard.click();
+      if (mobile) {
+        // Low-zoom touch acquisition is covered by spatial-gestures. This golden owns
+        // Artifact-scoped tool context, so use the deterministic keyboard selection path.
+        await firstCard.focus();
+        await firstCard.press(' ');
+      } else await firstCard.click();
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
       await firstCard.focus();
       await firstCard.press('Enter');
@@ -226,11 +231,13 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
 
-      await page.getByRole('button', { name: 'Quick actions', exact: true }).click();
+      const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
+      await quickActionsTrigger.click();
       const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
       await expect(quickActions.getByRole('region', { name: 'Touch quick actions' })).toBeVisible();
       await expect(quickActions.getByRole('region', { name: 'Desktop quick actions' })).toBeVisible();
-      await page.keyboard.press('Escape');
+      await quickActionsTrigger.click();
+      await expect(quickActions).toBeHidden();
 
       if (mobile) {
         await page.getByRole('button', { name: /^Organize ·/ }).click();
