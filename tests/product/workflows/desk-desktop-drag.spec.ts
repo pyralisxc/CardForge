@@ -21,6 +21,13 @@ test.describe('Desk desktop spatial interaction', () => {
 
     await expect(setButton).toBeVisible();
     await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    const previewCards = setObject.locator('[data-preview-artifact-id]');
+    await expect(previewCards).toHaveCount(5);
+    const previewCenters = await previewCards.evaluateAll((nodes) => nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.left + rect.width / 2;
+    }));
+    expect(Math.max(...previewCenters) - Math.min(...previewCenters)).toBeGreaterThan(24);
     await expect(viewport).not.toHaveAttribute('data-arrange-mode', 'true');
     await expect(page.getByRole('button', { name: /^Move$/ })).toHaveCount(0);
     await expect(setButton).toHaveAttribute('title', /Drag to move/);

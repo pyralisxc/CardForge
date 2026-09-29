@@ -145,7 +145,10 @@ test.describe('mobile Library location tools', () => {
     await expect(toolbar.locator('[data-mobile-desk-filters]')).not.toHaveAttribute('open', '');
 
     const status = page.locator('footer[aria-label="Environment status"]');
+    const statusItems = status.locator('[data-environment-status-items]');
     await expect(status).toBeVisible();
+    await expect(statusItems.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
+    expect(await statusItems.evaluate((node) => ['auto', 'scroll'].includes(getComputedStyle(node).overflowX))).toBe(true);
     await expect(status.getByText('Local working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
     expect(await status.locator(':scope > div:first-child > *').evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth + 1))).toBe(true);
@@ -161,11 +164,11 @@ test.describe('mobile Library location tools', () => {
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
     await expect(mobileNav).toBeHidden();
-    // Focused creator depth hides global status truth but keeps the contextual
-    // Quick Actions bottom-rail entry available on touch devices.
+    // Focused creator depth keeps the same horizontally scrollable status rail;
+    // Quick Actions is one compact item in that rail rather than a sibling bar.
     await expect(status).toBeVisible();
-    await expect(status.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
-    await expect(status.getByTitle('Open Locations & connections')).toBeHidden();
+    await expect(statusItems.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
+    await expect(statusItems.getByTitle('Open Locations & connections')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);

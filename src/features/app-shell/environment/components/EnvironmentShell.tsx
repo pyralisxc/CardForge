@@ -100,8 +100,10 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scene-viewport data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={`${styles.statusBar} max-md:!flex max-md:!min-h-10 max-md:!gap-2 max-md:!overflow-hidden max-md:!px-2 max-md:!py-1`} aria-label="Environment status">
-          <div className={`${styles.statusItems} max-md:!gap-3 max-md:flex-1 max-md:overflow-x-auto max-md:whitespace-nowrap`}>{statusContent}</div>
-          {persistentStatusContent ? <div className={styles.persistentStatus}>{persistentStatusContent}</div> : null}
+          <div data-environment-status-items className={`${styles.statusItems} max-md:!gap-3 max-md:flex-1 max-md:overflow-x-auto max-md:whitespace-nowrap`}>
+            {statusContent}
+            {persistentStatusContent}
+          </div>
           <div className={`${styles.selectionDock} max-md:hidden`}>{footerContent}</div>
         </footer>
       </div>
