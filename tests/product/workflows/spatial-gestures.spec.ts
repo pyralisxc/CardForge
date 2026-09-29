@@ -152,7 +152,37 @@ test.describe('spatial touch workspace', () => {
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
     const start = await center(card);
+    await card.evaluate((node) => {
+      const target = node as HTMLElement & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
+      target.__cardforgePointerTrace = [];
+      for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture', 'click'] as const) {
+        target.addEventListener(type, (event) => {
+          const pointer = event as PointerEvent;
+          target.__cardforgePointerTrace?.push({
+            type,
+            pointerType: pointer.pointerType ?? null,
+            pointerId: pointer.pointerId ?? null,
+            ariaPressed: target.getAttribute('aria-pressed'),
+            held: target.getAttribute('data-spatial-held'),
+            sceneMoving: document.querySelector('[data-scene-depth="board"][data-scene-moving="true"]') !== null,
+            cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
+          });
+        }, { capture: true });
+      }
+    });
     await touch('touchStart', [{ ...start, id: 3 }]);
+    await page.waitForTimeout(450);
+    const holdTrace = await card.evaluate((node) => {
+      const target = node as HTMLElement & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
+      return {
+        events: target.__cardforgePointerTrace ?? [],
+        ariaPressed: target.getAttribute('aria-pressed'),
+        held: target.getAttribute('data-spatial-held'),
+        sceneMoving: document.querySelector('[data-scene-depth="board"][data-scene-moving="true"]') !== null,
+        cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
+      };
+    });
+    await testInfo.attach('mobile-card-hold-pointer-trace', { body: JSON.stringify(holdTrace, null, 2), contentType: 'application/json' });
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
     await touch('touchMove', [{ x: start.x + 45, y: start.y + 50, id: 3 }]);
     await touch('touchEnd', []);
