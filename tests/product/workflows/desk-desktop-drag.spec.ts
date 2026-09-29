@@ -20,6 +20,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
 
     await expect(setButton).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
     await expect(viewport).not.toHaveAttribute('data-arrange-mode', 'true');
     await expect(page.getByRole('button', { name: /^Move$/ })).toHaveCount(0);
     await expect(setButton).toHaveAttribute('title', /Drag to move/);

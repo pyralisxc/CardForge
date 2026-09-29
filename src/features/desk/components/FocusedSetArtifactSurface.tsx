@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { SpatialResolvedPointerStart } from '@/components/ui/spatial-viewport';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
 import { getCardFaceCanvas, getCardPhysicalSizeMm, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
@@ -41,6 +42,7 @@ interface FocusedSetArtifactSurfaceProps {
   session: CreatorInteractionSession;
   setSession: Dispatch<SetStateAction<CreatorInteractionSession>>;
   snapToGrid: boolean;
+  touchMultiSelect: boolean;
   showGrid: boolean;
   stageRef: MutableRefObject<HTMLDivElement | null>;
   onFocusArtifact: (nextSession: CreatorInteractionSession) => void;
@@ -76,6 +78,10 @@ type SpatialHistoryEntry = {
 
 const MAX_SPATIAL_HISTORY = 50;
 const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
+const TOUCH_ACQUISITION_RADIUS = 24;
+const TOUCH_DIRECT_TARGET_MIN = 32;
+const TOUCH_AMBIGUITY_DISTANCE = 7;
+const TOUCH_CLARITY_SEPARATION = 44;
 
 const identityFor = (setId: string, card: DisplayCard): ArtifactIdentity => ({
   artifactId: card.uniqueId,
@@ -94,6 +100,7 @@ export function FocusedSetArtifactSurface({
   session,
   setSession,
   snapToGrid,
+  touchMultiSelect,
   showGrid,
   stageRef,
   onFocusArtifact,
@@ -110,6 +117,8 @@ export function FocusedSetArtifactSurface({
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
+  const lastArtifactPointerTypeRef = useRef<string | null>(null);
+  const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -194,6 +203,71 @@ export function FocusedSetArtifactSurface({
     setSession((current) => setCreatorCamera(current, next));
   }, [setSession]);
 
+  const cameraApiRef = useRef<ReturnType<typeof useSetSpatialCamera> | null>(null);
+  const resolvePointerTarget = (point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
+    lastArtifactPointerTypeRef.current = event.pointerType;
+    if (event.pointerType !== 'touch') return null;
+    const stage = viewportRef.current;
+    if (!stage) return null;
+    const directTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id]');
+    if (directTarget) {
+      const directRect = directTarget.getBoundingClientRect();
+      if (Math.min(directRect.width, directRect.height) >= TOUCH_DIRECT_TARGET_MIN) return null;
+    }
+    const candidates = Array.from(stage.querySelectorAll<HTMLElement>('button[data-artifact-id][data-viewport-visible="true"]')).flatMap((target) => {
+      const rect = target.getBoundingClientRect();
+      const dx = point.clientX < rect.left ? rect.left - point.clientX : point.clientX > rect.right ? point.clientX - rect.right : 0;
+      const dy = point.clientY < rect.top ? rect.top - point.clientY : point.clientY > rect.bottom ? point.clientY - rect.bottom : 0;
+      const distance = Math.hypot(dx, dy);
+      if (distance > TOUCH_ACQUISITION_RADIUS) return [];
+      return [{ target, rect, distance }];
+    }).sort((left, right) => left.distance - right.distance);
+    const nearest = candidates[0];
+    if (!nearest) return null;
+
+    const ambiguous = candidates.filter((candidate) => candidate.distance <= nearest.distance + TOUCH_AMBIGUITY_DISTANCE);
+    if (ambiguous.length > 1) {
+      let minimumSeparation = Number.POSITIVE_INFINITY;
+      for (let left = 0; left < ambiguous.length; left += 1) {
+        for (let right = left + 1; right < ambiguous.length; right += 1) {
+          const a = ambiguous[left]!.rect;
+          const b = ambiguous[right]!.rect;
+          minimumSeparation = Math.min(minimumSeparation, Math.hypot(
+            (a.left + a.width / 2) - (b.left + b.width / 2),
+            (a.top + a.height / 2) - (b.top + b.height / 2),
+          ));
+        }
+      }
+      if (minimumSeparation < TOUCH_CLARITY_SEPARATION) {
+        const multiplier = Math.min(1.8, Math.max(1.2, TOUCH_CLARITY_SEPARATION / Math.max(8, minimumSeparation)));
+        return {
+          allowHold: false,
+          onTap: () => {
+            touchTapRef.current = null;
+            const cameraApi = cameraApiRef.current;
+            if (cameraApi) cameraApi.changeZoom(cameraApi.camera.zoom * multiplier, point);
+          },
+        };
+      }
+    }
+
+    const artifactId = nearest.target.dataset.artifactId;
+    const range = event.shiftKey;
+    const additive = event.metaKey || event.ctrlKey || touchMultiSelect;
+    return {
+      target: nearest.target,
+      allowHold: true,
+      onTap: (at: number) => {
+        if (artifactId) handleTouchTap(artifactId, point, range, additive, at);
+      },
+    };
+  };
+  const onResolvedPointerDown = (target: HTMLElement, event: SpatialResolvedPointerStart) => {
+    const artifactId = target.dataset.artifactId;
+    const entry = artifactId ? entryById.get(artifactId) : null;
+    if (entry) beginArtifactMoveFromPointer(entry, event, target);
+  };
+
   const camera = useSetSpatialCamera({
     resetKey: setId,
     disabled: Boolean(artifactFocusId),
@@ -207,7 +281,10 @@ export function FocusedSetArtifactSurface({
     hasSelection: visibleSelectionEntries.length > 0,
     onCameraChange: setCamera,
     onCancelDrag: cancelActiveSpatialGesture,
+    resolvePointerTarget,
+    onResolvedPointerDown,
   });
+  cameraApiRef.current = camera;
 
   const visibleEntries = useMemo(() => projectVisibleArtifacts(layout, {
     x: camera.camera.x - viewportSize.width / camera.camera.zoom / 2,
@@ -294,6 +371,7 @@ export function FocusedSetArtifactSurface({
   };
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
+    touchTapRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
@@ -306,6 +384,33 @@ export function FocusedSetArtifactSurface({
     onFocusArtifact(focusCreatorArtifact(selectedSession, artifactId));
     setNavigatorFocusId(artifactId);
   };
+
+  function handleTouchTap(
+    artifactId: string,
+    point: { clientX: number; clientY: number },
+    range: boolean,
+    additive: boolean,
+    at: number,
+  ) {
+    if (touchMultiSelect) {
+      touchTapRef.current = null;
+      toggleArtifact(artifactId, false, true);
+      return;
+    }
+    const previous = touchTapRef.current;
+    if (
+      previous
+      && previous.artifactId === artifactId
+      && at - previous.at <= 360
+      && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= 28
+    ) {
+      touchTapRef.current = null;
+      focusArtifact(artifactId);
+      return;
+    }
+    toggleArtifact(artifactId, range, additive);
+    touchTapRef.current = { artifactId, x: point.clientX, y: point.clientY, at };
+  }
 
   const browseFocusedArtifact = (direction: ArtifactBrowseDirection) => {
     if (!artifactFocusId) return;
@@ -423,7 +528,11 @@ export function FocusedSetArtifactSurface({
     edgePanFrameRef.current = requestAnimationFrame(tick);
   }, [camera, processArtifactDrag]);
 
-  const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
+  function beginArtifactMoveFromPointer(
+    entry: FocusedArtifactLayoutEntry,
+    event: Pick<ReactPointerEvent<HTMLElement>, 'button' | 'pointerId' | 'clientX' | 'clientY' | 'shiftKey' | 'metaKey' | 'ctrlKey'>,
+    target: HTMLElement,
+  ) {
     if (event.button !== 0) return;
     const startCamera = camera.capture();
     suppressedClickRef.current = null;
@@ -443,7 +552,12 @@ export function FocusedSetArtifactSurface({
       latestAffectedIds: selectedIds,
       startCamera,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    target.setPointerCapture(event.pointerId);
+  }
+
+  const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
+    lastArtifactPointerTypeRef.current = event.pointerType;
+    beginArtifactMoveFromPointer(entry, event, event.currentTarget);
   };
 
   const moveArtifact = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -461,13 +575,20 @@ export function FocusedSetArtifactSurface({
     stopEdgePan();
     dragRef.current = null;
     if (drag.moved) {
+      touchTapRef.current = null;
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
       // Touch UAs synthesize click after pointerup, and that click can arrive
       // after the Set rerenders. Commit the tap selection here and suppress the
       // synthetic click so it cannot toggle the same Artifact back off.
-      toggleArtifact(drag.artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+      handleTouchTap(
+        drag.artifactId,
+        { clientX: event.clientX, clientY: event.clientY },
+        event.shiftKey,
+        event.metaKey || event.ctrlKey || touchMultiSelect,
+        event.timeStamp,
+      );
       suppressedClickRef.current = drag.artifactId;
     }
     setDragPreview({});
@@ -477,6 +598,7 @@ export function FocusedSetArtifactSurface({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
+    touchTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     setDragPreview({});
@@ -484,10 +606,11 @@ export function FocusedSetArtifactSurface({
 
   const handleArtifactKey = (artifactId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const amount = event.shiftKey ? (organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM) : 1;
-    const delta = event.key === 'ArrowLeft' ? { x: -amount, y: 0 }
-      : event.key === 'ArrowRight' ? { x: amount, y: 0 }
-        : event.key === 'ArrowUp' ? { x: 0, y: -amount }
-          : event.key === 'ArrowDown' ? { x: 0, y: amount }
+    const key = event.key.length === 1 ? event.key.toLocaleLowerCase() : event.key;
+    const delta = key === 'ArrowLeft' || key === 'a' ? { x: -amount, y: 0 }
+      : key === 'ArrowRight' || key === 'd' ? { x: amount, y: 0 }
+        : key === 'ArrowUp' || key === 'w' ? { x: 0, y: -amount }
+          : key === 'ArrowDown' || key === 's' ? { x: 0, y: amount }
             : null;
     if (delta) {
       event.preventDefault();
@@ -535,7 +658,7 @@ export function FocusedSetArtifactSurface({
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
-      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Swipe to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it; hold empty space then drag to draw a selection. With a mouse, drag cards to move or empty space to select. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
+      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space to pan and pinch to zoom. Tap or click a card to select it; use Quick Actions Select Multiple on touch to add or remove cards without replacing the selection. Double tap, double click, or press Enter to focus it when Select Multiple is off. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -563,7 +686,7 @@ export function FocusedSetArtifactSurface({
         data-spatial-history-revision={historyRevision}
         {...camera.gestures}
         onPointerDown={(event) => {
-          if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+          if (event.button !== 0 || event.pointerType === 'touch' || !event.shiftKey || (event.target as HTMLElement).closest('button')) return;
           camera.enterCustom();
           marqueeRef.current = { start: camera.projectClientPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -628,11 +751,12 @@ export function FocusedSetArtifactSurface({
                   onPointerCancel={cancelArtifactMove}
                   onLostPointerCapture={cancelArtifactMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
-                  onDoubleClick={() => focusArtifact(artifactId)}
+                  onDoubleClick={() => {
+                    if (lastArtifactPointerTypeRef.current !== 'touch') focusArtifact(artifactId);
+                  }}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
-                    if (event.detail >= 2) { focusArtifact(artifactId); return; }
-                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (lastArtifactPointerTypeRef.current === 'touch' && touchMultiSelect));
                   }}
                 >
                   {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (

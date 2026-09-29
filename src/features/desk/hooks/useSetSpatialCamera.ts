@@ -6,10 +6,16 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
 
-import { useSpatialGestures, type SpatialPoint as ClientSpatialPoint } from '@/components/ui/spatial-viewport';
+import {
+  useSpatialGestures,
+  type SpatialPoint as ClientSpatialPoint,
+  type SpatialPointerTargetResolution,
+  type SpatialResolvedPointerStart,
+} from '@/components/ui/spatial-viewport';
 import {
   getSpatialEdgePanScreenVelocity,
   projectSpatialScreenToWorld,
@@ -53,6 +59,8 @@ export function useSetSpatialCamera({
   hasSelection,
   onCameraChange,
   onCancelDrag,
+  resolvePointerTarget,
+  onResolvedPointerDown,
 }: {
   resetKey: string;
   disabled: boolean;
@@ -66,6 +74,8 @@ export function useSetSpatialCamera({
   hasSelection: boolean;
   onCameraChange: (camera: SpatialCamera2D) => void;
   onCancelDrag?: () => void;
+  resolvePointerTarget?: (point: ClientSpatialPoint, event: ReactPointerEvent<HTMLDivElement>) => SpatialPointerTargetResolution;
+  onResolvedPointerDown?: (target: HTMLElement, event: SpatialResolvedPointerStart) => void;
 }) {
   const cameraRef = useRef<SpatialCamera2D>(camera);
   cameraRef.current = camera;
@@ -235,6 +245,8 @@ export function useSetSpatialCamera({
     changeZoom,
     panByScreen,
     cancelDrag: onCancelDrag,
+    resolvePointerTarget,
+    onResolvedPointerDown,
     disabled,
   });
 

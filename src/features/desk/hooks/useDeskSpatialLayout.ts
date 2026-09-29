@@ -88,6 +88,9 @@ export function useDeskSpatialLayout({
   const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
+  const [positionsResolved, setPositionsResolved] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const scenePresentedRef = useRef(false);
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
   const [framingItems, setFramingItems] = useState<DeskWorldItemRect[]>([]);
 
@@ -114,13 +117,22 @@ export function useDeskSpatialLayout({
   useEffect(() => {
     let cancelled = false;
     setPositionsWritable(false);
+    setPositionsResolved(false);
+    setSceneReady(false);
+    scenePresentedRef.current = false;
     setFramingItems([]);
     void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
-      if (cancelled || result.kind === 'unavailable') return;
+      if (cancelled) return;
+      if (result.kind === 'unavailable') {
+        setStoredPositions({});
+        setPositionsResolved(true);
+        return;
+      }
       const raw = result.kind === 'available' ? result.value : null;
       const geometry = normalizeDeskWorldGeometry(raw);
       setStoredPositions(geometry.positions);
       setPositionsWritable(true);
+      setPositionsResolved(true);
       if (result.kind === 'available' && isLegacyDeskWorldGeometry(raw)) {
         void writeProjectPreference(positionKey, geometry);
       }
@@ -155,9 +167,15 @@ export function useDeskSpatialLayout({
 
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
+  useEffect(() => {
+    if (!focused && positionsResolved && itemIds.length === 0) {
+      scenePresentedRef.current = true;
+      setSceneReady(true);
+    }
+  }, [focused, itemIds.length, positionsResolved]);
   useLayoutEffect(() => {
     const world = workWorldRef.current;
-    if (focused || !positionsWritable || !world) return;
+    if (focused || !positionsResolved || !world) return;
     let settleFrame: number | null = null;
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
     const measureVisibleWork = () => {
@@ -176,7 +194,21 @@ export function useDeskSpatialLayout({
     const frame = requestAnimationFrame(() => {
       measureVisibleWork();
       settleTimeout = setTimeout(() => {
-        settleFrame = requestAnimationFrame(measureVisibleWork);
+        const revealWhenStable = () => {
+          const movingStack = document.querySelector('[data-artifact-scene] [data-scene-depth="stack"][data-scene-moving="true"]');
+          if (movingStack) {
+            settleFrame = requestAnimationFrame(revealWhenStable);
+            return;
+          }
+          if (!scenePresentedRef.current && itemIds.length > 0) {
+            scenePresentedRef.current = true;
+            setSceneReady(true);
+          }
+        };
+        settleFrame = requestAnimationFrame(() => {
+          measureVisibleWork();
+          revealWhenStable();
+        });
       }, 180);
     });
     return () => {
@@ -184,7 +216,7 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [camera.zoom, focused, itemKey, positions, positionsWritable, visibleItemKey]);
+  }, [camera.zoom, focused, itemIds.length, itemKey, positions, positionsResolved, visibleItemKey]);
 
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
@@ -323,7 +355,7 @@ export function useDeskSpatialLayout({
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
     if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
-    if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
+    if (event.button !== 0 || (event.pointerType === 'touch' ? !allowTouch : !event.shiftKey) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
     camera.enterCustom();
     const point = camera.projectClientPoint(event);
     marqueeRef.current = {
@@ -371,6 +403,7 @@ export function useDeskSpatialLayout({
     moveMarquee,
     nudgeSelection,
     positions,
+    sceneReady,
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,

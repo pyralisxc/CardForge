@@ -47,6 +47,7 @@ export interface DeskOverviewSurfaceProps {
   positions: Record<string, DeskPosition>;
   worldSize: DeskWorldSize;
   marquee: { left: number; top: number; right: number; bottom: number } | null;
+  sceneReady: boolean;
   isLoading: boolean;
   failure: { message: string; kind: BoundaryFailureKind; nextAction?: string; retryable: boolean } | null;
   sourceStatuses: readonly { id: string; label: string; phase: string; failure: { message: string } | null }[];
@@ -276,6 +277,8 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         data-desk-viewport
         data-scene-viewport
         data-focused={Boolean(props.focusedItemId)}
+        data-ready={props.sceneReady || Boolean(props.focusedItemId)}
+        aria-busy={!props.sceneReady && !props.focusedItemId}
         data-zoom={props.camera.zoom.toFixed(2)}
         data-relative-zoom={props.camera.relativeZoom.toFixed(2)}
         data-camera-mode={props.camera.mode}
@@ -294,10 +297,11 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         onPointerCancelCapture={props.camera.onPointerCancelCapture}
         onClickCapture={props.camera.onClickCapture}
         onContextMenu={props.camera.onContextMenu}
-        onPointerDown={props.focusedItemId ? undefined : (event) => props.beginMarquee(event, true)}
+        onPointerDown={props.focusedItemId ? undefined : (event) => { if (event.pointerType !== 'touch' && event.shiftKey) props.beginMarquee(event); }}
         onPointerMove={props.focusedItemId ? undefined : props.moveMarquee}
         onPointerUp={props.focusedItemId ? undefined : props.endMarquee}
         onPointerCancel={props.focusedItemId ? undefined : props.endMarquee}
+        onKeyDown={props.camera.onKeyDown}
         tabIndex={props.focusedItemId ? -1 : 0}
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore your spatial Desk.'}
       >

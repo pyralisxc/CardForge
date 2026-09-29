@@ -43,6 +43,7 @@ import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
 import { useDeskActionRuntime } from './useDeskActionRuntime';
 import { useDeskLayout } from './useDeskLayout';
+import { useDeskArrival } from './useDeskArrival';
 import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
 import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
 import { usePublishedSetStarters } from './usePublishedSetStarters';
@@ -97,6 +98,7 @@ export function useDeskController({
   const surfaceRef = useRef<HTMLElement | null>(null);
   const cardStageRef = useRef<HTMLDivElement | null>(null);
   const returnContextRestoredRef = useRef(false);
+  const [returnContextResolved, setReturnContextResolved] = useState(!initialReturnContextKey);
   const initialToolHandledRef = useRef(false);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const searchParams = useSearchParams();
@@ -174,7 +176,14 @@ export function useDeskController({
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
   const [remoteWorkspaceId, setRemoteWorkspaceId] = useState<string | null>(null);
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
-  const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
+  const {
+    showGrid,
+    snapToGrid,
+    ready: spatialPreferencesReady,
+    unavailable: spatialPreferencesUnavailable,
+    setShowGrid,
+    setSnapToGrid,
+  } = useSpatialWorkspacePreferences();
 
   const workItems = useMemo(() => applyAccountLibraryPrivateOrganization([
     ...projection.items,
@@ -196,6 +205,8 @@ export function useDeskController({
     nudgeSelection: nudgeDeskSelection,
     pinnedIds,
     positions: deskPositions,
+    preferencesResolved: deskLayoutPreferencesResolved,
+    sceneReady: deskSceneReady,
     shouldSuppressActivation,
     sourceFacets,
     tagFacets,
@@ -277,6 +288,23 @@ export function useDeskController({
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
     storedCards, visibleCards,
   } = projectState;
+  const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
+  const focusedDestinationReady = Boolean(focusedItem)
+    && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
+  const initialSourceSnapshotReady = !projection.isLoading
+    && discoveredWork.sourceStatuses.every((source) => source.phase !== 'loading');
+  const arrivalAcquisitionReady = initialSourceSnapshotReady
+    && (projection.privateOrganizationReady || projection.privateOrganizationUnavailable)
+    && (deskViewPreferences.ready || deskViewPreferences.unavailable)
+    && deskLayoutPreferencesResolved
+    && (spatialPreferencesReady || spatialPreferencesUnavailable)
+    && returnContextResolved;
+  const deskArrival = useDeskArrival({
+    scopeKey: persistenceScope,
+    acquisitionReady: arrivalAcquisitionReady,
+    compositionReady: focusedWorkId ? focusedDestinationReady : deskSceneReady,
+  });
+
   const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
     const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
     const card = getDeskToolCard(setCards, interactionSession.focusPath.artifactId, selectedCardIds, context?.generationCard?.uniqueId);
@@ -356,10 +384,12 @@ export function useDeskController({
     const context = readSurfaceReturnContext(initialReturnContextKey);
     if (!context || context.kind !== 'desk') {
       returnContextRestoredRef.current = true;
+      setReturnContextResolved(true);
       return;
     }
     if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
     returnContextRestoredRef.current = true;
+    setReturnContextResolved(true);
     setQuery(context.query);
     deskViewPreferences.update((current) => ({
       ...current,
@@ -677,7 +707,9 @@ export function useDeskController({
     commitRename,
     createWork,
     deleteCardSet,
+    deskArrival,
     deskPositions,
+    deskSceneReady,
     deskCamera,
     deskMarquee,
     deskViewPreferences,

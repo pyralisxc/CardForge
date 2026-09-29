@@ -49,6 +49,7 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { DeskContextRail } from './DeskContextRail';
+import { DeskQuickActions } from './DeskQuickActions';
 import { DeskOverviewSurface } from './DeskOverviewSurface';
 import { FocusedWorkSurface } from './FocusedWorkSurface';
 import { DeskDialogs } from './DeskDialogs';
@@ -159,6 +160,7 @@ export function Desk({
   const [artifactEditId, setArtifactEditId] = useState<string | null>(null);
   const [artifactEditDirty, setArtifactEditDirty] = useState(false);
   const [artifactDiscardOpen, setArtifactDiscardOpen] = useState(false);
+  const [touchMultiSelect, setTouchMultiSelect] = useState(false);
   const pendingArtifactExitRef = useRef<(() => void) | null>(null);
   const {
     actions,
@@ -187,7 +189,9 @@ export function Desk({
     createWork,
     creatingPublishedSetId,
     deleteCardSet,
+    deskArrival,
     deskPositions,
+    deskSceneReady,
     deskWorldSize,
     deskCamera,
     deskMarquee,
@@ -347,6 +351,13 @@ export function Desk({
   });
   const contextDepth = creatorSurface.depth;
   const presentation = creatorSurface.presentation;
+  useEffect(() => {
+    setTouchMultiSelect(false);
+  }, [focusedLocalSetId]);
+  useEffect(() => {
+    if (contextDepth !== 'set') setTouchMultiSelect(false);
+  }, [contextDepth]);
+
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
       : remoteWorkspaceItem?.references.pipelineLineageId ? 'Published work'
@@ -447,7 +458,8 @@ export function Desk({
   };
 
   return (
-    <ArtifactScene activeSetId={focusedLocalSetId}>
+    <div className={styles.creatorEnvironment} data-desk-arrival-phase={deskArrival.phase}>
+      <ArtifactScene activeSetId={focusedLocalSetId}>
       <EnvironmentShell
         ariaLabel="CardForge Desk"
         brand={{ src: '/brand/cardforge-studio/brand-mark.svg', alt: 'CardForge' }}
@@ -505,6 +517,20 @@ export function Desk({
         presentation={presentation}
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
+        persistentStatusContent={<DeskQuickActions
+          depth={contextDepth}
+          selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
+          multiSelectActive={contextDepth === 'set' && touchMultiSelect}
+          onMultiSelectChange={contextDepth === 'set' ? setTouchMultiSelect : undefined}
+          onFitWork={contextDepth === 'desk' ? deskCamera.fit : undefined}
+          onFitSelection={contextDepth === 'desk' ? deskCamera.fitSelection : undefined}
+          onSelectShown={contextDepth === 'set' && visibleCards.length ? () => setSelectedCardIds((current) => [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]) : undefined}
+          onClearSelection={contextDepth === 'desk'
+            ? () => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))
+            : contextDepth === 'set'
+              ? () => setSelectedCardIds([])
+              : undefined}
+        />}
         statusContent={<>
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${visibleWork.length} visible work`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
@@ -538,6 +564,7 @@ export function Desk({
             positions={deskPositions}
             worldSize={deskWorldSize}
             marquee={deskMarquee}
+            sceneReady={deskSceneReady}
             isLoading={projection.isLoading}
             failure={projection.failures[0] ?? null}
             sourceStatuses={projection.sourceStatuses}
@@ -594,6 +621,7 @@ export function Desk({
               latestGeneratedIds={latestGeneratedIds}
               showGrid={showGrid}
               snapToGrid={snapToGrid}
+              touchMultiSelect={touchMultiSelect}
               session={interactionSession}
               setSession={setInteractionSession}
               stageRef={cardStageRef}
@@ -838,6 +866,17 @@ export function Desk({
         onDeleteCardsOpenChange={(open) => { if (!open) setPendingDeleteCards([]); }}
         onConfirmDeleteCards={() => { removeGeneratedCards(pendingDeleteCards.map((card) => card.uniqueId)); setPendingDeleteCards([]); setSelectedCardIds([]); }}
       />
-    </ArtifactScene>
+      </ArtifactScene>
+      {!deskArrival.ready ? <div className={styles.environmentArrival} data-desk-arrival={deskArrival.phase} role="status" aria-live="polite" aria-label="Preparing CardForge Desk">
+        <div className={styles.environmentArrivalContent}>
+          <Boxes aria-hidden="true" />
+          <span className={styles.environmentArrivalBrand}>CardForge</span>
+          <strong>{deskArrival.phase === 'acquiring' ? 'Opening your Desk' : 'Arranging your Desk'}</strong>
+          <p>{deskArrival.phase === 'acquiring'
+            ? 'Gathering your work and workspace settings.'
+            : 'Placing Sets, framing the workspace, and preparing interaction.'}</p>
+        </div>
+      </div> : null}
+    </div>
   );
 }

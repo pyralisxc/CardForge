@@ -1,8 +1,16 @@
 import { devices, expect, test, type Locator } from '@playwright/test';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
+const pixel7 = devices['Pixel 7'];
+test.use({
+  userAgent: pixel7.userAgent,
+  viewport: pixel7.viewport,
+  deviceScaleFactor: pixel7.deviceScaleFactor,
+  isMobile: pixel7.isMobile,
+  hasTouch: pixel7.hasTouch,
+});
+
 test.describe('spatial touch workspace', () => {
-  test.use({ viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true });
   test('@golden browses focused Artifacts without changing the Set, while magnified card inspection still pans', async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     await seedGuestScaleWorkspace(page, 100);
@@ -100,6 +108,7 @@ test.describe('spatial touch workspace', () => {
     const desk = page.locator('[data-desk-viewport]');
     const set = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(desk).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
     // Fit Work keeps the visible authored object complete and readable without
     // changing its world coordinates; Whole Desk remains a separate action.
@@ -126,7 +135,7 @@ test.describe('spatial touch workspace', () => {
     expect((await stage.boundingBox())!.height).toBeGreaterThan(420);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 2)).toBe(true);
     await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
-    const card = page.locator('button[data-artifact-id="scale-card-1"]');
+    const card = page.locator('[data-artifact-world] button[data-artifact-id="scale-card-1"]');
     const tile = card.locator('..');
     const originalPosition = await tile.getAttribute('style');
     const cardPoint = await center(card);
@@ -150,6 +159,26 @@ test.describe('spatial touch workspace', () => {
     await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
+
+    // Fit Work intentionally makes this 100-card board too dense for a finger to
+    // acquire one Artifact confidently. A tap clarifies the local neighborhood
+    // without guessing selection or changing authored geometry.
+    const clarityZoomBefore = Number(await stage.getAttribute('data-zoom'));
+    await card.tap();
+    await expect(card).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(clarityZoomBefore);
+    await expect(tile).toHaveAttribute('style', originalPosition!);
+
+    // Continue the accordion only as far as needed for a direct touch target.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const bounds = await card.boundingBox();
+      if (bounds && Math.min(bounds.width, bounds.height) >= 32) break;
+      const zoomBefore = Number(await stage.getAttribute('data-zoom'));
+      await card.tap();
+      await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
+      await expect(tile).toHaveAttribute('style', originalPosition!);
+    }
+
     const start = await center(card);
     await touch('touchStart', [{ ...start, id: 3 }]);
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
@@ -185,8 +214,16 @@ test.describe('spatial touch workspace', () => {
     // Transform-camera travel is interruptible and owns no scroll surface.
     // Wait for the semantic Fit Work target before sampling object coordinates.
     await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
-    // Cancellation is an object-local gesture; exercise it while Fit Work keeps
-    // the moved card deliberately readable before changing camera semantics.
+    // Camera navigation never destroys selection. Object-local cancellation is a
+    // precision-manipulation contract, so bring the retained selection to a
+    // directly manipulable scale before exercising cancel/restore.
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Selection', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-selection');
+    await expect.poll(async () => {
+      const bounds = await card.boundingBox();
+      return Boolean(bounds && Math.min(bounds.width, bounds.height) >= 32);
+    }).toBe(true);
     const cancelPoint = await center(card);
     await expect.poll(() => page.evaluate(({ x, y }) => (
       document.elementFromPoint(x, y)?.closest('button[data-artifact-id]')?.getAttribute('data-artifact-id') ?? null
@@ -199,12 +236,31 @@ test.describe('spatial touch workspace', () => {
     await expect(tile).toHaveAttribute('style', movedPosition!);
     await page.getByRole('button', { name: 'Whole Set', exact: true }).click();
     await expect(stage).toHaveAttribute('data-camera-mode', 'whole');
-    const box = (await world.boundingBox())!;
-    await touch('touchStart', [{ x: box.x + 3, y: box.y + 3, id: 7 }]);
-    await expect(stage).toHaveAttribute('data-spatial-held', 'true');
-    await touch('touchMove', [{ x: box.x + 320, y: box.y + 185, id: 7 }]);
-    await touch('touchEnd', []);
+
+    // Touch multi-selection is explicit rather than overloading empty-space hold.
+    // Camera navigation remains available while Select Multiple changes only tap semantics.
+    const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
+    await quickActionsTrigger.click();
+    const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+    await quickActions.getByRole('button', { name: 'Select Multiple', exact: true }).click();
+    await expect(quickActions.getByRole('button', { name: 'Done selecting', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await quickActionsTrigger.click();
+
+    const secondCard = page.locator('[data-artifact-world] button[data-artifact-id="scale-card-2"]');
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const alreadySelected = await secondCard.getAttribute('aria-pressed');
+      if (alreadySelected === 'true') break;
+      await secondCard.tap();
+    }
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
     expect(await stage.locator('button[aria-pressed="true"]').count()).toBeGreaterThan(1);
+
+    await quickActionsTrigger.click();
+    await quickActions.getByRole('button', { name: 'Done selecting', exact: true }).click();
+    await quickActionsTrigger.click();
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondCard).toHaveAttribute('aria-pressed', 'true');
     await page.screenshot({ path: testInfo.outputPath('mobile-set.png') });
     // Selection is visual state. Deliberate focus is a separate activation.
     await card.tap();

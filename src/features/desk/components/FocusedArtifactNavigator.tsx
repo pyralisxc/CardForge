@@ -48,7 +48,7 @@ export function FocusedArtifactNavigator({
     <PopoverTrigger asChild><Button type="button" size="sm" variant="outline" hidden={hidden} aria-label={`Ordered Artifact navigator · ${entries.length}`}>Cards · {entries.length}</Button></PopoverTrigger>
     {!hidden ? <PopoverContent className={styles.orderedNavigator} align="end" onCloseAutoFocus={(event) => { if (hidden) event.preventDefault(); }}>
     <strong>Cards in {setName}</strong>
-    <p>Use Arrow keys to move through the complete Set. Press Space to select and Enter to focus the Artifact on the board.</p>
+    <p>Use Arrow keys or W/S to move through the complete Set. Press Space to select and Enter to focus the Artifact on the board.</p>
     <div className={styles.orderedNavigatorControls}>
       <Button type="button" size="sm" variant="outline" disabled={!activeEntry} onClick={() => activeEntry && onFocusArtifact(activeEntry.identity.artifactId)}><Focus className="mr-1.5 h-4 w-4" />Focus on board</Button>
       {arrangement === 'manual' && activeEntry ? <>
@@ -77,8 +77,8 @@ export function FocusedArtifactNavigator({
             onClick={() => onToggleArtifact(artifactId, false, true)}
             onDoubleClick={() => onFocusArtifact(artifactId)}
             onKeyDown={(event) => {
-              if (event.key === 'ArrowDown') { event.preventDefault(); onMoveFocus(artifactId, 1); }
-              else if (event.key === 'ArrowUp') { event.preventDefault(); onMoveFocus(artifactId, -1); }
+              if (event.key === 'ArrowDown' || event.key.toLocaleLowerCase() === 's') { event.preventDefault(); onMoveFocus(artifactId, 1); }
+              else if (event.key === 'ArrowUp' || event.key.toLocaleLowerCase() === 'w') { event.preventDefault(); onMoveFocus(artifactId, -1); }
               else if (event.key === 'Home') { event.preventDefault(); onMoveFocus(artifactId, 'first'); }
               else if (event.key === 'End') { event.preventDefault(); onMoveFocus(artifactId, 'last'); }
               else if (event.key === 'PageUp') { event.preventDefault(); onMoveGroup(artifactId, -1); }

@@ -1030,6 +1030,18 @@
   font-size: 0.7rem;
 }
 
+.persistentStatus {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.persistentStatus button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
 .statusItems {
   display: flex;
   min-width: 0;
@@ -1291,6 +1303,15 @@
   }
 
   .shell[data-presentation-mode]:not([data-presentation-mode="browse"]) .statusBar {
+    display: none !important;
+  }
+
+  .shell[data-has-persistent-status="true"][data-presentation-mode]:not([data-presentation-mode="browse"]) .statusBar {
+    display: flex !important;
+  }
+
+  .shell[data-has-persistent-status="true"][data-presentation-mode]:not([data-presentation-mode="browse"]) .statusItems,
+  .shell[data-has-persistent-status="true"][data-presentation-mode]:not([data-presentation-mode="browse"]) .selectionDock {
     display: none !important;
   }
 
