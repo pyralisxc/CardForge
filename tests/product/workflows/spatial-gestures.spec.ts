@@ -1,8 +1,17 @@
 import { devices, expect, test, type Locator } from '@playwright/test';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
+const pixel7 = devices['Pixel 7'];
+test.use({
+  userAgent: pixel7.userAgent,
+  viewport: pixel7.viewport,
+  screen: pixel7.screen,
+  deviceScaleFactor: pixel7.deviceScaleFactor,
+  isMobile: pixel7.isMobile,
+  hasTouch: pixel7.hasTouch,
+});
+
 test.describe('spatial touch workspace', () => {
-  test.use({ ...devices['Pixel 7'] });
   test('@golden browses focused Artifacts without changing the Set, while magnified card inspection still pans', async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     await seedGuestScaleWorkspace(page, 100);

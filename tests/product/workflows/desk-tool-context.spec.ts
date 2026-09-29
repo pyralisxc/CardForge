@@ -3,9 +3,19 @@ import { devices, expect, test } from '@playwright/test';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 
+const pixel7 = devices['Pixel 7'];
+const pixel7Context = {
+  userAgent: pixel7.userAgent,
+  viewport: pixel7.viewport,
+  screen: pixel7.screen,
+  deviceScaleFactor: pixel7.deviceScaleFactor,
+  isMobile: pixel7.isMobile,
+  hasTouch: pixel7.hasTouch,
+};
+
 for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
-    test.use(mobile ? { ...devices['Pixel 7'] } : { viewport: { width: 1440, height: 900 } });
+    test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
