@@ -2,7 +2,7 @@ import { devices, expect, test, type Locator } from '@playwright/test';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 
 test.describe('spatial touch workspace', () => {
-  test.use({ viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true });
+  test.use({ ...devices['Pixel 7'] });
   test('@golden browses focused Artifacts without changing the Set, while magnified card inspection still pans', async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     await seedGuestScaleWorkspace(page, 100);
@@ -152,61 +152,7 @@ test.describe('spatial touch workspace', () => {
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
     const start = await center(card);
-    await page.evaluate(() => {
-      const win = window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
-      win.__cardforgePointerTrace = [];
-      for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture', 'click'] as const) {
-        window.addEventListener(type, (event) => {
-        const target = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-artifact-id]') : null;
-        if (!target || target.dataset.artifactId !== 'scale-card-1') return;
-        const pointer = event as PointerEvent;
-        win.__cardforgePointerTrace?.push({
-          type,
-          pointerType: pointer.pointerType ?? null,
-          pointerId: pointer.pointerId ?? null,
-          button: pointer.button ?? null,
-          buttons: pointer.buttons ?? null,
-          connected: target.isConnected,
-          ariaPressed: target.getAttribute('aria-pressed'),
-          held: target.getAttribute('data-spatial-held'),
-          hasCapture: typeof target.hasPointerCapture === 'function' && Number.isFinite(pointer.pointerId) ? target.hasPointerCapture(pointer.pointerId) : null,
-          cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
-          cameraZoom: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-zoom') ?? null,
-        });
-        }, true);
-      }
-    });
-    const hit = await card.evaluate((node) => {
-      const rect = node.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      return {
-        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-        center: { x, y },
-        connected: node.isConnected,
-        pointerEvents: getComputedStyle(node).pointerEvents,
-        stack: document.elementsFromPoint(x, y).slice(0, 8).map((element) => {
-          const html = element as HTMLElement;
-          return {
-            tag: element.tagName,
-            id: html.id || null,
-            className: typeof html.className === 'string' ? html.className : null,
-            artifactId: html.dataset?.artifactId ?? null,
-            sceneArtifact: html.dataset?.sceneArtifact ?? null,
-            sceneDepth: html.dataset?.sceneDepth ?? null,
-            sceneMoving: html.dataset?.sceneMoving ?? null,
-            ariaLabel: html.getAttribute('aria-label'),
-            pointerEvents: getComputedStyle(html).pointerEvents,
-            zIndex: getComputedStyle(html).zIndex,
-          };
-        }),
-      };
-    });
-    console.log('CARDFORGE_MOBILE_HOLD_HITSTACK', JSON.stringify(hit));
     await touch('touchStart', [{ ...start, id: 3 }]);
-    await page.waitForTimeout(450);
-    const trace = await page.evaluate(() => (window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> }).__cardforgePointerTrace ?? []);
-    console.log('CARDFORGE_MOBILE_HOLD_TRACE', JSON.stringify(trace));
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
     await touch('touchMove', [{ x: start.x + 45, y: start.y + 50, id: 3 }]);
     await touch('touchEnd', []);

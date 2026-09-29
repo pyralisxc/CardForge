@@ -5,7 +5,7 @@ import { createProjectScaleFixture } from '../../fixtures/projectScale';
 
 for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
-    test.use(mobile ? { viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
+    test.use(mobile ? { ...devices['Pixel 7'] } : { viewport: { width: 1440, height: 900 } });
 
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
@@ -115,62 +115,7 @@ for (const mobile of [false, true]) {
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
 
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
-      if (mobile) {
-        await page.evaluate(() => {
-        const win = window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
-        win.__cardforgePointerTrace = [];
-        for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture', 'click'] as const) {
-          window.addEventListener(type, (event) => {
-            const target = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-artifact-id]') : null;
-            if (!target || target.dataset.artifactId !== 'scale-card-1') return;
-            const pointer = event as PointerEvent;
-            win.__cardforgePointerTrace?.push({
-              type,
-              pointerType: pointer.pointerType ?? null,
-              pointerId: pointer.pointerId ?? null,
-              button: pointer.button ?? null,
-              buttons: pointer.buttons ?? null,
-              connected: target.isConnected,
-              ariaPressed: target.getAttribute('aria-pressed'),
-              held: target.getAttribute('data-spatial-held'),
-              hasCapture: typeof target.hasPointerCapture === 'function' && Number.isFinite(pointer.pointerId) ? target.hasPointerCapture(pointer.pointerId) : null,
-              cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
-              cameraZoom: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-zoom') ?? null,
-            });
-          }, true);
-        }
-      });
-        const hit = await firstCard.evaluate((node) => {
-          const rect = node.getBoundingClientRect();
-          const x = rect.left + rect.width / 2;
-          const y = rect.top + rect.height / 2;
-          return {
-            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-            center: { x, y },
-            connected: node.isConnected,
-            pointerEvents: getComputedStyle(node).pointerEvents,
-            stack: document.elementsFromPoint(x, y).slice(0, 8).map((element) => {
-              const html = element as HTMLElement;
-              return {
-                tag: element.tagName,
-                id: html.id || null,
-                className: typeof html.className === 'string' ? html.className : null,
-                artifactId: html.dataset?.artifactId ?? null,
-                sceneArtifact: html.dataset?.sceneArtifact ?? null,
-                sceneDepth: html.dataset?.sceneDepth ?? null,
-                sceneMoving: html.dataset?.sceneMoving ?? null,
-                ariaLabel: html.getAttribute('aria-label'),
-                pointerEvents: getComputedStyle(html).pointerEvents,
-                zIndex: getComputedStyle(html).zIndex,
-              };
-            }),
-          };
-        });
-        console.log('CARDFORGE_MOBILE_TAP_HITSTACK', JSON.stringify(hit));
-        await firstCard.tap();
-        const trace = await page.evaluate(() => (window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> }).__cardforgePointerTrace ?? []);
-        console.log('CARDFORGE_MOBILE_TAP_TRACE', JSON.stringify(trace));
-      } else await firstCard.click();
+      if (mobile) await firstCard.tap(); else await firstCard.click();
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
       await firstCard.focus();
       await firstCard.press('Enter');
