@@ -226,6 +226,12 @@ for (const mobile of [false, true]) {
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
 
+      await page.getByRole('button', { name: 'Quick actions', exact: true }).click();
+      const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+      await expect(quickActions.getByRole('region', { name: 'Touch quick actions' })).toBeVisible();
+      await expect(quickActions.getByRole('region', { name: 'Desktop quick actions' })).toBeVisible();
+      await page.keyboard.press('Escape');
+
       if (mobile) {
         await page.getByRole('button', { name: /^Organize ·/ }).click();
         await page.getByRole('button', { name: 'Select shown', exact: true }).click();

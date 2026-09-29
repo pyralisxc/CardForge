@@ -46,10 +46,10 @@ interface FocusedArtifactWorkspaceProps {
 }
 
 const directionForKey = (key: string): ArtifactBrowseDirection | null => (
-  key === 'ArrowUp' ? 'up'
-    : key === 'ArrowDown' ? 'down'
-      : key === 'ArrowLeft' ? 'left'
-        : key === 'ArrowRight' ? 'right'
+  key === 'ArrowUp' || key.toLocaleLowerCase() === 'w' ? 'up'
+    : key === 'ArrowDown' || key.toLocaleLowerCase() === 's' ? 'down'
+      : key === 'ArrowLeft' || key.toLocaleLowerCase() === 'a' ? 'left'
+        : key === 'ArrowRight' || key.toLocaleLowerCase() === 'd' ? 'right'
           : null
 );
 

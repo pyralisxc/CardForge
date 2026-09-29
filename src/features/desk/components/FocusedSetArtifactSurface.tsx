@@ -76,6 +76,9 @@ type SpatialHistoryEntry = {
 
 const MAX_SPATIAL_HISTORY = 50;
 const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
+const TOUCH_ACQUISITION_RADIUS = 24;
+const TOUCH_AMBIGUITY_DISTANCE = 7;
+const TOUCH_CLARITY_SEPARATION = 44;
 
 const identityFor = (setId: string, card: DisplayCard): ArtifactIdentity => ({
   artifactId: card.uniqueId,
@@ -194,6 +197,51 @@ export function FocusedSetArtifactSurface({
     setSession((current) => setCreatorCamera(current, next));
   }, [setSession]);
 
+  const cameraApiRef = useRef<ReturnType<typeof useSetSpatialCamera> | null>(null);
+  const resolvePointerTarget = useCallback((point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button[data-artifact-id]')) return null;
+    const stage = viewportRef.current;
+    if (!stage) return null;
+    const candidates = Array.from(stage.querySelectorAll<HTMLElement>('button[data-artifact-id][data-viewport-visible="true"]')).flatMap((target) => {
+      const rect = target.getBoundingClientRect();
+      const dx = point.clientX < rect.left ? rect.left - point.clientX : point.clientX > rect.right ? point.clientX - rect.right : 0;
+      const dy = point.clientY < rect.top ? rect.top - point.clientY : point.clientY > rect.bottom ? point.clientY - rect.bottom : 0;
+      const distance = Math.hypot(dx, dy);
+      if (distance > TOUCH_ACQUISITION_RADIUS) return [];
+      return [{ target, rect, distance }];
+    }).sort((left, right) => left.distance - right.distance);
+    const nearest = candidates[0];
+    if (!nearest) return null;
+    const ambiguous = candidates.filter((candidate) => candidate.distance <= nearest.distance + TOUCH_AMBIGUITY_DISTANCE);
+    if (ambiguous.length > 1) {
+      let minimumSeparation = Number.POSITIVE_INFINITY;
+      for (let left = 0; left < ambiguous.length; left += 1) {
+        for (let right = left + 1; right < ambiguous.length; right += 1) {
+          const a = ambiguous[left]!.rect;
+          const b = ambiguous[right]!.rect;
+          minimumSeparation = Math.min(minimumSeparation, Math.hypot(
+            (a.left + a.width / 2) - (b.left + b.width / 2),
+            (a.top + a.height / 2) - (b.top + b.height / 2),
+          ));
+        }
+      }
+      if (minimumSeparation < TOUCH_CLARITY_SEPARATION) {
+        const cameraApi = cameraApiRef.current;
+        if (cameraApi) {
+          const multiplier = Math.min(1.8, Math.max(1.2, TOUCH_CLARITY_SEPARATION / Math.max(8, minimumSeparation)));
+          cameraApi.changeZoom(cameraApi.camera.zoom * multiplier, point);
+        }
+        return 'handled' as const;
+      }
+    }
+    return nearest.target;
+  }, []);
+  const onResolvedPointerDown = useCallback((target: HTMLElement, event: ReactPointerEvent<HTMLDivElement>) => {
+    const artifactId = target.dataset.artifactId;
+    const entry = artifactId ? entryById.get(artifactId) : null;
+    if (entry) beginArtifactMoveFromPointer(entry, event, target);
+  }, [entryById]);
+
   const camera = useSetSpatialCamera({
     resetKey: setId,
     disabled: Boolean(artifactFocusId),
@@ -207,7 +255,10 @@ export function FocusedSetArtifactSurface({
     hasSelection: visibleSelectionEntries.length > 0,
     onCameraChange: setCamera,
     onCancelDrag: cancelActiveSpatialGesture,
+    resolvePointerTarget,
+    onResolvedPointerDown,
   });
+  cameraApiRef.current = camera;
 
   const visibleEntries = useMemo(() => projectVisibleArtifacts(layout, {
     x: camera.camera.x - viewportSize.width / camera.camera.zoom / 2,
@@ -423,7 +474,11 @@ export function FocusedSetArtifactSurface({
     edgePanFrameRef.current = requestAnimationFrame(tick);
   }, [camera, processArtifactDrag]);
 
-  const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
+  function beginArtifactMoveFromPointer(
+    entry: FocusedArtifactLayoutEntry,
+    event: Pick<ReactPointerEvent<HTMLElement>, 'button' | 'pointerId' | 'clientX' | 'clientY' | 'shiftKey' | 'metaKey' | 'ctrlKey'>,
+    target: HTMLElement,
+  ) {
     if (event.button !== 0) return;
     const startCamera = camera.capture();
     suppressedClickRef.current = null;
@@ -443,7 +498,11 @@ export function FocusedSetArtifactSurface({
       latestAffectedIds: selectedIds,
       startCamera,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    target.setPointerCapture(event.pointerId);
+  }
+
+  const beginArtifactMove = (entry: FocusedArtifactLayoutEntry, event: ReactPointerEvent<HTMLButtonElement>) => {
+    beginArtifactMoveFromPointer(entry, event, event.currentTarget);
   };
 
   const moveArtifact = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -484,10 +543,11 @@ export function FocusedSetArtifactSurface({
 
   const handleArtifactKey = (artifactId: string, event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const amount = event.shiftKey ? (organization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM) : 1;
-    const delta = event.key === 'ArrowLeft' ? { x: -amount, y: 0 }
-      : event.key === 'ArrowRight' ? { x: amount, y: 0 }
-        : event.key === 'ArrowUp' ? { x: 0, y: -amount }
-          : event.key === 'ArrowDown' ? { x: 0, y: amount }
+    const key = event.key.length === 1 ? event.key.toLocaleLowerCase() : event.key;
+    const delta = key === 'ArrowLeft' || key === 'a' ? { x: -amount, y: 0 }
+      : key === 'ArrowRight' || key === 'd' ? { x: amount, y: 0 }
+        : key === 'ArrowUp' || key === 'w' ? { x: 0, y: -amount }
+          : key === 'ArrowDown' || key === 's' ? { x: 0, y: amount }
             : null;
     if (delta) {
       event.preventDefault();
@@ -535,7 +595,7 @@ export function FocusedSetArtifactSurface({
         aria-hidden={Boolean(focusedEntry)}
         inert={focusedEntry ? true : undefined}
       >
-      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Swipe to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it; hold empty space then drag to draw a selection. With a mouse, drag cards to move or empty space to select. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
+      <p id={`artifact-field-instructions-${setId}`} className="sr-only">Drag empty space to pan and pinch to zoom. Tap or click a card to select it; double tap, double click, or press Enter to focus it. Hold a card then drag to move it. With a mouse, Shift-drag empty space to draw a selection. Moving a card switches to Freeform. Use Tab to reach visible Artifacts and Arrow or WASD keys to move selected Artifacts; hold Shift for a larger step. Open the ordered Artifact navigator to reach every Artifact, including those outside the camera.</p>
       <div
         ref={(node) => { viewportRef.current = node; stageRef.current = node; }}
         tabIndex={-1}
@@ -563,7 +623,7 @@ export function FocusedSetArtifactSurface({
         data-spatial-history-revision={historyRevision}
         {...camera.gestures}
         onPointerDown={(event) => {
-          if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+          if (event.button !== 0 || event.pointerType === 'touch' || !event.shiftKey || (event.target as HTMLElement).closest('button')) return;
           camera.enterCustom();
           marqueeRef.current = { start: camera.projectClientPoint(event), additive: event.ctrlKey || event.metaKey || event.shiftKey ? session.selection : [] };
           event.currentTarget.setPointerCapture(event.pointerId);

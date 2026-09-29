@@ -355,7 +355,7 @@ export function useDeskSpatialLayout({
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
     if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
-    if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
+    if (event.button !== 0 || (event.pointerType === 'touch' ? !allowTouch : !event.shiftKey) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
     camera.enterCustom();
     const point = camera.projectClientPoint(event);
     marqueeRef.current = {

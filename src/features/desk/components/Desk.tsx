@@ -49,6 +49,7 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { DeskContextRail } from './DeskContextRail';
+import { DeskQuickActions } from './DeskQuickActions';
 import { DeskOverviewSurface } from './DeskOverviewSurface';
 import { FocusedWorkSurface } from './FocusedWorkSurface';
 import { DeskDialogs } from './DeskDialogs';
@@ -509,6 +510,18 @@ export function Desk({
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
         statusContent={<>
+          <DeskQuickActions
+            depth={contextDepth}
+            selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
+            onFitWork={contextDepth === 'desk' ? deskCamera.fit : undefined}
+            onFitSelection={contextDepth === 'desk' ? deskCamera.fitSelection : undefined}
+            onSelectShown={contextDepth === 'set' && visibleCards.length ? () => setSelectedCardIds((current) => [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]) : undefined}
+            onClearSelection={contextDepth === 'desk'
+              ? () => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))
+              : contextDepth === 'set'
+                ? () => setSelectedCardIds([])
+                : undefined}
+          />
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${visibleWork.length} visible work`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
           <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} onClick={requestBrowserWorkspaceRecovery} title="Open browser workspace, recovery, and backup tools" />

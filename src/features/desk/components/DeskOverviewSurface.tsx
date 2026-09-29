@@ -297,10 +297,11 @@ export function DeskOverviewSurface(props: DeskOverviewSurfaceProps) {
         onPointerCancelCapture={props.camera.onPointerCancelCapture}
         onClickCapture={props.camera.onClickCapture}
         onContextMenu={props.camera.onContextMenu}
-        onPointerDown={props.focusedItemId ? undefined : (event) => props.beginMarquee(event, true)}
+        onPointerDown={props.focusedItemId ? undefined : (event) => { if (event.pointerType !== 'touch' && event.shiftKey) props.beginMarquee(event); }}
         onPointerMove={props.focusedItemId ? undefined : props.moveMarquee}
         onPointerUp={props.focusedItemId ? undefined : props.endMarquee}
         onPointerCancel={props.focusedItemId ? undefined : props.endMarquee}
+        onKeyDown={props.camera.onKeyDown}
         tabIndex={props.focusedItemId ? -1 : 0}
         aria-label={props.focusedItemId ? undefined : 'Desk viewport. Swipe or scroll to explore your spatial Desk.'}
       >
