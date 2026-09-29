@@ -198,9 +198,22 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     observer.current = new ResizeObserver(refresh);
     for (const slot of slots.current.values()) observer.current.observe(slot.node);
     const onScroll = () => { directUntil.current = performance.now() + 180; refresh(); };
-    const onWheel = () => { directUntil.current = performance.now() + 180; };
-    const onPointerDown = () => { dragging.current = true; };
-    const onPointerUp = () => { dragging.current = false; };
+    const onWheel = () => {
+      directUntil.current = performance.now() + 180;
+      refresh();
+    };
+    const onPointerDown = () => {
+      dragging.current = true;
+      directUntil.current = performance.now() + 180;
+      // Presentation yields immediately to direct manipulation. This makes a
+      // card interruptible even if a stack→board/focus transition is still
+      // settling when the user touches it.
+      refresh();
+    };
+    const onPointerUp = () => {
+      dragging.current = false;
+      directUntil.current = performance.now() + 180;
+    };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('resize', refresh);
