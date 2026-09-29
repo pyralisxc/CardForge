@@ -226,7 +226,7 @@ export interface SpatialResolvedPointerStart {
 
 export type SpatialPointerTargetResolution = {
   target?: HTMLElement;
-  onTap: () => void;
+  onTap: (at: number) => void;
   allowHold?: boolean;
 } | null;
 export type SpatialPointerTargetResolver = (
@@ -435,7 +435,7 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
       const resolvedTap = mode === 'pending' ? state?.resolution : null;
       if (pinchFrame.current !== null) projectPinch();
       if (resolvedTap) {
-        resolvedTap.onTap();
+        resolvedTap.onTap(event.timeStamp);
         suppressClick.current = true;
       }
       clearHold();

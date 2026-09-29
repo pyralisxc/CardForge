@@ -253,8 +253,8 @@ export function FocusedSetArtifactSurface({
     return {
       target: nearest.target,
       allowHold: true,
-      onTap: () => {
-        if (artifactId) handleTouchTap(artifactId, point, range, additive);
+      onTap: (at) => {
+        if (artifactId) handleTouchTap(artifactId, point, range, additive, at);
       },
     };
   };
@@ -386,13 +386,13 @@ export function FocusedSetArtifactSurface({
     point: { clientX: number; clientY: number },
     range: boolean,
     additive: boolean,
+    at: number,
   ) {
     const previous = touchTapRef.current;
-    const now = performance.now();
     if (
       previous
       && previous.artifactId === artifactId
-      && now - previous.at <= 360
+      && at - previous.at <= 360
       && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= 28
     ) {
       touchTapRef.current = null;
@@ -400,7 +400,7 @@ export function FocusedSetArtifactSurface({
       return;
     }
     toggleArtifact(artifactId, range, additive);
-    touchTapRef.current = { artifactId, x: point.clientX, y: point.clientY, at: now };
+    touchTapRef.current = { artifactId, x: point.clientX, y: point.clientY, at };
   }
 
   const browseFocusedArtifact = (direction: ArtifactBrowseDirection) => {
@@ -577,6 +577,7 @@ export function FocusedSetArtifactSurface({
         { clientX: event.clientX, clientY: event.clientY },
         event.shiftKey,
         event.metaKey || event.ctrlKey,
+        event.timeStamp,
       );
       suppressedClickRef.current = drag.artifactId;
     }
