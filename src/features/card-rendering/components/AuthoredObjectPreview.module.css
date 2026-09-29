@@ -55,7 +55,7 @@
   block-size: 100%;
   padding-block-end: 0 !important;
 }
-.stack[data-physical-scale='true'] .card[data-card-position='1'] { transform: translate(-6%, 3%); }
-.stack[data-physical-scale='true'] .card[data-card-position='2'] { transform: translate(6%, 4%); }
-.stack[data-physical-scale='true'] .card[data-card-position='3'] { transform: translate(-10%, 7%); }
-.stack[data-physical-scale='true'] .card[data-card-position='4'] { transform: translate(10%, 8%); }
+.stack[data-physical-scale='true'] .card[data-card-position='1'] { transform: translate(-20%, 5%); }
+.stack[data-physical-scale='true'] .card[data-card-position='2'] { transform: translate(20%, 6%); }
+.stack[data-physical-scale='true'] .card[data-card-position='3'] { transform: translate(-38%, 12%); }
+.stack[data-physical-scale='true'] .card[data-card-position='4'] { transform: translate(38%, 13%); }

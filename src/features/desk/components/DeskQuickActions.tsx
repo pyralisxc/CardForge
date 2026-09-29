@@ -48,10 +48,8 @@ const DesktopGuide = ({ depth }: { depth: DeskQuickActionsDepth }) => (
 export function DeskQuickActions({ depth, selectedCount, multiSelectActive = false, onMultiSelectChange, onFitWork, onFitSelection, onSelectShown, onClearSelection }: DeskQuickActionsProps) {
   return <Popover>
     <PopoverTrigger asChild>
-      <Button type="button" size="sm" variant="ghost" className="h-8 min-h-8 shrink-0 gap-1.5 px-2 text-xs" aria-label="Quick actions">
-        <Zap className="h-3.5 w-3.5" aria-hidden="true" />Quick actions
-        {multiSelectActive ? <span className="rounded border border-[var(--cf-accent-strong)] px-1.5 py-0.5 text-[10px] text-[var(--cf-accent-strong)]">Selecting</span> : null}
-        {selectedCount > 0 ? <span className="rounded border border-[var(--cf-border-subtle)] px-1.5 py-0.5 text-[10px]">{selectedCount} selected</span> : null}
+      <Button type="button" size="sm" variant="ghost" className="h-11 min-h-11 shrink-0 gap-1.5 px-2 text-xs" aria-label="Quick actions">
+        <Zap className="h-3.5 w-3.5" aria-hidden="true" />Actions
       </Button>
     </PopoverTrigger>
     <PopoverContent side="top" align="start" className="w-[min(38rem,calc(100vw-1rem))] p-0" aria-label="Desk quick actions">
