@@ -308,7 +308,7 @@ export function useArtifactFaces() {
   return [scene?.faces ?? faces, scene?.setFace ?? setFace] as const;
 }
 
-export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel, interactionOverlay }: {
+export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel, interactionOverlay, suppressSettledPixels = false }: {
   card: DisplayCard;
   face?: CardFace;
   depth: Depth;
@@ -319,6 +319,8 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   watermark?: boolean;
   flipLabel?: string;
   interactionOverlay?: ReactNode;
+  /** Keep the slot registered/measured while another depth owns visible pixels. */
+  suppressSettledPixels?: boolean;
 }) {
   const scene = useContext(RegistryContext);
   const id = useId();
@@ -361,7 +363,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
         : {}),
     } as React.CSSProperties}
   >
-    {inlineSettled ? depth === 'stack' ? <span
+    {inlineSettled && !suppressSettledPixels ? depth === 'stack' ? <span
       data-scene-inline-stack-pixels
       style={{
         position: 'relative',

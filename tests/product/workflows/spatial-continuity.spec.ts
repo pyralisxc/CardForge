@@ -126,6 +126,7 @@ test.describe('persistent Artifact scene', () => {
       });
     });
     await set.press('Enter');
+    await expect(page.locator('[data-desk-set-stack] [data-scene-inline-stack-pixels]')).toHaveCount(0);
     const trajectory = await page.evaluate(() => (window as unknown as { trajectory: Promise<Array<{ x: number; y: number; connected: boolean }>> }).trajectory);
     await testInfo.attach('opening-trajectory', { body: JSON.stringify(trajectory), contentType: 'application/json' });
     expect(trajectory.every((sample) => sample.connected)).toBe(true);
