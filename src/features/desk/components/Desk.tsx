@@ -352,8 +352,11 @@ export function Desk({
   const contextDepth = creatorSurface.depth;
   const presentation = creatorSurface.presentation;
   useEffect(() => {
+    setTouchMultiSelect(false);
+  }, [focusedLocalSetId]);
+  useEffect(() => {
     if (contextDepth !== 'set') setTouchMultiSelect(false);
-  }, [contextDepth, focusedLocalSetId]);
+  }, [contextDepth]);
 
   const toolName = storageOpen ? 'Locations & connections'
     : remoteWorkspaceItem?.references.campaignId ? 'Campaign workspace'
