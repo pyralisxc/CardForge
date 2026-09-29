@@ -7,7 +7,6 @@ const pixel7 = devices['Pixel 7'];
 const pixel7Context = {
   userAgent: pixel7.userAgent,
   viewport: pixel7.viewport,
-  screen: pixel7.screen,
   deviceScaleFactor: pixel7.deviceScaleFactor,
   isMobile: pixel7.isMobile,
   hasTouch: pixel7.hasTouch,
