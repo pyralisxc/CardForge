@@ -135,7 +135,7 @@ test.describe('spatial touch workspace', () => {
     expect((await stage.boundingBox())!.height).toBeGreaterThan(420);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 2)).toBe(true);
     await expect(stage).toHaveAttribute('data-camera-mode', 'fit-work');
-    const card = page.locator('button[data-artifact-id="scale-card-1"]');
+    const card = page.locator('[data-artifact-world] button[data-artifact-id="scale-card-1"]');
     const tile = card.locator('..');
     const originalPosition = await tile.getAttribute('style');
     const cardPoint = await center(card);

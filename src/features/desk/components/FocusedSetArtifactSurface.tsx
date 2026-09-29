@@ -115,6 +115,7 @@ export function FocusedSetArtifactSurface({
   const dragRef = useRef<DragState | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const suppressedClickRef = useRef<string | null>(null);
+  const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -238,6 +239,7 @@ export function FocusedSetArtifactSurface({
         return {
           allowHold: false,
           onTap: () => {
+            touchTapRef.current = null;
             const cameraApi = cameraApiRef.current;
             if (cameraApi) cameraApi.changeZoom(cameraApi.camera.zoom * multiplier, point);
           },
@@ -252,7 +254,7 @@ export function FocusedSetArtifactSurface({
       target: nearest.target,
       allowHold: true,
       onTap: () => {
-        if (artifactId) toggleArtifact(artifactId, range, additive);
+        if (artifactId) handleTouchTap(artifactId, point, range, additive);
       },
     };
   };
@@ -365,6 +367,7 @@ export function FocusedSetArtifactSurface({
   };
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
+    touchTapRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
@@ -377,6 +380,28 @@ export function FocusedSetArtifactSurface({
     onFocusArtifact(focusCreatorArtifact(selectedSession, artifactId));
     setNavigatorFocusId(artifactId);
   };
+
+  function handleTouchTap(
+    artifactId: string,
+    point: { clientX: number; clientY: number },
+    range: boolean,
+    additive: boolean,
+  ) {
+    const previous = touchTapRef.current;
+    const now = performance.now();
+    if (
+      previous
+      && previous.artifactId === artifactId
+      && now - previous.at <= 360
+      && Math.hypot(point.clientX - previous.x, point.clientY - previous.y) <= 28
+    ) {
+      touchTapRef.current = null;
+      focusArtifact(artifactId);
+      return;
+    }
+    toggleArtifact(artifactId, range, additive);
+    touchTapRef.current = { artifactId, x: point.clientX, y: point.clientY, at: now };
+  }
 
   const browseFocusedArtifact = (direction: ArtifactBrowseDirection) => {
     if (!artifactFocusId) return;
@@ -540,13 +565,19 @@ export function FocusedSetArtifactSurface({
     stopEdgePan();
     dragRef.current = null;
     if (drag.moved) {
+      touchTapRef.current = null;
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
       // Touch UAs synthesize click after pointerup, and that click can arrive
       // after the Set rerenders. Commit the tap selection here and suppress the
       // synthetic click so it cannot toggle the same Artifact back off.
-      toggleArtifact(drag.artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+      handleTouchTap(
+        drag.artifactId,
+        { clientX: event.clientX, clientY: event.clientY },
+        event.shiftKey,
+        event.metaKey || event.ctrlKey,
+      );
       suppressedClickRef.current = drag.artifactId;
     }
     setDragPreview({});
@@ -556,6 +587,7 @@ export function FocusedSetArtifactSurface({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
+    touchTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     setDragPreview({});
