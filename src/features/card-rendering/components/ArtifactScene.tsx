@@ -266,7 +266,7 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
             key={item.card.uniqueId}
             item={item}
             origin={origin}
-            immediate={firstDeskStack || Boolean(reducedMotion) || (immediate && previous === item.depth)}
+            immediate={Boolean(reducedMotion) || (immediate && previous === item.depth)}
             inlineSettled={inlineSettled}
             onFlip={setFace}
             onSettled={markSettled}

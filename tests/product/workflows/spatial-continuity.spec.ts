@@ -97,7 +97,13 @@ test.describe('persistent Artifact scene', () => {
     await expect(visual).toHaveAttribute('data-scene-depth', 'stack');
     await expect(deskStack).toHaveCount(5);
     await expect(deskStack.first()).toBeVisible();
-    await expect(deskStack).not.toHaveAttribute('data-scene-moving', 'true');
+    await expect.poll(async () => {
+      const positions = await deskStack.evaluateAll((cards) => cards.map((card) => {
+        const rect = card.getBoundingClientRect();
+        return `${Math.round(rect.x)},${Math.round(rect.y)}`;
+      }));
+      return new Set(positions).size;
+    }).toBeGreaterThan(2);
     const original = await visual.elementHandle();
     expect(original).not.toBeNull();
     await expect.poll(async () => {
