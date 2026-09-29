@@ -103,10 +103,10 @@ function SceneArtifactFrame({ item, origin, immediate, inlineSettled, onFlip, on
   </motion.div>;
 }
 
-/** The scene owns travelling pixels; settled slots own visible pixels in place.
- * A card keeps stable Artifact identity while its highest-depth slot supplies
- * transition geometry. Native scrolling is measured in one viewport coordinate
- * system, not copied into another navigation or persistence store.
+/** The scene owns pixels. Slots own accessible controls and responsive layout only.
+ * A card keeps its React/DOM identity while its highest-depth slot moves it.
+ * Native scrolling is measured in one viewport coordinate system, not copied
+ * into another navigation or persistence store.
  */
 export function ArtifactScene({ children, activeSetId }: { children: ReactNode; activeSetId: string | null }) {
   const slots = useRef(new Map<string, SceneSlot>());
@@ -198,22 +198,9 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     observer.current = new ResizeObserver(refresh);
     for (const slot of slots.current.values()) observer.current.observe(slot.node);
     const onScroll = () => { directUntil.current = performance.now() + 180; refresh(); };
-    const onWheel = () => {
-      directUntil.current = performance.now() + 180;
-      refresh();
-    };
-    const onPointerDown = () => {
-      dragging.current = true;
-      directUntil.current = performance.now() + 180;
-      // Presentation yields immediately to direct manipulation. This makes a
-      // card interruptible even if a stack→board/focus transition is still
-      // settling when the user touches it.
-      refresh();
-    };
-    const onPointerUp = () => {
-      dragging.current = false;
-      directUntil.current = performance.now() + 180;
-    };
+    const onWheel = () => { directUntil.current = performance.now() + 180; };
+    const onPointerDown = () => { dragging.current = true; };
+    const onPointerUp = () => { dragging.current = false; };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('resize', refresh);
@@ -269,19 +256,17 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     <div data-artifact-scene style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 21 }}>
       <AnimatePresence custom={activeSetId}>
         {projections.map((item) => {
-          const origin = inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
-          const settledDepth = settledDepths[item.card.uniqueId];
-          // A Desk stack has no previous travelling destination on first load,
-          // so its truthful preview can render inline immediately. After a real
-          // board/focus/edit journey, stack waits for the reverse travel to
-          // settle before taking pixels back.
-          const inlineSettled = settledDepth === item.depth
-            || (item.depth === 'stack' && settledDepth === undefined);
+          const previous = previousDepth.current.get(item.card.uniqueId);
+          const firstDeskStack = item.depth === 'stack' && previous === undefined;
+          const origin = firstDeskStack
+            ? item
+            : inlineOrigins.current.get(item.card.uniqueId) ?? origins.current.get(item.setId) ?? item;
+          const inlineSettled = item.depth !== 'stack' && settledDepths[item.card.uniqueId] === item.depth;
           return <SceneArtifactFrame
             key={item.card.uniqueId}
             item={item}
             origin={origin}
-            immediate={Boolean(reducedMotion) || (immediate && previousDepth.current.get(item.card.uniqueId) === item.depth)}
+            immediate={firstDeskStack || Boolean(reducedMotion) || (immediate && previous === item.depth)}
             inlineSettled={inlineSettled}
             onFlip={setFace}
             onSettled={markSettled}
@@ -308,7 +293,7 @@ export function useArtifactFaces() {
   return [scene?.faces ?? faces, scene?.setFace ?? setFace] as const;
 }
 
-export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel, interactionOverlay, suppressSettledPixels = false }: {
+export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?? '', width, rotation = 0, order = 0, watermark = false, flipLabel, interactionOverlay }: {
   card: DisplayCard;
   face?: CardFace;
   depth: Depth;
@@ -319,8 +304,6 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   watermark?: boolean;
   flipLabel?: string;
   interactionOverlay?: ReactNode;
-  /** Keep the slot registered/measured while another depth owns visible pixels. */
-  suppressSettledPixels?: boolean;
 }) {
   const scene = useContext(RegistryContext);
   const id = useId();
@@ -329,11 +312,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
   const resolvedSetId = setId || scene?.activeSetId || '';
   const template = getCardFaceTemplate(card, persistentFace);
   const geometry = getCardPreviewLayout({ targetWidthPx: width, aspectRatio: template.aspectRatio, canvas: getCardFaceCanvas(card, persistentFace), isPrintMode: false });
-  const settledDepth = scene?.settledDepths[card.uniqueId];
-  const inlineSettled = Boolean(scene && (
-    settledDepth === depth
-    || (depth === 'stack' && settledDepth === undefined)
-  ));
+  const inlineSettled = Boolean(scene && depth !== 'stack' && scene.settledDepths[card.uniqueId] === depth);
   const inlineBoard = inlineSettled && depth === 'board';
   const register = scene?.register;
   const refresh = scene?.refresh;
@@ -363,20 +342,7 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
         : {}),
     } as React.CSSProperties}
   >
-    {inlineSettled && !suppressSettledPixels ? depth === 'stack' ? <span
-      data-scene-inline-stack-pixels
-      style={{
-        position: 'relative',
-        display: 'block',
-        width,
-        height: geometry.visualHeightPx,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-        transformOrigin: '50% 80%',
-      }}
-    >
-      <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
-      {watermark ? <CardWatermarkOverlay /> : null}
-    </span> : <>
+    {inlineSettled ? <>
       <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
       {watermark ? <CardWatermarkOverlay /> : null}
       <span

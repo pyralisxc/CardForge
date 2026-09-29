@@ -92,15 +92,12 @@ test.describe('persistent Artifact scene', () => {
   test('@golden carries the same artifact node from stack through editing and back', async ({ page }, testInfo) => {
     await seedGuestScaleWorkspace(page, 100, { staleToolTemplate: true });
     await page.goto('/account', { waitUntil: 'domcontentloaded' });
-    const inlineStack = page.locator('[data-desk-set-stack] [data-scene-slot-depth="stack"][data-scene-inline-settled="stack"]');
-    await expect(inlineStack).toHaveCount(5);
-    await expect(inlineStack.first()).toBeVisible();
-    await expect(inlineStack.first().locator('[data-scene-inline-stack-pixels]')).toBeVisible();
-
     const visual = page.locator('[data-scene-artifact="scale-card-1"]');
+    const deskStack = page.locator('[data-scene-depth="stack"]');
     await expect(visual).toHaveAttribute('data-scene-depth', 'stack');
-    await expect(visual).toBeHidden();
-    await expect(page.locator('[data-scene-depth="stack"]')).toHaveCount(5);
+    await expect(deskStack).toHaveCount(5);
+    await expect(deskStack.first()).toBeVisible();
+    await expect(deskStack).not.toHaveAttribute('data-scene-moving', 'true');
     const original = await visual.elementHandle();
     expect(original).not.toBeNull();
     await expect.poll(async () => {
@@ -126,7 +123,6 @@ test.describe('persistent Artifact scene', () => {
       });
     });
     await set.press('Enter');
-    await expect(page.locator('[data-desk-set-stack] [data-scene-inline-stack-pixels]')).toHaveCount(0);
     const trajectory = await page.evaluate(() => (window as unknown as { trajectory: Promise<Array<{ x: number; y: number; connected: boolean }>> }).trajectory);
     await testInfo.attach('opening-trajectory', { body: JSON.stringify(trajectory), contentType: 'application/json' });
     expect(trajectory.every((sample) => sample.connected)).toBe(true);

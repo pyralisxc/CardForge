@@ -301,14 +301,11 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         return;
       }
       suppressClick.current = false;
-      const objectTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id], button[id^="set-"]');
-      const target = objectTarget ?? event.currentTarget;
+      const target = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id], button[id^="set-"]') ?? event.currentTarget;
       const immediate = event.currentTarget.dataset.arrangeMode === 'true';
       gesture.current = { start: point, last: point, mode: immediate ? 'drag' : 'pending', target };
-      // Spatial objects own authored-move capture in their direct handlers.
-      // The viewport captures only background gestures so tap/hold state is not
-      // invalidated by two owners competing for the same pointer.
-      if (!objectTarget) target.setPointerCapture(event.pointerId);
+      // Descendant object handlers may replace capture to retain their own target.
+      target.setPointerCapture(event.pointerId);
       if (allowHold && !immediate) holdTimer.current = setTimeout(() => {
         if (gesture.current?.mode !== 'pending') return;
         gesture.current.mode = 'drag';
