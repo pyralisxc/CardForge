@@ -236,11 +236,11 @@ export function FocusedSetArtifactSurface({
     }
     return nearest.target;
   }, []);
-  const onResolvedPointerDown = useCallback((target: HTMLElement, event: ReactPointerEvent<HTMLDivElement>) => {
+  const onResolvedPointerDown = (target: HTMLElement, event: ReactPointerEvent<HTMLDivElement>) => {
     const artifactId = target.dataset.artifactId;
     const entry = artifactId ? entryById.get(artifactId) : null;
     if (entry) beginArtifactMoveFromPointer(entry, event, target);
-  }, [entryById]);
+  };
 
   const camera = useSetSpatialCamera({
     resetKey: setId,
