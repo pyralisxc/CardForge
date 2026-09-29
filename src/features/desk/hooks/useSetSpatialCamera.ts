@@ -235,6 +235,7 @@ export function useSetSpatialCamera({
     changeZoom,
     panByScreen,
     cancelDrag: onCancelDrag,
+    interruptMotion: stopAnimation,
     disabled,
   });
 
