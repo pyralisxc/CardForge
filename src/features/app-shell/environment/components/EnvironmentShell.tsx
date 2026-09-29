@@ -30,6 +30,7 @@ interface EnvironmentShellProps {
   contextBand?: ReactNode;
   presentation: EnvironmentPresentation;
   statusContent: ReactNode;
+  persistentStatusContent?: ReactNode;
   footerContent: ReactNode;
   surfaceRef?: MutableRefObject<HTMLElement | null>;
   primaryScroll?: 'page' | 'contained';
@@ -40,7 +41,7 @@ interface EnvironmentShellProps {
   onActiveZoneNavigate?: () => void;
 }
 
-export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
+export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, viewportPolicy, detail, actionContext = null, detailVisual, detailContent, actions, focusReturnId, primaryDisabledReason, showPrimaryAction = true, search, accountControl, contextBand, presentation, statusContent, persistentStatusContent, footerContent, surfaceRef, primaryScroll = 'page', children, onCommand, onAction, onCloseDetail, onActiveZoneNavigate }: EnvironmentShellProps) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const ownedSurfaceRef = useRef<HTMLElement | null>(null);
@@ -90,6 +91,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         data-viewport={viewportPolicy}
         data-focus-depth={presentation.focusDepth}
         data-presentation-mode={presentation.mode}
+        data-has-persistent-status={Boolean(persistentStatusContent)}
       >
         <EnvironmentNavigation zones={zones} activeZone={activeZone} brand={brand} onActiveZoneNavigate={onActiveZoneNavigate} mobilePersistent={mobileNavigationPersistent} />
         <div className={styles.commandStack}>
@@ -98,6 +100,7 @@ export function EnvironmentShell({ ariaLabel, brand, viewer, zones, activeZone, 
         <main ref={resolvedSurfaceRef} className={styles.primarySurface} data-scene-viewport data-scroll={primaryScroll}>{children}</main>
         {detail && !mobileDetail ? <EnvironmentDesktopInspector record={detail} visual={detailVisual} content={detailContent} actions={visibleActions} onClose={onCloseDetail} onAction={onAction} /> : null}
         <footer className={`${styles.statusBar} max-md:!flex max-md:!min-h-10 max-md:!gap-2 max-md:!overflow-hidden max-md:!px-2 max-md:!py-1`} aria-label="Environment status">
+          {persistentStatusContent ? <div className={styles.persistentStatus}>{persistentStatusContent}</div> : null}
           <div className={`${styles.statusItems} max-md:!gap-3 max-md:flex-1 max-md:overflow-x-auto max-md:whitespace-nowrap`}>{statusContent}</div>
           <div className={`${styles.selectionDock} max-md:hidden`}>{footerContent}</div>
         </footer>

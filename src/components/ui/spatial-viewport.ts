@@ -214,17 +214,31 @@ export const scrollSpatialViewportProgrammatically = ({
 
   return cancel;
 };
-export type SpatialPointerTargetResolution = HTMLElement | 'handled' | null;
+export interface SpatialResolvedPointerStart {
+  button: number;
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}
+
+export type SpatialPointerTargetResolution = {
+  target?: HTMLElement;
+  onTap: () => void;
+  allowHold?: boolean;
+} | null;
 export type SpatialPointerTargetResolver = (
   point: SpatialPoint,
   event: ReactPointerEvent<HTMLDivElement>,
 ) => SpatialPointerTargetResolution;
 export type SpatialResolvedPointerDownHandler = (
   target: HTMLElement,
-  event: ReactPointerEvent<HTMLDivElement>,
+  event: SpatialResolvedPointerStart,
 ) => void;
 
-type Gesture = { start: SpatialPoint; last: SpatialPoint; mode: 'pending' | 'drag' | 'pan' | 'pinch' | 'clarify'; target: HTMLElement };
+type Gesture = { start: SpatialPoint; last: SpatialPoint; mode: 'pending' | 'drag' | 'pan' | 'pinch'; target: HTMLElement; resolution: SpatialPointerTargetResolution; startEvent?: SpatialResolvedPointerStart };
 
 export const getSpatialDirectionForKey = (key: string): 'up' | 'down' | 'left' | 'right' | null => {
   const normalized = key.length === 1 ? key.toLocaleLowerCase() : key;
@@ -317,6 +331,15 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
   useEffect(() => () => { clearHold(); if (pinchFrame.current !== null) cancelAnimationFrame(pinchFrame.current); }, []);
 
   const stop = (event: ReactPointerEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); };
+  const pointerStart = (event: ReactPointerEvent<HTMLDivElement>): SpatialResolvedPointerStart => ({
+    button: event.button,
+    pointerId: event.pointerId,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    shiftKey: event.shiftKey,
+    metaKey: event.metaKey,
+    ctrlKey: event.ctrlKey,
+  });
   return {
     onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (disabled || !originatesInsideViewport(event)) return;
@@ -327,7 +350,7 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         const openFieldPan = event.button === 0 && !event.shiftKey && !isSpatialInteractiveTarget(event.target);
         if (!middlePan && !openFieldPan) return;
         points.current.set(event.pointerId, point);
-        gesture.current = { start: point, last: point, mode: 'pan', target: event.currentTarget };
+        gesture.current = { start: point, last: point, mode: 'pan', target: event.currentTarget, resolution: null };
         event.currentTarget.setPointerCapture(event.pointerId);
         stop(event);
         return;
@@ -343,23 +366,32 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         stop(event);
         return;
       }
+
       suppressClick.current = false;
-      const actualTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id], button[id^="set-"]');
       const resolution = current.current.resolvePointerTarget?.(point, event) ?? null;
-      if (resolution === 'handled') {
-        gesture.current = { start: point, last: point, mode: 'clarify', target: event.currentTarget };
+      if (resolution) {
+        const target = resolution.target ?? event.currentTarget;
+        const startEvent = pointerStart(event);
+        gesture.current = { start: point, last: point, mode: 'pending', target, resolution, startEvent };
         event.currentTarget.setPointerCapture(event.pointerId);
-        suppressClick.current = true;
+        if (resolution.target) target.setAttribute('data-spatial-acquired', 'true');
+        if (allowHold && resolution.target && resolution.allowHold !== false) holdTimer.current = setTimeout(() => {
+          const state = gesture.current;
+          if (!state || state.mode !== 'pending' || !state.resolution?.target || !state.startEvent) return;
+          state.mode = 'drag';
+          state.target.setAttribute('data-spatial-held', 'true');
+          current.current.onResolvedPointerDown?.(state.target, state.startEvent);
+          state.target.setPointerCapture(state.startEvent.pointerId);
+        }, 350);
+        // Resolved acquisition owns this pointer until it becomes a pan, hold-drag,
+        // pinch, or completed tap. Descendant handlers must not also start a move.
         stop(event);
         return;
       }
-      const target = resolution instanceof HTMLElement ? resolution : actualTarget ?? event.currentTarget;
-      if (resolution instanceof HTMLElement && resolution !== actualTarget) {
-        target.setAttribute('data-spatial-acquired', 'true');
-        current.current.onResolvedPointerDown?.(target, event);
-      }
+
+      const target = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id], button[id^="set-"]') ?? event.currentTarget;
       const immediate = event.currentTarget.dataset.arrangeMode === 'true';
-      gesture.current = { start: point, last: point, mode: immediate ? 'drag' : 'pending', target };
+      gesture.current = { start: point, last: point, mode: immediate ? 'drag' : 'pending', target, resolution: null, startEvent: pointerStart(event) };
       // Descendant object handlers may replace capture to retain their own target.
       target.setPointerCapture(event.pointerId);
       if (allowHold && !immediate) holdTimer.current = setTimeout(() => {
@@ -381,7 +413,7 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
         stop(event);
         return;
       }
-      if (state.mode === 'pinch' || state.mode === 'clarify') { stop(event); return; }
+      if (state.mode === 'pinch') { stop(event); return; }
       if (state.mode === 'pending' && Math.hypot(point.clientX - state.start.clientX, point.clientY - state.start.clientY) > 8) {
         clearHold();
         state.mode = 'pan';
@@ -398,18 +430,26 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen,
     },
     onPointerUpCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (disabled || !points.current.has(event.pointerId)) return;
-      const mode = gesture.current?.mode;
+      const state = gesture.current;
+      const mode = state?.mode;
+      const resolvedTap = mode === 'pending' ? state?.resolution : null;
       if (pinchFrame.current !== null) projectPinch();
+      if (resolvedTap) {
+        resolvedTap.onTap();
+        suppressClick.current = true;
+      }
       clearHold();
       points.current.delete(event.pointerId);
-      const target = gesture.current?.target;
-      if (!points.current.size) { gesture.current = null; initialPinch.current = null; }
+      const target = state?.target;
       target?.removeAttribute('data-spatial-acquired');
-      if (mode === 'pinch' || mode === 'pan' || mode === 'clarify') stop(event);
+      if (!points.current.size) { gesture.current = null; initialPinch.current = null; }
+      if (mode === 'pinch' || mode === 'pan' || resolvedTap) stop(event);
     },
     onPointerCancelCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!points.current.has(event.pointerId)) return;
+      const target = gesture.current?.target;
       clearHold();
+      target?.removeAttribute('data-spatial-acquired');
       if (pinchFrame.current !== null) cancelAnimationFrame(pinchFrame.current);
       pinchFrame.current = null;
       initialPinch.current = null;

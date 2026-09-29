@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Minus, Plus, Redo2, RefreshCcw, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { SpatialResolvedPointerStart } from '@/components/ui/spatial-viewport';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
 import type { CardFace, CardSetOrganization } from '@/domain/cards';
 import { getCardFaceCanvas, getCardPhysicalSizeMm, getCardPreviewLayout, hasCardBacking, type DisplayCard } from '@/domain/rendering';
@@ -77,6 +78,7 @@ type SpatialHistoryEntry = {
 const MAX_SPATIAL_HISTORY = 50;
 const ARTIFACT_THUMBNAIL_IMAGE_SCREEN_WIDTH = 32;
 const TOUCH_ACQUISITION_RADIUS = 24;
+const TOUCH_DIRECT_TARGET_MIN = 32;
 const TOUCH_AMBIGUITY_DISTANCE = 7;
 const TOUCH_CLARITY_SEPARATION = 44;
 
@@ -198,10 +200,15 @@ export function FocusedSetArtifactSurface({
   }, [setSession]);
 
   const cameraApiRef = useRef<ReturnType<typeof useSetSpatialCamera> | null>(null);
-  const resolvePointerTarget = useCallback((point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button[data-artifact-id]')) return null;
+  const resolvePointerTarget = (point: ClientPoint, event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch') return null;
     const stage = viewportRef.current;
     if (!stage) return null;
+    const directTarget = (event.target as HTMLElement).closest<HTMLElement>('button[data-artifact-id]');
+    if (directTarget) {
+      const directRect = directTarget.getBoundingClientRect();
+      if (Math.min(directRect.width, directRect.height) >= TOUCH_DIRECT_TARGET_MIN) return null;
+    }
     const candidates = Array.from(stage.querySelectorAll<HTMLElement>('button[data-artifact-id][data-viewport-visible="true"]')).flatMap((target) => {
       const rect = target.getBoundingClientRect();
       const dx = point.clientX < rect.left ? rect.left - point.clientX : point.clientX > rect.right ? point.clientX - rect.right : 0;
@@ -212,6 +219,7 @@ export function FocusedSetArtifactSurface({
     }).sort((left, right) => left.distance - right.distance);
     const nearest = candidates[0];
     if (!nearest) return null;
+
     const ambiguous = candidates.filter((candidate) => candidate.distance <= nearest.distance + TOUCH_AMBIGUITY_DISTANCE);
     if (ambiguous.length > 1) {
       let minimumSeparation = Number.POSITIVE_INFINITY;
@@ -226,17 +234,29 @@ export function FocusedSetArtifactSurface({
         }
       }
       if (minimumSeparation < TOUCH_CLARITY_SEPARATION) {
-        const cameraApi = cameraApiRef.current;
-        if (cameraApi) {
-          const multiplier = Math.min(1.8, Math.max(1.2, TOUCH_CLARITY_SEPARATION / Math.max(8, minimumSeparation)));
-          cameraApi.changeZoom(cameraApi.camera.zoom * multiplier, point);
-        }
-        return 'handled' as const;
+        const multiplier = Math.min(1.8, Math.max(1.2, TOUCH_CLARITY_SEPARATION / Math.max(8, minimumSeparation)));
+        return {
+          allowHold: false,
+          onTap: () => {
+            const cameraApi = cameraApiRef.current;
+            if (cameraApi) cameraApi.changeZoom(cameraApi.camera.zoom * multiplier, point);
+          },
+        };
       }
     }
-    return nearest.target;
-  }, []);
-  const onResolvedPointerDown = (target: HTMLElement, event: ReactPointerEvent<HTMLDivElement>) => {
+
+    const artifactId = nearest.target.dataset.artifactId;
+    const range = event.shiftKey;
+    const additive = event.metaKey || event.ctrlKey;
+    return {
+      target: nearest.target,
+      allowHold: true,
+      onTap: () => {
+        if (artifactId) toggleArtifact(artifactId, range, additive);
+      },
+    };
+  };
+  const onResolvedPointerDown = (target: HTMLElement, event: SpatialResolvedPointerStart) => {
     const artifactId = target.dataset.artifactId;
     const entry = artifactId ? entryById.get(artifactId) : null;
     if (entry) beginArtifactMoveFromPointer(entry, event, target);

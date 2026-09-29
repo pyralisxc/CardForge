@@ -509,19 +509,19 @@ export function Desk({
         presentation={presentation}
         focusReturnId={inspectorItem ? `set-info-${inspectorItem.id}` : undefined}
         surfaceRef={surfaceRef}
+        persistentStatusContent={<DeskQuickActions
+          depth={contextDepth}
+          selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
+          onFitWork={contextDepth === 'desk' ? deskCamera.fit : undefined}
+          onFitSelection={contextDepth === 'desk' ? deskCamera.fitSelection : undefined}
+          onSelectShown={contextDepth === 'set' && visibleCards.length ? () => setSelectedCardIds((current) => [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]) : undefined}
+          onClearSelection={contextDepth === 'desk'
+            ? () => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))
+            : contextDepth === 'set'
+              ? () => setSelectedCardIds([])
+              : undefined}
+        />}
         statusContent={<>
-          <DeskQuickActions
-            depth={contextDepth}
-            selectedCount={contextDepth === 'desk' ? selectedDeskIds.length : selectedCards.length}
-            onFitWork={contextDepth === 'desk' ? deskCamera.fit : undefined}
-            onFitSelection={contextDepth === 'desk' ? deskCamera.fitSelection : undefined}
-            onSelectShown={contextDepth === 'set' && visibleCards.length ? () => setSelectedCardIds((current) => [...new Set([...current, ...visibleCards.map((card) => card.uniqueId)])]) : undefined}
-            onClearSelection={contextDepth === 'desk'
-              ? () => setInteractionSession((current) => ({ ...current, deskSelection: [], deskSelectionAnchorId: null }))
-              : contextDepth === 'set'
-                ? () => setSelectedCardIds([])
-                : undefined}
-          />
           <EnvironmentStatus label={projection.isLoading ? 'Refreshing workspace' : `${visibleWork.length} visible work`} tone={projection.isLoading ? 'warning' : 'neutral'} />
           <EnvironmentStatus label={storageStatusLabel} icon={HardDrive} tone={storageNeedsAttention ? 'warning' : 'success'} onClick={() => setStorageOpen(true)} title="Open Locations & connections" />
           <EnvironmentStatus label={saveStatusLabel} tone={browserSaveStatus === 'failed' ? 'danger' : browserSaveStatus === 'saving' ? 'warning' : 'success'} onClick={requestBrowserWorkspaceRecovery} title="Open browser workspace, recovery, and backup tools" />

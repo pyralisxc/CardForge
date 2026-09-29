@@ -14,6 +14,7 @@ import {
   useSpatialGestures,
   type SpatialPoint as ClientSpatialPoint,
   type SpatialPointerTargetResolution,
+  type SpatialResolvedPointerStart,
 } from '@/components/ui/spatial-viewport';
 import {
   getSpatialEdgePanScreenVelocity,
@@ -74,7 +75,7 @@ export function useSetSpatialCamera({
   onCameraChange: (camera: SpatialCamera2D) => void;
   onCancelDrag?: () => void;
   resolvePointerTarget?: (point: ClientSpatialPoint, event: ReactPointerEvent<HTMLDivElement>) => SpatialPointerTargetResolution;
-  onResolvedPointerDown?: (target: HTMLElement, event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResolvedPointerDown?: (target: HTMLElement, event: SpatialResolvedPointerStart) => void;
 }) {
   const cameraRef = useRef<SpatialCamera2D>(camera);
   cameraRef.current = camera;
