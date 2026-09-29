@@ -152,7 +152,34 @@ test.describe('spatial touch workspace', () => {
     await expect(card).toBeVisible();
     await expect(tile).toHaveAttribute('style', originalPosition!);
     const start = await center(card);
+    await page.evaluate(() => {
+      const win = window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> };
+      win.__cardforgePointerTrace = [];
+      for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture', 'click'] as const) {
+        window.addEventListener(type, (event) => {
+        const target = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-artifact-id]') : null;
+        if (!target || target.dataset.artifactId !== 'scale-card-1') return;
+        const pointer = event as PointerEvent;
+        win.__cardforgePointerTrace?.push({
+          type,
+          pointerType: pointer.pointerType ?? null,
+          pointerId: pointer.pointerId ?? null,
+          button: pointer.button ?? null,
+          buttons: pointer.buttons ?? null,
+          connected: target.isConnected,
+          ariaPressed: target.getAttribute('aria-pressed'),
+          held: target.getAttribute('data-spatial-held'),
+          hasCapture: typeof target.hasPointerCapture === 'function' && Number.isFinite(pointer.pointerId) ? target.hasPointerCapture(pointer.pointerId) : null,
+          cameraMode: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-camera-mode') ?? null,
+          cameraZoom: document.querySelector('[data-desk-artifact-stage]')?.getAttribute('data-zoom') ?? null,
+        });
+        }, true);
+      }
+    });
     await touch('touchStart', [{ ...start, id: 3 }]);
+    await page.waitForTimeout(450);
+    const trace = await page.evaluate(() => (window as Window & { __cardforgePointerTrace?: Array<Record<string, unknown>> }).__cardforgePointerTrace ?? []);
+    console.log('CARDFORGE_MOBILE_HOLD_TRACE', JSON.stringify(trace));
     await expect(card).toHaveAttribute('data-spatial-held', 'true');
     await touch('touchMove', [{ x: start.x + 45, y: start.y + 50, id: 3 }]);
     await touch('touchEnd', []);
