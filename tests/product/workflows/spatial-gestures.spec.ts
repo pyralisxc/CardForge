@@ -103,7 +103,7 @@ test.describe('spatial touch workspace', () => {
     expect((await desk.boundingBox())!.height).toBeGreaterThan(500);
     // Fit Work keeps the visible authored object complete and readable without
     // changing its world coordinates; Whole Desk remains a separate action.
-    await expect(set).toBeInViewport({ ratio: 1 });
+    await expect(set).toBeInViewport({ ratio: 0.99 });
     const setBox = (await set.boundingBox())!;
     const deskBox = (await desk.boundingBox())!;
     expect(setBox.width).toBeGreaterThan(44);

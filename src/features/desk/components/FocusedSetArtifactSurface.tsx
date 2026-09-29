@@ -463,6 +463,12 @@ export function FocusedSetArtifactSurface({
     if (drag.moved) {
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
+    } else if (event.pointerType === 'touch') {
+      // Touch UAs synthesize click after pointerup, and that click can arrive
+      // after the Set rerenders. Commit the tap selection here and suppress the
+      // synthetic click so it cannot toggle the same Artifact back off.
+      toggleArtifact(drag.artifactId, event.shiftKey, event.metaKey || event.ctrlKey);
+      suppressedClickRef.current = drag.artifactId;
     }
     setDragPreview({});
   };

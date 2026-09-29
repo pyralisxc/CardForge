@@ -328,7 +328,15 @@ export function ArtifactSlot({ card, face = 'front', depth, setId = card.setId ?
     data-scene-slot-depth={depth}
     data-scene-inline-board={inlineBoard ? 'true' : 'false'}
     data-scene-inline-settled={inlineSettled ? depth : undefined}
-    style={{ position: 'relative', display: 'block', width, height: geometry.visualHeightPx }}
+    style={{
+      position: 'relative',
+      display: 'block',
+      width,
+      height: geometry.visualHeightPx,
+      ...(inlineSettled && interactionOverlay
+        ? { '--artifact-hit-scale': 1 / Math.max(geometry.visualScale, 0.001) }
+        : {}),
+    } as React.CSSProperties}
   >
     {inlineSettled ? <>
       <CardPreview card={card} face={persistentFace} targetWidthPx={width} isEditorPreview interactionOverlay={interactionOverlay} />
