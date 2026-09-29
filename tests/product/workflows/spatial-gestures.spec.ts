@@ -214,8 +214,16 @@ test.describe('spatial touch workspace', () => {
     // Transform-camera travel is interruptible and owns no scroll surface.
     // Wait for the semantic Fit Work target before sampling object coordinates.
     await expect(stage).toHaveAttribute('data-relative-zoom', '1.00');
-    // Cancellation is an object-local gesture; exercise it while Fit Work keeps
-    // the moved card deliberately readable before changing camera semantics.
+    // Camera navigation never destroys selection. Object-local cancellation is a
+    // precision-manipulation contract, so bring the retained selection to a
+    // directly manipulable scale before exercising cancel/restore.
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Selection', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-camera-mode', 'fit-selection');
+    await expect.poll(async () => {
+      const bounds = await card.boundingBox();
+      return Boolean(bounds && Math.min(bounds.width, bounds.height) >= 32);
+    }).toBe(true);
     const cancelPoint = await center(card);
     await expect.poll(() => page.evaluate(({ x, y }) => (
       document.elementFromPoint(x, y)?.closest('button[data-artifact-id]')?.getAttribute('data-artifact-id') ?? null
