@@ -10,26 +10,66 @@ import {
   type RefObject,
   type UIEvent as ReactUIEvent,
 } from 'react';
+
+import { useSpatialGestures, type SpatialPoint as ClientSpatialPoint } from '@/components/ui/spatial-viewport';
 import {
-  getSpatialAnchoredZoomTarget,
-  getSpatialCenteredScroll,
-  projectSpatialScrollToWorldOrigin,
-  scrollSpatialViewportProgrammatically,
-  useSpatialGestures,
+  fitSpatialCameraToRect,
+  getSpatialEdgePanScreenVelocity,
+  projectSpatialScreenToWorld,
+  type SpatialCamera2D,
   type SpatialPoint,
-} from '@/components/ui/spatial-viewport';
+  type SpatialRect,
+} from '@/domain/spatial';
 
 import {
-  getDeskCameraGeometry,
-  getDeskFramingTarget,
   type DeskCameraMode,
   type DeskRect,
   type DeskWorldSize,
 } from '../model/deskSpatialGeometry';
 
-export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<typeof useSpatialGestures> & {
+const MIN_DESK_ZOOM = 0.04;
+const MAX_DESK_ZOOM = 4;
+const DESK_FIT_PADDING = 44;
+const DESK_WHOLE_PADDING = 24;
+const CAMERA_TRAVEL_MS = 240;
+
+const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
+const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
+const close = (a: number, b: number) => Math.abs(a - b) < 0.0001;
+
+const toSpatialRect = (bounds: DeskRect): SpatialRect => ({
+  x: bounds.left,
+  y: bounds.top,
+  width: Math.max(1, bounds.right - bounds.left),
+  height: Math.max(1, bounds.bottom - bounds.top),
+});
+
+const getWholeRect = (bounds: DeskRect | null, worldSize: DeskWorldSize): SpatialRect => {
+  const content = bounds ? toSpatialRect(bounds) : { x: 0, y: 0, width: 1, height: 1 };
+  const width = Math.max(Math.max(1, worldSize.width), content.width);
+  const height = Math.max(Math.max(1, worldSize.height), content.height);
+  const centerX = bounds ? (bounds.left + bounds.right) / 2 : 0;
+  const centerY = bounds ? (bounds.top + bounds.bottom) / 2 : 0;
+  return { x: centerX - width / 2, y: centerY - height / 2, width, height };
+};
+
+export interface DeskCameraSnapshot {
+  camera: SpatialCamera2D;
   mode: DeskCameraMode;
-  changeZoom: (nextZoom: number, focalPoint?: { clientX: number; clientY: number }) => void;
+}
+
+export type DeskCamera = ReturnType<typeof useSpatialGestures> & {
+  mode: DeskCameraMode;
+  x: number;
+  y: number;
+  zoom: number;
+  fitZoom: number;
+  relativeZoom: number;
+  offsetX: number;
+  offsetY: number;
+  surfaceWidth: number;
+  surfaceHeight: number;
+  changeZoom: (nextZoom: number, focalPoint?: ClientSpatialPoint, previousPoint?: ClientSpatialPoint) => void;
   fit: () => void;
   fitSelection: () => void;
   whole: () => void;
@@ -38,10 +78,13 @@ export type DeskCamera = ReturnType<typeof getDeskCameraGeometry> & ReturnType<t
   hasSelectionTarget: boolean;
   showMinimap: boolean;
   minimapViewport: { left: number; top: number; width: number; height: number };
-  centerOnWorldPoint: (point: { x: number; y: number }) => void;
+  centerOnMinimapPoint: (point: SpatialPoint) => void;
+  projectClientPoint: (point: ClientSpatialPoint) => SpatialPoint;
+  edgePan: (point: ClientSpatialPoint, elapsedMs: number) => boolean;
+  capture: () => DeskCameraSnapshot;
+  restore: (snapshot: DeskCameraSnapshot) => void;
   onScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
 };
-
 
 export function useDeskCamera({
   focused,
@@ -57,226 +100,296 @@ export function useDeskCamera({
   worldSize: DeskWorldSize;
   workBounds: DeskRect | null;
   selectionBounds: DeskRect | null;
-  viewportRef: RefObject<HTMLDivElement>;
+  viewportRef: RefObject<HTMLDivElement | null>;
   onPinchStart?: () => void;
 }): DeskCamera {
-  const scrollRef = useRef({ left: 0, top: 0 });
   const viewportStateRef = useRef({ width: 1200, height: 720 });
-  const zoomRef = useRef(1);
-  const cameraModeRef = useRef<DeskCameraMode>('whole');
-  const suppressScrollRef = useRef(false);
-  const programmaticScrollCancelRef = useRef<(() => void) | null>(null);
+  const cameraRef = useRef<SpatialCamera2D>({ x: 0, y: 0, zoom: 1 });
+  const cameraModeRef = useRef<DeskCameraMode>('fit-work');
+  const animationFrameRef = useRef<number | null>(null);
   const [viewport, setViewport] = useState({ width: 1200, height: 720 });
-  const [zoom, setZoom] = useState(1);
-  const [mode, setMode] = useState<DeskCameraMode>('whole');
-  const [scrollPosition, setScrollPosition] = useState({ left: 0, top: 0 });
+  const [cameraState, setCameraState] = useState<SpatialCamera2D>(cameraRef.current);
+  const [mode, setMode] = useState<DeskCameraMode>('fit-work');
 
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
-  useEffect(() => () => {
-    programmaticScrollCancelRef.current?.();
-    programmaticScrollCancelRef.current = null;
+  const cancelCameraAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
   }, []);
 
-  const scrollProgrammatically = useCallback((grid: HTMLDivElement, target: { left: number; top: number }, behavior: ScrollBehavior = 'auto') => {
-    programmaticScrollCancelRef.current?.();
-    suppressScrollRef.current = true;
-    scrollRef.current = target;
-    setScrollPosition(target);
-    let cancel = () => {};
-    cancel = scrollSpatialViewportProgrammatically({
-      viewport: grid,
-      target,
-      behavior,
-      onRelease: () => {
-        if (programmaticScrollCancelRef.current !== cancel) return;
-        programmaticScrollCancelRef.current = null;
-        suppressScrollRef.current = false;
-        const settled = { left: grid.scrollLeft, top: grid.scrollTop };
-        scrollRef.current = settled;
-        setScrollPosition(settled);
-      },
-    });
-    programmaticScrollCancelRef.current = cancel;
+  useEffect(() => cancelCameraAnimation, [cancelCameraAnimation]);
+
+  const commitCamera = useCallback((next: SpatialCamera2D) => {
+    const normalized = {
+      x: finite(next.x),
+      y: finite(next.y),
+      zoom: clamp(finite(next.zoom, 1), MIN_DESK_ZOOM, MAX_DESK_ZOOM),
+    };
+    cameraRef.current = normalized;
+    setCameraState((current) => (
+      close(current.x, normalized.x) && close(current.y, normalized.y) && close(current.zoom, normalized.zoom)
+        ? current
+        : normalized
+    ));
   }, []);
 
-  const getSemanticTarget = useCallback((requestedMode: Exclude<DeskCameraMode, 'custom'>, nextViewport = viewportStateRef.current) => {
-    if (requestedMode === 'whole' || !hasItems) {
-      return { mode: 'whole' as const, ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: null }) };
-    }
+  const setCameraMode = useCallback((next: DeskCameraMode) => {
+    cameraModeRef.current = next;
+    setMode((current) => current === next ? current : next);
+  }, []);
+
+  const getSemanticTarget = useCallback((
+    requestedMode: Exclude<DeskCameraMode, 'custom'>,
+    nextViewport = viewportStateRef.current,
+  ) => {
+    const wholeRect = getWholeRect(workBounds, worldSize);
     if (requestedMode === 'fit-selection' && selectionBounds) {
-      return { mode: 'fit-selection' as const, ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: selectionBounds }) };
+      return {
+        mode: 'fit-selection' as const,
+        camera: fitSpatialCameraToRect({
+          bounds: toSpatialRect(selectionBounds),
+          viewport: nextViewport,
+          padding: DESK_FIT_PADDING,
+          minZoom: MIN_DESK_ZOOM,
+          maxZoom: MAX_DESK_ZOOM,
+        }),
+      };
+    }
+    if (requestedMode === 'fit-work' && hasItems) {
+      return {
+        mode: 'fit-work' as const,
+        camera: fitSpatialCameraToRect({
+          bounds: workBounds ? toSpatialRect(workBounds) : wholeRect,
+          viewport: nextViewport,
+          padding: DESK_FIT_PADDING,
+          minZoom: MIN_DESK_ZOOM,
+          maxZoom: MAX_DESK_ZOOM,
+        }),
+      };
     }
     return {
-      mode: 'fit-work' as const,
-      ...getDeskFramingTarget({ viewport: nextViewport, world: worldSize, bounds: workBounds }),
+      mode: 'whole' as const,
+      camera: fitSpatialCameraToRect({
+        bounds: wholeRect,
+        viewport: nextViewport,
+        padding: DESK_WHOLE_PADDING,
+        minZoom: MIN_DESK_ZOOM,
+        maxZoom: MAX_DESK_ZOOM,
+      }),
     };
   }, [hasItems, selectionBounds, workBounds, worldSize]);
 
-  const applySemanticMode = useCallback((requestedMode: Exclude<DeskCameraMode, 'custom'>, behavior: ScrollBehavior = 'auto') => {
-    const grid = viewportRef.current;
-    if (!grid) return;
+  const animateCameraTo = useCallback((target: SpatialCamera2D, nextMode: DeskCameraMode, smooth: boolean) => {
+    cancelCameraAnimation();
+    setCameraMode(nextMode);
+    const reducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!smooth || reducedMotion) {
+      commitCamera(target);
+      return;
+    }
+
+    const start = { ...cameraRef.current };
+    const startedAt = performance.now();
+    const frame = (now: number) => {
+      const progress = clamp((now - startedAt) / CAMERA_TRAVEL_MS, 0, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      commitCamera({
+        x: start.x + (target.x - start.x) * eased,
+        y: start.y + (target.y - start.y) * eased,
+        zoom: start.zoom + (target.zoom - start.zoom) * eased,
+      });
+      if (progress < 1) animationFrameRef.current = requestAnimationFrame(frame);
+      else animationFrameRef.current = null;
+    };
+    animationFrameRef.current = requestAnimationFrame(frame);
+  }, [cancelCameraAnimation, commitCamera, setCameraMode]);
+
+  const applySemanticMode = useCallback((
+    requestedMode: Exclude<DeskCameraMode, 'custom'>,
+    smooth = false,
+  ) => {
     const target = getSemanticTarget(requestedMode);
-    cameraModeRef.current = target.mode;
-    setMode(target.mode);
-    zoomRef.current = target.geometry.zoom;
-    setZoom(target.geometry.zoom);
-    // Suppress layout-driven scroll events immediately. The shared scroll owner
-    // keeps semantic control until native smooth motion actually settles.
-    programmaticScrollCancelRef.current?.();
-    programmaticScrollCancelRef.current = null;
-    suppressScrollRef.current = true;
-    requestAnimationFrame(() => scrollProgrammatically(grid, target.scroll, behavior));
-  }, [getSemanticTarget, scrollProgrammatically, viewportRef]);
+    animateCameraTo(target.camera, target.mode, smooth);
+  }, [animateCameraTo, getSemanticTarget]);
 
   useEffect(() => {
-    const grid = viewportRef.current;
-    if (!grid || focused) return;
+    const viewportNode = viewportRef.current;
+    if (!viewportNode) return;
     const update = () => {
-      const measuredWidth = grid.clientWidth;
-      const measuredHeight = grid.clientHeight;
-      // Filtering can briefly collapse or detach the viewport during React
-      // layout. That is not a real camera resize: accepting it would replace
-      // a useful viewport with a 1px fit and leave the Desk reading as 0%.
-      if (measuredWidth < 2 || measuredHeight < 2) return;
-      const next = { width: measuredWidth, height: measuredHeight };
-      const previous = viewportStateRef.current;
-      const previousGeometry = getDeskCameraGeometry(previous, worldSize, zoomRef.current);
-      let nextGeometry = getDeskCameraGeometry(next, worldSize, 0);
-      let target = { left: 0, top: 0 };
-
-      if (cameraModeRef.current === 'custom') {
-        nextGeometry = getDeskCameraGeometry(next, worldSize, nextGeometry.fitZoom * previousGeometry.relativeZoom);
-        target = getSpatialAnchoredZoomTarget({
-          scroll: { left: grid.scrollLeft, top: grid.scrollTop },
-          viewport: next,
-          currentGeometry: previousGeometry,
-          nextGeometry,
-          focalPoint: { x: next.width / 2, y: next.height / 2 },
-          previousFocalPoint: { x: previous.width / 2, y: previous.height / 2 },
-        }).scroll;
-      } else {
-        const semantic = getSemanticTarget(cameraModeRef.current, next);
-        nextGeometry = semantic.geometry;
-        target = semantic.scroll;
-        cameraModeRef.current = semantic.mode;
-        setMode(semantic.mode);
-      }
-
+      const width = viewportNode.clientWidth;
+      const height = viewportNode.clientHeight;
+      if (width < 2 || height < 2) return;
+      const next = { width, height };
       viewportStateRef.current = next;
-      zoomRef.current = nextGeometry.zoom;
       setViewport(next);
-      setZoom(nextGeometry.zoom);
-      requestAnimationFrame(() => scrollProgrammatically(grid, target));
+      if (!focused && cameraModeRef.current !== 'custom') {
+        const semantic = getSemanticTarget(cameraModeRef.current, next);
+        setCameraMode(semantic.mode);
+        commitCamera(semantic.camera);
+      }
     };
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(grid);
+    observer.observe(viewportNode);
     return () => observer.disconnect();
-  }, [focused, getSemanticTarget, scrollProgrammatically, viewportRef, worldSize]);
-
-  useLayoutEffect(() => {
-    const grid = viewportRef.current;
-    if (!grid) return;
-    if (focused) scrollProgrammatically(grid, { left: 0, top: 0 });
-    else scrollProgrammatically(grid, scrollRef.current);
-  }, [focused, scrollProgrammatically, viewportRef]);
+  }, [commitCamera, focused, getSemanticTarget, setCameraMode, viewportRef]);
 
   useLayoutEffect(() => {
     if (focused || cameraModeRef.current === 'custom') return;
-    applySemanticMode(cameraModeRef.current);
-  }, [applySemanticMode, focused, selectionBounds, workBounds]);
-
-  const geometry = useMemo(() => getDeskCameraGeometry(viewport, worldSize, zoom), [viewport, worldSize, zoom]);
+    const semantic = getSemanticTarget(cameraModeRef.current);
+    setCameraMode(semantic.mode);
+    commitCamera(semantic.camera);
+  }, [commitCamera, focused, getSemanticTarget, selectionBounds, setCameraMode, workBounds]);
 
   const enterCustom = useCallback(() => {
-    if (cameraModeRef.current === 'custom') return;
-    cameraModeRef.current = 'custom';
-    setMode('custom');
-  }, []);
+    cancelCameraAnimation();
+    setCameraMode('custom');
+  }, [cancelCameraAnimation, setCameraMode]);
 
-  const changeZoom = useCallback((nextZoom: number, focalPoint?: SpatialPoint, previousPoint = focalPoint) => {
-    const grid = viewportRef.current;
-    if (!grid) return;
+  const projectClientPoint = useCallback((point: ClientSpatialPoint): SpatialPoint => {
+    const node = viewportRef.current;
     const currentViewport = viewportStateRef.current;
-    const currentGeometry = getDeskCameraGeometry(currentViewport, worldSize, zoomRef.current);
-    const nextGeometry = getDeskCameraGeometry(currentViewport, worldSize, nextZoom);
-    const bounds = grid.getBoundingClientRect();
-    const localPoint = focalPoint
+    if (!node) return { x: cameraRef.current.x, y: cameraRef.current.y };
+    const bounds = node.getBoundingClientRect();
+    return projectSpatialScreenToWorld({
+      x: point.clientX - bounds.left,
+      y: point.clientY - bounds.top,
+    }, cameraRef.current, currentViewport);
+  }, [viewportRef]);
+
+  const changeZoom = useCallback((
+    nextZoom: number,
+    focalPoint?: ClientSpatialPoint,
+    previousPoint = focalPoint,
+  ) => {
+    const node = viewportRef.current;
+    if (!node) return;
+    cancelCameraAnimation();
+    const current = cameraRef.current;
+    const next = clamp(nextZoom, MIN_DESK_ZOOM, MAX_DESK_ZOOM);
+    const currentViewport = viewportStateRef.current;
+    const bounds = node.getBoundingClientRect();
+    const center = { x: currentViewport.width / 2, y: currentViewport.height / 2 };
+    const local = focalPoint
       ? { x: focalPoint.clientX - bounds.left, y: focalPoint.clientY - bounds.top }
-      : { x: grid.clientWidth / 2, y: grid.clientHeight / 2 };
-    const previousLocalPoint = previousPoint
+      : center;
+    const previousLocal = previousPoint
       ? { x: previousPoint.clientX - bounds.left, y: previousPoint.clientY - bounds.top }
-      : localPoint;
-    const target = nextGeometry.relativeZoom <= 1.0001
-      ? { left: 0, top: 0 }
-      : getSpatialAnchoredZoomTarget({
-          scroll: { left: grid.scrollLeft, top: grid.scrollTop },
-          viewport: currentViewport,
-          currentGeometry,
-          nextGeometry,
-          focalPoint: localPoint,
-          previousFocalPoint: previousLocalPoint,
-        }).scroll;
-
-    const nextMode = nextGeometry.relativeZoom <= 1.0001 ? 'whole' : 'custom';
-    cameraModeRef.current = nextMode;
-    setMode(nextMode);
-    zoomRef.current = nextGeometry.zoom;
-    setZoom(nextGeometry.zoom);
-    requestAnimationFrame(() => scrollProgrammatically(grid, target));
-  }, [scrollProgrammatically, viewportRef, worldSize]);
-
-  const gestures = useSpatialGestures({ viewportRef, zoom: geometry.zoom, changeZoom, cancelDrag: onPinchStart, disabled: focused });
-
-  const onScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
-    if (focused || event.currentTarget.dataset.focused === 'true' || suppressScrollRef.current) return;
-    const next = { left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
-    cameraModeRef.current = 'custom';
-    setMode('custom');
-    scrollRef.current = next;
-    setScrollPosition(next);
-  }, [focused]);
-
-  const centerOnWorldPoint = useCallback((point: { x: number; y: number }) => {
-    const grid = viewportRef.current;
-    if (!grid) return;
-    const current = getDeskCameraGeometry(viewportStateRef.current, worldSize, zoomRef.current);
-    const target = getSpatialCenteredScroll({
-      point,
-      viewport: viewportStateRef.current,
-      geometry: current,
+      : local;
+    const anchoredWorld = projectSpatialScreenToWorld(previousLocal, current, currentViewport);
+    commitCamera({
+      x: anchoredWorld.x - (local.x - center.x) / next,
+      y: anchoredWorld.y - (local.y - center.y) / next,
+      zoom: next,
     });
+    setCameraMode('custom');
+  }, [cancelCameraAnimation, commitCamera, setCameraMode, viewportRef]);
+
+  const panByScreen = useCallback((delta: SpatialPoint) => {
+    if (delta.x === 0 && delta.y === 0) return;
+    cancelCameraAnimation();
+    const current = cameraRef.current;
+    commitCamera({
+      x: current.x + finite(delta.x) / current.zoom,
+      y: current.y + finite(delta.y) / current.zoom,
+      zoom: current.zoom,
+    });
+    setCameraMode('custom');
+  }, [cancelCameraAnimation, commitCamera, setCameraMode]);
+
+  const edgePan = useCallback((point: ClientSpatialPoint, elapsedMs: number) => {
+    const node = viewportRef.current;
+    if (!node) return false;
+    const bounds = node.getBoundingClientRect();
+    const velocity = getSpatialEdgePanScreenVelocity({
+      pointer: { x: point.clientX - bounds.left, y: point.clientY - bounds.top },
+      viewport: viewportStateRef.current,
+      edgeZone: 72,
+      maxScreenSpeed: 760,
+    });
+    if (velocity.x === 0 && velocity.y === 0) return false;
+    const seconds = clamp(elapsedMs, 0, 40) / 1000;
+    panByScreen({ x: velocity.x * seconds, y: velocity.y * seconds });
+    return true;
+  }, [panByScreen, viewportRef]);
+
+  const capture = useCallback((): DeskCameraSnapshot => ({
+    camera: { ...cameraRef.current },
+    mode: cameraModeRef.current,
+  }), []);
+
+  const restore = useCallback((snapshot: DeskCameraSnapshot) => {
+    cancelCameraAnimation();
+    setCameraMode(snapshot.mode);
+    commitCamera(snapshot.camera);
+  }, [cancelCameraAnimation, commitCamera, setCameraMode]);
+
+  const gestures = useSpatialGestures({
+    viewportRef,
+    zoom: cameraState.zoom,
+    changeZoom,
+    panByScreen,
+    cancelDrag: onPinchStart,
+    disabled: focused,
+  });
+
+  const wholeRect = useMemo(() => getWholeRect(workBounds, worldSize), [workBounds, worldSize]);
+  const wholeCamera = useMemo(() => fitSpatialCameraToRect({
+    bounds: wholeRect,
+    viewport,
+    padding: DESK_WHOLE_PADDING,
+    minZoom: MIN_DESK_ZOOM,
+    maxZoom: MAX_DESK_ZOOM,
+  }), [viewport, wholeRect]);
+  const fitZoom = wholeCamera.zoom;
+  const relativeZoom = cameraState.zoom / Math.max(Number.EPSILON, fitZoom);
+  const offsetX = viewport.width / 2 - cameraState.x * cameraState.zoom;
+  const offsetY = viewport.height / 2 - cameraState.y * cameraState.zoom;
+
+  const visibleWidth = viewport.width / cameraState.zoom;
+  const visibleHeight = viewport.height / cameraState.zoom;
+  const minimapViewport = {
+    left: clamp((cameraState.x - visibleWidth / 2 - wholeRect.x) / wholeRect.width, 0, 1),
+    top: clamp((cameraState.y - visibleHeight / 2 - wholeRect.y) / wholeRect.height, 0, 1),
+    width: Math.min(1, visibleWidth / wholeRect.width),
+    height: Math.min(1, visibleHeight / wholeRect.height),
+  };
+
+  const centerOnMinimapPoint = useCallback((point: SpatialPoint) => {
     enterCustom();
-    scrollProgrammatically(grid, target);
-  }, [enterCustom, scrollProgrammatically, viewportRef, worldSize]);
+    commitCamera({
+      ...cameraRef.current,
+      x: wholeRect.x + clamp(point.x, 0, 1) * wholeRect.width,
+      y: wholeRect.y + clamp(point.y, 0, 1) * wholeRect.height,
+    });
+  }, [commitCamera, enterCustom, wholeRect]);
 
   return {
-    ...geometry,
-    mode,
-    changeZoom,
-    fit: () => applySemanticMode('fit-work', 'smooth'),
-    fitSelection: () => applySemanticMode('fit-selection', 'smooth'),
-    whole: () => applySemanticMode('whole', 'smooth'),
-    enterCustom,
-    canZoomOut: geometry.relativeZoom > 1.0001,
-    hasSelectionTarget: Boolean(selectionBounds),
-    showMinimap: mode === 'custom' && (geometry.surfaceWidth > viewport.width + 1 || geometry.surfaceHeight > viewport.height + 1),
-    minimapViewport: (() => {
-      const origin = projectSpatialScrollToWorldOrigin(scrollPosition, geometry);
-      return {
-        left: origin.x / Math.max(1, worldSize.width),
-        top: origin.y / Math.max(1, worldSize.height),
-        width: Math.min(1, viewport.width / geometry.zoom / Math.max(1, worldSize.width)),
-        height: Math.min(1, viewport.height / geometry.zoom / Math.max(1, worldSize.height)),
-      };
-    })(),
-    centerOnWorldPoint,
-    onScroll,
     ...gestures,
+    mode,
+    x: cameraState.x,
+    y: cameraState.y,
+    zoom: cameraState.zoom,
+    fitZoom,
+    relativeZoom,
+    offsetX,
+    offsetY,
+    surfaceWidth: viewport.width,
+    surfaceHeight: viewport.height,
+    changeZoom,
+    fit: () => applySemanticMode('fit-work', true),
+    fitSelection: () => applySemanticMode('fit-selection', true),
+    whole: () => applySemanticMode('whole', true),
+    enterCustom,
+    canZoomOut: cameraState.zoom > MIN_DESK_ZOOM * 1.001,
+    hasSelectionTarget: Boolean(selectionBounds),
+    showMinimap: mode === 'custom' && hasItems,
+    minimapViewport,
+    centerOnMinimapPoint,
+    projectClientPoint,
+    edgePan,
+    capture,
+    restore,
+    onScroll: () => undefined,
   };
 }
-
-export const deskMinimapPointToWorld = (point: { x: number; y: number }, world: DeskWorldSize) => ({
-  x: Math.max(0, Math.min(1, point.x)) * Math.max(1, world.width),
-  y: Math.max(0, Math.min(1, point.y)) * Math.max(1, world.height),
-});

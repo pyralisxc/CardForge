@@ -9,7 +9,7 @@ import {
   getFocusedArtifactFitZoom,
   getFocusedArtifactPresentation,
   moveFocusedArtifactSelection,
-  moveFocusedArtifactSelectionWithRebase,
+  moveFocusedArtifactSelectionResult,
   projectVisibleArtifacts,
 } from '@/features/desk/model/focusedArtifactLayout';
 
@@ -52,17 +52,38 @@ describe('focused Artifact spatial layout', () => {
 
   it('uses discrete presentation density instead of one hard-coded Artifact size', () => {
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 8, availableWidth: 1_920 })).toMatchObject({
-      density: 'comfortable', width: 176, height: 256,
+      density: 'comfortable', width: 63, height: 88,
     });
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 30, availableWidth: 1_000 })).toMatchObject({
-      density: 'compact', width: 144, height: 210,
+      density: 'compact', width: 63, height: 88,
     });
     expect(getFocusedArtifactPresentation({ arrangement: 'grid', artifactCount: 100, availableWidth: 1_000 })).toMatchObject({
-      density: 'dense', width: 112, height: 164,
+      density: 'dense', width: 63, height: 88,
     });
   });
 
-  it('fits every Artifact inside the bounded Set overview without changing the world bounds', () => {
+  it('preserves real relative physical size for mixed-format Artifacts', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 960,
+      groups: [{
+        label: 'Mixed formats',
+        artifacts: [
+          { ...artifacts(1)[0]!, physicalSizeMm: { widthMm: 63, heightMm: 88 }, position: { x: 20, y: 20 } },
+          { ...artifacts(1)[0]!, identity: identity(2), physicalSizeMm: { widthMm: 215.9, heightMm: 279.4 }, position: { x: 500, y: 20 } },
+        ],
+      }],
+    });
+    const poker = layout.entries[0]!;
+    const letter = layout.entries[1]!;
+
+    expect(letter.contentWidth / poker.contentWidth).toBeCloseTo(215.9 / 63, 8);
+    expect(letter.contentHeight / poker.contentHeight).toBeCloseTo(279.4 / 88, 8);
+    expect(letter.width).toBeGreaterThan(poker.width * 3);
+    expect(letter.height).toBeGreaterThan(poker.height * 2.5);
+  });
+
+  it('fits every Artifact inside the derived Set overview without changing authored positions', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'grid',
       minimumWidth: 960,
@@ -95,7 +116,7 @@ describe('focused Artifact spatial layout', () => {
 
     expect(grid.density).toBe('comfortable');
     expect(stack.density).toBe('compact');
-    expect(stack.artifactWidth).toBeLessThan(grid.artifactWidth);
+    expect(stack.artifactWidth).toBe(grid.artifactWidth);
     expect((stack.entries[1]?.position.x ?? 0) - (stack.entries[0]?.position.x ?? 0)).toBeLessThan(stack.artifactWidth);
   });
 
@@ -130,15 +151,19 @@ describe('focused Artifact spatial layout', () => {
     });
 
     expect(frame.zoom).toBeGreaterThan(whole);
-    expect(frame.x).toBeGreaterThanOrEqual(0);
-    expect(frame.y).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(frame.x)).toBe(true);
+    expect(Number.isFinite(frame.y)).toBe(true);
     expect(layout.entries.map((entry) => entry.position)).toEqual(before);
-    expect(getFocusedArtifactFrame({
+    const wholeFrame = getFocusedArtifactFrame({
       layout,
       entries: [],
       viewportWidth: 390,
       viewportHeight: 640,
-    })).toEqual({ x: 0, y: 0, zoom: whole });
+      padding: 24,
+    });
+    expect(wholeFrame.zoom).toBe(whole);
+    expect(wholeFrame.x).toBeCloseTo(layout.bounds.x + layout.bounds.width / 2);
+    expect(wholeFrame.y).toBeCloseTo(layout.bounds.y + layout.bounds.height / 2);
   });
 
   it('moves a manual multi-selection together using camera-independent world coordinates', () => {
@@ -173,7 +198,7 @@ describe('focused Artifact spatial layout', () => {
     )).toEqual({ visible: 1, hidden: 2, total: 3 });
   });
 
-  it('rebases the complete authored Set when a selected Artifact crosses the top or left origin', () => {
+  it('moves selected Artifacts through signed Set space without rebasing siblings', () => {
     const layout = buildFocusedArtifactLayout({
       arrangement: 'manual',
       minimumWidth: 960,
@@ -185,16 +210,59 @@ describe('focused Artifact spatial layout', () => {
         ],
       }],
     });
-    const moved = moveFocusedArtifactSelectionWithRebase({
+    const moved = moveFocusedArtifactSelectionResult({
       entries: layout.entries,
       selectedIds: ['card-1'],
       delta: { x: -40, y: -50 },
       snapToGrid: false,
     });
-    expect(moved.originShift).toEqual({ x: 30, y: 38 });
-    expect(moved.affectedIds).toEqual(['card-1', 'card-2']);
-    expect(moved.positions['card-1']).toEqual({ x: 0, y: 0 });
-    expect(moved.positions['card-2']).toEqual({ x: 210, y: 158 });
+    expect(moved.affectedIds).toEqual(['card-1']);
+    expect(moved.positions['card-1']).toEqual({ x: -30, y: -38 });
+    expect(moved.positions['card-2']).toBeUndefined();
+    expect(layout.entries[1]?.position).toEqual({ x: 180, y: 120 });
+
+    const signedLayout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 960,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'One', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: -300, y: -220 } },
+          { identity: identity(2), title: 'Two', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 180, y: 120 } },
+        ],
+      }],
+    });
+    expect(signedLayout.entries[0]?.position).toEqual({ x: -300, y: -220 });
+    expect(signedLayout.bounds.x).toBeLessThan(-300);
+    expect(signedLayout.bounds.y).toBeLessThan(-220);
+  });
+
+  it('migrates legacy Set positions once into physical millimeters', async () => {
+    const { LEGACY_SET_UNITS_PER_MM, migrateLegacySetPositionsToMm } = await import('@/features/desk/model/focusedArtifactLayout');
+    const migrated = migrateLegacySetPositionsToMm({
+      one: { x: LEGACY_SET_UNITS_PER_MM * 63, y: LEGACY_SET_UNITS_PER_MM * 88 },
+    });
+    expect(migrated.one).toEqual({ x: 63, y: 88 });
+  });
+
+  it('snaps manual Artifact movement in the Set physical lattice', () => {
+    const layout = buildFocusedArtifactLayout({
+      arrangement: 'manual',
+      minimumWidth: 160,
+      groups: [{
+        label: 'All Artifacts',
+        artifacts: [
+          { identity: identity(1), title: 'One', subtitle: 'Card', groupLabel: 'All Artifacts', position: { x: 2, y: 3 } },
+        ],
+      }],
+    });
+    expect(moveFocusedArtifactSelection({
+      entries: layout.entries,
+      selectedIds: ['card-1'],
+      delta: { x: 5.2, y: 6.8 },
+      snapToGrid: true,
+      gridStep: 5,
+    })).toEqual({ 'card-1': { x: 5, y: 10 } });
   });
 
   it('browses focused Artifacts by displayed geometry rather than collection order', () => {

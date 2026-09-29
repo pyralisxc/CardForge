@@ -111,10 +111,9 @@ test.describe('mobile Library location tools', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const deskWorld = page.locator('[data-desk-world]');
-    const deskSurface = deskWorld.locator('..');
-    await expect(deskWorld).toHaveAttribute('data-grid', 'true');
-    await expect(deskSurface).toHaveAttribute('data-grid', 'true');
-    expect(await deskSurface.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    await expect(deskViewport).toHaveAttribute('data-grid', 'true');
+    expect(await deskViewport.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    expect(await deskWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
 
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
@@ -171,8 +170,8 @@ test.describe('mobile Library location tools', () => {
     const viewControls = page.locator('[data-set-view-controls]');
     await expect(artifactStage).toHaveAttribute('data-grid', 'true');
     const artifactWorld = artifactStage.locator('[data-artifact-world]');
-    expect(await artifactWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
-    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
+    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    expect(await artifactWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
     expect(await page.evaluate(() => {
       const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();

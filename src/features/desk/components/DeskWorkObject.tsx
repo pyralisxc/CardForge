@@ -22,6 +22,7 @@ interface DeskWorkObjectProps {
   obscured: boolean;
   pinned: boolean;
   position?: DeskPosition;
+  presentationSize?: { width: number; height: number; visualHeight: number; physical: boolean };
   canUseProjectFiles: boolean;
   canSubmit: boolean;
   preview: (face: CardFace) => ReactNode;
@@ -54,7 +55,14 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
   const openSet = () => props.onFocus(props.item);
   const presentationMeta = getDeskWorkPresentationMeta(props.item);
   const positionStyle = props.position
-    ? ({ '--desk-x': `${props.position.x}px`, '--desk-y': `${props.position.y}px`, '--desk-z': props.position.z } as CSSProperties)
+    ? ({
+        '--desk-x': `${props.position.x}px`,
+        '--desk-y': `${props.position.y}px`,
+        '--desk-z': props.position.z,
+        '--desk-width': `${props.presentationSize?.width ?? 82}px`,
+        '--desk-height': `${props.presentationSize?.height ?? 126}px`,
+        '--desk-visual-height': `${props.presentationSize?.visualHeight ?? 90}px`,
+      } as CSSProperties)
     : undefined;
 
   const selectMenuAction = (action: () => void) => () => {
@@ -73,6 +81,7 @@ export function DeskWorkObject(props: DeskWorkObjectProps) {
     data-desk-set-object-id={props.item.id}
     data-presentation={props.focused ? 'focused' : 'overview'}
     data-featured={props.featured && !props.focused}
+    data-physical-footprint={props.presentationSize?.physical || undefined}
     data-active={props.active}
     data-selected={props.selected}
     data-pinned={props.pinned}

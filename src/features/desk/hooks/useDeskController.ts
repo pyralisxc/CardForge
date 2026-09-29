@@ -38,6 +38,7 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
+import { getDeskSetPresentationFootprint } from '../model/deskSetFootprint';
 import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
 import { useDeskActionRuntime } from './useDeskActionRuntime';
@@ -616,12 +617,24 @@ export function useDeskController({
     openContextStudio(item.references.localSetId, lane === 'export' ? 'output' : 'design');
   };
 
-  const workCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
-    ? displayCards.filter((card) => card.setId === item.references.localSetId || (!card.setId && cardSets[0]?.id === item.references.localSetId)).slice(0, 5)
+  const cardsBySetId = useMemo(() => {
+    const bySet = new Map<string, DisplayCard[]>();
+    const fallbackSetId = cardSets[0]?.id ?? null;
+    displayCards.forEach((card) => {
+      const setId = card.setId ?? fallbackSetId;
+      if (!setId) return;
+      bySet.set(setId, [...(bySet.get(setId) ?? []), card]);
+    });
+    return bySet;
+  }, [cardSets, displayCards]);
+  const allWorkCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
+    ? cardsBySetId.get(item.references.localSetId) ?? []
     : [];
+  const workCards = (item: AccountLibraryItem): DisplayCard[] => allWorkCards(item).slice(0, 5);
+  const workFootprint = (item: AccountLibraryItem) => getDeskSetPresentationFootprint(allWorkCards(item));
   const workTemplate = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return null;
-    return workCards(item)[0]?.template ?? null;
+    return allWorkCards(item)[0]?.template ?? null;
   };
   const closeGenerate = () => closeContextTool();
   const showTemplateTool = (templateId?: string | null) => {
@@ -783,6 +796,7 @@ export function useDeskController({
     visibleCards,
     visibleWork,
     workCards,
+    workFootprint,
     workGridRef,
     workWorldRef,
     deskWorldSize,

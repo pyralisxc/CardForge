@@ -1,14 +1,15 @@
-import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
-
 /**
- * Desk has one bounded usable field. Imported legacy coordinates are read
- * losslessly first, then measured objects are confined to this field; direct
- * manipulation cannot grow a hidden off-screen extent.
+ * Desk authored coordinates are signed and stable. Derived bounds describe the
+ * current scene for framing/minimap purposes but never normalize or relocate
+ * authored Set positions.
  */
-export const DESK_MIN_WORLD_WIDTH = 960;
-export const DESK_MIN_WORLD_HEIGHT = 640;
-export const DESK_WORLD_PADDING = 32;
-export const DESK_FRAME_PADDING = 44;
+export const DESK_SPATIAL_VERSION = 4 as const;
+export const DEFAULT_DESK_GRID_SIZE_MM = 10;
+/** Legacy Desk tile scale (14.5rem ≈ 232 CSS px) mapped to an 82 mm Set proxy. */
+export const LEGACY_DESK_UNITS_PER_MM = 232 / 82;
+export const DESK_MIN_WORLD_WIDTH = 340;
+export const DESK_MIN_WORLD_HEIGHT = 226;
+export const DESK_WORLD_PADDING = 12;
 
 export interface DeskWorldPosition {
   x: number;
@@ -17,13 +18,8 @@ export interface DeskWorldPosition {
 }
 
 export interface DeskWorldGeometry {
-  version: 2;
+  version: typeof DESK_SPATIAL_VERSION;
   positions: Record<string, DeskWorldPosition>;
-}
-
-export interface DeskViewport {
-  width: number;
-  height: number;
 }
 
 export interface DeskWorldSize {
@@ -44,21 +40,17 @@ export interface DeskRect {
   bottom: number;
 }
 
-export interface DeskScrollTarget {
-  left: number;
-  top: number;
-}
-
 export type DeskCameraMode = 'fit-work' | 'fit-selection' | 'whole' | 'custom';
-
-export interface DeskFramingTarget {
-  geometry: ReturnType<typeof getDeskCameraGeometry>;
-  scroll: DeskScrollTarget;
-}
 
 export interface DeskWorldElement {
   dataset: { deskSetObjectId?: string };
   getBoundingClientRect: () => Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>;
+}
+
+export interface DeskWorldProjection {
+  scale: number;
+  offsetX?: number;
+  offsetY?: number;
 }
 
 const finite = (value: unknown, fallback = 0): number => Number.isFinite(value) ? Number(value) : fallback;
@@ -69,67 +61,51 @@ export const normalizeDeskWorldPosition = (value: unknown, fallbackZ = 0): DeskW
   const candidate = value as Partial<DeskWorldPosition>;
   if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return null;
   return {
-    x: Math.max(0, Math.round(finite(candidate.x))),
-    y: Math.max(0, Math.round(finite(candidate.y))),
+    x: Math.round(finite(candidate.x) * 1000) / 1000,
+    y: Math.round(finite(candidate.y) * 1000) / 1000,
     z: clamp(Math.round(finite(candidate.z, fallbackZ)), 0, 10_000),
   };
 };
 
 /**
- * Reads canonical geometry and the pre-hardening bare pixel map. The legacy map
- * is interpreted in the stable Desk world once and all subsequent writes use v2.
+ * v4 is canonical signed millimeter geometry. v2/v3/bare layouts are the old
+ * presentation-pixel space and convert exactly once through one uniform scale.
  */
-export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { version: 2, positions: {} };
+export const isLegacyDeskWorldGeometry = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as { version?: unknown; positions?: unknown } & Record<string, unknown>;
-  const source = record.version === 2 && record.positions && typeof record.positions === 'object'
-    ? record.positions as Record<string, unknown>
-    : record;
+  if (record.version === DESK_SPATIAL_VERSION) return false;
+  return Boolean(record.positions && typeof record.positions === 'object') || Object.keys(record).length > 0;
+};
+
+export const migrateLegacyDeskPositionToMm = (position: DeskWorldPosition): DeskWorldPosition => ({
+  x: Math.round(position.x / LEGACY_DESK_UNITS_PER_MM * 1000) / 1000,
+  y: Math.round(position.y / LEGACY_DESK_UNITS_PER_MM * 1000) / 1000,
+  z: position.z,
+});
+
+export const normalizeDeskWorldGeometry = (value: unknown): DeskWorldGeometry => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { version: DESK_SPATIAL_VERSION, positions: {} };
+  }
+  const record = value as { version?: unknown; positions?: unknown } & Record<string, unknown>;
+  const versioned = [2, 3, DESK_SPATIAL_VERSION].includes(Number(record.version))
+    && record.positions
+    && typeof record.positions === 'object';
+  const source = versioned ? record.positions as Record<string, unknown> : record;
+  const legacy = record.version !== DESK_SPATIAL_VERSION;
   const positions = Object.fromEntries(Object.entries(source).flatMap(([id, position], index) => {
     if (id === 'version' || id === 'positions') return [];
     const normalized = normalizeDeskWorldPosition(position, index);
-    return normalized ? [[id, normalized] as const] : [];
+    if (!normalized) return [];
+    return [[id, legacy ? migrateLegacyDeskPositionToMm(normalized) : normalized] as const];
   }));
-  return { version: 2, positions };
+  return { version: DESK_SPATIAL_VERSION, positions };
 };
 
-export const getDeskWorldProjection = (viewport: DeskViewport, world: DeskWorldSize) => {
-  const width = Math.max(1, viewport.width);
-  const height = Math.max(1, viewport.height);
-  const worldWidth = Math.max(1, world.width);
-  const worldHeight = Math.max(1, world.height);
-  const scale = Math.max(Number.EPSILON, Math.min(1, width / worldWidth, height / worldHeight));
-  const offsetX = Math.max(0, (width - worldWidth * scale) / 2);
-  const offsetY = Math.max(0, (height - worldHeight * scale) / 2);
-  return { scale, offsetX, offsetY };
-};
-
-/**
- * Whole Desk is the complete current authored world, matching focused Set
- * behavior. The camera never zooms below that fit and has the same bounded
- * close-work ceiling as Set view.
- */
-export const getDeskCameraGeometry = (viewport: DeskViewport, world: DeskWorldSize, requestedZoom: number) => {
-  const width = Math.max(1, viewport.width);
-  const height = Math.max(1, viewport.height);
-  const projection = getDeskWorldProjection(viewport, world);
-  const fitZoom = Math.max(Number.EPSILON, projection.scale);
-  const zoom = clamp(requestedZoom, fitZoom, Math.max(2, fitZoom * 3));
-  const worldWidth = Math.max(1, world.width) * zoom;
-  const worldHeight = Math.max(1, world.height) * zoom;
-  return {
-    zoom,
-    fitZoom,
-    relativeZoom: zoom / fitZoom,
-    offsetX: Math.max(0, (width - worldWidth) / 2),
-    offsetY: Math.max(0, (height - worldHeight) / 2),
-    surfaceWidth: Math.max(width, worldWidth),
-    surfaceHeight: Math.max(height, worldHeight),
-  };
-};
-
-/** Derives one camera target from the union of visible authored objects. */
-export const getDeskWorldBounds = (items: readonly Pick<DeskWorldItemRect, 'x' | 'y' | 'width' | 'height'>[]): DeskRect | null => {
+export const getDeskWorldBounds = (
+  items: readonly Pick<DeskWorldItemRect, 'x' | 'y' | 'width' | 'height'>[],
+): DeskRect | null => {
   const valid = items.filter((item) => (
     Number.isFinite(item.x)
     && Number.isFinite(item.y)
@@ -147,79 +123,26 @@ export const getDeskWorldBounds = (items: readonly Pick<DeskWorldItemRect, 'x' |
   };
 };
 
-/** Derives the Desk world from the current authored Set extents, like Set view. */
+/**
+ * A size is presentation/framing metadata only. Absolute world position is
+ * intentionally excluded so moving a Set farther from the origin does not
+ * resize or rebase the authored scene.
+ */
 export const getDeskWorldSize = (
   items: readonly Pick<DeskWorldItemRect, 'x' | 'y' | 'width' | 'height'>[],
   minimum: DeskWorldSize = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
   padding = DESK_WORLD_PADDING,
 ): DeskWorldSize => {
-  const valid = items.filter((item) => (
-    Number.isFinite(item.x)
-    && Number.isFinite(item.y)
-    && Number.isFinite(item.width)
-    && Number.isFinite(item.height)
-    && item.width > 0
-    && item.height > 0
-  ));
+  const bounds = getDeskWorldBounds(items);
+  if (!bounds) return { width: Math.max(1, minimum.width), height: Math.max(1, minimum.height) };
   const safePadding = Math.max(0, finite(padding, DESK_WORLD_PADDING));
   return {
-    width: Math.max(
-      Math.max(1, minimum.width),
-      ...valid.map((item) => item.x + item.width + safePadding),
-    ),
-    height: Math.max(
-      Math.max(1, minimum.height),
-      ...valid.map((item) => item.y + item.height + safePadding),
-    ),
+    width: Math.max(Math.max(1, minimum.width), bounds.right - bounds.left + safePadding * 2),
+    height: Math.max(Math.max(1, minimum.height), bounds.bottom - bounds.top + safePadding * 2),
   };
 };
 
-/**
- * Frames a content slice inside the stable Desk world. This is camera-only:
- * the target is derived from authored bounds and never normalizes or rewrites
- * those bounds. Invalid or absent bounds safely fall back to Whole Desk.
- */
-export const getDeskFramingTarget = ({
-  viewport,
-  world,
-  bounds,
-  padding = DESK_FRAME_PADDING,
-}: {
-  viewport: DeskViewport;
-  world: DeskWorldSize;
-  bounds: DeskRect | null;
-  padding?: number;
-}): DeskFramingTarget => {
-  const whole = getDeskCameraGeometry(viewport, world, 0);
-  if (!bounds) return { geometry: whole, scroll: { left: 0, top: 0 } };
-  const targetWidth = Math.max(1, bounds.right - bounds.left);
-  const targetHeight = Math.max(1, bounds.bottom - bounds.top);
-  const safePadding = clamp(finite(padding, DESK_FRAME_PADDING), 0, Math.min(viewport.width, viewport.height) * 0.3);
-  const requestedZoom = Math.min(
-    Math.max(1, viewport.width - safePadding * 2) / targetWidth,
-    Math.max(1, viewport.height - safePadding * 2) / targetHeight,
-  );
-  const geometry = getDeskCameraGeometry(viewport, world, requestedZoom);
-  const centerX = (bounds.left + bounds.right) / 2;
-  const centerY = (bounds.top + bounds.bottom) / 2;
-  return {
-    geometry,
-    scroll: {
-      left: clamp(
-        centerX * geometry.zoom + geometry.offsetX - viewport.width / 2,
-        0,
-        Math.max(0, geometry.surfaceWidth - viewport.width),
-      ),
-      top: clamp(
-        centerY * geometry.zoom + geometry.offsetY - viewport.height / 2,
-        0,
-        Math.max(0, geometry.surfaceHeight - viewport.height),
-      ),
-    },
-  };
-};
-
-const DEFAULT_DESK_SLOTS = [
+const DEFAULT_DESK_SLOTS_LEGACY = [
   { x: 484, y: 168 },
   { x: 116, y: 142 },
   { x: 842, y: 202 },
@@ -230,20 +153,15 @@ const DEFAULT_DESK_SLOTS = [
   { x: 478, y: 96 },
 ] as const;
 
-/**
- * New Sets receive a stable place in the canonical Desk field instead of
- * inheriting the dimensions of whichever device first opened it. Additional
- * Sets form small piles over these anchors without creating a second extent.
- */
 export const getDefaultDeskWorldPosition = (index: number): DeskWorldPosition => {
   const safeIndex = Math.max(0, Math.floor(index));
-  const slot = DEFAULT_DESK_SLOTS[safeIndex % DEFAULT_DESK_SLOTS.length]!;
-  const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS.length);
-  return {
-    x: Math.max(0, slot.x + pile * 18),
-    y: Math.max(0, slot.y + pile * 16),
+  const slot = DEFAULT_DESK_SLOTS_LEGACY[safeIndex % DEFAULT_DESK_SLOTS_LEGACY.length]!;
+  const pile = Math.floor(safeIndex / DEFAULT_DESK_SLOTS_LEGACY.length);
+  return migrateLegacyDeskPositionToMm({
+    x: slot.x + pile * 18,
+    y: slot.y + pile * 16,
     z: safeIndex,
-  };
+  });
 };
 
 export const collectDeskWorldItems = ({
@@ -254,92 +172,54 @@ export const collectDeskWorldItems = ({
 }: {
   tiles: Iterable<DeskWorldElement>;
   bounds: Pick<DOMRect, 'left' | 'top'>;
-  projection: ReturnType<typeof getDeskWorldProjection>;
+  projection: DeskWorldProjection;
   positions: Readonly<Record<string, DeskWorldPosition>>;
 }): DeskWorldItemRect[] => Array.from(tiles).flatMap((tile, index) => {
   const id = tile.dataset.deskSetObjectId;
   if (!id) return [];
   const rect = tile.getBoundingClientRect();
   const stored = positions[id];
+  const scale = Math.max(Number.EPSILON, finite(projection.scale, 1));
   return [{
     id,
-    x: stored?.x ?? Math.round((rect.left - bounds.left - projection.offsetX) / projection.scale),
-    y: stored?.y ?? Math.max(0, Math.round((rect.top - bounds.top - projection.offsetY) / projection.scale)),
+    x: stored?.x ?? Math.round((rect.left - bounds.left - finite(projection.offsetX)) / scale),
+    y: stored?.y ?? Math.round((rect.top - bounds.top - finite(projection.offsetY)) / scale),
     z: stored?.z ?? index,
-    width: Math.max(1, Math.round(rect.width / projection.scale)),
-    height: Math.max(1, Math.round(rect.height / projection.scale)),
+    width: Math.max(1, Math.round(rect.width / scale)),
+    height: Math.max(1, Math.round(rect.height / scale)),
   }];
 });
 
-export const moveDeskWorldSelectionWithRebase = ({
+export const moveDeskWorldSelectionResult = ({
   items,
   selectedIds,
   delta,
-  snap = 1,
-  boundary,
+  snap = 0,
 }: {
-  items: readonly (Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'> & Partial<Pick<DeskWorldItemRect, 'width' | 'height'>>)[];
+  items: readonly Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>[];
   selectedIds: readonly string[];
   delta: { x: number; y: number };
   snap?: number;
-  boundary?: DeskWorldSize;
 }) => {
   const selected = new Set(selectedIds);
-  const step = Math.max(1, snap);
-  const placeDelta = (value: number) => Math.round(value / step) * step;
-  if (boundary) {
-    const selectedItems = items.filter((item) => selected.has(item.id)).map((item) => ({
-      ...item,
-      width: Math.max(1, item.width ?? 1),
-      height: Math.max(1, item.height ?? 1),
-    }));
-    const selectedBounds = getDeskWorldBounds(selectedItems);
-    if (!selectedBounds) return { positions: {}, affectedIds: [], originShift: { x: 0, y: 0 } };
-    const confineDelta = (requested: number, minimum: number, maximum: number) => (
-      minimum <= maximum ? clamp(requested, minimum, maximum) : minimum
-    );
-    const boundedDelta = {
-      x: confineDelta(placeDelta(delta.x), -selectedBounds.left, boundary.width - selectedBounds.right),
-      y: confineDelta(placeDelta(delta.y), -selectedBounds.top, boundary.height - selectedBounds.bottom),
-    };
-    return {
-      positions: Object.fromEntries(selectedItems.map((item) => [item.id, {
-        x: Math.round(item.x + boundedDelta.x),
-        y: Math.round(item.y + boundedDelta.y),
-        z: item.z,
-      }])),
-      affectedIds: selectedItems.map((item) => item.id),
-      originShift: { x: 0, y: 0 },
-    };
-  }
-  const proposed = Object.fromEntries(items.flatMap((item) => selected.has(item.id)
-    ? [[item.id, { x: item.x + placeDelta(delta.x), y: item.y + placeDelta(delta.y) }] as const]
-    : []));
-  const rebased = rebaseSpatialWorldMove({ items, proposed });
-  const zById = new Map(items.map((item) => [item.id, item.z]));
+  const step = Number.isFinite(snap) && snap > 0 ? snap : 0;
+  const placeDelta = (value: number) => step > 0
+    ? Math.round(value / step) * step
+    : Math.round(value * 1000) / 1000;
+  const affected = items.filter((item) => selected.has(item.id));
   return {
-    ...rebased,
-    positions: Object.fromEntries(Object.entries(rebased.positions).map(([id, position]) => [id, {
-      ...position,
-      z: zById.get(id) ?? 0,
+    positions: Object.fromEntries(affected.map((item) => [item.id, {
+      x: Math.round((item.x + placeDelta(delta.x)) * 1000) / 1000,
+      y: Math.round((item.y + placeDelta(delta.y)) * 1000) / 1000,
+      z: item.z,
     }])),
+    affectedIds: affected.map((item) => item.id),
   };
 };
 
-export const confineDeskWorldItems = (
-  items: readonly DeskWorldItemRect[],
-  boundary: DeskWorldSize = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT },
-): Record<string, DeskWorldPosition> => Object.fromEntries(items.map((item) => [item.id, {
-  x: Math.round(clamp(item.x, 0, Math.max(0, boundary.width - item.width))),
-  y: Math.round(clamp(item.y, 0, Math.max(0, boundary.height - item.height))),
-  z: item.z,
-}]));
-
-export const moveDeskWorldSelection = (input: Parameters<typeof moveDeskWorldSelectionWithRebase>[0]): Record<string, DeskWorldPosition> => {
-  const selected = new Set(input.selectedIds);
-  const result = moveDeskWorldSelectionWithRebase(input);
-  return Object.fromEntries(Object.entries(result.positions).filter(([id]) => selected.has(id)));
-};
+export const moveDeskWorldSelection = (
+  input: Parameters<typeof moveDeskWorldSelectionResult>[0],
+): Record<string, DeskWorldPosition> => moveDeskWorldSelectionResult(input).positions;
 
 export const getDeskMarqueeSelection = (
   items: readonly (DeskWorldItemRect & { hidden?: boolean })[],

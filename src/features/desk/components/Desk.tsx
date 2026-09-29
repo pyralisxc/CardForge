@@ -311,6 +311,7 @@ export function Desk({
     visibleCards,
     visibleWork,
     workCards,
+    workFootprint,
     workGridRef,
     workWorldRef,
     workItems,
@@ -526,7 +527,7 @@ export function Desk({
         onAction={runAction}
         onCloseDetail={() => setInspectorWorkId(null)}
       >
-        <div className={styles.spatialPlane} data-desk-plane data-scene-hidden={Boolean(studioTool?.tool === 'design')} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
+        <div className={styles.spatialPlane} data-desk-plane data-studio-context={studioTool?.tool === 'design' ? 'true' : undefined} data-focused={Boolean(focusedItem)} data-artifact-focused={Boolean(interactionSession.focusPath.artifactId)}>
           <DeskOverviewSurface
             workItemsCount={workItems.length}
             visibleWork={visibleWork}
@@ -561,8 +562,9 @@ export function Desk({
             camera={deskCamera}
             canUseProjectFiles={experience.capabilities.canUseProjectFiles}
             canSubmit={experience.contributor.canSubmit}
-            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
+            renderWorkPreview={(item, featured, focused, face) => item.references.localSetId ? <AuthoredObjectPreview setId={item.references.localSetId} sceneHidden={focused} cards={workCards(item)} template={workTemplate(item)} label={item.name} size={featured ? 'large' : 'standard'} physicalScale emptyLabel={workCards(item).length ? undefined : 'Empty Set'} face={face} /> : <DeskWorkPreview item={item} />}
             previewArtifactIds={(item) => workCards(item).map((card) => card.uniqueId)}
+            presentationSize={workFootprint}
             canFlipWork={(item) => workCards(item).some(hasCardBacking)}
             renderFocusedSurface={(item) => <FocusedWorkSurface canUseProjectFiles={experience.capabilities.canUseProjectFiles}
               canExportClean={experience.capabilities.canExportClean}
@@ -752,6 +754,7 @@ export function Desk({
           dirty={interactionSession.toolStack.at(-1)?.dirty ?? false}
           onDirtyCloseRequest={() => setDirtyCloseRequested(true)}
           presentation={activeTool?.presentation}
+          sceneVisible={studioTool.tool === 'design'}
           railOwned
         >
           <DeskDesignWorkspace

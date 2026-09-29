@@ -31,6 +31,10 @@ export interface CardSetCardPosition {
 }
 
 export interface CardSetOrganization {
+  /** v2 positions are signed physical millimeters in Set-local space. */
+  spatialVersion?: 2;
+  /** Physical lattice spacing for Set-local move/resize snap. */
+  gridSizeMm?: number;
   arrangement: CardSetArrangement;
   groupBy: CardSetGrouping;
   groupField?: string;

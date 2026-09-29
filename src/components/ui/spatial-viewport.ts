@@ -232,16 +232,17 @@ const originatesInsideViewport = (event: { currentTarget: HTMLElement; target: E
  * only events whose DOM target is actually inside this viewport may start or suppress a
  * gesture. This keeps menus, dialogs, and tool overlays from being captured as canvas input.
  */
-export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, disabled = false, allowHold = true }: {
+export function useSpatialGestures({ viewportRef, zoom, changeZoom, panByScreen, cancelDrag, disabled = false, allowHold = true }: {
   viewportRef: RefObject<HTMLDivElement | null>;
   zoom: number;
   changeZoom: (zoom: number, point?: SpatialPoint, previousPoint?: SpatialPoint) => void;
+  panByScreen?: (delta: { x: number; y: number }) => void;
   cancelDrag?: () => void;
   disabled?: boolean;
   allowHold?: boolean;
 }) {
-  const current = useRef({ zoom, changeZoom, cancelDrag, disabled });
-  current.current = { zoom, changeZoom, cancelDrag, disabled };
+  const current = useRef({ zoom, changeZoom, panByScreen, cancelDrag, disabled });
+  current.current = { zoom, changeZoom, panByScreen, cancelDrag, disabled };
   const points = useRef(new Map<number, SpatialPoint>());
   const gesture = useRef<Gesture | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -267,9 +268,15 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, 
     const node = viewportRef.current;
     if (!node) return;
     const wheel = (event: WheelEvent) => {
-      if (current.current.disabled || (!event.ctrlKey && !event.metaKey)) return;
+      if (current.current.disabled) return;
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        current.current.changeZoom(current.current.zoom * Math.exp(-event.deltaY * 0.006), event);
+        return;
+      }
+      if (!current.current.panByScreen || (event.deltaX === 0 && event.deltaY === 0)) return;
       event.preventDefault();
-      current.current.changeZoom(current.current.zoom * Math.exp(-event.deltaY * 0.006), event);
+      current.current.panByScreen({ x: event.deltaX, y: event.deltaY });
     };
     node.addEventListener('wheel', wheel, { passive: false });
     return () => node.removeEventListener('wheel', wheel);
@@ -325,7 +332,9 @@ export function useSpatialGestures({ viewportRef, zoom, changeZoom, cancelDrag, 
         current.current.cancelDrag?.();
       }
       if (state.mode === 'pan') {
-        event.currentTarget.scrollBy(state.last.clientX - point.clientX, state.last.clientY - point.clientY);
+        const delta = { x: state.last.clientX - point.clientX, y: state.last.clientY - point.clientY };
+        if (current.current.panByScreen) current.current.panByScreen(delta);
+        else event.currentTarget.scrollBy(delta.x, delta.y);
         suppressClick.current = true;
       }
       state.last = point;

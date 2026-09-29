@@ -1,7 +1,19 @@
-import { rebaseSpatialWorldMove } from '@/components/ui/spatial-world';
 import type { ArtifactIdentity, ArtifactPosition } from '@/domain/artifacts';
+import { fitSpatialCameraToRect, type SpatialRect } from '@/domain/spatial';
 
-export const FOCUSED_ARTIFACT_OVERSCAN = 180;
+export const FOCUSED_ARTIFACT_OVERSCAN = 48;
+export const SET_SPATIAL_VERSION = 2 as const;
+export const DEFAULT_SET_GRID_SIZE_MM = 5;
+/** One-time deterministic bridge from legacy comfortable-card layout units. */
+export const LEGACY_SET_UNITS_PER_MM = 176 / 63;
+
+export const migrateLegacySetPositionsToMm = (
+  positions: Readonly<Record<string, ArtifactPosition>>,
+): Record<string, ArtifactPosition> => Object.fromEntries(Object.entries(positions).map(([id, position]) => [id, {
+  x: Math.round(position.x / LEGACY_SET_UNITS_PER_MM * 1000) / 1000,
+  y: Math.round(position.y / LEGACY_SET_UNITS_PER_MM * 1000) / 1000,
+}]));
+
 export type FocusedArtifactArrangement = 'manual' | 'grid' | 'stack';
 export type FocusedArtifactDensity = 'comfortable' | 'compact' | 'dense';
 
@@ -11,6 +23,8 @@ export interface FocusedArtifactSeed {
   subtitle: string;
   groupLabel: string;
   position?: ArtifactPosition;
+  /** Derived physical truth; never a second persistence owner. */
+  physicalSizeMm?: { widthMm: number; heightMm: number };
 }
 
 export interface FocusedArtifactGroup {
@@ -21,8 +35,12 @@ export interface FocusedArtifactGroup {
 export interface FocusedArtifactLayoutEntry extends FocusedArtifactSeed {
   index: number;
   position: ArtifactPosition;
+  /** Total interactive tile extent, including presentation chrome. */
   width: number;
   height: number;
+  /** Physical Artifact projection inside the tile. */
+  contentWidth: number;
+  contentHeight: number;
 }
 
 export type ArtifactBrowseDirection = 'up' | 'down' | 'left' | 'right';
@@ -38,6 +56,8 @@ export interface FocusedArtifactGroupLayout {
 export interface FocusedArtifactLayout {
   entries: FocusedArtifactLayoutEntry[];
   groups: FocusedArtifactGroupLayout[];
+  /** Signed authored-space extent including presentation breathing room. */
+  bounds: SpatialRect;
   width: number;
   height: number;
   density: FocusedArtifactDensity;
@@ -54,6 +74,7 @@ export interface ArtifactViewport {
 
 interface FocusedArtifactPresentation {
   density: FocusedArtifactDensity;
+  /** Fallback extent for unresolved/non-physical Artifacts. */
   width: number;
   height: number;
   gapX: number;
@@ -62,13 +83,40 @@ interface FocusedArtifactPresentation {
 }
 
 const PRESENTATIONS: Record<FocusedArtifactDensity, FocusedArtifactPresentation> = {
-  comfortable: { density: 'comfortable', width: 176, height: 256, gapX: 24, gapY: 32, stackOffset: 34 },
-  compact: { density: 'compact', width: 144, height: 210, gapX: 20, gapY: 28, stackOffset: 26 },
-  dense: { density: 'dense', width: 112, height: 164, gapX: 16, gapY: 22, stackOffset: 20 },
+  comfortable: { density: 'comfortable', width: 63, height: 88, gapX: 8, gapY: 10, stackOffset: 10 },
+  compact: { density: 'compact', width: 63, height: 88, gapX: 6, gapY: 8, stackOffset: 8 },
+  dense: { density: 'dense', width: 63, height: 88, gapX: 4, gapY: 6, stackOffset: 6 },
+};
+
+const ARTIFACT_TILE_INLINE_CHROME = 6;
+const ARTIFACT_TILE_BLOCK_CHROME = 18;
+
+const getArtifactPresentationExtent = (
+  artifact: FocusedArtifactSeed,
+  presentation: FocusedArtifactPresentation,
+) => {
+  const widthMm = Number(artifact.physicalSizeMm?.widthMm);
+  const heightMm = Number(artifact.physicalSizeMm?.heightMm);
+  if (widthMm > 0 && heightMm > 0) {
+    const contentWidth = widthMm;
+    const contentHeight = heightMm;
+    return {
+      contentWidth,
+      contentHeight,
+      width: contentWidth + ARTIFACT_TILE_INLINE_CHROME,
+      height: contentHeight + ARTIFACT_TILE_BLOCK_CHROME,
+    };
+  }
+  return {
+    contentWidth: Math.max(1, presentation.width - ARTIFACT_TILE_INLINE_CHROME),
+    contentHeight: Math.max(1, presentation.height - ARTIFACT_TILE_BLOCK_CHROME),
+    width: presentation.width,
+    height: presentation.height,
+  };
 };
 
 const finiteCoordinate = (value: number | undefined, fallback: number): number => (
-  Number.isFinite(value) ? Math.max(0, Number(value)) : fallback
+  Number.isFinite(value) ? Number(value) : fallback
 );
 
 /**
@@ -111,42 +159,43 @@ const getBalancedColumnCount = ({
   groups: readonly FocusedArtifactGroup[];
   presentation: FocusedArtifactPresentation;
 }): number => {
+  const allArtifacts = groups.flatMap((group) => group.artifacts);
+  const extents = allArtifacts.map((artifact) => getArtifactPresentationExtent(artifact, presentation));
   const largestGroup = Math.max(1, ...groups.map((group) => group.artifacts.length));
   const maximum = arrangement === 'stack' ? Math.min(24, largestGroup) : largestGroup;
+  const maximumWidth = Math.max(presentation.width, ...extents.map((extent) => extent.width));
+  const maximumHeight = Math.max(presentation.height, ...extents.map((extent) => extent.height));
   let best = { columns: 1, score: Number.POSITIVE_INFINITY };
   for (let columns = 1; columns <= maximum; columns += 1) {
-    const stepX = arrangement === 'stack' ? presentation.stackOffset : presentation.width + presentation.gapX;
-    const width = 48 + presentation.width + (Math.min(columns, largestGroup) - 1) * stepX;
+    const stepX = arrangement === 'stack' ? presentation.stackOffset : maximumWidth + presentation.gapX;
+    const width = 48 + maximumWidth + (Math.min(columns, largestGroup) - 1) * stepX;
     const height = groups.reduce((total, group) => (
-      total + 42 + Math.max(1, Math.ceil(group.artifacts.length / columns)) * (presentation.height + presentation.gapY)
+      total + 42 + Math.max(1, Math.ceil(group.artifacts.length / columns)) * (maximumHeight + presentation.gapY)
     ), 0);
     const emptySlots = groups.reduce((total, group) => total + Math.ceil(group.artifacts.length / columns) * columns - group.artifacts.length, 0);
     const ratioScore = Math.abs(Math.log(Math.max(Number.EPSILON, width / Math.max(1, height)) / (4 / 3)));
-    const score = ratioScore + emptySlots / Math.max(1, groups.reduce((total, group) => total + group.artifacts.length, 0)) * 0.08;
+    const score = ratioScore + emptySlots / Math.max(1, allArtifacts.length) * 0.08;
     if (score < best.score) best = { columns, score };
   }
   return best.columns;
 };
 
-/**
- * Whole Set is the complete bounded overview and the camera floor. Semantic
- * fits may move inward while remaining camera-only; neither path rewrites
- * Artifact positions or arrangement.
- */
+/** Whole Set is a derived camera target over signed authored bounds. */
 export const getFocusedArtifactFitZoom = ({
   layout,
   viewportWidth,
   viewportHeight,
 }: {
-  layout: Pick<FocusedArtifactLayout, 'width' | 'height' | 'artifactWidth'>;
+  layout: Pick<FocusedArtifactLayout, 'bounds'>;
   viewportWidth: number;
   viewportHeight: number;
-}): number => {
-  const width = Math.max(1, viewportWidth);
-  const height = Math.max(1, viewportHeight);
-  const geometricFit = Math.min(1, width / Math.max(1, layout.width), height / Math.max(1, layout.height));
-  return Math.max(Number.EPSILON, geometricFit);
-};
+}): number => fitSpatialCameraToRect({
+  bounds: layout.bounds,
+  viewport: { width: viewportWidth, height: viewportHeight },
+  padding: 24,
+  minZoom: 0.04,
+  maxZoom: 4,
+}).zoom;
 
 export interface FocusedArtifactFrame {
   x: number;
@@ -167,25 +216,22 @@ export const getFocusedArtifactFrame = ({
   viewportHeight: number;
   padding?: number;
 }): FocusedArtifactFrame => {
-  const wholeZoom = getFocusedArtifactFitZoom({ layout, viewportWidth, viewportHeight });
-  if (entries.length === 0) return { x: 0, y: 0, zoom: wholeZoom };
-  const left = Math.min(...entries.map((entry) => entry.position.x));
-  const top = Math.min(...entries.map((entry) => entry.position.y));
-  const right = Math.max(...entries.map((entry) => entry.position.x + entry.width));
-  const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height));
-  const safePadding = Math.max(0, Math.min(padding, Math.min(viewportWidth, viewportHeight) * 0.3));
-  const requested = Math.min(
-    Math.max(1, viewportWidth - safePadding * 2) / Math.max(1, right - left),
-    Math.max(1, viewportHeight - safePadding * 2) / Math.max(1, bottom - top),
-  );
-  const zoom = Math.max(wholeZoom, Math.min(Math.max(2, wholeZoom * 3), requested));
-  const visibleWidth = viewportWidth / zoom;
-  const visibleHeight = viewportHeight / zoom;
-  return {
-    x: Math.max(0, Math.min(Math.max(0, layout.width - visibleWidth), (left + right) / 2 - visibleWidth / 2)),
-    y: Math.max(0, Math.min(Math.max(0, layout.height - visibleHeight), (top + bottom) / 2 - visibleHeight / 2)),
-    zoom,
-  };
+  const targetBounds = entries.length === 0
+    ? layout.bounds
+    : (() => {
+        const left = Math.min(...entries.map((entry) => entry.position.x));
+        const top = Math.min(...entries.map((entry) => entry.position.y));
+        const right = Math.max(...entries.map((entry) => entry.position.x + entry.width));
+        const bottom = Math.max(...entries.map((entry) => entry.position.y + entry.height));
+        return { x: left, y: top, width: right - left, height: bottom - top };
+      })();
+  return fitSpatialCameraToRect({
+    bounds: targetBounds,
+    viewport: { width: viewportWidth, height: viewportHeight },
+    padding,
+    minZoom: 0.04,
+    maxZoom: 4,
+  });
 };
 
 export const buildFocusedArtifactLayout = ({
@@ -201,8 +247,14 @@ export const buildFocusedArtifactLayout = ({
 }): FocusedArtifactLayout => {
   const artifactCount = groups.reduce((total, group) => total + group.artifacts.length, 0);
   const presentation = getFocusedArtifactPresentation({ arrangement, artifactCount, availableWidth: minimumWidth });
+  const sized = groups.flatMap((group) => group.artifacts.map((artifact) => ({
+    artifact,
+    extent: getArtifactPresentationExtent(artifact, presentation),
+  })));
+  const maximumWidth = Math.max(presentation.width, ...sized.map(({ extent }) => extent.width));
+  const maximumHeight = Math.max(presentation.height, ...sized.map(({ extent }) => extent.height));
   const columns = arrangement === 'manual'
-    ? Math.max(1, Math.floor((Math.max(presentation.width + 48, Math.round(minimumWidth)) - 48) / (presentation.width + presentation.gapX)))
+    ? Math.max(1, Math.floor((Math.max(maximumWidth + 48, Math.round(minimumWidth)) - 48) / (maximumWidth + presentation.gapX)))
     : getBalancedColumnCount({ arrangement, groups, presentation });
   const entries: FocusedArtifactLayoutEntry[] = [];
   const groupLayouts: FocusedArtifactGroupLayout[] = [];
@@ -211,13 +263,15 @@ export const buildFocusedArtifactLayout = ({
 
   for (const group of groups) {
     const groupColumns = Math.max(1, Math.min(columns, group.artifacts.length));
-    const stepX = arrangement === 'stack' ? presentation.stackOffset : presentation.width + presentation.gapX;
-    const groupWidth = presentation.width + (groupColumns - 1) * stepX;
-    groupLayouts.push({ label: group.label, x: 24, y: groupTop, width: groupWidth, count: group.artifacts.length });
+    const groupStart = entries.length;
     const contentTop = groupTop + 30;
+
     group.artifacts.forEach((artifact, groupIndex) => {
-      const fallbackX = 24 + (nextIndex % columns) * (presentation.width + presentation.gapX);
-      const fallbackY = 30 + Math.floor(nextIndex / columns) * (presentation.height + presentation.gapY);
+      const extent = getArtifactPresentationExtent(artifact, presentation);
+      const column = groupIndex % groupColumns;
+      const row = Math.floor(groupIndex / groupColumns);
+      const fallbackX = 24 + (nextIndex % columns) * (maximumWidth + presentation.gapX);
+      const fallbackY = 30 + Math.floor(nextIndex / columns) * (maximumHeight + presentation.gapY);
       let position: ArtifactPosition;
       if (arrangement === 'manual') {
         position = {
@@ -226,44 +280,71 @@ export const buildFocusedArtifactLayout = ({
         };
       } else if (arrangement === 'stack') {
         position = {
-          x: 24 + (groupIndex % groupColumns) * presentation.stackOffset,
-          y: contentTop + Math.floor(groupIndex / groupColumns) * (presentation.height + presentation.gapY),
+          x: 24 + column * presentation.stackOffset,
+          y: contentTop + row * (maximumHeight + presentation.gapY),
         };
       } else {
         position = {
-          x: 24 + (groupIndex % groupColumns) * (presentation.width + presentation.gapX),
-          y: contentTop + Math.floor(groupIndex / groupColumns) * (presentation.height + presentation.gapY),
+          x: 24 + column * (maximumWidth + presentation.gapX),
+          y: contentTop + row * (maximumHeight + presentation.gapY),
         };
       }
       entries.push({
         ...artifact,
         index: nextIndex,
         position,
-        width: presentation.width,
-        height: presentation.height,
+        ...extent,
       });
       nextIndex += 1;
     });
 
+    const groupEntries = entries.slice(groupStart);
+    const groupRight = Math.max(24, ...groupEntries.map((entry) => entry.position.x + entry.width));
+    groupLayouts.push({
+      label: group.label,
+      x: 24,
+      y: groupTop,
+      width: Math.max(1, groupRight - 24),
+      count: group.artifacts.length,
+    });
+
     if (arrangement !== 'manual') {
-      const rows = arrangement === 'stack'
-        ? Math.max(1, Math.ceil(group.artifacts.length / groupColumns))
-        : Math.max(1, Math.ceil(group.artifacts.length / groupColumns));
-      groupTop = contentTop + rows * (presentation.height + presentation.gapY) + 12;
+      const groupBottom = Math.max(contentTop, ...groupEntries.map((entry) => entry.position.y + entry.height));
+      groupTop = groupBottom + 12;
     }
   }
 
-  const widthFloor = arrangement === 'manual' ? Math.max(presentation.width + 48, Math.round(minimumWidth)) : presentation.width + 48;
-  const contentWidth = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.x + entry.width + 24), widthFloor);
-  const contentHeight = entries.reduce((maximum, entry) => Math.max(maximum, entry.position.y + entry.height + 30), Math.max(minimumHeight, 360, groupTop));
+  const minimumSceneWidth = arrangement === 'manual'
+    ? Math.max(maximumWidth + 48, Math.round(minimumWidth))
+    : maximumWidth + 48;
+  const minimumSceneHeight = arrangement === 'manual'
+    ? Math.max(minimumHeight, 360)
+    : 360;
+  const rawLeft = entries.length ? Math.min(...entries.map((entry) => entry.position.x)) - 24 : -minimumSceneWidth / 2;
+  const rawTop = entries.length ? Math.min(...entries.map((entry) => entry.position.y)) - 30 : -minimumSceneHeight / 2;
+  const rawRight = entries.length ? Math.max(...entries.map((entry) => entry.position.x + entry.width)) + 24 : minimumSceneWidth / 2;
+  const rawBottom = entries.length ? Math.max(...entries.map((entry) => entry.position.y + entry.height)) + 30 : minimumSceneHeight / 2;
+  const contentWidth = rawRight - rawLeft;
+  const contentHeight = rawBottom - rawTop;
+  const centerX = (rawLeft + rawRight) / 2;
+  const centerY = (rawTop + rawBottom) / 2;
+  const width = Math.max(minimumSceneWidth, contentWidth);
+  const height = Math.max(minimumSceneHeight, contentHeight);
+  const bounds = {
+    x: centerX - width / 2,
+    y: centerY - height / 2,
+    width,
+    height,
+  };
   return {
     entries,
     groups: groupLayouts,
-    width: contentWidth,
-    height: contentHeight,
+    bounds,
+    width,
+    height,
     density: presentation.density,
-    artifactWidth: presentation.width,
-    artifactHeight: presentation.height,
+    artifactWidth: Math.max(presentation.width, ...entries.map((entry) => entry.width)),
+    artifactHeight: Math.max(presentation.height, ...entries.map((entry) => entry.height)),
   };
 };
 
@@ -284,40 +365,37 @@ export const projectVisibleArtifacts = (
   ));
 };
 
-export const moveFocusedArtifactSelectionWithRebase = ({
+export const moveFocusedArtifactSelectionResult = ({
   entries,
   selectedIds,
   delta,
   snapToGrid,
+  gridStep = DEFAULT_SET_GRID_SIZE_MM,
 }: {
   entries: readonly FocusedArtifactLayoutEntry[];
   selectedIds: readonly string[];
   delta: ArtifactPosition;
   snapToGrid: boolean;
+  gridStep?: number;
 }) => {
   const selected = new Set(selectedIds);
-  const snap = (value: number) => snapToGrid ? Math.round(value / 24) * 24 : Math.round(value);
-  const items = entries.map((entry) => ({
-    id: entry.identity.artifactId,
-    x: entry.position.x,
-    y: entry.position.y,
-  }));
-  const proposed = Object.fromEntries(entries.flatMap((entry) => selected.has(entry.identity.artifactId)
-    ? [[entry.identity.artifactId, {
-        x: snap(entry.position.x + delta.x),
-        y: snap(entry.position.y + delta.y),
-      }] as const]
-    : []));
-  return rebaseSpatialWorldMove({ items, proposed });
+  const safeGridStep = Number.isFinite(gridStep) && gridStep > 0 ? gridStep : DEFAULT_SET_GRID_SIZE_MM;
+  const snap = (value: number) => snapToGrid
+    ? Math.round(value / safeGridStep) * safeGridStep
+    : Math.round(value * 1000) / 1000;
+  const affected = entries.filter((entry) => selected.has(entry.identity.artifactId));
+  return {
+    positions: Object.fromEntries(affected.map((entry) => [entry.identity.artifactId, {
+      x: snap(entry.position.x + delta.x),
+      y: snap(entry.position.y + delta.y),
+    }])),
+    affectedIds: affected.map((entry) => entry.identity.artifactId),
+  };
 };
 
 export const moveFocusedArtifactSelection = (
-  input: Parameters<typeof moveFocusedArtifactSelectionWithRebase>[0],
-): Record<string, ArtifactPosition> => {
-  const selected = new Set(input.selectedIds);
-  const result = moveFocusedArtifactSelectionWithRebase(input);
-  return Object.fromEntries(Object.entries(result.positions).filter(([id]) => selected.has(id)));
-};
+  input: Parameters<typeof moveFocusedArtifactSelectionResult>[0],
+): Record<string, ArtifactPosition> => moveFocusedArtifactSelectionResult(input).positions;
 
 /**
  * Focused Artifact browsing follows the displayed Desk geometry, not the

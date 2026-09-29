@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import Link from 'next/link';
 import { GitPullRequestArrow, LockKeyhole } from 'lucide-react';
-import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import { resolveCanvasElementWorldGeometry, type AppearanceStylePreset, type FreeformCardElement, type TCGCardTemplate } from '@/domain/templates';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -271,10 +271,11 @@ export function CardTemplateMaker({
   });
   const saveAction = editorActions.find((action) => action.id === 'save');
   const livePreviewData = useMemo(() => currentTemplate.templatePreviewData ?? {}, [currentTemplate.templatePreviewData]);
-  const renderEditableElement = useCallback((element: FreeformCardElement) => (
-    <TemplateEditableElement
+  const renderEditableElement = useCallback((element: FreeformCardElement) => {
+    const worldElement = resolveCanvasElementWorldGeometry(element, canvas.elements);
+    return <TemplateEditableElement
       key={element.id}
-      element={element}
+      element={worldElement}
       livePreviewData={livePreviewData}
       selected={selectedElementId === element.id}
       zoom={zoom}
@@ -282,8 +283,8 @@ export function CardTemplateMaker({
       onElementEdit={openElementInspector}
       onElementPointerDown={handleElementPointerDown}
       onResizePointerDown={handleResizePointerDown}
-    />
-  ), [handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
+    />;
+  }, [canvas.elements, handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
   const canvasFrameStyle: React.CSSProperties = { width: canvas.width, height: canvas.height, transform: `scale(${zoom})`, transformOrigin: 'top left' };
   if (!draftPersistenceHydrated) return <div className="flex min-h-[60vh] items-center justify-center rounded border border-[var(--cf-editor-border)] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]" role="status" aria-live="polite">Loading editor workspace…</div>;
 
@@ -314,7 +315,7 @@ export function CardTemplateMaker({
         <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {contributorFontFaceCss && <style>{contributorFontFaceCss}</style>}
           <TemplateEditorLibrarySidebar backFaceTemplates={backFaceTemplates} canUseProjectFiles={canUseProjectFiles} commands={commands} controller={controller} defaultTemplates={defaultTemplates} elements={elements} fileInputRef={fileInputRef} isCheckoutStarting={isCheckoutStarting} onDeleteTemplate={onDeleteTemplate} onElementAdded={() => setMobilePanel('canvas')} onExportProject={onExportProject} onImportProject={onImportProject} onLoadProject={onLoadProject} onSelectElement={selectElement} onSelectTemplateId={onSelectTemplateForEditing} onStartCheckout={onStartCheckout} projectFileGateMessage={projectFileGateMessage} richTextHighlightColor={richTextHighlightColor} showCardWatermark={showCardWatermark} templates={templates} userTemplates={userTemplates} requestedSectionId={requestedLibrarySectionId} onRequestedSectionHandled={() => setRequestedLibrarySectionId(null)} onClose={() => setMobilePanel('canvas')} />
-          <TemplateCanvasStage autoFitCanvas={autoFitCanvas} canvas={canvas} canvasFrameStyle={canvasFrameStyle} canvasRef={canvasRef} currentTemplate={currentTemplate} gridSize={gridSize} livePreviewData={livePreviewData} previewMode={previewMode} richTextHighlightColor={richTextHighlightColor} selectedElement={selectedElement} showCardWatermark={showCardWatermark} showGrid={showGrid} stageRef={stageRef} zoom={zoom} onCanvasKeyDown={handleCanvasKeyDown} onClearDepthSelection={clearDepthSelection} onDeselectCanvas={() => setSelectedElementId(null)} onDrop={handleDrop} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onStagePointerDownCapture={handleStagePointerDownCapture} onStagePointerMoveCapture={handleStagePointerMoveCapture} onStagePointerUpCapture={handleStagePointerUpCapture} onStageWheel={handleStageWheel} renderEditableElement={renderEditableElement} />
+          <TemplateCanvasStage autoFitCanvas={autoFitCanvas} canvas={canvas} canvasFrameStyle={canvasFrameStyle} canvasRef={canvasRef} currentTemplate={currentTemplate} gridSize={gridSize} rulerUnit={commands.customUnit} rulerPixelsPerUnit={commands.rulerPixelsPerUnit} livePreviewData={livePreviewData} previewMode={previewMode} richTextHighlightColor={richTextHighlightColor} selectedElement={selectedElement} showCardWatermark={showCardWatermark} showGrid={showGrid} stageRef={stageRef} zoom={zoom} onCanvasKeyDown={handleCanvasKeyDown} onClearDepthSelection={clearDepthSelection} onDeselectCanvas={() => setSelectedElementId(null)} onDrop={handleDrop} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onStagePointerDownCapture={handleStagePointerDownCapture} onStagePointerMoveCapture={handleStagePointerMoveCapture} onStagePointerUpCapture={handleStagePointerUpCapture} onStageWheel={handleStageWheel} renderEditableElement={renderEditableElement} />
           <TemplateEditorInspectorSidebar availableFonts={availableFonts} canUploadCustomAssets={canUploadCustomAssets} commands={commands} controller={controller} elements={elements} onRichTextHighlightColorChange={setRichTextHighlightColorAction} richTextHighlightColor={richTextHighlightColor} variables={variables} onClose={() => setMobilePanel('canvas')} />
         </div>
         <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--cf-editor-border)] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]"><span className="text-[#d5ad54]">Shortcuts</span><span>Ctrl+S Save</span><span>Ctrl+Z Undo</span><span>Ctrl+D Duplicate</span><span>Del Remove</span><span>G Grid</span><span>P Preview</span><span>+/- Zoom</span><span>Esc Deselect</span></div>

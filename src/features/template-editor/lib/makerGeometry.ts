@@ -1,5 +1,6 @@
 export const mmConversion: Record<string, number> = {
   mm: 1,
+  cm: 10,
   in: 25.4,
 };
 

@@ -6,6 +6,8 @@ import type { CardSetMetadata, CardSetOrganization } from '@/domain/cards';
 import type { OrganizationSlice, ProjectState } from './types';
 
 export const DEFAULT_CARD_SET_ORGANIZATION: CardSetOrganization = {
+  spatialVersion: 2,
+  gridSizeMm: 5,
   arrangement: 'grid',
   groupBy: 'none',
   sort: 'manual',
@@ -137,11 +139,17 @@ export const createOrganizationSlice: StateCreator<ProjectState, [], [], Organiz
     }));
     return changed;
   },
-  setCardPositions: (setId, positions) => {
+  setCardPositions: (setId, positions, options = {}) => {
     if (!get().cardSets.some((candidate) => candidate.id === setId)) return false;
     set((state) => {
       const organization = organizationFor(state, setId);
-      return updateSet(state, setId, { ...organization, arrangement: 'manual', positions: { ...organization.positions, ...positions } });
+      return updateSet(state, setId, {
+        ...organization,
+        spatialVersion: options.spatialVersion ?? 2,
+        gridSizeMm: organization.gridSizeMm ?? 5,
+        arrangement: options.preserveArrangement ? organization.arrangement : 'manual',
+        positions: { ...organization.positions, ...positions },
+      });
     });
     return true;
   },

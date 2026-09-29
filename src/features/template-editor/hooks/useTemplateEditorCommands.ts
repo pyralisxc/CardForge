@@ -23,6 +23,9 @@ import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/l
 import {
   buildCardFormatTemplateUpdate,
   buildCustomDimensionTemplateUpdate,
+  getTemplateGridMeasurement,
+  getTemplateGridSizePx,
+  getTemplatePixelsPerUnit,
   type CanvasResizeStrategy,
 } from '@/features/template-editor/lib/makerDimensions';
 import {
@@ -108,6 +111,17 @@ export function useTemplateEditorCommands({
   }, customUnit);
   const currentMeasurementWidth = currentMeasurement.width;
   const currentMeasurementHeight = currentMeasurement.height;
+  const currentGridSizePx = currentTemplate.freeformCanvas?.gridSize
+    || getDefaultGridSizeForCanvas(
+      currentTemplate.freeformCanvas?.width || 630,
+      currentTemplate.freeformCanvas?.height || 880,
+    );
+  const gridSizeValue = getTemplateGridMeasurement({
+    template: currentTemplate,
+    gridSizePx: currentGridSizePx,
+    unit: customUnit,
+  });
+  const rulerPixelsPerUnit = getTemplatePixelsPerUnit(currentTemplate, customUnit);
 
   useEffect(() => {
     setCustomWidthValue(String(currentMeasurementWidth));
@@ -370,6 +384,16 @@ export function useTemplateEditorCommands({
     });
   }, [currentTemplate, resizeStrategy, updateTemplate]);
 
+  const setGridSizeValue = useCallback((value: number) => {
+    updateCanvas({
+      gridSize: getTemplateGridSizePx({
+        template: currentTemplate,
+        value,
+        unit: customUnit,
+      }),
+    });
+  }, [currentTemplate, customUnit, updateCanvas]);
+
   const resetGridToTemplateDefault = useCallback(() => {
     updateCanvas({ gridSize: getDefaultGridSizeForCanvas(canvas.width, canvas.height) });
   }, [canvas.height, canvas.width, updateCanvas]);
@@ -420,6 +444,7 @@ export function useTemplateEditorCommands({
     customUnit,
     customWidthValue,
     frameKitRecipes,
+    gridSizeValue,
     handleFileUpload,
     isSavingTemplate,
     openTemplate,
@@ -427,11 +452,13 @@ export function useTemplateEditorCommands({
     requestNewTemplate,
     resetGridToTemplateDefault,
     resizeStrategy,
+    rulerPixelsPerUnit,
     saveTemplate,
     setCommandPaletteOpen,
     setCustomHeightValue,
     setCustomUnit,
     setCustomWidthValue,
+    setGridSizeValue,
     setNewTemplateRequest,
     setResizeStrategy,
   };

@@ -12,6 +12,8 @@ import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain
 import {
   buildCardFormatTemplateUpdate,
   buildCustomDimensionTemplateUpdate,
+  getTemplateGridMeasurement,
+  getTemplateGridSizePx,
 } from '@/features/template-editor/lib/makerDimensions';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
@@ -34,6 +36,7 @@ describe('card format ownership', () => {
 
     const poker = CARD_FORMATS[0];
     expect(getCardFormatMeasurement(poker, 'mm')).toMatchObject({ width: 63, height: 88, suffix: 'mm' });
+    expect(getCardFormatMeasurement(poker, 'cm')).toMatchObject({ width: 6.3, height: 8.8, suffix: 'cm' });
     expect(getCardFormatMeasurement(poker, 'in')).toMatchObject({ width: 2.48, height: 3.46, suffix: 'in' });
     expect(getCardFormatMeasurement(poker, 'px')).toMatchObject({ width: 630, height: 880, suffix: 'px' });
 
@@ -124,8 +127,19 @@ describe('card format ownership', () => {
     });
   });
 
-  it('accepts custom measurements in millimeters, inches, or canvas pixels', () => {
+  it('accepts custom measurements in millimeters, centimeters, inches, or canvas pixels', () => {
     const template = reconstructMinimalTemplateObject({ id: 'custom-source', name: 'Custom source', formatId: 'poker' });
+
+    expect(buildCustomDimensionTemplateUpdate({
+      widthValue: '6.3',
+      heightValue: '8.8',
+      unit: 'cm',
+      template,
+    })).toMatchObject({
+      formatId: 'custom',
+      trimWidthMm: 63,
+      trimHeightMm: 88,
+    });
 
     expect(buildCustomDimensionTemplateUpdate({
       widthValue: '2.5',
@@ -149,6 +163,34 @@ describe('card format ownership', () => {
       trimHeightMm: 88,
       freeformCanvas: { width: 630, height: 880 },
     });
+  });
+
+  it('shows and edits one Studio grid in the creator-selected physical unit', () => {
+    const template = reconstructMinimalTemplateObject({
+      id: 'physical-grid',
+      name: 'Physical grid',
+      formatId: 'poker',
+      freeformCanvas: { width: 630, height: 880, gridSize: 20, elements: [] },
+    });
+
+    expect(getTemplateGridMeasurement({ template, gridSizePx: 20, unit: 'mm' })).toBe(2);
+    expect(getTemplateGridMeasurement({ template, gridSizePx: 20, unit: 'cm' })).toBe(0.2);
+    expect(getTemplateGridSizePx({ template, value: 0.25, unit: 'in' })).toBeCloseTo(63.5, 3);
+  });
+
+  it('preserves physical grid spacing when changing card format', () => {
+    const source = reconstructMinimalTemplateObject({
+      id: 'grid-format-source',
+      name: 'Grid format source',
+      formatId: 'poker',
+      freeformCanvas: { width: 630, height: 880, gridSize: 20, elements: [] },
+    });
+    const update = buildCardFormatTemplateUpdate({
+      formatId: 'tarot',
+      resizeStrategy: 'fit',
+      template: source,
+    });
+    expect(update.freeformCanvas?.gridSize).toBeCloseTo(20, 3);
   });
 
   it('resizes into standard formats without distorting element proportions', () => {
