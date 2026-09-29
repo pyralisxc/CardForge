@@ -199,8 +199,17 @@ export function ArtifactScene({ children, activeSetId }: { children: ReactNode; 
     for (const slot of slots.current.values()) observer.current.observe(slot.node);
     const onScroll = () => { directUntil.current = performance.now() + 180; refresh(); };
     const onWheel = () => { directUntil.current = performance.now() + 180; };
-    const onPointerDown = () => { dragging.current = true; };
-    const onPointerUp = () => { dragging.current = false; };
+    const onPointerDown = () => {
+      dragging.current = true;
+      directUntil.current = performance.now() + 180;
+      // Direct manipulation owns presentation immediately. Do not wait for a
+      // later ResizeObserver/scene measurement to tell Motion to stop travel.
+      setDirectMotion(true);
+    };
+    const onPointerUp = () => {
+      dragging.current = false;
+      setDirectMotion(false);
+    };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('resize', refresh);
