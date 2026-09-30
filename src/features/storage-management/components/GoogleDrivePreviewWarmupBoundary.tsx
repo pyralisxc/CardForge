@@ -6,6 +6,7 @@ import { createGoogleDriveProjectThumbnail } from '@/features/card-generator/cli
 import { PROJECT_LIBRARY_CHANGE_EVENT } from '@/features/project/client/assets';
 import {
   cacheGoogleDriveProjectPreview,
+  getCachedGoogleDriveProjectPreview,
   loadGoogleDriveProjectLibrary,
   type GoogleDriveProjectSummary,
 } from '@/features/project/client/provider-google-drive';
@@ -85,7 +86,7 @@ const automaticPreviewCandidates = (projects: readonly GoogleDriveProjectSummary
   const candidates: GoogleDriveProjectSummary[] = [];
   let totalBytes = 0;
   for (const project of projects) {
-    if (project.thumbnailLink
+    if (getCachedGoogleDriveProjectPreview(project)
       || project.capabilities?.canDownload === false
       || project.size <= 0
       || project.size > MAX_AUTOMATIC_PREVIEW_PACKAGE_BYTES
@@ -112,8 +113,9 @@ const warmMissingPreviews = async (signal: AbortSignal): Promise<boolean> => {
   if (!candidates.length) return false;
 
   let changed = false;
-  // Serialize package reads. Native Drive thumbnails remain the fast path; this
-  // compatibility work must stay gentle enough for a phone or metered network.
+  // Serialize package reads. Native Drive thumbnails remain the immediate
+  // fallback, while this richer CardForge preview upgrades the visible Set in
+  // place without importing it. Keep the work gentle for phones and metered data.
   for (const project of candidates) {
     if (signal.aborted) break;
     try {
@@ -123,8 +125,8 @@ const warmMissingPreviews = async (signal: AbortSignal): Promise<boolean> => {
       changed = true;
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) break;
-      // Preview compatibility must never turn a readable Drive source into a
-      // failed source. The native provider fallback remains available.
+      // Rich preview work must never turn a readable Drive source into a failed
+      // source. The native provider fallback remains available.
       console.info('CardForge could not prepare a compatibility Drive preview:', error);
     }
   }
@@ -132,13 +134,13 @@ const warmMissingPreviews = async (signal: AbortSignal): Promise<boolean> => {
 };
 
 /**
- * Older CardForge Drive files may predate native contentHints thumbnails.
- * Warm a small revision-keyed visual cache in the background, then reuse the
- * established project-Library refresh signal so Desk and Library repaint
- * without importing those files into editable browser work or blocking the
- * workspace. Concurrent list consumers are coalesced at the provider client.
- * Data-saver/hidden pages skip this optional compatibility read entirely, and
- * leaving the workspace aborts any optional package download still in flight.
+ * Warm a small revision-keyed, multi-card visual cache in the background, then
+ * reuse the established project-Library refresh signal so Desk and Library
+ * repaint without importing those files into editable browser work. Native
+ * Drive thumbnails remain the immediate fallback. Concurrent list consumers
+ * are coalesced at the provider client. Data-saver/hidden pages skip this
+ * optional richer read, and leaving the workspace aborts any package download
+ * still in flight.
  */
 export function GoogleDrivePreviewWarmupBoundary({
   enabled,

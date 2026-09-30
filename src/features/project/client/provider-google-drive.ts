@@ -93,23 +93,25 @@ const readNativeGoogleDriveProjectLibrary = (): Promise<GoogleDriveProjectListRe
   return request;
 };
 
-/** Apply only ephemeral compatibility pixels; source identity remains provider-owned. */
+/** Apply richer ephemeral CardForge pixels; source identity remains provider-owned. */
 export const applyCachedGoogleDriveProjectPreviews = (
   library: GoogleDriveProjectListResult,
 ): GoogleDriveProjectListResult => ({
   ...library,
-  projects: library.projects.map((project) => project.thumbnailLink
-    ? project
-    : { ...project, thumbnailLink: getCachedGoogleDriveProjectPreview(project) }),
+  projects: library.projects.map((project) => {
+    const cached = getCachedGoogleDriveProjectPreview(project);
+    return cached ? { ...project, thumbnailLink: cached } : project;
+  }),
 });
 
 /**
- * Provider thumbnails stay authoritative. A browser-only compatibility preview
- * may fill the visual gap for older Drive packages that predate native
- * contentHints thumbnails; it never changes source identity or editable work.
- * Concurrent consumers for the same browser owner share one provider read,
- * but the promise is cleared after settlement so a later refresh still reaches
- * Drive. Account changes never reuse an older owner's in-flight request.
+ * Native provider thumbnails are the immediate fallback. A revision-keyed
+ * browser-only CardForge preview may supersede those pixels once available so
+ * a remote Set can communicate several contents before it is opened. This
+ * never changes provider identity or editable work. Concurrent consumers for
+ * the same browser owner share one provider read, but the promise is cleared
+ * after settlement so a later refresh still reaches Drive. Account changes
+ * never reuse an older owner's in-flight request.
  */
 export const loadGoogleDriveProjectLibrary = async (): Promise<GoogleDriveProjectListResult> => (
   applyCachedGoogleDriveProjectPreviews(await readNativeGoogleDriveProjectLibrary())
