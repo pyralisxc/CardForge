@@ -1,5 +1,61 @@
 .desktopSaveAction { display: inline-flex; }
 
+.creatorEnvironment {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  isolation: isolate;
+}
+
+.environmentArrival {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--cf-canvas);
+}
+
+.environmentArrivalContent {
+  display: grid;
+  width: min(28rem, 100%);
+  justify-items: center;
+  gap: 0.7rem;
+  color: var(--cf-text-muted);
+  text-align: center;
+}
+
+.environmentArrivalContent > svg {
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--cf-accent-strong);
+}
+
+.environmentArrivalContent strong {
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-size: 1rem;
+}
+
+.environmentArrivalContent p {
+  max-width: 24rem;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.environmentArrivalBrand {
+  color: var(--cf-text-strong);
+  font-family: var(--cf-font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .spatialPlane {
   width: 100%;
   min-width: 0;
@@ -297,10 +353,35 @@
   gap: 0.1rem;
 }
 
-.desktopSpatialControls {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
+.compactSpatialControls {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .fullSpatialControls {
+    display: none;
+  }
+
+  .compactSpatialControls {
+    display: flex;
+  }
+}
+
+@media (min-width: 1050px) and (max-width: 1400px) {
+  .searchField {
+    width: 13rem;
+  }
+
+  .deskFilterRow {
+    flex-wrap: nowrap;
+  }
+
+  /* The active view is already named by the view trigger. Suppress the
+     duplicate prose at laptop widths so the complete camera strip stays on
+     the same overlay row. */
+  .deskRestrictionLabel {
+    display: none;
+  }
 }
 
 .workGrid {
@@ -310,11 +391,17 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
-  scrollbar-color: var(--cf-border-strong) transparent;
-  scrollbar-width: thin;
   touch-action: none;
+}
+
+.workGrid[data-grid="true"] {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px);
+  background-position: var(--desk-grid-origin-x, 0) var(--desk-grid-origin-y, 0);
+  background-size: var(--desk-grid-step, 24px) var(--desk-grid-step, 24px);
 }
 
 .workGrid[data-arrange-mode="true"] {
@@ -378,13 +465,6 @@
   transform-origin: top left;
 }
 
-.deskWorld[data-grid="true"] {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 62%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
 .deskWorldSizer[data-focused="true"],
 .deskWorld[data-focused="true"] {
   width: 100% !important;
@@ -412,7 +492,8 @@
   position: absolute;
   top: var(--desk-y);
   left: var(--desk-x);
-  width: 14.5rem;
+  width: var(--desk-width, 82px);
+  min-height: var(--desk-height, 126px);
   z-index: var(--desk-z);
   transform: none;
 }
@@ -493,6 +574,15 @@
   touch-action: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+.workTile[data-positioned="true"] .workTileMain {
+  min-height: var(--desk-height, 126px);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.workTile[data-positioned="true"] .workVisual {
+  min-height: var(--desk-visual-height, 90px);
 }
 
 .workGrid[data-arrange-mode="true"] .workTileMain {
@@ -975,11 +1065,17 @@
   -webkit-touch-callout: none;
 }
 
-.contentStage[data-grid="true"] .artifactWorld {
+.contentStage[data-set-spatial-stage] {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+.contentStage[data-set-spatial-stage][data-grid="true"] {
   background-image:
     linear-gradient(color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--cf-border-subtle) 64%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-position: var(--artifact-grid-origin-x, 0) var(--artifact-grid-origin-y, 0);
+  background-size: var(--artifact-grid-step, 24px) var(--artifact-grid-step, 24px);
 }
 
 .artifactWorldSizer,
@@ -1975,10 +2071,6 @@
     justify-content: flex-end;
   }
 
-  .desktopSpatialControls {
-    display: none;
-  }
-
   .searchField {
     width: 100%;
   }
@@ -1995,8 +2087,8 @@
   }
 
   .deskWorldSizer {
-    min-height: calc(100% - 3.75rem);
-    margin-top: 3.75rem;
+    min-height: 100%;
+    margin-top: 0;
   }
 
   .workVisual,

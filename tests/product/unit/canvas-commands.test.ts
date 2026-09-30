@@ -105,8 +105,8 @@ describe('canvasCommands', () => {
     });
     expect(childCopy).toMatchObject({
       parentId: 'group-copy',
-      x: 26,
-      y: 36,
+      x: 18,
+      y: 28,
       locked: false,
     });
     expect(Math.max(...result.elements.map((item) => item.zIndex))).toBe(childCopy?.zIndex);
@@ -139,8 +139,8 @@ describe('canvasCommands', () => {
       strokeColor: 'transparent',
       zIndex: 6,
     });
-    expect(result.elements.find((item) => item.id === 'left')?.parentId).toBe('new-group');
-    expect(result.elements.find((item) => item.id === 'right')?.parentId).toBe('new-group');
+    expect(result.elements.find((item) => item.id === 'left')).toMatchObject({ parentId: 'new-group', x: 8, y: 8 });
+    expect(result.elements.find((item) => item.id === 'right')).toMatchObject({ parentId: 'new-group', x: 88, y: 68 });
   });
 
   it('ungroups a selected group without orphaning nested grandchildren', () => {
@@ -155,8 +155,8 @@ describe('canvasCommands', () => {
 
     expect(result.changed).toBe(true);
     expect(result.elements.map((item) => item.id)).toEqual(['child', 'grandchild']);
-    expect(result.elements.find((item) => item.id === 'child')?.parentId).toBeUndefined();
-    expect(result.elements.find((item) => item.id === 'grandchild')?.parentId).toBe('child');
+    expect(result.elements.find((item) => item.id === 'child')).toMatchObject({ parentId: undefined, x: 20, y: 40 });
+    expect(result.elements.find((item) => item.id === 'grandchild')).toMatchObject({ parentId: 'child', x: 10, y: 20 });
     expect(result.selectedElementId).toBeNull();
   });
 
@@ -176,6 +176,23 @@ describe('canvasCommands', () => {
     expect(result.changed).toBe(false);
     expect(result.reason).toBe('cyclic-parent');
     expect(result.elements).toBe(elements);
+  });
+
+  it('reparents a layer without changing its world position', () => {
+    const result = reorderCanvasLayer({
+      elements: [
+        element('source', 3, { x: 120, y: 80 }),
+        element('target', 2, { x: 40, y: 30 }),
+      ],
+      sourceId: 'source',
+      targetId: 'target',
+      position: 'child',
+    });
+    expect(result.elements.find((item) => item.id === 'source')).toMatchObject({
+      parentId: 'target',
+      x: 80,
+      y: 50,
+    });
   });
 
   it('reorders flat layers with deterministic z-index remapping after removing the source', () => {
@@ -198,7 +215,7 @@ describe('canvasCommands', () => {
     });
   });
 
-  it('nudges a selected layer and descendants together', () => {
+  it('nudges a selected parent while descendants keep stable local transforms', () => {
     const result = moveCanvasSelectionByDelta({
       elements: [
         element('group', 2, { x: 10, y: 20 }),
@@ -212,7 +229,7 @@ describe('canvasCommands', () => {
 
     expect(result.changed).toBe(true);
     expect(result.elements.find((item) => item.id === 'group')).toMatchObject({ x: 15, y: 17 });
-    expect(result.elements.find((item) => item.id === 'child')).toMatchObject({ x: 35, y: 37 });
+    expect(result.elements.find((item) => item.id === 'child')).toMatchObject({ x: 30, y: 40 });
     expect(result.elements.find((item) => item.id === 'other')).toMatchObject({ x: 100, y: 100 });
     expect(result.selectedElementId).toBe('group');
   });

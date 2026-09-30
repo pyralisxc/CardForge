@@ -4,20 +4,39 @@ import { DESK_METADATA_SEPARATOR, getDeskSourceFacets, getDeskToolCard, getDeskW
 import { normalizeDeskViewPreferences } from '@/features/desk/hooks/useDeskViewPreferences';
 import {
   collectDeskWorldItems,
-  DESK_MIN_WORLD_HEIGHT,
-  DESK_MIN_WORLD_WIDTH,
   getDefaultDeskWorldPosition,
-  getDeskCameraGeometry,
-  getDeskFramingTarget,
-  getDeskWorldProjection,
   getDeskWorldBounds,
   getDeskWorldSize,
   getDeskMarqueeSelection,
   moveDeskWorldSelection,
-  moveDeskWorldSelectionWithRebase,
+  migrateLegacyDeskPositionToMm,
+  moveDeskWorldSelectionResult,
   normalizeDeskWorldGeometry,
 } from '@/features/desk/model/deskSpatialGeometry';
 import type { AccountLibraryItem } from '@/features/storage-management/model/accountLibrary';
+
+describe('Set spatial organization normalization', () => {
+  it('preserves signed physical positions and lattice metadata in portable work', () => {
+    const set = normalizeCardSet({
+      id: 'physical-set',
+      name: 'Physical Set',
+      organization: {
+        spatialVersion: 2,
+        gridSizeMm: 2.5,
+        arrangement: 'manual',
+        groupBy: 'none',
+        sort: 'manual',
+        tags: [],
+        positions: { card: { x: -12.5, y: 25 } },
+      },
+    });
+    expect(set?.organization).toMatchObject({
+      spatialVersion: 2,
+      gridSizeMm: 2.5,
+      positions: { card: { x: -12.5, y: 25 } },
+    });
+  });
+});
 
 describe('Desk tool template context', () => {
   const cards = [
@@ -181,102 +200,64 @@ describe('Desk model', () => {
     })).toMatchObject({ views: ['my-work', 'my-published'], types: ['Postcards'], tags: ['launch', 'print'], sources: ['device', 'google-drive'], tagMatch: 'all', saved: [{ name: 'Launch work' }] });
   });
 
-  it('migrates legacy pixels into versioned elastic world geometry without clipping authored positions', () => {
+  it('migrates legacy pixels into versioned signed world geometry without clipping authored positions', () => {
     const geometry = normalizeDeskWorldGeometry({
       'set:one': { x: 120, y: 160 },
       'set:far': { x: 4_200, y: 2_600 },
       bad: { x: 'no', y: 2 },
     });
     expect(geometry).toEqual({
-      version: 2,
+      version: 4,
       positions: {
-        'set:one': { x: 120, y: 160, z: 0 },
-        'set:far': { x: 4_200, y: 2_600, z: 1 },
+        'set:one': migrateLegacyDeskPositionToMm({ x: 120, y: 160, z: 0 }),
+        'set:far': migrateLegacyDeskPositionToMm({ x: 4_200, y: 2_600, z: 1 }),
       },
     });
   });
 
-  it('treats the current elastic world as the minimum Desk camera scale on every viewport', () => {
-    const world = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT };
-    const mobileFit = getDeskCameraGeometry({ width: 390, height: 420 }, world, 0);
-    expect(mobileFit).toMatchObject({ relativeZoom: 1 });
-    expect(mobileFit.zoom).toBeCloseTo(Math.min(1, 390 / world.width, 420 / world.height));
-    expect(mobileFit.fitZoom).toBe(mobileFit.zoom);
-    expect(mobileFit.surfaceWidth).toBeCloseTo(390);
-
-    const mobileCustom = getDeskCameraGeometry({ width: 390, height: 420 }, world, 0.68);
-    expect(mobileCustom.relativeZoom).toBeGreaterThan(1);
-    expect(mobileCustom.surfaceWidth).toBeCloseTo(world.width * mobileCustom.zoom);
-
-    const desktopFit = getDeskCameraGeometry({ width: 1_920, height: 1_080 }, world, 0);
-    expect(desktopFit).toMatchObject({ relativeZoom: 1, zoom: 1 });
-    expect(desktopFit.offsetX).toBeCloseTo((1_920 - world.width) / 2);
-    expect(desktopFit.offsetY).toBeCloseTo((1_080 - world.height) / 2);
-  });
-
-  it('frames visible authored bounds without changing their world coordinates', () => {
-    const items = [
-      { id: 'set:one', x: 420, y: 160, z: 1, width: 260, height: 360 },
-      { id: 'set:two', x: 700, y: 220, z: 2, width: 220, height: 300 },
-    ];
-    const bounds = getDeskWorldBounds(items);
-    const world = getDeskWorldSize(items);
-    const target = getDeskFramingTarget({ viewport: { width: 390, height: 420 }, world, bounds });
-
-    expect(bounds).toEqual({ left: 420, top: 160, right: 920, bottom: 520 });
-    expect(target.geometry.relativeZoom).toBeGreaterThan(1);
-    expect(target.scroll.left).toBeGreaterThan(0);
-    expect(items).toEqual([
-      { id: 'set:one', x: 420, y: 160, z: 1, width: 260, height: 360 },
-      { id: 'set:two', x: 700, y: 220, z: 2, width: 220, height: 300 },
-    ]);
-  });
-
-  it('falls back to the complete current Desk world for absent or invalid framing bounds', () => {
-    const viewport = { width: 390, height: 420 };
-    const world = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT };
-    expect(getDeskWorldBounds([{ x: 10, y: 20, width: 0, height: Number.NaN }])).toBeNull();
-    expect(getDeskFramingTarget({ viewport, world, bounds: null })).toEqual({
-      geometry: getDeskCameraGeometry(viewport, world, 0),
-      scroll: { left: 0, top: 0 },
+  it('migrates legacy Desk pixels once into signed physical millimeters', async () => {
+    const { LEGACY_DESK_UNITS_PER_MM, normalizeDeskWorldGeometry } = await import('@/features/desk/model/deskSpatialGeometry');
+    const geometry = normalizeDeskWorldGeometry({
+      version: 3,
+      positions: { one: { x: LEGACY_DESK_UNITS_PER_MM * 100, y: -LEGACY_DESK_UNITS_PER_MM * 50, z: 1 } },
     });
+    expect(geometry.version).toBe(4);
+    expect(geometry.positions.one).toEqual({ x: 100, y: -50, z: 1 });
   });
 
   it('gives unplaced Sets stable content-space anchors independent of device size', () => {
-    expect(getDefaultDeskWorldPosition(0)).toEqual({ x: 484, y: 168, z: 0 });
-    expect(getDefaultDeskWorldPosition(8)).toEqual({ x: 502, y: 184, z: 8 });
+    expect(getDefaultDeskWorldPosition(0)).toEqual(migrateLegacyDeskPositionToMm({ x: 484, y: 168, z: 0 }));
+    expect(getDefaultDeskWorldPosition(8)).toEqual(migrateLegacyDeskPositionToMm({ x: 502, y: 184, z: 8 }));
   });
 
-  it('moves a Desk selection together while allowing the elastic world to grow', () => {
+  it('moves a Desk selection through signed space without relocating siblings', () => {
     const items = [
       { id: 'set:one', x: 10, y: 100, z: 1, width: 200, height: 240 },
       { id: 'set:two', x: 250, y: 120, z: 2, width: 200, height: 240 },
+      { id: 'set:three', x: 480, y: 180, z: 3, width: 200, height: 240 },
     ];
     expect(moveDeskWorldSelection({ items, selectedIds: ['set:one', 'set:two'], delta: { x: -100, y: -100 } })).toEqual({
-      'set:one': { x: 0, y: 0, z: 1 },
-      'set:two': { x: 240, y: 20, z: 2 },
+      'set:one': { x: -90, y: 0, z: 1 },
+      'set:two': { x: 150, y: 20, z: 2 },
     });
-    const rebased = moveDeskWorldSelectionWithRebase({
-      items: [...items, { id: 'set:three', x: 480, y: 180, z: 3 }],
+    const moved = moveDeskWorldSelectionResult({
+      items,
       selectedIds: ['set:one', 'set:two'],
       delta: { x: -100, y: -100 },
     });
-    expect(rebased.originShift).toEqual({ x: 90, y: 0 });
-    expect(rebased.affectedIds).toEqual(['set:one', 'set:two', 'set:three']);
-    expect(rebased.positions['set:three']).toEqual({ x: 570, y: 180, z: 3 });
+    expect(moved.affectedIds).toEqual(['set:one', 'set:two']);
+    expect(moved.positions['set:three']).toBeUndefined();
+    expect(items[2]).toEqual({ id: 'set:three', x: 480, y: 180, z: 3, width: 200, height: 240 });
 
-    const movedFar = moveDeskWorldSelection({
-      items: [{ id: 'set:edge', x: 100, y: 100, z: 3 }],
-      selectedIds: ['set:edge'],
-      delta: { x: 5_000, y: 5_000 },
-    });
-    expect(movedFar).toEqual({
-      'set:edge': { x: 5_100, y: 5_100, z: 3 },
-    });
-    expect(getDeskWorldSize([{ ...movedFar['set:edge']!, width: 200, height: 240 }])).toEqual({
-      width: 5_332,
-      height: 5_372,
-    });
+    const signedBounds = getDeskWorldBounds([
+      { x: -400, y: -200, width: 200, height: 240 },
+      { x: 500, y: 300, width: 200, height: 240 },
+    ]);
+    expect(signedBounds).toEqual({ left: -400, top: -200, right: 700, bottom: 540 });
+    expect(getDeskWorldSize([
+      { x: -400, y: -200, width: 200, height: 240 },
+      { x: 500, y: 300, width: 200, height: 240 },
+    ])).toEqual({ width: 1124, height: 764 });
   });
 
   it('preserves persisted positions beyond the former fixed Desk box', () => {
@@ -285,12 +266,19 @@ describe('Desk model', () => {
       positions: {
         'set:beyond-old-box': { x: 4_200, y: 2_600, z: 4 },
       },
-    }).positions['set:beyond-old-box']).toEqual({ x: 4_200, y: 2_600, z: 4 });
+    }).positions['set:beyond-old-box']).toEqual(
+      migrateLegacyDeskPositionToMm({ x: 4_200, y: 2_600, z: 4 }),
+    );
+    expect(normalizeDeskWorldGeometry({
+      version: 4,
+      positions: {
+        'set:signed': { x: -420, y: -260, z: 5 },
+      },
+    }).positions['set:signed']).toEqual({ x: -420, y: -260, z: 5 });
   });
 
   it('collects the Desk object data contract used by real spatial controls', () => {
-    const world = { width: DESK_MIN_WORLD_WIDTH, height: DESK_MIN_WORLD_HEIGHT };
-    const projection = getDeskWorldProjection({ width: 1200, height: 720 }, world);
+    const projection = { scale: 1, offsetX: 0, offsetY: 0 };
     const tile = {
       dataset: { deskSetObjectId: 'set:one' },
       getBoundingClientRect: () => ({

@@ -1,17 +1,24 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useEditorPreferences } from '@/features/editor-preferences/client';
 import type { CardSetOrganization } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
 import { selectAllGeneratedDisplayCards, selectAllTemplates, useProjectStore, type ProjectState } from '@/features/project/client/workspace';
 
-import { getArtifactSelectionScope } from '../model/focusedArtifactLayout';
+import {
+  DEFAULT_SET_GRID_SIZE_MM,
+  SET_SPATIAL_VERSION,
+  getArtifactSelectionScope,
+  migrateLegacySetPositionsToMm,
+} from '../model/focusedArtifactLayout';
 import { getCardTitle } from '../model/desk';
 import { deriveReflectiveOrganization, getSemanticOrganizationField } from '../model/reflectiveOrganization';
 
 const DEFAULT_FOCUSED_ORGANIZATION: CardSetOrganization = {
+  spatialVersion: SET_SPATIAL_VERSION,
+  gridSizeMm: DEFAULT_SET_GRID_SIZE_MM,
   arrangement: 'manual', groupBy: 'none', sort: 'manual', tags: [], positions: {},
 };
 
@@ -70,6 +77,11 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const focusedSet = options.focusedSetId ? cardSets.find((set) => set.id === options.focusedSetId) ?? null : null;
   const generationSet = options.generationSetId ? cardSets.find((set) => set.id === options.generationSetId) ?? null : null;
   const storedOrganization = focusedSet?.organization ?? DEFAULT_FOCUSED_ORGANIZATION;
+  const spatialPositions = useMemo(() => (
+    storedOrganization.spatialVersion === SET_SPATIAL_VERSION
+      ? storedOrganization.positions
+      : migrateLegacySetPositionsToMm(storedOrganization.positions)
+  ), [storedOrganization.positions, storedOrganization.spatialVersion]);
   const focusedCards = options.focusedSetId
     ? displayCards.filter((card) => card.setId === options.focusedSetId || (!card.setId && cardSets[0]?.id === options.focusedSetId))
     : [];
@@ -89,11 +101,21 @@ export function useDeskProjectWorkspace(options: DeskProjectWorkspaceOptions) {
   const validSortField = availableFields.some((field) => field.id === storedOrganization.sortField && field.sortable);
   const organization: CardSetOrganization = {
     ...storedOrganization,
+    spatialVersion: SET_SPATIAL_VERSION,
+    gridSizeMm: storedOrganization.gridSizeMm ?? DEFAULT_SET_GRID_SIZE_MM,
+    positions: spatialPositions,
     groupBy,
     groupField: groupBy === 'field' ? storedOrganization.groupField : undefined,
     sort: storedOrganization.sort === 'field-value' && !validSortField ? 'manual' : storedOrganization.sort,
     sortField: storedOrganization.sort === 'field-value' && validSortField ? storedOrganization.sortField : undefined,
   };
+  useEffect(() => {
+    if (!focusedSet || storedOrganization.spatialVersion === SET_SPATIAL_VERSION) return;
+    setCardPositions(focusedSet.id, spatialPositions, {
+      spatialVersion: SET_SPATIAL_VERSION,
+      preserveArrangement: true,
+    });
+  }, [focusedSet, setCardPositions, spatialPositions, storedOrganization.spatialVersion]);
   const visibleCards = focusedCards.filter((card, index) => (
     (options.latestGeneratedIds.length === 0 || options.latestGeneratedIds.includes(card.uniqueId))
     && (!normalizedCardQuery || [

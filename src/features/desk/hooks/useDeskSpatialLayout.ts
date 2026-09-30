@@ -10,38 +10,41 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import { projectClientPointToSpatialWorld } from '@/components/ui/spatial-viewport';
-import { getSpatialOriginCompensatedScroll } from '@/components/ui/spatial-world';
 import { readProjectPreferenceSafely, writeProjectPreference } from '@/features/project/client/persistence-preferences';
 import {
   collectDeskWorldItems,
+  DEFAULT_DESK_GRID_SIZE_MM,
+  DESK_SPATIAL_VERSION,
   getDefaultDeskWorldPosition,
   getDeskMarqueeSelection,
   getDeskWorldBounds,
   getDeskWorldSize,
-  moveDeskWorldSelectionWithRebase,
+  moveDeskWorldSelectionResult,
+  isLegacyDeskWorldGeometry,
   normalizeDeskWorldGeometry,
   type DeskRect,
   type DeskWorldItemRect,
   type DeskWorldPosition,
 } from '../model/deskSpatialGeometry';
-import { useDeskCamera } from './useDeskCamera';
+import { useDeskCamera, type DeskCameraSnapshot } from './useDeskCamera';
 
 export type DeskPosition = { x: number; y: number; z: number };
 
 type SelectionChange = (ids: string[], anchorId: string | null) => void;
+type ClientPoint = { clientX: number; clientY: number };
 
 type DeskDragState = {
   itemId: string;
   pointerId: number;
-  startX: number;
-  startY: number;
+  startClient: ClientPoint;
+  latestClient: ClientPoint;
+  startWorld: { x: number; y: number };
+  startCamera: DeskCameraSnapshot;
   items: Array<Pick<DeskWorldItemRect, 'id' | 'x' | 'y' | 'z'>>;
   selectedIds: string[];
   moved: boolean;
   latestPositions: Record<string, DeskWorldPosition>;
   originalPositions: Record<string, DeskWorldPosition>;
-  startScroll: { left: number; top: number };
 };
 
 type DeskMarqueeState = {
@@ -80,29 +83,59 @@ export function useDeskSpatialLayout({
   const dragRef = useRef<DeskDragState | null>(null);
   const marqueeRef = useRef<DeskMarqueeState | null>(null);
   const suppressedActivationRef = useRef<string | null>(null);
+  const edgePanFrameRef = useRef<number | null>(null);
+  const edgePanLastTimeRef = useRef<number | null>(null);
+  const cameraApiRef = useRef<ReturnType<typeof useDeskCamera> | null>(null);
   const [storedPositions, setStoredPositions] = useState<Record<string, DeskWorldPosition>>({});
   const [positionsWritable, setPositionsWritable] = useState(false);
+  const [positionsResolved, setPositionsResolved] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const scenePresentedRef = useRef(false);
   const [marquee, setMarquee] = useState<DeskRect | null>(null);
   const [framingItems, setFramingItems] = useState<DeskWorldItemRect[]>([]);
+
+  const stopEdgePan = useCallback(() => {
+    if (edgePanFrameRef.current !== null) cancelAnimationFrame(edgePanFrameRef.current);
+    edgePanFrameRef.current = null;
+    edgePanLastTimeRef.current = null;
+  }, []);
+
   const cancelPointerGesture = useCallback(() => {
+    stopEdgePan();
     const drag = dragRef.current;
     if (drag) {
       setStoredPositions((current) => ({ ...current, ...drag.originalPositions }));
-      const grid = workGridRef.current;
-      if (grid) requestAnimationFrame(() => grid.scrollTo(drag.startScroll));
+      cameraApiRef.current?.restore(drag.startCamera);
     }
     dragRef.current = null;
     marqueeRef.current = null;
     setMarquee(null);
-  }, []);
+  }, [stopEdgePan]);
+
+  useEffect(() => stopEdgePan, [stopEdgePan]);
+
   useEffect(() => {
     let cancelled = false;
     setPositionsWritable(false);
+    setPositionsResolved(false);
+    setSceneReady(false);
+    scenePresentedRef.current = false;
     setFramingItems([]);
     void readProjectPreferenceSafely<unknown>(positionKey).then((result) => {
-      if (cancelled || result.kind === 'unavailable') return;
-      setStoredPositions(normalizeDeskWorldGeometry(result.kind === 'available' ? result.value : null).positions);
+      if (cancelled) return;
+      if (result.kind === 'unavailable') {
+        setStoredPositions({});
+        setPositionsResolved(true);
+        return;
+      }
+      const raw = result.kind === 'available' ? result.value : null;
+      const geometry = normalizeDeskWorldGeometry(raw);
+      setStoredPositions(geometry.positions);
       setPositionsWritable(true);
+      setPositionsResolved(true);
+      if (result.kind === 'available' && isLegacyDeskWorldGeometry(raw)) {
+        void writeProjectPreference(positionKey, geometry);
+      }
     });
     return () => { cancelled = true; };
   }, [positionKey]);
@@ -120,6 +153,7 @@ export function useDeskSpatialLayout({
   const selectionBounds = useMemo(() => getDeskWorldBounds(
     worldItems.filter((item) => selectedIds.includes(item.id)),
   ), [selectedIds, worldItems]);
+
   const camera = useDeskCamera({
     focused,
     hasItems: visibleItemIds.length > 0,
@@ -129,21 +163,27 @@ export function useDeskSpatialLayout({
     viewportRef: workGridRef,
     onPinchStart: cancelPointerGesture,
   });
+  cameraApiRef.current = camera;
 
   const itemKey = itemIds.join('\u0000');
   const visibleItemKey = visibleItemIds.join('\u0000');
+  useEffect(() => {
+    if (!focused && positionsResolved && itemIds.length === 0) {
+      scenePresentedRef.current = true;
+      setSceneReady(true);
+    }
+  }, [focused, itemIds.length, positionsResolved]);
   useLayoutEffect(() => {
     const world = workWorldRef.current;
-    if (focused || !positionsWritable || !world) return;
+    if (focused || !positionsResolved || !world) return;
     let settleFrame: number | null = null;
     let settleTimeout: ReturnType<typeof setTimeout> | null = null;
     const measureVisibleWork = () => {
       const bounds = world.getBoundingClientRect();
-      const scale = Math.max(Number.EPSILON, bounds.width / Math.max(1, worldSize.width));
       const next = collectDeskWorldItems({
         tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
         bounds,
-        projection: { scale, offsetX: 0, offsetY: 0 },
+        projection: { scale: camera.zoom },
         positions,
       });
       setFramingItems((current) => {
@@ -153,10 +193,22 @@ export function useDeskSpatialLayout({
     };
     const frame = requestAnimationFrame(() => {
       measureVisibleWork();
-      // Intrinsic previews may settle after the first layout. One bounded
-      // remeasure keeps Fit Work honest without creating a live camera loop.
       settleTimeout = setTimeout(() => {
-        settleFrame = requestAnimationFrame(measureVisibleWork);
+        const revealWhenStable = () => {
+          const movingStack = document.querySelector('[data-artifact-scene] [data-scene-depth="stack"][data-scene-moving="true"]');
+          if (movingStack) {
+            settleFrame = requestAnimationFrame(revealWhenStable);
+            return;
+          }
+          if (!scenePresentedRef.current && itemIds.length > 0) {
+            scenePresentedRef.current = true;
+            setSceneReady(true);
+          }
+        };
+        settleFrame = requestAnimationFrame(() => {
+          measureVisibleWork();
+          revealWhenStable();
+        });
       }, 180);
     });
     return () => {
@@ -164,25 +216,75 @@ export function useDeskSpatialLayout({
       if (settleFrame !== null) cancelAnimationFrame(settleFrame);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
     };
-  }, [focused, itemKey, positions, positionsWritable, visibleItemKey, worldSize.height, worldSize.width]);
+  }, [camera.zoom, focused, itemIds.length, itemKey, positions, positionsResolved, visibleItemKey]);
+
   const collectWorldItems = useCallback((): DeskWorldItemRect[] => {
     const world = workWorldRef.current;
     if (!world) return [];
-    const bounds = world.getBoundingClientRect();
     return collectDeskWorldItems({
       tiles: world.querySelectorAll<HTMLElement>('[data-desk-set-object-id]:not([aria-hidden="true"])'),
-      bounds,
-      projection: { scale: camera.zoom, offsetX: 0, offsetY: 0 },
+      bounds: world.getBoundingClientRect(),
+      projection: { scale: camera.zoom },
       positions,
     });
   }, [camera.zoom, positions]);
 
   const persistPositions = useCallback((next: Record<string, DeskWorldPosition>) => {
-    if (positionsWritable) void writeProjectPreference(positionKey, { version: 2, positions: next });
+    if (positionsWritable) void writeProjectPreference(positionKey, { version: DESK_SPATIAL_VERSION, positions: next });
   }, [positionKey, positionsWritable]);
+
+  const processDragPointer = useCallback((drag: DeskDragState, pointer: ClientPoint) => {
+    const cameraApi = cameraApiRef.current;
+    if (!cameraApi) return false;
+    const currentWorld = cameraApi.projectClientPoint(pointer);
+    const delta = {
+      x: currentWorld.x - drag.startWorld.x,
+      y: currentWorld.y - drag.startWorld.y,
+    };
+    const screenDistance = Math.hypot(
+      pointer.clientX - drag.startClient.clientX,
+      pointer.clientY - drag.startClient.clientY,
+    );
+    if (!drag.moved && screenDistance < 5) return false;
+    drag.moved = true;
+    const moved = moveDeskWorldSelectionResult({
+      items: drag.items,
+      selectedIds: drag.selectedIds,
+      delta,
+      snap: snapToGrid ? DEFAULT_DESK_GRID_SIZE_MM : 0,
+    });
+    drag.latestPositions = moved.positions;
+    setStoredPositions((current) => ({ ...current, ...moved.positions }));
+    return true;
+  }, [snapToGrid]);
+
+  const ensureEdgePanLoop = useCallback(() => {
+    if (edgePanFrameRef.current !== null) return;
+    edgePanLastTimeRef.current = performance.now();
+    const tick = (time: number) => {
+      edgePanFrameRef.current = null;
+      const drag = dragRef.current;
+      const cameraApi = cameraApiRef.current;
+      if (!drag || !drag.moved || !cameraApi) {
+        edgePanLastTimeRef.current = null;
+        return;
+      }
+      const previous = edgePanLastTimeRef.current ?? time;
+      edgePanLastTimeRef.current = time;
+      const panned = cameraApi.edgePan(drag.latestClient, Math.max(0, time - previous));
+      if (!panned) {
+        edgePanLastTimeRef.current = null;
+        return;
+      }
+      processDragPointer(drag, drag.latestClient);
+      edgePanFrameRef.current = requestAnimationFrame(tick);
+    };
+    edgePanFrameRef.current = requestAnimationFrame(tick);
+  }, [processDragPointer]);
 
   const beginDrag = useCallback((itemId: string, event: ReactPointerEvent<HTMLButtonElement>, options: { additive?: boolean } = {}) => {
     if (event.button !== 0) return;
+    const startCamera = camera.capture();
     camera.enterCustom();
     suppressedActivationRef.current = null;
     const selected = selectedIds.includes(itemId)
@@ -198,18 +300,19 @@ export function useDeskSpatialLayout({
     const liftedItems = authoredItems.map((item) => selected.includes(item.id)
       ? { ...item, z: topZ + liftIndex++ }
       : item);
-    const grid = workGridRef.current;
+    const point = { clientX: event.clientX, clientY: event.clientY };
     dragRef.current = {
       itemId,
       pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
+      startClient: point,
+      latestClient: point,
+      startWorld: camera.projectClientPoint(point),
+      startCamera,
       items: liftedItems,
       selectedIds: selected,
       moved: false,
       latestPositions: {},
       originalPositions: Object.fromEntries(authoredItems.map((item) => [item.id, { x: item.x, y: item.y, z: item.z }])),
-      startScroll: { left: grid?.scrollLeft ?? 0, top: grid?.scrollTop ?? 0 },
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [camera, onSelectionChange, positions, selectedIds]);
@@ -217,79 +320,44 @@ export function useDeskSpatialLayout({
   const moveDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = (event.clientX - drag.startX) / camera.zoom;
-    const dy = (event.clientY - drag.startY) / camera.zoom;
-    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    drag.moved = true;
+    drag.latestClient = { clientX: event.clientX, clientY: event.clientY };
+    if (!processDragPointer(drag, drag.latestClient)) return;
     event.preventDefault();
-    const moved = moveDeskWorldSelectionWithRebase({
-      items: drag.items,
-      selectedIds: drag.selectedIds,
-      delta: { x: dx, y: dy },
-      snap: snapToGrid ? 24 : 1,
-    });
-    drag.latestPositions = moved.positions;
-    setStoredPositions((current) => ({ ...current, ...moved.positions }));
-    const grid = workGridRef.current;
-    if (grid) {
-      const target = getSpatialOriginCompensatedScroll({
-        scroll: drag.startScroll,
-        originShift: moved.originShift,
-        zoom: camera.zoom,
-      });
-      requestAnimationFrame(() => grid.scrollTo(target));
-    }
-  }, [camera.zoom, snapToGrid]);
+    ensureEdgePanLoop();
+  }, [ensureEdgePanLoop, processDragPointer]);
 
   const endDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.type === 'pointercancel') { cancelPointerGesture(); return; }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    stopEdgePan();
     dragRef.current = null;
     if (!drag.moved) return;
     suppressedActivationRef.current = drag.itemId;
     const next = { ...storedPositions, ...drag.latestPositions };
     setStoredPositions(next);
     persistPositions(next);
-  }, [cancelPointerGesture, persistPositions, storedPositions]);
+  }, [cancelPointerGesture, persistPositions, stopEdgePan, storedPositions]);
 
   const nudgeSelection = useCallback((delta: { x: number; y: number }) => {
     camera.enterCustom();
     const authoredItems = Object.entries(positions).map(([id, position]) => ({ id, ...position }));
-    const moved = moveDeskWorldSelectionWithRebase({
+    const moved = moveDeskWorldSelectionResult({
       items: authoredItems,
       selectedIds,
       delta,
-      snap: snapToGrid ? 24 : 1,
+      snap: snapToGrid ? DEFAULT_DESK_GRID_SIZE_MM : 0,
     });
     const next = { ...storedPositions, ...moved.positions };
     setStoredPositions(next);
     persistPositions(next);
-    const grid = workGridRef.current;
-    if (grid && (moved.originShift.x > 0 || moved.originShift.y > 0)) {
-      const target = getSpatialOriginCompensatedScroll({
-        scroll: { left: grid.scrollLeft, top: grid.scrollTop },
-        originShift: moved.originShift,
-        zoom: camera.zoom,
-      });
-      requestAnimationFrame(() => grid.scrollTo(target));
-    }
   }, [camera, persistPositions, positions, selectedIds, snapToGrid, storedPositions]);
 
   const beginMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, allowTouch = false) => {
-    // React portal events bubble through this component tree even when their DOM
-    // target is a menu/dialog rendered elsewhere. Only the physical Desk canvas
-    // may claim pointer capture for marquee selection.
     if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
-    if (event.button !== 0 || (event.pointerType === 'touch' && !allowTouch) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
+    if (event.button !== 0 || (event.pointerType === 'touch' ? !allowTouch : !event.shiftKey) || (event.target as HTMLElement).closest('button, input, [data-set-object]')) return;
     camera.enterCustom();
-    const bounds = workWorldRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-    const point = projectClientPointToSpatialWorld(event, bounds, {
-      zoom: camera.zoom,
-      scrollLeft: 0,
-      scrollTop: 0,
-    });
+    const point = camera.projectClientPoint(event);
     marqueeRef.current = {
       pointerId: event.pointerId,
       startX: point.x,
@@ -302,33 +370,21 @@ export function useDeskSpatialLayout({
   const moveMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
-    const bounds = workWorldRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-    const point = projectClientPointToSpatialWorld(event, bounds, {
-      zoom: camera.zoom,
-      scrollLeft: 0,
-      scrollTop: 0,
-    });
+    const point = camera.projectClientPoint(event);
     setMarquee(rectFromPoints(state.startX, state.startY, point.x, point.y));
-  }, [camera.zoom]);
+  }, [camera]);
 
   const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const state = marqueeRef.current;
     if (!state || state.pointerId !== event.pointerId) return;
-    const bounds = workWorldRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-    const point = projectClientPointToSpatialWorld(event, bounds, {
-      zoom: camera.zoom,
-      scrollLeft: 0,
-      scrollTop: 0,
-    });
+    const point = camera.projectClientPoint(event);
     const selectedRect = rectFromPoints(state.startX, state.startY, point.x, point.y);
     const hits = getDeskMarqueeSelection(collectWorldItems(), selectedRect);
     const next = Array.from(new Set([...state.additiveIds, ...hits]));
     onSelectionChange(next, hits.at(-1) ?? state.additiveIds.at(-1) ?? null);
     marqueeRef.current = null;
     setMarquee(null);
-  }, [camera.zoom, collectWorldItems, onSelectionChange]);
+  }, [camera, collectWorldItems, onSelectionChange]);
 
   const shouldSuppressActivation = useCallback((itemId: string) => {
     if (suppressedActivationRef.current !== itemId) return false;
@@ -347,6 +403,7 @@ export function useDeskSpatialLayout({
     moveMarquee,
     nudgeSelection,
     positions,
+    sceneReady,
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,

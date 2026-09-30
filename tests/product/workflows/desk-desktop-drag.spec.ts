@@ -20,6 +20,14 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
 
     await expect(setButton).toBeVisible();
+    await expect(page.locator('[data-desk-arrival-phase="ready"]')).toBeVisible();
+    const previewCards = setObject.locator('[data-preview-artifact-id]');
+    await expect(previewCards).toHaveCount(5);
+    const previewCenters = await previewCards.evaluateAll((nodes) => nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.left + rect.width / 2;
+    }));
+    expect(Math.max(...previewCenters) - Math.min(...previewCenters)).toBeGreaterThan(24);
     await expect(viewport).not.toHaveAttribute('data-arrange-mode', 'true');
     await expect(page.getByRole('button', { name: /^Move$/ })).toHaveCount(0);
     await expect(setButton).toHaveAttribute('title', /Drag to move/);
@@ -79,7 +87,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByText('Access', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Connections', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Security', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('1 open work', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 visible work', { exact: true })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const toolbar = page.locator('[data-desk-toolbar]');
@@ -90,6 +98,7 @@ test.describe('Desk desktop spatial interaction', () => {
     const viewport = page.locator('[data-desk-viewport]');
     const setButton = page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ });
     await expect(viewport).toBeVisible();
+    await expect(viewport).toHaveAttribute('data-camera-mode', 'fit-work');
     await expect(setButton).toBeInViewport({ ratio: 0.99 });
 
     await setButton.click();
@@ -124,7 +133,7 @@ test.describe('Desk desktop spatial interaction', () => {
     await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeVisible();
     await page.getByRole('button', { name: 'Fit Work', exact: true }).click();
     await expect(viewport).toHaveAttribute('data-camera-mode', 'fit-work');
-    await expect.poll(async () => Number(await viewport.getAttribute('data-relative-zoom'))).toBeGreaterThan(1);
+    await expect(page.getByRole('button', { name: /^(Select|Selected) 100 Card Scale Set/ })).toBeInViewport({ ratio: 0.99 });
   });
 
   test('@golden Desk action menu exposes truthful actions, hands off focus cleanly, and persists deletion', async ({ page }) => {

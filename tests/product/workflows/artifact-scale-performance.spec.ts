@@ -143,7 +143,12 @@ test.describe('large Artifact browser evidence', () => {
     expect(firstId).toBeTruthy();
     await first.click({ modifiers: ['Control'] });
     await second.click({ modifiers: ['Control'] });
-    const before = await stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }));
+    const before = await stage.evaluate((node) => ({
+      x: node.getAttribute('data-camera-x'),
+      y: node.getAttribute('data-camera-y'),
+      zoom: node.getAttribute('data-zoom'),
+      mode: node.getAttribute('data-camera-mode'),
+    }));
     const selectedBefore = await stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')));
 
     await first.focus();
@@ -180,6 +185,9 @@ test.describe('large Artifact browser evidence', () => {
     const contextSceneArtifact = page.locator('[data-scene-depth="board"]').first();
     await expect(contextSceneArtifact).toBeVisible();
     expect(await contextSceneArtifact.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+    const inlineFocusedArtifact = focusedStage.locator(`[data-scene-slot-depth="focus"][data-scene-inline-settled="focus"]`);
+    await expect(inlineFocusedArtifact).toBeVisible();
+    await expect(page.locator('[data-scene-depth="focus"][data-scene-moving="true"]')).toHaveCount(0);
     await expect.poll(async () => focusedStage.locator(`[data-artifact-id="${firstId}"]`).evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
     await expect.poll(async () => {
       const focusedArtifactBox = await focusedStage.locator(`[data-artifact-id="${firstId}"]`).boundingBox();
@@ -197,7 +205,12 @@ test.describe('large Artifact browser evidence', () => {
     await page.evaluate(() => window.history.back());
     await expect(stage).toHaveAttribute('data-artifact-focus-exclusive', 'false');
     await expect(page.getByRole('button', { name: 'Back to Desk' })).toBeVisible();
-    await expect.poll(() => stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(before);
+    await expect.poll(() => stage.evaluate((node) => ({
+      x: node.getAttribute('data-camera-x'),
+      y: node.getAttribute('data-camera-y'),
+      zoom: node.getAttribute('data-zoom'),
+      mode: node.getAttribute('data-camera-mode'),
+    }))).toEqual(before);
     await expect.poll(async () => stage.locator('[data-artifact-id][aria-pressed="true"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-artifact-id')))).toEqual(selectedBefore);
 
     await page.locator(`[data-artifact-id="${firstId}"]`).focus();

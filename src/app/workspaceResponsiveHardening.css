@@ -304,13 +304,6 @@
     min-height: 44px !important;
   }
 
-  /* Search, Filters, and View share the native three-column Desk toolbar.
-     Only overflow behavior and touch targets need hardening here. */
-  [data-desk-toolbar] {
-    min-height: 2.7rem;
-    overflow: visible !important;
-  }
-
   [data-mobile-desk-filters] > summary,
   [data-desk-toolbar] button[aria-label="Desk view controls"] {
     min-width: 44px !important;

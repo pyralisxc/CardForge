@@ -58,7 +58,11 @@ const normalizeOrganization = (value: unknown): CardSetOrganization | undefined 
     const label = typeof candidate.label === 'string' ? candidate.label.trim() : '';
     return id && label ? [{ id, label }] : [];
   }) : [];
+  const spatialVersion = record.spatialVersion === 2 ? 2 as const : undefined;
+  const gridSizeMm = Number(record.gridSizeMm);
   return {
+    ...(spatialVersion ? { spatialVersion } : {}),
+    ...(Number.isFinite(gridSizeMm) && gridSizeMm > 0 ? { gridSizeMm: Math.min(1000, gridSizeMm) } : {}),
     arrangement: arrangements.has(record.arrangement as string) ? record.arrangement as CardSetOrganization['arrangement'] : 'grid',
     groupBy: groupings.has(record.groupBy as string) ? record.groupBy as CardSetOrganization['groupBy'] : 'none',
     ...(cleanId(record.groupField) ? { groupField: cleanId(record.groupField)! } : {}),

@@ -20,12 +20,68 @@ interface BuildCustomDimensionUpdateInput {
 export type CanvasResizeStrategy = 'fit' | 'fill' | 'canvas-only';
 
 const roundGeometry = (value: number): number => Math.round(value * 1000) / 1000;
+const clampGridPx = (value: number): number => Math.max(1, Math.min(1000, roundGeometry(value)));
+
+type GridMeasurementTemplate = Pick<TCGCardTemplate, 'formatId' | 'trimWidthMm' | 'trimHeightMm' | 'aspectRatio' | 'freeformCanvas'>;
+
+export const getTemplatePixelsPerUnit = (
+  template: GridMeasurementTemplate,
+  unit: CardMeasurementUnit,
+): { x: number; y: number; average: number } => {
+  if (unit === 'px') return { x: 1, y: 1, average: 1 };
+  const resolved = resolveTemplateCardFormat(template);
+  const factorMm = mmConversion[unit] ?? 1;
+  const x = Math.max(Number.EPSILON, resolved.canvasWidthPx / Math.max(Number.EPSILON, resolved.widthMm)) * factorMm;
+  const y = Math.max(Number.EPSILON, resolved.canvasHeightPx / Math.max(Number.EPSILON, resolved.heightMm)) * factorMm;
+  return { x, y, average: (x + y) / 2 };
+};
+
+export const getTemplateGridMeasurement = ({
+  template,
+  gridSizePx,
+  unit,
+}: {
+  template: GridMeasurementTemplate;
+  gridSizePx: number;
+  unit: CardMeasurementUnit;
+}): number => {
+  if (unit === 'px') return Math.round(gridSizePx * 1000) / 1000;
+  const pixelsPerUnit = getTemplatePixelsPerUnit(template, unit).average;
+  return Math.round((gridSizePx / pixelsPerUnit) * 1000) / 1000;
+};
+
+export const getTemplateGridSizePx = ({
+  template,
+  value,
+  unit,
+}: {
+  template: GridMeasurementTemplate;
+  value: number;
+  unit: CardMeasurementUnit;
+}): number => {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  if (unit === 'px') return clampGridPx(value);
+  return clampGridPx(value * getTemplatePixelsPerUnit(template, unit).average);
+};
+
+export const getTemplateGridSizeMm = (
+  template: GridMeasurementTemplate,
+  gridSizePx = template.freeformCanvas?.gridSize
+    || getDefaultGridSizeForCanvas(
+      Number(template.freeformCanvas?.width) || 630,
+      Number(template.freeformCanvas?.height) || 880,
+    ),
+): number => {
+  const pixelsPerMm = getTemplatePixelsPerUnit(template, 'mm').average;
+  return roundGeometry(gridSizePx / pixelsPerMm);
+};
 
 export const resizeCanvasWithStrategy = (
   source: TCGCardTemplate['freeformCanvas'],
   targetWidth: number,
   targetHeight: number,
   strategy: CanvasResizeStrategy,
+  gridSizeOverride?: number,
 ) => {
   const canvas = reconstructFreeformCanvas(source || createDefaultFreeformCanvas());
   if (strategy === 'canvas-only') {
@@ -33,7 +89,7 @@ export const resizeCanvasWithStrategy = (
       ...canvas,
       width: targetWidth,
       height: targetHeight,
-      gridSize: getDefaultGridSizeForCanvas(targetWidth, targetHeight),
+      gridSize: gridSizeOverride ? clampGridPx(gridSizeOverride) : getDefaultGridSizeForCanvas(targetWidth, targetHeight),
     });
   }
 
@@ -46,7 +102,7 @@ export const resizeCanvasWithStrategy = (
     ...canvas,
     width: targetWidth,
     height: targetHeight,
-    gridSize: getDefaultGridSizeForCanvas(targetWidth, targetHeight),
+    gridSize: gridSizeOverride ? clampGridPx(gridSizeOverride) : getDefaultGridSizeForCanvas(targetWidth, targetHeight),
     elements: canvas.elements.map((element) => ({
       ...element,
       x: roundGeometry(element.x * scale + offsetX),
@@ -68,10 +124,15 @@ export const buildCardFormatTemplateUpdate = ({
 }: {
   formatId: Exclude<CardFormatId, 'custom'>;
   resizeStrategy: CanvasResizeStrategy;
-  template: Pick<TCGCardTemplate, 'freeformCanvas'>;
+  template: GridMeasurementTemplate;
 }): Partial<TCGCardTemplate> => {
   const format = getCardFormat(formatId);
   if (!format) return {};
+  const sourceGridMm = getTemplateGridSizeMm(template);
+  const targetPixelsPerMm = (
+    format.canvasWidthPx / format.widthMm
+    + format.canvasHeightPx / format.heightMm
+  ) / 2;
   return {
     formatId: format.id,
     trimWidthMm: format.widthMm,
@@ -82,6 +143,7 @@ export const buildCardFormatTemplateUpdate = ({
       format.canvasWidthPx,
       format.canvasHeightPx,
       resizeStrategy,
+      sourceGridMm * targetPixelsPerMm,
     ),
   };
 };
@@ -118,6 +180,9 @@ export const buildCustomDimensionTemplateUpdate = ({
       nextCanvasWidth,
       nextCanvasHeight,
       resizeStrategy,
+      getTemplateGridSizeMm(template) * (
+        nextCanvasWidth / widthMm + nextCanvasHeight / heightMm
+      ) / 2,
     ),
   };
 };

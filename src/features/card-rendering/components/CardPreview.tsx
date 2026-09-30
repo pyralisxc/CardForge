@@ -13,7 +13,7 @@ import {
   resolveImageElementOverrides,
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
-import { isDividerElement } from '@/domain/templates';
+import { isDividerElement, resolveCanvasElementsForRender } from '@/domain/templates';
 import { useProjectBinaryAssetUrl, useProjectBinaryAssetValue } from '@/features/project/client/useProjectBinaryAssetUrl';
 import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
@@ -253,8 +253,9 @@ export function CardPreview({
     const canvas = canvasToRender;
     const scaleX = renderWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
-    const elementById = new Map((canvas.elements || []).map(el => [el.id, el]));
-    return [...(canvas.elements || [])]
+    const resolvedElements = resolveCanvasElementsForRender(canvas.elements || []);
+    const elementById = new Map(resolvedElements.map(el => [el.id, el]));
+    return [...resolvedElements]
       .sort((a, b) => a.zIndex - b.zIndex)
       .filter((element) => {
         if (element.visible === false) return false;
@@ -313,25 +314,27 @@ export function CardPreview({
           const imageUrl = resolveFreeformImageUrl(renderElement, dataToRender, descriptiveArtworkText);
           return (
             <ProjectBinaryFrame key={renderElement.id} style={baseStyle} data-freeform-element-id={renderElement.id}>
-              <ProjectBinaryImage
-                source={imageUrl}
-                alt={`Image for ${renderElement.name}`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  minWidth: 0,
-                  minHeight: 0,
-                  objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
-                  objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
-                  transform: imageResolution?.imageStyle.transform,
-                  transformOrigin: 'center',
-                  borderRadius: 'inherit',
-                  display: 'block',
-                }}
-                data-ai-hint={dataAiHintKeywords}
-              />
+              {imageUrl ? (
+                <ProjectBinaryImage
+                  source={imageUrl}
+                  alt={`Image for ${renderElement.name}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    minWidth: 0,
+                    minHeight: 0,
+                    objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
+                    objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
+                    transform: imageResolution?.imageStyle.transform,
+                    transformOrigin: 'center',
+                    borderRadius: 'inherit',
+                    display: 'block',
+                  }}
+                  data-ai-hint={dataAiHintKeywords}
+                />
+              ) : null}
             </ProjectBinaryFrame>
           );
         }

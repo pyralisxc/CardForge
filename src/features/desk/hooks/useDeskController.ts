@@ -38,10 +38,12 @@ import {
   type DeskAccountStatus,
 } from '../model/desk';
 import { createDeskAccountStatuses } from '../model/accountStatuses';
+import { getDeskSetPresentationFootprint } from '../model/deskSetFootprint';
 import { useCreatorNavigation } from './useCreatorNavigation';
 import { useArtifactCommands } from './useArtifactCommands';
 import { useDeskActionRuntime } from './useDeskActionRuntime';
 import { useDeskLayout } from './useDeskLayout';
+import { useDeskArrival } from './useDeskArrival';
 import { useDeskWorkDiscovery } from './useDeskWorkDiscovery';
 import { useDeskViewPreferences, type DeskViewId } from './useDeskViewPreferences';
 import { usePublishedSetStarters } from './usePublishedSetStarters';
@@ -96,6 +98,7 @@ export function useDeskController({
   const surfaceRef = useRef<HTMLElement | null>(null);
   const cardStageRef = useRef<HTMLDivElement | null>(null);
   const returnContextRestoredRef = useRef(false);
+  const [returnContextResolved, setReturnContextResolved] = useState(!initialReturnContextKey);
   const initialToolHandledRef = useRef(false);
   const viewer: EnvironmentViewer = { signedIn: isSignedIn, contributor: experience.contributor.active, owner: experience.owner };
   const searchParams = useSearchParams();
@@ -173,7 +176,14 @@ export function useDeskController({
   const [locationItem, setLocationItem] = useState<AccountLibraryItem | null>(null);
   const [remoteWorkspaceId, setRemoteWorkspaceId] = useState<string | null>(null);
   const [latestGeneratedIds, setLatestGeneratedIds] = useState<string[]>([]);
-  const { showGrid, snapToGrid, setShowGrid, setSnapToGrid } = useSpatialWorkspacePreferences();
+  const {
+    showGrid,
+    snapToGrid,
+    ready: spatialPreferencesReady,
+    unavailable: spatialPreferencesUnavailable,
+    setShowGrid,
+    setSnapToGrid,
+  } = useSpatialWorkspacePreferences();
 
   const workItems = useMemo(() => applyAccountLibraryPrivateOrganization([
     ...projection.items,
@@ -195,6 +205,8 @@ export function useDeskController({
     nudgeSelection: nudgeDeskSelection,
     pinnedIds,
     positions: deskPositions,
+    preferencesResolved: deskLayoutPreferencesResolved,
+    sceneReady: deskSceneReady,
     shouldSuppressActivation,
     sourceFacets,
     tagFacets,
@@ -276,6 +288,23 @@ export function useDeskController({
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
     storedCards, visibleCards,
   } = projectState;
+  const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
+  const focusedDestinationReady = Boolean(focusedItem)
+    && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
+  const initialSourceSnapshotReady = !projection.isLoading
+    && discoveredWork.sourceStatuses.every((source) => source.phase !== 'loading');
+  const arrivalAcquisitionReady = initialSourceSnapshotReady
+    && (projection.privateOrganizationReady || projection.privateOrganizationUnavailable)
+    && (deskViewPreferences.ready || deskViewPreferences.unavailable)
+    && deskLayoutPreferencesResolved
+    && (spatialPreferencesReady || spatialPreferencesUnavailable)
+    && returnContextResolved;
+  const deskArrival = useDeskArrival({
+    scopeKey: persistenceScope,
+    acquisitionReady: arrivalAcquisitionReady,
+    compositionReady: focusedWorkId ? focusedDestinationReady : deskSceneReady,
+  });
+
   const openContextTool = useCallback((setId: string, tool: Parameters<typeof navigateToTool>[1], context?: { designTemplateId?: string; generationCard?: DisplayCard }) => {
     const setCards = storedCards.filter((card) => card.setId === setId || (!card.setId && cardSets[0]?.id === setId));
     const card = getDeskToolCard(setCards, interactionSession.focusPath.artifactId, selectedCardIds, context?.generationCard?.uniqueId);
@@ -355,10 +384,12 @@ export function useDeskController({
     const context = readSurfaceReturnContext(initialReturnContextKey);
     if (!context || context.kind !== 'desk') {
       returnContextRestoredRef.current = true;
+      setReturnContextResolved(true);
       return;
     }
     if (context.focusedWorkId && !itemById.has(context.focusedWorkId)) return;
     returnContextRestoredRef.current = true;
+    setReturnContextResolved(true);
     setQuery(context.query);
     deskViewPreferences.update((current) => ({
       ...current,
@@ -616,12 +647,24 @@ export function useDeskController({
     openContextStudio(item.references.localSetId, lane === 'export' ? 'output' : 'design');
   };
 
-  const workCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
-    ? displayCards.filter((card) => card.setId === item.references.localSetId || (!card.setId && cardSets[0]?.id === item.references.localSetId)).slice(0, 5)
+  const cardsBySetId = useMemo(() => {
+    const bySet = new Map<string, DisplayCard[]>();
+    const fallbackSetId = cardSets[0]?.id ?? null;
+    displayCards.forEach((card) => {
+      const setId = card.setId ?? fallbackSetId;
+      if (!setId) return;
+      bySet.set(setId, [...(bySet.get(setId) ?? []), card]);
+    });
+    return bySet;
+  }, [cardSets, displayCards]);
+  const allWorkCards = (item: AccountLibraryItem): DisplayCard[] => item.references.localSetId
+    ? cardsBySetId.get(item.references.localSetId) ?? []
     : [];
+  const workCards = (item: AccountLibraryItem): DisplayCard[] => allWorkCards(item).slice(0, 5);
+  const workFootprint = (item: AccountLibraryItem) => getDeskSetPresentationFootprint(allWorkCards(item));
   const workTemplate = (item: AccountLibraryItem) => {
     if (!item.references.localSetId) return null;
-    return workCards(item)[0]?.template ?? null;
+    return allWorkCards(item)[0]?.template ?? null;
   };
   const closeGenerate = () => closeContextTool();
   const showTemplateTool = (templateId?: string | null) => {
@@ -664,7 +707,9 @@ export function useDeskController({
     commitRename,
     createWork,
     deleteCardSet,
+    deskArrival,
     deskPositions,
+    deskSceneReady,
     deskCamera,
     deskMarquee,
     deskViewPreferences,
@@ -783,6 +828,7 @@ export function useDeskController({
     visibleCards,
     visibleWork,
     workCards,
+    workFootprint,
     workGridRef,
     workWorldRef,
     deskWorldSize,

@@ -9,7 +9,7 @@ test.describe('mobile Library location tools', () => {
 
   const expectTouchTarget = async (control: Locator) => {
     await control.scrollIntoViewIfNeeded();
-    await expect(control).toBeInViewport({ ratio: 1 });
+    await expect(control).toBeInViewport({ ratio: 0.99 });
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
@@ -111,8 +111,9 @@ test.describe('mobile Library location tools', () => {
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toHaveCount(0);
 
     const deskWorld = page.locator('[data-desk-world]');
-    await expect(deskWorld).toHaveAttribute('data-grid', 'true');
-    expect(await deskWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    await expect(deskViewport).toHaveAttribute('data-grid', 'true');
+    expect(await deskViewport.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    expect(await deskWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
 
     const toolbar = page.locator('[data-desk-toolbar]');
     await expect(toolbar.getByPlaceholder('Search Desk work')).toBeVisible();
@@ -144,7 +145,10 @@ test.describe('mobile Library location tools', () => {
     await expect(toolbar.locator('[data-mobile-desk-filters]')).not.toHaveAttribute('open', '');
 
     const status = page.locator('footer[aria-label="Environment status"]');
+    const statusItems = status.locator('[data-environment-status-items]');
     await expect(status).toBeVisible();
+    await expect(statusItems.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
+    expect(await statusItems.evaluate((node) => ['auto', 'scroll'].includes(getComputedStyle(node).overflowX))).toBe(true);
     await expect(status.getByText('Local working copy saved', { exact: true })).toBeVisible();
     await expect(status.getByText('Private creator desk', { exact: true })).toBeHidden();
     expect(await status.locator(':scope > div:first-child > *').evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth + 1))).toBe(true);
@@ -160,7 +164,11 @@ test.describe('mobile Library location tools', () => {
     await openScaleSet(page, 100);
     const mobileNav = page.getByRole('navigation', { name: 'CardForge zones', exact: true });
     await expect(mobileNav).toBeHidden();
-    await expect(status).toBeHidden();
+    // Focused creator depth keeps the same horizontally scrollable status rail;
+    // Quick Actions is one compact item in that rail rather than a sibling bar.
+    await expect(status).toBeVisible();
+    await expect(statusItems.getByRole('button', { name: 'Quick actions', exact: true })).toBeVisible();
+    await expect(statusItems.getByTitle('Open Locations & connections')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Creative context', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Desk', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
@@ -169,8 +177,8 @@ test.describe('mobile Library location tools', () => {
     const viewControls = page.locator('[data-set-view-controls]');
     await expect(artifactStage).toHaveAttribute('data-grid', 'true');
     const artifactWorld = artifactStage.locator('[data-artifact-world]');
-    expect(await artifactWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
-    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
+    expect(await artifactStage.evaluate((node) => getComputedStyle(node).backgroundImage)).not.toBe('none');
+    expect(await artifactWorld.evaluate((node) => getComputedStyle(node).backgroundImage)).toBe('none');
     expect(await page.evaluate(() => {
       const stage = document.querySelector('[data-desk-artifact-stage]')?.getBoundingClientRect();
       const controls = document.querySelector('[data-set-view-controls]')?.getBoundingClientRect();

@@ -3,9 +3,18 @@ import { devices, expect, test } from '@playwright/test';
 import { openScaleSet, seedGuestScaleWorkspace } from './helpers/projectScaleBrowser';
 import { createProjectScaleFixture } from '../../fixtures/projectScale';
 
+const pixel7 = devices['Pixel 7'];
+const pixel7Context = {
+  userAgent: pixel7.userAgent,
+  viewport: pixel7.viewport,
+  deviceScaleFactor: pixel7.deviceScaleFactor,
+  isMobile: pixel7.isMobile,
+  hasTouch: pixel7.hasTouch,
+};
+
 for (const mobile of [false, true]) {
   test.describe(`Desk tool context on ${mobile ? 'mobile' : 'desktop'}`, () => {
-    test.use(mobile ? { viewport: devices['Pixel 7'].viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
+    test.use(mobile ? pixel7Context : { viewport: { width: 1440, height: 900 } });
 
     test('protects an edited card and opens Output without mounting another editor', async ({ page }) => {
       test.setTimeout(120_000);
@@ -57,6 +66,10 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Design', exact: true }).click();
       const design = page.getByRole('region', { name: 'Design', exact: true });
       await expect(design).toBeVisible();
+      const spatialPlane = page.locator('[data-desk-plane]');
+      await expect(spatialPlane).toBeVisible();
+      await expect(spatialPlane).not.toHaveAttribute('data-scene-hidden', 'true');
+      await expect(page.locator('[data-desk-tool-surface][data-scene-visible="true"]')).toBeVisible();
       if (mobile) await expect(design.getByRole('toolbar', { name: 'Canvas controls' })).toContainText('Scale Fixture Template');
       else {
         await page.getByRole('button', { name: 'Card Setup', exact: true }).click();
@@ -111,7 +124,12 @@ for (const mobile of [false, true]) {
       await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Done', exact: true }).click();
 
       const firstCard = page.locator('button[data-artifact-id="scale-card-1"]');
-      if (mobile) await firstCard.tap(); else await firstCard.click();
+      if (mobile) {
+        // Low-zoom touch acquisition is covered by spatial-gestures. This golden owns
+        // Artifact-scoped tool context, so use the deterministic keyboard selection path.
+        await firstCard.focus();
+        await firstCard.press(' ');
+      } else await firstCard.click();
       await expect(firstCard).toHaveAttribute('aria-pressed', 'true');
       await firstCard.focus();
       await firstCard.press('Enter');
@@ -144,8 +162,9 @@ for (const mobile of [false, true]) {
       await expect(artwork).toHaveValue('/brand/cardforge-studio/brand-mark.svg');
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-      const focusedVisual = page.locator('[data-scene-artifact="scale-card-1"][data-scene-depth="focus"]');
-      await focusedVisual.getByRole('button', { name: /^Show back of/ }).click();
+      const focusedWorkspace = page.locator('[data-focused-artifact-workspace]');
+      const focusedVisual = focusedWorkspace.locator('[data-scene-slot="scale-card-1"][data-scene-slot-depth="focus"][data-scene-inline-settled="focus"]');
+      await focusedWorkspace.getByRole('button', { name: /^Show back of/ }).click();
       await expect(focusedVisual.locator('[data-artifact-template-border]')).toHaveCSS('border-top-color', backAccent);
       if (mobile) {
         await rail.getByRole('button', { name: 'More Artifact actions', exact: true }).click();
@@ -211,6 +230,14 @@ for (const mobile of [false, true]) {
       await seedGuestScaleWorkspace(page, 100, { cardLimit: 3 });
       await page.goto('/account', { waitUntil: 'domcontentloaded' });
       await openScaleSet(page, 100);
+
+      const quickActionsTrigger = page.getByRole('button', { name: 'Quick actions', exact: true });
+      await quickActionsTrigger.click();
+      const quickActions = page.getByRole('dialog', { name: 'Desk quick actions' });
+      await expect(quickActions.getByRole('region', { name: 'Touch quick actions' })).toBeVisible();
+      await expect(quickActions.getByRole('region', { name: 'Desktop quick actions' })).toBeVisible();
+      await quickActionsTrigger.click();
+      await expect(quickActions).toBeHidden();
 
       if (mobile) {
         await page.getByRole('button', { name: /^Organize ·/ }).click();

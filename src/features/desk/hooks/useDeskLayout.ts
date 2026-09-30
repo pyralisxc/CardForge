@@ -55,18 +55,26 @@ export function useDeskLayout({
   const [deskOrderIds, setDeskOrderIds] = useState<string[]>([]);
   const [pinPreferencesWritable, setPinPreferencesWritable] = useState(false);
   const [orderPreferencesWritable, setOrderPreferencesWritable] = useState(false);
+  const [pinPreferencesResolved, setPinPreferencesResolved] = useState(false);
+  const [orderPreferencesResolved, setOrderPreferencesResolved] = useState(false);
   const pinKey = `${DESK_PINS_KEY}:${persistenceScope}`;
   const orderKey = `${DESK_ORDER_KEY}:${persistenceScope}`;
   useEffect(() => {
     let cancelled = false;
     setPinPreferencesWritable(false);
+    setPinPreferencesResolved(false);
     void readProjectPreferenceSafely<unknown>(pinKey).then((result) => {
-      if (cancelled || result.kind === 'unavailable') return;
+      if (cancelled) return;
+      if (result.kind === 'unavailable') {
+        setPinPreferencesResolved(true);
+        return;
+      }
       const value = result.kind === 'available' ? result.value : null;
       if (Array.isArray(value)) {
         setPinnedIds(value.filter((entry): entry is string => typeof entry === 'string'));
       } else setPinnedIds([]);
       setPinPreferencesWritable(true);
+      setPinPreferencesResolved(true);
     });
     return () => { cancelled = true; };
   }, [pinKey]);
@@ -74,26 +82,32 @@ export function useDeskLayout({
   useEffect(() => {
     let cancelled = false;
     setOrderPreferencesWritable(false);
+    setOrderPreferencesResolved(false);
     void readProjectPreferenceSafely<unknown>(orderKey).then((result) => {
-      if (cancelled || result.kind === 'unavailable') return;
+      if (cancelled) return;
+      if (result.kind === 'unavailable') {
+        setOrderPreferencesResolved(true);
+        return;
+      }
       const value = result.kind === 'available' ? result.value : null;
       if (Array.isArray(value)) {
         setDeskOrderIds(value.filter((entry): entry is string => typeof entry === 'string'));
       } else setDeskOrderIds([]);
       setOrderPreferencesWritable(true);
+      setOrderPreferencesResolved(true);
     });
     return () => { cancelled = true; };
   }, [orderKey]);
 
   const persistedDeskOrder = useMemo(
-    () => preserveDeskOrder(workItems.map((item) => item.id), deskOrderIds),
-    [deskOrderIds, workItems],
+    () => orderPreferencesResolved ? preserveDeskOrder(workItems.map((item) => item.id), deskOrderIds) : deskOrderIds,
+    [deskOrderIds, orderPreferencesResolved, workItems],
   );
   useEffect(() => {
-    if (persistedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
+    if (!orderPreferencesResolved || persistedDeskOrder.join('\u0000') === deskOrderIds.join('\u0000')) return;
     setDeskOrderIds(persistedDeskOrder);
     if (orderPreferencesWritable) void writeProjectPreference(orderKey, persistedDeskOrder);
-  }, [deskOrderIds, orderKey, orderPreferencesWritable, persistedDeskOrder]);
+  }, [deskOrderIds, orderKey, orderPreferencesResolved, orderPreferencesWritable, persistedDeskOrder]);
 
   const normalizedDeskOrder = useMemo(
     () => normalizeDeskOrder(workItems.map((item) => item.id), persistedDeskOrder),
@@ -127,6 +141,7 @@ export function useDeskLayout({
     moveMarquee,
     nudgeSelection,
     positions,
+    sceneReady,
     shouldSuppressActivation,
     workGridRef,
     workWorldRef,
@@ -164,6 +179,8 @@ export function useDeskLayout({
     nudgeSelection,
     pinnedIds,
     positions,
+    preferencesResolved: pinPreferencesResolved && orderPreferencesResolved,
+    sceneReady,
     shouldSuppressActivation,
     sourceFacets,
     tagFacets,

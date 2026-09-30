@@ -1,4 +1,9 @@
-import { normalizeAppearanceForElement, type FreeformCardElement } from '@/domain/templates';
+import {
+  getCanvasElementParentWorldOrigin,
+  normalizeAppearanceForElement,
+  resolveCanvasElementWorldGeometry,
+  type FreeformCardElement,
+} from '@/domain/templates';
 
 export type LayerDropPosition = 'before' | 'after' | 'child';
 export type ArrangeDirection = 'front' | 'back' | 'up' | 'down';
@@ -125,8 +130,8 @@ export const duplicateCanvasSelection = ({
       ...element,
       id: nextId,
       name: element.id === selectedElementId ? `${element.name} Copy` : element.name,
-      x: element.x + gridSize,
-      y: element.y + gridSize,
+      x: element.x + (element.id === selectedElementId ? gridSize : 0),
+      y: element.y + (element.id === selectedElementId ? gridSize : 0),
       zIndex: maxZ + index + 1,
       locked: false,
       parentId: copiedParentId,
@@ -159,14 +164,9 @@ export const moveCanvasSelectionByDelta = ({
   if (selectedElement.locked) return unchanged(elements, selectedElementId, 'locked-selection');
   if (deltaX === 0 && deltaY === 0) return unchanged(elements, selectedElementId, 'empty-move');
 
-  const moveIds = new Set([
-    selectedElementId,
-    ...getSafeDescendantIds(selectedElementId, elements),
-  ]);
-
   return {
     elements: elements.map((element) => (
-      moveIds.has(element.id)
+      element.id === selectedElementId
         ? { ...element, x: element.x + deltaX, y: element.y + deltaY }
         : element
     )),
@@ -247,26 +247,33 @@ export const groupCanvasElements = ({
     return unchanged(elements, null, 'not-enough-layers', checkedLayerIds);
   }
 
-  const minX = Math.min(...elementsToGroup.map((element) => element.x));
-  const minY = Math.min(...elementsToGroup.map((element) => element.y));
-  const maxX = Math.max(...elementsToGroup.map((element) => element.x + element.width));
-  const maxY = Math.max(...elementsToGroup.map((element) => element.y + element.height));
-  const x = minX - 8;
-  const y = minY - 8;
-  const width = maxX - x + 8;
-  const height = maxY - y + 8;
+  const worldElements = elementsToGroup.map((element) => resolveCanvasElementWorldGeometry(element, elements));
+  const minX = Math.min(...worldElements.map((element) => element.x));
+  const minY = Math.min(...worldElements.map((element) => element.y));
+  const maxX = Math.max(...worldElements.map((element) => element.x + element.width));
+  const maxY = Math.max(...worldElements.map((element) => element.y + element.height));
+  const worldX = minX - 8;
+  const worldY = minY - 8;
+  const width = maxX - worldX + 8;
+  const height = maxY - worldY + 8;
   const zIndex = Math.max(0, ...elements.map((element) => element.zIndex)) + 1;
   const groupId = createId();
+  const parentIds = new Set(elementsToGroup.map((element) => element.parentId ?? null));
+  const commonParentId = parentIds.size === 1 ? elementsToGroup[0]?.parentId : undefined;
+  const parentOrigin = commonParentId
+    ? getCanvasElementParentWorldOrigin({ parentId: commonParentId }, elements)
+    : { x: 0, y: 0 };
   const groupElement: FreeformCardElement = {
     id: groupId,
     type: 'shape',
     name: 'Group',
-    x,
-    y,
+    x: worldX - parentOrigin.x,
+    y: worldY - parentOrigin.y,
     width,
     height,
     zIndex,
     locked: false,
+    parentId: commonParentId,
     visible: true,
     shapeKind: 'rectangle',
     fillColor: 'transparent',
@@ -278,19 +285,27 @@ export const groupCanvasElements = ({
       id: groupId,
       type: 'shape',
       name: 'Group',
-      x,
-      y,
+      x: worldX - parentOrigin.x,
+      y: worldY - parentOrigin.y,
       width,
       height,
       zIndex,
     }),
   };
+  const worldById = new Map(worldElements.map((element) => [element.id, element]));
 
   return {
     elements: [
-      ...elements.map((element) => (
-        checkedIds.has(element.id) ? { ...element, parentId: groupId } : element
-      )),
+      ...elements.map((element) => {
+        if (!checkedIds.has(element.id)) return element;
+        const world = worldById.get(element.id)!;
+        return {
+          ...element,
+          parentId: groupId,
+          x: world.x - worldX,
+          y: world.y - worldY,
+        };
+      }),
       groupElement,
     ],
     selectedElementId: groupId,
@@ -321,7 +336,12 @@ export const ungroupCanvasSelection = ({
     elements: elements
       .filter((element) => element.id !== selectedElementId)
       .map((element) => (
-        directChildIds.has(element.id) ? { ...element, parentId: undefined } : element
+        directChildIds.has(element.id) ? {
+          ...element,
+          parentId: selectedElement.parentId,
+          x: element.x + selectedElement.x,
+          y: element.y + selectedElement.y,
+        } : element
       )),
     selectedElementId: null,
     changed: true,
@@ -351,9 +371,16 @@ export const reorderCanvasLayer = ({
       return unchanged(elements, null, 'cyclic-parent');
     }
 
+    const sourceWorld = resolveCanvasElementWorldGeometry(sourceElement, elements);
+    const targetWorld = resolveCanvasElementWorldGeometry(targetElement, elements);
     return {
       elements: elements.map((element) => (
-        element.id === sourceId ? { ...element, parentId: targetId } : element
+        element.id === sourceId ? {
+          ...element,
+          parentId: targetId,
+          x: sourceWorld.x - targetWorld.x,
+          y: sourceWorld.y - targetWorld.y,
+        } : element
       )),
       selectedElementId: sourceId,
       changed: true,

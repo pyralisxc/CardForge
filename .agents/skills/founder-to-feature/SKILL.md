@@ -102,7 +102,7 @@ Follow `AGENTS.md` and `docs/agent-map.md`. Read only the affected slices of the
 
 - `docs/product-direction.md` — intended product model and delivery sequence;
 - `docs/architecture.md` — shipped ownership and invariants;
-- `.development-intelligence/` — accepted derived structural checkpoint from Development Intelligence for broad current topology when useful; current source remains authoritative;
+- Development Intelligence — external current-topology evidence plus accepted machine semantic authority when available; CardForge does not store a second machine semantic checkpoint, and current source remains authoritative for implementation;
 - `docs/integrations.md` — provider seams;
 - `docs/operations.md` — release/operational truth;
 - `docs/risk-register.md` — unresolved known risk.

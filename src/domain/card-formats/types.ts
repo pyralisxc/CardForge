@@ -7,7 +7,7 @@ export type StandardCardFormatId =
   | 'ttrpg-reference';
 
 export type CardFormatId = StandardCardFormatId | 'custom';
-export type CardMeasurementUnit = 'mm' | 'in' | 'px';
+export type CardMeasurementUnit = 'mm' | 'cm' | 'in' | 'px';
 
 export interface CardFormat {
   id: StandardCardFormatId;
