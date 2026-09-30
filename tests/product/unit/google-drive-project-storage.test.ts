@@ -103,7 +103,7 @@ describe('Google Drive project storage', () => {
     const richPreview = 'data:image/png;base64,cmljaA==';
     cacheGoogleDriveProjectPreview(summary, richPreview);
     expect(applyCachedGoogleDriveProjectPreviews({
-      connection: { connected: true, accountId: 'acct', displayName: 'Drive', rootFolderId: 'folder', status: 'connected' },
+      connection: { connected: true, accountId: 'acct', displayName: 'Drive', rootFolderId: 'folder', status: 'active' },
       projects: [summary],
     }).projects[0]?.thumbnailLink).toBe(richPreview);
     clearCachedGoogleDriveProjectPreviews();
