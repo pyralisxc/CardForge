@@ -17,9 +17,9 @@ const matchesSummary = (cached: CachedDrivePreview, summary: Pick<GoogleDrivePro
 );
 
 /**
- * Browser-only visual cache for a Drive project that predates CardForge's
- * native Drive thumbnail metadata. This never represents editable work and
- * never becomes a second project/storage owner.
+ * Browser-only rich visual cache for a Drive project. This may supersede the
+ * provider's immediate thumbnail pixels, but it never represents editable work
+ * and never becomes a second project/storage owner.
  */
 export const cacheGoogleDriveProjectPreview = (
   summary: Pick<GoogleDriveProjectSummary, 'fileId' | 'projectRevision' | 'providerRevision'>,

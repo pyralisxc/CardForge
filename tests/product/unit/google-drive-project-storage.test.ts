@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyCachedGoogleDriveProjectPreviews,
   cacheGoogleDriveProjectPreview,
   clearCachedGoogleDriveProjectPreviews,
   getCachedGoogleDriveProjectPreview,
 } from '@/features/project/client/provider-google-drive';
+import { getGoogleDriveProjectPreviewCards } from '@/features/card-generator/lib/googleDriveProjectThumbnail';
+import { createProjectScaleFixture } from '../../fixtures/projectScale';
 import { getUnexpectedGoogleDriveScopes, hasGoogleDriveProjectRevisionConflict } from '@/features/project/model/googleDriveProject';
 import {
   GOOGLE_DRIVE_FILE_SCOPE,
@@ -54,6 +57,17 @@ describe('Google Drive project storage', () => {
     expect(decryptProjectStorageToken(encrypted, key)).toBe('refresh-token-example');
   });
 
+  it('selects several real project cards for a Drive Set preview without opening it', () => {
+    const project = createProjectScaleFixture(100);
+    expect(getGoogleDriveProjectPreviewCards(project).map((card) => card.uniqueId)).toEqual([
+      'scale-card-1',
+      'scale-card-2',
+      'scale-card-3',
+      'scale-card-4',
+      'scale-card-5',
+    ]);
+  });
+
   it('keys compatibility previews to the exact Drive content identity', () => {
     clearCachedGoogleDriveProjectPreviews();
     const summary = {
@@ -66,6 +80,32 @@ describe('Google Drive project storage', () => {
     expect(getCachedGoogleDriveProjectPreview(summary)).toBe(dataUrl);
     expect(getCachedGoogleDriveProjectPreview({ ...summary, projectRevision: 'c'.repeat(64) })).toBeNull();
     expect(getCachedGoogleDriveProjectPreview({ ...summary, providerRevision: `head:${'d'.repeat(64)}` })).toBeNull();
+    clearCachedGoogleDriveProjectPreviews();
+  });
+
+  it('lets a revision-matched CardForge preview supersede the native first-card thumbnail', () => {
+    clearCachedGoogleDriveProjectPreviews();
+    const summary = {
+      provider: 'google-drive' as const,
+      fileId: 'drive_preview_456',
+      name: 'Rich Set',
+      providerRevision: `head:${'1'.repeat(64)}`,
+      projectRevision: '2'.repeat(64),
+      modifiedAt: '2026-09-29T00:00:00.000Z',
+      size: 1024,
+      webViewLink: null,
+      thumbnailLink: 'https://drive.google.com/native-first-card.png',
+      workId: null,
+      capabilities: {
+        canDownload: true, canEdit: true, canModifyContent: true, canTrash: true, canDelete: true,
+      },
+    };
+    const richPreview = 'data:image/png;base64,cmljaA==';
+    cacheGoogleDriveProjectPreview(summary, richPreview);
+    expect(applyCachedGoogleDriveProjectPreviews({
+      connection: { connected: true, accountId: 'acct', displayName: 'Drive', rootFolderId: 'folder', status: 'connected' },
+      projects: [summary],
+    }).projects[0]?.thumbnailLink).toBe(richPreview);
     clearCachedGoogleDriveProjectPreviews();
   });
 
