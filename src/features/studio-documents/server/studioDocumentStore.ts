@@ -13,7 +13,6 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
-  cleanupUploadedStudioDocumentAssets,
   externalizeStudioDocumentAssets,
   removeStudioDocumentAssets,
 } from './studioDocumentAssetStore';
@@ -258,7 +257,12 @@ export const createStudioDocument = async ({
 }): Promise<StudioDocument> => {
   validateProjectSourceLineage(sourceProject);
   const documentId = randomUUID();
-  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
+  const externalized = await externalizeStudioDocumentAssets({
+    ownerUserId,
+    documentId,
+    document,
+    cleanupOnFailure: false,
+  });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .insert({
@@ -328,20 +332,10 @@ export const updateStudioDocument = async ({
     .select(DOCUMENT_COLUMNS)
     .maybeSingle();
   if (error) {
-    await cleanupUploadedStudioDocumentAssets({
-      ownerUserId,
-      documentId,
-      uploadedAssetIds: externalized.uploadedAssetIds,
-    });
     console.error('Failed to update Studio document:', error);
     throw new StudioDocumentStoreError('Unable to update the Studio document.');
   }
   if (!data) {
-    await cleanupUploadedStudioDocumentAssets({
-      ownerUserId,
-      documentId,
-      uploadedAssetIds: externalized.uploadedAssetIds,
-    });
     throw new StudioDocumentStoreError(
       `The CardForge working document changed after revision ${expectedRevision}. Reload the current design or card-generation contract, then retry with the new expectedRevision while reusing the same stable set and card ids.`,
       409,

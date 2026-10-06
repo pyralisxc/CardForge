@@ -72,10 +72,17 @@ export const externalizeStudioDocumentAssets = async ({
   ownerUserId,
   documentId,
   document,
+  cleanupOnFailure = true,
 }: {
   ownerUserId: string;
   documentId: string;
   document: ProjectDocumentV1;
+  /**
+   * Safe for brand-new document ids only. Existing revision updates retain newly
+   * uploaded content-addressed objects until document retention owns prefix cleanup;
+   * a stale writer must never delete bytes a concurrent successful revision may reuse.
+   */
+  cleanupOnFailure?: boolean;
 }): Promise<{ document: ProjectDocumentV1; uploadedAssetIds: string[]; uploadedFontIds: string[] }> => {
   const pendingImages = new Map<string, Promise<{ id: string; bytes: Buffer } | null>>();
   const pendingFonts = new Map<string, { id: string; bytes: Buffer; mimeType: ProjectFontMimeType }>();
@@ -216,7 +223,9 @@ export const externalizeStudioDocumentAssets = async ({
       uploadedFontIds.push(assetId);
     }
   } catch (error) {
-    await cleanupUploadedStudioDocumentAssets({ ownerUserId, documentId, uploadedAssetIds, uploadedFontIds });
+    if (cleanupOnFailure) {
+      await cleanupUploadedStudioDocumentAssets({ ownerUserId, documentId, uploadedAssetIds, uploadedFontIds });
+    }
     throw error;
   }
   return { document: storedDocument, uploadedAssetIds, uploadedFontIds };
