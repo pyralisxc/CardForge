@@ -36,6 +36,27 @@ describe('agent verification routing', () => {
       risk: 'high',
       providerVerification: 'Google Drive',
     });
+    expect(classifyChangedPath('src/app/api/billing/webhook/route.ts')).toMatchObject({
+      owner: 'billing',
+      risk: 'high',
+      providerVerification: 'Stripe',
+    });
+    expect(classifyChangedPath('src/app/api/project-sources/google-drive/[fileId]/route.ts')).toMatchObject({
+      owner: 'project',
+      risk: 'high',
+      providerVerification: 'Google Drive',
+    });
+  });
+
+  it('inherits feature tests through thin high-risk routes', async () => {
+    const result = await buildAffectedVerification({
+      root: process.cwd(),
+      changedPaths: ['src/app/api/billing/webhook/route.ts'],
+    });
+    expect(result.owners).toEqual(['billing']);
+    expect(result.risk).toBe('high');
+    expect(result.providerVerification).toContain('Stripe');
+    expect(result.tests.some((testPath) => testPath.includes('billing'))).toBe(true);
   });
 
   it('routes browser-owned changes to the existing golden job without treating server-only work as browser work', () => {
