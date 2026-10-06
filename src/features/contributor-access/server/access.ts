@@ -28,7 +28,7 @@ export class ContributorAccessError extends Error {
 }
 
 export const getContributorCapabilities = async (
-  account: AccountToolAccess,
+  account: Pick<AccountToolAccess, 'user' | 'entitlement' | 'isOwner'>,
 ): Promise<ContributorAccessProjection> => {
   if (account.isOwner) {
     return {
