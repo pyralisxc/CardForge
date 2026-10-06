@@ -12,18 +12,29 @@ type AccountEntitlementLoadResult =
   | { ok: true; entitlement: AccountEntitlement }
   | { ok: false; message: string };
 
+let sharedEntitlementLoad: Promise<AccountEntitlementLoadResult> | null = null;
+
 const loadAccountEntitlement = async (): Promise<AccountEntitlementLoadResult> => {
+  if (sharedEntitlementLoad) return sharedEntitlementLoad;
+  const load = (async (): Promise<AccountEntitlementLoadResult> => {
+    try {
+      const response = await fetch('/api/account/entitlement', {
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Unable to verify account access right now.');
+      return { ok: true, entitlement: await response.json() as AccountEntitlement };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Unable to verify account access right now.',
+      };
+    }
+  })();
+  sharedEntitlementLoad = load;
   try {
-    const response = await fetch('/api/account/entitlement', {
-      cache: 'no-store',
-    });
-    if (!response.ok) throw new Error('Unable to verify account access right now.');
-    return { ok: true, entitlement: await response.json() as AccountEntitlement };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : 'Unable to verify account access right now.',
-    };
+    return await load;
+  } finally {
+    if (sharedEntitlementLoad === load) sharedEntitlementLoad = null;
   }
 };
 
