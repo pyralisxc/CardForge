@@ -257,12 +257,7 @@ export const createStudioDocument = async ({
 }): Promise<StudioDocument> => {
   validateProjectSourceLineage(sourceProject);
   const documentId = randomUUID();
-  const externalized = await externalizeStudioDocumentAssets({
-    ownerUserId,
-    documentId,
-    document,
-    cleanupOnFailure: false,
-  });
+  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .insert({
@@ -312,7 +307,12 @@ export const updateStudioDocument = async ({
   retentionHours: number;
 }): Promise<StudioDocument> => {
   await applyRetentionPolicy(ownerUserId, retentionHours);
-  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
+  const externalized = await externalizeStudioDocumentAssets({
+    ownerUserId,
+    documentId,
+    document,
+    cleanupOnFailure: false,
+  });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .update({
