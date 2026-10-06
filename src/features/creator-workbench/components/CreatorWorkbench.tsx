@@ -42,6 +42,8 @@ export interface CreatorWorkbenchProps {
   onReturnToGenerator?: () => void;
   /** Set context is projection only; Library design leaves this undefined. */
   contextSetId?: string | null;
+  /** Captured contextual target for Design; this is command intent, not global selection authority. */
+  contextTemplateId?: string | null;
 }
 
 export function CreatorWorkbench({
@@ -54,6 +56,7 @@ export function CreatorWorkbench({
   onDesignIntentConsumed,
   onReturnToGenerator,
   contextSetId = null,
+  contextTemplateId = null,
 }: CreatorWorkbenchProps) {
   const searchParams = useSearchParams();
   const isOutput = (tool ?? searchParams.get('tool')) === 'output';
@@ -323,6 +326,13 @@ export function CreatorWorkbench({
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => { if (!cancelled && !firstRunGuideDismissedRef.current) setShowFirstRunGuide(dismissed !== true); });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!contextTemplateId || isLoadingTemplates) return;
+    if (!templatesFromStore.some((template) => template.id === contextTemplateId)) return;
+    setTemplateEditorSelectedTemplateIdAction(contextTemplateId);
+    setStudioViewAction('template');
+  }, [contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore]);
 
   const isStudioReady = !isLoadingTemplates;
   useStudioDocumentHandoff({

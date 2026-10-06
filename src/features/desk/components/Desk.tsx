@@ -793,6 +793,7 @@ export function Desk({
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
             contextSetId={studioTool.setId}
+            contextTemplateId={studioTool.templateId}
           />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>
