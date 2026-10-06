@@ -6,6 +6,7 @@ import type { TCGCardTemplate, AppearanceStylePreset } from '@/domain/templates'
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { applyProjectDocumentToState, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
+import { applyProjectDocumentToWorkspace } from '@/features/project/client/workspace';
 import { getProjectAssetStorage, mergeProjectAssetListToStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
 import { normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
@@ -135,32 +136,13 @@ export function useStudioDocumentHandoff({
             && template.templateLibrarySource !== 'pipeline'
           ));
 
-          await Promise.all([
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
-          ]);
+          const adopted = await applyProjectDocumentToWorkspace(document, 'adopt', { expectedState: beforeState });
           if (cancelled) return;
 
-          if (personalTemplates.length > 0) {
-            mergeUserTemplates(personalTemplates.map((template) => ({
-              ...template,
-              templateSource: 'user' as const,
-              templateLibrarySource: 'personal' as const,
-              templateRevision: actualRevision ?? template.templateRevision,
-            })));
-          }
-
-          if (patch.cardSets.length > 0) {
-            useProjectStore.getState().mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-          }
-
-          let cardResult = { successCount: 0, skippedCount: 0 };
-          if (patch.storedCards.length > 0) {
-            cardResult = mergeStoredCards(patch.storedCards);
-            if (patch.activeCardSetId) useProjectStore.getState().setActiveCardSetId(patch.activeCardSetId);
-          }
+          const cardResult = {
+            successCount: adopted.successCount,
+            skippedCount: adopted.skippedCount,
+          };
 
           const installedCards = patch.storedCards.slice(0, cardResult.successCount);
           const cardAddedCount = installedCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;

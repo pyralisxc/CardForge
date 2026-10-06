@@ -27,7 +27,7 @@ import { externalizeBrowserProjectAssetJson } from '../persistence/contentAddres
 import { selectAllTemplates } from '../store/selectors';
 import { createProjectWorkspaceDraft, useProjectStore, type ProjectState } from '../store/workspaceStore';
 
-export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy';
+export type ProjectWorkspaceApplyMode = 'replace' | 'merge' | 'copy' | 'adopt';
 
 export interface ProjectWorkspaceApplySummary {
   activeSetId: string | null;
@@ -206,7 +206,9 @@ export const applyProjectDocumentToWorkspace = async (
   const sourceDocument = mode === 'merge'
     ? rekeyConflictingTemplateSnapshots(independent, selectAllTemplates(draft.getState()))
     : independent;
-  const writeMode = mode === 'copy' ? 'merge' : mode;
+  // Agent revision adoption is a lineage-aware merge: stable CardForge ids are
+  // intentional and must update in place rather than being treated as import collisions.
+  const writeMode = mode === 'copy' || mode === 'adopt' ? 'merge' : mode;
   const patch = applyProjectDocumentToState(sourceDocument);
   const scope = getProjectPersistenceScope();
   const assetNamespace = getScopedProjectStorageNamespace('project-assets', scope);
@@ -232,8 +234,10 @@ export const applyProjectDocumentToWorkspace = async (
     const externalized = await externalizeBrowserProjectAssetJson(JSON.stringify(values), scope);
     return { key: `${assetNamespace}:${key}`, value: externalized.storedValue, expectedValue };
   }));
-  if (options.replaceSetIds?.length) {
-    const replacing = new Set(options.replaceSetIds);
+  const replaceSetIds = options.replaceSetIds
+    ?? (mode === 'adopt' ? sourceDocument.cardSets.map((set) => set.id) : []);
+  if (replaceSetIds.length) {
+    const replacing = new Set(replaceSetIds);
     draft.setState((current) => ({
       cardSets: current.cardSets.filter((set) => !replacing.has(set.id)),
       storedCards: current.storedCards.filter((card) => !card.setId || !replacing.has(card.setId)),
@@ -256,15 +260,19 @@ export const applyProjectDocumentToWorkspace = async (
   }
 
   const afterSets = draft.getState();
-  if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
-  afterSets.setPdfOptions({
-    margin: patch.pdfMarginMm,
-    spacing: patch.pdfCardSpacingMm,
-    cutLines: patch.pdfIncludeCutLines,
-    duplexLayout: patch.pdfDuplexLayout,
-  });
-  if (patch.exportMode) afterSets.setExportMode(patch.exportMode);
-  if (patch.exportDpi) afterSets.setExportDpi(patch.exportDpi);
+  // Agent revision adoption updates authored work/resources but does not replace
+  // the creator's workspace-level output preferences.
+  if (mode !== 'adopt') {
+    if (patch.selectedPaperSize) afterSets.setSelectedPaperSize(patch.selectedPaperSize);
+    afterSets.setPdfOptions({
+      margin: patch.pdfMarginMm,
+      spacing: patch.pdfCardSpacingMm,
+      cutLines: patch.pdfIncludeCutLines,
+      duplexLayout: patch.pdfDuplexLayout,
+    });
+    if (patch.exportMode) afterSets.setExportMode(patch.exportMode);
+    if (patch.exportDpi) afterSets.setExportDpi(patch.exportDpi);
+  }
 
   const cardResult = writeMode === 'merge'
     ? draft.getState().mergeStoredCardsFromFile(patch.storedCards)
