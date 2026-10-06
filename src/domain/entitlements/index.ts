@@ -57,7 +57,7 @@ export const getExportGateMessage = (mode: AccessMode): string | null =>
     ? null
     : 'Free PNG, PDF, ZIP, and Tabletop Simulator downloads include the CardForge watermark. Creator Pass removes it from finished files.';
 
-export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCopy => {
+export const getExportEntitlementCopy = (mode: AccessMode, paidPlan: PaidPlan | null = null): ExportEntitlementCopy => {
   const gateMessage = getExportGateMessage(mode);
   const projectFileGateMessage = null;
   const canExportClean = getProjectCapabilities(mode).canExportClean;
@@ -74,7 +74,7 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
 
   if (mode === 'paid') {
     return {
-      modeLabel: 'Creator Pass active',
+      modeLabel: paidPlan === 'designer' ? 'Designer Pass active' : 'Creator Pass active',
       canExportClean,
       gateMessage,
       projectFileGateMessage,

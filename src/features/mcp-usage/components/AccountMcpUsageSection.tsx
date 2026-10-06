@@ -69,7 +69,7 @@ export function AccountMcpUsageSection({
       ) : !usage ? <p className="mt-4 text-sm text-[var(--cf-text-muted)]" role="status">Loading current usage…</p> : isEmptySummary ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] px-3 py-2.5">
           <p className="min-w-0 text-sm leading-5 text-[var(--cf-text-muted)]">
-            ChatGPT plugin included with {usage.allowance.displayName} · 0 / {usage.allowance.monthlyActionLimit} actions this month · 0 KB / {formatBytes(usage.allowance.onlineStorageLimitBytes)} workspace.
+            ChatGPT plugin included with {usage.allowance.displayName} · 0 actions observed this month (current beta target {usage.allowance.monthlyActionLimit}) · 0 KB temporary workspace (current beta target {formatBytes(usage.allowance.onlineStorageLimitBytes)}).
           </p>
           {onOpenDetails ? (
             <button type="button" className="min-h-10 shrink-0 border border-[var(--cf-border-strong)] px-3 text-sm font-semibold text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)]" onClick={onOpenDetails}>
@@ -83,13 +83,13 @@ export function AccountMcpUsageSection({
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 font-semibold text-[var(--cf-accent-text)]"><Sparkles className="h-4 w-4" />ChatGPT plugin actions</span><span className="text-sm text-[var(--cf-text-muted)]">{usage.monthlyActionUnits} / {usage.allowance.monthlyActionLimit}</span></div>
-              <UsageBar label="Monthly ChatGPT plugin actions used" value={usage.monthlyActionUnits} limit={usage.allowance.monthlyActionLimit} />
+              <UsageBar label="Monthly ChatGPT plugin actions observed toward the current beta planning target" value={usage.monthlyActionUnits} limit={usage.allowance.monthlyActionLimit} />
               <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">Today: {usage.dailyActionUnits} / {usage.allowance.dailySafetyLimit} planning target. Only successful creation actions through the ChatGPT plugin count; reads, previews, failures, and retries do not.</p>
             </div>
             <div className="border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4">
               <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 font-semibold text-[var(--cf-accent-text)]"><Cloud className="h-4 w-4" />Private ChatGPT plugin workspace</span><span className="text-sm text-[var(--cf-text-muted)]">{formatBytes(usage.documentBytes)} / {formatBytes(usage.allowance.onlineStorageLimitBytes)}</span></div>
-              <UsageBar label="Private ChatGPT plugin workspace used" value={usage.documentBytes} limit={usage.allowance.onlineStorageLimitBytes} />
-              <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{usage.documentCount} private ChatGPT working document{usage.documentCount === 1 ? '' : 's'}. Your normal Sets still remain in this browser.</p>
+              <UsageBar label="Temporary private ChatGPT plugin workspace observed toward the current beta planning target" value={usage.documentBytes} limit={usage.allowance.onlineStorageLimitBytes} />
+              <p className="mt-2 text-xs text-[var(--cf-text-subtle)]">{usage.documentCount} temporary private ChatGPT working document{usage.documentCount === 1 ? '' : 's'}. These are collaboration drafts, not backups; your normal Sets remain in your chosen creator-owned locations.</p>
             </div>
           </div>
           {presentation === 'summary' && onOpenDetails ? (
