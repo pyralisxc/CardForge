@@ -172,19 +172,72 @@ export const captureCurrentProjectDocument = async (): Promise<ProjectDocumentV1
   });
 };
 
+const collectPortableStringReferences = (value: unknown, output = new Set<string>()): Set<string> => {
+  if (typeof value === 'string') {
+    output.add(value);
+    return output;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectPortableStringReferences(entry, output));
+    return output;
+  }
+  if (!value || typeof value !== 'object') return output;
+  Object.values(value as Record<string, unknown>).forEach((entry) => collectPortableStringReferences(entry, output));
+  return output;
+};
+
+const keepReferencedPortableResources = (document: ProjectDocumentV1): ProjectDocumentV1 => {
+  // Resource catalogs are available to the whole browser account, but one Set
+  // revision should only carry resources its authored graph actually references.
+  // An explicit future "prepared resources" membership can extend this closure
+  // without returning to whole-personal-library snapshots.
+  const referenceSeed: ProjectDocumentV1 = {
+    ...document,
+    appearanceStyles: [],
+    customAssets: {
+      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
+      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
+      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
+      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
+    },
+    customFonts: [],
+  };
+  const references = collectPortableStringReferences(referenceSeed);
+  const appearanceStyles = document.appearanceStyles.filter((style) => references.has(style.id));
+  collectPortableStringReferences(appearanceStyles, references);
+  const referencedAssets = (assets: CardAssetOption[]) => assets.filter((asset) => (
+    references.has(asset.id)
+    || references.has(asset.url)
+    || Boolean(asset.previewUrl && references.has(asset.previewUrl))
+  ));
+  const customFonts = document.customFonts?.filter((font) => (
+    references.has(font.id) || references.has(font.value) || references.has(font.dataUrl)
+  ));
+  return {
+    ...document,
+    appearanceStyles,
+    customAssets: {
+      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: referencedAssets(document.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: referencedAssets(document.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: referencedAssets(document.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: referencedAssets(document.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+    },
+    ...(customFonts?.length ? { customFonts } : { customFonts: undefined }),
+  };
+};
+
 export const captureCardSetProjectDocument = async (setId: string): Promise<ProjectDocumentV1> => {
   const document = await captureCurrentProjectDocument();
   const isolated = isolateProjectDocumentToSet(document, setId);
   const set = document.cardSets.find((candidate) => candidate.id === setId);
-  if (!set?.templateIds?.length) return isolated;
   const templateIds = new Set([
-    ...set.templateIds,
+    ...(set?.templateIds ?? []),
     ...isolated.storedCards.flatMap((card) => [card.templateId, card.backingTemplateId]),
   ].filter((value): value is string => Boolean(value)));
-  return {
+  return keepReferencedPortableResources({
     ...isolated,
     userTemplates: document.userTemplates.filter((template) => Boolean(template.id && templateIds.has(template.id))),
-  };
+  });
 };
 
 export const captureCardProjectDocument = async (cardId: string): Promise<ProjectDocumentV1> => (
