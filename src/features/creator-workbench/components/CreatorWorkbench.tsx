@@ -330,9 +330,12 @@ export function CreatorWorkbench({
   useEffect(() => {
     if (!contextTemplateId || isLoadingTemplates) return;
     if (!templatesFromStore.some((template) => template.id === contextTemplateId)) return;
-    setTemplateEditorSelectedTemplateIdAction(contextTemplateId);
-    setStudioViewAction('template');
-  }, [contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore]);
+    if (templateEditorSelectedTemplateId === contextTemplateId && studioView === 'template') return;
+    if (templateEditorSelectedTemplateId !== contextTemplateId) {
+      setTemplateEditorSelectedTemplateIdAction(contextTemplateId);
+    }
+    if (studioView !== 'template') setStudioViewAction('template');
+  }, [contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
   const isStudioReady = !isLoadingTemplates;
   useStudioDocumentHandoff({
@@ -350,9 +353,12 @@ export function CreatorWorkbench({
   useEffect(() => {
     if (!designIntent || isLoadingTemplates || designIntent.kind !== 'artifact-design') return;
     if (!templatesFromStore.some((template) => template.id === designIntent.templateId)) return;
-    setTemplateEditorSelectedTemplateIdAction(designIntent.templateId);
-    setStudioViewAction('template');
-  }, [designIntent, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore]);
+    if (templateEditorSelectedTemplateId === designIntent.templateId && studioView === 'template') return;
+    if (templateEditorSelectedTemplateId !== designIntent.templateId) {
+      setTemplateEditorSelectedTemplateIdAction(designIntent.templateId);
+    }
+    if (studioView !== 'template') setStudioViewAction('template');
+  }, [designIntent, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
   useEffect(() => {
     if (!designIntent || isLoadingTemplates || designIntent.kind === 'artifact-design') return;
