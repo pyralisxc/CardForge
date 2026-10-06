@@ -51,7 +51,7 @@ describe('Studio document revision asset retention', () => {
   });
 
   it('keeps new content-addressed uploads when a revision loses its compare-and-swap', async () => {
-    const document = createProjectScaleFixture(1);
+    const document = createProjectScaleFixture(100);
     mocks.externalizeStudioDocumentAssets.mockResolvedValue({
       document,
       uploadedAssetIds: ['shared-artwork'],

@@ -268,7 +268,6 @@ export function Desk({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
-    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
