@@ -242,7 +242,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     applySnapshot(next);
   }, [applySnapshot, pushSnapshot, replaceSnapshot]);
 
-  const openContextTool = useCallback((setId: string, toolId: DeskContextualToolId) => {
+  const openContextTool = useCallback((setId: string, toolId: DeskContextualToolId, targetIds: readonly string[] = []) => {
     const current = currentRef.current;
     let focused = current;
     if (current.focusedWorkId !== `set:${setId}` || current.session.focusPath.setId !== setId) {
@@ -258,7 +258,7 @@ export function useCreatorNavigation({ initialFocusedWorkId, initialFocusedArtif
     const next = {
       ...focused,
       inspectorWorkId: null,
-      session: openCreatorTool(focused.session, createCreatorTool(setId, toolId)),
+      session: openCreatorTool(focused.session, createCreatorTool(setId, toolId, targetIds)),
     };
     pushSnapshot(next);
     applySnapshot(next);

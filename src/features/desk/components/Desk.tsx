@@ -381,8 +381,7 @@ export function Desk({
       });
     }
     closeEditDialog();
-    setTemplateEditorSelectedTemplateId(template.id);
-    setDesignIntent({ kind: 'artifact-design', artifactIds, face });
+    setDesignIntent({ kind: 'artifact-design', artifactIds, face, templateId: template.id });
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
   useEffect(() => {

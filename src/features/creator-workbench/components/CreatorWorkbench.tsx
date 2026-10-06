@@ -338,6 +338,13 @@ export function CreatorWorkbench({
   const showTemplateTool = useCallback(() => { handleStudioViewChange('template'); setOpenStudioSheet(null); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleStudioViewChange]);
 
   useEffect(() => {
+    if (!designIntent || isLoadingTemplates || designIntent.kind !== 'artifact-design') return;
+    if (!templatesFromStore.some((template) => template.id === designIntent.templateId)) return;
+    setTemplateEditorSelectedTemplateIdAction(designIntent.templateId);
+    setStudioViewAction('template');
+  }, [designIntent, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore]);
+
+  useEffect(() => {
     if (!designIntent || isLoadingTemplates || designIntent.kind === 'artifact-design') return;
     if (designIntent.kind === 'matching-back') handleCreateMatchingBack(designIntent.formatSource);
     else if (designIntent.kind === 'edit-back') handleEditCardBack(designIntent.templateId);

@@ -148,6 +148,7 @@ export const preserveCreatorLaunchIntent = (
 export const createCreatorTool = (
   setId: string,
   toolId: DeskContextualToolId,
+  targetIds: readonly string[] = [],
 ): CreatorToolSession => {
   const definition = DESK_CONTEXTUAL_TOOL_DEFINITIONS.find((candidate) => candidate.toolId === toolId);
   if (!definition) throw new Error(`Unknown Desk contextual tool: ${toolId}`);
@@ -156,7 +157,7 @@ export const createCreatorTool = (
     toolId,
     ownerFeature: definition.ownerFeature,
     presentation: definition.presentation,
-    targetIds: [setId],
+    targetIds: [setId, ...targetIds.filter(Boolean)],
     dirty: false,
   };
 };
