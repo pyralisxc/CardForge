@@ -43,7 +43,7 @@ const zip = new JSZip();
 for (const relativePath of PACKAGE_FILES) {
   zip.file(relativePath, await readPluginFile(relativePath), {
     date: DETERMINISTIC_DATE,
-    createFolders: true,
+    createFolders: false,
     unixPermissions: 0o100644,
   });
 }

@@ -101,6 +101,34 @@ describe('atomic project apply', () => {
     expect(new Set(useProjectStore.getState().storedCards.map((card) => card.uniqueId)).size).toBe(200);
   });
 
+  it('adopts an agent revision in place, removes deleted cards, and preserves output preferences', async () => {
+    const initial = fixture();
+    await applyProjectDocumentToWorkspace(initial, 'replace');
+    const setId = useProjectStore.getState().cardSets[0]!.id;
+    const templateId = useProjectStore.getState().userTemplates[0]!.id!;
+    const firstCardId = useProjectStore.getState().storedCards.find((card) => card.setId === setId)!.uniqueId;
+    useProjectStore.getState().setExportDpi(150);
+    await persistProjectWorkspaceNow();
+    const expectedState = useProjectStore.getState();
+
+    const revision = structuredClone(initial);
+    revision.cardSets = revision.cardSets.map((set) => set.id === setId ? { ...set, name: 'Agent revision' } : set);
+    revision.activeCardSetId = setId;
+    revision.userTemplates = revision.userTemplates.map((template) => template.id === templateId
+      ? { ...template, name: 'Updated Template' }
+      : template);
+    revision.storedCards = revision.storedCards.filter((card) => card.uniqueId === firstCardId);
+    revision.exportSettings.exportDpi = 600;
+
+    await applyProjectDocumentToWorkspace(revision, 'adopt', { expectedState });
+
+    const current = useProjectStore.getState();
+    expect(current.cardSets.find((set) => set.id === setId)?.name).toBe('Agent revision');
+    expect(current.userTemplates.find((template) => template.id === templateId)?.name).toBe('Updated Template');
+    expect(current.storedCards.filter((card) => card.setId === setId).map((card) => card.uniqueId)).toEqual([firstCardId]);
+    expect(current.exportDpi).toBe(150);
+  });
+
   it('keeps device edits made while a destination copy was being uploaded', async () => {
     await applyProjectDocumentToWorkspace(fixture(), 'replace');
     const expectedState = useProjectStore.getState();

@@ -136,7 +136,20 @@ export function useStudioDocumentHandoff({
             && template.templateLibrarySource !== 'pipeline'
           ));
 
-          const adopted = await applyProjectDocumentToWorkspace(document, 'adopt', { expectedState: beforeState });
+          const adoptionDocument = {
+            ...document,
+            userTemplates: document.userTemplates.map((template) => (
+              template.templateSource !== 'default' && template.templateLibrarySource !== 'pipeline'
+                ? {
+                    ...template,
+                    templateSource: 'user' as const,
+                    templateLibrarySource: 'personal' as const,
+                    templateRevision: actualRevision ?? template.templateRevision,
+                  }
+                : template
+            )),
+          };
+          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState });
           if (cancelled) return;
 
           const cardResult = {
