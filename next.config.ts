@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
   // Compile and runtime errors remain visible when indicators are disabled.
   devIndicators: process.env.CARDFORGE_E2E_BROWSER === 'true' ? false : undefined,
   serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+  async rewrites() {
+    return [{
+      // Retain the retired landing share-image URL as a compatibility alias.
+      // Cached clients and crawlers may keep requesting it long after current
+      // pages move to the canonical site-fallback location.
+      source: '/card-assets/landing/cardforge-hero-workbench.png',
+      destination: '/site-fallbacks/landing/cardforge-hero-workbench.png',
+    }];
+  },
   outputFileTracingIncludes: {
     '/mcp': [
       'plugins/cardforge-studio/skills/*/SKILL.md',

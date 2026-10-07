@@ -7,6 +7,7 @@ import { ApiClientError } from '@/infrastructure/http/clientResponses';
 import type { GoogleDriveProjectSummary } from '../model/googleDriveProject';
 import { useProjectStore } from '../store/workspaceStore';
 import { repairConfirmedGoogleDriveLink } from './googleDriveLinkRepair';
+import { hasProjectDocumentStateChanged } from './projectWorkspaceDocument';
 import {
   GoogleDriveSaveLinkageError,
   GoogleDriveUnknownCommitError,
@@ -351,7 +352,9 @@ export function useGoogleDriveWorkingSession({
     }
     setState(initialState);
     void reconcile();
-    const unsubscribe = useProjectStore.subscribe(() => scheduleSave());
+    const unsubscribe = useProjectStore.subscribe((current, previous) => {
+      if (hasProjectDocumentStateChanged(previous, current)) scheduleSave();
+    });
     const onFocus = () => { void reconcile(); };
     const onOnline = () => {
       queuedRef.current = false;

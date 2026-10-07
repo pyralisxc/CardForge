@@ -79,7 +79,7 @@ export function AccountPlanManagementPanel({
               {canManageBilling
                 ? 'Your subscription is connected. Open Stripe billing whenever you want to change the plan or payment details.'
                 : canExportClean
-                  ? 'Paid access is active for this account. Your included limits and capabilities are shown below.'
+                  ? 'Paid access is active for this account. Your plan capabilities and current beta capacity targets are shown below.'
                   : effectiveSignedIn
                     ? intendedPlanLabel
                       ? `You selected ${intendedPlanLabel}. Confirm the choice below, then continue through secure Stripe Checkout.`

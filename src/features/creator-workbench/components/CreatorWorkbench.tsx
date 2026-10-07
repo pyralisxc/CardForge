@@ -42,6 +42,8 @@ export interface CreatorWorkbenchProps {
   onReturnToGenerator?: () => void;
   /** Set context is projection only; Library design leaves this undefined. */
   contextSetId?: string | null;
+  /** Captured contextual target for Design; this is command intent, not global selection authority. */
+  contextTemplateId?: string | null;
 }
 
 export function CreatorWorkbench({
@@ -54,6 +56,7 @@ export function CreatorWorkbench({
   onDesignIntentConsumed,
   onReturnToGenerator,
   contextSetId = null,
+  contextTemplateId = null,
 }: CreatorWorkbenchProps) {
   const searchParams = useSearchParams();
   const isOutput = (tool ?? searchParams.get('tool')) === 'output';
@@ -324,25 +327,38 @@ export function CreatorWorkbench({
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!contextTemplateId || isLoadingTemplates) return;
+    if (!templatesFromStore.some((template) => template.id === contextTemplateId)) return;
+    if (templateEditorSelectedTemplateId === contextTemplateId && studioView === 'template') return;
+    if (templateEditorSelectedTemplateId !== contextTemplateId) {
+      setTemplateEditorSelectedTemplateIdAction(contextTemplateId);
+    }
+    if (studioView !== 'template') setStudioViewAction('template');
+  }, [contextTemplateId, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
+
   const isStudioReady = !isLoadingTemplates;
   useStudioDocumentHandoff({
     isAccountLoading: accountEntitlement.isLoadingEntitlement,
     isSignedIn: accountEntitlement.isSignedIn,
     isStudioReady,
-    mergeAppearanceStyles: setAppearanceStylesFromFilesAction,
-    mergeStoredCards: mergeStoredCardsFromFileAction,
-    mergeUserTemplates: mergeUserTemplatesFromFilesAction,
     setStudioView: setStudioViewAction,
-    setExportDpi: setExportDpiAction,
-    setExportMode: setExportModeAction,
-    setPdfOptions: setPdfOptionsAction,
-    setSelectedPaperSize: setSelectedPaperSizeAction,
     setSelectedTemplateId: setGeneratorSelectedTemplateIdAction,
     setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     toast,
   });
 
   const showTemplateTool = useCallback(() => { handleStudioViewChange('template'); setOpenStudioSheet(null); focusStudioRegion('[data-testid="layout-studio-panel"]'); }, [focusStudioRegion, handleStudioViewChange]);
+
+  useEffect(() => {
+    if (!designIntent || isLoadingTemplates || designIntent.kind !== 'artifact-design') return;
+    if (!templatesFromStore.some((template) => template.id === designIntent.templateId)) return;
+    if (templateEditorSelectedTemplateId === designIntent.templateId && studioView === 'template') return;
+    if (templateEditorSelectedTemplateId !== designIntent.templateId) {
+      setTemplateEditorSelectedTemplateIdAction(designIntent.templateId);
+    }
+    if (studioView !== 'template') setStudioViewAction('template');
+  }, [designIntent, isLoadingTemplates, setStudioViewAction, setTemplateEditorSelectedTemplateIdAction, studioView, templateEditorSelectedTemplateId, templatesFromStore]);
 
   useEffect(() => {
     if (!designIntent || isLoadingTemplates || designIntent.kind === 'artifact-design') return;

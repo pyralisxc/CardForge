@@ -1,14 +1,12 @@
 import {
   AccountIdentityUnavailableError,
   getCurrentCardforgeUserAccess,
-  resolveAccountEntitlement,
+  resolveCardforgeEntitlementForAccess,
 } from '@/features/account/server';
 import {
   ContributorAccessStoreError,
-  getContributorProfileCapabilities,
+  getContributorCapabilities,
   hasContributionScope,
-  resolveContributorScopes,
-  upsertContributorProfile,
   type ContributorScope,
 } from '@/features/contributor-access/server';
 import { PipelineStoreError } from '../lib/pipelineStoreError';
@@ -32,73 +30,43 @@ export const getCurrentPipelineRequestAccess = async (): Promise<PipelineRequest
     }
     throw error;
   }
-  const { authConfigured, user, ownerAccess } = accountAccess;
+
+  const { user, ownerAccess } = accountAccess;
   if (!user) {
     throw new PipelineStoreError('Sign in before using Contributor Pipeline tools.', 401);
   }
 
-  const entitlement = resolveAccountEntitlement({
-    authConfigured,
-    isSignedIn: true,
-    emailAddresses: user.emailAddresses,
-    privateMetadata: user.privateMetadata,
-    ownerAccess,
-  });
-  const isContributor = entitlement.accessMode === 'contributor';
-  if (!isContributor && !ownerAccess.isOwner) {
-    throw new PipelineStoreError('Contributor access is required for Pipeline submissions.', 403);
-  }
+  const entitlement = await resolveCardforgeEntitlementForAccess(accountAccess);
+  let contribution: Awaited<ReturnType<typeof getContributorCapabilities>>;
   try {
-    await upsertContributorProfile({
-      contributorId: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    });
-  } catch (error) {
-    if (error instanceof ContributorAccessStoreError) throw new PipelineStoreError(error.message, error.status);
-    throw error;
-  }
-  if (ownerAccess.isOwner) {
-    return {
+    contribution = await getContributorCapabilities({
       user,
-      ownerAccess,
-      isOwner: true,
-      isContributor,
-      email: user.email,
-      scopes: resolveContributorScopes({
-        isOwner: true,
-        profileStatus: null,
-        canDraftCampaigns: false,
-      }),
-    };
-  }
-  let profile: Awaited<ReturnType<typeof getContributorProfileCapabilities>>;
-  try {
-    profile = await getContributorProfileCapabilities(user.id);
+      entitlement,
+      isOwner: ownerAccess.isOwner,
+    });
   } catch (error) {
     if (error instanceof ContributorAccessStoreError) {
       throw new PipelineStoreError(error.message, error.status);
     }
     throw error;
   }
-  if (profile.status !== 'active') {
+
+  if (!contribution.active) {
     throw new PipelineStoreError(
-      'This Contributor profile is not active. Contact the CardForge owner if access should be restored.',
+      entitlement.authorities.contributor
+        ? 'This Contributor profile is not active. Contact the CardForge owner if access should be restored.'
+        : 'Contributor access is required for Pipeline submissions.',
       403,
     );
   }
+
   return {
     user,
     ownerAccess,
-    isOwner: false,
-    isContributor,
+    isOwner: ownerAccess.isOwner,
+    isContributor: entitlement.authorities.contributor,
     email: user.email,
-    scopes: resolveContributorScopes({
-      isOwner: false,
-      profileStatus: profile.status,
-      canDraftCampaigns: profile.canDraftCampaigns,
-    }),
+    scopes: contribution.scopes,
   };
 };
 

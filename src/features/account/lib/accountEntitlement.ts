@@ -206,7 +206,12 @@ export const resolveAccountEntitlement = ({
   const hasCreatorGrant = contributor || baseAccessMode === 'paid';
   const accessMode: AccessMode = contributor ? 'contributor' : hasCreatorGrant || commercialPlan !== 'free' ? 'paid' : 'free';
   const capabilities = getProjectCapabilities(accessMode);
-  const copy = getExportEntitlementCopy(accessMode);
+  const paidPlan = commercialPlan !== 'free'
+    ? commercialPlan
+    : baseAccessMode === 'paid'
+      ? readMetadataPaidPlan(privateMetadata)
+      : null;
+  const copy = getExportEntitlementCopy(accessMode, paidPlan);
   const accessExpiresAt = configured && isSignedIn
     ? readActiveMetadataAccessExpiresAt(privateMetadata, now)
     : null;
@@ -238,11 +243,7 @@ export const resolveAccountEntitlement = ({
     grants,
     // Compatibility projection for consumers that need the effective paid
     // tier while they migrate to commercialPlan + grants.
-    paidPlan: commercialPlan !== 'free'
-      ? commercialPlan
-      : baseAccessMode === 'paid'
-        ? readMetadataPaidPlan(privateMetadata)
-        : null,
+    paidPlan,
     source: configured ? 'clerk' : 'environment',
   };
 };
