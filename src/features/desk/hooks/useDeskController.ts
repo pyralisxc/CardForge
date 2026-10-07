@@ -264,7 +264,7 @@ export function useDeskController({
   const activeContextSetId = activeContextTool?.targetIds[0] ?? null;
   const pipelineSubmitSetId = activeContextTool?.toolId === 'pipeline' ? activeContextSetId : null;
   const studioTool = activeContextTool && activeContextSetId && (activeContextTool.toolId === 'design' || activeContextTool.toolId === 'output')
-    ? { setId: activeContextSetId, tool: activeContextTool.toolId }
+    ? { setId: activeContextSetId, tool: activeContextTool.toolId, templateId: activeContextTool.targetIds[1] ?? null }
     : null;
   const { actions: projectActions, state: projectState } = useDeskProjectWorkspace({
     focusedSetId: focusedLocalSetId,
@@ -284,10 +284,15 @@ export function useDeskController({
   const {
     activeCardSet, activeCardSetId, allArtifactsSelected, allVisibleCardsSelected, availableFields, cardSets,
     displayCards, effectiveMoveTargetId, focusedCards, focusedSet, generationCards, generationSet,
-    generatorSelectedBackingTemplateId, generatorSelectedTemplateId, organization, organizedGroups, otherSets, reflectiveGroupings,
+    generatorSelectedBackingTemplateId: storedGeneratorSelectedBackingTemplateId, generatorSelectedTemplateId: storedGeneratorSelectedTemplateId, organization, organizedGroups, otherSets, reflectiveGroupings,
     richTextHighlightColor, selectedCard, selectedCardIndex, selectedCards, selectionScope, sortedCards, templates,
     storedCards, visibleCards,
   } = projectState;
+  const generationTargetTemplateId = generationContextTool?.targetIds[1] ?? null;
+  const generatorSelectedTemplateId = generationTargetTemplateId ?? storedGeneratorSelectedTemplateId;
+  const generatorSelectedBackingTemplateId = generationTargetTemplateId
+    ? generationContextTool?.targetIds[2] ?? null
+    : storedGeneratorSelectedBackingTemplateId;
   const focusedArtifactIdForArrival = interactionSession.focusPath.artifactId;
   const focusedDestinationReady = Boolean(focusedItem)
     && (!focusedArtifactIdForArrival || focusedCards.some((card) => card.uniqueId === focusedArtifactIdForArrival));
@@ -339,16 +344,15 @@ export function useDeskController({
       return;
     }
     setActiveCardSetId(pendingTool.setId);
-    if (pendingTool.tool === 'design' && pendingTool.templateId) {
-      setTemplateEditorSelectedTemplateId(pendingTool.templateId);
-    } else if (pendingTool.tool === 'generate' && pendingTool.templateId) {
-      setGeneratorSelectedTemplateId(pendingTool.templateId);
-      setGeneratorSelectedBackingTemplateId(pendingTool.backingTemplateId ?? null);
-    }
+    const targetIds = pendingTool.tool === 'design'
+      ? pendingTool.templateId ? [pendingTool.templateId] : []
+      : pendingTool.tool === 'generate' && pendingTool.templateId
+        ? [pendingTool.templateId, ...(pendingTool.backingTemplateId ? [pendingTool.backingTemplateId] : [])]
+        : [];
     trackCardForgeEvent('tool_opened', { object_kind: pendingTool.tool, input_method: 'direct' });
-    navigateToTool(pendingTool.setId, pendingTool.tool);
+    navigateToTool(pendingTool.setId, pendingTool.tool, targetIds);
     setPendingTool(null);
-  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.templateCatalogReady, setActiveCardSetId, setGeneratorSelectedBackingTemplateId, setGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, templateSourceFailure, templates, toast]);
+  }, [cardSets, interactionSession.focusPath, navigateToTool, pendingTool, projection.templateCatalogReady, setActiveCardSetId, templateSourceFailure, templates, toast]);
   const activeWorkId = workItems.find((item) => item.references.localSetId === activeCardSetId)?.id
     ?? (projection.featuredItem && itemById.has(projection.featuredItem.id) ? projection.featuredItem.id : null);
   const focusedItemId = focusedItem?.id ?? null;

@@ -2,12 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
-import type { TCGCardTemplate, AppearanceStylePreset } from '@/domain/templates';
-import type { StoredDisplayCard } from '@/domain/cards';
-import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import { applyProjectDocumentToState, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY } from '@/features/project/client/package-document';
-import { getProjectAssetStorage, mergeProjectAssetListToStorage, writeProjectAssetListToStorage } from '@/features/project/client/assets';
-import { normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
+import { applyProjectDocumentToState } from '@/features/project/client/package-document';
+import { applyProjectDocumentToWorkspace, normalizeStudioView, type StudioView, useProjectStore } from '@/features/project/client/workspace';
 import {
   normalizeStudioDocumentPayload,
   type StudioDocumentAssetDownload,
@@ -31,16 +27,9 @@ interface StudioDocumentHandoffOptions {
   isAccountLoading: boolean;
   isSignedIn: boolean;
   isStudioReady: boolean;
-  mergeAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
   setStudioView: (view: StudioView) => void;
-  setExportDpi: (dpi: number) => void;
-  setExportMode: (mode: ExportMode) => void;
-  setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
-  setSelectedPaperSize: (size: PaperSize) => void;
   setSelectedTemplateId: (id: string | null) => void;
-  mergeStoredCards: (cards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
-  mergeUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
   toast: (input: ToastInput) => void;
   onInstalled?: (result: { activeSetId: string | null; destination: 'sets' | 'generator' | 'template-maker' }) => void;
 }
@@ -57,16 +46,9 @@ export function useStudioDocumentHandoff({
   isAccountLoading,
   isSignedIn,
   isStudioReady,
-  mergeAppearanceStyles,
   setStudioView,
-  setExportDpi,
-  setExportMode,
-  setPdfOptions,
-  setSelectedPaperSize,
   setSelectedTemplateId,
-  mergeStoredCards,
   setTemplateEditorSelectedTemplateId,
-  mergeUserTemplates,
   toast,
   onInstalled,
 }: StudioDocumentHandoffOptions) {
@@ -124,7 +106,6 @@ export function useStudioDocumentHandoff({
         if (!storedDocument) throw new Error('The account document is not a valid CardForge project.');
         const document = await hydrateStudioDocumentAssets(storedDocument, payload.assets ?? []);
         const patch = applyProjectDocumentToState(document);
-        const assetStorage = getProjectAssetStorage();
 
         if (payload.document?.creationSource === 'gpt') {
           const beforeState = useProjectStore.getState();
@@ -135,32 +116,26 @@ export function useStudioDocumentHandoff({
             && template.templateLibrarySource !== 'pipeline'
           ));
 
-          await Promise.all([
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-            mergeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
-          ]);
+          const adoptionDocument = {
+            ...document,
+            userTemplates: document.userTemplates.map((template) => (
+              template.templateSource !== 'default' && template.templateLibrarySource !== 'pipeline'
+                ? {
+                    ...template,
+                    templateSource: 'user' as const,
+                    templateLibrarySource: 'personal' as const,
+                    templateRevision: actualRevision ?? template.templateRevision,
+                  }
+                : template
+            )),
+          };
+          const adopted = await applyProjectDocumentToWorkspace(adoptionDocument, 'adopt', { expectedState: beforeState });
           if (cancelled) return;
 
-          if (personalTemplates.length > 0) {
-            mergeUserTemplates(personalTemplates.map((template) => ({
-              ...template,
-              templateSource: 'user' as const,
-              templateLibrarySource: 'personal' as const,
-              templateRevision: actualRevision ?? template.templateRevision,
-            })));
-          }
-
-          if (patch.cardSets.length > 0) {
-            useProjectStore.getState().mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-          }
-
-          let cardResult = { successCount: 0, skippedCount: 0 };
-          if (patch.storedCards.length > 0) {
-            cardResult = mergeStoredCards(patch.storedCards);
-            if (patch.activeCardSetId) useProjectStore.getState().setActiveCardSetId(patch.activeCardSetId);
-          }
+          const cardResult = {
+            successCount: adopted.successCount,
+            skippedCount: adopted.skippedCount,
+          };
 
           const installedCards = patch.storedCards.slice(0, cardResult.successCount);
           const cardAddedCount = installedCards.filter((card) => !existingCardIds.has(card.uniqueId)).length;
@@ -225,40 +200,14 @@ export function useStudioDocumentHandoff({
           return;
         }
 
-        await Promise.all([
-          writeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-          writeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-          writeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-          writeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
-        ]);
+        // Ordinary Studio open uses the same native durable Project transaction as
+        // every other project import. Replace semantics intentionally include the
+        // complete document (workspace settings, fonts, assets, Templates, Sets,
+        // cards, and styles) before the resulting live state is exposed.
+        const opened = await applyProjectDocumentToWorkspace(document, 'replace', {
+          expectedState: useProjectStore.getState(),
+        });
         if (cancelled) return;
-
-        // Non-agent Studio documents retain project-open semantics.
-        useProjectStore.setState({
-          userTemplates: [],
-          appearanceStyles: [],
-          storedCards: [],
-        });
-        mergeUserTemplates(patch.userTemplates);
-        useProjectStore.getState().setCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
-        mergeAppearanceStyles(patch.appearanceStyles);
-        if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
-        setPdfOptions({
-          margin: patch.pdfMarginMm,
-          spacing: patch.pdfCardSpacingMm,
-          cutLines: patch.pdfIncludeCutLines,
-          duplexLayout: patch.pdfDuplexLayout,
-        });
-        if (patch.exportMode) setExportMode(patch.exportMode);
-        if (patch.exportDpi) setExportDpi(patch.exportDpi);
-        mergeStoredCards(patch.storedCards);
-
-        const activeSetId = useProjectStore.getState().activeCardSet?.id ?? null;
-        const firstTemplateId = useProjectStore.getState().storedCards.find((card) => card.setId === activeSetId)?.templateId
-          ?? patch.userTemplates.find((template) => template.id)?.id
-          ?? null;
-        setSelectedTemplateId(firstTemplateId);
-        setTemplateEditorSelectedTemplateId(firstTemplateId);
         setStudioView('template');
 
         handledRevisionKeyRef.current = requestedKey;
@@ -271,7 +220,7 @@ export function useStudioDocumentHandoff({
             ? 'The project is ready in Studio. Your current tier keeps the CardForge watermark on previews and finished downloads.'
             : 'The project is ready in Studio with clean-output access from your current tier.',
         });
-        onInstalled?.({ activeSetId, destination: 'template-maker' });
+        onInstalled?.({ activeSetId: opened.activeSetId, destination: 'template-maker' });
       } catch (error) {
         if (!cancelled) {
           toast({
@@ -296,15 +245,8 @@ export function useStudioDocumentHandoff({
     isAccountLoading,
     isSignedIn,
     isStudioReady,
-    mergeAppearanceStyles,
-    mergeStoredCards,
-    mergeUserTemplates,
     onInstalled,
     setStudioView,
-    setExportDpi,
-    setExportMode,
-    setPdfOptions,
-    setSelectedPaperSize,
     setSelectedTemplateId,
     setTemplateEditorSelectedTemplateId,
     toast,

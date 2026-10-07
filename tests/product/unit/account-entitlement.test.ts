@@ -84,6 +84,7 @@ describe('accountEntitlement', () => {
       commercialPlan: 'designer',
       authorities: { contributor: false, owner: false },
       canExportClean: true,
+      copy: { modeLabel: 'Designer Pass active' },
     });
   });
 

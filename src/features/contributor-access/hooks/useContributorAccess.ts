@@ -11,6 +11,24 @@ import {
   type ContributorAccessSessionState,
 } from '@/features/contributor-access/model';
 
+const contributorProjectionLoads = new Map<string, Promise<ContributorAccessProjection>>();
+
+const loadContributorProjection = async (sessionKey: string): Promise<ContributorAccessProjection> => {
+  const existing = contributorProjectionLoads.get(sessionKey);
+  if (existing) return existing;
+  const load = (async () => {
+    const response = await fetch('/api/contributor-access', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Contributor access is temporarily unavailable. Retry to verify access.');
+    return response.json() as Promise<ContributorAccessProjection>;
+  })();
+  contributorProjectionLoads.set(sessionKey, load);
+  try {
+    return await load;
+  } finally {
+    if (contributorProjectionLoads.get(sessionKey) === load) contributorProjectionLoads.delete(sessionKey);
+  }
+};
+
 export const useContributorAccess = (
   {
     eligible,
@@ -40,9 +58,7 @@ export const useContributorAccess = (
     setIsLoading(true);
     setFailure(null);
     try {
-      const response = await fetch('/api/contributor-access', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Contributor access is temporarily unavailable. Retry to verify access.');
-      const projection = await response.json() as ContributorAccessProjection;
+      const projection = await loadContributorProjection(sessionKey);
       if (requestId === requestIdRef.current) setState({ sessionKey, projection });
     } catch {
       if (requestId === requestIdRef.current) {

@@ -88,13 +88,14 @@ describe('projectAccess', () => {
   });
 
   it('describes paid access with portable files while keeping local projects unlimited', () => {
-    expect(getExportEntitlementCopy('paid')).toEqual({
+    expect(getExportEntitlementCopy('paid', 'creator')).toEqual({
       modeLabel: 'Creator Pass active',
       canExportClean: true,
       gateMessage: null,
       projectFileGateMessage: null,
       panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Local projects remain unlimited on this device.',
     });
+    expect(getExportEntitlementCopy('paid', 'designer').modeLabel).toBe('Designer Pass active');
   });
 
   it('describes Contributor access with portable files while keeping local projects unlimited', () => {

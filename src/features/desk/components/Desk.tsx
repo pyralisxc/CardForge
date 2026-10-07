@@ -268,7 +268,6 @@ export function Desk({
     setDirtyCloseRequested,
     setGeneratorSelectedBackingTemplateId,
     setGeneratorSelectedTemplateId,
-    setTemplateEditorSelectedTemplateId,
     setInspectorWorkId,
     setInteractionSession,
     setLatestGeneratedIds,
@@ -381,8 +380,7 @@ export function Desk({
       });
     }
     closeEditDialog();
-    setTemplateEditorSelectedTemplateId(template.id);
-    setDesignIntent({ kind: 'artifact-design', artifactIds, face });
+    setDesignIntent({ kind: 'artifact-design', artifactIds, face, templateId: template.id });
     if (activeTool?.toolId !== 'design') openContextStudio(focusedLocalSetId, 'design', template.id);
   };
   useEffect(() => {
@@ -795,6 +793,7 @@ export function Desk({
             onDesignIntentConsumed={() => setDesignIntent(null)}
             onReturnToGenerator={closeActiveTool}
             contextSetId={studioTool.setId}
+            contextTemplateId={studioTool.templateId}
           />
         </EnvironmentToolLayer> : null}
       </EnvironmentShell>

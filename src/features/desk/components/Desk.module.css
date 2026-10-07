@@ -986,12 +986,18 @@
 }
 
 .selectionBar {
+  position: absolute;
+  z-index: 10;
+  top: 3.2rem;
+  right: 0.5rem;
+  left: 0.5rem;
   flex: 1;
   flex-wrap: nowrap;
   justify-content: flex-start;
   gap: 0.4rem;
   overflow-x: auto;
   overflow-y: hidden;
+  box-shadow: var(--cf-panel-shadow);
 }
 
 .selectionCount {
@@ -2274,6 +2280,11 @@
   }
 
   .selectionBar {
+    position: relative;
+    z-index: auto;
+    top: auto;
+    right: auto;
+    left: auto;
     width: 100%;
     flex-basis: auto;
     flex-wrap: nowrap;

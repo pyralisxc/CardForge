@@ -1,15 +1,24 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
-import type { FounderProfile } from '../model/founderProfile';
+import { DEFAULT_FOUNDER_PROFILE, type FounderProfile } from '../model/founderProfile';
 import { getFounderProfile, FounderProfileStoreError } from './founderProfileStore';
 
 export const FOUNDER_PROFILE_TAG = 'public:founder-profile';
 
-export const getCachedFounderProfile = unstable_cache(
+const readCachedFounderProfile = unstable_cache(
   async (): Promise<FounderProfile> => getFounderProfile(),
   ['public-founder-profile'],
   { tags: [FOUNDER_PROFILE_TAG], revalidate: 3600 },
 );
+
+export const getCachedFounderProfile = async (): Promise<FounderProfile> => {
+  try {
+    return await readCachedFounderProfile();
+  } catch (error) {
+    console.error('Unable to load founder profile; using compiled defaults for this request.', error);
+    return { ...DEFAULT_FOUNDER_PROFILE, priorities: [...DEFAULT_FOUNDER_PROFILE.priorities] };
+  }
+};
 
 export const revalidateFounderProfile = (): void => {
   try {

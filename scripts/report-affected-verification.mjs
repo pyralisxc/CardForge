@@ -67,22 +67,35 @@ export const specializedJobsForPath = (inputPath) => {
 
 const areaForFeature = (feature) => FEATURE_AREAS.find(({ features }) => features.includes(feature));
 
+const APP_ROUTE_OWNERS = [
+  [/^src\/app\/api\/billing\//u, 'billing'],
+  [/^src\/app\/api\/account\//u, 'account'],
+  [/^src\/app\/api\/pipeline\//u, 'pipeline'],
+  [/^src\/app\/api\/project-sources\/google-drive\//u, 'project'],
+  [/^src\/app\/api\/studio-documents\//u, 'studio-documents'],
+  [/^src\/app\/mcp\/route\.ts$/u, 'studio-documents'],
+];
+
+const classifyFeatureOwner = (filePath, owner) => {
+  const providerVerification = HIGH_RISK_FEATURES.get(owner)
+    ?? (owner === 'project' && /google-drive|googleDrive/u.test(filePath) ? 'Google Drive' : null);
+  return {
+    path: filePath,
+    owner,
+    risk: providerVerification ? 'high' : 'product',
+    providerVerification,
+    docs: areaForFeature(owner)?.docs ?? ['docs/architecture.md#core-ownership'],
+    architectureBoundaryAffected: true,
+  };
+};
+
 export const classifyChangedPath = (inputPath) => {
   const filePath = toPosixPath(inputPath);
   const featureMatch = /^src\/features\/([^/]+)/u.exec(filePath);
-  if (featureMatch) {
-    const owner = featureMatch[1];
-    const providerVerification = HIGH_RISK_FEATURES.get(owner)
-      ?? (owner === 'project' && /google-drive|googleDrive/u.test(filePath) ? 'Google Drive' : null);
-    return {
-      path: filePath,
-      owner,
-      risk: providerVerification ? 'high' : 'product',
-      providerVerification,
-      docs: areaForFeature(owner)?.docs ?? ['docs/architecture.md#core-ownership'],
-      architectureBoundaryAffected: true,
-    };
-  }
+  if (featureMatch) return classifyFeatureOwner(filePath, featureMatch[1]);
+
+  const appOwner = APP_ROUTE_OWNERS.find(([pattern]) => pattern.test(filePath))?.[1];
+  if (appOwner) return classifyFeatureOwner(filePath, appOwner);
 
   const routes = [
     [/^src\/app\//u, 'app-composition', 'product', ['docs/architecture.md#core-ownership'], true],
@@ -142,7 +155,8 @@ const testMatchesChange = ({ relativeTestPath, source, changedPath, classificati
     return relativeTestPath.endsWith('/migration-safety.test.ts');
   }
   if (changedPath.startsWith('tests/')) return relativeTestPath === changedPath;
-  if (changedPath.startsWith('src/features/')) {
+  if (changedPath.startsWith('src/features/')
+    || (changedPath.startsWith('src/app/') && classification.owner !== 'app-composition')) {
     return source.includes(`/features/${classification.owner}/`)
       || source.includes(`/features/${classification.owner}'`)
       || source.includes(`/features/${classification.owner}"`);
