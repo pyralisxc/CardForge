@@ -119,6 +119,7 @@ export function FocusedSetArtifactSurface({
   const suppressedClickRef = useRef<string | null>(null);
   const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
+  const mouseClickRef = useRef<{ artifactId: string; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -372,6 +373,7 @@ export function FocusedSetArtifactSurface({
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
     touchTapRef.current = null;
+    mouseClickRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
@@ -576,6 +578,7 @@ export function FocusedSetArtifactSurface({
     dragRef.current = null;
     if (drag.moved) {
       touchTapRef.current = null;
+      mouseClickRef.current = null;
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
@@ -599,6 +602,7 @@ export function FocusedSetArtifactSurface({
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     touchTapRef.current = null;
+    mouseClickRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     setDragPreview({});
@@ -751,12 +755,19 @@ export function FocusedSetArtifactSurface({
                   onPointerCancel={cancelArtifactMove}
                   onLostPointerCapture={cancelArtifactMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
-                  onDoubleClick={() => {
-                    if (lastArtifactPointerTypeRef.current !== 'touch') focusArtifact(artifactId);
-                  }}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
-                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (lastArtifactPointerTypeRef.current === 'touch' && touchMultiSelect));
+                    const touch = lastArtifactPointerTypeRef.current === 'touch';
+                    if (!touch) {
+                      const previous = mouseClickRef.current;
+                      if (previous?.artifactId === artifactId && event.timeStamp - previous.at <= 420) {
+                        mouseClickRef.current = null;
+                        focusArtifact(artifactId);
+                        return;
+                      }
+                      mouseClickRef.current = { artifactId, at: event.timeStamp };
+                    }
+                    toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (touch && touchMultiSelect));
                   }}
                 >
                   {useFullPreview || artifactId === artifactFocusId ? <ArtifactSlot card={card} face={face} width={previewWidth} depth="board" setId={setId} watermark={!canExportClean} /> : (
