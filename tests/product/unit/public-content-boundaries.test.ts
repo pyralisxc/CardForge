@@ -21,11 +21,13 @@ import { getSiteMedia, updateSiteMedia } from '@/features/public-site/server/sit
 import { getFounderProfile } from '@/features/public-site/server/founderProfileStore';
 import { getPublicSiteConfiguration } from '@/features/public-site/server/siteConfigurationStore';
 import { getCachedAllSiteContentBlocks, getCachedSiteContentBlocks, revalidateSiteContentCache } from '@/features/public-site/server/publicContentCache';
-import { revalidateSiteMediaCache } from '@/features/public-site/server/publicSiteMediaCache';
-import { revalidateFounderProfile } from '@/features/public-site/server/founderProfileCache';
-import { revalidatePublicSiteConfiguration } from '@/features/public-site/server/publicSiteConfigurationCache';
+import { getCachedSiteMedia, revalidateSiteMediaCache } from '@/features/public-site/server/publicSiteMediaCache';
+import { getCachedFounderProfile, revalidateFounderProfile } from '@/features/public-site/server/founderProfileCache';
+import { getCachedPublicSiteConfiguration, revalidatePublicSiteConfiguration } from '@/features/public-site/server/publicSiteConfigurationCache';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
-import { DEFAULT_SITE_MEDIA } from '@/features/public-site/model/siteMedia';
+import { DEFAULT_SITE_MEDIA, getDefaultSiteMedia } from '@/features/public-site/model/siteMedia';
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION, completePublicSiteConfiguration } from '@/features/public-site/model/siteConfiguration';
+import { DEFAULT_FOUNDER_PROFILE } from '@/features/public-site/model/founderProfile';
 
 const readers = [getSiteContentBlocks, getSiteMedia, getFounderProfile, getPublicSiteConfiguration];
 const invalidators = [revalidateSiteContentCache, revalidateSiteMediaCache, revalidateFounderProfile, revalidatePublicSiteConfiguration];
@@ -58,6 +60,17 @@ describe('public content cache inputs', () => {
       DEFAULT_SITE_CONTENT_BLOCKS.filter((block) => block.group === 'contributor'),
     );
     expect(provider.reads).toHaveBeenCalledTimes(2);
+  });
+  it('keeps public media, configuration, and founder rendering available during transient provider auth failures', async () => {
+    provider.error = { code: 'PGRST303', message: 'JWT issued at future' };
+    await expect(getCachedSiteMedia()).resolves.toEqual(
+      DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot)),
+    );
+    await expect(getCachedPublicSiteConfiguration()).resolves.toEqual(
+      completePublicSiteConfiguration(DEFAULT_PUBLIC_SITE_CONFIGURATION),
+    );
+    await expect(getCachedFounderProfile()).resolves.toEqual(DEFAULT_FOUNDER_PROFILE);
+    expect(provider.reads).toHaveBeenCalledTimes(3);
   });
   it('acknowledges a copy write without a fallible post-write reread', async () => {
     provider.error = { message: 'reads unavailable after save' };
