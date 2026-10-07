@@ -776,6 +776,9 @@ export function FocusedSetArtifactSurface({
                   onPointerCancel={cancelArtifactMove}
                   onLostPointerCapture={cancelArtifactMove}
                   onKeyDown={(event) => handleArtifactKey(artifactId, event)}
+                  onDoubleClick={() => {
+                    if (lastArtifactPointerTypeRef.current !== 'touch') focusArtifact(artifactId);
+                  }}
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
                     const touch = lastArtifactPointerTypeRef.current === 'touch';
