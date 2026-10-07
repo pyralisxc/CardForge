@@ -122,7 +122,7 @@ export function FocusedArtifactWorkspace({
   } | null>(null);
   const activeDirectPointersRef = useRef(new Set<number>());
   const tapRef = useRef<FocusedArtifactTap | null>(null);
-  const editGestureReadyAtRef = useRef(Date.now() + FOCUSED_ARTIFACT_EDIT_GESTURE_DELAY_MS);
+  const editGestureReadyAtRef = useRef(Number.POSITIVE_INFINITY);
   const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0, active: false });
 
   useEffect(() => {
