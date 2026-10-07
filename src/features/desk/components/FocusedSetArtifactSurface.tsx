@@ -119,7 +119,7 @@ export function FocusedSetArtifactSurface({
   const suppressedClickRef = useRef<string | null>(null);
   const lastArtifactPointerTypeRef = useRef<string | null>(null);
   const touchTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
-  const mouseClickRef = useRef<{ artifactId: string; at: number } | null>(null);
+  const mouseTapRef = useRef<{ artifactId: string; x: number; y: number; at: number } | null>(null);
   const navigatorReturnArtifactIdRef = useRef<string | null>(null);
   const pendingSpatialFocusIdRef = useRef<string | null>(null);
   const previousArtifactFocusIdRef = useRef<string | null>(session.focusPath.artifactId);
@@ -373,7 +373,7 @@ export function FocusedSetArtifactSurface({
 
   const focusArtifact = (artifactId: string, source: 'spatial' | 'navigator' | 'browse' = 'spatial') => {
     touchTapRef.current = null;
-    mouseClickRef.current = null;
+    mouseTapRef.current = null;
     const entry = entryById.get(artifactId);
     if (!entry) return;
     const selectedSession = session.selection.includes(artifactId)
@@ -578,7 +578,7 @@ export function FocusedSetArtifactSurface({
     dragRef.current = null;
     if (drag.moved) {
       touchTapRef.current = null;
-      mouseClickRef.current = null;
+      mouseTapRef.current = null;
       suppressedClickRef.current = drag.artifactId;
       commitSpatialMove(drag.latestPositions, drag.latestAffectedIds);
     } else if (event.pointerType === 'touch') {
@@ -593,6 +593,27 @@ export function FocusedSetArtifactSurface({
         event.timeStamp,
       );
       suppressedClickRef.current = drag.artifactId;
+    } else {
+      // Detect desktop focus from the stable pointer transaction, not the
+      // browser's dblclick event. The first click may legitimately rerender
+      // selection, which can replace the DOM target before dblclick dispatch.
+      const previous = mouseTapRef.current;
+      const sameGesture = previous
+        && previous.artifactId === drag.artifactId
+        && event.timeStamp - previous.at <= 420
+        && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= 28;
+      if (sameGesture) {
+        mouseTapRef.current = null;
+        suppressedClickRef.current = drag.artifactId;
+        focusArtifact(drag.artifactId);
+      } else {
+        mouseTapRef.current = {
+          artifactId: drag.artifactId,
+          x: event.clientX,
+          y: event.clientY,
+          at: event.timeStamp,
+        };
+      }
     }
     setDragPreview({});
   };
@@ -602,7 +623,7 @@ export function FocusedSetArtifactSurface({
     if (!drag || drag.pointerId !== event.pointerId) return;
     stopEdgePan();
     touchTapRef.current = null;
-    mouseClickRef.current = null;
+    mouseTapRef.current = null;
     dragRef.current = null;
     camera.restore(drag.startCamera);
     setDragPreview({});
@@ -758,15 +779,6 @@ export function FocusedSetArtifactSurface({
                   onClick={(event) => {
                     if (suppressedClickRef.current === artifactId) { suppressedClickRef.current = null; return; }
                     const touch = lastArtifactPointerTypeRef.current === 'touch';
-                    if (!touch) {
-                      const previous = mouseClickRef.current;
-                      if (previous?.artifactId === artifactId && event.timeStamp - previous.at <= 420) {
-                        mouseClickRef.current = null;
-                        focusArtifact(artifactId);
-                        return;
-                      }
-                      mouseClickRef.current = { artifactId, at: event.timeStamp };
-                    }
                     toggleArtifact(artifactId, event.shiftKey, event.metaKey || event.ctrlKey || (touch && touchMultiSelect));
                   }}
                 >
