@@ -110,9 +110,9 @@ describe('one authoritative Set location across save entry points', () => {
       'X-CardForge-Provider-Account': 'google-account-1',
     } })));
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
-    expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }), 'merge', expect.objectContaining({ expectedState: expect.any(Object) }));
     expect(mock.prime).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }));
-    expect(mock.apply.mock.invocationCallOrder[0]).toBeLessThan(mock.prime.mock.invocationCallOrder[0]);
+    expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }), 'merge', expect.objectContaining({ expectedState: expect.any(Object) }));
+    expect(mock.prime.mock.invocationCallOrder[0]).toBeLessThan(mock.apply.mock.invocationCallOrder[0]);
     expect(binding.workId).toBe(binding.runtimeSetIds?.[0]);
     expect(binding.packageScope).toBe(count === 1 ? 'set' : 'workspace');
     expect(mock.values.has(`test:google-drive-work-binding:${binding.workId}`)).toBe(true);

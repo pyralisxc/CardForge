@@ -102,13 +102,20 @@ export const primeProjectBinaryAssetUrls = async (
   const scope = getProjectPersistenceScope();
   const references = collectProjectBinaryAssetReferences(value, maxReferences);
   if (!references.length) return 0;
-  const handles = await Promise.all(references.map((reference) => resolverForScope(scope).acquire(reference)));
-  if (getProjectPersistenceScope() !== scope) {
+  const handles: Awaited<ReturnType<ProjectBinaryAssetResolver['acquire']>>[] = [];
+  try {
+    for (const reference of references) {
+      handles.push(await resolverForScope(scope).acquire(reference));
+    }
+    if (getProjectPersistenceScope() !== scope) {
+      throw new Error('The workspace account changed while CardForge prepared project artwork.');
+    }
+    globalThis.setTimeout(() => handles.forEach((handle) => handle.release()), Math.max(0, holdMs));
+    return handles.length;
+  } catch (error) {
     handles.forEach((handle) => handle.release());
-    throw new Error('The workspace account changed while CardForge prepared project artwork.');
+    throw error;
   }
-  globalThis.setTimeout(() => handles.forEach((handle) => handle.release()), Math.max(0, holdMs));
-  return handles.length;
 };
 
 /** Resolves references embedded inside CSS values such as url(...). */
