@@ -34,6 +34,7 @@ import {
 } from './projectWorkspaceDocument';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
+import { primeProjectBinaryAssetUrls } from './useProjectBinaryAssetUrl';
 
 const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
@@ -573,6 +574,8 @@ export const openGoogleDriveProject = async (
   // binding update fails, reopening still finds the already materialized work.
   for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
   assertBindingScope(namespace);
+  await primeProjectBinaryAssetUrls(document);
+  assertBindingScope(namespace);
   await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
   assertBindingScope(namespace);
   if (binding.workId && document.cardSets.length === 1) {
@@ -612,6 +615,8 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
   }
   const identities = structuredClone(binding.identities);
   const document = mapProjectDocumentIdentity(decoded.document, identities, 'open');
+  await primeProjectBinaryAssetUrls(document);
+  assertBindingScope(namespace);
   await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, replaceSetIds: binding.runtimeSetIds ?? [binding.workId] });
   const next = { ...binding, identities, providerRevision, projectRevision, lastSavedAt: modifiedAt,
     localProjectRevision: (await createProjectPackage(binding.name, binding.workId)).localProjectRevision };
@@ -627,6 +632,8 @@ export const copyGoogleDriveProjectToBrowser = async (
   const namespace = getScopedProjectStorageNamespace('project-assets');
   const expectedState = useProjectStore.getState();
   const { decoded, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary);
+  assertBindingScope(namespace);
+  await primeProjectBinaryAssetUrls(decoded.document);
   assertBindingScope(namespace);
   const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy', { expectedState });
   const workId = imported.activeSetId;

@@ -14,6 +14,7 @@ const mock = vi.hoisted(() => ({
   decode: vi.fn(),
   apply: vi.fn(async () => ({ activeSetId: 'set-c' })),
   build: vi.fn(async ({ document, name }: { document: unknown; name: string }) => ({ document, manifest: { name, projectRevision: 'b'.repeat(64), savedAt: '2026-09-05' } })),
+  prime: vi.fn(async () => 1),
 }));
 vi.mock('@/features/project/persistence/structuredBrowserStorage', () => ({
   readStructuredBrowserValue: mock.read,
@@ -32,6 +33,7 @@ vi.mock('@/features/project/client/projectWorkspaceDocument', () => ({
   hasProjectDocumentStateChanged: () => false,
 }));
 vi.mock('@/features/project/client/browserProjectPackage', () => ({ buildBrowserCardForgeProjectSnapshot: mock.build, decodeBrowserProjectFile: mock.decode }));
+vi.mock('@/features/project/client/useProjectBinaryAssetUrl', () => ({ primeProjectBinaryAssetUrls: mock.prime }));
 vi.mock('@/features/project/lib/projectPackageCodec', () => ({
   ProjectPackageError: class extends Error {},
   createCardForgeProjectPackageBlob: async () => new Blob(['package']),
@@ -108,7 +110,9 @@ describe('one authoritative Set location across save entry points', () => {
       'X-CardForge-Provider-Account': 'google-account-1',
     } })));
     const binding = await openGoogleDriveProject({ fileId: driveBinding.fileId, name: 'C' });
+    expect(mock.prime).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }));
     expect(mock.apply).toHaveBeenCalledWith(expect.objectContaining({ cardSets: expect.any(Array) }), 'merge', expect.objectContaining({ expectedState: expect.any(Object) }));
+    expect(mock.prime.mock.invocationCallOrder[0]).toBeLessThan(mock.apply.mock.invocationCallOrder[0]);
     expect(binding.workId).toBe(binding.runtimeSetIds?.[0]);
     expect(binding.packageScope).toBe(count === 1 ? 'set' : 'workspace');
     expect(mock.values.has(`test:google-drive-work-binding:${binding.workId}`)).toBe(true);

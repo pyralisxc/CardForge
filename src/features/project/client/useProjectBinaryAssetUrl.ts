@@ -52,6 +52,71 @@ export const useProjectBinaryAssetUrl = (source: string | null | undefined): str
 };
 
 const BINARY_REFERENCE_PATTERN = /cardforge-browser-asset:\/\/[a-f0-9]{64}/gu;
+const MAX_PRIMED_PROJECT_BINARY_ASSETS = 160;
+const DEFAULT_PROJECT_BINARY_PRIME_HOLD_MS = 1_500;
+
+export const collectProjectBinaryAssetReferences = (
+  value: unknown,
+  limit = MAX_PRIMED_PROJECT_BINARY_ASSETS,
+): string[] => {
+  const references = new Set<string>();
+  const visit = (entry: unknown) => {
+    if (references.size >= limit) return;
+    if (typeof entry === 'string') {
+      for (const reference of entry.match(BINARY_REFERENCE_PATTERN) ?? []) {
+        references.add(reference);
+        if (references.size >= limit) break;
+      }
+      return;
+    }
+    if (Array.isArray(entry)) {
+      for (const item of entry) {
+        visit(item);
+        if (references.size >= limit) break;
+      }
+      return;
+    }
+    if (!entry || typeof entry !== 'object') return;
+    for (const item of Object.values(entry as Record<string, unknown>)) {
+      visit(item);
+      if (references.size >= limit) break;
+    }
+  };
+  visit(value);
+  return [...references];
+};
+
+/**
+ * Prime a bounded set of freshly materialized browser assets before the first
+ * provider-backed Artifact paint. Handles stay alive briefly so mounted
+ * renderers acquire the same scoped object URLs, then normal component
+ * lifetimes resume ownership.
+ */
+export const primeProjectBinaryAssetUrls = async (
+  value: unknown,
+  {
+    maxReferences = MAX_PRIMED_PROJECT_BINARY_ASSETS,
+    holdMs = DEFAULT_PROJECT_BINARY_PRIME_HOLD_MS,
+  }: { maxReferences?: number; holdMs?: number } = {},
+): Promise<number> => {
+  const scope = getProjectPersistenceScope();
+  const references = collectProjectBinaryAssetReferences(value, maxReferences);
+  if (!references.length) return 0;
+  const handles: Awaited<ReturnType<ProjectBinaryAssetResolver['acquire']>>[] = [];
+  try {
+    for (const reference of references) {
+      handles.push(await resolverForScope(scope).acquire(reference));
+    }
+    if (getProjectPersistenceScope() !== scope) {
+      throw new Error('The workspace account changed while CardForge prepared project artwork.');
+    }
+    globalThis.setTimeout(() => handles.forEach((handle) => handle.release()), Math.max(0, holdMs));
+    return handles.length;
+  } catch (error) {
+    handles.forEach((handle) => handle.release());
+    throw error;
+  }
+};
 
 /** Resolves references embedded inside CSS values such as url(...). */
 export const useProjectBinaryAssetValue = (value: string | null | undefined): string | undefined => {
