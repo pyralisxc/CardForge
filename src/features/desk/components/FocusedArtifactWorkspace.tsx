@@ -63,6 +63,7 @@ const targetStyle = (target: ArtifactFieldTarget, canvas: NonNullable<ReturnType
 });
 
 const isSameData = (left: CardData, right: CardData) => JSON.stringify(left) === JSON.stringify(right);
+const FOCUSED_ARTIFACT_EDIT_GESTURE_DELAY_MS = 650;
 
 export function FocusedArtifactWorkspace({
   artifactId,
@@ -121,9 +122,11 @@ export function FocusedArtifactWorkspace({
   } | null>(null);
   const activeDirectPointersRef = useRef(new Set<number>());
   const tapRef = useRef<FocusedArtifactTap | null>(null);
+  const editGestureReadyAtRef = useRef(Date.now() + FOCUSED_ARTIFACT_EDIT_GESTURE_DELAY_MS);
   const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0, active: false });
 
   useEffect(() => {
+    editGestureReadyAtRef.current = Date.now() + FOCUSED_ARTIFACT_EDIT_GESTURE_DELAY_MS;
     setFrontData(initialFront[1]);
     setBackData(initialBack[1]);
     setSelectedTargetId(null);
@@ -147,6 +150,10 @@ export function FocusedArtifactWorkspace({
 
   const browse = (direction: ArtifactBrowseDirection) => {
     if (!editing && availableDirections[direction]) onBrowse(direction);
+  };
+  const requestGestureEdit = () => {
+    if (editing || Date.now() < editGestureReadyAtRef.current) return;
+    onEdit();
   };
   const canStartSwipe = (event: ReactPointerEvent<HTMLDivElement>) => (
     !editing
@@ -226,7 +233,7 @@ export function FocusedArtifactWorkspace({
     };
     if (isFocusedArtifactDoubleTap(tapRef.current, nextTap)) {
       tapRef.current = null;
-      onEdit();
+      requestGestureEdit();
       return;
     }
     tapRef.current = nextTap;
@@ -369,7 +376,7 @@ export function FocusedArtifactWorkspace({
             data-artifact-type="card"
             data-focused="true"
             aria-label={`${title}. ${subtitle}`}
-            onDoubleClick={onEdit}
+            onDoubleClick={requestGestureEdit}
             onKeyDown={handleFocusedArtifactKey}
           >
             <ArtifactSlot card={card} face={face} width={viewport.visualWidth} depth="focus" flipLabel={title} watermark={!canExportClean} />

@@ -34,6 +34,7 @@ import {
 } from './projectWorkspaceDocument';
 import type { ProjectDocumentV1 } from '../model/projectDocument';
 import { mapProjectDocumentIdentity, type ProjectDocumentIdentityMap } from '../model/projectDocumentIdentity';
+import { primeProjectBinaryAssetUrls } from './useProjectBinaryAssetUrl';
 
 const GOOGLE_DRIVE_BINDING_KEY = 'google-drive-project-binding';
 const GOOGLE_DRIVE_WORK_BINDING_KEY = 'google-drive-work-binding';
@@ -574,6 +575,7 @@ export const openGoogleDriveProject = async (
   for (const set of document.cardSets) await persistWorkBinding(set.id, binding, namespace);
   assertBindingScope(namespace);
   await applyProjectDocumentToWorkspace(document, 'merge', { expectedState });
+  await primeProjectBinaryAssetUrls(document);
   assertBindingScope(namespace);
   if (binding.workId && document.cardSets.length === 1) {
     binding.localProjectRevision = (await createProjectPackage(binding.name, binding.workId)).localProjectRevision;
@@ -613,6 +615,7 @@ export const refreshGoogleDriveProject = async (binding: GoogleDriveProjectBindi
   const identities = structuredClone(binding.identities);
   const document = mapProjectDocumentIdentity(decoded.document, identities, 'open');
   await applyProjectDocumentToWorkspace(document, 'merge', { expectedState, replaceSetIds: binding.runtimeSetIds ?? [binding.workId] });
+  await primeProjectBinaryAssetUrls(document);
   const next = { ...binding, identities, providerRevision, projectRevision, lastSavedAt: modifiedAt,
     localProjectRevision: (await createProjectPackage(binding.name, binding.workId)).localProjectRevision };
   assertBindingScope(namespace);
@@ -629,6 +632,7 @@ export const copyGoogleDriveProjectToBrowser = async (
   const { decoded, providerRevision, projectRevision, modifiedAt } = await downloadGoogleDriveProject(summary);
   assertBindingScope(namespace);
   const imported = await applyProjectDocumentToWorkspace(decoded.document, 'copy', { expectedState });
+  await primeProjectBinaryAssetUrls(decoded.document);
   const workId = imported.activeSetId;
   const binding = downloadedBinding({ summary, providerRevision, projectRevision, modifiedAt, workId });
   // Intentional copy is independent. The returned source receipt is informational;

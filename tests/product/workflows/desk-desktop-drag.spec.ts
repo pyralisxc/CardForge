@@ -197,5 +197,16 @@ test.describe('Desk desktop spatial interaction', () => {
     expect(boardBox).not.toBeNull();
     expect(mainBox).not.toBeNull();
     expect(boardBox!.width).toBeGreaterThan(mainBox!.width * 0.92);
+
+    const artifact = page.locator('button[data-artifact-id="scale-card-1"]');
+    await artifact.dblclick();
+    const focused = page.locator('[data-focused-artifact-workspace]');
+    await expect(focused).toBeVisible();
+    await expect(focused).toHaveAttribute('data-editing', 'false');
+    await expect(page.locator('[data-artifact-edit-workspace]')).toHaveCount(0);
+
+    // Editing remains an explicit second step after focus settles.
+    await page.locator('[data-desk-context-rail]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.locator('[data-artifact-edit-workspace]')).toBeVisible();
   });
 });
