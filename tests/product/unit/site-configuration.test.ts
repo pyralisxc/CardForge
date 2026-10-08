@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   completePublicSiteConfiguration,
+  getPublicHeaderPresentation,
   hydratePublicSiteConfiguration,
   normalizePublicSiteConfigurationInput,
 } from '@/features/public-site/model/siteConfiguration';
@@ -23,6 +24,27 @@ describe('public site configuration', () => {
       { id: 'plans', label: 'Plans', href: '/plans', visible: true },
       { id: 'roadmap', label: 'Roadmap', href: '/roadmap', visible: true },
     ]);
+  });
+
+  it('uses the Owner primary action in the global header and keeps other approved destinations visible', () => {
+    const configuration = {
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      primaryCtaLabel: 'See plans',
+      primaryCtaHref: '/plans',
+      primaryNavigation: DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryNavigation.map((item) => (
+        item.id === 'account' ? { ...item, label: 'Your Desk' } : item
+      )),
+    };
+
+    expect(getPublicHeaderPresentation(configuration)).toMatchObject({
+      primaryCtaLabel: 'See plans',
+      primaryCtaHref: '/plans',
+      visibleNavigation: expect.arrayContaining([
+        expect.objectContaining({ id: 'account', label: 'Your Desk', href: '/account' }),
+      ]),
+    });
+    expect(getPublicHeaderPresentation(configuration).visibleNavigation)
+      .not.toContainEqual(expect.objectContaining({ href: '/plans' }));
   });
 
   it('completes cached configuration when a new code-owned destination ships', () => {
