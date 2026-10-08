@@ -11,6 +11,7 @@ import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi
 import {
   OwnerAssetLibraryPanel,
   type OwnerAssetOverrideInput,
+  type OwnerEditorialReviewInput,
 } from '@/features/pipeline/components/OwnerAssetLibraryPanel';
 import { OwnerContributorProgramOverview } from '@/features/pipeline/components/OwnerContributorProgramOverview';
 import { OwnerStudioRoutingPanel } from '@/features/pipeline/components/OwnerStudioRoutingPanel';
@@ -146,6 +147,35 @@ export function OwnerContributorProgramPanel({
     }
   };
 
+  const updateEditorialReview = async (
+    submissionId: string,
+    input: OwnerEditorialReviewInput,
+  ): Promise<boolean> => {
+    setUpdatingSubmissionId(submissionId);
+    try {
+      const response = await fetch(`/api/pipeline/${submissionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save editorial review.'));
+      await response.json() as PipelineItemsResponse;
+      await loadProgram();
+      setLastSavedAt(new Date().toISOString());
+      toast({ title: 'Editorial review saved', description: 'The exact revision now carries the recorded publication-quality decision.' });
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Editorial review not saved',
+        description: error instanceof Error ? error.message : 'Unable to save editorial review.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setUpdatingSubmissionId(null);
+    }
+  };
+
   const deletePermanently = async (submissionId: string, confirmationName: string) => {
     setUpdatingSubmissionId(submissionId);
     try {
@@ -235,6 +265,7 @@ export function OwnerContributorProgramPanel({
             onPageChange={setLibraryPage}
             updatingSubmissionId={updatingSubmissionId}
             onUpdateOverride={updateOverride}
+            onUpdateEditorialReview={updateEditorialReview}
             onDeletePermanently={deletePermanently}
           />
         </TabsContent>
