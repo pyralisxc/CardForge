@@ -7,6 +7,17 @@ import { pathToFileURL } from 'node:url';
 
 const MIGRATION_ROOT = 'supabase/migrations/';
 const CONTRIBUTOR_CUTOVER_VERSION = '20260831015135';
+const OWNER_PRESENTATION_CUTOVER_VERSION = '20261008000000';
+const OWNER_PRESENTATION_TABLES = [
+  'cardforge_site_content_blocks',
+  'cardforge_site_media',
+  'cardforge_owner_settings',
+  'cardforge_business_identity',
+  'cardforge_founder_profile',
+  'cardforge_legal_documents',
+  'cardforge_mcp_allowance_settings',
+];
+const OWNER_STATE_WRITE_MARKER = /^\s*--\s*CARDFORGE_OWNER_STATE_WRITE:\s*\S.+$/mu;
 const RETIRED_DEVELOPER_TABLES = [
   'cardforge_developer_profiles',
   'cardforge_developer_program_settings',
@@ -43,6 +54,20 @@ export const findRetiredPostCutoverReferences = (filePath, contents) => {
   if (!version || version <= CONTRIBUTOR_CUTOVER_VERSION) return [];
   return RETIRED_DEVELOPER_TABLES.filter((table) => (
     new RegExp(`\\bpublic\\.${table}\\b`, 'u').test(contents)
+  ));
+};
+
+export const findUnapprovedOwnerPresentationWrites = (filePath, contents) => {
+  const normalizedPath = filePath.replaceAll('\\', '/');
+  const version = path.basename(normalizedPath).match(/^(\d+)/u)?.[1];
+  if (!version || version <= OWNER_PRESENTATION_CUTOVER_VERSION) return [];
+  if (OWNER_STATE_WRITE_MARKER.test(contents)) return [];
+
+  return OWNER_PRESENTATION_TABLES.filter((table) => (
+    new RegExp(
+      '^\\s*(?:insert\\s+into|update|delete\\s+from)\\s+(?:public\\.)?' + table + '\\b',
+      'imu',
+    ).test(contents)
   ));
 };
 
@@ -108,6 +133,30 @@ export const checkMigrationSafety = ({ root, base }) => {
       .join('\n');
     throw new Error(
       `Existing Supabase migrations are immutable. Add a forward migration instead:\n${details}`,
+    );
+  }
+
+  const ownerPresentationWrites = changes
+    .flatMap(({ paths }) => paths)
+    .map((filePath) => ({
+      filePath,
+      tables: findUnapprovedOwnerPresentationWrites(
+        filePath,
+        readFileSync(path.resolve(root, filePath), 'utf8'),
+      ),
+    }))
+    .filter(({ tables }) => tables.length > 0);
+  if (ownerPresentationWrites.length > 0) {
+    const details = ownerPresentationWrites
+      .map(({ filePath, tables }) => '  ' + filePath + ': ' + tables.join(', '))
+      .join('\n');
+    throw new Error(
+      [
+        'Post-cutover migrations may not silently edit Owner-controlled presentation state.',
+        'If a forward migration must seed, transform, or exceptionally transition Owner state, add one explicit rationale line:',
+        '  -- CARDFORGE_OWNER_STATE_WRITE: <why this migration is allowed to write owner state>',
+        details,
+      ].join('\n'),
     );
   }
 

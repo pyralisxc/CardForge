@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 import {
   findRetiredPostCutoverReferences,
+  findUnapprovedOwnerPresentationWrites,
   findUnsafeMigrationChanges,
   isApprovedBootstrapRepair,
   parseMigrationChanges,
@@ -53,6 +54,40 @@ describe('migration safety guard', () => {
     expect(findRetiredPostCutoverReferences(
       'supabase/migrations/20260824000100_legacy_grants.sql',
       'grant all on public.cardforge_developer_program_settings to service_role;',
+    )).toEqual([]);
+  });
+
+  it('blocks post-cutover migrations from silently editing Owner-controlled presentation state', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000100_bad_content_update.sql',
+      "update public.cardforge_site_content_blocks set body = 'new copy' where slug = 'landing.hero.headline';",
+    )).toEqual(['cardforge_site_content_blocks']);
+
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000200_bad_plan_update.sql',
+      "insert into public.cardforge_mcp_allowance_settings (plan_key, display_name) values ('creator', 'Creator');",
+    )).toEqual(['cardforge_mcp_allowance_settings']);
+  });
+
+  it('allows schema-only Owner migrations and requires an explicit rationale for exceptional state writes', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000300_schema_only.sql',
+      'alter table public.cardforge_owner_settings add column if not exists example_flag boolean;',
+    )).toEqual([]);
+
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20261009000400_explicit_transition.sql',
+      [
+        '-- CARDFORGE_OWNER_STATE_WRITE: seed the new presentation row only when it does not exist',
+        "insert into public.cardforge_site_content_blocks (slug, body) values ('new.slug', 'Seed') on conflict do nothing;",
+      ].join('\n'),
+    )).toEqual([]);
+  });
+
+  it('keeps historical pre-cutover presentation migrations readable without retroactively invalidating them', () => {
+    expect(findUnapprovedOwnerPresentationWrites(
+      'supabase/migrations/20260902214500_complete_public_desk_truth.sql',
+      "update public.cardforge_mcp_allowance_settings set description = 'legacy transition';",
     )).toEqual([]);
   });
 
