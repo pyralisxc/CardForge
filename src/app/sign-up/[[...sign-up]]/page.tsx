@@ -2,7 +2,11 @@ import { SignUp } from '@clerk/nextjs';
 import Link from 'next/link';
 
 import { PlanChoiceGrid } from '@/features/mcp-usage/client/plans';
-import { getMcpAllowances } from '@/features/mcp-usage/server';
+import {
+  applyProductAccessPricePresentation,
+  getMcpAllowances,
+} from '@/features/mcp-usage/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
 import {
   createAuthRouteHref,
   getSafeLocalReturnPath,
@@ -43,7 +47,11 @@ export default async function SignUpPage({
 
   const params = await searchParams;
   const fallbackRedirectUrl = getSafeLocalReturnPath(params.redirect_url);
-  const plans = await getMcpAllowances();
+  const [basePlans, productAccessPrices] = await Promise.all([
+    getMcpAllowances(),
+    getCurrentProductAccessPricePresentation(),
+  ]);
+  const plans = applyProductAccessPricePresentation(basePlans, productAccessPrices);
   const selectedPlanKey = (() => {
     const intent = new URL(fallbackRedirectUrl, 'https://cardforge.local').searchParams.get('intent');
     return intent === 'creator' || intent === 'designer' ? intent : null;
