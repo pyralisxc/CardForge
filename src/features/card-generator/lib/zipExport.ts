@@ -22,6 +22,9 @@ export interface ZipExportCopy {
 
 export interface PrintProductionManifest {
   format: 'cardforge-print-production-png-v1';
+  preflightFile: 'cardforge-print-preflight.json';
+  productionPrepared: boolean;
+  pressReady: boolean;
   notes: string[];
   faces: Array<{
     file: string;
@@ -215,8 +218,12 @@ export const getPrintProductionFileName = (item: CardZipExportItem): string => (
 
 export const createPrintProductionManifest = (
   items: CardZipExportItem[],
+  preflight: { productionPrepared: boolean; pressReady: boolean },
 ): PrintProductionManifest => ({
   format: 'cardforge-print-production-png-v1',
+  preflightFile: 'cardforge-print-preflight.json',
+  productionPrepared: preflight.productionPrepared,
+  pressReady: preflight.pressReady,
   notes: [
     'Each PNG preserves the authored trim composition and adds CardForge format bleed outside the trim edge.',
     'The current bleed pixels are edge-extended from the canonical trim render; inspect full-bleed artwork before professional production.',
