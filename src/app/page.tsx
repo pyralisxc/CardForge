@@ -31,6 +31,7 @@ export async function generateMetadata() {
   return createPageMetadata({
     title: siteConfiguration.homepageTitle,
     description: siteConfiguration.homepageDescription,
+    keywords: siteConfiguration.searchKeywords,
     path: '/',
   });
 }
