@@ -1,6 +1,7 @@
 import { getCurrentOwnerAccess, getOwnerSiteOperationsPayload } from '@/features/owner/server';
 import { OwnerPublicSiteOperations } from '@/features/owner/client';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/client';
+import { resolveOwnerPublicationEnvironment } from '@/features/public-site/model/ownerPublicationEnvironment';
 
 import { OwnerRoadmapRulesLiveEditor } from './OwnerRoadmapRulesLiveEditor';
 
@@ -9,8 +10,13 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
   if (!ownerAccess.isOwner || !ownerAccess.userId) return null;
 
   const payload = await getOwnerSiteOperationsPayload();
+  const publicationEnvironment = resolveOwnerPublicationEnvironment(
+    process.env.VERCEL_ENV,
+    process.env.NODE_ENV,
+  );
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
+    publicationEnvironment={publicationEnvironment}
     initialBlocks={payload.siteContentBlocks}
     initialMedia={payload.siteMedia}
     initialSiteConfiguration={payload.siteConfiguration}
