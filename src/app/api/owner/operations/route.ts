@@ -178,3 +178,11 @@ export async function PUT(request: Request) {
           : error.status === 409
             ? 'owner_operations_conflict'
             : 'owner_request_invalid',
+        error.message
+      );
+    }
+
+    console.error('Failed to update owner operations:', error);
+    return createApiErrorResponse(500, 'owner_request_invalid', 'Unable to update owner operations.');
+  }
+}
