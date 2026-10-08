@@ -17,7 +17,7 @@ import {
   type PipelineStatus,
   type PipelineType,
 } from '../lib/pipelineItems';
-import type { PipelineProgramView } from '../lib/pipelineProgram';
+import type { PipelineEditorialReviewStatus, PipelineProgramView } from '../lib/pipelineProgram';
 import {
   getPipelineStatusLabel,
   getPipelineTierLabel,
@@ -28,6 +28,11 @@ export interface OwnerAssetOverrideInput {
   ownerStatusOverride?: PipelineStatus | null;
   ownerAccessTierOverride?: PipelineAccessTierOverride | null;
   ownerNote: string;
+}
+
+export interface OwnerEditorialReviewInput {
+  editorialReviewStatus: PipelineEditorialReviewStatus;
+  editorialReviewNote: string;
 }
 
 interface OwnerAssetLibraryPanelProps {
@@ -45,6 +50,10 @@ interface OwnerAssetLibraryPanelProps {
     submissionId: string,
     input: OwnerAssetOverrideInput,
     success?: { title: string; description: string },
+  ) => Promise<boolean>;
+  onUpdateEditorialReview: (
+    submissionId: string,
+    input: OwnerEditorialReviewInput,
   ) => Promise<boolean>;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
 }
@@ -69,6 +78,7 @@ export function OwnerAssetLibraryPanel({
   onPageChange,
   updatingSubmissionId,
   onUpdateOverride,
+  onUpdateEditorialReview,
   onDeletePermanently,
 }: OwnerAssetLibraryPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -76,6 +86,8 @@ export function OwnerAssetLibraryPanel({
   const [statusOverride, setStatusOverride] = useState<PipelineStatus | 'automatic'>('automatic');
   const [tierOverride, setTierOverride] = useState<PipelineAccessTierOverride | 'automatic'>('automatic');
   const [ownerNote, setOwnerNote] = useState('');
+  const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
+  const [editorialReviewNote, setEditorialReviewNote] = useState('');
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
   const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -95,6 +107,8 @@ export function OwnerAssetLibraryPanel({
     setStatusOverride(submission.ownerStatusOverride ?? 'automatic');
     setTierOverride(submission.ownerAccessTierOverride ?? 'automatic');
     setOwnerNote(submission.ownerNote ?? '');
+    setEditorialReviewStatus(submission.editorialReviewStatus);
+    setEditorialReviewNote(submission.editorialReviewNote);
   };
 
   const saveOverride = async (submissionId: string) => {
@@ -103,10 +117,26 @@ export function OwnerAssetLibraryPanel({
       (nextStatus === 'archived' || nextStatus === 'rejected')
       && !window.confirm(`Confirm ${nextStatus === 'rejected' ? 'closing' : 'retiring'} this asset. Its history will be preserved.`)
     ) return;
+    if (nextStatus === 'published' && !ownerNote.trim()) {
+      window.alert('Add an Owner decision note before publishing this exact revision.');
+      return;
+    }
     const saved = await onUpdateOverride(submissionId, {
       ownerStatusOverride: nextStatus,
       ownerAccessTierOverride: tierOverride === 'automatic' ? null : tierOverride,
       ownerNote,
+    });
+    if (saved) setManagingId(null);
+  };
+
+  const saveEditorialReview = async (submissionId: string) => {
+    if (editorialReviewStatus !== 'pending' && !editorialReviewNote.trim()) {
+      window.alert('Add a concise editorial reason before recording this decision.');
+      return;
+    }
+    const saved = await onUpdateEditorialReview(submissionId, {
+      editorialReviewStatus,
+      editorialReviewNote,
     });
     if (saved) setManagingId(null);
   };
@@ -245,6 +275,53 @@ export function OwnerAssetLibraryPanel({
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
+                <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
+                      This is an exact-revision quality decision. Technical validity and community voting remain separate signals.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Review outcome
+                      <select
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={editorialReviewStatus}
+                        onChange={(event) => setEditorialReviewStatus(event.target.value as PipelineEditorialReviewStatus)}
+                      >
+                        <option value="pending">Pending review</option>
+                        <option value="approved">Approved</option>
+                        <option value="revise">Needs revision</option>
+                        <option value="quarantine">Quarantine</option>
+                        <option value="retire">Retire</option>
+                      </select>
+                    </label>
+                    <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
+                      <p><span className="font-semibold text-[var(--cf-accent-text)]">Current:</span> {submission.editorialReviewStatus}</p>
+                      <p>{submission.editorialReviewedAt ? `Reviewed ${new Date(submission.editorialReviewedAt).toLocaleString()}` : 'No recorded exact-revision editorial review yet.'}</p>
+                    </div>
+                  </div>
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                    Editorial reason
+                    <textarea
+                      className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                      value={editorialReviewNote}
+                      maxLength={600}
+                      onChange={(event) => setEditorialReviewNote(event.target.value)}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={updatingSubmissionId === submission.id}
+                    className="w-fit rounded-none"
+                    onClick={() => void saveEditorialReview(submission.id)}
+                  >
+                    {updatingSubmissionId === submission.id ? 'Saving review…' : 'Save editorial review'}
+                  </Button>
+                </section>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                     Status control
