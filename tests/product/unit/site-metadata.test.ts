@@ -18,6 +18,24 @@ describe('site metadata', () => {
     ]));
   });
 
+  it('projects page-owned search phrases only when supplied by that page owner', () => {
+    const metadata = createPageMetadata({
+      title: 'CardForge',
+      description: 'Create complete custom card Sets.',
+      path: '/',
+      keywords: ['custom card sets', 'printable card design'],
+    });
+
+    expect(metadata.keywords).toEqual(['custom card sets', 'printable card design']);
+
+    const withoutKeywords = createPageMetadata({
+      title: 'About CardForge',
+      description: 'About CardForge.',
+      path: '/about',
+    });
+    expect(withoutKeywords.keywords).toBeUndefined();
+  });
+
   it('creates explicit noindex metadata for application surfaces', () => {
     const metadata = createPageMetadata({
       title: 'CardForge Studio',

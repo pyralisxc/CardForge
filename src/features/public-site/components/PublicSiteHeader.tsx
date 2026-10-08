@@ -14,7 +14,11 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import type { BusinessIdentity } from '@/features/business-identity/client';
-import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
+import {
+  DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  getPublicHeaderPresentation,
+  type PublicSiteConfiguration,
+} from '../model/siteConfiguration';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
 import { FounderSocialLinks } from './FounderSocialLinks';
 import { useSiteContent } from './PublicSitePresentationContext';
@@ -43,11 +47,11 @@ export function PublicSiteHeader({
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const visibleNavigation = siteConfiguration.primaryNavigation.filter((item) => (
-    item.visible && item.href !== '/account'
-  ));
-  const primaryCtaHref = '/account';
-  const primaryCtaLabel = 'Open Desk';
+  const {
+    visibleNavigation,
+    primaryCtaHref,
+    primaryCtaLabel,
+  } = getPublicHeaderPresentation(siteConfiguration);
 
   return (
     <header className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] text-[var(--public-ivory)]">
