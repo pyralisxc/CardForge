@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DisplayCard } from '@/domain/rendering';
 
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
+
 import {
   createCardZipExportItems,
   createPrintProductionManifest,
@@ -99,11 +101,15 @@ describe('zip export helpers', () => {
 
   it('creates deterministic bleed-bearing production package metadata', () => {
     const items = createCardZipExportItems([makeCard()]);
-    const manifest = createPrintProductionManifest(items);
+    const preflight = createPrintProductionPreflight([items[0].card], 300);
+    const manifest = createPrintProductionManifest(items, preflight);
 
     expect(getPrintProductionFileName(items[0])).toBe('001_Arcane_Output_front_print-bleed.png');
     expect(manifest).toMatchObject({
       format: 'cardforge-print-production-png-v1',
+      preflightFile: 'cardforge-print-preflight.json',
+      productionPrepared: true,
+      pressReady: false,
       faces: [{
         file: '001_Arcane_Output_front_print-bleed.png',
         cardIndex: 0,
