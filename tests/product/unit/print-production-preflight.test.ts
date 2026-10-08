@@ -19,7 +19,20 @@ const baseTemplate: TCGCardTemplate = {
   freeformCanvas: {
     width: 630,
     height: 880,
-    elements: [],
+    elements: [
+      {
+        id: 'artwork',
+        type: 'image',
+        name: 'Artwork',
+        x: 40,
+        y: 80,
+        width: 550,
+        height: 500,
+        zIndex: 1,
+        content: 'artworkUrl',
+        imageSource: 'artworkUrl',
+      },
+    ],
   },
 };
 
