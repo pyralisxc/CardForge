@@ -107,8 +107,8 @@ export function OwnerAssetLibraryPanel({
     setStatusOverride(submission.ownerStatusOverride ?? 'automatic');
     setTierOverride(submission.ownerAccessTierOverride ?? 'automatic');
     setOwnerNote(submission.ownerNote ?? '');
-    setEditorialReviewStatus(submission.editorialReviewStatus);
-    setEditorialReviewNote(submission.editorialReviewNote);
+    setEditorialReviewStatus(submission.editorialReviewStatus ?? 'pending');
+    setEditorialReviewNote(submission.editorialReviewNote ?? '');
   };
 
   const saveOverride = async (submissionId: string) => {
@@ -298,7 +298,7 @@ export function OwnerAssetLibraryPanel({
                       </select>
                     </label>
                     <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
-                      <p><span className="font-semibold text-[var(--cf-accent-text)]">Current:</span> {submission.editorialReviewStatus}</p>
+                      <p><span className="font-semibold text-[var(--cf-accent-text)]">Current:</span> {submission.editorialReviewStatus ?? 'pending'}</p>
                       <p>{submission.editorialReviewedAt ? `Reviewed ${new Date(submission.editorialReviewedAt).toLocaleString()}` : 'No recorded exact-revision editorial review yet.'}</p>
                     </div>
                   </div>
