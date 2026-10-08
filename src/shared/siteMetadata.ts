@@ -14,6 +14,7 @@ interface PageMetadataInput {
   path: `/${string}` | '/';
   index?: boolean;
   image?: SocialImage;
+  keywords?: string[];
 }
 
 export const createPageMetadata = ({
@@ -22,6 +23,7 @@ export const createPageMetadata = ({
   path,
   index = true,
   image = DEFAULT_SOCIAL_IMAGE,
+  keywords,
 }: PageMetadataInput): Metadata => {
   const openGraphImage = {
     ...image,
@@ -31,6 +33,7 @@ export const createPageMetadata = ({
   return ({
   title,
   description,
+  ...(keywords?.length ? { keywords } : {}),
   alternates: { canonical: path },
   robots: index ? { index: true, follow: true } : { index: false, follow: false },
   openGraph: {
