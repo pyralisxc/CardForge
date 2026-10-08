@@ -93,3 +93,5 @@ export {
   serializeStructuredData,
   StructuredData,
 } from './server/structuredData';
+export { resolveOwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';
+export type { OwnerPublicationEnvironment } from './model/ownerPublicationEnvironment';

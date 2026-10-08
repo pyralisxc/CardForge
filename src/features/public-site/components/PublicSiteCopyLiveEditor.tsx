@@ -6,6 +6,10 @@ import { FileText, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { SiteContentBlock, SiteContentBlockSlug } from '../model/siteContent';
+import {
+  getOwnerPublicationPresentation,
+  type OwnerPublicationEnvironment,
+} from '../model/ownerPublicationEnvironment';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export interface SiteContentPublicationReceipt {
@@ -51,12 +55,15 @@ export function PublicSiteCopyLiveEditor({
   initialBlocks,
   focusSlug,
   onBlocksChange,
+  publicationEnvironment,
 }: {
   initialBlocks: SiteContentBlock[];
   focusSlug?: SiteContentBlockSlug | null;
   onBlocksChange: (blocks: SiteContentBlock[]) => void;
+  publicationEnvironment: OwnerPublicationEnvironment;
 }) {
   const { toast } = useToast();
+  const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [busyBlock, setBusyBlock] = useState<SiteContentBlockSlug | null>(null);
   const fieldRefs = useRef(new Map<SiteContentBlockSlug, HTMLDivElement>());
@@ -91,13 +98,13 @@ export function PublicSiteCopyLiveEditor({
       onBlocksChange(nextBlocks);
       toast(publication.receipt.refreshComplete
         ? {
-            title: 'Site copy published',
+            title: publicationPresentation.publishedTitle,
             description: publication.receipt.activityRecorded
-              ? `${block.label} is live without a deploy.`
-              : `${block.label} is live, but Owner activity history could not be recorded.`,
+              ? publicationPresentation.publishedDescription(block.label)
+              : `${publicationPresentation.publishedDescription(block.label)} Owner activity history could not be recorded.`,
           }
         : {
-            title: 'Site copy published; reload to verify',
+            title: `${publicationPresentation.publishedTitle}; reload to verify`,
             description: publication.receipt.message,
           });
     } catch (error) {
@@ -118,7 +125,9 @@ export function PublicSiteCopyLiveEditor({
             <summary className="cursor-pointer px-3 py-2 font-semibold text-[var(--cf-text-muted)]">{section} <span className="ml-2 text-xs font-normal text-[var(--cf-text-subtle)]">{sectionBlocks.length}</span></summary>
             <div className="grid gap-3 border-t border-[#3a2d1d] p-3">{sectionBlocks.map((block) => <div key={block.slug} ref={(node) => { if (node) fieldRefs.current.set(block.slug, node); else fieldRefs.current.delete(block.slug); }} className={`border bg-[var(--cf-canvas)] p-3 ${focusSlug === block.slug ? 'border-[var(--cf-accent)] ring-2 ring-[var(--cf-accent)]/30' : 'border-[#3a2d1d]'}`}>
               <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]"><span className="flex justify-between gap-2">{block.label}<span className="text-xs text-[var(--cf-text-subtle)]">{block.body.length}/{block.maxLength}</span></span>{block.kind === 'long' ? <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-sm leading-6 text-[var(--cf-accent-text)]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} /> : <input className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] px-3 text-sm text-[var(--cf-accent-text)]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} />}</label>
-              <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[var(--cf-text-subtle)]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={busyBlock !== null} onClick={() => void saveBlock(block)}><Save className="mr-2 h-4 w-4" />{busyBlock === block.slug ? 'Publishing...' : 'Publish block'}</Button></div>
+              <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[var(--cf-text-subtle)]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={busyBlock !== null} onClick={() => void saveBlock(block)}><Save className="mr-2 h-4 w-4" />{busyBlock === block.slug
+                ? publicationPresentation.publishingActionLabel
+                : publicationPresentation.publishActionLabel}</Button></div>
             </div>)}</div>
           </details>)}
         </div>
