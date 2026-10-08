@@ -22,7 +22,7 @@ const nullableString = { type: ['string', 'null'] } as const;
 export const ownerSiteSnapshotOutputSchema = fromJsonSchema({
   type: 'object',
   additionalProperties: false,
-  required: ['environment', 'identity', 'homepage', 'contentBlocks', 'media', 'founder', 'legal', 'roadmap', 'publicationGuidance'],
+  required: ['environment', 'identity', 'homepage', 'siteConfiguration', 'siteConfigurationUpdatedAt', 'contentBlocks', 'media', 'founder', 'legal', 'roadmap', 'publicationGuidance'],
   properties: {
     environment: { type: 'string' },
     identity: {
@@ -51,6 +51,15 @@ export const ownerSiteSnapshotOutputSchema = fromJsonSchema({
         visibleNavigation: { type: 'array', items: { type: 'string' } },
         visibleSections: { type: 'array', items: { type: 'string' } },
       },
+    },
+    siteConfiguration: {
+      type: 'object',
+      additionalProperties: true,
+      description: 'Complete canonical PublicSiteConfiguration. Preserve fields not intentionally changing and submit this complete object to publish_owner_site_configuration.',
+    },
+    siteConfigurationUpdatedAt: {
+      type: ['string', 'null'],
+      description: 'Conservative Owner-settings row revision. A site-configuration publication must echo this exact value.',
     },
     contentBlocks: {
       type: 'array',
@@ -284,6 +293,58 @@ export const ownerSiteCopyPublicationOutputSchema = fromJsonSchema({
         updatedAt: nullableString,
       },
     },
+    receipt: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['committed', 'refreshComplete', 'refreshFailures', 'activityRecorded', 'retryable', 'nextAction', 'message'],
+      properties: {
+        committed: { type: 'boolean' },
+        refreshComplete: { type: 'boolean' },
+        refreshFailures: { type: 'array', items: { type: 'string' } },
+        activityRecorded: { type: 'boolean' },
+        retryable: { type: 'boolean' },
+        nextAction: { type: 'string', enum: ['none', 'reload'] },
+        message: { type: 'string' },
+      },
+    },
+  },
+});
+
+export interface OwnerSiteConfigurationPublishInput {
+  settings: Record<string, unknown>;
+  expectedUpdatedAt: string;
+}
+
+export const ownerSiteConfigurationPublishInputSchema = fromJsonSchema<OwnerSiteConfigurationPublishInput>({
+  type: 'object',
+  additionalProperties: false,
+  required: ['settings', 'expectedUpdatedAt'],
+  properties: {
+    settings: {
+      type: 'object',
+      additionalProperties: true,
+      description: 'Complete siteConfiguration object returned by get_owner_site_snapshot. CardForge applies its normal site-configuration validation and ignores no required fields.',
+    },
+    expectedUpdatedAt: {
+      type: 'string',
+      minLength: 1,
+      description: 'Exact siteConfigurationUpdatedAt value returned by get_owner_site_snapshot.',
+    },
+  },
+});
+
+export const ownerSiteConfigurationPublicationOutputSchema = fromJsonSchema({
+  type: 'object',
+  additionalProperties: false,
+  required: ['environment', 'livePublication', 'settings', 'updatedAt', 'receipt'],
+  properties: {
+    environment: { type: 'string' },
+    livePublication: { type: 'boolean' },
+    settings: {
+      type: 'object',
+      additionalProperties: true,
+    },
+    updatedAt: { type: ['string', 'null'] },
     receipt: {
       type: 'object',
       additionalProperties: false,
