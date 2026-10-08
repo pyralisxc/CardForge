@@ -62,9 +62,12 @@ vi.mock('@/features/public-site/server', () => ({
     state.updateContent(...args);
     return state.content;
   },
-  updatePublicSiteConfiguration: async (...args: unknown[]) => {
+  publishPublicSiteConfigurationRevision: async (...args: unknown[]) => {
     state.updateConfiguration(...args);
-    return state.configuration;
+    return {
+      settings: state.configuration,
+      updatedAt: '2026-10-08T00:01:00.000Z',
+    };
   },
   revalidateSiteContentCache: () => {
     state.revalidateContent();
@@ -164,9 +167,11 @@ describe('Owner site commands', () => {
     const result = await publishOwnerSiteConfiguration({
       actor: { userId: 'owner-1', email: 'owner@example.com' },
       input: state.configuration,
+      expectedUpdatedAt: '2026-10-08T00:00:00.000Z',
     });
 
     expect(result.settings).toEqual(state.configuration);
+    expect(result.updatedAt).toBe('2026-10-08T00:01:00.000Z');
     expect(result.receipt).toMatchObject({
       committed: true,
       refreshComplete: true,
@@ -174,7 +179,10 @@ describe('Owner site commands', () => {
       retryable: false,
       nextAction: 'none',
     });
-    expect(state.updateConfiguration).toHaveBeenCalledOnce();
+    expect(state.updateConfiguration).toHaveBeenCalledWith(
+      state.configuration,
+      '2026-10-08T00:00:00.000Z',
+    );
     expect(state.revalidateConfiguration).toHaveBeenCalledOnce();
     expect(state.revalidatePath).toHaveBeenCalledTimes(4);
   });
