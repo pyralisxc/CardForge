@@ -3,10 +3,10 @@ import 'server-only';
 import { revalidatePath } from 'next/cache';
 
 import {
+  publishSiteContentBlockRevision,
   revalidatePublicSiteConfiguration,
   revalidateSiteContentCache,
   updatePublicSiteConfiguration,
-  updateSiteContentBlock,
   type PublicSiteConfiguration,
   type SiteContentBlock,
 } from '@/features/public-site/server';
@@ -73,9 +73,9 @@ export const publishOwnerSiteContentBlock = async ({
   input,
 }: {
   actor: OwnerCommandActor;
-  input: { slug?: unknown; body?: unknown };
+  input: { slug?: unknown; body?: unknown; expectedUpdatedAt?: unknown };
 }): Promise<{ siteContentBlock: SiteContentBlock; receipt: OwnerCommittedMutationReceipt }> => {
-  const siteContentBlock = await updateSiteContentBlock(input);
+  const siteContentBlock = await publishSiteContentBlockRevision(input);
   const refreshFailures = runPostCommitRefresh([
     { label: 'site-content-cache', run: revalidateSiteContentCache },
     { label: 'public-layout', run: () => revalidatePath('/', 'layout') },
@@ -88,6 +88,8 @@ export const publishOwnerSiteContentBlock = async ({
     targetId: siteContentBlock.slug,
     summary: 'Published an owner-authored public site copy block.',
     metadata: {
+      expectedUpdatedAt: input.expectedUpdatedAt ?? null,
+      committedUpdatedAt: siteContentBlock.updatedAt,
       refreshComplete: refreshFailures.length === 0,
       refreshFailures,
     },
