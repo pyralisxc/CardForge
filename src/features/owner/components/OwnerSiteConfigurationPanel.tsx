@@ -54,20 +54,34 @@ export function OwnerSiteConfigurationPanel({
         body: JSON.stringify(draft),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save public site settings.'));
-      const body = await response.json() as { settings: PublicSiteConfiguration; activityRecorded: boolean };
+      const body = await response.json() as {
+        settings: PublicSiteConfiguration;
+        activityRecorded: boolean;
+        receipt?: {
+          refreshComplete: boolean;
+          activityRecorded: boolean;
+          message: string;
+        };
+      };
       setDraft(body.settings);
       onSettingsChange(body.settings);
-      toast({
-        title: 'Public site settings saved',
-        description: body.activityRecorded
-          ? 'The public site cache and owner change history were updated.'
-          : 'The site was updated, but change history could not be recorded.',
-        variant: body.activityRecorded ? 'default' : 'destructive',
-      });
+      if (body.receipt && !body.receipt.refreshComplete) {
+        toast({
+          title: 'Public site settings published; reload to verify',
+          description: body.receipt.message,
+        });
+      } else {
+        toast({
+          title: 'Public site settings published',
+          description: body.activityRecorded
+            ? 'The live presentation and Owner change history were updated.'
+            : 'The live presentation was updated, but Owner change history could not be recorded.',
+        });
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save public site settings.';
+      const message = error instanceof Error ? error.message : 'Unable to publish public site settings.';
       setSaveError(message);
-      toast({ title: 'Public site settings not saved', description: message, variant: 'destructive' });
+      toast({ title: 'Public site settings not published', description: message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
