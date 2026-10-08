@@ -1,6 +1,6 @@
 # CardForge Product Direction
 
-Last updated: September 12, 2026
+Last updated: October 8, 2026
 
 Status: living product direction. This document records the intended product model and next delivery sequence. It does not describe shipped behavior. [architecture.md](architecture.md) remains authoritative for shipped ownership and invariants and the live `/roadmap` owns publicly presented capability status and votes.
 
@@ -18,6 +18,8 @@ Working positioning:
 
 The engine stays broad. Specialties, Kits, permissions, and connected providers change what is suggested or available; they do not fork the core product.
 
+The **current offered product remains card-first**. Broader Artifact families are architectural runway, not a marketing claim or a reason to make today's CardForge generic. New families earn product status only after their native authoring, validation, output, and continuity contracts are real.
+
 ## The Three Private Surfaces and Focused Workbench
 
 CardForge has three permanent user-navigation surfaces and one focused workbench mode:
@@ -32,6 +34,10 @@ CardForge has three permanent user-navigation surfaces and one focused workbench
 **Contributor is not another surface.** Contributor is a protected capability layer that enhances Desk, Library, focused Studio tools, and Profile.
 
 **Owner is a protected capability layer within Profile.** The Owner's recurring job remains operating CardForge itself—publishing reviewed truth, managing people/services, inspecting accountable history, and resolving operational queues—but it does not create a fourth navigation surface.
+
+The browser Owner experience and the dedicated **CardForge Owner** agent/plugin surface are two clients of the same feature-owned control plane. The Owner plugin is not a fourth private navigation zone and does not share CardForge Studio's creator tool catalog. It reuses the same Clerk identity plus server-resolved Owner authority, canonical state, validation, revision/conflict rules, cache invalidation, and activity history as browser Owner operations.
+
+For the public property, **code defines capability, the Owner publishes presentation, and providers supply the facts they own**. Vercel Preview proves changes to what the site can do; ordinary production copy/media/navigation/SEO/presentation changes publish through the live Owner surface. Do not add a staging-to-production content-promotion CMS merely to reproduce that solo-owner workflow.
 
 The public site remains CardForge's entrance and explanation surface, not another private workspace.
 
@@ -53,7 +59,7 @@ Use these terms consistently:
 - **Template/master:** reusable design authority for layout, style, field contract, and face role. Sets reference Templates without owning them; multiple Sets may intentionally share the same Template lineage.
 - **Component recipe:** a semantic insertable assembly made from existing Studio primitives.
 - **Field contract:** the typed structured data expected by a Template or component recipe.
-- **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment.
+- **Output profile:** a validated destination contract for download, digital publishing, print preparation, or provider fulfillment. A CardForge **print-ready** profile owns vendor-neutral trim/bleed/safe geometry, front/back orientation, imposition/preflight, color/output-intent behavior, and deterministic production packaging; a printer/provider profile specializes that contract for a real vendor rather than defining the generic model.
 
 The recommended internal/owner-facing phrase remains **Studio Specialty**. Specialty is guidance, not a prison.
 
@@ -687,15 +693,22 @@ The old Developer-zone concept is superseded by Contributor enhancements across 
 
 ## Next Delivery Sequence
 
-The three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, and starter Set are shipped foundations rather than future milestones.
+The three-surface navigation, spatial Desk, focused Studio workbench, Library scopes, Pipeline lifecycle, contextual Owner/public controls, recovery boundaries, starter Set, and core agent-authoring bridge are shipped foundations rather than future milestones.
 
-1. **Shared source capability projection** — make Desk, Library, Studio, and MCP consume one answer for ownership, reachability, permissions, exact-revision safety, materialization, and durable versus temporary status.
-2. **Highest-value MCP parity** — close published-resource-to-personal-work, published-resource-to-Design, explicit Set output, and broader safe Pipeline/revision gaps without inventing a second workflow.
-3. **Generalized revisions** — extend exact lineage, comparison, pinning, and materialization from Templates/Sets to revisionable media, fonts, and component recipes.
-4. **Campaign refinement** — complete the already-integrated Desk/Library Campaign composition and shared object/tool grammar without restoring a separate Contributor destination.
-5. **Specialty/Kits orchestration** — publish validated Specialty manifests, versioned Kits, semantic recipes, shared scoped data, multi-artifact Sets, and output profiles on the stable Studio foundation.
+The current next-crunch road is a **coherent set of parallel programs**, not a reason to reopen those foundations:
 
-Individual card changes belong in direct Template/card editing. The dedicated single-card generation form is intentionally retired; do not restore it as a parity requirement. Bulk input remains the creation path. Individual image downloads, sharing, and editable-card packages remain distinct supported output capabilities.
+1. **Launch truth and Owner control plane** — consolidate Owner-sovereign live presentation, truthful Preview/live publication semantics, provider-owned commercial facts, exact-revision public demonstrations, resilient public delivery, and browser/agent parity through a separate CardForge Owner plugin.
+2. **CardForge Studio public release** — finish real MCP/OAuth/reviewer acceptance and publish the focused creator plugin without broadening it into Owner operations or waiting for unrelated future platform work.
+3. **Launch content quality** — separate technical health from editorial readiness, establish semantic asset roles/families and enforceable first-party/AI-assisted standards, govern fonts, then curate the actual Starter Library into coherent useful families rather than maximizing object count.
+4. **Creator continuity completion** — re-baseline the Creator Spatial Environment and Drive-backed Desk work against current shipped behavior, then finish only the remaining observable interaction/provider gaps. Do not rebuild already-shipped scene, identity, or provider foundations.
+5. **Operating headroom and engineering confidence** — establish the intentionally supported public-beta user/concurrency envelope, complete material real-provider acceptance, and reduce verification cost where current evidence shows avoidable feedback friction without weakening durable safety guarantees.
+6. **Print-ready production** — make professional vendor-neutral print preparation a first-class CardForge Output contract, then evaluate print/fulfillment partners and specialty-finish profiles as consumers/extensions of that contract.
+
+These programs are intended to complete substantially within the same product crunch where their dependencies permit. A program may stop only at a genuine external/provider/human acceptance boundary, not merely because a branch or implementation artifact exists.
+
+After this crunch, broader Specialty/Kit orchestration, generalized non-card Artifact families, generic reusable Sites/Owner products, native social publishing, and realtime collaboration remain runway. Preserve cheap seams for them without making today's CardForge pay their implementation cost.
+
+Individual card changes belong in direct Template/card editing. The dedicated single-card generation form is intentionally retired; do not restore it as a parity requirement. Bulk input remains the creation path. Individual image downloads, sharing, editable-card packages, print-ready production packages, and provider-specific output profiles remain distinct supported output concerns.
 
 ## Product Constraints
 
