@@ -4,7 +4,7 @@ import { getMcpOwnerAccess } from './mcpOwnerAccess';
 import { registerOwnerReadTools } from './mcpOwnerTools';
 import { createOwnerMcpToolError } from './mcpOwnerToolError';
 
-export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.0.0';
+export const CARDFORGE_OWNER_MCP_CONTRACT_VERSION = '1.1.0';
 
 export const cardForgeOwnerMcpHandler = createMcpHandler(
   (server) => {
