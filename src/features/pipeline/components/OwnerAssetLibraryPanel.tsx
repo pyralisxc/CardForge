@@ -292,7 +292,7 @@ export function OwnerAssetLibraryPanel({
                       >
                         <option value="pending">Pending review</option>
                         <option value="approved">Approved</option>
-                        <option value="revise">Needs revision</option>
+                        {submission.status !== 'published' ? <option value="revise">Needs revision</option> : null}
                         <option value="quarantine">Quarantine</option>
                         <option value="retire">Retire</option>
                       </select>
