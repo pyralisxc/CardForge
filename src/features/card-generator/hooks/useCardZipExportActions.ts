@@ -28,6 +28,7 @@ import type { DisplayCard } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 export type ZipExportKind = 'png-set' | 'print-png-set' | 'tabletop-simulator';
@@ -110,6 +111,16 @@ export function useCardZipExportActions({
 
   const handleExportPrintPngSet = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
+    const preflight = createPrintProductionPreflight(generatedDisplayCards, exportDpi);
+    if (!preflight.productionPrepared) {
+      const firstBlocker = preflight.issues.find((issue) => issue.severity === 'blocker');
+      toast({
+        title: 'Print production preflight blocked',
+        description: firstBlocker?.message ?? 'Resolve the print production blockers before exporting.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const exportItems = createCardZipExportItems(generatedDisplayCards);
     setZipExportKind('print-png-set');
     setIsZipExporting(true);
@@ -137,7 +148,11 @@ export function useCardZipExportActions({
 
       folder.file(
         'cardforge-print-production-manifest.json',
-        JSON.stringify(createPrintProductionManifest(exportItems), null, 2),
+        JSON.stringify(createPrintProductionManifest(exportItems, preflight), null, 2),
+      );
+      folder.file(
+        'cardforge-print-preflight.json',
+        JSON.stringify(preflight, null, 2),
       );
       folder.file(
         'README.txt',
@@ -147,6 +162,9 @@ export function useCardZipExportActions({
           'Each face keeps the authored trim composition and adds the CardForge format bleed outside the trim edge.',
           'The bleed is edge-extended from the trim render so the authored card is not scaled or shifted.',
           'Use cardforge-print-production-manifest.json for exact trim, bleed, safe-margin, and production dimensions.',
+          'Use cardforge-print-preflight.json for deterministic production-prepared and press-ready status.',
+          `Production prepared: ${preflight.productionPrepared ? 'yes' : 'no'}.`,
+          `Press ready: ${preflight.pressReady ? 'yes' : 'no'}.`,
           'Inspect full-bleed artwork before professional production.',
           'These files are RGB raster PNGs. They are not yet a PDF/X or printer-specific ICC/color-output contract.',
           ...(canExportClean ? [] : ['This Free export includes the CardForge watermark.']),
@@ -165,8 +183,8 @@ export function useCardZipExportActions({
       URL.revokeObjectURL(url);
       trackExportCompleted('print_png_set', generatedDisplayCards.length);
       toast({
-        title: 'Print production PNGs exported',
-        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} saved with production geometry metadata${canExportClean ? '' : ' and the CardForge watermark'}.`,
+        title: 'Print production package exported',
+        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} saved with geometry and preflight reports. Production prepared: yes. Press ready: ${preflight.pressReady ? 'yes' : 'not yet'}${canExportClean ? '' : ' · CardForge watermark included'}.`,
       });
     } catch (err) {
       trackExportFailed('print_png_set', 'render_or_archive', generatedDisplayCards.length);
