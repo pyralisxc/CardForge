@@ -50,7 +50,10 @@ export function PublicSiteOwnerLiveControls({
   siteOperationsEditor?: ReactNode;
 }) {
   const { toast } = useToast();
-  const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
+  const publicationPresentation = useMemo(
+    () => getOwnerPublicationPresentation(publicationEnvironment),
+    [publicationEnvironment],
+  );
   const [open, setOpen] = useState(false);
   const [inlineMode, setInlineMode] = useState(false);
   const [focusedSlug, setFocusedSlug] = useState<SiteContentBlock['slug'] | null>(null);
