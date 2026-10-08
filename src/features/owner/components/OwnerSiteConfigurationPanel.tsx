@@ -33,10 +33,12 @@ const move = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
 
 export function OwnerSiteConfigurationPanel({
   settings,
+  updatedAt,
   onSettingsChange,
 }: {
   settings: PublicSiteConfiguration;
-  onSettingsChange: (settings: PublicSiteConfiguration) => void;
+  updatedAt: string | null;
+  onSettingsChange: (settings: PublicSiteConfiguration, updatedAt: string | null) => void;
 }) {
   const { toast } = useToast();
   const [draft, setDraft] = useState(settings);
@@ -51,11 +53,15 @@ export function OwnerSiteConfigurationPanel({
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(draft),
+        body: JSON.stringify({
+          ...draft,
+          expectedUpdatedAt: updatedAt,
+        }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save public site settings.'));
       const body = await response.json() as {
         settings: PublicSiteConfiguration;
+        updatedAt: string | null;
         activityRecorded: boolean;
         receipt?: {
           refreshComplete: boolean;
@@ -64,7 +70,7 @@ export function OwnerSiteConfigurationPanel({
         };
       };
       setDraft(body.settings);
-      onSettingsChange(body.settings);
+      onSettingsChange(body.settings, body.updatedAt);
       if (body.receipt && !body.receipt.refreshComplete) {
         toast({
           title: 'Public site settings published; reload to verify',
