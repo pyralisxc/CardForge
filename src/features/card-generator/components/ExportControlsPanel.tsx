@@ -16,6 +16,7 @@ import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
+import { createPrintProductionPreflight } from '@/features/card-generator/lib/printProductionPreflight';
 import {
   RASTER_EXPORT_QUALITY_OPTIONS,
   getRasterExportDimensionsPx,
@@ -111,6 +112,10 @@ export function ExportControlsPanel({
   const productionGeometry = firstCard && exportMode === 'physical'
     ? getCardProductionGeometryMm(firstCard)
     : null;
+  const printPreflight = useMemo(
+    () => createPrintProductionPreflight(generatedDisplayCards, exportDpi),
+    [exportDpi, generatedDisplayCards],
+  );
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
@@ -278,13 +283,34 @@ export function ExportControlsPanel({
                 <p><span className="font-medium text-foreground">Safe margin:</span> {productionGeometry.safeMarginMm} mm inside trim</p>
                 <p><span className="font-medium text-foreground">Production face:</span> {productionGeometry.productionWidthMm} × {productionGeometry.productionHeightMm} mm</p>
               </div>
+              <div className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs">
+                <p className="font-semibold text-foreground">
+                  Production preflight: {printPreflight.productionPrepared ? 'Prepared' : 'Blocked'}
+                </p>
+                <p className="text-muted-foreground">
+                  {printPreflight.issueSummary.blockers} blockers · {printPreflight.issueSummary.warnings} review warnings · {printPreflight.issueSummary.standardsGaps} press-standard gap{printPreflight.issueSummary.standardsGaps === 1 ? '' : 's'}.
+                </p>
+                <p className="font-medium text-foreground">
+                  Press ready: {printPreflight.pressReady ? 'Yes' : 'Not yet'}
+                </p>
+                {!printPreflight.pressReady ? (
+                  <p className="text-muted-foreground">
+                    CardForge does not yet attach a printer-specific ICC output intent or PDF/X press standard. Production-prepared files can still be reviewed with a print partner, but they are not certified press-ready output.
+                  </p>
+                ) : null}
+                {printPreflight.issues.filter((issue) => issue.severity === 'blocker').slice(0, 2).map((issue) => (
+                  <p key={`${issue.code}:${issue.scope}:${issue.message}`} className="text-[var(--cf-danger)]">
+                    {issue.message}
+                  </p>
+                ))}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Bleed is edge-extended from the canonical trim render. Inspect artwork at every edge before professional production. These are RGB PNGs; PDF/X and printer-specific ICC/output profiles remain a separate production step.
+                Bleed is edge-extended from the canonical trim render. Inspect artwork at every edge before professional production. The ZIP includes a deterministic preflight JSON report alongside the geometry manifest.
               </p>
               <Button
                 variant="outline"
                 onClick={onExportPrintPngSet}
-                disabled={exportsDisabled}
+                disabled={exportsDisabled || !printPreflight.productionPrepared}
                 className="w-full gap-2"
               >
                 <Download className="h-4 w-4" />
