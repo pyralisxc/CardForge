@@ -70,7 +70,15 @@ export function OwnerPublicSiteOperations() {
         <TabsTrigger value="experience" className={subtabClassName}>Experience &amp; Access</TabsTrigger>
       </TabsList>
       <TabsContent value="identity" className="mt-0 space-y-4"><OwnerReadinessPanel view="identity" operationsPayload={siteOperations} onOperationsChange={updateOperations} /><OwnerFounderProfilePanel operationsPayload={siteOperations} onOperationsChange={updateOperations} /></TabsContent>
-      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel settings={siteOperations.siteConfiguration} onSettingsChange={(siteConfiguration) => updateOperations({ ...siteOperations, siteConfiguration })} /></TabsContent>
+      <TabsContent value="pages" className="mt-0"><OwnerSiteConfigurationPanel
+        settings={siteOperations.siteConfiguration}
+        updatedAt={siteOperations.siteConfigurationUpdatedAt}
+        onSettingsChange={(siteConfiguration, siteConfigurationUpdatedAt) => updateOperations({
+          ...siteOperations,
+          siteConfiguration,
+          siteConfigurationUpdatedAt,
+        })}
+      /></TabsContent>
       <TabsContent value="experience" className="mt-0"><OwnerExperienceControlsPanel settings={siteOperations.experienceSettings} onSettingsChange={(experienceSettings) => updateOperations({ ...siteOperations, experienceSettings })} /></TabsContent>
     </Tabs>
   </section>;
