@@ -195,6 +195,9 @@ const throwEditorialReviewError = (errorMessage?: string): never => {
   if (errorMessage?.includes('editorial_review_reason_required')) {
     throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
   }
+  if (errorMessage?.includes('editorial_review_live_requires_quarantine')) {
+    throw new PipelineRegistryCommandError('Live content must be quarantined or retired when it needs correction; “needs revision” is for unpublished candidates.', 409);
+  }
   if (errorMessage?.includes('editorial_review_source_notes_required')) {
     throw new PipelineRegistryCommandError('Add source, provenance, and rights notes before approving this revision.', 400);
   }
