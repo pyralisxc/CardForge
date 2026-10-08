@@ -7,9 +7,9 @@ import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { SupportCheckoutActions } from '@/features/billing/client';
 import {
   getCreatorSupportOfferConfiguration,
-  getCurrentProductAccessPricePresentation,
-  SUPPORT_MONTHLY_AMOUNTS_CENTS,
+    SUPPORT_MONTHLY_AMOUNTS_CENTS,
 } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
