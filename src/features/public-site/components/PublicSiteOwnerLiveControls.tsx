@@ -90,7 +90,11 @@ export function PublicSiteOwnerLiveControls({
     }
     setInlineSaving(true);
     try {
-      const publication = await savePublicSiteContentBlock({ slug: block.slug, body });
+      const publication = await savePublicSiteContentBlock({
+        slug: block.slug,
+        body,
+        updatedAt: block.updatedAt,
+      });
       element.textContent = publication.siteContentBlock.body;
       setBlocks((current) => current.map((candidate) => (
         candidate.slug === publication.siteContentBlock.slug
