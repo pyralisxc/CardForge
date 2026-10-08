@@ -3,10 +3,10 @@ import 'server-only';
 import { revalidatePath } from 'next/cache';
 
 import {
+  publishPublicSiteConfigurationRevision,
   publishSiteContentBlockRevision,
   revalidatePublicSiteConfiguration,
   revalidateSiteContentCache,
-  updatePublicSiteConfiguration,
   type PublicSiteConfiguration,
   type SiteContentBlock,
 } from '@/features/public-site/server';
@@ -107,11 +107,18 @@ export const publishOwnerSiteContentBlock = async ({
 export const publishOwnerSiteConfiguration = async ({
   actor,
   input,
+  expectedUpdatedAt,
 }: {
   actor: OwnerCommandActor;
   input: Record<string, unknown>;
-}): Promise<{ settings: PublicSiteConfiguration; receipt: OwnerCommittedMutationReceipt }> => {
-  const settings = await updatePublicSiteConfiguration(input);
+  expectedUpdatedAt: unknown;
+}): Promise<{
+  settings: PublicSiteConfiguration;
+  updatedAt: string | null;
+  receipt: OwnerCommittedMutationReceipt;
+}> => {
+  const publication = await publishPublicSiteConfigurationRevision(input, expectedUpdatedAt);
+  const settings = publication.settings;
   const refreshFailures = runPostCommitRefresh([
     { label: 'site-configuration-cache', run: revalidatePublicSiteConfiguration },
     { label: 'homepage', run: () => revalidatePath('/') },
@@ -127,6 +134,8 @@ export const publishOwnerSiteConfiguration = async ({
     targetId: 'cardforge',
     summary: 'Updated public navigation, homepage presentation, offer visibility, announcement, search metadata, watermark presentation, or demonstration sets.',
     metadata: {
+      expectedUpdatedAt,
+      committedUpdatedAt: publication.updatedAt,
       announcementEnabled: settings.announcementEnabled,
       visibleNavigation: settings.primaryNavigation.filter((item) => item.visible).map((item) => item.id),
       visibleHomepageSections: settings.homepageSections.filter((item) => item.visible).map((item) => item.id),
@@ -139,6 +148,7 @@ export const publishOwnerSiteConfiguration = async ({
   });
   return {
     settings,
+    updatedAt: publication.updatedAt,
     receipt: createReceipt({
       activityRecorded,
       refreshFailures,
