@@ -7,3 +7,4 @@ export * from './server/ownerActivityStore';
 export * from './server/ownerPeopleStore';
 export type { OwnerActivityEvent, OwnerActivityOutcome } from './lib/ownerActivity';
 export * from './server/ownerPeopleOperations';
+export * from './server/ownerSiteCommands';
