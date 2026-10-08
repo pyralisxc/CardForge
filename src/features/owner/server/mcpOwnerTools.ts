@@ -4,11 +4,16 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload } from '@/features/owner/lib/ownerOperationsStore';
-import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
+import {
+  publishOwnerSiteConfiguration,
+  publishOwnerSiteContentBlock,
+} from '@/features/owner/server/ownerSiteCommands';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
+  ownerSiteConfigurationPublicationOutputSchema,
+  ownerSiteConfigurationPublishInputSchema,
   ownerSiteCopyPublicationOutputSchema,
   ownerSiteCopyPublishInputSchema,
   ownerProviderReadinessOutputSchema,
@@ -101,6 +106,8 @@ export const registerOwnerReadTools = ({
                 .filter((section) => section.visible)
                 .map((section) => section.id),
             },
+            siteConfiguration: site.siteConfiguration,
+            siteConfigurationUpdatedAt: site.siteConfigurationUpdatedAt,
             contentBlocks: site.siteContentBlocks.map((block) => ({
               slug: block.slug,
               group: block.group,
@@ -188,6 +195,49 @@ export const registerOwnerReadTools = ({
             environment: deploymentEnvironment(),
             livePublication: isProduction,
             siteContentBlock: publication.siteContentBlock,
+            receipt: publication.receipt,
+          },
+        };
+      },
+    }),
+  );
+
+  server.registerTool(
+    'publish_owner_site_configuration',
+    {
+      title: 'Publish CardForge public-site configuration',
+      description: 'Publish the complete bounded CardForge public-site configuration using the exact siteConfigurationUpdatedAt revision returned by get_owner_site_snapshot. This covers announcements, approved navigation labels/order/visibility, primary action, homepage section order/visibility, search metadata, support visibility, watermark presentation, and pinned showcase examples. In production it publishes live; in Preview it changes staging only. A newer Owner-settings write causes a conflict and must be re-read before retrying.',
+      inputSchema: ownerSiteConfigurationPublishInputSchema,
+      outputSchema: ownerSiteConfigurationPublicationOutputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    },
+    async ({ settings, expectedUpdatedAt }) => runObserved({
+      toolName: 'publish_owner_site_configuration',
+      input: { settings, expectedUpdatedAt },
+      execute: async (access) => {
+        const publication = await publishOwnerSiteConfiguration({
+          actor: {
+            userId: access.user.id,
+            email: access.email,
+          },
+          input: settings,
+          expectedUpdatedAt,
+        });
+        const isProduction = deploymentEnvironment() === 'production';
+        return {
+          content: [{
+            type: 'text',
+            text: publication.receipt.refreshComplete
+              ? (isProduction
+                  ? 'Public site configuration was published live to CardForge.'
+                  : 'Public site configuration was published to this non-production CardForge environment only.')
+              : publication.receipt.message,
+          }],
+          structuredContent: {
+            environment: deploymentEnvironment(),
+            livePublication: isProduction,
+            settings: publication.settings,
+            updatedAt: publication.updatedAt,
             receipt: publication.receipt,
           },
         };
