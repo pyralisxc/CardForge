@@ -125,6 +125,15 @@ const normalizeOptionalShowcaseText = (value: unknown, maxLength: number): strin
   return normalized && normalized.length <= maxLength ? normalized : undefined;
 };
 
+const normalizeShowcaseRevision = (value: unknown): number | null => (
+  typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= 2_147_483_647
+    ? value
+    : null
+);
+
 const parseHomepageShowcaseExample = (value: unknown): HomepageShowcaseExample | null => {
   if (!isRecord(value)) return null;
   const slug = typeof value.slug === 'string' ? value.slug.trim() : '';
@@ -170,8 +179,16 @@ const parseHomepageShowcaseExample = (value: unknown): HomepageShowcaseExample |
     visible: value.visible !== false,
     frontTemplateId,
     frontTemplateName,
+    frontTemplateRevision: normalizeShowcaseRevision(value.frontTemplateRevision),
+    frontTemplateRevisionId: normalizeOptionalShowcaseText(value.frontTemplateRevisionId, 160),
     backTemplateId,
     backTemplateName,
+    backTemplateRevision: backTemplateId
+      ? normalizeShowcaseRevision(value.backTemplateRevision)
+      : undefined,
+    backTemplateRevisionId: backTemplateId
+      ? normalizeOptionalShowcaseText(value.backTemplateRevisionId, 160)
+      : undefined,
     rows,
     altText,
   };
@@ -191,8 +208,21 @@ export const normalizeHomepageShowcaseExamples = (value: unknown): HomepageShowc
 );
 
 const validateHomepageShowcaseExamplesInput = (value: unknown): void => {
-  if (!parseHomepageShowcaseExamples(value)) {
+  const parsed = parseHomepageShowcaseExamples(value);
+  if (!parsed) {
     throw new Error(`Homepage demonstration sets must contain 1-${MAX_HOMEPAGE_SHOWCASE_EXAMPLES} unique sets, at least one visible set, 1-${MAX_HOMEPAGE_SHOWCASE_ROWS} cards per set, and complete alt text for every sample card.`);
+  }
+  const unpinned = parsed.find((example) => (
+    example.visible
+    && (
+      example.frontTemplateRevision === null
+      || (example.backTemplateId && example.backTemplateRevision == null)
+    )
+  ));
+  if (unpinned) {
+    throw new Error(
+      `Visible homepage demonstration “${unpinned.name}” must pin the exact published Template revision. Adopt the current revision before publishing site settings.`,
+    );
   }
 };
 
