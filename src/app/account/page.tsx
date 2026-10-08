@@ -10,7 +10,7 @@ import {
   resolveAccountSection,
 } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { DEFAULT_BUSINESS_IDENTITY, getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   EMPTY_CONTRIBUTOR_ACCESS_SESSION_STATE,
