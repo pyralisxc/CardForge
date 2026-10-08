@@ -11,6 +11,7 @@ import {
 import type { useToast } from '@/components/ui/use-toast';
 import {
   createCardZipExportItems,
+  createPrintProductionManifest,
   createTabletopSimulatorManifest,
   createTabletopSimulatorSheets,
   createZipExportCopy,
@@ -18,6 +19,7 @@ import {
   getTabletopSimulatorExportPreset,
   getTabletopSimulatorExportProfile,
   getTabletopSimulatorSheetFileName,
+  getPrintProductionFileName,
   getZipExportFileName,
   type TabletopSimulatorExportQuality,
 } from '@/features/card-generator/lib/zipExport';
@@ -28,7 +30,7 @@ import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
-export type ZipExportKind = 'png-set' | 'tabletop-simulator';
+export type ZipExportKind = 'png-set' | 'print-png-set' | 'tabletop-simulator';
 
 interface UseCardZipExportActionsInput {
   canExportClean: boolean;
@@ -105,6 +107,76 @@ export function useCardZipExportActions({
       setZipExportKind(null);
     }
   }, [canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
+
+  const handleExportPrintPngSet = useCallback(async () => {
+    if (generatedDisplayCards.length === 0) return;
+    const exportItems = createCardZipExportItems(generatedDisplayCards);
+    setZipExportKind('print-png-set');
+    setIsZipExporting(true);
+    setZipProgress({ done: 0, total: exportItems.length });
+    trackExportStarted('print_png_set', generatedDisplayCards.length);
+
+    try {
+      const exportProfile = getExportProfile('physical', exportDpi);
+      const JSZip = (await import('jszip')).default;
+      const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
+      const zip = new JSZip();
+      const folder = zip.folder('print-production-png-faces')!;
+      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark);
+
+      try {
+        for (let i = 0; i < exportItems.length; i++) {
+          const exportItem = exportItems[i];
+          const blob = await renderer.renderProductionToBlob(exportItem.card, exportItem.face);
+          folder.file(getPrintProductionFileName(exportItem), blob);
+          setZipProgress({ done: i + 1, total: exportItems.length });
+        }
+      } finally {
+        renderer.cleanup();
+      }
+
+      folder.file(
+        'cardforge-print-production-manifest.json',
+        JSON.stringify(createPrintProductionManifest(exportItems), null, 2),
+      );
+      folder.file(
+        'README.txt',
+        [
+          'CardForge print production PNG faces',
+          '',
+          'Each face keeps the authored trim composition and adds the CardForge format bleed outside the trim edge.',
+          'The bleed is edge-extended from the trim render so the authored card is not scaled or shifted.',
+          'Use cardforge-print-production-manifest.json for exact trim, bleed, safe-margin, and production dimensions.',
+          'Inspect full-bleed artwork before professional production.',
+          'These files are RGB raster PNGs. They are not yet a PDF/X or printer-specific ICC/color-output contract.',
+          ...(canExportClean ? [] : ['This Free export includes the CardForge watermark.']),
+        ].join('\n'),
+      );
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `cardforge-print-production-png-faces${canExportClean ? '' : '-watermarked'}.zip`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      trackExportCompleted('print_png_set', generatedDisplayCards.length);
+      toast({
+        title: 'Print production PNGs exported',
+        description: `${exportItems.length} bleed-bearing face${exportItems.length === 1 ? '' : 's'} saved with production geometry metadata${canExportClean ? '' : ' and the CardForge watermark'}.`,
+      });
+    } catch (err) {
+      trackExportFailed('print_png_set', 'render_or_archive', generatedDisplayCards.length);
+      toast({ title: 'Print production export failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setIsZipExporting(false);
+      setZipProgress(null);
+      setZipExportKind(null);
+    }
+  }, [canExportClean, exportDpi, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async (
     quality: TabletopSimulatorExportQuality = 'standard'
@@ -246,6 +318,7 @@ export function useCardZipExportActions({
 
   return {
     handleExportAllAsZip,
+    handleExportPrintPngSet,
     handleExportTabletopSimulatorSpritesheets,
     isZipExporting,
     zipExportKind,

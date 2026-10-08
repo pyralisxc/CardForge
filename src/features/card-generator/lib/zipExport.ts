@@ -4,7 +4,7 @@ import {
   type ExportMode,
   type ExportProfile,
 } from '@/features/card-generator/lib/printValidation';
-import { hasCardBacking } from '@/domain/rendering';
+import { getCardFaceTemplate, getTemplateProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 export interface CardZipExportItem {
@@ -18,6 +18,23 @@ export interface ZipExportCopy {
   folderName: string;
   fileNamePrefix: string;
   buttonLabel: string;
+}
+
+export interface PrintProductionManifest {
+  format: 'cardforge-print-production-png-v1';
+  notes: string[];
+  faces: Array<{
+    file: string;
+    cardIndex: number;
+    uniqueId: string;
+    face: CardFace;
+    trimWidthMm: number;
+    trimHeightMm: number;
+    bleedMm: number;
+    safeMarginMm: number;
+    productionWidthMm: number;
+    productionHeightMm: number;
+  }>;
 }
 
 export interface TabletopSimulatorSheetGrid {
@@ -191,6 +208,36 @@ export const getZipExportFileName = ({ card, cardIndex, face }: CardZipExportIte
     .substring(0, 40);
   return `${String(cardIndex + 1).padStart(3, '0')}_${safeName}_${face}.png`;
 };
+
+export const getPrintProductionFileName = (item: CardZipExportItem): string => (
+  getZipExportFileName(item).replace(/\.png$/u, '_print-bleed.png')
+);
+
+export const createPrintProductionManifest = (
+  items: CardZipExportItem[],
+): PrintProductionManifest => ({
+  format: 'cardforge-print-production-png-v1',
+  notes: [
+    'Each PNG preserves the authored trim composition and adds CardForge format bleed outside the trim edge.',
+    'The current bleed pixels are edge-extended from the canonical trim render; inspect full-bleed artwork before professional production.',
+    'Safe margin and bleed values are physical production guidance. These PNGs are RGB raster files and are not a PDF/X or printer-specific color contract.',
+  ],
+  faces: items.map((item) => {
+    const geometry = getTemplateProductionGeometryMm(getCardFaceTemplate(item.card, item.face));
+    return {
+      file: getPrintProductionFileName(item),
+      cardIndex: item.cardIndex,
+      uniqueId: item.card.uniqueId,
+      face: item.face,
+      trimWidthMm: geometry.trimWidthMm,
+      trimHeightMm: geometry.trimHeightMm,
+      bleedMm: geometry.bleedMm,
+      safeMarginMm: geometry.safeMarginMm,
+      productionWidthMm: geometry.productionWidthMm,
+      productionHeightMm: geometry.productionHeightMm,
+    };
+  }),
+});
 
 export const createTabletopSimulatorSheets = (
   cards: DisplayCard[],

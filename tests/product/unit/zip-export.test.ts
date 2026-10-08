@@ -3,6 +3,7 @@ import type { DisplayCard } from '@/domain/rendering';
 
 import {
   createCardZipExportItems,
+  createPrintProductionManifest,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
   getTabletopSimulatorExportPreset,
@@ -10,6 +11,7 @@ import {
   getTabletopSimulatorCardCellSize,
   createZipExportCopy,
   getTabletopSimulatorSheetFileName,
+  getPrintProductionFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
 
@@ -93,6 +95,29 @@ describe('zip export helpers', () => {
     });
 
     expect(fileName).toBe('012_A_Name__With___Weird___Things_back.png');
+  });
+
+  it('creates deterministic bleed-bearing production package metadata', () => {
+    const items = createCardZipExportItems([makeCard()]);
+    const manifest = createPrintProductionManifest(items);
+
+    expect(getPrintProductionFileName(items[0])).toBe('001_Arcane_Output_front_print-bleed.png');
+    expect(manifest).toMatchObject({
+      format: 'cardforge-print-production-png-v1',
+      faces: [{
+        file: '001_Arcane_Output_front_print-bleed.png',
+        cardIndex: 0,
+        uniqueId: 'card-1',
+        face: 'front',
+        trimWidthMm: 63,
+        trimHeightMm: 88,
+        bleedMm: 3,
+        safeMarginMm: 4,
+        productionWidthMm: 69,
+        productionHeightMm: 94,
+      }],
+    });
+    expect(manifest.notes.join(' ')).toContain('RGB raster');
   });
 
   it('splits Tabletop Simulator sprite sheets at the 69-card deck limit', () => {

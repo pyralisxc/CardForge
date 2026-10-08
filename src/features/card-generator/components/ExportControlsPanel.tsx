@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getCardExportDimensionsPx, hasCardBacking } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardProductionGeometryMm, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
@@ -50,6 +50,7 @@ interface ExportControlsPanelProps {
   zipExportKind: ZipExportKind | null;
   zipProgress: { done: number; total: number } | null;
   onExportAllAsZip: () => void;
+  onExportPrintPngSet: () => void;
   onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetExportDpi: (dpi: number) => void;
@@ -92,6 +93,7 @@ export function ExportControlsPanel({
   zipExportKind,
   zipProgress,
   onExportAllAsZip,
+  onExportPrintPngSet,
   onExportTabletopSimulatorSpritesheets,
   onSelectPaperSize,
   onSetExportDpi,
@@ -106,6 +108,9 @@ export function ExportControlsPanel({
     0
   );
   const rasterQuality = getRasterExportQualityOption(exportDpi);
+  const productionGeometry = firstCard && exportMode === 'physical'
+    ? getCardProductionGeometryMm(firstCard)
+    : null;
   const rasterDimensions = firstCard
     ? getRasterExportDimensionsPx(firstCard, exportMode, exportDpi)
     : null;
@@ -144,6 +149,7 @@ export function ExportControlsPanel({
     ? Math.round((zipProgress.done / zipProgress.total) * 100)
     : 0;
   const isPngSetExporting = isZipExporting && zipExportKind === 'png-set';
+  const isPrintPngSetExporting = isZipExporting && zipExportKind === 'print-png-set';
   const isTabletopExporting = isZipExporting && zipExportKind === 'tabletop-simulator';
   const exportsDisabled = isEntitlementPending || generatedDisplayCards.length === 0 || isZipExporting;
 
@@ -257,6 +263,39 @@ export function ExportControlsPanel({
               </p>
             ) : null}
           </section>
+
+          {exportMode === 'physical' && productionGeometry ? (
+            <section aria-labelledby="print-production-png-heading" className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <div>
+                <h3 id="print-production-png-heading" className="font-semibold">Print production PNGs</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Keeps the authored trim design unchanged and adds the format&apos;s bleed outside it. The ZIP includes exact production geometry metadata for each face.
+                </p>
+              </div>
+              <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                <p><span className="font-medium text-foreground">Trim:</span> {productionGeometry.trimWidthMm} × {productionGeometry.trimHeightMm} mm</p>
+                <p><span className="font-medium text-foreground">Bleed:</span> {productionGeometry.bleedMm} mm on every edge</p>
+                <p><span className="font-medium text-foreground">Safe margin:</span> {productionGeometry.safeMarginMm} mm inside trim</p>
+                <p><span className="font-medium text-foreground">Production face:</span> {productionGeometry.productionWidthMm} × {productionGeometry.productionHeightMm} mm</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Bleed is edge-extended from the canonical trim render. Inspect artwork at every edge before professional production. These are RGB PNGs; PDF/X and printer-specific ICC/output profiles remain a separate production step.
+              </p>
+              <Button
+                variant="outline"
+                onClick={onExportPrintPngSet}
+                disabled={exportsDisabled}
+                className="w-full gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {isPrintPngSetExporting
+                  ? `Preparing print PNGs… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}`
+                  : isEntitlementPending
+                    ? 'Checking account access…'
+                    : `Download print production PNG ZIP (${exportFaceCount} ${exportFaceCount === 1 ? 'face' : 'faces'})`}
+              </Button>
+            </section>
+          ) : null}
 
           <details className="rounded-md border bg-muted/20 p-3">
             <summary className="cursor-pointer font-semibold">Print PDF</summary>
@@ -411,12 +450,18 @@ export function ExportControlsPanel({
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">
-                {zipExportKind === 'tabletop-simulator' ? 'Tabletop Simulator export running' : 'PNG set export running'}
+                {zipExportKind === 'tabletop-simulator'
+                  ? 'Tabletop Simulator export running'
+                  : zipExportKind === 'print-png-set'
+                    ? 'Print production PNG export running'
+                    : 'PNG set export running'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {zipExportKind === 'tabletop-simulator'
                   ? `Rendering ${zipProgress.done} of ${zipProgress.total} 4K spritesheet faces.`
-                  : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
+                  : zipExportKind === 'print-png-set'
+                    ? `Rendering ${zipProgress.done} of ${zipProgress.total} bleed-bearing production faces.`
+                    : `Rendering ${zipProgress.done} of ${zipProgress.total} individual card faces. Estimated PNG ZIP size about ${formatBytes(estimatedPngZipBytes)}.`}
               </p>
             </div>
             <p className="text-sm font-semibold tabular-nums">{progressPercent}%</p>

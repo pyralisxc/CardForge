@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { toCanvas } from 'html-to-image';
 
 import { CardPreview, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from '@/features/card-rendering/client';
-import { getCardExportDimensionsPx } from '@/domain/rendering';
+import { getCardExportDimensionsPx, getCardFaceTemplate, getTemplateProductionGeometryMm } from '@/domain/rendering';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/features/card-generator/lib/printValidation';
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
@@ -56,8 +56,47 @@ export interface MountedCardPreview {
 export interface CardFaceExportRenderer {
   renderToBlob: (card: DisplayCard, face?: CardFace) => Promise<Blob>;
   renderToCanvas: (card: DisplayCard, face?: CardFace) => Promise<HTMLCanvasElement>;
+  renderProductionToBlob: (card: DisplayCard, face?: CardFace) => Promise<Blob>;
+  renderProductionToCanvas: (card: DisplayCard, face?: CardFace) => Promise<HTMLCanvasElement>;
   cleanup: () => void;
 }
+
+export interface CardProductionCanvasPlacement {
+  trimWidthPx: number;
+  trimHeightPx: number;
+  bleedXPx: number;
+  bleedYPx: number;
+  trimOffsetXPx: number;
+  trimOffsetYPx: number;
+  productionWidthPx: number;
+  productionHeightPx: number;
+}
+
+export const getCardProductionCanvasPlacement = (
+  card: DisplayCard,
+  face: CardFace,
+  trimWidthPx: number,
+  trimHeightPx: number,
+): CardProductionCanvasPlacement => {
+  const template = getCardFaceTemplate(card, face);
+  const geometry = getTemplateProductionGeometryMm(template);
+  const bleedXPx = Math.max(0, Math.round(
+    trimWidthPx * geometry.bleedMm / Math.max(geometry.trimWidthMm, Number.EPSILON),
+  ));
+  const bleedYPx = Math.max(0, Math.round(
+    trimHeightPx * geometry.bleedMm / Math.max(geometry.trimHeightMm, Number.EPSILON),
+  ));
+  return {
+    trimWidthPx,
+    trimHeightPx,
+    bleedXPx,
+    bleedYPx,
+    trimOffsetXPx: bleedXPx,
+    trimOffsetYPx: bleedYPx,
+    productionWidthPx: trimWidthPx + bleedXPx * 2,
+    productionHeightPx: trimHeightPx + bleedYPx * 2,
+  };
+};
 
 export interface CardExportWatermark {
   url: string;
@@ -122,6 +161,70 @@ const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> => new Promis
     else reject(new Error('Card preview did not produce a PNG blob.'));
   }, 'image/png');
 });
+
+const drawEdgeExtendedBleed = (
+  context: CanvasRenderingContext2D,
+  trimCanvas: HTMLCanvasElement,
+  placement: CardProductionCanvasPlacement,
+) => {
+  const { trimWidthPx: width, trimHeightPx: height, bleedXPx, bleedYPx } = placement;
+  const sourceBandX = Math.min(bleedXPx, width);
+  const sourceBandY = Math.min(bleedYPx, height);
+
+  if (bleedXPx > 0) {
+    context.save();
+    context.translate(bleedXPx, bleedYPx);
+    context.scale(-1, 1);
+    context.drawImage(trimCanvas, 0, 0, sourceBandX, height, 0, 0, bleedXPx, height);
+    context.restore();
+
+    context.save();
+    context.translate(bleedXPx + width, bleedYPx);
+    context.scale(-1, 1);
+    context.drawImage(trimCanvas, width - sourceBandX, 0, sourceBandX, height, -bleedXPx, 0, bleedXPx, height);
+    context.restore();
+  }
+
+  if (bleedYPx > 0) {
+    context.save();
+    context.translate(bleedXPx, bleedYPx);
+    context.scale(1, -1);
+    context.drawImage(trimCanvas, 0, 0, width, sourceBandY, 0, 0, width, bleedYPx);
+    context.restore();
+
+    context.save();
+    context.translate(bleedXPx, bleedYPx + height);
+    context.scale(1, -1);
+    context.drawImage(trimCanvas, 0, height - sourceBandY, width, sourceBandY, 0, -bleedYPx, width, bleedYPx);
+    context.restore();
+  }
+
+  if (bleedXPx > 0 && bleedYPx > 0) {
+    context.drawImage(trimCanvas, 0, 0, 1, 1, 0, 0, bleedXPx, bleedYPx);
+    context.drawImage(trimCanvas, width - 1, 0, 1, 1, bleedXPx + width, 0, bleedXPx, bleedYPx);
+    context.drawImage(trimCanvas, 0, height - 1, 1, 1, 0, bleedYPx + height, bleedXPx, bleedYPx);
+    context.drawImage(trimCanvas, width - 1, height - 1, 1, 1, bleedXPx + width, bleedYPx + height, bleedXPx, bleedYPx);
+  }
+};
+
+export const extendCardTrimCanvasToProductionBleed = (
+  card: DisplayCard,
+  face: CardFace,
+  trimCanvas: HTMLCanvasElement,
+): HTMLCanvasElement => {
+  const placement = getCardProductionCanvasPlacement(card, face, trimCanvas.width, trimCanvas.height);
+  if (placement.bleedXPx === 0 && placement.bleedYPx === 0) return trimCanvas;
+
+  const productionCanvas = document.createElement('canvas');
+  productionCanvas.width = placement.productionWidthPx;
+  productionCanvas.height = placement.productionHeightPx;
+  const context = productionCanvas.getContext('2d');
+  if (!context) throw new Error('Canvas rendering is unavailable for print bleed preparation.');
+
+  drawEdgeExtendedBleed(context, trimCanvas, placement);
+  context.drawImage(trimCanvas, placement.trimOffsetXPx, placement.trimOffsetYPx);
+  return productionCanvas;
+};
 
 export async function mountCardPreviewForExport(
   card: DisplayCard,
@@ -238,9 +341,15 @@ export function createCardFaceExportRenderer(
     return applyCardExportWatermark(canvas, watermark);
   };
 
+  const renderProductionToCanvas = async (card: DisplayCard, face: CardFace = 'front') => (
+    extendCardTrimCanvasToProductionBleed(card, face, await renderToCanvas(card, face))
+  );
+
   return {
     renderToBlob: async (card, face = 'front') => canvasToPngBlob(await renderToCanvas(card, face)),
     renderToCanvas,
+    renderProductionToBlob: async (card, face = 'front') => canvasToPngBlob(await renderProductionToCanvas(card, face)),
+    renderProductionToCanvas,
     cleanup: () => {
       root.unmount();
       if (document.body.contains(container)) document.body.removeChild(container);
@@ -289,6 +398,25 @@ export async function renderCardToPngBlob(
   );
   try {
     return await renderer.renderToBlob(card, face);
+  } finally {
+    renderer.cleanup();
+  }
+}
+
+export async function renderCardProductionPngBlob(
+  card: DisplayCard,
+  exportDpi: number,
+  face: CardFace = 'front',
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  watermark?: CardExportWatermark,
+): Promise<Blob> {
+  const renderer = createCardFaceExportRenderer(
+    getExportProfile('physical', exportDpi),
+    highlightColor,
+    watermark,
+  );
+  try {
+    return await renderer.renderProductionToBlob(card, face);
   } finally {
     renderer.cleanup();
   }
