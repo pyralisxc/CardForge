@@ -96,6 +96,7 @@ describe('PDF production layout', () => {
         name: 'Back',
         aspectRatio: '63:88',
         templateUsage: 'back-preset',
+        freeformCanvas: { width: 630, height: 880, elements: [] },
       },
     });
     const [frontPage] = createPdfPlacementPages({
@@ -118,6 +119,7 @@ describe('PDF production layout', () => {
         name: 'Wrong size back',
         aspectRatio: '35:20',
         templateUsage: 'back-preset',
+        freeformCanvas: { width: 1050, height: 600, elements: [] },
       },
     });
     const [mismatchedFront] = createPdfPlacementPages({
