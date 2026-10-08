@@ -332,6 +332,20 @@ export const normalizePublicSiteConfigurationInput = (
   return configuration;
 };
 
+export const getPublicHeaderPresentation = (
+  configuration: PublicSiteConfiguration,
+): {
+  primaryCtaLabel: string;
+  primaryCtaHref: string;
+  visibleNavigation: PrimaryNavigationItem[];
+} => ({
+  primaryCtaLabel: configuration.primaryCtaLabel,
+  primaryCtaHref: configuration.primaryCtaHref,
+  visibleNavigation: configuration.primaryNavigation.filter((item) => (
+    item.visible && item.href !== configuration.primaryCtaHref
+  )),
+});
+
 export const isHomepageSectionVisible = (
   configuration: PublicSiteConfiguration,
   id: HomepageSectionId,
