@@ -5,6 +5,7 @@ export interface OwnerPublicationPresentation {
   dialogDescription: string;
   publishActionLabel: string;
   publishingActionLabel: string;
+  publishedTitle: string;
   publishedDescription: (label: string) => string;
 }
 
@@ -26,6 +27,7 @@ export const getOwnerPublicationPresentation = (
       dialogDescription: 'Only server-confirmed Owners receive these controls. Publishing updates the live CardForge public site through the canonical Owner state.',
       publishActionLabel: 'Publish live',
       publishingActionLabel: 'Publishing live…',
+      publishedTitle: 'Published live',
       publishedDescription: (label) => `${label} is live on CardForge without a code deploy.`,
     };
   }
@@ -35,6 +37,7 @@ export const getOwnerPublicationPresentation = (
       dialogDescription: 'Only server-confirmed Owners receive these controls. Publishing here updates CardForge Preview/staging only and does not change production.',
       publishActionLabel: 'Publish to Preview',
       publishingActionLabel: 'Publishing to Preview…',
+      publishedTitle: 'Published to Preview',
       publishedDescription: (label) => `${label} is published to Preview/staging only; production is unchanged.`,
     };
   }
@@ -43,6 +46,7 @@ export const getOwnerPublicationPresentation = (
     dialogDescription: 'Only server-confirmed Owners receive these controls. Publishing here updates the local/development environment only.',
     publishActionLabel: 'Publish locally',
     publishingActionLabel: 'Publishing locally…',
+    publishedTitle: 'Published locally',
     publishedDescription: (label) => `${label} is published to the local/development environment only.`,
   };
 };
