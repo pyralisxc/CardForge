@@ -10,6 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PublicSiteConfiguration } from '../model/siteConfiguration';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
+import {
+  getOwnerPublicationPresentation,
+  type OwnerPublicationEnvironment,
+} from '../model/ownerPublicationEnvironment';
 
 import { PublicSiteCopyLiveEditor, savePublicSiteContentBlock } from './PublicSiteCopyLiveEditor';
 import { PublicSiteMediaLiveEditor } from './PublicSiteMediaLiveEditor';
@@ -30,6 +34,7 @@ const pageContext = (currentPath: string): {
 
 export function PublicSiteOwnerLiveControls({
   currentPath,
+  publicationEnvironment,
   initialBlocks,
   initialMedia,
   initialSiteConfiguration,
@@ -37,6 +42,7 @@ export function PublicSiteOwnerLiveControls({
   siteOperationsEditor,
 }: {
   currentPath: string;
+  publicationEnvironment: OwnerPublicationEnvironment;
   initialBlocks: SiteContentBlock[];
   initialMedia: SiteMediaAsset[];
   initialSiteConfiguration: PublicSiteConfiguration;
@@ -44,6 +50,7 @@ export function PublicSiteOwnerLiveControls({
   siteOperationsEditor?: ReactNode;
 }) {
   const { toast } = useToast();
+  const publicationPresentation = getOwnerPublicationPresentation(publicationEnvironment);
   const [open, setOpen] = useState(false);
   const [inlineMode, setInlineMode] = useState(false);
   const [focusedSlug, setFocusedSlug] = useState<SiteContentBlock['slug'] | null>(null);
@@ -104,13 +111,13 @@ export function PublicSiteOwnerLiveControls({
       finishInlineEdit(false);
       toast(publication.receipt.refreshComplete
         ? {
-            title: 'Rendered copy published',
+            title: publicationPresentation.publishedTitle,
             description: publication.receipt.activityRecorded
-              ? `${block.label} is live without leaving the page.`
-              : `${block.label} is live, but Owner activity history could not be recorded.`,
+              ? publicationPresentation.publishedDescription(block.label)
+              : `${publicationPresentation.publishedDescription(block.label)} Owner activity history could not be recorded.`,
           }
         : {
-            title: 'Rendered copy published; reload to verify',
+            title: `${publicationPresentation.publishedTitle}; reload to verify`,
             description: publication.receipt.message,
           });
     } catch (error) {
@@ -118,7 +125,7 @@ export function PublicSiteOwnerLiveControls({
     } finally {
       setInlineSaving(false);
     }
-  }, [contextualBlocks, finishInlineEdit, inlineSaving, inlineSlug, toast]);
+  }, [contextualBlocks, finishInlineEdit, inlineSaving, inlineSlug, publicationPresentation, toast]);
 
   useEffect(() => {
     if (!inlineMode) {
@@ -178,20 +185,20 @@ export function PublicSiteOwnerLiveControls({
   return <>
     <div className={inlineSlug ? 'h-36 sm:h-28' : 'h-24'} aria-hidden="true" data-owner-live-controls-reserve />
     <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--public-brass)] bg-[var(--cf-surface)] p-2 shadow-2xl" data-owner-live-controls>
-      <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">Owner preview</span>
+      <span className="hidden pl-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cf-text-subtle)] sm:inline">{publicationPresentation.badgeLabel}</span>
       {contextualBlocks.length ? <Button type="button" size="sm" variant={inlineMode ? 'default' : 'outline'} onClick={() => setInlineMode((value) => !value)}>{inlineMode ? 'Editing rendered copy' : 'Edit rendered copy'}</Button> : null}
       <Button type="button" size="sm" onClick={() => setOpen(true)}><FilePenLine className="mr-2 h-4 w-4" />Edit {context.label}</Button>
     </div>
     {inlineSlug ? <div className="fixed bottom-20 right-5 z-40 flex max-w-[calc(100vw-2.5rem)] flex-wrap items-center gap-2 border border-[var(--public-brass)] bg-[var(--cf-surface)] p-3 shadow-2xl" role="toolbar" aria-label="Inline site copy editor">
       <span className="mr-2 text-sm text-[var(--cf-text-muted)]">Edit the highlighted text, then publish or cancel.</span>
-      <Button type="button" size="sm" onClick={() => void saveInlineEdit()} disabled={inlineSaving}><Check className="mr-2 h-4 w-4" />{inlineSaving ? 'Publishing…' : 'Publish'}</Button>
+      <Button type="button" size="sm" onClick={() => void saveInlineEdit()} disabled={inlineSaving}><Check className="mr-2 h-4 w-4" />{inlineSaving ? publicationPresentation.publishingActionLabel : publicationPresentation.publishActionLabel}</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => finishInlineEdit(true)} disabled={inlineSaving}><X className="mr-2 h-4 w-4" />Cancel</Button>
     </div> : null}
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] text-[var(--cf-text)]">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">Edit {context.label} in context</DialogTitle>
-          <DialogDescription>Only server-confirmed Owners receive these controls. Publishing updates the canonical public owner and keeps the live page as the review context.</DialogDescription>
+          <DialogDescription>{publicationPresentation.dialogDescription}</DialogDescription>
         </DialogHeader>
         <Tabs defaultValue={defaultTab} className="mt-2 space-y-4">
           <TabsList>
@@ -203,6 +210,7 @@ export function PublicSiteOwnerLiveControls({
           {contextualBlocks.length ? <TabsContent value="copy"><PublicSiteCopyLiveEditor
             initialBlocks={contextualBlocks}
             focusSlug={focusedSlug}
+            publicationEnvironment={publicationEnvironment}
             onBlocksChange={(nextContextBlocks) => {
               const publishedBySlug = new Map(nextContextBlocks.map((block) => [block.slug, block]));
               setBlocks((current) => current.map((block) => publishedBySlug.get(block.slug) ?? block));
