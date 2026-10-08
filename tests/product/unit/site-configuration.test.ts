@@ -143,6 +143,37 @@ describe('public site configuration', () => {
     });
   });
 
+  it('requires visible homepage demonstrations to pin exact published Template revisions', () => {
+    const base = {
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      primaryNavigation: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryNavigation],
+      homepageSections: DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections.map((section) => ({
+        ...section,
+        showcaseExamples: section.showcaseExamples?.map((example) => ({
+          ...example,
+          rows: example.rows.map((row) => ({ ...row })),
+          altText: [...example.altText],
+        })),
+      })),
+    };
+    const showcaseIndex = base.homepageSections.findIndex((section) => section.id === 'showcase');
+    const showcase = base.homepageSections[showcaseIndex]!;
+    const unpinned = showcase.showcaseExamples!.map((example, index) => (
+      index === 0 ? { ...example, frontTemplateRevision: null } : example
+    ));
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      homepageSections: base.homepageSections.map((section, index) => (
+        index === showcaseIndex ? { ...showcase, showcaseExamples: unpinned } : section
+      )),
+    })).toThrow(/must pin the exact published Template revision/i);
+
+    expect(normalizePublicSiteConfigurationInput(base).homepageSections
+      .find((section) => section.id === 'showcase')?.showcaseExamples
+      ?.every((example) => example.frontTemplateRevision !== null)).toBe(true);
+  });
+
   it('rejects unsafe showcase snapshots instead of silently publishing inaccessible demos', () => {
     const base = {
       ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
