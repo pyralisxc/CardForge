@@ -9,7 +9,7 @@ import type {
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
 import {
   getFounderProfile,
-  getPublicSiteConfiguration,
+  getPublicSiteConfigurationSnapshot,
   getSiteMedia,
   getSiteContentBlocks,
 } from '@/features/public-site/server';
@@ -37,7 +37,7 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
   const [
     businessIdentity,
     experienceSettings,
-    siteConfiguration,
+    siteConfigurationSnapshot,
     siteMechanics,
     siteContentBlocks,
     siteMedia,
@@ -47,7 +47,7 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
   ] = await Promise.all([
     getBusinessIdentity(),
     getExperienceSettings(),
-    getPublicSiteConfiguration(),
+    getPublicSiteConfigurationSnapshot(),
     getRoadmapSettings(),
     getSiteContentBlocks(),
     getSiteMedia(),
@@ -58,7 +58,8 @@ export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayl
   return {
     businessIdentity,
     experienceSettings,
-    siteConfiguration,
+    siteConfiguration: siteConfigurationSnapshot.settings,
+    siteConfigurationUpdatedAt: siteConfigurationSnapshot.updatedAt,
     siteMechanics,
     siteContentBlocks,
     siteMedia,
