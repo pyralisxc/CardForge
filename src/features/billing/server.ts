@@ -6,3 +6,4 @@ export * from './lib/creatorPassRevenue';
 export * from './model/billingReconciliationResult';
 export * from './model/ownerBilling';
 export * from './server/ownerBillingSettingsStore';
+export * from './server/productAccessPricePresentation';
