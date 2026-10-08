@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const provider = vi.hoisted(() => ({ configured: true, error: null as unknown, data: [] as unknown,
-  reads: vi.fn(), writes: vi.fn(), invalidate: vi.fn() }));
+  reads: vi.fn(), writes: vi.fn(), invalidate: vi.fn(), rpc: vi.fn() }));
 vi.mock('next/cache', () => ({ unstable_cache: (read: () => unknown) => read, revalidateTag: provider.invalidate }));
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerConfigStatus: () => ({ configured: provider.configured }),
@@ -13,10 +13,14 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
       then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: provider.data, error: provider.error }).then(resolve),
       upsert: async (row: unknown) => { provider.writes(row); return { error: null }; },
     };
-    return { from: () => query };
+    return { from: () => query, rpc: provider.rpc };
   },
 }));
-import { getSiteContentBlocks, updateSiteContentBlock } from '@/features/public-site/server/contentStore';
+import {
+  getSiteContentBlocks,
+  publishSiteContentBlockRevision,
+  updateSiteContentBlock,
+} from '@/features/public-site/server/contentStore';
 import { getSiteMedia, updateSiteMedia } from '@/features/public-site/server/siteMediaStore';
 import { getFounderProfile } from '@/features/public-site/server/founderProfileStore';
 import { getPublicSiteConfiguration } from '@/features/public-site/server/siteConfigurationStore';
@@ -31,7 +35,14 @@ import { DEFAULT_FOUNDER_PROFILE } from '@/features/public-site/model/founderPro
 
 const readers = [getSiteContentBlocks, getSiteMedia, getFounderProfile, getPublicSiteConfiguration];
 const invalidators = [revalidateSiteContentCache, revalidateSiteMediaCache, revalidateFounderProfile, revalidatePublicSiteConfiguration];
-beforeEach(() => { vi.clearAllMocks(); provider.invalidate.mockReset(); provider.configured = true; provider.error = null; provider.data = []; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  provider.invalidate.mockReset();
+  provider.rpc.mockReset();
+  provider.configured = true;
+  provider.error = null;
+  provider.data = [];
+});
 describe('public content cache inputs', () => {
   it.each(readers.map((read, index) => ({ read, index })))('keeps unconfigured local defaults ($index)', async ({ read }) => {
     provider.configured = false;
@@ -78,6 +89,45 @@ describe('public content cache inputs', () => {
     expect(provider.writes).toHaveBeenCalledTimes(1);
     expect(provider.reads).not.toHaveBeenCalled();
   });
+  it('publishes site copy only against the exact revision the caller read', async () => {
+    const slug = DEFAULT_SITE_CONTENT_BLOCKS[0].slug;
+    provider.rpc.mockResolvedValue({
+      data: [{ slug, body: 'Revision-safe copy', updated_at: '2026-10-08T20:40:00.000Z' }],
+      error: null,
+    });
+
+    await expect(publishSiteContentBlockRevision({
+      slug,
+      body: 'Revision-safe copy',
+      expectedUpdatedAt: '2026-10-08T20:30:00.000Z',
+    })).resolves.toMatchObject({
+      slug,
+      body: 'Revision-safe copy',
+      updatedAt: '2026-10-08T20:40:00.000Z',
+    });
+    expect(provider.rpc).toHaveBeenCalledWith('cardforge_publish_site_content_block', {
+      p_slug: slug,
+      p_body: 'Revision-safe copy',
+      p_expected_updated_at: '2026-10-08T20:30:00.000Z',
+    });
+  });
+
+  it('turns a stale site-copy revision into a conflict instead of overwriting newer Owner state', async () => {
+    provider.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'site_content_conflict' },
+    });
+
+    await expect(publishSiteContentBlockRevision({
+      slug: DEFAULT_SITE_CONTENT_BLOCKS[0].slug,
+      body: 'Stale proposed copy',
+      expectedUpdatedAt: '2026-10-08T20:20:00.000Z',
+    })).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringMatching(/changed after it was read/i),
+    });
+  });
+
   it('does not misreport a committed image as uncommitted when subsequent reads fail', async () => {
     const image = DEFAULT_SITE_MEDIA[0];
     provider.writes.mockImplementation(() => { provider.error = { message: 'read outage after commit' }; });
