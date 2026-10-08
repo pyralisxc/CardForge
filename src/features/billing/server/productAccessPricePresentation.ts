@@ -55,7 +55,7 @@ const currencyDivisor = (currency: string): number => {
       style: 'currency',
       currency: currency.toUpperCase(),
     });
-    return 10 ** formatter.resolvedOptions().maximumFractionDigits;
+    return 10 ** (formatter.resolvedOptions().maximumFractionDigits ?? 2);
   } catch {
     return 100;
   }
