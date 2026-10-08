@@ -76,7 +76,7 @@ export const buildPipelineContentHealth = ({
   const editorial: PipelineEditorialReadiness = {
     checkedCount: activePublishedSubmissions.length,
     approvedCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'approved').length,
-    pendingCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'pending').length,
+    pendingCount: activePublishedSubmissions.filter((submission) => (submission.editorialReviewStatus ?? 'pending') === 'pending').length,
     reviseCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'revise').length,
     quarantineCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'quarantine').length,
     retireCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'retire').length,
