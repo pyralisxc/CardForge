@@ -206,6 +206,10 @@ begin
     raise exception 'contributor_asset_not_found';
   end if;
 
+  if submission.status = 'published' and p_review_status = 'revise' then
+    raise exception 'editorial_review_live_requires_quarantine';
+  end if;
+
   if p_review_status = 'approved' then
     if nullif(pg_catalog.btrim(coalesce(submission.source_notes, '')), '') is null then
       raise exception 'editorial_review_source_notes_required';
