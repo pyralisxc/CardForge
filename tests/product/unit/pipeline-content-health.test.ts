@@ -16,6 +16,7 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
     requestedStudioDestination: null, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
     sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
     sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
+    editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
     revisionNumber: 1, baseRevisionNumber: null, updatedAt: '2026-09-01T00:00:00Z',
     ...overrides,
   }],
@@ -29,6 +30,47 @@ describe('Pipeline content health', () => {
     expect(buildPipelineContentHealth({ catalog: null, program }).issues.some((issue) => issue.code === 'missing-taxonomy')).toBe(requiresUseCase);
     expect(buildPipelineContentReview(program).entries[0]?.classificationNeedsReview).toBe(requiresUseCase);
   });
+  it('keeps technical health distinct from exact-revision editorial readiness', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({ editorialReviewStatus: 'pending' }),
+    });
+
+    expect(health.errors).toBe(0);
+    expect(health.warnings).toBe(0);
+    expect(health.editorial).toMatchObject({
+      checkedCount: 1,
+      approvedCount: 0,
+      pendingCount: 1,
+      missingEvidenceCount: 0,
+    });
+
+    const markup = renderToStaticMarkup(createElement(PipelineContentHealthPanel, {
+      health,
+      canRepair: true,
+      onOpenObject: () => undefined,
+    }));
+    expect(markup).toContain('Technical health');
+    expect(markup).toContain('Editorial readiness');
+    expect(markup).toContain('0 errors · 0 warnings');
+    expect(markup).toContain('0 approved · 1 pending');
+  });
+
+  it('recognizes approved live revisions without hiding technical findings', () => {
+    const health = buildPipelineContentHealth({
+      catalog: null,
+      program: programWith({
+        editorialReviewStatus: 'approved',
+        editorialReviewNote: 'Original first-party set reviewed at intended size.',
+        editorialReviewedBy: 'owner-1',
+        editorialReviewedAt: '2026-10-08T00:00:00Z',
+      }),
+    });
+
+    expect(health.editorial.approvedCount).toBe(1);
+    expect(health.editorial.pendingCount).toBe(0);
+  });
+
   it('accepts destination-free Sets but checks routes for routed asset kinds', () => {
     expect(buildPipelineContentHealth({ catalog: null, program: programWith() }).errors).toBe(0);
     expect(buildPipelineContentHealth({ catalog: null, program: programWith({ assetType: 'templates' }) }).issues)
