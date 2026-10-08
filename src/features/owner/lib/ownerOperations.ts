@@ -41,6 +41,7 @@ export interface OwnerSiteControlPayload {
   businessIdentity: BusinessIdentity;
   experienceSettings: ExperienceSettings;
   siteConfiguration: PublicSiteConfiguration;
+  siteConfigurationUpdatedAt: string | null;
   siteMechanics: RoadmapSettings;
   siteContentBlocks: SiteContentBlock[];
   siteMedia: SiteMediaAsset[];
