@@ -1,7 +1,5 @@
-import {
-  getCurrentOwnerAccess,
-  publishOwnerSiteConfiguration,
-} from '@/features/owner/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { publishOwnerSiteConfiguration } from '@/features/owner/server/ownerSiteCommands';
 import { PublicSiteConfigurationStoreError } from '@/features/public-site/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
