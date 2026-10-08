@@ -6,7 +6,7 @@ import {
   applyProductAccessPricePresentation,
   getMcpAllowances,
 } from '@/features/mcp-usage/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import {
   createAuthRouteHref,
   getSafeLocalReturnPath,
