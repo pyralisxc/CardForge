@@ -77,3 +77,60 @@ export const updateSiteContentBlock = async (
     updatedAt,
   };
 };
+
+export const publishSiteContentBlockRevision = async (
+  input: { slug?: unknown; body?: unknown; expectedUpdatedAt?: unknown },
+): Promise<SiteContentBlock> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new PublicSiteStoreError('Public site database is not configured yet.', 503);
+
+  const normalized = normalizeSiteContentBlockInput(input);
+  if (!normalized.ok) throw new PublicSiteStoreError(normalized.message, 400);
+
+  const expectedUpdatedAt = input.expectedUpdatedAt;
+  if (
+    expectedUpdatedAt !== null
+    && (
+      typeof expectedUpdatedAt !== 'string'
+      || !expectedUpdatedAt.trim()
+      || Number.isNaN(new Date(expectedUpdatedAt).getTime())
+    )
+  ) {
+    throw new PublicSiteStoreError(
+      'Read the current site copy revision before publishing this block.',
+      400,
+    );
+  }
+
+  const { data, error } = await supabase.rpc('cardforge_publish_site_content_block', {
+    p_slug: normalized.value.slug,
+    p_body: normalized.value.body,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
+
+  if (error) {
+    if (error.message?.includes('site_content_conflict')) {
+      throw new PublicSiteStoreError(
+        'This site copy changed after it was read. Reload the current Owner state, review the newer copy, and publish again.',
+        409,
+      );
+    }
+    if (error.message?.includes('site_content_not_found')) {
+      throw new PublicSiteStoreError('This site copy block no longer exists.', 404);
+    }
+    if (error.message?.includes('invalid_site_content_block')) {
+      throw new PublicSiteStoreError('Site copy is incomplete or invalid.', 400);
+    }
+    console.error('Failed to publish public site content revision:', error);
+    throw new PublicSiteStoreError('Unable to publish public site content.');
+  }
+
+  const row = Array.isArray(data) ? data[0] as SiteContentBlockRow | undefined : undefined;
+  if (!row) {
+    throw new PublicSiteStoreError(
+      'The site copy publication completed without a readable committed revision. Reload Owner state before publishing again.',
+      503,
+    );
+  }
+  return mapSiteContentRow(row);
+};
