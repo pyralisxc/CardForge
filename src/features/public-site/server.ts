@@ -1,6 +1,7 @@
 export {
   getSiteContentBlocks,
   PublicSiteStoreError,
+  publishSiteContentBlockRevision,
   updateSiteContentBlock,
 } from './server/contentStore';
 export {
