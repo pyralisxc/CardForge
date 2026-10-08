@@ -11,11 +11,10 @@ export interface OwnerPublicationPresentation {
 
 export const resolveOwnerPublicationEnvironment = (
   vercelEnv?: string | null,
-  nodeEnv?: string | null,
 ): OwnerPublicationEnvironment => {
   if (vercelEnv === 'production') return 'production';
   if (vercelEnv === 'preview') return 'preview';
-  return nodeEnv === 'production' ? 'production' : 'development';
+  return 'development';
 };
 
 export const getOwnerPublicationPresentation = (
