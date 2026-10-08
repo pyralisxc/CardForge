@@ -46,7 +46,7 @@ export const createCardForgeStructuredData = (
       url: absoluteUrl(identity, '/account'),
       applicationCategory: 'DesignApplication',
       operatingSystem: 'Modern web browser',
-      description: 'A local-first workspace for designing reusable card templates, generating complete sets from structured data, and exporting production-ready files.',
+      description: 'A local-first workspace for designing reusable card templates, generating complete sets from structured data, and preparing high-resolution output for digital and physical workflows.',
       brand: { '@id': `${identity.websiteUrl}/#brand` },
       creator: { '@id': personId(identity) },
     },
