@@ -10,10 +10,7 @@ export async function OwnerPublicSiteControlsSlot({ currentPath }: { currentPath
   if (!ownerAccess.isOwner || !ownerAccess.userId) return null;
 
   const payload = await getOwnerSiteOperationsPayload();
-  const publicationEnvironment = resolveOwnerPublicationEnvironment(
-    process.env.VERCEL_ENV,
-    process.env.NODE_ENV,
-  );
+  const publicationEnvironment = resolveOwnerPublicationEnvironment(process.env.VERCEL_ENV);
   return <PublicSiteOwnerLiveControls
     currentPath={currentPath}
     publicationEnvironment={publicationEnvironment}
