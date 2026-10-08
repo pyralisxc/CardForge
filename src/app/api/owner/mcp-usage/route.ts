@@ -6,7 +6,7 @@ import {
   updateMcpAllowance,
   type McpOwnerUsageDashboard,
 } from '@/features/mcp-usage/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
