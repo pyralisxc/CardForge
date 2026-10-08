@@ -51,3 +51,49 @@ export const createPageMetadata = ({
   },
   });
 };
+
+export interface RootSiteMetadataInput {
+  brandName: string;
+  homepageTitle: string;
+  homepageDescription: string;
+  searchKeywords: string[];
+  socialImage: {
+    url: string;
+    width: number;
+    height: number;
+    alt: string;
+  };
+  faviconUrl: string;
+  metadataBase: URL;
+}
+
+export const createRootSiteMetadata = ({
+  brandName,
+  homepageTitle,
+  homepageDescription,
+  searchKeywords,
+  socialImage,
+  faviconUrl,
+  metadataBase,
+}: RootSiteMetadataInput): Metadata => ({
+  metadataBase,
+  title: {
+    default: `${brandName} | ${homepageTitle}`,
+    template: `%s | ${brandName}`,
+  },
+  description: homepageDescription,
+  keywords: searchKeywords,
+  icons: {
+    icon: faviconUrl,
+    shortcut: faviconUrl,
+    apple: faviconUrl,
+  },
+  openGraph: {
+    siteName: brandName,
+    images: [socialImage],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: [socialImage.url],
+  },
+});
