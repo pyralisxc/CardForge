@@ -308,8 +308,8 @@ export const updateMcpAllowance = async ({
   description: string;
   featureSummary: string;
   ctaLabel: string;
-  priceLabel: string;
-  priceNote: string;
+  priceLabel?: string;
+  priceNote?: string;
   isVisible: boolean;
   monthlyActionLimit: number;
   dailySafetyLimit: number;
@@ -320,14 +320,18 @@ export const updateMcpAllowance = async ({
   const normalizedDescription = description.trim();
   const normalizedFeatureSummary = featureSummary.trim();
   const normalizedCtaLabel = ctaLabel.trim();
-  const normalizedPriceLabel = priceLabel.trim();
-  const normalizedPriceNote = priceNote.trim();
+  const stripeOwnsMonetaryPrice = planKey === 'creator' || planKey === 'designer';
+  if (stripeOwnsMonetaryPrice && (priceLabel !== undefined || priceNote !== undefined)) {
+    throw new McpUsageStoreError('Creator and Designer amount, currency, and billing interval are owned by Stripe.', 400);
+  }
+  const normalizedPriceLabel = priceLabel?.trim() ?? '';
+  const normalizedPriceNote = priceNote?.trim() ?? '';
   if (normalizedDisplayName.length < 1 || normalizedDisplayName.length > 80
     || normalizedDescription.length < 1 || normalizedDescription.length > 600
     || normalizedFeatureSummary.length < 1 || normalizedFeatureSummary.length > 1_200
     || normalizedCtaLabel.length < 1 || normalizedCtaLabel.length > 80
-    || normalizedPriceLabel.length < 1 || normalizedPriceLabel.length > 40
-    || normalizedPriceNote.length < 1 || normalizedPriceNote.length > 80
+    || (!stripeOwnsMonetaryPrice && (normalizedPriceLabel.length < 1 || normalizedPriceLabel.length > 40))
+    || (!stripeOwnsMonetaryPrice && (normalizedPriceNote.length < 1 || normalizedPriceNote.length > 80))
     || typeof isVisible !== 'boolean'
     || !Number.isInteger(monthlyActionLimit) || monthlyActionLimit < 0 || monthlyActionLimit > 1_000_000
     || !Number.isInteger(dailySafetyLimit) || dailySafetyLimit < 0 || dailySafetyLimit > 100_000
@@ -346,8 +350,10 @@ export const updateMcpAllowance = async ({
       description: normalizedDescription,
       feature_summary: normalizedFeatureSummary,
       cta_label: normalizedCtaLabel,
-      price_label: normalizedPriceLabel,
-      price_note: normalizedPriceNote,
+      ...(!stripeOwnsMonetaryPrice ? {
+        price_label: normalizedPriceLabel,
+        price_note: normalizedPriceNote,
+      } : {}),
       is_visible: isVisible,
       monthly_action_limit: monthlyActionLimit,
       daily_safety_limit: dailySafetyLimit,

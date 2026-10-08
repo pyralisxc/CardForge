@@ -23,7 +23,11 @@ import {
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
-import { getMcpAllowances } from '@/features/mcp-usage/server';
+import {
+  applyProductAccessPricePresentation,
+  getMcpAllowances,
+} from '@/features/mcp-usage/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
@@ -38,13 +42,22 @@ export async function generateMetadata() {
 
 export default async function LandingPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, siteMedia, siteContentBlocks, siteConfiguration, plans] = await Promise.all([
+  const [
+    businessIdentity,
+    siteMedia,
+    siteContentBlocks,
+    siteConfiguration,
+    basePlans,
+    productAccessPrices,
+  ] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteMedia(),
     getCachedSiteContentBlocks('landing'),
     getCachedPublicSiteConfiguration(),
     getMcpAllowances(),
+    getCurrentProductAccessPricePresentation(),
   ]);
+  const plans = applyProductAccessPricePresentation(basePlans, productAccessPrices);
   const siteContent = createSiteContentMap(siteContentBlocks);
   const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');

@@ -5,7 +5,11 @@ import { Suspense } from 'react';
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { SupportCheckoutActions } from '@/features/billing/client';
-import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } from '@/features/billing/server';
+import {
+  getCreatorSupportOfferConfiguration,
+    SUPPORT_MONTHLY_AMOUNTS_CENTS,
+} from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
@@ -25,7 +29,10 @@ import {
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
-import { getMcpAllowances } from '@/features/mcp-usage/server';
+import {
+  applyProductAccessPricePresentation,
+  getMcpAllowances,
+} from '@/features/mcp-usage/server';
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
@@ -39,14 +46,16 @@ export async function generateMetadata() {
 
 export default async function CameronPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, profile, siteMedia, siteConfiguration, siteContentBlocks, plans] = await Promise.all([
+  const [businessIdentity, profile, siteMedia, siteConfiguration, siteContentBlocks, basePlans, productAccessPrices] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
     getCachedSiteMedia(),
     getCachedPublicSiteConfiguration(),
     getCachedSiteContentBlocks('founder'),
     getMcpAllowances(),
+    getCurrentProductAccessPricePresentation(),
   ]);
+  const plans = applyProductAccessPricePresentation(basePlans, productAccessPrices);
   const siteContent = createSiteContentMap(siteContentBlocks);
   const supportUses = [
     [siteContent['founder.support-use1.title'], siteContent['founder.support-use1.body'], Utensils],
