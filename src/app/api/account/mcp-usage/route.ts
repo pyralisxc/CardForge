@@ -3,7 +3,7 @@ import {
   applyProductAccessPricePresentation,
   getAccountMcpUsageSummary,
 } from '@/features/mcp-usage/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
