@@ -7,6 +7,7 @@ import type {
   PipelineVoteValue,
 } from '@/features/pipeline/lib/pipelineItems';
 import type { StudioAssetDestination, StudioAssetRoutingMode, TCGCardTemplate } from '@/domain/templates';
+import type { PipelineEditorialReviewStatus } from './pipelineProgram';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
@@ -21,6 +22,13 @@ export interface SetPipelineOwnerOverrideInput {
   ownerAccessTierOverride?: PipelineAccessTierOverride | null;
   ownerNote: string;
   ownerContributorId: string;
+}
+
+export interface SetPipelineEditorialReviewInput {
+  submissionId: string;
+  reviewStatus: PipelineEditorialReviewStatus;
+  reviewNote: string;
+  reviewerContributorId: string;
 }
 
 export interface UpsertPipelineRegistryAssetInput {
@@ -174,6 +182,29 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
     throw new PipelineRegistryCommandError('The template revision is incomplete or invalid.', 400);
   }
   throw new PipelineRegistryCommandError('Unable to submit the template revision.', 500);
+};
+
+const throwEditorialReviewError = (errorMessage?: string): never => {
+  throwIfPublicationBusy(errorMessage);
+  if (errorMessage?.includes('contributor_asset_not_found')) {
+    throw new PipelineRegistryCommandError('Pipeline revision was not found.', 404);
+  }
+  if (errorMessage?.includes('invalid_editorial_review_status')) {
+    throw new PipelineRegistryCommandError('Choose a supported editorial review outcome.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_reason_required')) {
+    throw new PipelineRegistryCommandError('Add an editorial review reason before recording this decision.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_source_notes_required')) {
+    throw new PipelineRegistryCommandError('Add source, provenance, and rights notes before approving this revision.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_preview_required')) {
+    throw new PipelineRegistryCommandError('Add current preview evidence before approving this revision.', 400);
+  }
+  if (errorMessage?.includes('editorial_review_classification_required')) {
+    throw new PipelineRegistryCommandError('Complete the revision classification before approving it.', 400);
+  }
+  throw new PipelineRegistryCommandError('Unable to save this editorial review decision.', 500);
 };
 
 const throwPipelinePurgeError = (errorMessage?: string): never => {
@@ -415,6 +446,9 @@ export const castPipelineVote = async ({
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
+    if (error.message?.includes('editorial_review_reason_required')) {
+      throwEditorialReviewError(error.message);
+    }
     const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
       statusCode === 404
@@ -479,6 +513,22 @@ export const setPipelineOwnerOverride = async ({
       statusCode,
     );
   }
+};
+
+export const setPipelineEditorialReview = async ({
+  submissionId,
+  reviewStatus,
+  reviewNote,
+  reviewerContributorId,
+}: SetPipelineEditorialReviewInput): Promise<void> => {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
+    p_submission_id: submissionId,
+    p_review_status: reviewStatus,
+    p_review_note: reviewNote,
+    p_reviewer_contributor_id: reviewerContributorId,
+  });
+  if (error) throwEditorialReviewError(error.message);
 };
 
 export const purgePipelineSubmission = async ({
