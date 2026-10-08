@@ -90,14 +90,27 @@ export function PublicSiteOwnerLiveControls({
     }
     setInlineSaving(true);
     try {
-      const nextBlocks = await savePublicSiteContentBlock({ slug: block.slug, body });
-      const saved = nextBlocks.find((candidate) => candidate.slug === block.slug);
-      if (saved) element.textContent = saved.body;
-      setBlocks(nextBlocks);
+      const publication = await savePublicSiteContentBlock({ slug: block.slug, body });
+      element.textContent = publication.siteContentBlock.body;
+      setBlocks((current) => current.map((candidate) => (
+        candidate.slug === publication.siteContentBlock.slug
+          ? publication.siteContentBlock
+          : candidate
+      )));
       finishInlineEdit(false);
-      toast({ title: 'Rendered copy published', description: `${block.label} is live without leaving the page.` });
+      toast(publication.receipt.refreshComplete
+        ? {
+            title: 'Rendered copy published',
+            description: publication.receipt.activityRecorded
+              ? `${block.label} is live without leaving the page.`
+              : `${block.label} is live, but Owner activity history could not be recorded.`,
+          }
+        : {
+            title: 'Rendered copy published; reload to verify',
+            description: publication.receipt.message,
+          });
     } catch (error) {
-      toast({ title: 'Site copy not saved', description: error instanceof Error ? error.message : 'Unable to save site copy.', variant: 'destructive' });
+      toast({ title: 'Site copy not published', description: error instanceof Error ? error.message : 'Unable to publish site copy.', variant: 'destructive' });
     } finally {
       setInlineSaving(false);
     }
@@ -183,7 +196,14 @@ export function PublicSiteOwnerLiveControls({
             {roadmapRulesEditor ? <TabsTrigger value="mechanics"><Settings2 className="mr-2 h-4 w-4" />Rules</TabsTrigger> : null}
             {siteOperationsEditor ? <TabsTrigger value="site"><Settings2 className="mr-2 h-4 w-4" />Site</TabsTrigger> : null}
           </TabsList>
-          {contextualBlocks.length ? <TabsContent value="copy"><PublicSiteCopyLiveEditor initialBlocks={contextualBlocks} focusSlug={focusedSlug} onBlocksChange={setBlocks} /></TabsContent> : null}
+          {contextualBlocks.length ? <TabsContent value="copy"><PublicSiteCopyLiveEditor
+            initialBlocks={contextualBlocks}
+            focusSlug={focusedSlug}
+            onBlocksChange={(nextContextBlocks) => {
+              const publishedBySlug = new Map(nextContextBlocks.map((block) => [block.slug, block]));
+              setBlocks((current) => current.map((block) => publishedBySlug.get(block.slug) ?? block));
+            }}
+          /></TabsContent> : null}
           {hasMedia ? <TabsContent value="media"><PublicSiteMediaLiveEditor initialAssets={contextualMedia} initialSiteConfiguration={siteConfiguration} onAssetsChange={setMedia} onSiteConfigurationChange={setSiteConfiguration} showWatermarkPresentation={context.mediaGroups.includes('brand')} /></TabsContent> : null}
           {roadmapRulesEditor ? <TabsContent value="mechanics">{roadmapRulesEditor}</TabsContent> : null}
           {siteOperationsEditor ? <TabsContent value="site">{siteOperationsEditor}</TabsContent> : null}

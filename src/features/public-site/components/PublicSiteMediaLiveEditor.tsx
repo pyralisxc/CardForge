@@ -83,11 +83,24 @@ export function PublicSiteMediaLiveEditor({
         body: JSON.stringify(brandSettings),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save watermark presentation.'));
-      const body = await response.json() as { settings: PublicSiteConfiguration };
+      const body = await response.json() as {
+        settings: PublicSiteConfiguration;
+        receipt?: { refreshComplete: boolean; activityRecorded: boolean; message: string };
+      };
       onSiteConfigurationChange(body.settings);
-      toast({ title: 'Watermark presentation saved', description: 'Card previews and social images now use these owner-approved settings.' });
+      toast(body.receipt && !body.receipt.refreshComplete
+        ? {
+            title: 'Watermark presentation published; reload to verify',
+            description: body.receipt.message,
+          }
+        : {
+            title: 'Watermark presentation published',
+            description: body.receipt?.activityRecorded === false
+              ? 'Card previews and social images now use these settings, but Owner activity history could not be recorded.'
+              : 'Card previews and social images now use these owner-approved settings.',
+          });
     } catch (error) {
-      toast({ title: 'Watermark presentation not saved', description: error instanceof Error ? error.message : 'Unable to save watermark presentation.', variant: 'destructive' });
+      toast({ title: 'Watermark presentation not published', description: error instanceof Error ? error.message : 'Unable to publish watermark presentation.', variant: 'destructive' });
     } finally {
       setSavingBrandSettings(false);
     }

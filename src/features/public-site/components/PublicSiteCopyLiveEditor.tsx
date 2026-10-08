@@ -8,15 +8,31 @@ import { useToast } from '@/components/ui/use-toast';
 import type { SiteContentBlock, SiteContentBlockSlug } from '../model/siteContent';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export const savePublicSiteContentBlock = async (block: Pick<SiteContentBlock, 'slug' | 'body'>): Promise<SiteContentBlock[]> => {
+export interface SiteContentPublicationReceipt {
+  committed: true;
+  refreshComplete: boolean;
+  refreshFailures: string[];
+  activityRecorded: boolean;
+  retryable: false;
+  nextAction: 'none' | 'reload';
+  message: string;
+}
+
+export interface SiteContentPublicationResult {
+  siteContentBlock: SiteContentBlock;
+  receipt: SiteContentPublicationReceipt;
+}
+
+export const savePublicSiteContentBlock = async (
+  block: Pick<SiteContentBlock, 'slug' | 'body'>,
+): Promise<SiteContentPublicationResult> => {
   const response = await fetch('/api/owner/operations', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind: 'siteContent', siteContentBlock: block }),
   });
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save site copy.'));
-  const result = await response.json() as { operations: { siteContentBlocks: SiteContentBlock[] } };
-  return result.operations.siteContentBlocks;
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish site copy.'));
+  return response.json() as Promise<SiteContentPublicationResult>;
 };
 
 const groupLabels: Record<SiteContentBlock['group'], string> = {
@@ -65,10 +81,27 @@ export function PublicSiteCopyLiveEditor({
   const saveBlock = async (block: SiteContentBlock) => {
     setBusyBlock(block.slug);
     try {
-      onBlocksChange(await savePublicSiteContentBlock(block));
-      toast({ title: 'Site copy published', description: `${block.label} is live without a deploy.` });
+      const publication = await savePublicSiteContentBlock(block);
+      const nextBlocks = blocks.map((candidate) => (
+        candidate.slug === publication.siteContentBlock.slug
+          ? publication.siteContentBlock
+          : candidate
+      ));
+      setBlocks(nextBlocks);
+      onBlocksChange(nextBlocks);
+      toast(publication.receipt.refreshComplete
+        ? {
+            title: 'Site copy published',
+            description: publication.receipt.activityRecorded
+              ? `${block.label} is live without a deploy.`
+              : `${block.label} is live, but Owner activity history could not be recorded.`,
+          }
+        : {
+            title: 'Site copy published; reload to verify',
+            description: publication.receipt.message,
+          });
     } catch (error) {
-      toast({ title: 'Site copy not saved', description: error instanceof Error ? error.message : 'Unable to save site copy.', variant: 'destructive' });
+      toast({ title: 'Site copy not published', description: error instanceof Error ? error.message : 'Unable to publish site copy.', variant: 'destructive' });
     } finally {
       setBusyBlock(null);
     }

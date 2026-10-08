@@ -1,11 +1,6 @@
-import { revalidatePath } from 'next/cache';
-
-import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
-import {
-  PublicSiteConfigurationStoreError,
-  revalidatePublicSiteConfiguration,
-  updatePublicSiteConfiguration,
-} from '@/features/public-site/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { publishOwnerSiteConfiguration } from '@/features/owner/server/ownerSiteCommands';
+import { PublicSiteConfigurationStoreError } from '@/features/public-site/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
 
@@ -25,29 +20,14 @@ export async function PUT(request: Request) {
         parsedBody.message,
       );
     }
-    const settings = await updatePublicSiteConfiguration(parsedBody.data as Record<string, unknown>);
-    revalidatePublicSiteConfiguration();
-    revalidatePath('/');
-    revalidatePath('/account');
-    revalidatePath('/cameron');
-    revalidatePath('/', 'layout');
-    const activityRecorded = await recordOwnerActivity({
-      actorUserId: owner.userId,
-      actorEmail: owner.email,
-      action: 'site.configuration.update',
-      targetType: 'public_site',
-      targetId: 'cardforge',
-      summary: 'Updated public navigation, homepage presentation, offer visibility, announcement, search metadata, watermark presentation, or demonstration sets.',
-      metadata: {
-        announcementEnabled: settings.announcementEnabled,
-        visibleNavigation: settings.primaryNavigation.filter((item) => item.visible).map((item) => item.id),
-        visibleHomepageSections: settings.homepageSections.filter((item) => item.visible).map((item) => item.id),
-        visibleShowcaseExamples: settings.homepageSections
-          .find((item) => item.id === 'showcase')
-          ?.showcaseExamples?.filter((example) => example.visible).map((example) => example.slug) ?? [],
-      },
+    const publication = await publishOwnerSiteConfiguration({
+      actor: { userId: owner.userId, email: owner.email },
+      input: parsedBody.data as Record<string, unknown>,
     });
-    return createNoStoreJsonResponse({ settings, activityRecorded });
+    return createNoStoreJsonResponse({
+      ...publication,
+      activityRecorded: publication.receipt.activityRecorded,
+    });
   } catch (error) {
     if (error instanceof PublicSiteConfigurationStoreError) {
       return createApiErrorResponse(error.status, error.status >= 500 ? 'site_configuration_unavailable' : 'site_configuration_invalid', error.message);

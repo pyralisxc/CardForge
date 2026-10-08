@@ -14,9 +14,7 @@ import {
   FounderProfileStoreError,
   PublicSiteStoreError,
   revalidateFounderProfile,
-  revalidateSiteContentCache,
   updateFounderProfile,
-  updateSiteContentBlock,
 } from '@/features/public-site/server';
 import { revalidatePath } from 'next/cache';
 import {
@@ -32,6 +30,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
+import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,10 +128,14 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'siteContent') {
-      await updateSiteContentBlock(body.siteContentBlock ?? {});
-      revalidateSiteContentCache();
-      revalidatePath('/', 'layout');
-      return respond({ action: 'site.copy.publish', targetType: 'site_content', targetId: typeof body.siteContentBlock?.slug === 'string' ? body.siteContentBlock.slug : null, summary: 'Published an owner-authored public site copy block.' });
+      const publication = await publishOwnerSiteContentBlock({
+        actor: {
+          userId: owner.access.userId ?? 'owner',
+          email: owner.access.email,
+        },
+        input: body.siteContentBlock ?? {},
+      });
+      return createNoStoreJsonResponse(publication);
     }
 
     if (body.kind === 'founderProfile') {

@@ -52,17 +52,18 @@ export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
 
 export const updateSiteContentBlock = async (
   input: { slug?: unknown; body?: unknown },
-): Promise<void> => {
+): Promise<SiteContentBlock> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new PublicSiteStoreError('Public site database is not configured yet.', 503);
 
   const normalized = normalizeSiteContentBlockInput(input);
   if (!normalized.ok) throw new PublicSiteStoreError(normalized.message, 400);
 
+  const updatedAt = new Date().toISOString();
   const { error } = await supabase.from('cardforge_site_content_blocks').upsert({
     slug: normalized.value.slug,
     body: normalized.value.body,
-    updated_at: new Date().toISOString(),
+    updated_at: updatedAt,
   }, { onConflict: 'slug' });
 
   if (error) {
@@ -70,4 +71,9 @@ export const updateSiteContentBlock = async (
     throw new PublicSiteStoreError('Unable to update public site content.');
   }
 
+  return {
+    ...getDefaultSiteContentBlock(normalized.value.slug),
+    body: normalized.value.body,
+    updatedAt,
+  };
 };
