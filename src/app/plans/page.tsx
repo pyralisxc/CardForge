@@ -5,7 +5,7 @@ import {
   applyProductAccessPricePresentation,
   getMcpAllowances,
 } from '@/features/mcp-usage/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { PlansPageContent } from '@/features/public-site/client';
 import {
   ConfiguredPublicSiteShell,
