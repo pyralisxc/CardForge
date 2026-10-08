@@ -11,7 +11,7 @@ import type { PipelineContentHealth } from '../lib/pipelineContentHealth';
 export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, catalog, onClassified }: { health: PipelineContentHealth; canRepair: boolean; onOpenObject: (objectId: string) => void; catalog?: CardForgeCatalogManifest | null; onClassified?: () => Promise<void> }) {
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const downloadReview = () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...health.review, issues: health.issues }, null, 2)], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...health.review, technicalIssues: health.issues, editorial: health.editorial }, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = 'cardforge-content-review.json';
@@ -19,9 +19,20 @@ export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, ca
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
   return <details className="border border-[var(--cf-border)] bg-[var(--cf-surface-inset)]">
-    <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm"><span className="inline-flex items-center gap-2 font-semibold text-[var(--cf-text-strong)]">{health.issues.length ? <AlertTriangle className="h-4 w-4 text-[var(--cf-warning)]" /> : <CheckCircle2 className="h-4 w-4 text-[var(--cf-success)]" />}Content Health</span><span className="text-xs text-[var(--cf-text-subtle)]">{health.checkedCount} published · {health.errors} errors · {health.warnings} warnings</span></summary>
-    <div className="grid gap-2 border-t border-[var(--cf-border-subtle)] p-3">
-      <p className="text-xs text-[var(--cf-text-subtle)]">Checks cover loaded catalog metadata and revisions, not remote file availability or rendered output. {health.review.coverage.complete ? null : 'Revision coverage is partial; the review download records its scope.'}</p>
+    <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm"><span className="inline-flex items-center gap-2 font-semibold text-[var(--cf-text-strong)]">{health.issues.length || health.editorial.pendingCount || health.editorial.reviseCount ? <AlertTriangle className="h-4 w-4 text-[var(--cf-warning)]" /> : <CheckCircle2 className="h-4 w-4 text-[var(--cf-success)]" />}Content Health</span><span className="text-xs text-[var(--cf-text-subtle)]">{health.checkedCount} published · technical {health.errors} errors / {health.warnings} warnings · editorial {health.editorial.approvedCount}/{health.editorial.checkedCount} approved</span></summary>
+    <div className="grid gap-3 border-t border-[var(--cf-border-subtle)] p-3">
+      <div className="grid gap-3 md:grid-cols-2">
+        <section className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Technical health</p>
+          <p className="mt-1 text-sm text-[var(--cf-text-muted)]">{health.errors} errors · {health.warnings} warnings across {health.checkedCount} published catalog objects.</p>
+        </section>
+        <section className="border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
+          <p className="mt-1 text-sm text-[var(--cf-text-muted)]">{health.editorial.approvedCount} approved · {health.editorial.pendingCount} pending · {health.editorial.reviseCount} revise · {health.editorial.quarantineCount} quarantine · {health.editorial.retireCount} retire.</p>
+          {health.editorial.missingEvidenceCount ? <p className="mt-1 text-xs text-[var(--cf-warning)]">{health.editorial.missingEvidenceCount} reviewed live revision{health.editorial.missingEvidenceCount === 1 ? '' : 's'} still lack preview, provenance/rights notes, or required classification evidence.</p> : null}
+        </section>
+      </div>
+      <p className="text-xs text-[var(--cf-text-subtle)]">Technical checks cover loaded catalog metadata and revisions, not remote file availability or rendered output. Editorial readiness is a separate exact-revision human decision. {health.review.coverage.complete ? null : 'Revision coverage is partial; the review download records its scope.'}</p>
       {canRepair ? <Button type="button" size="sm" variant="outline" onClick={downloadReview}>Download content review (no changes)</Button> : null}
       {canRepair && onClassified && catalog?.pipeline?.items.length ? <label className="grid gap-1 text-sm">Edit published classification
         <select className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-2" value={editingAssetId ?? ''} onChange={(event) => setEditingAssetId(event.target.value || null)}>
@@ -36,7 +47,7 @@ export function PipelineContentHealthPanel({ health, canRepair, onOpenObject, ca
         return <article key={`${issue.code}:${issue.objectId}:${index}`} className="flex flex-wrap items-start justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3 text-xs"><div><p className={issue.severity === 'error' ? 'font-semibold text-[var(--cf-danger)]' : 'font-semibold text-[var(--cf-warning)]'}>{issue.objectName} · {issue.code.replaceAll('-', ' ')}</p><p className="mt-1 text-[var(--cf-text-muted)]">{issue.message} {issue.repair}</p></div>{canRepair && onClassified && issue.code === 'missing-taxonomy' && asset ? <Button type="button" size="sm" variant="outline" onClick={() => setEditingAssetId(asset.id)}>Edit classification</Button> : null}{canRepair && issue.objectId ? <Button type="button" size="sm" variant="outline" onClick={() => onOpenObject(issue.objectId!)}>Open object</Button> : null}</article>;
       })}
       </div>
-      {!health.issues.length ? <p className="text-sm text-[var(--cf-text-muted)]">All projected published objects have lineage, source, route, taxonomy, package, and preview health for the checks available here.</p> : null}
+      {!health.issues.length ? <p className="text-sm text-[var(--cf-text-muted)]">Technical health is clear for the projected published objects. Editorial readiness above remains independently authoritative for publication quality.</p> : null}
     </div>
   </details>;
 }
