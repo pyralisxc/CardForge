@@ -1,7 +1,7 @@
 import { getCurrentOwnerAccess, getOwnerSiteOperationsPayload } from '@/features/owner/server';
 import { OwnerPublicSiteOperations } from '@/features/owner/client';
 import { PublicSiteOwnerLiveControls } from '@/features/public-site/client';
-import { resolveOwnerPublicationEnvironment } from '@/features/public-site/model/ownerPublicationEnvironment';
+import { resolveOwnerPublicationEnvironment } from '@/features/public-site/server';
 
 import { OwnerRoadmapRulesLiveEditor } from './OwnerRoadmapRulesLiveEditor';
 
