@@ -35,7 +35,8 @@
     "smoke:scale": "playwright test artifact-scale-performance.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs",
-    "plugin:package": "node scripts/package-cardforge-plugin.mjs"
+    "plugin:package": "node scripts/package-cardforge-plugin.mjs",
+    "plugin:package:owner": "node scripts/package-cardforge-owner-plugin.mjs"
   },
   "dependencies": {
     "@clerk/mcp-tools": "^0.6.0",
