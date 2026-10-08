@@ -84,18 +84,10 @@ export async function CardForgeAppProviders({
   }
 
   if (scope === 'shell') {
-    const [founderProfile, shellContent] = await Promise.all([
-      getCachedFounderProfile(),
-      getCachedSiteContentBlocks('shell'),
-    ]);
     return (
       <BrandPresentationProvider value={brand}>
-        <SiteContentProvider content={createSiteContentMap(shellContent)}>
-          <FounderProfileProvider profile={founderProfile}>
-            {children}
-            <Toaster />
-          </FounderProfileProvider>
-        </SiteContentProvider>
+        {children}
+        <Toaster />
       </BrandPresentationProvider>
     );
   }
