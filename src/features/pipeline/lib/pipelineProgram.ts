@@ -63,10 +63,10 @@ export interface PipelineSubmission {
   specialtyTags: string[];
   useCaseTags: string[];
   sourceNotes: string;
-  editorialReviewStatus: PipelineEditorialReviewStatus;
-  editorialReviewNote: string;
-  editorialReviewedBy: string | null;
-  editorialReviewedAt: string | null;
+  editorialReviewStatus?: PipelineEditorialReviewStatus;
+  editorialReviewNote?: string;
+  editorialReviewedBy?: string | null;
+  editorialReviewedAt?: string | null;
   name: string;
   description: string;
   previewUrl: string;
