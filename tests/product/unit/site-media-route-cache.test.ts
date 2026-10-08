@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+type TestSiteMediaAsset = {
+  slot: string;
+  storagePath: string | null;
+  defaultSrc: string | null;
+  updatedAt: string | null;
+};
+
 const state = vi.hoisted(() => ({
   asset: {
     slot: 'brand.social',
     storagePath: 'brand/social/current.webp',
     defaultSrc: '/site-fallbacks/landing/cardforge-hero-workbench.png',
     updatedAt: '2026-10-08T20:00:00.000Z',
-  },
+  } as TestSiteMediaAsset,
   download: vi.fn(),
 }));
 
