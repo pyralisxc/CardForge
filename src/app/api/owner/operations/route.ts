@@ -93,7 +93,7 @@ export async function PUT(request: Request) {
       businessIdentity?: Record<string, unknown>;
       expectedIdentityVersion?: unknown;
       siteMechanics?: Record<string, unknown>;
-      siteContentBlock?: { slug?: unknown; body?: unknown };
+      siteContentBlock?: { slug?: unknown; body?: unknown; updatedAt?: unknown };
       founderProfile?: Record<string, unknown>;
       legalDocument?: {
         slug?: unknown;
@@ -133,7 +133,13 @@ export async function PUT(request: Request) {
           userId: owner.access.userId ?? 'owner',
           email: owner.access.email,
         },
-        input: body.siteContentBlock ?? {},
+        input: body.siteContentBlock
+          ? {
+              slug: body.siteContentBlock.slug,
+              body: body.siteContentBlock.body,
+              expectedUpdatedAt: body.siteContentBlock.updatedAt,
+            }
+          : {},
       });
       return createNoStoreJsonResponse(publication);
     }
