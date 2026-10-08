@@ -7,6 +7,7 @@ import {
   getCurrentPipelineRequestAccess,
   permanentlyDeletePipelineSubmission,
   requirePipelineRequestScope,
+  updatePipelineEditorialReview,
   updatePipelineSubmissionDetails,
   updatePipelineSubmissionStatus,
 } from '@/features/pipeline/server';
@@ -138,7 +139,29 @@ export async function PUT(
       status?: unknown;
       ownerNote?: unknown;
       ownerAccessTierOverride?: unknown;
+      editorialReviewStatus?: unknown;
+      editorialReviewNote?: unknown;
     };
+    if (Object.prototype.hasOwnProperty.call(body, 'editorialReviewStatus')) {
+      const program = await updatePipelineEditorialReview({
+        submissionId,
+        reviewStatus: body.editorialReviewStatus,
+        reviewNote: body.editorialReviewNote,
+        currentUserId: owner.userId,
+        currentContributorIds: getContributorIds(owner.userId),
+      });
+      revalidateCardForgeCatalog();
+      await recordOwnerActivity({
+        actorUserId: owner.userId,
+        actorEmail: owner.email,
+        action: 'library.asset.editorial_review',
+        targetType: 'contributor_asset_revision',
+        targetId: submissionId,
+        summary: `Recorded editorial review outcome: ${String(body.editorialReviewStatus)}.`,
+      });
+      return createNoStoreJsonResponse({ program });
+    }
+
     const ownerStatusOverride = Object.prototype.hasOwnProperty.call(body, 'ownerStatusOverride')
       ? body.ownerStatusOverride
       : body.status;

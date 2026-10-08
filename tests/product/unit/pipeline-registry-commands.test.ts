@@ -6,6 +6,7 @@ import {
   castPipelineVote,
   PipelineRegistryCommandError,
   savePipelineProgramSettings,
+  setPipelineEditorialReview,
   setPipelineOwnerOverride,
   purgePipelineSubmission,
   publishOwnerTemplateRevision,
@@ -254,6 +255,44 @@ describe('contributor asset registry commands', () => {
     expect(rpc).toHaveBeenCalledWith('cardforge_update_contributor_program_settings', {
       p_settings: DEFAULT_PIPELINE_PROGRAM_SETTINGS,
       p_owner_contributor_id: 'owner-1',
+    });
+  });
+
+  it('records an exact-revision editorial decision through one atomic command', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc } as never);
+
+    await setPipelineEditorialReview({
+      submissionId: 'asset-1',
+      reviewStatus: 'approved',
+      reviewNote: 'Original first-party artwork and rights reviewed at intended size.',
+      reviewerContributorId: 'owner-1',
+    });
+
+    expect(rpc).toHaveBeenCalledWith('cardforge_set_contributor_asset_editorial_review', {
+      p_submission_id: 'asset-1',
+      p_review_status: 'approved',
+      p_review_note: 'Original first-party artwork and rights reviewed at intended size.',
+      p_reviewer_contributor_id: 'owner-1',
+    });
+  });
+
+  it('surfaces missing editorial evidence as a creator-actionable review error', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'editorial_review_source_notes_required' },
+      }),
+    } as never);
+
+    await expect(setPipelineEditorialReview({
+      submissionId: 'asset-1',
+      reviewStatus: 'approved',
+      reviewNote: 'Looks ready.',
+      reviewerContributorId: 'owner-1',
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'Add source, provenance, and rights notes before approving this revision.',
     });
   });
 

@@ -40,6 +40,16 @@ export type PipelineSubmissionEditInputResult =
     } }
   | { ok: false; message: string };
 
+export type PipelineEditorialReviewStatus = 'pending' | 'approved' | 'revise' | 'quarantine' | 'retire';
+
+export const isPipelineEditorialReviewStatus = (value: unknown): value is PipelineEditorialReviewStatus => (
+  value === 'pending'
+  || value === 'approved'
+  || value === 'revise'
+  || value === 'quarantine'
+  || value === 'retire'
+);
+
 export interface PipelineSubmission {
   id: string;
   lineageId?: string;
@@ -53,6 +63,10 @@ export interface PipelineSubmission {
   specialtyTags: string[];
   useCaseTags: string[];
   sourceNotes: string;
+  editorialReviewStatus?: PipelineEditorialReviewStatus;
+  editorialReviewNote?: string;
+  editorialReviewedBy?: string | null;
+  editorialReviewedAt?: string | null;
   name: string;
   description: string;
   previewUrl: string;
@@ -176,6 +190,10 @@ export interface PipelineSubmissionRow {
   specialty_tags?: unknown;
   use_case_tags?: unknown;
   source_notes?: string | null;
+  editorial_review_status?: unknown;
+  editorial_review_note?: string | null;
+  editorial_reviewed_by?: string | null;
+  editorial_reviewed_at?: string | null;
   name: string;
   description: string | null;
   preview_url: string | null;
@@ -418,6 +436,12 @@ export const mapPipelineSubmissionRow = (
   specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
   useCaseTags: normalizeUseCaseTags(row.use_case_tags),
   sourceNotes: row.source_notes ?? '',
+  editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
+    ? row.editorial_review_status
+    : 'pending',
+  editorialReviewNote: row.editorial_review_note ?? '',
+  editorialReviewedBy: row.editorial_reviewed_by ?? null,
+  editorialReviewedAt: row.editorial_reviewed_at ?? null,
   name: row.name,
   description: row.description ?? '',
   previewUrl: row.preview_url ?? '',
