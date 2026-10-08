@@ -13,7 +13,7 @@ This file is the reusable source for the OpenAI plugin listing and review. It co
 - Terms of service: `https://cardforges.com/terms`
 - Logo source: `https://cardforges.com/brand/cardforge-studio/favicon.svg`
 - Category: Design
-- Requested availability: public beta, globally wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because temporary working documents and connected-project authorizations are private to the linked account.
+- Requested availability: public, wherever ChatGPT plugins and CardForge's providers are available; a CardForge account is required because temporary working documents and connected-project authorizations are private to the linked account.
 - Short description: Design cards and generate complete card sets.
 - Long description: Design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review exact CardForge-rendered outputs natively in chat, and continue everything in CardForge Studio. Contributor publication tools remain a separate optional workflow.
 
@@ -23,7 +23,7 @@ Starter prompts:
 2. Turn this list into a complete CardForge card set.
 3. Add unique artwork and review my existing card set.
 
-Hardening release notes for 1.0.1: CardForge Studio is an authenticated beta for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
+Hardening release notes for 1.0.1: CardForge Studio is an authenticated integration for editable Templates and complete card Sets with revision-safe temporary working documents and connected-project commits. This release aligns every strict structured-output contract with its runtime payload, preserves Google Drive work identity, returns exact-revision Studio links, and confirms browser installation before reporting a revision as acknowledged. Template and Set review returns immutable revision-bound PNG artifacts from the canonical CardForge renderer as native MCP image content, without iframe preview widgets.
 
 ## Authentication and reviewer fixture
 
@@ -77,26 +77,19 @@ Template and Set preview tools do not register iframe/widget output templates. T
 - Expected tools: `create_editable_template` when no active document exists, then `upsert_card_set`, `get_card_generation_contract`, `upsert_cards`, and `preview_card_set`.
 - Expected result: the agent uses only returned field keys, reuses stable set/card IDs, stores artwork in the bulk transaction, and reports each image as resolved, unresolved, template fallback, or placeholder.
 
-### Positive 5 — resume temporary working Set context
-
-- Fixture: reuse the still-active temporary working document created by Positive 4.
-- Prompt: “Find my temporary working Set named OpenAI Review Fixture and summarize its cards without changing it.”
-- Expected tools: `list_agent_working_documents`, then `get_card_generation_contract` for the selected document.
-- Expected result: only the linked account's retained private working document is returned; browser-local projects and embedded private artwork bytes are not exposed.
-
-### Positive 6 — verify browser installation state
+### Positive 5 — verify browser installation state
 
 - Fixture: reuse the current private working document from Positive 2, 3, or 4 and open its exact-revision Studio link in the same linked CardForge account.
 - Prompt: “Check whether the latest revision is actually applied in CardForge Studio.”
 - Expected tools: `get_agent_install_status` after the reviewer opens and applies the revision-bound Studio link.
 - Expected result: the response includes the exact current revision, `currentRevisionApplied: true`, `installPending: false`, and the matching `lastInstalledRevision`; a failed browser acknowledgement must remain pending rather than being reported as applied.
 
-### Positive 7 — list and safely round-trip a connected project
+## Additional internal acceptance outside directory review cases
 
-- Fixture: connect the reviewer account to a dedicated Google Drive folder containing one non-sensitive `.cardforge` project; record the returned stable file id and exact provider/project revisions.
-- Prompt: “List my connected CardForge projects, check out the review fixture, and tell me the safe next steps without changing the Drive file.”
-- Expected tools: `list_connected_projects`, then `checkout_project`; call `commit_project` only after an explicit reviewed change.
-- Expected result: the project summary includes stable `fileId` and `workId` fields without schema rejection, checkout leaves the Drive source unchanged, and any later commit requires all exact revisions and fails closed on conflict.
+Keep these as release acceptance without submitting them as extra MCP review cases:
+
+- **Temporary Set resume:** reuse the working document from Positive 4, call `list_agent_working_documents` and `get_card_generation_contract`, and verify only the linked account's retained private work is returned.
+- **Connected-project round trip:** with a dedicated non-sensitive Google Drive fixture, call `list_connected_projects` and `checkout_project`; only after an explicit reviewed change exercise `commit_project` with exact working-document, provider, and CardForge project revisions. Checkout must leave the Drive source unchanged and stale commit must fail closed.
 
 ## Negative review cases
 

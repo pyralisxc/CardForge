@@ -195,7 +195,7 @@ The former reusable QA accounts were retired. Do not recreate them for generic c
 
 `npm run smoke:golden` is the compact merge-protected mocked browser lane. `npm run smoke:ui` is the extended browser lane, including scale and soak. Neither proves a real Clerk/Stripe/provider session.
 
-## ChatGPT development beta
+## ChatGPT plugin publication
 
 The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Profile owner-operation content; the plugin must not introduce a parallel tier catalog or access toggle.
 
@@ -215,7 +215,7 @@ For a development-beta release:
 4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
 5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and connected-project list/checkout/commit when that provider boundary changed.
 6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
-7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
+7. Submit CardForge Studio as a stable, complete plugin rather than a trial/demo. Capacity figures may remain explicitly labeled current beta planning targets. Until directory publication completes, public site copy may truthfully state that plugin review/availability is still in progress without describing the submitted plugin itself as incomplete.
 
 When OpenAI supplies a domain challenge, set `OPENAI_APPS_CHALLENGE_TOKEN` in the production Vercel environment, redeploy, and confirm `/.well-known/openai-apps-challenge` returns only the exact token as plain text. Remove or rotate the value after verification if OpenAI's current portal guidance permits it.
 

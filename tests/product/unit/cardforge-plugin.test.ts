@@ -131,7 +131,7 @@ describe('CardForge Studio plugin', () => {
 
     const positiveCases = submission.match(/^### Positive \d+[\s\S]*?(?=^### Positive \d+|^## Negative)/gm) ?? [];
     const negativeCases = submission.match(/^### Negative \d+[\s\S]*?(?=^### Negative \d+|^## Domain)/gm) ?? [];
-    expect(positiveCases).toHaveLength(7);
+    expect(positiveCases).toHaveLength(5);
     expect(negativeCases).toHaveLength(3);
     for (const reviewCase of positiveCases) expect(reviewCase).toContain('- Fixture:');
     for (const reviewCase of negativeCases) expect(reviewCase).toContain('- Why it should not complete:');
@@ -140,10 +140,13 @@ describe('CardForge Studio plugin', () => {
     expect(submission).toContain('https://cardforges.com/privacy');
     expect(submission).toContain('https://cardforges.com/terms');
     expect(submission).toContain('There is no review-only authentication bypass.');
-    expect(submission).toContain('globally wherever ChatGPT plugins');
+    expect(submission).toContain('Requested availability: public, wherever ChatGPT plugins');
     expect(submission).toContain('Hardening release notes for 1.0.1');
+    expect(submission).toContain('Requested availability: public,');
+    expect(submission).not.toContain('Requested availability: public beta');
+    expect(submission).not.toContain('authenticated beta');
     expect(submission).toContain('ordinary Free account scope with no contributor, owner, billing, or provider-console privileges');
-    expect(submission).toContain('temporary working Set named OpenAI Review Fixture');
+    expect(submission).toContain('**Temporary Set resume:**');
     expect(submission).toContain('temporary assistant drafts are created by the review cases');
     expect(submission).not.toMatch(/password\s*[:=]\s*\S+/i);
     expect(envExample).toContain('OPENAI_APPS_CHALLENGE_TOKEN=');
