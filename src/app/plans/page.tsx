@@ -1,7 +1,11 @@
 import { ContributorPublicAuthSlot } from '@/features/contributor-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { getMcpAllowances } from '@/features/mcp-usage/server';
+import {
+  applyProductAccessPricePresentation,
+  getMcpAllowances,
+} from '@/features/mcp-usage/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
 import { PlansPageContent } from '@/features/public-site/client';
 import {
   ConfiguredPublicSiteShell,
@@ -25,10 +29,12 @@ export async function generateMetadata() {
 
 export default async function PlansPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, plans] = await Promise.all([
+  const [businessIdentity, basePlans, productAccessPrices] = await Promise.all([
     getCachedBusinessIdentity(),
     getMcpAllowances(),
+    getCurrentProductAccessPricePresentation(),
   ]);
+  const plans = applyProductAccessPricePresentation(basePlans, productAccessPrices);
   return (
     <CardForgeAppProviders>
       <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <ContributorPublicAuthSlot /> : undefined} currentPath="/plans" ownerControls={<OwnerPublicSiteControlsSlot currentPath="/plans" />}>
