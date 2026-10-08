@@ -6,7 +6,9 @@ export {
 } from './server/contentStore';
 export {
   getPublicSiteConfiguration,
+  getPublicSiteConfigurationSnapshot,
   PublicSiteConfigurationStoreError,
+  publishPublicSiteConfigurationRevision,
   updatePublicSiteConfiguration,
 } from './server/siteConfigurationStore';
 export {
@@ -20,6 +22,7 @@ export {
   isHomepageSectionVisible,
   type PublicSiteConfiguration,
 } from './model/siteConfiguration';
+export type { PublicSiteConfigurationSnapshot } from './server/siteConfigurationStore';
 export { createSiteContentMap } from './model/siteContent';
 export {
   getCachedSiteContentBlocks,
