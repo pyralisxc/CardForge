@@ -3,6 +3,7 @@ import {
   getOwnerIntegrationStatus,
   getOwnerSiteOperationsPayload,
   getOwnerSiteControlPayload,
+  publishOwnerSiteContentBlock,
   recordOwnerActivity,
 } from '@/features/owner/server';
 import {
@@ -14,9 +15,7 @@ import {
   FounderProfileStoreError,
   PublicSiteStoreError,
   revalidateFounderProfile,
-  revalidateSiteContentCache,
   updateFounderProfile,
-  updateSiteContentBlock,
 } from '@/features/public-site/server';
 import { revalidatePath } from 'next/cache';
 import {
@@ -129,10 +128,14 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'siteContent') {
-      await updateSiteContentBlock(body.siteContentBlock ?? {});
-      revalidateSiteContentCache();
-      revalidatePath('/', 'layout');
-      return respond({ action: 'site.copy.publish', targetType: 'site_content', targetId: typeof body.siteContentBlock?.slug === 'string' ? body.siteContentBlock.slug : null, summary: 'Published an owner-authored public site copy block.' });
+      const publication = await publishOwnerSiteContentBlock({
+        actor: {
+          userId: owner.access.userId ?? 'owner',
+          email: owner.access.email,
+        },
+        input: body.siteContentBlock ?? {},
+      });
+      return createNoStoreJsonResponse(publication);
     }
 
     if (body.kind === 'founderProfile') {
