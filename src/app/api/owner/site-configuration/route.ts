@@ -20,9 +20,11 @@ export async function PUT(request: Request) {
         parsedBody.message,
       );
     }
+    const input = parsedBody.data as Record<string, unknown>;
     const publication = await publishOwnerSiteConfiguration({
       actor: { userId: owner.userId, email: owner.email },
-      input: parsedBody.data as Record<string, unknown>,
+      input,
+      expectedUpdatedAt: input.expectedUpdatedAt,
     });
     return createNoStoreJsonResponse({
       ...publication,
@@ -30,7 +32,15 @@ export async function PUT(request: Request) {
     });
   } catch (error) {
     if (error instanceof PublicSiteConfigurationStoreError) {
-      return createApiErrorResponse(error.status, error.status >= 500 ? 'site_configuration_unavailable' : 'site_configuration_invalid', error.message);
+      return createApiErrorResponse(
+        error.status,
+        error.status >= 500
+          ? 'site_configuration_unavailable'
+          : error.status === 409
+            ? 'site_configuration_conflict'
+            : 'site_configuration_invalid',
+        error.message,
+      );
     }
     console.error('Failed to update public site configuration:', error);
     return createApiErrorResponse(500, 'site_configuration_unavailable', 'Unable to update public site settings.');
