@@ -15,11 +15,23 @@ export interface PipelineContentHealthIssue {
   repair: string;
 }
 
+export interface PipelineEditorialReadiness {
+  checkedCount: number;
+  approvedCount: number;
+  pendingCount: number;
+  reviseCount: number;
+  quarantineCount: number;
+  retireCount: number;
+  missingEvidenceCount: number;
+  coverageComplete: boolean;
+}
+
 export interface PipelineContentHealth {
   checkedCount: number;
   errors: number;
   warnings: number;
   issues: PipelineContentHealthIssue[];
+  editorial: PipelineEditorialReadiness;
   review: PipelineContentReview;
 }
 
@@ -56,6 +68,21 @@ export const buildPipelineContentHealth = ({
     submission.status === 'published'
     && (!hasExactPublishedPointers || activePublishedSubmissionIds.has(submission.id))
   ));
+  const editorialMissingEvidence = activePublishedSubmissions.filter((submission) => (
+    !submission.sourceNotes.trim()
+    || !submission.previewUrl.trim()
+    || !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)
+  ));
+  const editorial: PipelineEditorialReadiness = {
+    checkedCount: activePublishedSubmissions.length,
+    approvedCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'approved').length,
+    pendingCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'pending').length,
+    reviseCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'revise').length,
+    quarantineCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'quarantine').length,
+    retireCount: activePublishedSubmissions.filter((submission) => submission.editorialReviewStatus === 'retire').length,
+    missingEvidenceCount: editorialMissingEvidence.length,
+    coverageComplete: review.coverage.complete,
+  };
   activePublishedSubmissions.forEach((submission) => {
     const objectId = submission.lineageId ?? submission.id;
     const destinations = getPipelineStudioDestinationOptions(submission.assetType);
@@ -95,6 +122,7 @@ export const buildPipelineContentHealth = ({
     errors: issues.filter((issue) => issue.severity === 'error').length,
     warnings: issues.filter((issue) => issue.severity === 'warning').length,
     issues,
+    editorial,
     review,
   };
 };
