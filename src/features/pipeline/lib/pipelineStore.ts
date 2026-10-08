@@ -19,6 +19,7 @@ import {
   purgePipelineSubmission,
   setContributorPipelineLifecycle,
   savePipelineProgramSettings,
+  setPipelineEditorialReview,
   setPipelineOwnerOverride,
   submitTemplatePipelineDraft,
 } from '@/features/pipeline/lib/pipelineRegistryCommands';
@@ -31,6 +32,7 @@ import {
   normalizePipelineSubmissionEditInput,
   normalizePipelineSubmissionInput,
   normalizeContributorProfileOverrideInput,
+  type PipelineEditorialReviewStatus,
   type PipelineProgramView,
   type PipelineProgramSettingsRow,
   type ContributorProfileOverrideInput,
@@ -552,6 +554,41 @@ export const updatePipelineSubmissionStatus = async ({
     ...(ownerAccessTierOverride !== undefined ? { ownerAccessTierOverride: normalizedTierOverride ?? null } : {}),
   }));
 
+  return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
+};
+
+export const updatePipelineEditorialReview = async ({
+  submissionId,
+  reviewStatus,
+  reviewNote,
+  currentUserId,
+  currentContributorIds = [currentUserId],
+}: {
+  submissionId: string;
+  reviewStatus: unknown;
+  reviewNote: unknown;
+  currentUserId: string;
+  currentContributorIds?: string[];
+}): Promise<PipelineProgramView> => {
+  if (!currentUserId) throw new PipelineStoreError('Owner identity is required to review an asset.', 403);
+  const normalizedStatus: PipelineEditorialReviewStatus | null = (
+    reviewStatus === 'pending'
+    || reviewStatus === 'approved'
+    || reviewStatus === 'revise'
+    || reviewStatus === 'quarantine'
+    || reviewStatus === 'retire'
+  ) ? reviewStatus : null;
+  if (!normalizedStatus) throw new PipelineStoreError('Choose a supported editorial review outcome.', 400);
+  const normalizedNote = normalizePipelineLongText(reviewNote, 600);
+  if (normalizedStatus !== 'pending' && !normalizedNote) {
+    throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
+  }
+  await runRegistryCommand(() => setPipelineEditorialReview({
+    submissionId,
+    reviewStatus: normalizedStatus,
+    reviewNote: normalizedNote,
+    reviewerContributorId: currentUserId,
+  }));
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
