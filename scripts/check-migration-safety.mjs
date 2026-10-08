@@ -58,14 +58,14 @@ export const findRetiredPostCutoverReferences = (filePath, contents) => {
 };
 
 export const findUnapprovedOwnerPresentationWrites = (filePath, contents) => {
-  const normalizedPath = filePath.replaceAll('\\\\', '/');
-  const version = path.basename(normalizedPath).match(/^(\\d+)/u)?.[1];
+  const normalizedPath = filePath.replaceAll('\\', '/');
+  const version = path.basename(normalizedPath).match(/^(\d+)/u)?.[1];
   if (!version || version <= OWNER_PRESENTATION_CUTOVER_VERSION) return [];
   if (OWNER_STATE_WRITE_MARKER.test(contents)) return [];
 
   return OWNER_PRESENTATION_TABLES.filter((table) => (
     new RegExp(
-      '^\\\\s*(?:insert\\\\s+into|update|delete\\\\s+from)\\\\s+(?:public\\\\.)?' + table + '\\\\b',
+      '^\\s*(?:insert\\s+into|update|delete\\s+from)\\s+(?:public\\.)?' + table + '\\b',
       'imu',
     ).test(contents)
   ));
