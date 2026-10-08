@@ -27,7 +27,7 @@ import {
   applyProductAccessPricePresentation,
   getMcpAllowances,
 } from '@/features/mcp-usage/server';
-import { getCurrentProductAccessPricePresentation } from '@/features/billing/server';
+import { getCurrentProductAccessPricePresentation } from '@/features/billing/server/productAccessPricePresentation';
 import { OwnerPublicSiteControlsSlot } from '@/app/_components/OwnerPublicSiteControlsSlot';
 
 export async function generateMetadata() {
