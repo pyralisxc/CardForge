@@ -235,3 +235,68 @@ export const ownerActivityOutputSchema = fromJsonSchema({
     },
   },
 });
+
+export interface OwnerSiteCopyPublishInput {
+  slug: string;
+  body: string;
+  expectedUpdatedAt: string | null;
+}
+
+export const ownerSiteCopyPublishInputSchema = fromJsonSchema<OwnerSiteCopyPublishInput>({
+  type: 'object',
+  additionalProperties: false,
+  required: ['slug', 'body', 'expectedUpdatedAt'],
+  properties: {
+    slug: {
+      type: 'string',
+      minLength: 1,
+      description: 'Exact CardForge site-content slug returned by get_owner_site_snapshot.',
+    },
+    body: {
+      type: 'string',
+      minLength: 1,
+      description: 'Complete replacement text for this one bounded site-content block.',
+    },
+    expectedUpdatedAt: {
+      type: ['string', 'null'],
+      description: 'Exact updatedAt value returned for this block by get_owner_site_snapshot. Use null only when that snapshot reported null for a bundled default that has never been published to shared state.',
+    },
+  },
+});
+
+export const ownerSiteCopyPublicationOutputSchema = fromJsonSchema({
+  type: 'object',
+  additionalProperties: false,
+  required: ['environment', 'livePublication', 'siteContentBlock', 'receipt'],
+  properties: {
+    environment: { type: 'string' },
+    livePublication: { type: 'boolean' },
+    siteContentBlock: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['slug', 'group', 'section', 'label', 'body', 'updatedAt'],
+      properties: {
+        slug: { type: 'string' },
+        group: { type: 'string' },
+        section: { type: 'string' },
+        label: { type: 'string' },
+        body: { type: 'string' },
+        updatedAt: nullableString,
+      },
+    },
+    receipt: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['committed', 'refreshComplete', 'refreshFailures', 'activityRecorded', 'retryable', 'nextAction', 'message'],
+      properties: {
+        committed: { type: 'boolean' },
+        refreshComplete: { type: 'boolean' },
+        refreshFailures: { type: 'array', items: { type: 'string' } },
+        activityRecorded: { type: 'boolean' },
+        retryable: { type: 'boolean' },
+        nextAction: { type: 'string', enum: ['none', 'reload'] },
+        message: { type: 'string' },
+      },
+    },
+  },
+});

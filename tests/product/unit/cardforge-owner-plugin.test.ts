@@ -45,12 +45,12 @@ describe('CardForge Owner plugin', () => {
       };
       expect(packagedManifest).toMatchObject({
         name: 'cardforge-owner',
-        version: '0.1.0',
+        version: '0.2.0',
         mcpServers: './.mcp.json',
         interface: {
           displayName: 'CardForge Owner',
           developerName: 'Cameron Locke',
-          capabilities: ['Read'],
+          capabilities: ['Read', 'Write'],
         },
       });
       expect(packagedManifest).not.toHaveProperty('skills');
@@ -78,7 +78,9 @@ describe('CardForge Owner plugin', () => {
     expect(tools).toContain("'get_owner_site_snapshot'");
     expect(tools).toContain("'get_owner_provider_readiness'");
     expect(tools).toContain("'get_owner_activity'");
+    expect(tools).toContain("'publish_owner_site_copy'");
+    expect(tools).toContain('expectedUpdatedAt');
     expect(tools).not.toContain('create_editable_template');
-    expect(tools).not.toContain('publish_site_copy');
+    expect(tools).not.toContain('update_owner_setting');
   });
 });

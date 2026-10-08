@@ -58,7 +58,7 @@ vi.mock('next/cache', () => ({
 }));
 
 vi.mock('@/features/public-site/server', () => ({
-  updateSiteContentBlock: async (...args: unknown[]) => {
+  publishSiteContentBlockRevision: async (...args: unknown[]) => {
     state.updateContent(...args);
     return state.content;
   },
@@ -99,7 +99,11 @@ describe('Owner site commands', () => {
   it('returns a committed live-copy receipt without rereading provider state', async () => {
     const result = await publishOwnerSiteContentBlock({
       actor: { userId: 'owner-1', email: 'owner@example.com' },
-      input: { slug: state.content.slug, body: 'Published copy' },
+      input: {
+        slug: state.content.slug,
+        body: 'Published copy',
+        expectedUpdatedAt: '2026-10-07T23:59:00.000Z',
+      },
     });
 
     expect(result.siteContentBlock).toEqual(state.content);
@@ -111,7 +115,11 @@ describe('Owner site commands', () => {
       retryable: false,
       nextAction: 'none',
     });
-    expect(state.updateContent).toHaveBeenCalledOnce();
+    expect(state.updateContent).toHaveBeenCalledWith({
+      slug: state.content.slug,
+      body: 'Published copy',
+      expectedUpdatedAt: '2026-10-07T23:59:00.000Z',
+    });
     expect(state.revalidateContent).toHaveBeenCalledOnce();
     expect(state.recordActivity).toHaveBeenCalledWith(expect.objectContaining({
       action: 'site.copy.publish',
@@ -125,7 +133,11 @@ describe('Owner site commands', () => {
 
     const result = await publishOwnerSiteContentBlock({
       actor: { userId: 'owner-1', email: null },
-      input: { slug: state.content.slug, body: 'Published copy' },
+      input: {
+        slug: state.content.slug,
+        body: 'Published copy',
+        expectedUpdatedAt: '2026-10-07T23:59:00.000Z',
+      },
     });
 
     expect(result.receipt).toMatchObject({
@@ -138,6 +150,8 @@ describe('Owner site commands', () => {
     expect(result.receipt.message).toMatch(/was published.*reload/i);
     expect(state.recordActivity).toHaveBeenCalledWith(expect.objectContaining({
       metadata: {
+        expectedUpdatedAt: '2026-10-07T23:59:00.000Z',
+        committedUpdatedAt: state.content.updatedAt,
         refreshComplete: false,
         refreshFailures: ['site-content-cache', 'public-layout'],
       },

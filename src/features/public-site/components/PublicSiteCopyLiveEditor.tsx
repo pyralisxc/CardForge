@@ -24,7 +24,7 @@ export interface SiteContentPublicationResult {
 }
 
 export const savePublicSiteContentBlock = async (
-  block: Pick<SiteContentBlock, 'slug' | 'body'>,
+  block: Pick<SiteContentBlock, 'slug' | 'body' | 'updatedAt'>,
 ): Promise<SiteContentPublicationResult> => {
   const response = await fetch('/api/owner/operations', {
     method: 'PUT',

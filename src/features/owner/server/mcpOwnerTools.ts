@@ -4,10 +4,13 @@ import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { getOwnerActivity } from '@/features/owner/server/ownerActivityStore';
 import { getOwnerIntegrationStatus } from '@/features/owner/server/ownerIntegrationStatus';
 import { getOwnerSiteControlPayload } from '@/features/owner/lib/ownerOperationsStore';
+import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
 import type { McpOwnerAccess } from './mcpOwnerAccess';
 import {
   ownerActivityInputSchema,
   ownerActivityOutputSchema,
+  ownerSiteCopyPublicationOutputSchema,
+  ownerSiteCopyPublishInputSchema,
   ownerProviderReadinessOutputSchema,
   ownerSiteSnapshotOutputSchema,
 } from './mcpOwnerSchemas';
@@ -141,6 +144,51 @@ export const registerOwnerReadTools = ({
             publicationGuidance: deploymentEnvironment() === 'production'
               ? 'This is live production Owner state. Any later mutation tool must describe its action as a live publication and preserve revision/conflict semantics.'
               : 'This is non-production Owner state. Changes in this environment must never be represented as live production publication.',
+          },
+        };
+      },
+    }),
+  );
+
+  server.registerTool(
+    'publish_owner_site_copy',
+    {
+      title: 'Publish one CardForge Owner site-copy block',
+      description: 'Publish one bounded Owner-controlled public copy block using the exact updatedAt revision returned by get_owner_site_snapshot. In production this changes the live CardForge site immediately; in Preview it changes staging only. If the block changed after it was read, CardForge rejects the write and the agent must reload current Owner state before trying again.',
+      inputSchema: ownerSiteCopyPublishInputSchema,
+      outputSchema: ownerSiteCopyPublicationOutputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    },
+    async ({ slug, body, expectedUpdatedAt }) => runObserved({
+      toolName: 'publish_owner_site_copy',
+      input: { slug, body, expectedUpdatedAt },
+      execute: async (access) => {
+        const publication = await publishOwnerSiteContentBlock({
+          actor: {
+            userId: access.user.id,
+            email: access.email,
+          },
+          input: {
+            slug,
+            body,
+            expectedUpdatedAt,
+          },
+        });
+        const isProduction = deploymentEnvironment() === 'production';
+        return {
+          content: [{
+            type: 'text',
+            text: publication.receipt.refreshComplete
+              ? (isProduction
+                  ? publication.siteContentBlock.label + ' was published live to CardForge.'
+                  : publication.siteContentBlock.label + ' was published to this non-production CardForge environment only.')
+              : publication.receipt.message,
+          }],
+          structuredContent: {
+            environment: deploymentEnvironment(),
+            livePublication: isProduction,
+            siteContentBlock: publication.siteContentBlock,
+            receipt: publication.receipt,
           },
         };
       },

@@ -1,6 +1,6 @@
 {
   "name": "cardforge-owner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Inspect and operate CardForge's Owner-controlled public property and operational state.",
   "author": {
     "name": "Cameron Locke",
@@ -19,11 +19,12 @@
   "interface": {
     "displayName": "CardForge Owner",
     "shortDescription": "Operate the CardForge property as its authenticated Owner",
-    "longDescription": "Inspect CardForge's live public presentation, provider readiness, and accountable Owner activity through the same Owner authority used by the browser. CardForge Studio remains a separate creator plugin.",
+    "longDescription": "Inspect CardForge's public presentation, provider readiness, and accountable Owner activity, and publish bounded site-copy changes through the same revision-safe Owner authority used by the browser. CardForge Studio remains a separate creator plugin.",
     "developerName": "Cameron Locke",
     "category": "Productivity",
     "capabilities": [
-      "Read"
+      "Read",
+      "Write"
     ],
     "websiteURL": "https://cardforges.com",
     "privacyPolicyURL": "https://cardforges.com/privacy",
