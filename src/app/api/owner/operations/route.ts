@@ -3,7 +3,6 @@ import {
   getOwnerIntegrationStatus,
   getOwnerSiteOperationsPayload,
   getOwnerSiteControlPayload,
-  publishOwnerSiteContentBlock,
   recordOwnerActivity,
 } from '@/features/owner/server';
 import {
@@ -31,6 +30,7 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
+import { publishOwnerSiteContentBlock } from '@/features/owner/server/ownerSiteCommands';
 
 export const dynamic = 'force-dynamic';
 
@@ -178,11 +178,3 @@ export async function PUT(request: Request) {
           : error.status === 409
             ? 'owner_operations_conflict'
             : 'owner_request_invalid',
-        error.message
-      );
-    }
-
-    console.error('Failed to update owner operations:', error);
-    return createApiErrorResponse(500, 'owner_request_invalid', 'Unable to update owner operations.');
-  }
-}
