@@ -86,7 +86,23 @@ it('loads exact classification only after the owner gate', async () => {
 });
 
 it('keeps owner classification reachable after all health warnings are resolved', () => {
-  const props = { health: { checkedCount: 1, errors: 0, warnings: 0, issues: [], review: buildPipelineContentReview(null) }, onOpenObject: vi.fn(), onClassified: vi.fn(),
+  const props = { health: {
+    checkedCount: 1,
+    errors: 0,
+    warnings: 0,
+    issues: [],
+    editorial: {
+      checkedCount: 1,
+      approvedCount: 1,
+      pendingCount: 0,
+      reviseCount: 0,
+      quarantineCount: 0,
+      retireCount: 0,
+      missingEvidenceCount: 0,
+      coverageComplete: false,
+    },
+    review: buildPipelineContentReview(null),
+  }, onOpenObject: vi.fn(), onClassified: vi.fn(),
     catalog: { pipeline: { items: [{ id: 'worn-paper', name: 'Worn Paper', lineageId: 'lineage' }] } } as CardForgeCatalogManifest };
   expect(renderToStaticMarkup(createElement(PipelineContentHealthPanel, { ...props, canRepair: true }))).toContain('Edit published classification');
   expect(renderToStaticMarkup(createElement(PipelineContentHealthPanel, { ...props, canRepair: false }))).not.toContain('Edit published classification');
