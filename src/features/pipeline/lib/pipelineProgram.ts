@@ -17,7 +17,20 @@ import {
 } from './pipelineItems';
 import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
-import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredSemanticTaxonomy,
+  normalizePipelineCompatibilityTags,
+  normalizePipelineSemanticRole,
+  normalizePipelineVariantAssetId,
+  normalizePipelineVariantKind,
+  normalizePipelineVisualFamily,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+  type PipelineCompatibilityTag,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
+} from './contentTaxonomy';
 
 const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
   const supplied = Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim().length > 0 : value != null;
@@ -25,7 +38,7 @@ const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
 };
 
 export type PipelineSubmissionInputResult =
-  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantOfAssetId' | 'variantKind' | 'compatibilityTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type PipelineSubmissionEditInputResult =
@@ -37,6 +50,11 @@ export type PipelineSubmissionEditInputResult =
       specialtyTags?: string[];
       useCaseTags?: string[];
       requestedStudioDestination?: StudioAssetDestination;
+      semanticRole?: PipelineSemanticRole;
+      visualFamily?: string | null;
+      variantOfAssetId?: string | null;
+      variantKind?: PipelineVariantKind | null;
+      compatibilityTags?: PipelineCompatibilityTag[];
     } }
   | { ok: false; message: string };
 
@@ -62,6 +80,11 @@ export interface PipelineSubmission {
   requestedStudioDestination: StudioAssetDestination | null;
   specialtyTags: string[];
   useCaseTags: string[];
+  semanticRole: PipelineSemanticRole | null;
+  visualFamily: string | null;
+  variantOfAssetId: string | null;
+  variantKind: PipelineVariantKind | null;
+  compatibilityTags: PipelineCompatibilityTag[];
   sourceNotes: string;
   editorialReviewStatus?: PipelineEditorialReviewStatus;
   editorialReviewNote?: string;
@@ -189,6 +212,11 @@ export interface PipelineSubmissionRow {
   requested_studio_destination: unknown;
   specialty_tags?: unknown;
   use_case_tags?: unknown;
+  semantic_role?: unknown;
+  visual_family?: unknown;
+  variant_of_asset_id?: unknown;
+  variant_kind?: unknown;
+  compatibility_tags?: unknown;
   source_notes?: string | null;
   editorial_review_status?: unknown;
   editorial_review_note?: string | null;
@@ -293,6 +321,11 @@ export const normalizePipelineSubmissionInput = (value: {
   studioDestination?: unknown;
   specialtyTags?: unknown;
   useCaseTags?: unknown;
+  semanticRole?: unknown;
+  visualFamily?: unknown;
+  variantOfAssetId?: unknown;
+  variantKind?: unknown;
+  compatibilityTags?: unknown;
   name?: unknown;
   description?: unknown;
   previewUrl?: unknown;
@@ -320,6 +353,19 @@ export const normalizePipelineSubmissionInput = (value: {
   if (!specialtyTags.length) return { ok: false, message: 'Choose at least one supported CardForge specialty.' };
   const useCaseTags = normalizeUseCaseTags(value.useCaseTags);
   if (hasUnsupportedUseCaseSelection(value.useCaseTags) || !hasRequiredPipelineClassification(value.assetType, specialtyTags, useCaseTags)) return { ok: false, message: 'Choose at least one supported CardForge use case.' };
+  const semanticRole = normalizePipelineSemanticRole(value.semanticRole, value.assetType);
+  const visualFamily = normalizePipelineVisualFamily(value.visualFamily);
+  const variantOfAssetId = normalizePipelineVariantAssetId(value.variantOfAssetId);
+  const variantKind = normalizePipelineVariantKind(value.variantKind);
+  const compatibilityTags = normalizePipelineCompatibilityTags(value.compatibilityTags);
+  if (!hasRequiredSemanticTaxonomy({
+    assetType: value.assetType,
+    semanticRole,
+    variantOfAssetId,
+    variantKind,
+  })) {
+    return { ok: false, message: 'Choose a semantic role compatible with this asset type. Variants must identify both a parent asset and variant kind.' };
+  }
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -333,6 +379,11 @@ export const normalizePipelineSubmissionInput = (value: {
       requestedStudioDestination,
       specialtyTags,
       useCaseTags,
+      semanticRole: semanticRole!,
+      visualFamily,
+      variantOfAssetId,
+      variantKind,
+      compatibilityTags,
       name,
       description: normalizePipelineLongText(value.description, 280),
       previewUrl: previewUrl || sourceUrl,
@@ -354,6 +405,11 @@ export const normalizePipelineSubmissionEditInput = (value: {
   specialtyTags?: unknown;
   useCaseTags?: unknown;
   requestedStudioDestination?: unknown;
+  semanticRole?: unknown;
+  visualFamily?: unknown;
+  variantOfAssetId?: unknown;
+  variantKind?: unknown;
+  compatibilityTags?: unknown;
 }): PipelineSubmissionEditInputResult => {
   const name = normalizePipelineShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
@@ -372,6 +428,24 @@ export const normalizePipelineSubmissionEditInput = (value: {
     }
     requestedStudioDestination = value.requestedStudioDestination;
   }
+  const semanticRole = value.semanticRole !== undefined
+    ? normalizePipelineSemanticRole(value.semanticRole, value.assetType)
+    : undefined;
+  const variantOfAssetId = value.variantOfAssetId !== undefined
+    ? normalizePipelineVariantAssetId(value.variantOfAssetId)
+    : undefined;
+  const variantKind = value.variantKind !== undefined
+    ? normalizePipelineVariantKind(value.variantKind)
+    : undefined;
+  if (value.semanticRole !== undefined && !semanticRole) {
+    return { ok: false, message: 'Choose a semantic role compatible with this asset type.' };
+  }
+  if (
+    (value.variantOfAssetId !== undefined || value.variantKind !== undefined)
+    && Boolean(variantOfAssetId) !== Boolean(variantKind)
+  ) {
+    return { ok: false, message: 'Variants must identify both a parent asset and variant kind.' };
+  }
   return {
     ok: true,
     value: {
@@ -388,6 +462,13 @@ export const normalizePipelineSubmissionEditInput = (value: {
         ? { useCaseTags: normalizeUseCaseTags(value.useCaseTags) }
         : {}),
       ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
+      ...(semanticRole !== undefined ? { semanticRole } : {}),
+      ...(value.visualFamily !== undefined ? { visualFamily: normalizePipelineVisualFamily(value.visualFamily) } : {}),
+      ...(value.variantOfAssetId !== undefined ? { variantOfAssetId: variantOfAssetId ?? null } : {}),
+      ...(value.variantKind !== undefined ? { variantKind: variantKind ?? null } : {}),
+      ...(value.compatibilityTags !== undefined
+        ? { compatibilityTags: normalizePipelineCompatibilityTags(value.compatibilityTags) }
+        : {}),
     },
   };
 };
@@ -435,6 +516,11 @@ export const mapPipelineSubmissionRow = (
     : null,
   specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
   useCaseTags: normalizeUseCaseTags(row.use_case_tags),
+  semanticRole: normalizePipelineSemanticRole(row.semantic_role, row.asset_type),
+  visualFamily: normalizePipelineVisualFamily(row.visual_family),
+  variantOfAssetId: normalizePipelineVariantAssetId(row.variant_of_asset_id),
+  variantKind: normalizePipelineVariantKind(row.variant_kind),
+  compatibilityTags: normalizePipelineCompatibilityTags(row.compatibility_tags),
   sourceNotes: row.source_notes ?? '',
   editorialReviewStatus: isPipelineEditorialReviewStatus(row.editorial_review_status)
     ? row.editorial_review_status
