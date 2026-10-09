@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
     maxLength: 180,
   },
   configuration: {
+    updatedAt: '2026-10-08T00:00:00.000Z',
     announcementEnabled: false,
     announcementMessage: '',
     primaryCtaLabel: 'Open your Desk',
@@ -66,6 +67,10 @@ vi.mock('@/features/public-site/server', () => ({
     state.updateConfiguration(...args);
     return state.configuration;
   },
+  updatePublicSiteVisibleField: async (...args: unknown[]) => {
+    state.updateConfiguration(...args);
+    return state.configuration;
+  },
   revalidateSiteContentCache: () => {
     state.revalidateContent();
     if (state.failTag) throw new Error('content refresh failed');
@@ -85,6 +90,7 @@ vi.mock('@/features/owner/server/ownerActivityStore', () => ({
 
 import {
   publishOwnerSiteConfiguration,
+  publishOwnerSiteConfigurationField,
   publishOwnerSiteContentBlock,
 } from '@/features/owner/server/ownerSiteCommands';
 
@@ -178,4 +184,19 @@ describe('Owner site commands', () => {
     expect(state.revalidateConfiguration).toHaveBeenCalledOnce();
     expect(state.revalidatePath).toHaveBeenCalledTimes(4);
   });
+  it('publishes a visible Owner label through the original settings authority and receipt', async () => {
+    const input = { field: 'navigationLabel' as const, navigationId: 'plans', value: 'Membership', expectedUpdatedAt: state.configuration.updatedAt };
+    const result = await publishOwnerSiteConfigurationField({
+      actor: { userId: 'owner-1', email: 'owner@example.com' },
+      input,
+    });
+    expect(result.settings).toEqual(state.configuration);
+    expect(result.receipt).toMatchObject({ committed: true, retryable: false });
+    expect(state.updateConfiguration).toHaveBeenCalledWith(input);
+    expect(state.recordActivity).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'site.configuration.update',
+      metadata: expect.objectContaining({ updatedField: 'navigation.plans' }),
+    }));
+  });
+
 });

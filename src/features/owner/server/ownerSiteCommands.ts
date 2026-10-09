@@ -7,6 +7,8 @@ import {
   revalidatePublicSiteConfiguration,
   revalidateSiteContentCache,
   updatePublicSiteConfiguration,
+  updatePublicSiteVisibleField,
+  type PublicSiteVisibleFieldInput,
   type PublicSiteConfiguration,
   type SiteContentBlock,
 } from '@/features/public-site/server';
@@ -104,14 +106,13 @@ export const publishOwnerSiteContentBlock = async ({
   };
 };
 
-export const publishOwnerSiteConfiguration = async ({
-  actor,
-  input,
+const finalizeOwnerSiteConfiguration = async ({
+  actor, settings, field,
 }: {
   actor: OwnerCommandActor;
-  input: Record<string, unknown>;
+  settings: PublicSiteConfiguration;
+  field?: string;
 }): Promise<{ settings: PublicSiteConfiguration; receipt: OwnerCommittedMutationReceipt }> => {
-  const settings = await updatePublicSiteConfiguration(input);
   const refreshFailures = runPostCommitRefresh([
     { label: 'site-configuration-cache', run: revalidatePublicSiteConfiguration },
     { label: 'homepage', run: () => revalidatePath('/') },
@@ -127,6 +128,7 @@ export const publishOwnerSiteConfiguration = async ({
     targetId: 'cardforge',
     summary: 'Updated public navigation, homepage presentation, offer visibility, announcement, search metadata, watermark presentation, or demonstration sets.',
     metadata: {
+      ...(field ? { updatedField: field } : {}),
       announcementEnabled: settings.announcementEnabled,
       visibleNavigation: settings.primaryNavigation.filter((item) => item.visible).map((item) => item.id),
       visibleHomepageSections: settings.homepageSections.filter((item) => item.visible).map((item) => item.id),
@@ -146,3 +148,24 @@ export const publishOwnerSiteConfiguration = async ({
     }),
   };
 };
+export const publishOwnerSiteConfiguration = async ({
+  actor, input,
+}: {
+  actor: OwnerCommandActor;
+  input: Record<string, unknown>;
+}): Promise<{ settings: PublicSiteConfiguration; receipt: OwnerCommittedMutationReceipt }> => (
+  finalizeOwnerSiteConfiguration({ actor, settings: await updatePublicSiteConfiguration(input) })
+);
+
+export const publishOwnerSiteConfigurationField = async ({
+  actor, input,
+}: {
+  actor: OwnerCommandActor;
+  input: PublicSiteVisibleFieldInput;
+}): Promise<{ settings: PublicSiteConfiguration; receipt: OwnerCommittedMutationReceipt }> => (
+  finalizeOwnerSiteConfiguration({
+    actor,
+    settings: await updatePublicSiteVisibleField(input),
+    field: input.field === 'navigationLabel' ? 'navigation.' + input.navigationId : input.field,
+  })
+);
