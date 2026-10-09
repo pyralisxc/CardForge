@@ -12,8 +12,7 @@ import type { CardForgeCatalogManifest } from '@/features/pipeline/lib/catalogMa
 
 const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgramView => {
   const assetType = overrides.assetType ?? 'sets';
-  const requestedStudioDestination = overrides.requestedStudioDestination
-    ?? (assetType === 'sets' ? null : assetType === 'templates' ? 'template.front' : null);
+  const requestedStudioDestination = overrides.requestedStudioDestination ?? null;
   return {
     submissions: [{
       id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
