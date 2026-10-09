@@ -7,6 +7,8 @@ export type CardFontOption = {
   cssFamily: string;
   sourceUrl?: string;
   sourceMimeType?: string;
+  /** Exact reviewed @font-face descriptor, if provided by the Pipeline source. */
+  fontWeightRange?: string;
 };
 
 export interface RegistryFontRow {
@@ -185,6 +187,10 @@ export const mapRegistryRowsToCardFontOptions = (rows: RegistryFontRow[]): CardF
         ? 'sans-serif'
         : 'serif';
     const value = `font-contributor-${sanitizeFontValue(row.asset_id)}`;
+    const publishedWeight = typeof metadata.fontWeightRange === 'string'
+      && /^(?:[1-9]00)(?: [1-9]00)?$/u.test(metadata.fontWeightRange)
+      ? metadata.fontWeightRange
+      : undefined;
 
     return {
       name,
@@ -192,6 +198,7 @@ export const mapRegistryRowsToCardFontOptions = (rows: RegistryFontRow[]): CardF
       category,
       cssFamily: `"${cssString(value)}", ${fallback}`,
       sourceUrl,
+      ...(publishedWeight ? { fontWeightRange: publishedWeight } : {}),
     };
   })
   .filter((font): font is CardFontOption => Boolean(font));
@@ -218,7 +225,7 @@ export const createPipelineFontFaceCss = (fonts: CardFontOption[]): string => fo
     '@font-face {',
     `  font-family: "${cssString(font.value)}";`,
     `  src: url("${cssString(font.sourceUrl ?? '')}") format("${getFontFormat(font)}");`,
-    '  font-weight: 100 900;',
+    '  font-weight: ' + (font.fontWeightRange ?? '100 900') + ';',
     '  font-style: normal;',
     '  font-display: swap;',
     '}',
