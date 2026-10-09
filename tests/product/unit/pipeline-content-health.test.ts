@@ -14,6 +14,7 @@ const programWith = (overrides: Partial<PipelineSubmission> = {}): PipelineProgr
     id: 'revision-id', lineageId: 'lineage-id', registryAssetId: 'registry-id',
     name: 'Published object', status: 'published', assetType: 'sets',
     requestedStudioDestination: null, specialtyTags: ['games'], useCaseTags: ['playing-cards'],
+    semanticRole: 'set', visualFamily: null, variantOfAssetId: null, variantKind: null, compatibilityTags: [],
     sourceUrl: 'https://example.com/set.cardforge', sourcePayload: null,
     sourceNotes: 'Original artwork', previewUrl: 'https://example.com/preview.webp',
     editorialReviewStatus: 'pending', editorialReviewNote: '', editorialReviewedBy: null, editorialReviewedAt: null,
@@ -30,6 +31,25 @@ describe('Pipeline content health', () => {
     expect(buildPipelineContentHealth({ catalog: null, program }).issues.some((issue) => issue.code === 'missing-taxonomy')).toBe(requiresUseCase);
     expect(buildPipelineContentReview(program).entries[0]?.classificationNeedsReview).toBe(requiresUseCase);
   });
+  it('reports legacy published content as semantic curation debt without guessing a role', () => {
+    const program = programWith({ semanticRole: null });
+    const health = buildPipelineContentHealth({ catalog: null, program });
+    const review = buildPipelineContentReview(program);
+
+    expect(health.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'missing-semantic-role', severity: 'warning' }),
+    ]));
+    expect(health.editorial.missingEvidenceCount).toBe(1);
+    expect(review.entries[0]?.semanticTaxonomy).toMatchObject({
+      semanticRole: null,
+      visualFamily: null,
+      variantOfAssetId: null,
+      variantKind: null,
+      compatibilityTags: [],
+    });
+    expect(review.entries[0]?.semanticTaxonomyNeedsReview).toBe(true);
+  });
+
   it('keeps technical health distinct from exact-revision editorial readiness', () => {
     const health = buildPipelineContentHealth({
       catalog: null,
