@@ -1,5 +1,15 @@
 import { resolveTemplateCardFormat } from '@/domain/card-formats';
-import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredSemanticTaxonomy,
+  normalizePipelineCompatibilityTags,
+  normalizePipelineSemanticRole,
+  normalizePipelineVariantAssetId,
+  normalizePipelineVariantKind,
+  normalizePipelineVisualFamily,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+} from './contentTaxonomy';
 import type { PipelineProgramView } from './pipelineProgram';
 import { isRepositoryTemplate } from './registryContentValidation';
 
@@ -33,6 +43,19 @@ export const buildPipelineContentReview = (program: PipelineProgramView | null) 
       destination: submission.requestedStudioDestination,
       classification: { specialtyTags, useCaseTags },
       classificationNeedsReview: !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags),
+      semanticTaxonomy: {
+        semanticRole: normalizePipelineSemanticRole(submission.semanticRole, submission.assetType),
+        visualFamily: normalizePipelineVisualFamily(submission.visualFamily),
+        variantOfAssetId: normalizePipelineVariantAssetId(submission.variantOfAssetId),
+        variantKind: normalizePipelineVariantKind(submission.variantKind),
+        compatibilityTags: normalizePipelineCompatibilityTags(submission.compatibilityTags),
+      },
+      semanticTaxonomyNeedsReview: !hasRequiredSemanticTaxonomy({
+        assetType: submission.assetType,
+        semanticRole: submission.semanticRole,
+        variantOfAssetId: submission.variantOfAssetId,
+        variantKind: submission.variantKind,
+      }),
       revisionNeedsReview: submission.revisionNumber === null,
       template: template && format ? {
         id: template.id,
