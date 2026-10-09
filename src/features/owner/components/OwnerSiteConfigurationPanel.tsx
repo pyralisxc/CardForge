@@ -135,7 +135,9 @@ export function OwnerSiteConfigurationPanel({
             {draft.primaryNavigation.map((item, index) => (
               <div key={item.id} className="grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
                 <input aria-label={`Show ${item.label} in primary navigation`} type="checkbox" checked={item.visible} onChange={(event) => updateNavigation(index, { visible: event.target.checked })} />
-                <label className="grid gap-1 text-xs text-[var(--cf-text-subtle)]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
+                {!item.visible || item.href === draft.primaryCtaHref
+                  ? <label className="grid gap-1 text-xs text-[var(--cf-text-subtle)]">{item.href}<input aria-label={`${item.id} navigation label`} className={inputClassName} maxLength={40} value={item.label} onChange={(event) => updateNavigation(index, { label: event.target.value })} /></label>
+                  : <span className="grid gap-1 text-sm text-[var(--cf-accent-text)]">{item.label}<span className="text-xs text-[var(--cf-text-subtle)]">Edit this visible label directly on the site</span></span>}
                 <div className="flex gap-1">
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} up`} disabled={index === 0} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, -1) }))}><ArrowUp className="h-4 w-4" /></Button>
                   <Button type="button" size="icon" variant="outline" aria-label={`Move ${item.label} down`} disabled={index === draft.primaryNavigation.length - 1} onClick={() => setDraft((current) => ({ ...current, primaryNavigation: move(current.primaryNavigation, index, 1) }))}><ArrowDown className="h-4 w-4" /></Button>
@@ -163,8 +165,11 @@ export function OwnerSiteConfigurationPanel({
             <label className="flex min-h-11 items-center justify-between gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3 text-sm text-[var(--cf-accent-text)]">Show founder support offer<input type="checkbox" checked={draft.supportOfferVisible} onChange={(event) => setDraft((current) => ({ ...current, supportOfferVisible: event.target.checked }))} /></label>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action text<input className={inputClassName} maxLength={80} value={draft.primaryCtaLabel} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaLabel: event.target.value }))} /></label>
-            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action path<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
+            <div className="grid content-center gap-1 text-sm text-[var(--cf-text-muted)]">
+              <span className="font-semibold text-[var(--cf-accent-text)]">Primary action wording</span>
+              <span className="text-xs leading-5 text-[var(--cf-text-subtle)]">Select the primary action button while editing the public page to change its label.</span>
+            </div>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">Primary action destination<input className={inputClassName} value={draft.primaryCtaHref} onChange={(event) => setDraft((current) => ({ ...current, primaryCtaHref: event.target.value }))} /></label>
           </div>
         </article>
       </div>

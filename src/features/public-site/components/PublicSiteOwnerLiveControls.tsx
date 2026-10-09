@@ -191,7 +191,7 @@ export function PublicSiteOwnerLiveControls({
       return false;
     }
     setConfigSaving(true);
-    let responseReceived = false;
+    let definitivelyRejected = false;
     try {
       const response = await fetch('/api/owner/site-configuration', {
         method: 'PATCH',
@@ -203,8 +203,10 @@ export function PublicSiteOwnerLiveControls({
           expectedUpdatedAt: siteConfiguration.updatedAt,
         }),
       });
-      responseReceived = true;
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish this site label.'));
+      if (!response.ok) {
+        definitivelyRejected = response.status >= 400 && response.status < 500;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish this site label.'));
+      }
       const publication = await response.json() as {
         settings: PublicSiteConfiguration;
         receipt: { refreshComplete: boolean; activityRecorded: boolean; message: string };
@@ -222,7 +224,7 @@ export function PublicSiteOwnerLiveControls({
         : { title: publicationPresentation.publishedTitle + '; reload to verify', description: publication.receipt.message });
       return true;
     } catch (error) {
-      const uncertain = !responseReceived;
+      const uncertain = !definitivelyRejected;
       toast({
         title: uncertain ? 'Publication result unconfirmed' : 'Site label not published',
         description: uncertain
