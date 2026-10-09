@@ -67,6 +67,19 @@ describe('Pipeline content health', () => {
     expect(markup).toContain('0 approved · 1 pending');
   });
 
+  it('treats an invalid semantic role as editorial classification debt without inventing a replacement', () => {
+    const program = programWith({
+      semanticRole: 'font' as PipelineSubmission['semanticRole'],
+    });
+    const health = buildPipelineContentHealth({ catalog: null, program });
+    const review = buildPipelineContentReview(program);
+
+    expect(health.errors).toBe(0);
+    expect(health.editorial.missingEvidenceCount).toBe(1);
+    expect(review.entries[0]?.classification.semanticRole).toBe('font');
+    expect(review.entries[0]?.classificationNeedsReview).toBe(true);
+  });
+
   it('recognizes approved live revisions without hiding technical findings', () => {
     const health = buildPipelineContentHealth({
       catalog: null,
