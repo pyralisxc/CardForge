@@ -35,7 +35,7 @@ GitHub is the source/CI workspace. Agents run focused/affected checks locally; t
 
 ### Preview lane
 
-`main` is the only production branch. Ordinary work uses one feature/objective branch and one PR into `main`; those branches do not deploy automatically. After the PR reaches its final candidate SHA and GitHub `verify` passes, move the reusable `vercel-preview` branch to that exact SHA once. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
+`main` is the only production branch. Ordinary work uses one feature/objective branch and a PR into the accumulated `vercel-preview` integration branch; ordinary feature branches do not deploy automatically. Integrate an exact-head, CI-verified feature PR into `vercel-preview` through GitHub, preserving merge history. An eligible Preview branch update triggers the native Vercel deployment and the staging Supabase migration integration. Do not reset `vercel-preview` as a disposable deployment pointer. The stable review hostname is registered in Vercel Project Settings → Domains with an explicit Preview binding to Git branch `vercel-preview`, no redirect, and no custom environment. Vercel owns automatic assignment of that domain to successful branch deployments:
 
 `https://card-forge-git-vercel-preview-pyralis-projects.vercel.app`
 
@@ -62,17 +62,19 @@ No password, verification secret, API key, OAuth token, or bypass value belongs 
 
 Before any merge into `main`, the agent must send Cameron the stable Preview link, the exact candidate SHA, and the specific review scope, then wait for explicit approval. A READY Vercel deployment does not authorize a merge.
 
-Release sequence:
+Accumulated Preview and release sequence:
 
-1. Implement with focused checks and remove temporary development-only tests/fixtures unless they protect a durable boundary.
-2. Push the coherent candidate and require the GitHub `verify` job, which runs `npm run verify:full` once as the authoritative deterministic gate. Run that full command locally only for high-risk work or a local/CI discrepancy.
-3. Move `vercel-preview` to the exact green candidate and require both a READY deployment and the automated `preview-smoke` result for that SHA.
-4. Exercise only changed provider-backed or signed-in behavior that automation cannot prove. Send Cameron the stable Preview link, exact SHA, and review scope; wait for explicit approval.
-5. Apply production migrations before merge only when the exact change is additive and the current production runtime remains compatible with it.
-6. Merge through the PR; do not bypass `main` safety.
-7. Require Vercel Production READY and the immediate `production-smoke` route result for the merge commit. The six-hour `Production health` schedule continues to run the complete route/product/provider health command.
-8. Apply a destructive schema contraction only after the compatible runtime is already READY in production and provider postflight proves the retired records or objects are empty. If deployment order cannot be guaranteed, split runtime retirement and schema contraction into separate reviewed releases.
-9. Perform the smallest real signed-in production check needed for auth/owner/contributor/billing/provider changes.
+1. Implement one coherent objective on a feature branch with focused checks. Remove temporary tests/fixtures unless they protect a durable guarantee.
+2. Open a PR targeting `vercel-preview` and require the exact-head GitHub `verify` job (`npm run verify:full`) and other affected checks. Run the full gate locally only for high-risk work or a local/CI discrepancy.
+3. Merge the verified feature PR into `vercel-preview`. Preserve ancestry and the integrated Preview history; do not reset/force-move that branch to the feature head.
+4. Verify any new staging migrations and affected provider behavior. For a meaningful hosted change, require Vercel Preview READY and the automated `preview-smoke` result for the integrated SHA; exercise only changed signed-in journeys automation cannot prove.
+5. Continue accumulating coherent feature PRs until the next product checkpoint is saturated. Do not merge individual feature PRs directly into production or declare a Preview build a production release.
+6. Freeze an exact Preview SHA and prepare one Preview-to-`main` release PR. Reconcile the complete delta, any current-`main` divergence, ordered production migrations, and required CI/provider gates against that exact candidate.
+7. Send Cameron the stable Preview link, candidate SHA, substantive review scope, and remaining risks. Wait for explicit approval of that candidate; approval is invalidated if Preview changes materially before the release.
+8. Apply production migrations before the release merge only when the exact change is additive and current production runtime remains compatible; otherwise sequence the migration and code rollout separately under their owner/provider gate.
+9. Merge the approved release PR through GitHub without bypassing `main` safety. Require Vercel Production READY and immediate `production-smoke` for the resulting merge commit; the six-hour `Production health` schedule continues.
+10. Apply destructive schema contraction only after compatible production runtime is READY and provider postflight confirms retired records/objects are empty. Split runtime retirement from contraction if the order cannot be guaranteed.
+11. Perform the smallest real signed-in production check needed for auth/Owner/Contributor/billing/provider changes.
 
 Cloud Set Mirror retirement is complete. The recorded retirement identified the remaining content as owner-approved test data; migration `20260827063958` required empty mirror rows and Studio lineage before removing the schema. Production postflight confirms the table, lineage columns, and dedicated Storage bucket are absent. Keep the historical release and deletion evidence in Git/provider history; there is no outstanding mirror migration or backup service to restore.
 
