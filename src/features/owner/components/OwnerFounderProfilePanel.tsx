@@ -5,7 +5,7 @@ import { Save, UserRound } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import type { OwnerOperationsPayload } from '@/features/owner/lib/ownerOperations';
+import type { OwnerOperationsPayload, OwnerSiteControlPayload } from '@/features/owner/lib/ownerOperations';
 import { updateOwnerOperations } from '@/features/owner/model/ownerOperationsClient';
 import type { FounderProfile, FounderProfileInput } from '@/features/public-site/client';
 
@@ -17,7 +17,7 @@ export function OwnerFounderProfilePanel({
   operationsPayload,
   onOperationsChange,
 }: {
-  operationsPayload: OwnerOperationsPayload;
+  operationsPayload: Pick<OwnerSiteControlPayload, 'founderProfile'>;
   onOperationsChange: (payload: OwnerOperationsPayload) => void;
 }) {
   const { toast } = useToast();
