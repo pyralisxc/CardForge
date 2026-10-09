@@ -152,6 +152,33 @@ export const hasRequiredPipelineSemanticClassification = (
   semanticRole: unknown,
 ): semanticRole is PipelineSemanticRole => normalizeSemanticRole(semanticRole, assetType) !== null;
 
+export const getDefaultSemanticRole = (
+  assetType: PipelineTaxonomyAssetType,
+  studioDestination?: string | null,
+): PipelineSemanticRole => {
+  if (assetType === 'templates') return studioDestination === 'template.back' ? 'template-back' : 'template-front';
+  if (assetType === 'sets') return 'set';
+  if (assetType === 'fonts') return 'font';
+  if (assetType === 'textures') return 'texture';
+  if (assetType === 'dividers') return 'divider';
+  if (assetType === 'icons') return 'icon';
+  if (assetType === 'imageAssets') {
+    if (studioDestination?.startsWith('image.border.')) return 'border';
+    if (studioDestination?.startsWith('image.frame.')) return 'frame';
+    return 'picture';
+  }
+  if (assetType === 'elementPresets') {
+    if (studioDestination === 'style.material') return 'material';
+    if (studioDestination === 'style.border') return 'border';
+    if (studioDestination === 'style.textFrame') return 'text-frame';
+    if (studioDestination === 'style.shape') return 'shape';
+    if (studioDestination === 'style.divider') return 'divider';
+    if (studioDestination === 'style.icon') return 'icon';
+    return 'style';
+  }
+  return 'style';
+};
+
 export const CARDFORGE_VARIANT_KIND_OPTIONS = [
   { id: 'base', label: 'Base', description: 'Primary member of a visual family.' },
   { id: 'format', label: 'Format Variant', description: 'Same visual family adapted to a different physical format.' },
