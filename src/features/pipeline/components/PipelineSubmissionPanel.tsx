@@ -25,8 +25,14 @@ import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi
 import { usePipelineSubmissionCandidates } from '@/features/pipeline/components/usePipelineSubmissionCandidates';
 import {
   hasRequiredPipelineClassification,
+  CARDFORGE_COMPATIBILITY_OPTIONS,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
+  getDefaultPipelineSemanticRole,
+  getPipelineSemanticRoleOptions,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import { getPipelineTypeLabel } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import {
@@ -65,6 +71,11 @@ export function PipelineSubmissionPanel({
   const [studioDestination, setStudioDestination] = useState<StudioAssetDestination | null>('element.icon');
   const [specialtyTags, setSpecialtyTags] = useState<string[]>([]);
   const [useCaseTags, setUseCaseTags] = useState<string[]>([]);
+  const [semanticRole, setSemanticRole] = useState<PipelineSemanticRole>('icon');
+  const [visualFamily, setVisualFamily] = useState('');
+  const [variantOfAssetId, setVariantOfAssetId] = useState('');
+  const [variantKind, setVariantKind] = useState<PipelineVariantKind | ''>('');
+  const [compatibilityTags, setCompatibilityTags] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -97,8 +108,11 @@ export function PipelineSubmissionPanel({
   };
 
   const changeAssetType = (nextAssetType: ContributorUploadAssetType) => {
+    const nextDestination = getDefaultPipelineStudioDestination(nextAssetType);
     setAssetType(nextAssetType);
-    setStudioDestination(getDefaultPipelineStudioDestination(nextAssetType));
+    setStudioDestination(nextDestination);
+    setSemanticRole(getDefaultPipelineSemanticRole(nextAssetType, nextDestination) ?? 'artwork');
+    setCompatibilityTags([]);
     setPersonalLibraryFilter(nextAssetType);
   };
 
@@ -111,8 +125,11 @@ export function PipelineSubmissionPanel({
   const choosePersonalLibraryItem = useCallback(async (item: PersonalLibraryItem) => {
     try {
       const file = await item.createFile();
+      const nextDestination = getDefaultPipelineStudioDestination(item.assetType);
       setAssetType(item.assetType);
-      setStudioDestination(getDefaultPipelineStudioDestination(item.assetType));
+      setStudioDestination(nextDestination);
+      setSemanticRole(getDefaultPipelineSemanticRole(item.assetType, nextDestination) ?? 'artwork');
+      setCompatibilityTags([]);
       setName((currentName) => currentName.trim() ? currentName : item.name);
       setDescription((currentDescription) => currentDescription.trim() ? currentDescription : item.helperText);
       setPreviewUrl((currentPreviewUrl) => currentPreviewUrl.trim() ? currentPreviewUrl : item.previewUrl ?? '');
@@ -149,6 +166,10 @@ export function PipelineSubmissionPanel({
       if (!name.trim()) throw new Error('Name the asset before submitting.');
       if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
       if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
+      if (!semanticRole) throw new Error('Choose what this asset actually is.');
+      if (Boolean(variantOfAssetId.trim()) !== Boolean(variantKind)) {
+        throw new Error('A variant needs both the stable parent asset id and a variant kind.');
+      }
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
 
       const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
@@ -186,6 +207,11 @@ export function PipelineSubmissionPanel({
           studioDestination: submissionStudioDestination,
           specialtyTags,
           useCaseTags,
+          semanticRole,
+          visualFamily,
+          variantOfAssetId,
+          variantKind: variantKind || null,
+          compatibilityTags,
           name,
           description,
           previewUrl,
@@ -206,6 +232,11 @@ export function PipelineSubmissionPanel({
       setPreviewUrl('');
       setSpecialtyTags([]);
       setUseCaseTags([]);
+      setSemanticRole(getDefaultPipelineSemanticRole(assetType, studioDestination) ?? 'artwork');
+      setVisualFamily('');
+      setVariantOfAssetId('');
+      setVariantKind('');
+      setCompatibilityTags([]);
       setSelectedFile(null);
       setFileInputKey((key) => key + 1);
       toast({ title: 'Asset submitted', description: 'Your classified asset is now in Forge Review.' });
@@ -305,8 +336,73 @@ export function PipelineSubmissionPanel({
               emptyLabel={hasRequiredPipelineClassification(assetType, specialtyTags, []) ? 'Optional for a General reusable resource.' : 'Choose at least one use case.'}
             />
           </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+              <span className="flex items-center justify-between gap-2">
+                Semantic role
+                <FieldHelp text="Describe what the object actually is. This remains distinct from its Studio shelf and visual treatment." />
+              </span>
+              <select
+                className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
+                value={semanticRole}
+                onChange={(event) => setSemanticRole(event.target.value as PipelineSemanticRole)}
+              >
+                {getPipelineSemanticRoleOptions(assetType).map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+              <span className="flex items-center justify-between gap-2">
+                Visual family / pack (optional)
+                <FieldHelp text="Use one stable family name for assets that belong to the same visual language. CardForge stores a normalized family key." />
+              </span>
+              <input
+                className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 text-[var(--cf-accent-text)]"
+                maxLength={80}
+                placeholder="e.g. Arcane Court"
+                value={visualFamily}
+                onChange={(event) => setVisualFamily(event.target.value)}
+              />
+            </label>
+          </div>
+          <ControlledTaxonomySelect
+            label="Compatibility"
+            selectedIds={compatibilityTags}
+            options={CARDFORGE_COMPATIBILITY_OPTIONS}
+            onChange={setCompatibilityTags}
+            emptyLabel="Optional. Add only traits this asset has actually been reviewed to support."
+          />
+          <div className="grid gap-3 lg:grid-cols-2">
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+              <span className="flex items-center justify-between gap-2">
+                Variant of stable asset id (optional)
+                <FieldHelp text="Use this only when this object is a format, treatment, orientation, color, or size variant of an existing shared asset." />
+              </span>
+              <input
+                className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] px-3 font-mono text-sm text-[var(--cf-accent-text)]"
+                maxLength={160}
+                placeholder="e.g. default-cardforge-studio-back"
+                value={variantOfAssetId}
+                onChange={(event) => setVariantOfAssetId(event.target.value)}
+              />
+            </label>
+            <label className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
+              <span>Variant kind</span>
+              <select
+                className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)]"
+                value={variantKind}
+                onChange={(event) => setVariantKind(event.target.value as PipelineVariantKind | '')}
+              >
+                <option value="">Not a variant</option>
+                {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-            Studio destination controls where the asset appears. Specialty and use-case classification comes from CardForge's shared taxonomy and is stored with the submission from the start.
+            Studio destination controls placement. Specialty/use case describe where it is useful. Semantic role describes what it is; family and variant metadata group related content without changing stable asset identity.
           </p>
           <label htmlFor="pipeline-asset-name" className="grid gap-2 text-sm text-[var(--cf-text-muted)]">
             <span className="flex items-center justify-between gap-2">
