@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run Development Intelligence analysis
-        uses: pyralisxc/Development-Intelligence@76615549ddd17be93b3690dc6ae3a20869285581 # checkpointless analysis
+        uses: pyralisxc/Development-Intelligence@a01c0e1f96115ff15e1cdbdc436a7bc21f87c075 # checkpointless analysis
         with:
           project: pyralisxc/CardForge
           mode: analyze
