@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
+  CARDFORGE_SEMANTIC_ROLE_OPTIONS,
   isPipelineCompatibilityTag,
   isPipelineVariantKind,
   normalizeCompatibilityTags,
-  normalizeSemanticRole,
   normalizeSpecialtyTags,
   normalizeUseCaseTags,
   normalizeVariantLabel,
@@ -66,7 +66,7 @@ export async function classifyPublishedPipelineAsset(value: unknown): Promise<vo
   const parsed = inputSchema.safeParse(value);
   if (!parsed.success) throw new PipelineRegistryCommandError('Provide the exact published identity and supported classification.', 400, 'pipeline_classification_invalid');
   const input = parsed.data;
-  if (input.semanticRole.trim().toLowerCase() !== input.semanticRole) {
+  if (!CARDFORGE_SEMANTIC_ROLE_OPTIONS.some((option) => option.id === input.semanticRole)) {
     throw new PipelineRegistryCommandError('Choose a supported semantic role.', 400, 'pipeline_classification_invalid');
   }
   const normalizedVisualFamily = normalizeVisualFamily(input.visualFamily);
