@@ -21,6 +21,8 @@ import {
   type PersonalLibraryItem,
 } from '@/features/pipeline/components/PipelineContributionModel';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
+import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
+import { buildPipelineSourceEvidence, type PipelineAiAssistance } from '@/features/pipeline/lib/contentQualityStandard';
 import { FieldHelp } from '@/features/pipeline/components/PipelineContributionUi';
 import { usePipelineSubmissionCandidates } from '@/features/pipeline/components/usePipelineSubmissionCandidates';
 import {
@@ -78,6 +80,9 @@ export function PipelineSubmissionPanel({
   const [compatibilityTags, setCompatibilityTags] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [rightsAndSources, setRightsAndSources] = useState('');
+  const [aiAssistance, setAiAssistance] = useState<PipelineAiAssistance>('none');
+  const [aiProcess, setAiProcess] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -165,6 +170,8 @@ export function PipelineSubmissionPanel({
       if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
       if (!hasRequiredPipelineClassification(assetType, specialtyTags, useCaseTags)) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
+      const sourceEvidence = buildPipelineSourceEvidence({ rightsAndSources, aiAssistance, aiProcess });
+      if (!sourceEvidence.ok) throw new Error(sourceEvidence.message);
 
       const planResponse = await observeProviderBoundaryResponse('pipeline', 'pipeline_upload_plan', () => fetch('/api/pipeline/upload-plan', {
         method: 'POST',
@@ -208,6 +215,7 @@ export function PipelineSubmissionPanel({
           compatibilityTags,
           name,
           description,
+          sourceNotes: sourceEvidence.value,
           previewUrl,
           uploadedFile: {
             storagePath: uploadPlan.storagePath,
@@ -223,6 +231,9 @@ export function PipelineSubmissionPanel({
       await onSubmitted();
       setName('');
       setDescription('');
+      setRightsAndSources('');
+      setAiAssistance('none');
+      setAiProcess('');
       setPreviewUrl('');
       setSpecialtyTags([]);
       setUseCaseTags([]);
@@ -379,6 +390,7 @@ export function PipelineSubmissionPanel({
               emptyLabel="Optional compositional traits such as Print, Full Bleed, or Tileable."
             />
           </div>
+          <ContentQualityGuidance role={semanticRole} />
           <div data-pipeline-taxonomy-grid className="grid gap-3">
             <ControlledTaxonomySelect
               label="Specialties"
@@ -518,6 +530,27 @@ export function PipelineSubmissionPanel({
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
+          <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-canvas)] p-3" aria-label="Source rights and AI disclosure">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cf-accent-text)]">Source, rights and creative process</p>
+              <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">Required for editorial approval. Private review evidence is not projected into the public catalog. Do not include sensitive prompts, user data or secrets.</p>
+            </div>
+            <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              Creator, sources, licenses and publication rights
+              <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" maxLength={540} value={rightsAndSources} placeholder="Who made it? Which sources and licenses permit CardForge publication?" onChange={(event) => setRightsAndSources(event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              AI assistance
+              <select className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" value={aiAssistance} onChange={(event) => setAiAssistance(event.target.value as PipelineAiAssistance)}>
+                <option value="none">No AI assistance used</option>
+                <option value="used">AI-assisted or generated</option>
+              </select>
+            </label>
+            {aiAssistance === 'used' ? <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
+              Non-sensitive AI process and human edits
+              <textarea className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" maxLength={400} placeholder="Tool/model and date if known; references, creation summary, edits and review." value={aiProcess} onChange={(event) => setAiProcess(event.target.value)} />
+            </label> : null}
+          </section>
           <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving || context.remainingSubmissions <= 0} onClick={submitAsset}>
             {isSaving ? 'Uploading...' : context.remainingSubmissions > 0 ? 'Send to Forge Review' : 'Monthly submission limit reached'}
           </Button>

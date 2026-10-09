@@ -1,3 +1,4 @@
+import { stampContentQualityReviewNote } from '@/features/pipeline/lib/contentQualityStandard';
 import {
   DEFAULT_PIPELINE_PROGRAM_SETTINGS,
   isContributorAssetAccessTierOverride,
@@ -290,6 +291,7 @@ export const createPipelineSubmission = async ({
     compatibilityTags?: unknown;
     name?: unknown;
     description?: unknown;
+    sourceNotes?: unknown;
     previewUrl?: unknown;
     sourceUrl?: unknown;
     sourceFileSizeBytes?: unknown;
@@ -338,6 +340,7 @@ export const createPipelineSubmission = async ({
       compatibility_tags: normalized.value.compatibilityTags,
       name: normalized.value.name,
       description: normalized.value.description,
+      source_notes: normalized.value.sourceNotes,
       preview_url: normalized.value.previewUrl,
       source_url: normalized.value.sourceUrl,
       source_file_size_bytes: normalized.value.sourceFileSizeBytes,
@@ -637,10 +640,14 @@ export const updatePipelineEditorialReview = async ({
   if (normalizedStatus !== 'pending' && !normalizedNote) {
     throw new PipelineStoreError('Add an editorial review reason before recording this decision.', 400);
   }
+  const decision = normalizedStatus === 'pending'
+    ? { ok: true as const, value: '' }
+    : stampContentQualityReviewNote(normalizedNote);
+  if (!decision.ok) throw new PipelineStoreError(decision.message, 400);
   await runRegistryCommand(() => setPipelineEditorialReview({
     submissionId,
     reviewStatus: normalizedStatus,
-    reviewNote: normalizedNote,
+    reviewNote: decision.value,
     reviewerContributorId: currentUserId,
   }));
   return getPipelineProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });

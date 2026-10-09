@@ -140,10 +140,10 @@ describe('contributor asset upload submission', () => {
     storage.download.mockResolvedValue({ data: bytes, error: null });
     const upload = { storagePath: 'contributor-1/sets/test.cardforge', fileName: 'test.cardforge', fileSizeBytes: bytes.size, mimeType: 'application/vnd.cardforge.project+zip' };
     const result = createUploadedPipelineSubmission({ contributorId: 'contributor-1', contributorEmail: 'contributor@example.com',
-      maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, name: 'Test Set', description: '', previewUrl: '', uploadedFile: upload });
+      maxFileSizeMb: 25, assetType: 'sets', studioDestination: null, ...taxonomy, name: 'Test Set', description: '', sourceNotes: 'Rights and sources: Original authored cards | AI assistance: None', previewUrl: '', uploadedFile: upload });
     if (hasCards) {
       await expect(result).resolves.toBeUndefined();
-      expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ assetType: 'sets', sourceMimeType: upload.mimeType }) }));
+      expect(mockedCreatePipelineSubmission).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ assetType: 'sets', sourceMimeType: upload.mimeType, sourceNotes: 'Rights and sources: Original authored cards | AI assistance: None' }) }));
       expect(storage.remove).not.toHaveBeenCalled();
     } else {
       await expect(result).rejects.toThrow('at least one card');

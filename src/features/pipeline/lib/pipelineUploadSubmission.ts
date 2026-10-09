@@ -446,6 +446,7 @@ export interface CreateUploadedPipelineSubmissionInput {
   compatibilityTags?: unknown;
   name: unknown;
   description: unknown;
+  sourceNotes?: unknown;
   previewUrl: unknown;
   uploadedFile: PipelineUploadedFile;
 }
@@ -465,6 +466,7 @@ export const createUploadedPipelineSubmission = async ({
   compatibilityTags,
   name,
   description,
+  sourceNotes,
   previewUrl,
   uploadedFile,
 }: CreateUploadedPipelineSubmissionInput): Promise<void> => {
@@ -515,6 +517,7 @@ export const createUploadedPipelineSubmission = async ({
         compatibilityTags,
         name,
         description,
+        sourceNotes,
         previewUrl: typeof previewUrl === 'string' && previewUrl.trim() ? previewUrl.trim() : data.publicUrl,
         sourceUrl: data.publicUrl,
         sourceFileSizeBytes: descriptor.fileSizeBytes,

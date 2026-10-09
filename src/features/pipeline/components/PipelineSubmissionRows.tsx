@@ -6,6 +6,7 @@ import { Archive, Check, Eye, Save, Sparkles, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ControlledTaxonomySelect } from '@/features/pipeline/components/ControlledTaxonomySelect';
+import { ContentQualityGuidance } from '@/features/pipeline/components/ContentQualityGuidance';
 import {
   appearanceToStyle,
   CardPreview,
@@ -169,6 +170,7 @@ export function EditSubmissionForm({
           emptyLabel="Optional compositional traits."
         />
       </div>
+      <ContentQualityGuidance role={semanticRole} />
       <div className="grid gap-3 md:grid-cols-2">
         <ControlledTaxonomySelect
           label="Specialties"
@@ -199,13 +201,13 @@ export function EditSubmissionForm({
         Source and rights notes
         <textarea
           className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
-          placeholder="State who created the artwork, where assets came from, and what publication rights CardForge has."
+          placeholder="State sources, licensing, AI assistance (used/none) and the non-sensitive AI process if used."
           value={sourceNotes}
           onChange={(event) => onSourceNotesChange(event.target.value)}
         />
       </label>
       <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-        Studio placement controls where the asset appears. Specialty and use-case tags come from CardForge's shared taxonomy so contributors do not invent competing labels.
+        Studio placement controls where creators find it. Keep the rights and AI disclosures attached to this exact revision; Owner quality review depends on this evidence.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={onSave}>

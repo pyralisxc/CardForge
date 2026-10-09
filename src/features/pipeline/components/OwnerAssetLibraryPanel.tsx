@@ -5,6 +5,8 @@ import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, 
 
 import { Button } from '@/components/ui/button';
 import { AssetRow } from './PipelineSubmissionRows';
+import { ContentQualityGuidance } from './ContentQualityGuidance';
+import { CONTENT_QUALITY_STANDARD_VERSION, parseContentQualityReviewNote } from '../lib/contentQualityStandard';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
 import { getTemplatePreviewId } from './PipelineContributionModel';
 import {
@@ -88,6 +90,7 @@ export function OwnerAssetLibraryPanel({
   const [ownerNote, setOwnerNote] = useState('');
   const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
   const [editorialReviewNote, setEditorialReviewNote] = useState('');
+  const [qualityCriteriaReviewed, setQualityCriteriaReviewed] = useState(false);
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
   const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -108,7 +111,8 @@ export function OwnerAssetLibraryPanel({
     setTierOverride(submission.ownerAccessTierOverride ?? 'automatic');
     setOwnerNote(submission.ownerNote ?? '');
     setEditorialReviewStatus(submission.editorialReviewStatus ?? 'pending');
-    setEditorialReviewNote(submission.editorialReviewNote ?? '');
+    setEditorialReviewNote(parseContentQualityReviewNote(submission.editorialReviewNote).reason);
+    setQualityCriteriaReviewed(false);
   };
 
   const saveOverride = async (submissionId: string) => {
@@ -130,6 +134,10 @@ export function OwnerAssetLibraryPanel({
   };
 
   const saveEditorialReview = async (submissionId: string) => {
+    if (editorialReviewStatus === 'approved' && !qualityCriteriaReviewed) {
+      window.alert('Inspect the exact artwork and confirm the content quality criteria before approving.');
+      return;
+    }
     if (editorialReviewStatus !== 'pending' && !editorialReviewNote.trim()) {
       window.alert('Add a concise editorial reason before recording this decision.');
       return;
@@ -282,6 +290,11 @@ export function OwnerAssetLibraryPanel({
                       This is an exact-revision quality decision. Technical validity and community voting remain separate signals.
                     </p>
                   </div>
+                  <ContentQualityGuidance role={submission.semanticRole} />
+                  <label className="flex items-start gap-2 text-xs leading-5 text-[var(--cf-text-muted)]">
+                    <input type="checkbox" className="mt-1" checked={qualityCriteriaReviewed} onChange={(event) => setQualityCriteriaReviewed(event.target.checked)} />
+                    I reviewed this exact revision against {CONTENT_QUALITY_STANDARD_VERSION}, including real-size visual proof, sources/rights and AI-use evidence.
+                  </label>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
                       Review outcome
@@ -300,6 +313,7 @@ export function OwnerAssetLibraryPanel({
                     <div className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-xs leading-5 text-[var(--cf-text-muted)]">
                       <p><span className="font-semibold text-[var(--cf-accent-text)]">Current:</span> {submission.editorialReviewStatus ?? 'pending'}</p>
                       <p>{submission.editorialReviewedAt ? `Reviewed ${new Date(submission.editorialReviewedAt).toLocaleString()}` : 'No recorded exact-revision editorial review yet.'}</p>
+                      <p>Guidance: {parseContentQualityReviewNote(submission.editorialReviewNote).version ?? 'Legacy / not recorded'}</p>
                     </div>
                   </div>
                   <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
@@ -307,7 +321,7 @@ export function OwnerAssetLibraryPanel({
                     <textarea
                       className="min-h-24 border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
                       value={editorialReviewNote}
-                      maxLength={600}
+                      maxLength={600 - CONTENT_QUALITY_STANDARD_VERSION.length - 3}
                       onChange={(event) => setEditorialReviewNote(event.target.value)}
                     />
                   </label>
