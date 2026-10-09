@@ -9,6 +9,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   getDefaultPipelineSemanticRole,
   normalizeContentTaxonomyTags,
+  normalizePipelineCompatibilityTags,
 } from '../lib/contentTaxonomy';
 import {
   getPipelineStudioDestinationOptions,
@@ -66,7 +67,7 @@ export function PipelineSubmissionEditPanel({
           visualFamily,
           variantOfAssetId,
           variantKind,
-          compatibilityTags: normalizeContentTaxonomyTags(compatibilityTags),
+          compatibilityTags: normalizePipelineCompatibilityTags(compatibilityTags),
           requestedStudioDestination,
         }),
       });
