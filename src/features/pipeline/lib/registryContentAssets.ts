@@ -23,6 +23,11 @@ export interface RegistryContentAssetRow {
   description?: string;
   specialty_tags?: string[];
   use_case_tags?: string[];
+  semantic_role?: string;
+  visual_family?: string | null;
+  variant_kind?: string;
+  variant_label?: string | null;
+  compatibility_tags?: string[];
   name: string;
   url: string;
   preview_url?: string | null;
@@ -121,7 +126,7 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   const [submissionResult, lineageResult] = await resolveWithTimeout(
     Promise.all([
       submissionIds.length
-        ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags').in('id', submissionIds)
+        ? supabase.from('cardforge_contributor_asset_submissions').select('id,lineage_id,source_payload,description,specialty_tags,use_case_tags,semantic_role,visual_family,variant_kind,variant_label,compatibility_tags').in('id', submissionIds)
         : Promise.resolve({ data: [], error: null }),
       registryAssetIds.length
         ? supabase.from('cardforge_pipeline_asset_lineages').select('id,registry_asset_id').in('registry_asset_id', registryAssetIds)
@@ -151,13 +156,32 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
   );
   if (submissionResult.error || lineageResult.error) throw new Error('Published CardForge content revisions are temporarily unavailable.');
   const payloadsById = new Map((submissionResult.data ?? []).flatMap((entry) => {
-    const row = entry as { id?: unknown; lineage_id?: unknown; source_payload?: unknown; description?: unknown; specialty_tags?: unknown; use_case_tags?: unknown };
+    const row = entry as {
+      id?: unknown;
+      lineage_id?: unknown;
+      source_payload?: unknown;
+      description?: unknown;
+      specialty_tags?: unknown;
+      use_case_tags?: unknown;
+      semantic_role?: unknown;
+      visual_family?: unknown;
+      variant_kind?: unknown;
+      variant_label?: unknown;
+      compatibility_tags?: unknown;
+    };
     return typeof row.id === 'string' ? [[row.id, {
       lineageId: typeof row.lineage_id === 'string' ? row.lineage_id : null,
       payload: row.source_payload,
       description: typeof row.description === 'string' ? row.description.trim() : '',
       specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
       useCaseTags: normalizeUseCaseTags(row.use_case_tags),
+      semanticRole: typeof row.semantic_role === 'string' ? row.semantic_role : undefined,
+      visualFamily: typeof row.visual_family === 'string' ? row.visual_family : null,
+      variantKind: typeof row.variant_kind === 'string' ? row.variant_kind : 'base',
+      variantLabel: typeof row.variant_label === 'string' ? row.variant_label : null,
+      compatibilityTags: Array.isArray(row.compatibility_tags)
+        ? row.compatibility_tags.filter((tag): tag is string => typeof tag === 'string')
+        : [],
     }] as const] : [];
   }));
   const lineageByAssetId = new Map((lineageResult.data ?? []).flatMap((entry) => {
@@ -171,6 +195,11 @@ const attachSubmissionPayloads = async <Row extends RegistryContentAssetRow>(
     description: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.description ?? '' : '',
     specialty_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.specialtyTags ?? [] : [],
     use_case_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.useCaseTags ?? [] : [],
+    semantic_role: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.semanticRole : undefined,
+    visual_family: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.visualFamily ?? null : null,
+    variant_kind: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.variantKind ?? 'base' : 'base',
+    variant_label: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.variantLabel ?? null : null,
+    compatibility_tags: row.contributor_submission_id ? payloadsById.get(row.contributor_submission_id)?.compatibilityTags ?? [] : [],
     lineage_id: row.contributor_submission_id
       ? payloadsById.get(row.contributor_submission_id)?.lineageId ?? lineageByAssetId.get(row.asset_id) ?? null
       : lineageByAssetId.get(row.asset_id) ?? null,
