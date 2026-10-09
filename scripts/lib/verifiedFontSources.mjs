@@ -54,7 +54,10 @@ const assertSourceSpec = (manifest) => {
 export const reviewedFontSourceUrl = (manifest, candidate) => {
   assertSourceSpec(manifest);
   if (!manifest.items.some(item => item.assetId === candidate.assetId
-    && item.gitBlobSha === candidate.gitBlobSha)) {
+    && item.gitBlobSha === candidate.gitBlobSha
+    && item.sourceDirectory === candidate.sourceDirectory
+    && item.sourceFile === candidate.sourceFile
+    && item.licenseGitBlobSha === candidate.licenseGitBlobSha)) {
     throw new Error('The requested source is not in the reviewed font candidate manifest.');
   }
   // The host/repository/path are not user-supplied; only pinned source names are
@@ -144,5 +147,5 @@ export const verifyReviewedFontSources = async ({
     const validated = validateReviewedFontCandidate(candidate, bytes, notice);
     return { candidate, ...validated, sourceUrl: url, licensePath };
   }));
-  return { items: verified, manifestDigest: curatedFontManifestDigest(manifestBytes) };
+  return { items: verified, sourceRevision: manifest.upstreamRevision, manifestDigest: curatedFontManifestDigest(manifestBytes) };
 };

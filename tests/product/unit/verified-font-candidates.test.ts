@@ -59,7 +59,7 @@ describe('original font candidate verification before Pipeline publication', () 
       'https://raw.githubusercontent.com/google/fonts/'
       + manifest.upstreamRevision + '/ofl/lato/Lato-Regular.ttf',
     );
-    expect(() => reviewedFontSourceUrl(manifest, { ...spec, sourceDirectory: 'evil' })).not.toThrow();
+    expect(() => reviewedFontSourceUrl(manifest, { ...spec, sourceDirectory: 'evil' })).toThrow(/not in/i);
     expect(() => reviewedFontSourceUrl(manifest, { ...spec, assetId: 'unknown-source' })).toThrow(/not in/i);
   });
 
