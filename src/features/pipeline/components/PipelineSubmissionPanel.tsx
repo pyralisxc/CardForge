@@ -81,7 +81,7 @@ export function PipelineSubmissionPanel({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [rightsAndSources, setRightsAndSources] = useState('');
-  const [aiAssistance, setAiAssistance] = useState<PipelineAiAssistance>('none');
+  const [aiAssistance, setAiAssistance] = useState<PipelineAiAssistance | ''>('');
   const [aiProcess, setAiProcess] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -232,7 +232,7 @@ export function PipelineSubmissionPanel({
       setName('');
       setDescription('');
       setRightsAndSources('');
-      setAiAssistance('none');
+      setAiAssistance('');
       setAiProcess('');
       setPreviewUrl('');
       setSpecialtyTags([]);
@@ -541,7 +541,8 @@ export function PipelineSubmissionPanel({
             </label>
             <label className="grid gap-1 text-sm text-[var(--cf-text-muted)]">
               AI assistance
-              <select className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" value={aiAssistance} onChange={(event) => setAiAssistance(event.target.value as PipelineAiAssistance)}>
+              <select className="min-h-11 border border-[var(--cf-border)] bg-[var(--cf-surface-inset)] p-3 text-[var(--cf-accent-text)]" value={aiAssistance} onChange={(event) => setAiAssistance(event.target.value as PipelineAiAssistance | '')}>
+                <option value="">Choose AI-use disclosure</option>
                 <option value="none">No AI assistance used</option>
                 <option value="used">AI-assisted or generated</option>
               </select>

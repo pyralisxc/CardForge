@@ -153,9 +153,12 @@ export type ContentEvidenceResult = { ok: true; value: string } | { ok: false; m
 
 export const buildPipelineSourceEvidence = ({
   rightsAndSources, aiAssistance, aiProcess,
-}: { rightsAndSources: string; aiAssistance: PipelineAiAssistance; aiProcess: string }): ContentEvidenceResult => {
+}: { rightsAndSources: string; aiAssistance: PipelineAiAssistance | ''; aiProcess: string }): ContentEvidenceResult => {
   const rights = rightsAndSources.trim().replace(/\s+/g, ' ');
   const process = aiProcess.trim().replace(/\s+/g, ' ');
+  if (aiAssistance !== 'none' && aiAssistance !== 'used') {
+    return { ok: false, message: 'Explicitly state whether AI assistance was used.' };
+  }
   if (!rights) return { ok: false, message: 'Describe the creator, source, license and publication rights before submitting.' };
   if (aiAssistance === 'used' && !process) {
     return { ok: false, message: 'Describe the non-sensitive AI tools, process, references and human edits.' };

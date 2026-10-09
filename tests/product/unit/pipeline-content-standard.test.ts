@@ -33,6 +33,7 @@ describe('CardForge first-party content standard', () => {
   });
 
   it('records explicit AI-use/rights evidence without losing long notes', () => {
+    expect(buildPipelineSourceEvidence({ rightsAndSources: 'Original owned art', aiAssistance: '', aiProcess: '' }).ok).toBe(false);
     expect(buildPipelineSourceEvidence({ rightsAndSources: '', aiAssistance: 'none', aiProcess: '' }).ok).toBe(false);
     expect(buildPipelineSourceEvidence({ rightsAndSources: 'Original owned artwork', aiAssistance: 'used', aiProcess: '' }).ok).toBe(false);
     const evidence = buildPipelineSourceEvidence({
