@@ -32,9 +32,12 @@ import {
   getPipelineTypeLabel,
 } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import {
+  CARDFORGE_COMPATIBILITY_OPTIONS,
   CARDFORGE_SPECIALTY_OPTIONS,
   CARDFORGE_USE_CASE_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
   formatContentTaxonomyTag,
+  getPipelineSemanticRoleOptions,
   hasRequiredPipelineClassification,
 } from '@/features/pipeline/lib/contentTaxonomy';
 import type { PipelineProgramView } from '@/features/pipeline/lib/pipelineProgram';
@@ -61,6 +64,11 @@ export function EditSubmissionForm({
   sourceNotes,
   specialtyTags,
   useCaseTags,
+  semanticRole,
+  visualFamily,
+  variantOfAssetId,
+  variantKind,
+  compatibilityTags,
   requestedStudioDestination,
   destinationOptions,
   isDraft,
@@ -71,6 +79,11 @@ export function EditSubmissionForm({
   onSourceNotesChange,
   onSpecialtyTagsChange,
   onUseCaseTagsChange,
+  onSemanticRoleChange,
+  onVisualFamilyChange,
+  onVariantOfAssetIdChange,
+  onVariantKindChange,
+  onCompatibilityTagsChange,
   onRequestedStudioDestinationChange,
   onCancel,
   onSave,
@@ -83,6 +96,11 @@ export function EditSubmissionForm({
   sourceNotes: string;
   specialtyTags: string;
   useCaseTags: string;
+  semanticRole: string;
+  visualFamily: string;
+  variantOfAssetId: string;
+  variantKind: string;
+  compatibilityTags: string;
   requestedStudioDestination: string;
   destinationOptions: Array<{ value: string; label: string }>;
   isDraft: boolean;
@@ -93,6 +111,11 @@ export function EditSubmissionForm({
   onSourceNotesChange: (value: string) => void;
   onSpecialtyTagsChange: (value: string) => void;
   onUseCaseTagsChange: (value: string) => void;
+  onSemanticRoleChange: (value: string) => void;
+  onVisualFamilyChange: (value: string) => void;
+  onVariantOfAssetIdChange: (value: string) => void;
+  onVariantKindChange: (value: string) => void;
+  onCompatibilityTagsChange: (value: string) => void;
   onRequestedStudioDestinationChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -127,6 +150,63 @@ export function EditSubmissionForm({
           emptyLabel={hasRequiredPipelineClassification(assetType, parseTaxonomySelection(specialtyTags), []) ? 'Optional for a General reusable resource.' : 'Choose at least one use case.'}
         />
       </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+          Semantic role
+          <select
+            className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+            value={semanticRole}
+            onChange={(event) => onSemanticRoleChange(event.target.value)}
+          >
+            <option value="">Choose role</option>
+            {getPipelineSemanticRoleOptions(assetType).map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+          Visual family / pack
+          <input
+            className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+            value={visualFamily}
+            maxLength={80}
+            placeholder="Optional family name"
+            onChange={(event) => onVisualFamilyChange(event.target.value)}
+          />
+        </label>
+      </div>
+      <ControlledTaxonomySelect
+        label="Compatibility"
+        selectedIds={parseTaxonomySelection(compatibilityTags)}
+        options={CARDFORGE_COMPATIBILITY_OPTIONS}
+        onChange={(value) => onCompatibilityTagsChange(value.join(','))}
+        emptyLabel="Optional reviewed compatibility traits."
+      />
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+          Variant of asset id
+          <input
+            className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 font-mono text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+            value={variantOfAssetId}
+            maxLength={160}
+            placeholder="Optional stable shared asset id"
+            onChange={(event) => onVariantOfAssetIdChange(event.target.value)}
+          />
+        </label>
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+          Variant kind
+          <select
+            className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+            value={variantKind}
+            onChange={(event) => onVariantKindChange(event.target.value)}
+          >
+            <option value="">Not a variant</option>
+            {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
         Studio placement
         <select
@@ -148,7 +228,7 @@ export function EditSubmissionForm({
         />
       </label>
       <p className="text-xs leading-5 text-[var(--cf-text-subtle)]">
-        Studio placement controls where the asset appears. Specialty and use-case tags come from CardForge's shared taxonomy so contributors do not invent competing labels.
+        Studio placement controls where the asset appears. Semantic role says what the object is; family, variant, and compatibility metadata group related content without changing its identity.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:bg-[var(--cf-accent)]" disabled={isSaving} onClick={onSave}>
@@ -274,6 +354,10 @@ export function AssetRow({
               <div><dt className="uppercase tracking-[0.12em]">Studio placement</dt><dd className="text-[var(--cf-text-muted)]">{submission.requestedStudioDestination ? getPipelineStudioDestinationLabel(submission.requestedStudioDestination) : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Specialties</dt><dd className="text-[var(--cf-text-muted)]">{submission.specialtyTags.length ? submission.specialtyTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[var(--cf-text-muted)]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, []) ? 'General reusable resource' : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Semantic role</dt><dd className="text-[var(--cf-text-muted)]">{submission.semanticRole ? formatContentTaxonomyTag(submission.semanticRole) : 'Needs curation'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Visual family</dt><dd className="text-[var(--cf-text-muted)]">{submission.visualFamily ? formatContentTaxonomyTag(submission.visualFamily) : 'Independent / not grouped'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Variant</dt><dd className="text-[var(--cf-text-muted)]">{submission.variantOfAssetId && submission.variantKind ? `${formatContentTaxonomyTag(submission.variantKind)} of ${submission.variantOfAssetId}` : 'Base / not linked as variant'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Compatibility</dt><dd className="text-[var(--cf-text-muted)]">{submission.compatibilityTags.length ? submission.compatibilityTags.map(formatContentTaxonomyTag).join(', ') : 'No reviewed compatibility traits'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Source and rights</dt><dd className="text-[var(--cf-text-muted)]">{submission.sourceNotes || 'Not confirmed'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">{submission.status === 'draft' ? 'Draft created' : 'Submitted'}</dt><dd className="text-[var(--cf-text-muted)]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[var(--cf-text-muted)]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>
