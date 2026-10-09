@@ -24,7 +24,7 @@ alter table public.cardforge_contributor_asset_submissions
       or semantic_role in (
         'template-front','template-back','set','artwork','surface-texture','material',
         'foundation','border','text-frame','title-plate','divider','icon','resource-pip',
-        'mechanic-symbol','ornament','badge','stat-component','shape','font'
+        'mechanic-symbol','ornament','badge','stat-component','shape','style-recipe','font'
       )
     ),
   add constraint cardforge_contributor_asset_visual_family_check
@@ -81,7 +81,7 @@ as $$
     when 'dividers' then p_semantic_role in ('divider','title-plate','text-frame','border')
     when 'icons' then p_semantic_role in ('icon','resource-pip','mechanic-symbol','ornament','badge','stat-component')
     when 'imageAssets' then p_semantic_role in ('artwork','foundation','border','text-frame','ornament','badge')
-    when 'elementPresets' then p_semantic_role in ('material','foundation','border','text-frame','shape')
+    when 'elementPresets' then p_semantic_role in ('material','foundation','border','text-frame','shape','style-recipe')
     when 'fonts' then p_semantic_role = 'font'
     else false
   end;
