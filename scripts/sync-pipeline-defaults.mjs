@@ -777,6 +777,10 @@ const main = async () => {
         + '; source and OFL exactly verified');
     }
     console.log('All reviewed Font sources verified. Candidate batch SHA-256: ' + verified.manifestDigest);
+    if (process.argv.includes('--specimens')) {
+      const { renderReviewedFontSpecimens } = await import('./lib/renderReviewedFontSpecimens.mjs');
+      await renderReviewedFontSpecimens({ items: verified.items, outputDirectory: path.join(projectRoot, 'artifacts', 'font-review') });
+    }
     return;
   }
   if (publishFonts) {
