@@ -29,11 +29,18 @@ describe('unified Library view', () => {
     expect(getPipelineRevisionLabel({ id: 'known', revisionNumber: 3 })).toBe('Revision 3');
   });
 
-  it.each(['business card', 'business-card', 'networking'])('keeps published usage guidance and classification visible and searchable: %s', (query) => {
+  it.each([
+    'business card', 'business-card', 'networking', 'front template', 'foundry sigils', 'print', 'format', 'poker',
+  ])('keeps authored descriptions and published semantic metadata separate and searchable: %s', (query) => {
     const publishedItems = projectPublishedLibraryObjects({
       access: 'free', templates: { defaults: [] }, fonts: { fonts: [] }, sets: { items: [] },
       assets: { templates: [{ id: 'name-card', kind: 'template', name: 'Name Card Theme', url: '/api/templates#name-card', accessTier: 'free' }], imageAssets: [], textures: [], dividers: [], icons: [], elementPresets: [] },
-      pipeline: { items: [{ id: 'name-card', lineageId: 'original', description: 'A contact card for networking.', specialtyTags: ['business'], useCaseTags: ['business-card'] }] },
+      pipeline: { items: [{
+        id: 'name-card', lineageId: 'original', description: 'A contact card for networking.',
+        specialtyTags: ['business'], useCaseTags: ['business-card'],
+        semanticRole: 'template-front', visualFamily: 'Foundry Sigils',
+        variantKind: 'format', variantLabel: 'Poker', compatibilityTags: ['front', 'print'],
+      }] },
     } as never);
     const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
     function Harness() {
@@ -50,6 +57,37 @@ describe('unified Library view', () => {
     expect(detail.summary).toBe('A contact card for networking.');
     expect(detail.meta).toContainEqual(['Specialties', 'Business']);
     expect(detail.meta).toContainEqual(['Use cases', 'Business Card']);
+    expect(detail.meta).toContainEqual(['Semantic role', 'Front Template']);
+    expect(detail.meta).toContainEqual(['Visual family', 'Foundry Sigils']);
+    expect(detail.meta).toContainEqual(['Variant', 'Format · Poker']);
+    expect(detail.meta).toContainEqual(['Compatibility', 'Front · Print']);
+    expect(capture.current?.sharedTypes).toEqual(expect.arrayContaining([
+      'Role: Front Template', 'Family: Foundry Sigils', 'Variant: Format', 'Compatible: Print',
+    ]));
+  });
+
+  it('filters published items by a semantic facet without changing their descriptions', () => {
+    const publishedItems = projectPublishedLibraryObjects({
+      access: 'free', templates: { defaults: [] }, fonts: { fonts: [] }, sets: { items: [] },
+      assets: { templates: [{ id: 'card-front', kind: 'template', name: 'Card Front', url: '/api/templates#card-front', accessTier: 'free' },
+        { id: 'card-back', kind: 'template', name: 'Card Back', url: '/api/templates#card-back', accessTier: 'free' }], imageAssets: [], textures: [], dividers: [], icons: [], elementPresets: [] },
+      pipeline: { items: [
+        { id: 'card-front', semanticRole: 'template-front', lineageId: null, description: 'A card front.' },
+        { id: 'card-back', semanticRole: 'template-back', lineageId: null, description: 'A card back.' },
+      ] },
+    } as never);
+    const capture: { current?: ReturnType<typeof useUnifiedLibraryView> } = {};
+    function Harness() {
+      capture.current = useUnifiedLibraryView({
+        activeScope: 'pipeline', pipelineAccess: false,
+        projection: { items: [], visibleItems: [], query: '', sort: 'name', failures: [], isLoading: false } as never,
+        shared: { publishedItems, pipelineItems: [] } as never, sharedType: 'Role: Front Template',
+      });
+      return null;
+    }
+    renderToStaticMarkup(createElement(Harness));
+    expect(capture.current?.viewItems.map((item) => item.name)).toEqual(['Card Front']);
+    expect(createLibraryDetailRecord(capture.current!.viewItems[0]).summary).toBe('A card front.');
   });
 
   it.each([false, true])('preserves Personal items and search state when a source has failed: %s', (sourceFailed) => {

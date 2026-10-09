@@ -1,13 +1,31 @@
 "use client";
 
 import { useMemo } from 'react';
-import { formatContentTaxonomyTag } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getSemanticRoleLabel } from '@/features/pipeline/client';
 
 import { getLibraryScopeStatus, type LibraryScope } from '../model/libraryScopes';
 import { accountLibraryKindLabels } from '../components/AccountLibraryItemRow';
 import { getPersonalLibraryStatus, type LibraryViewItem } from '../components/LibraryObjectPresentation';
 import { useAccountLibraryProjection } from './useAccountLibraryProjection';
 import { useLibrarySharedProjection } from './useLibrarySharedProjection';
+
+/** Search/filter metadata without rewriting the creator-authored description. */
+const semanticFacetLabels = (item: LibraryViewItem): string[] => {
+  const metadata = item.scope === 'published'
+    ? item.published
+    : item.scope === 'pipeline'
+      ? item.pipeline.submission
+      : null;
+  if (!metadata) return [];
+  return [
+    ...(metadata.semanticRole ? [`Role: ${getSemanticRoleLabel(metadata.semanticRole)}`] : []),
+    ...(metadata.visualFamily ? [`Family: ${metadata.visualFamily}`] : []),
+    ...(metadata.variantKind && metadata.variantKind !== 'base'
+      ? [`Variant: ${formatContentTaxonomyTag(metadata.variantKind)}`]
+      : []),
+    ...((metadata.compatibilityTags ?? []).map((tag) => `Compatible: ${formatContentTaxonomyTag(tag)}`)),
+  ];
+};
 
 export function useUnifiedLibraryView({
   activeScope,
@@ -75,19 +93,38 @@ export function useUnifiedLibraryView({
   [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems]);
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
-    if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
-    const tags = item.scope === 'published' ? [...item.published.specialtyTags, ...item.published.useCaseTags]
-      : item.scope === 'pipeline' ? [...item.pipeline.submission.specialtyTags, ...item.pipeline.submission.useCaseTags] : [];
-    return !normalizedQuery || [item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary, ...tags, ...tags.map(formatContentTaxonomyTag)].join(' ').toLocaleLowerCase().includes(normalizedQuery);
+    if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType && !semanticFacetLabels(item).includes(sharedType)) return false;
+    const tags = item.scope === 'published'
+      ? [
+          ...item.published.specialtyTags, ...item.published.useCaseTags,
+          item.published.semanticRole, item.published.visualFamily,
+          item.published.variantKind, item.published.variantLabel,
+          ...(item.published.compatibilityTags ?? []),
+        ]
+      : item.scope === 'pipeline'
+        ? [
+            ...item.pipeline.submission.specialtyTags, ...item.pipeline.submission.useCaseTags,
+            item.pipeline.submission.semanticRole, item.pipeline.submission.visualFamily,
+            item.pipeline.submission.variantKind, item.pipeline.submission.variantLabel,
+            ...item.pipeline.submission.compatibilityTags,
+          ]
+        : [];
+    const searchTags = tags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0);
+    return !normalizedQuery || [
+      item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary,
+      ...searchTags, ...searchTags.map(formatContentTaxonomyTag), ...semanticFacetLabels(item),
+    ].join(' ').toLocaleLowerCase().includes(normalizedQuery);
   }).toSorted((left, right) => projection.sort === 'name'
     ? left.name.localeCompare(right.name)
     : projection.sort === 'kind'
       ? left.kindLabel.localeCompare(right.kindLabel) || left.name.localeCompare(right.name)
       : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name)),
   [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType]);
-  const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => activeScope === 'pipeline'
-    ? [item.kindLabel, item.statusLabel]
-    : [item.kindLabel]))].toSorted(), [activeScope, scopeItems]);
+  const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => [
+    item.kindLabel,
+    ...(activeScope === 'pipeline' ? [item.statusLabel] : []),
+    ...semanticFacetLabels(item),
+  ]))].toSorted(), [activeScope, scopeItems]);
   const itemMap = useMemo(() => new Map([...personalItems, ...publishedItems, ...pipelineItems].map((item) => [item.id, item])), [personalItems, pipelineItems, publishedItems]);
   const activeFailure = activeScope === 'campaigns'
     ? null
