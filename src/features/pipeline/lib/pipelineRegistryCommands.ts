@@ -8,6 +8,10 @@ import type {
 } from '@/features/pipeline/lib/pipelineItems';
 import type { StudioAssetDestination, StudioAssetRoutingMode, TCGCardTemplate } from '@/domain/templates';
 import type { PipelineEditorialReviewStatus } from './pipelineProgram';
+import type {
+  PipelineCreationDisclosure,
+  PipelineCreationOrigin,
+} from './contentStandard';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 import { getUniqueActiveContributorProfileReferenceByEmail } from '@/features/contributor-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
@@ -29,6 +33,11 @@ export interface SetPipelineEditorialReviewInput {
   reviewStatus: PipelineEditorialReviewStatus;
   reviewNote: string;
   reviewerContributorId: string;
+  standardVersion: string;
+  sourceNotes: string;
+  creationOrigin: PipelineCreationOrigin;
+  intendedUseEvidence: string;
+  creationDisclosure: PipelineCreationDisclosure;
 }
 
 export interface UpsertPipelineRegistryAssetInput {
@@ -206,6 +215,27 @@ const throwEditorialReviewError = (errorMessage?: string): never => {
   }
   if (errorMessage?.includes('editorial_review_classification_required')) {
     throw new PipelineRegistryCommandError('Complete the revision classification before approving it.', 400);
+  }
+  if (errorMessage?.includes('editorial_standard_version_required')) {
+    throw new PipelineRegistryCommandError('Refresh this review form and apply the current CardForge content standard.', 409);
+  }
+  if (errorMessage?.includes('editorial_creation_origin_required') || errorMessage?.includes('editorial_creation_origin_invalid')) {
+    throw new PipelineRegistryCommandError('Record how this exact revision was created before approving it.', 400);
+  }
+  if (errorMessage?.includes('editorial_intended_use_required')) {
+    throw new PipelineRegistryCommandError('Record intended-use and intended-size evidence before approving this revision.', 400);
+  }
+  if (errorMessage?.includes('editorial_creation_process_required')) {
+    throw new PipelineRegistryCommandError('Add a bounded AI/generation process summary before approving this revision.', 400);
+  }
+  if (errorMessage?.includes('editorial_human_edit_summary_required')) {
+    throw new PipelineRegistryCommandError('Describe the meaningful human review/edit pass, even when no substantive edit was required.', 400);
+  }
+  if (errorMessage?.includes('editorial_reference_summary_required')) {
+    throw new PipelineRegistryCommandError('Add a source/reference summary for remixed or licensed work before approving it.', 400);
+  }
+  if (errorMessage?.includes('editorial_creation_disclosure_invalid') || errorMessage?.includes('editorial_evidence_invalid')) {
+    throw new PipelineRegistryCommandError('The content-standard evidence is incomplete or invalid.', 400);
   }
   throw new PipelineRegistryCommandError('Unable to save this editorial review decision.', 500);
 };
@@ -508,6 +538,12 @@ export const setPipelineOwnerOverride = async ({
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
     }
+    if (error.message?.includes('editorial_review_required')) {
+      throw new PipelineRegistryCommandError(
+        'Approve this exact revision under the current CardForge content standard before publishing it.',
+        409,
+      );
+    }
     const statusCode = error.message?.includes('contributor_asset_not_found') ? 404 : 500;
     throw new PipelineRegistryCommandError(
       statusCode === 404
@@ -523,13 +559,23 @@ export const setPipelineEditorialReview = async ({
   reviewStatus,
   reviewNote,
   reviewerContributorId,
+  standardVersion,
+  sourceNotes,
+  creationOrigin,
+  intendedUseEvidence,
+  creationDisclosure,
 }: SetPipelineEditorialReviewInput): Promise<void> => {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review', {
+  const { error } = await supabase.rpc('cardforge_set_contributor_asset_editorial_review_v2', {
     p_submission_id: submissionId,
     p_review_status: reviewStatus,
     p_review_note: reviewNote,
     p_reviewer_contributor_id: reviewerContributorId,
+    p_standard_version: standardVersion,
+    p_source_notes: sourceNotes,
+    p_creation_origin: creationOrigin,
+    p_intended_use_evidence: intendedUseEvidence,
+    p_creation_disclosure: creationDisclosure,
   });
   if (error) throwEditorialReviewError(error.message);
 };
