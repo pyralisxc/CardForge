@@ -41,6 +41,11 @@ export async function PATCH(
       sourceNotes?: unknown;
       specialtyTags?: unknown;
       useCaseTags?: unknown;
+      semanticRole?: unknown;
+      visualFamily?: unknown;
+      variantKind?: unknown;
+      variantLabel?: unknown;
+      compatibilityTags?: unknown;
       requestedStudioDestination?: unknown;
     };
     await updatePipelineSubmissionDetails({
@@ -87,6 +92,11 @@ export async function POST(
       sourceNotes?: unknown;
       specialtyTags?: unknown;
       useCaseTags?: unknown;
+      semanticRole?: unknown;
+      visualFamily?: unknown;
+      variantKind?: unknown;
+      variantLabel?: unknown;
+      compatibilityTags?: unknown;
       requestedStudioDestination?: unknown;
     };
     if (body.action === 'withdraw' || body.action === 'retire') {
