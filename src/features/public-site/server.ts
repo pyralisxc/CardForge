@@ -8,6 +8,8 @@ export {
   getPublicSiteConfiguration,
   PublicSiteConfigurationStoreError,
   updatePublicSiteConfiguration,
+  updatePublicSiteVisibleField,
+  type PublicSiteVisibleFieldInput,
 } from './server/siteConfigurationStore';
 export {
   getCachedPublicSiteConfiguration,

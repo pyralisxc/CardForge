@@ -27,6 +27,8 @@ export interface HomepageSectionSetting {
 }
 
 export interface PublicSiteConfiguration {
+  /** Canonical database publication revision; never directly editable. */
+  updatedAt?: string | null;
   announcementEnabled: boolean;
   announcementMessage: string;
   primaryCtaLabel: string;
@@ -63,6 +65,7 @@ const defaultHomepageSection = (id: HomepageSectionId): HomepageSectionSetting =
 });
 
 export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
+  updatedAt: null,
   announcementEnabled: false,
   announcementMessage: '',
   primaryCtaLabel: 'Open your Desk',
@@ -285,6 +288,7 @@ export const completePublicSiteConfiguration = (
 export const hydratePublicSiteConfiguration = (
   row: Record<string, unknown> | null | undefined,
 ): PublicSiteConfiguration => ({
+  updatedAt: typeof row?.updated_at === 'string' ? row.updated_at : null,
   announcementEnabled: row?.announcement_enabled === true,
   announcementMessage: normalizeText(row?.announcement_message, '', 240),
   primaryCtaLabel: normalizeText(row?.primary_cta_label, DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryCtaLabel, 80),
