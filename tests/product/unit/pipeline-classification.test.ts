@@ -18,7 +18,20 @@ const classification = {
   expectedSubmissionId: '63300e01-8d07-4f22-8221-a56de17221e5',
   expectedLineageId: '0ba353d7-5deb-4dbe-8c9a-159ddb509155',
   expectedRevision: 0,
-  expectedSpecialtyTags: [], expectedUseCaseTags: [], specialtyTags: ['general'], useCaseTags: [],
+  expectedSpecialtyTags: [],
+  expectedUseCaseTags: [],
+  expectedSemanticRole: 'texture',
+  expectedVisualFamily: null,
+  expectedVariantKind: 'base',
+  expectedVariantLabel: null,
+  expectedCompatibilityTags: [],
+  specialtyTags: ['general'],
+  useCaseTags: [],
+  semanticRole: 'texture',
+  visualFamily: 'Worn Surfaces',
+  variantKind: 'base',
+  variantLabel: null,
+  compatibilityTags: ['print', 'tileable'],
 };
 beforeEach(() => { vi.clearAllMocks(); boundary.rpc.mockResolvedValue({ error: null }); boundary.owner.mockResolvedValue({ isOwner: true, userId: 'owner' }); boundary.classify.mockResolvedValue(undefined); });
 
@@ -35,11 +48,29 @@ describe('published classification command', () => {
     expect(boundary.rpc).toHaveBeenCalledWith('cardforge_classify_published_pipeline_asset', {
       p_asset_id: 'worn-paper', p_expected_submission_id: classification.expectedSubmissionId,
       p_expected_lineage_id: classification.expectedLineageId, p_expected_revision: 0,
-      p_expected_specialty_tags: [], p_expected_use_case_tags: [], p_specialty_tags: ['general'], p_use_case_tags: [],
+      p_expected_specialty_tags: [],
+      p_expected_use_case_tags: [],
+      p_expected_semantic_role: 'texture',
+      p_expected_visual_family: null,
+      p_expected_variant_kind: 'base',
+      p_expected_variant_label: null,
+      p_expected_compatibility_tags: [],
+      p_specialty_tags: ['general'],
+      p_use_case_tags: [],
+      p_semantic_role: 'texture',
+      p_visual_family: 'Worn Surfaces',
+      p_variant_kind: 'base',
+      p_variant_label: null,
+      p_compatibility_tags: ['print', 'tileable'],
     });
   });
   it('rejects invented tags before a write', async () => {
     await expect(classifyPublishedPipelineAsset({ ...classification, useCaseTags: ['fantasy-vibes'] })).rejects.toMatchObject({ status: 400 });
+    expect(boundary.rpc).not.toHaveBeenCalled();
+  });
+  it('rejects invented semantic roles and compatibility traits before a write', async () => {
+    await expect(classifyPublishedPipelineAsset({ ...classification, semanticRole: 'cool-frame' })).rejects.toMatchObject({ status: 400 });
+    await expect(classifyPublishedPipelineAsset({ ...classification, compatibilityTags: ['print', 'magic-only'] })).rejects.toMatchObject({ status: 400 });
     expect(boundary.rpc).not.toHaveBeenCalled();
   });
   it.each([['pipeline_classification_conflict', 409], ['pipeline_classification_not_found', 404], ['provider timeout', 503]] as const)('preserves %s boundary meaning', async (message, status) => {
