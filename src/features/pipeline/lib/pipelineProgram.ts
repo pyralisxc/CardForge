@@ -462,7 +462,7 @@ export const normalizePipelineSubmissionEditInput = (value: {
         ? { useCaseTags: normalizeUseCaseTags(value.useCaseTags) }
         : {}),
       ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
-      ...(semanticRole !== undefined ? { semanticRole } : {}),
+      ...(semanticRole ? { semanticRole } : {}),
       ...(value.visualFamily !== undefined ? { visualFamily: normalizePipelineVisualFamily(value.visualFamily) } : {}),
       ...(value.variantOfAssetId !== undefined ? { variantOfAssetId: variantOfAssetId ?? null } : {}),
       ...(value.variantKind !== undefined ? { variantKind: variantKind ?? null } : {}),
