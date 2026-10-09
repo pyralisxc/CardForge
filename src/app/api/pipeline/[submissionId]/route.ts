@@ -8,6 +8,7 @@ import {
   permanentlyDeletePipelineSubmission,
   requirePipelineRequestScope,
   updatePipelineEditorialReview,
+  updatePipelineSemanticTaxonomy,
   updatePipelineSubmissionDetails,
   updatePipelineSubmissionStatus,
 } from '@/features/pipeline/server';
@@ -151,7 +152,41 @@ export async function PUT(
       ownerAccessTierOverride?: unknown;
       editorialReviewStatus?: unknown;
       editorialReviewNote?: unknown;
+      semanticRole?: unknown;
+      visualFamily?: unknown;
+      variantOfAssetId?: unknown;
+      variantKind?: unknown;
+      compatibilityTags?: unknown;
     };
+    if (Object.prototype.hasOwnProperty.call(body, 'semanticRole')) {
+      const program = await updatePipelineSemanticTaxonomy({
+        submissionId,
+        semanticRole: body.semanticRole,
+        visualFamily: body.visualFamily,
+        variantOfAssetId: body.variantOfAssetId,
+        variantKind: body.variantKind,
+        compatibilityTags: body.compatibilityTags,
+        currentUserId: owner.userId,
+        currentContributorIds: getContributorIds(owner.userId),
+      });
+      revalidateCardForgeCatalog();
+      await recordOwnerActivity({
+        actorUserId: owner.userId,
+        actorEmail: owner.email,
+        action: 'library.asset.semantic_taxonomy',
+        targetType: 'contributor_asset_revision',
+        targetId: submissionId,
+        summary: 'Reclassified the semantic role, family, variant relationship, or compatibility of an exact Pipeline revision.',
+        metadata: {
+          semanticRole: typeof body.semanticRole === 'string' ? body.semanticRole : null,
+          visualFamily: typeof body.visualFamily === 'string' ? body.visualFamily : null,
+          variantOfAssetId: typeof body.variantOfAssetId === 'string' ? body.variantOfAssetId : null,
+          variantKind: typeof body.variantKind === 'string' ? body.variantKind : null,
+        },
+      });
+      return createNoStoreJsonResponse({ program });
+    }
+
     if (Object.prototype.hasOwnProperty.call(body, 'editorialReviewStatus')) {
       const program = await updatePipelineEditorialReview({
         submissionId,
