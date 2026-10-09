@@ -26,6 +26,9 @@ const setupDatabase = () => {
           id: `submission-${id}`, lineage_id: `lineage-${id}`, source_payload: null,
           description: '  Use this icon for business contact details.  ',
           specialty_tags: ['business', 'unknown'], use_case_tags: ['business-card', 'event-badge', 'unknown'],
+          semantic_role: 'resource-pip', visual_family: 'foundry-sigils',
+          variant_of_asset_id: 'base-sigil', variant_kind: 'color',
+          compatibility_tags: ['recolorable', 'small-size', 'unknown'],
           contributor_email: 'private@example.test', source_notes: 'Private permission notes',
         })) : [];
     const query = {
@@ -86,12 +89,33 @@ describe('published catalog discovery details', () => {
     const catalog = await getCardForgeCatalogManifest(access);
     expect(catalog.pipeline?.items.map((item) => item.id)).toEqual(expectedIds);
     for (const item of catalog.pipeline!.items) {
-      expect(item).toMatchObject({ description: 'Use this icon for business contact details.', specialtyTags: ['business'], useCaseTags: ['business-card', 'event-badge'] });
+      expect(item).toMatchObject({
+        description: 'Use this icon for business contact details.',
+        specialtyTags: ['business'],
+        useCaseTags: ['business-card', 'event-badge'],
+        semanticRole: 'resource-pip',
+        visualFamily: 'foundry-sigils',
+        variantOfAssetId: 'base-sigil',
+        variantKind: 'color',
+        compatibilityTags: ['recolorable', 'small-size'],
+      });
       expect(item).not.toHaveProperty('source_notes');
       expect(item).not.toHaveProperty('contributor_email');
     }
     expect(filters).toContainEqual(['cardforge_asset_registry', 'status', 'published']);
-    expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual(['id', 'lineage_id', 'source_payload', 'description', 'specialty_tags', 'use_case_tags']);
+    expect(selections.get('cardforge_contributor_asset_submissions')?.split(',')).toEqual([
+      'id',
+      'lineage_id',
+      'source_payload',
+      'description',
+      'specialty_tags',
+      'use_case_tags',
+      'semantic_role',
+      'visual_family',
+      'variant_of_asset_id',
+      'variant_kind',
+      'compatibility_tags',
+    ]);
     expect(database.from.mock.calls.filter(([table]) => table === 'cardforge_contributor_asset_submissions')).toHaveLength(1);
     expect(JSON.stringify(catalog.pipeline)).not.toContain('private@example.test');
     expect(JSON.stringify(catalog.pipeline)).not.toContain('Private permission notes');
