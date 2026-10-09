@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ControlledTaxonomySelect } from './ControlledTaxonomySelect';
 import { AssetRow } from './PipelineSubmissionRows';
 import { usePipelineTemplatePreviews } from './usePipelineTemplatePreviews';
 import { getTemplatePreviewId } from './PipelineContributionModel';
@@ -19,6 +20,13 @@ import {
 } from '../lib/pipelineItems';
 import type { PipelineEditorialReviewStatus, PipelineProgramView } from '../lib/pipelineProgram';
 import {
+  CARDFORGE_COMPATIBILITY_OPTIONS,
+  CARDFORGE_VARIANT_KIND_OPTIONS,
+  getPipelineSemanticRoleOptions,
+  type PipelineSemanticRole,
+  type PipelineVariantKind,
+} from '../lib/contentTaxonomy';
+import {
   getPipelineStatusLabel,
   getPipelineTierLabel,
   getPipelineTypeLabel,
@@ -33,6 +41,14 @@ export interface OwnerAssetOverrideInput {
 export interface OwnerEditorialReviewInput {
   editorialReviewStatus: PipelineEditorialReviewStatus;
   editorialReviewNote: string;
+}
+
+export interface OwnerSemanticTaxonomyInput {
+  semanticRole: PipelineSemanticRole;
+  visualFamily: string;
+  variantOfAssetId: string;
+  variantKind: PipelineVariantKind | '';
+  compatibilityTags: string[];
 }
 
 interface OwnerAssetLibraryPanelProps {
@@ -54,6 +70,10 @@ interface OwnerAssetLibraryPanelProps {
   onUpdateEditorialReview: (
     submissionId: string,
     input: OwnerEditorialReviewInput,
+  ) => Promise<boolean>;
+  onUpdateSemanticTaxonomy: (
+    submissionId: string,
+    input: OwnerSemanticTaxonomyInput,
   ) => Promise<boolean>;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
 }
@@ -79,6 +99,7 @@ export function OwnerAssetLibraryPanel({
   updatingSubmissionId,
   onUpdateOverride,
   onUpdateEditorialReview,
+  onUpdateSemanticTaxonomy,
   onDeletePermanently,
 }: OwnerAssetLibraryPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -88,6 +109,11 @@ export function OwnerAssetLibraryPanel({
   const [ownerNote, setOwnerNote] = useState('');
   const [editorialReviewStatus, setEditorialReviewStatus] = useState<PipelineEditorialReviewStatus>('pending');
   const [editorialReviewNote, setEditorialReviewNote] = useState('');
+  const [semanticRole, setSemanticRole] = useState<PipelineSemanticRole | ''>('');
+  const [visualFamily, setVisualFamily] = useState('');
+  const [variantOfAssetId, setVariantOfAssetId] = useState('');
+  const [variantKind, setVariantKind] = useState<PipelineVariantKind | ''>('');
+  const [compatibilityTags, setCompatibilityTags] = useState<string[]>([]);
   const templatePreviews = usePipelineTemplatePreviews(program.submissions);
   const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -109,6 +135,11 @@ export function OwnerAssetLibraryPanel({
     setOwnerNote(submission.ownerNote ?? '');
     setEditorialReviewStatus(submission.editorialReviewStatus ?? 'pending');
     setEditorialReviewNote(submission.editorialReviewNote ?? '');
+    setSemanticRole(submission.semanticRole ?? '');
+    setVisualFamily(submission.visualFamily ?? '');
+    setVariantOfAssetId(submission.variantOfAssetId ?? '');
+    setVariantKind(submission.variantKind ?? '');
+    setCompatibilityTags(submission.compatibilityTags);
   };
 
   const saveOverride = async (submissionId: string) => {
@@ -125,6 +156,25 @@ export function OwnerAssetLibraryPanel({
       ownerStatusOverride: nextStatus,
       ownerAccessTierOverride: tierOverride === 'automatic' ? null : tierOverride,
       ownerNote,
+    });
+    if (saved) setManagingId(null);
+  };
+
+  const saveSemanticTaxonomy = async (submissionId: string) => {
+    if (!semanticRole) {
+      window.alert('Choose what this asset actually is before saving its taxonomy.');
+      return;
+    }
+    if (Boolean(variantOfAssetId.trim()) !== Boolean(variantKind)) {
+      window.alert('A variant needs both a stable parent asset id and a variant kind.');
+      return;
+    }
+    const saved = await onUpdateSemanticTaxonomy(submissionId, {
+      semanticRole,
+      visualFamily,
+      variantOfAssetId,
+      variantKind,
+      compatibilityTags,
     });
     if (saved) setManagingId(null);
   };
@@ -275,6 +325,81 @@ export function OwnerAssetLibraryPanel({
             expanded={expandedId === submission.id}
             editForm={managingId === submission.id ? (
               <div className="mt-4 grid gap-3 border border-[#6f4f28] bg-[var(--cf-surface)] p-4">
+                <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Semantic catalog identity</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--cf-text-muted)]">
+                      Reclassifying preserves this revision and stable asset id. Any existing editorial approval returns to Pending so the corrected meaning can be reviewed again.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Semantic role
+                      <select
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={semanticRole}
+                        onChange={(event) => setSemanticRole(event.target.value as PipelineSemanticRole | '')}
+                      >
+                        <option value="">Needs curation</option>
+                        {getPipelineSemanticRoleOptions(submission.assetType).map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Visual family / pack
+                      <input
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={visualFamily}
+                        maxLength={80}
+                        placeholder="Optional shared family"
+                        onChange={(event) => setVisualFamily(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <ControlledTaxonomySelect
+                    label="Compatibility"
+                    selectedIds={compatibilityTags}
+                    options={CARDFORGE_COMPATIBILITY_OPTIONS}
+                    onChange={setCompatibilityTags}
+                    emptyLabel="Optional reviewed compatibility traits."
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Variant of stable asset id
+                      <input
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 font-mono text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={variantOfAssetId}
+                        maxLength={160}
+                        placeholder="Optional parent asset id"
+                        onChange={(event) => setVariantOfAssetId(event.target.value)}
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">
+                      Variant kind
+                      <select
+                        className="border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-sm normal-case tracking-normal text-[var(--cf-accent-text)]"
+                        value={variantKind}
+                        onChange={(event) => setVariantKind(event.target.value as PipelineVariantKind | '')}
+                      >
+                        <option value="">Not a variant</option>
+                        {CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={updatingSubmissionId === submission.id}
+                    className="w-fit rounded-none"
+                    onClick={() => void saveSemanticTaxonomy(submission.id)}
+                  >
+                    {updatingSubmissionId === submission.id ? 'Saving taxonomy…' : 'Save semantic taxonomy'}
+                  </Button>
+                </section>
                 <section className="grid gap-3 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cf-text-subtle)]">Editorial readiness</p>
