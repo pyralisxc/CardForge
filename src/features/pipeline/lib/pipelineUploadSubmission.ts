@@ -1,302 +1,3 @@
-import { nanoid } from 'nanoid';
-import sharp from 'sharp';
-import { create as decodeFont } from 'fontkit';
-
-import {
-  isContributorUploadAssetType,
-  type ContributorUploadAssetType,
-} from '@/features/pipeline/lib/pipelineItems';
-import {
-  isStudioAssetDestination,
-  type StudioAssetDestination,
-} from '@/domain/templates';
-import {
-  createPipelineSubmission,
-  PipelineStoreError,
-} from '@/features/pipeline/lib/pipelineStore';
-import {
-  PIPELINE_STORAGE_BUCKET,
-  PIPELINE_UPLOAD_ALLOWED_MIME_TYPES,
-  getPipelineUploadMaxBytes,
-  type PipelineUploadedFile,
-  type PipelineUploadPlan,
-} from '@/features/pipeline/lib/pipelineUploadPolicy';
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import {
-  decodeCardForgeProjectPackage,
-  hydrateCardForgeProjectSnapshot,
-  ProjectPackageError,
-} from '@/features/project/server';
-import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
-import { sanitizePipelineSvg } from './safeSvg';
-
-const ALLOWED_MIME_TYPES = new Set<string>(PIPELINE_UPLOAD_ALLOWED_MIME_TYPES);
-const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
-const BORDER_OVERLAY_EXTENSIONS = new Set(['png', 'webp', 'svg']);
-const SET_EXTENSIONS = new Set(['cardforge']);
-
-const sanitizePathSegment = (value: string, fallback: string, maxLength = 100): string => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, maxLength) || fallback
-);
-
-const sanitizeFileStem = (value: string): string => sanitizePathSegment(
-  value.replace(/\.[^.]+$/u, ''),
-  'asset',
-  80,
-);
-
-const getFileExtension = (fileName: string, mimeType: string): string => {
-  const nameExtension = fileName.match(/\.([a-z0-9]+)$/iu)?.[1]?.toLowerCase();
-  if (nameExtension) return nameExtension === 'jpeg' ? 'jpg' : nameExtension;
-  if (mimeType === 'image/png') return 'png';
-  if (mimeType === 'image/jpeg') return 'jpg';
-  if (mimeType === 'image/webp') return 'webp';
-  if (mimeType === 'image/svg+xml') return 'svg';
-  if (mimeType === 'font/woff2') return 'woff2';
-  if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
-  if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
-  if (mimeType === 'font/otf' || mimeType === 'application/x-font-otf') return 'otf';
-  if (mimeType === 'application/vnd.cardforge.project+zip') return 'cardforge';
-  return '';
-};
-
-const isBorderOverlayDestination = (destination: StudioAssetDestination): boolean =>
-  destination === 'image.border.front' || destination === 'image.border.back';
-
-export interface ValidatedUploadDescriptor {
-  assetType: ContributorUploadAssetType;
-  studioDestination: StudioAssetDestination | null;
-  fileName: string;
-  fileSizeBytes: number;
-  mimeType: string;
-  extension: string;
-  maxFileSizeBytes: number;
-}
-
-const MIME_TYPES_BY_EXTENSION: Readonly<Record<string, ReadonlySet<string>>> = {
-  png: new Set(['image/png']),
-  jpg: new Set(['image/jpeg']),
-  webp: new Set(['image/webp']),
-  svg: new Set(['image/svg+xml']),
-  woff2: new Set(['font/woff2', 'application/octet-stream']),
-  woff: new Set(['font/woff', 'application/font-woff', 'application/octet-stream']),
-  ttf: new Set(['font/ttf', 'application/x-font-ttf', 'application/octet-stream']),
-  otf: new Set(['font/otf', 'application/x-font-otf', 'application/octet-stream']),
-  cardforge: new Set(['application/vnd.cardforge.project+zip', 'application/octet-stream']),
-};
-
-export const validatePipelineUploadDescriptor = ({
-  assetType,
-  studioDestination,
-  fileName,
-  fileSizeBytes,
-  mimeType,
-  maxFileSizeMb,
-}: {
-  assetType: unknown;
-  studioDestination: unknown;
-  fileName: unknown;
-  fileSizeBytes: unknown;
-  mimeType: unknown;
-  maxFileSizeMb: number;
-}): ValidatedUploadDescriptor => {
-  if (!isContributorUploadAssetType(assetType)) {
-    throw new PipelineStoreError(
-      'Templates and Styles are authored in Studio. Use this upload form for media and font assets.',
-      400,
-    );
-  }
-  const normalizedDestination = assetType === 'sets'
-    ? null
-    : isStudioAssetDestination(studioDestination)
-      ? studioDestination
-      : null;
-  if (assetType !== 'sets' && (
-    !normalizedDestination
-    || !getPipelineStudioDestinationOptions(assetType).includes(normalizedDestination)
-  )) {
-    throw new PipelineStoreError('Choose a Studio destination compatible with this asset type.', 400);
-  }
-  const normalizedFileName = typeof fileName === 'string' ? fileName.trim().slice(0, 240) : '';
-  const normalizedMimeType = typeof mimeType === 'string' && mimeType.trim()
-    ? mimeType.trim().toLowerCase()
-    : 'application/octet-stream';
-  const normalizedFileSize = Number(fileSizeBytes);
-  const maxFileSizeBytes = getPipelineUploadMaxBytes(maxFileSizeMb);
-  if (!normalizedFileName) {
-    throw new PipelineStoreError('Choose a named source file to upload.', 400);
-  }
-  if (!Number.isInteger(normalizedFileSize) || normalizedFileSize <= 0 || normalizedFileSize > maxFileSizeBytes) {
-    throw new PipelineStoreError(
-      `Forge Review source files must be ${Math.round(maxFileSizeBytes / 1024 / 1024)} MB or smaller. This limit is chosen in protected owner operations in Profile.`,
-      413,
-      {
-        kind: 'limit',
-        nextAction: 'Choose a smaller source file or ask the owner to raise the Forge Review file ceiling.',
-        limit: {
-          resource: 'contributor_source_file_bytes',
-          current: normalizedFileSize,
-          maximum: maxFileSizeBytes,
-          unit: 'bytes',
-        },
-      },
-    );
-  }
-
-  const extension = getFileExtension(normalizedFileName, normalizedMimeType);
-  const isFontUpload = assetType === 'fonts';
-  const isSetUpload = assetType === 'sets';
-  const isVectorUpload = extension === 'svg';
-  const vectorDestinationAllowed = assetType === 'icons'
-    || assetType === 'dividers'
-    || (assetType === 'imageAssets' && normalizedDestination !== null && isBorderOverlayDestination(normalizedDestination));
-  const extensionAllowed = isSetUpload
-    ? SET_EXTENSIONS.has(extension)
-    : isFontUpload
-      ? FONT_EXTENSIONS.has(extension)
-      : IMAGE_EXTENSIONS.has(extension);
-  const mimeMatchesExtension = MIME_TYPES_BY_EXTENSION[extension]?.has(normalizedMimeType) ?? false;
-  if (extensionAllowed && ALLOWED_MIME_TYPES.has(normalizedMimeType) && !mimeMatchesExtension) {
-    throw new PipelineStoreError('The declared file type does not match the file extension.', 400, { kind: 'invalid' });
-  }
-  if (!extensionAllowed || !ALLOWED_MIME_TYPES.has(normalizedMimeType)) {
-    throw new PipelineStoreError(
-      isSetUpload
-        ? 'Upload a portable .cardforge Set package.'
-        : isFontUpload
-        ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
-        : 'Upload PNG, JPG, WEBP, or a supported SVG vector asset.',
-      400,
-    );
-  }
-  if (isVectorUpload && !vectorDestinationAllowed) {
-    throw new PipelineStoreError(
-      'SVG is reserved for Icons, Dividers, and transparent Border Overlays, where vector resizing and tint controls improve Studio editing.',
-      400,
-    );
-  }
-  if (normalizedDestination && isBorderOverlayDestination(normalizedDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
-    throw new PipelineStoreError(
-      'Professional border overlays must use SVG, PNG, or WEBP so transparency can be preserved.',
-      400,
-    );
-  }
-  return {
-    assetType,
-    studioDestination: normalizedDestination,
-    fileName: normalizedFileName,
-    fileSizeBytes: normalizedFileSize,
-    mimeType: normalizedMimeType,
-    extension,
-    maxFileSizeBytes,
-  };
-};
-
-const getContributorStoragePrefix = (contributorId: string): string => sanitizePathSegment(
-  contributorId,
-  'contributor',
-  100,
-);
-
-const createStoragePath = (
-  contributorId: string,
-  descriptor: ValidatedUploadDescriptor,
-): string => {
-  // Contributor bytes land in a public bucket before server validation. Keep
-  // raw SVG away from an executable-looking extension until it has been
-  // replaced in place by CardForge's sanitized subset and correct MIME type.
-  const transportExtension = descriptor.extension === 'svg' ? 'cfsvg' : descriptor.extension;
-  return [
-    getContributorStoragePrefix(contributorId),
-    descriptor.assetType,
-    `${Date.now()}-${sanitizeFileStem(descriptor.fileName)}-${nanoid(12)}.${transportExtension}`,
-  ].join('/');
-};
-
-const requireSupabase = () => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) {
-    throw new PipelineStoreError('Pipeline storage is not configured yet.', 503);
-  }
-  return supabase;
-};
-
-const requireStorage = () => requireSupabase().storage.from(PIPELINE_STORAGE_BUCKET);
-
-export const preparePipelineUpload = async ({
-  contributorId,
-  maxFileSizeMb,
-  assetType,
-  studioDestination,
-  fileName,
-  fileSizeBytes,
-  mimeType,
-}: {
-  contributorId: string;
-  maxFileSizeMb: number;
-  assetType: unknown;
-  studioDestination: unknown;
-  fileName: unknown;
-  fileSizeBytes: unknown;
-  mimeType: unknown;
-}): Promise<PipelineUploadPlan> => {
-  const descriptor = validatePipelineUploadDescriptor({
-    assetType,
-    studioDestination,
-    fileName,
-    fileSizeBytes,
-    mimeType,
-    maxFileSizeMb,
-  });
-  const storagePath = createStoragePath(contributorId, descriptor);
-  const { data, error } = await requireStorage().createSignedUploadUrl(storagePath, { upsert: false });
-  if (error || !data?.signedUrl) {
-    throw new PipelineStoreError('Unable to prepare the Forge Review source upload.', 503);
-  }
-  return {
-    signedUrl: data.signedUrl,
-    storagePath,
-    fileName: descriptor.fileName,
-    fileSizeBytes: descriptor.fileSizeBytes,
-    mimeType: descriptor.mimeType,
-    maxFileSizeBytes: descriptor.maxFileSizeBytes,
-  };
-};
-
-const assertOwnedStoragePath = (
-  contributorId: string,
-  assetType: ContributorUploadAssetType,
-  storagePath: string,
-): void => {
-  const prefix = `${getContributorStoragePrefix(contributorId)}/${assetType}/`;
-  if (!storagePath.startsWith(prefix) || storagePath.includes('..')) {
-    throw new PipelineStoreError('The uploaded Forge Review source does not belong to this Contributor.', 403);
-  }
-};
-
-const getStoredObjectSize = (value: unknown): number | null => {
-  if (!value || typeof value !== 'object') return null;
-  const metadata = (value as { metadata?: unknown }).metadata;
-  if (!metadata || typeof metadata !== 'object') return null;
-  const size = Number((metadata as Record<string, unknown>).size);
-  return Number.isFinite(size) ? size : null;
-};
-
-const assertUploadedObjectComplete = async (
-  storagePath: string,
-  expectedSize: number,
-): Promise<void> => {
-  const separator = storagePath.lastIndexOf('/');
-  const directory = storagePath.slice(0, separator);
-  const objectName = storagePath.slice(separator + 1);
-  const { data, error } = await requireStorage().list(directory, {
-    limit: 2,
-    search: objectName,
   });
   const stored = data?.find((entry) => entry.name === objectName);
   if (error || !stored || getStoredObjectSize(stored) !== expectedSize) {
@@ -439,6 +140,11 @@ export interface CreateUploadedPipelineSubmissionInput {
   studioDestination: unknown;
   specialtyTags: unknown;
   useCaseTags: unknown;
+  semanticRole: unknown;
+  visualFamily: unknown;
+  variantOfAssetId: unknown;
+  variantKind: unknown;
+  compatibilityTags: unknown;
   name: unknown;
   description: unknown;
   previewUrl: unknown;
@@ -453,6 +159,11 @@ export const createUploadedPipelineSubmission = async ({
   studioDestination,
   specialtyTags,
   useCaseTags,
+  semanticRole,
+  visualFamily,
+  variantOfAssetId,
+  variantKind,
+  compatibilityTags,
   name,
   description,
   previewUrl,
@@ -498,6 +209,11 @@ export const createUploadedPipelineSubmission = async ({
         studioDestination: descriptor.studioDestination,
         specialtyTags,
         useCaseTags,
+        semanticRole,
+        visualFamily,
+        variantOfAssetId,
+        variantKind,
+        compatibilityTags,
         name,
         description,
         previewUrl: typeof previewUrl === 'string' && previewUrl.trim() ? previewUrl.trim() : data.publicUrl,
