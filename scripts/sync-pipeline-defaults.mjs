@@ -842,11 +842,7 @@ const main = async () => {
 
   if (publishFonts && verified) {
     await publishReviewedFirstPartyFonts({
-      supabase, ownerProfile, verified: {
-        ...verified,
-        sourceRevision: (await readJson(path.join(projectRoot, VERIFIED_FONTS_MANIFEST))).upstreamRevision,
-      },
-      existingRegistryByAssetId,
+      supabase, ownerProfile, verified, existingRegistryByAssetId,
       tombstonedAssetIds,
     });
     return; // No unrelated starter/source synchronization during this opt-in.
