@@ -94,6 +94,13 @@ security invoker
 set search_path = ''
 as $$
 begin
+  if new.semantic_role is null and new.asset_type = 'templates' then
+    new.semantic_role := case
+      when new.source_payload ->> 'templateUsage' = 'back-preset' then 'template-back'
+      else 'template-front'
+    end;
+  end if;
+
   if new.semantic_role is not null
     and not public.cardforge_pipeline_semantic_role_matches_asset_type(new.asset_type, new.semantic_role)
   then
