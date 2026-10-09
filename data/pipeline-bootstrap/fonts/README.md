@@ -14,3 +14,23 @@ All four TTF objects and their unmodified OFL notices come from the official [go
 4. Do not silently rename the existing compatibility selectors or republish the raw OFL files as detached/uncited new content.
 
 The candidate manifest is a **publication input/provenance receipt**, not a second live catalog. Its role ends when the exact faces are governed by Pipeline. There is no additional CardForge typography store.
+
+## Exact reviewed batch command
+
+The repository's narrowly scoped read-only CI job runs **verify only** when source, license, or importer code changes. You can run the same command without any Supabase credentials:
+
+```sh
+node scripts/sync-pipeline-defaults.mjs --verify-reviewed-fonts
+```
+
+It reports exact byte-hash, license, family identity, variation axis, and printable glyph preflight results, plus the **SHA-256 digest of this manifest**. It never uploads files or publishes content.
+
+Only after the candidate typography is visibly reviewed/approved, and the target provider is independently verified to be the intended **Preview/staging** project, may an authorized operator invoke the existing first-party Pipeline importer explicitly:
+
+```sh
+CARDFORGE_FONT_BATCH_APPROVAL="<reviewed manifest SHA-256>" node scripts/sync-pipeline-defaults.mjs --publish-reviewed-fonts
+```
+
+That action requires the existing configured, authenticated CardForge owner profile and Supabase secret credentials; it re-verifies **all four** sources before writing, then uses the same managed Pipeline Storage and canonical owner bootstrap registry RPC as other first-party content. It refuses retired IDs, preserves existing Owner decisions, and checks actual published registry rows afterward. A provider timeout or unreadable post-commit result requires manual inspection before retrying.
+
+Neither a normal site build nor `scripts/sync-pipeline-defaults.mjs` without the explicit flag publishes this candidate batch. It must not be invoked against Production before its own reviewed provider release gate.
