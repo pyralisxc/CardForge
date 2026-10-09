@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { hasRequiredPipelineClassification } from '@/features/pipeline/lib/contentTaxonomy';
+import {
+  getDefaultPipelineSemanticRole,
+  hasRequiredPipelineClassification,
+  hasRequiredSemanticTaxonomy,
+  normalizePipelineCompatibilityTags,
+  normalizePipelineSemanticRole,
+  normalizePipelineVisualFamily,
+} from '@/features/pipeline/lib/contentTaxonomy';
 import { getPipelineStudioDestinationOptions } from '@/features/pipeline/lib/pipelineAssetTaxonomy';
 import { PIPELINE_TYPES } from '@/features/pipeline/lib/pipelineItems';
 
@@ -28,7 +35,16 @@ const settings: PipelineProgramSettings = {
 describe('General resource classification', () => {
   it.each(PIPELINE_TYPES)('keeps the native kind and destination requirements for %s', (assetType) => {
     const reusable = assetType !== 'templates' && assetType !== 'sets';
-    const input = { assetType, name: 'Reusable original', sourceUrl: 'https://example.test/source', studioDestination: getPipelineStudioDestinationOptions(assetType)[0], specialtyTags: ['general'], useCaseTags: [] };
+    const studioDestination = getPipelineStudioDestinationOptions(assetType)[0];
+    const input = {
+      assetType,
+      name: 'Reusable original',
+      sourceUrl: 'https://example.test/source',
+      studioDestination,
+      specialtyTags: ['general'],
+      useCaseTags: [],
+      semanticRole: getDefaultPipelineSemanticRole(assetType, studioDestination),
+    };
     expect(hasRequiredPipelineClassification(assetType, ['general'], [])).toBe(reusable);
     expect(normalizePipelineSubmissionInput(input).ok).toBe(reusable);
     expect(hasRequiredPipelineClassification(assetType, ['games'], [])).toBe(false);
@@ -37,7 +53,14 @@ describe('General resource classification', () => {
   });
 
   it('does not turn unsupported tags or kinds into an optional selection', () => {
-    const input = { assetType: 'icons', name: 'Icon', sourceUrl: 'https://example.test/icon.svg', studioDestination: 'element.icon', specialtyTags: ['general'] };
+    const input = {
+      assetType: 'icons',
+      name: 'Icon',
+      sourceUrl: 'https://example.test/icon.svg',
+      studioDestination: 'element.icon',
+      specialtyTags: ['general'],
+      semanticRole: 'icon',
+    };
     expect(normalizePipelineSubmissionInput(input).ok).toBe(true);
     for (const useCaseTags of [['general'], ['unknown'], 'unknown', 1]) {
       expect(normalizePipelineSubmissionInput({ ...input, useCaseTags }).ok).toBe(false);
@@ -60,6 +83,11 @@ const submission = (
   requestedStudioDestination: null,
   specialtyTags: [],
   useCaseTags: [],
+  semanticRole: 'icon',
+  visualFamily: null,
+  variantOfAssetId: null,
+  variantKind: null,
+  compatibilityTags: [],
   sourceNotes: '',
   description: '',
   previewUrl: '',
@@ -152,6 +180,9 @@ describe('contributor asset store helpers', () => {
       studioDestination: 'element.icon',
       specialtyTags: ['games'],
       useCaseTags: ['tcg'],
+      semanticRole: 'resource-pip',
+      visualFamily: ' Foundry Sigils ',
+      compatibilityTags: ['small-size', 'recolorable', 'unknown'],
       name: '  Moon Sigil  ',
       description: '  clean vector icon  ',
       previewUrl: '  https://example.test/moon.svg  ',
@@ -165,12 +196,37 @@ describe('contributor asset store helpers', () => {
       value: {
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
+        semanticRole: 'resource-pip',
+        visualFamily: 'foundry-sigils',
+        compatibilityTags: ['small-size', 'recolorable'],
         name: 'Moon Sigil',
         sourceStoragePath: 'contributor-1/icons/moon.svg',
       },
     });
     expect(normalizePipelineSubmissionInput({ assetType: 'tsx', name: 'Executable' }))
       .toEqual({ ok: false, message: 'Choose a supported asset type.' });
+  });
+
+  it('keeps semantic role, family, variant, and compatibility as distinct controlled axes', () => {
+    expect(getDefaultPipelineSemanticRole('templates', 'template.back')).toBe('template-back');
+    expect(getDefaultPipelineSemanticRole('elementPresets', 'style.icon')).toBe('style-recipe');
+    expect(normalizePipelineSemanticRole('resource-pip', 'icons')).toBe('resource-pip');
+    expect(normalizePipelineSemanticRole('resource-pip', 'textures')).toBeNull();
+    expect(normalizePipelineVisualFamily('  Arcane Court / Gold  ')).toBe('arcane-court-gold');
+    expect(normalizePipelineCompatibilityTags(['small-size', 'recolorable', 'unknown']))
+      .toEqual(['small-size', 'recolorable']);
+    expect(hasRequiredSemanticTaxonomy({
+      assetType: 'icons',
+      semanticRole: 'resource-pip',
+      variantOfAssetId: 'base-pip',
+      variantKind: 'color',
+    })).toBe(true);
+    expect(hasRequiredSemanticTaxonomy({
+      assetType: 'icons',
+      semanticRole: 'resource-pip',
+      variantOfAssetId: 'base-pip',
+      variantKind: null,
+    })).toBe(false);
   });
 
   it('does not allow canonical tags to leak into the wrong taxonomy category', () => {
@@ -198,6 +254,9 @@ describe('contributor asset store helpers', () => {
       name: 'Moon Sigil',
       specialtyTags: ['games', 'tcg'],
       useCaseTags: ['tcg', 'games'],
+      semanticRole: 'resource-pip',
+      visualFamily: 'Foundry Sigils',
+      compatibilityTags: ['recolorable', 'unknown'],
     })).toEqual({
       ok: true,
       value: {
@@ -206,6 +265,9 @@ describe('contributor asset store helpers', () => {
         previewUrl: '',
         specialtyTags: ['games'],
         useCaseTags: ['tcg'],
+        semanticRole: 'resource-pip',
+        visualFamily: 'foundry-sigils',
+        compatibilityTags: ['recolorable'],
       },
     });
   });
@@ -234,6 +296,11 @@ describe('contributor asset store helpers', () => {
       requested_studio_destination: 'template.front',
       specialty_tags: ['games', 'tcg'],
       use_case_tags: ['tcg', 'games'],
+      semantic_role: 'template-front',
+      visual_family: 'arcane-court',
+      variant_of_asset_id: null,
+      variant_kind: null,
+      compatibility_tags: ['front', 'poker', 'unknown'],
       name: 'Moon Layout',
       description: 'Layout',
       preview_url: '/api/templates#moon-layout',
@@ -272,6 +339,9 @@ describe('contributor asset store helpers', () => {
       ownerAccessTierOverride: 'free',
       specialtyTags: ['games'],
       useCaseTags: ['tcg'],
+      semanticRole: 'template-front',
+      visualFamily: 'arcane-court',
+      compatibilityTags: ['front', 'poker'],
       currentUserVote: 'positive',
       targetRegistryAssetId: 'moon-layout',
       revisionNumber: 2,
