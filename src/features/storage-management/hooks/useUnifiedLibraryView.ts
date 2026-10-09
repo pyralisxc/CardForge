@@ -76,9 +76,36 @@ export function useUnifiedLibraryView({
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
     if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
-    const tags = item.scope === 'published' ? [...item.published.specialtyTags, ...item.published.useCaseTags]
-      : item.scope === 'pipeline' ? [...item.pipeline.submission.specialtyTags, ...item.pipeline.submission.useCaseTags] : [];
-    return !normalizedQuery || [item.name, item.kindLabel, item.sourceLabel, item.statusLabel, item.summary, ...tags, ...tags.map(formatContentTaxonomyTag)].join(' ').toLocaleLowerCase().includes(normalizedQuery);
+    const tags = item.scope === 'published'
+      ? [
+          ...item.published.specialtyTags,
+          ...item.published.useCaseTags,
+          ...item.published.compatibilityTags,
+          item.published.semanticRole,
+          item.published.visualFamily,
+          item.published.variantKind,
+          item.published.variantOfAssetId,
+        ].filter((value): value is string => Boolean(value))
+      : item.scope === 'pipeline'
+        ? [
+            ...item.pipeline.submission.specialtyTags,
+            ...item.pipeline.submission.useCaseTags,
+            ...item.pipeline.submission.compatibilityTags,
+            item.pipeline.submission.semanticRole,
+            item.pipeline.submission.visualFamily,
+            item.pipeline.submission.variantKind,
+            item.pipeline.submission.variantOfAssetId,
+          ].filter((value): value is string => Boolean(value))
+        : [];
+    return !normalizedQuery || [
+      item.name,
+      item.kindLabel,
+      item.sourceLabel,
+      item.statusLabel,
+      item.summary,
+      ...tags,
+      ...tags.map(formatContentTaxonomyTag),
+    ].join(' ').toLocaleLowerCase().includes(normalizedQuery);
   }).toSorted((left, right) => projection.sort === 'name'
     ? left.name.localeCompare(right.name)
     : projection.sort === 'kind'
