@@ -92,6 +92,7 @@ export type ApiErrorCode =
   | 'site_media_not_found'
   | 'site_media_unavailable'
   | 'site_configuration_invalid'
+  | 'site_configuration_conflict'
   | 'site_configuration_unavailable'
   | 'social_publishing_unavailable'
   | 'roadmap_database_unavailable'

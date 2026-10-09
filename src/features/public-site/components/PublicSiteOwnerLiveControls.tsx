@@ -7,19 +7,22 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import type { PublicSiteConfiguration } from '../model/siteConfiguration';
+import type { PrimaryNavigationId, PublicSiteConfiguration } from '../model/siteConfiguration';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import type { SiteContentBlock } from '../model/siteContent';
 import type { SiteMediaAsset } from '../model/siteMedia';
 import {
   getOwnerPublicationPresentation,
   type OwnerPublicationEnvironment,
 } from '../model/ownerPublicationEnvironment';
-import { PublicSiteCopyLiveEditor, savePublicSiteContentBlock } from './PublicSiteCopyLiveEditor';
+import { PublicSiteCopyLiveEditor, PublicSiteFocusedTextEditor, savePublicSiteContentBlock } from './PublicSiteCopyLiveEditor';
 import { PublicSiteMediaLiveEditor } from './PublicSiteMediaLiveEditor';
 
 type ContentSlug = SiteContentBlock['slug'];
 type MediaSlot = SiteMediaAsset['slot'];
-type DrawerView = { kind: 'settings' } | { kind: 'copy'; slug: ContentSlug } | { kind: 'media'; slot: MediaSlot };
+type ConfigLabelField = 'primaryCtaLabel' | 'announcementMessage';
+type DrawerView = { kind: 'settings' } | { kind: 'copy'; slug: ContentSlug } | { kind: 'media'; slot: MediaSlot }
+  | { kind: 'config-label'; field: ConfigLabelField } | { kind: 'navigation-label'; id: PrimaryNavigationId };
 
 const pageContext = (currentPath: string): {
   label: string;
@@ -91,6 +94,7 @@ export function PublicSiteOwnerLiveControls({
   const [drawerDirty, setDrawerDirty] = useState(false);
   const [inlineSlug, setInlineSlug] = useState<ContentSlug | null>(null);
   const [copySaving, setCopySaving] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
   const [supplementalSlugs, setSupplementalSlugs] = useState<ContentSlug[]>([]);
   const [supplementalMediaSlots, setSupplementalMediaSlots] = useState<MediaSlot[]>([]);
   const [supplementalCopy, setSupplementalCopy] = useState<ContentSlug | ''>('');
@@ -129,7 +133,7 @@ export function PublicSiteOwnerLiveControls({
   }, []);
 
   const abandonDraft = useCallback((): boolean => {
-    if (copySaving) return false;
+    if (copySaving || configSaving) return false;
     const element = inlineElementRef.current;
     const dirtyInline = element
       && (element.innerText || element.textContent || '').trim() !== originalBodyRef.current.trim();
@@ -137,7 +141,7 @@ export function PublicSiteOwnerLiveControls({
     finishInlineEdit(true);
     setDrawerDirty(false);
     return true;
-  }, [copySaving, drawerDirty, finishInlineEdit]);
+  }, [configSaving, copySaving, drawerDirty, finishInlineEdit]);
 
   const inspectOtherTargets = useCallback(() => {
     const rendered = getRenderedPageTargets();
@@ -168,6 +172,71 @@ export function PublicSiteOwnerLiveControls({
     if (!abandonDraft()) return;
     setDrawer({ kind: 'copy', slug });
   }, [abandonDraft]);
+
+
+  const openConfigLabel = useCallback((field: ConfigLabelField) => {
+    if (!abandonDraft()) return;
+    setDrawer({ kind: 'config-label', field });
+  }, [abandonDraft]);
+
+  const openNavigationLabel = useCallback((id: PrimaryNavigationId) => {
+    if (!abandonDraft()) return;
+    setDrawer({ kind: 'navigation-label', id });
+  }, [abandonDraft]);
+
+  const publishSelectedLabel = useCallback(async (value: string): Promise<boolean> => {
+    if (configSaving || !drawer || (drawer.kind !== 'config-label' && drawer.kind !== 'navigation-label')) return false;
+    if (!siteConfiguration.updatedAt) {
+      toast({ title: 'Reload to edit this label', description: 'The current site configuration revision is unavailable.', variant: 'destructive' });
+      return false;
+    }
+    setConfigSaving(true);
+    let definitivelyRejected = false;
+    try {
+      const response = await fetch('/api/owner/site-configuration', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          field: drawer.kind === 'navigation-label' ? 'navigationLabel' : drawer.field,
+          navigationId: drawer.kind === 'navigation-label' ? drawer.id : undefined,
+          value,
+          expectedUpdatedAt: siteConfiguration.updatedAt,
+        }),
+      });
+      if (!response.ok) {
+        definitivelyRejected = response.status >= 400 && response.status < 500;
+        throw new Error(await readApiErrorMessage(response, 'Unable to publish this site label.'));
+      }
+      const publication = await response.json() as {
+        settings: PublicSiteConfiguration;
+        receipt: { refreshComplete: boolean; activityRecorded: boolean; message: string };
+      };
+      setSiteConfiguration(publication.settings);
+      setDrawerDirty(false);
+      router.refresh();
+      toast(publication.receipt.refreshComplete
+        ? {
+            title: publicationPresentation.publishedTitle,
+            description: publication.receipt.activityRecorded
+              ? publicationPresentation.publishedDescription('Selected site label')
+              : 'The site label was published, but Owner activity history could not be recorded.',
+          }
+        : { title: publicationPresentation.publishedTitle + '; reload to verify', description: publication.receipt.message });
+      return true;
+    } catch (error) {
+      const uncertain = !definitivelyRejected;
+      toast({
+        title: uncertain ? 'Publication result unconfirmed' : 'Site label not published',
+        description: uncertain
+          ? 'The request did not return a reliable result. Reload the site to check the current value before trying again.'
+          : error instanceof Error ? error.message : 'Unable to publish this site label.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setConfigSaving(false);
+    }
+  }, [configSaving, drawer, publicationPresentation, router, siteConfiguration.updatedAt, toast]);
 
   const publishCopy = useCallback(async (block: SiteContentBlock, rawBody: string): Promise<boolean> => {
     if (copySaving) return false;
@@ -219,7 +288,7 @@ export function PublicSiteOwnerLiveControls({
       finishInlineEdit(true);
       return;
     }
-    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot]'))
+    const selectable = Array.from(document.querySelectorAll<HTMLElement>('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id]'))
       .filter((element) => element.getClientRects().length > 0);
     const tabindexEntries = selectable.map((element) => ({
       element,
@@ -231,14 +300,37 @@ export function PublicSiteOwnerLiveControls({
       element.setAttribute('tabindex', '0');
       const slug = element.dataset.siteContentSlug;
       const slot = element.dataset.siteMediaSlot;
+      const field = element.dataset.siteConfigurationField;
+      const navId = element.dataset.siteNavigationId;
       const label = slug ? contextualBlocks.find((block) => block.slug === slug)?.label
-        : contextualMedia.find((item) => item.slot === slot)?.label;
+        : slot ? contextualMedia.find((item) => item.slot === slot)?.label
+          : field === 'primaryCtaLabel' ? 'Primary action label'
+            : field === 'announcementMessage' ? 'Announcement'
+              : navId ? 'Navigation ' + navId : undefined;
       if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Edit ${label}`);
     }
 
     const selectField = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element) || target.closest('[data-owner-site-editor-panel], [data-owner-live-controls]')) return;
+      const configTarget = target.closest<HTMLElement>('[data-site-configuration-field]');
+      if (configTarget) {
+        const fieldName = configTarget.dataset.siteConfigurationField;
+        if (fieldName === 'primaryCtaLabel' || fieldName === 'announcementMessage') {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!copySaving && !configSaving) openConfigLabel(fieldName);
+          return;
+        }
+      }
+      const navTarget = target.closest<HTMLElement>('[data-site-navigation-id]');
+      const navId = navTarget?.dataset.siteNavigationId as PrimaryNavigationId | undefined;
+      if (navTarget && navId && siteConfiguration.primaryNavigation.some((item) => item.id === navId)) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!copySaving && !configSaving) openNavigationLabel(navId);
+        return;
+      }
       const field = target.closest<HTMLElement>('[data-site-content-slug]');
       const block = contextualBlocks.find((candidate) => candidate.slug === field?.dataset.siteContentSlug);
       if (field && block) {
@@ -280,7 +372,7 @@ export function PublicSiteOwnerLiveControls({
         return;
       }
       if ((event.key === 'Enter' || event.key === ' ')
-        && target.matches('[data-site-content-slug], [data-site-media-slot]')
+        && target.matches('[data-site-content-slug], [data-site-media-slot], [data-site-configuration-field], [data-site-navigation-id]')
         && !target.isContentEditable) {
         event.preventDefault();
         target.click();
@@ -300,7 +392,7 @@ export function PublicSiteOwnerLiveControls({
         else element.setAttribute('aria-label', ariaLabel);
       }
     };
-  }, [abandonDraft, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openCopy, openMedia, saveInlineEdit]);
+  }, [abandonDraft, configSaving, contextualBlocks, contextualMedia, copySaving, editMode, finishInlineEdit, inlineSlug, openConfigLabel, openCopy, openMedia, openNavigationLabel, saveInlineEdit, siteConfiguration.primaryNavigation]);
 
   useEffect(() => () => finishInlineEdit(true), [finishInlineEdit]);
 
@@ -321,6 +413,20 @@ export function PublicSiteOwnerLiveControls({
       publicationEnvironment={publicationEnvironment}
     />
   );
+  const selectedConfigurationLabel = drawer?.kind === 'config-label'
+    ? {
+        label: drawer.field === 'primaryCtaLabel' ? 'Primary action label' : 'Announcement text',
+        value: siteConfiguration[drawer.field],
+        maxLength: drawer.field === 'primaryCtaLabel' ? 80 : 240,
+      }
+    : drawer?.kind === 'navigation-label'
+      ? {
+          label: 'Navigation: ' + drawer.id,
+          value: siteConfiguration.primaryNavigation.find((item) => item.id === drawer.id)?.label ?? '',
+          maxLength: 40,
+        }
+      : null;
+
   const renderedMediaEditor = (slot: MediaSlot) => (
     <PublicSiteMediaLiveEditor
       key={slot}
@@ -367,13 +473,26 @@ export function PublicSiteOwnerLiveControls({
         <SheetHeader>
           <SheetTitle className="font-serif text-xl text-[var(--cf-text-strong)]">
             {drawer?.kind === 'copy' ? 'Edit selected text'
-              : drawer?.kind === 'media' ? `Edit ${contextualMedia.find((item) => item.slot === drawer.slot)?.label ?? 'selected image'}`
+              : drawer?.kind === 'config-label' || drawer?.kind === 'navigation-label' ? 'Edit selected site label'
+                : drawer?.kind === 'media' ? `Edit ${contextualMedia.find((item) => item.slot === drawer.slot)?.label ?? 'selected image'}`
                 : `${context.label} · Site settings`}
           </SheetTitle>
           <SheetDescription className="text-[var(--cf-text-muted)]">{publicationPresentation.dialogDescription}</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-4">
           {drawer?.kind === 'copy' && selectedCopy ? renderedCopyEditor(selectedCopy) : null}
+          {selectedConfigurationLabel ? <PublicSiteFocusedTextEditor
+            key={(drawer?.kind ?? '') + ':' + (drawer?.kind === 'navigation-label' ? drawer.id : drawer?.kind === 'config-label' ? drawer.field : '') + ':' + (siteConfiguration.updatedAt ?? 'unknown')}
+            label={selectedConfigurationLabel.label}
+            value={selectedConfigurationLabel.value}
+            maxLength={selectedConfigurationLabel.maxLength}
+            multiline={drawer?.kind === 'config-label' && drawer.field === 'announcementMessage'}
+            busy={configSaving}
+            onPublish={publishSelectedLabel}
+            onDirtyChange={setDrawerDirty}
+            publicationEnvironment={publicationEnvironment}
+            help="This publishes only the selected label, without changing destinations, other navigation items or layout."
+          /> : null}
           {drawer?.kind === 'media' && selectedMedia ? renderedMediaEditor(selectedMedia) : null}
           {drawer?.kind === 'settings' ? <>
             {siteOperationsEditor}

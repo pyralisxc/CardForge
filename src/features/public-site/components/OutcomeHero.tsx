@@ -63,6 +63,7 @@ export function OutcomeHero({
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
+              data-site-configuration-field="primaryCtaLabel"
               href={primaryActionHref}
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]"

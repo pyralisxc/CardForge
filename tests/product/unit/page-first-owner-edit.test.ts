@@ -15,7 +15,9 @@ import {
   PublicSiteOwnerLiveControls,
   getSupplementalOwnerPageTargets,
 } from '@/features/public-site/components/PublicSiteOwnerLiveControls';
-import { PublicSiteCopyLiveEditor } from '@/features/public-site/components/PublicSiteCopyLiveEditor';
+import { PublicSiteCopyLiveEditor, PublicSiteFocusedTextEditor } from '@/features/public-site/components/PublicSiteCopyLiveEditor';
+import { PublicSiteHeader } from '@/features/public-site/components/PublicSiteHeader';
+import { OutcomeHero } from '@/features/public-site/components/OutcomeHero';
 import { ResponsiveSiteMediaImage } from '@/features/public-site/components/ResponsiveSiteMediaImage';
 import { DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/public-site/model/siteContent';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/model/siteConfiguration';
@@ -77,4 +79,36 @@ describe('consolidated page-first Owner editor', () => {
     expect(html).toContain('data-site-media-slot="landing.hero"');
     expect(html).toContain('alt=');
   });
+  it('marks visible header navigation and primary CTA as selected Owner labels without moving their links', () => {
+    const html = renderToStaticMarkup(createElement(PublicSiteHeader, {
+      businessIdentity: { brandName: 'CardForge' },
+      siteConfiguration: { ...DEFAULT_PUBLIC_SITE_CONFIGURATION, updatedAt: '2026-10-09T00:00:00Z' },
+    }));
+    expect(html).toContain('data-site-navigation-id="about"');
+    expect(html).toContain('data-site-navigation-id="plans"');
+    expect(html).toContain('data-site-configuration-field="primaryCtaLabel"');
+    expect(html).toContain('href="/about"');
+    const hero = renderToStaticMarkup(createElement(OutcomeHero, {
+      headline: 'Build', body: 'Design complete Sets.', support: 'Create',
+      primaryActionHref: '/account', primaryActionLabel: 'Open your Desk',
+    }));
+    expect(hero).toContain('data-site-configuration-field="primaryCtaLabel"');
+    expect(hero).toContain('href="/account"');
+  });
+
+  it('reuses the one focused field editor for visible Owner configuration labels', () => {
+    const html = renderToStaticMarkup(createElement(PublicSiteFocusedTextEditor, {
+      label: 'Primary action label',
+      value: 'Open your Desk',
+      maxLength: 80,
+      busy: false,
+      onPublish: vi.fn(),
+      onDirtyChange: vi.fn(),
+      publicationEnvironment: 'preview',
+    }));
+    expect(html).toContain('Primary action label');
+    expect(html).toContain('Open your Desk');
+    expect(html).toContain('Publish to Preview');
+  });
+
 });

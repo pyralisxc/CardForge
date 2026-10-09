@@ -81,6 +81,7 @@ export function PublicSiteHeader({
           {visibleNavigation.map((item) => (
             <Link
               key={item.href}
+              data-site-navigation-id={item.id}
               href={item.href}
               prefetch={false}
               aria-current={currentPath === item.href ? 'page' : undefined}
@@ -96,6 +97,7 @@ export function PublicSiteHeader({
         </div>
 
         <Link
+          data-site-configuration-field="primaryCtaLabel"
           href={primaryCtaHref}
           prefetch={false}
           className="ml-auto hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)] shadow-[var(--public-shadow)] transition-colors hover:bg-[#e4bd68] xl:inline-flex"
@@ -140,6 +142,7 @@ export function PublicSiteHeader({
               {visibleNavigation.map((item) => (
                 <SheetClose key={item.href} asChild>
                   <Link
+                    data-site-navigation-id={item.id}
                     href={item.href}
                     prefetch={false}
                     aria-current={currentPath === item.href ? 'page' : undefined}
@@ -151,6 +154,7 @@ export function PublicSiteHeader({
               ))}
               <SheetClose asChild>
                 <Link
+                  data-site-configuration-field="primaryCtaLabel"
                   href={primaryCtaHref}
                   prefetch={false}
                   className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)]"

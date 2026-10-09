@@ -597,3 +597,21 @@ html[data-site-inline-editing="true"] [data-site-media-slot]:focus-visible {
   outline: 3px solid var(--public-brass, #d7a849);
   outline-offset: 5px;
 }
+
+
+/* Actual Owner-configurable labels become selectable without treating links or code-owned routes as editable. */
+html[data-site-inline-editing="true"] [data-site-configuration-field],
+html[data-site-inline-editing="true"] [data-site-navigation-id] {
+  outline: 2px dashed var(--public-brass, #d7a849);
+  outline-offset: 4px;
+  cursor: pointer;
+}
+html[data-site-inline-editing="true"] [data-site-configuration-field]:hover,
+html[data-site-inline-editing="true"] [data-site-navigation-id]:hover {
+  outline-style: solid;
+}
+html[data-site-inline-editing="true"] [data-site-configuration-field]:focus-visible,
+html[data-site-inline-editing="true"] [data-site-navigation-id]:focus-visible {
+  outline: 3px solid var(--public-brass, #d7a849);
+  outline-offset: 5px;
+}
