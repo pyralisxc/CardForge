@@ -38,7 +38,17 @@ import {
   type ContributorProfileOverrideInput,
 } from './pipelineProgram';
 import { PipelineStoreError } from './pipelineStoreError';
-import { hasRequiredPipelineClassification, normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
+import {
+  getDefaultPipelineSemanticRole,
+  hasRequiredPipelineClassification,
+  hasRequiredSemanticTaxonomy,
+  normalizePipelineCompatibilityTags,
+  normalizePipelineSemanticRole,
+  normalizePipelineVariantAssetId,
+  normalizePipelineVariantKind,
+  normalizeSpecialtyTags,
+  normalizeUseCaseTags,
+} from './contentTaxonomy';
 import { isPipelineRevisionVisibleToContributor } from './pipelineVisibility';
 import {
   fetchPipelineProgramAggregate,
@@ -283,6 +293,11 @@ export const createPipelineSubmission = async ({
     studioDestination?: unknown;
     specialtyTags?: unknown;
     useCaseTags?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantOfAssetId?: unknown;
+    variantKind?: unknown;
+    compatibilityTags?: unknown;
     name?: unknown;
     description?: unknown;
     previewUrl?: unknown;
@@ -326,6 +341,11 @@ export const createPipelineSubmission = async ({
       requested_studio_destination: normalized.value.requestedStudioDestination,
       specialty_tags: normalized.value.specialtyTags,
       use_case_tags: normalized.value.useCaseTags,
+      semantic_role: normalized.value.semanticRole,
+      visual_family: normalized.value.visualFamily,
+      variant_of_asset_id: normalized.value.variantOfAssetId,
+      variant_kind: normalized.value.variantKind,
+      compatibility_tags: normalized.value.compatibilityTags,
       name: normalized.value.name,
       description: normalized.value.description,
       preview_url: normalized.value.previewUrl,
@@ -396,6 +416,11 @@ export const updatePipelineSubmissionDetails = async ({
     specialtyTags?: unknown;
     useCaseTags?: unknown;
     requestedStudioDestination?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantOfAssetId?: unknown;
+    variantKind?: unknown;
+    compatibilityTags?: unknown;
   };
   allowOwnerEdit?: boolean;
 }): Promise<void> => {
@@ -404,7 +429,7 @@ export const updatePipelineSubmissionDetails = async ({
 
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_contributor_asset_submissions')
-    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags')
+    .select('contributor_id,status,source_url,asset_type,specialty_tags,use_case_tags,semantic_role,visual_family,variant_of_asset_id,variant_kind,compatibility_tags')
     .eq('id', submissionId)
     .limit(1);
 
@@ -413,7 +438,19 @@ export const updatePipelineSubmissionDetails = async ({
     throw new PipelineStoreError('Unable to load Pipeline submission.', 500);
   }
 
-  const row = rows?.[0] as { contributor_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown; specialty_tags?: unknown; use_case_tags?: unknown } | undefined;
+  const row = rows?.[0] as {
+    contributor_id?: string;
+    status?: unknown;
+    source_url?: string | null;
+    asset_type?: unknown;
+    specialty_tags?: unknown;
+    use_case_tags?: unknown;
+    semantic_role?: unknown;
+    visual_family?: unknown;
+    variant_of_asset_id?: unknown;
+    variant_kind?: unknown;
+    compatibility_tags?: unknown;
+  } | undefined;
   if (!row) throw new PipelineStoreError('Pipeline submission was not found.', 404);
   if (!allowOwnerEdit && row.contributor_id !== contributorId) {
     throw new PipelineStoreError('Only the uploader can edit this asset.', 403);
@@ -431,6 +468,31 @@ export const updatePipelineSubmissionDetails = async ({
       throw new PipelineStoreError('Choose a supported specialty and use case, or General alone for a reusable resource.', 400);
     }
   }
+  if (
+    input.semanticRole !== undefined
+    || input.variantOfAssetId !== undefined
+    || input.variantKind !== undefined
+  ) {
+    const semanticRole = normalized.value.semanticRole
+      ?? normalizePipelineSemanticRole(row.semantic_role, row.asset_type);
+    const variantOfAssetId = normalized.value.variantOfAssetId !== undefined
+      ? normalized.value.variantOfAssetId
+      : normalizePipelineVariantAssetId(row.variant_of_asset_id);
+    const variantKind = normalized.value.variantKind !== undefined
+      ? normalized.value.variantKind
+      : normalizePipelineVariantKind(row.variant_kind);
+    if (!hasRequiredSemanticTaxonomy({
+      assetType: row.asset_type,
+      semanticRole,
+      variantOfAssetId,
+      variantKind,
+    })) {
+      throw new PipelineStoreError(
+        'Choose a semantic role compatible with this asset type. Variants must identify both a parent asset and variant kind.',
+        400,
+      );
+    }
+  }
 
   const previewUrl = normalized.value.previewUrl || row.source_url || '';
   const { error } = await supabase
@@ -444,6 +506,13 @@ export const updatePipelineSubmissionDetails = async ({
       ...(normalized.value.useCaseTags !== undefined ? { use_case_tags: normalized.value.useCaseTags } : {}),
       ...(normalized.value.requestedStudioDestination !== undefined
         ? { requested_studio_destination: normalized.value.requestedStudioDestination }
+        : {}),
+      ...(normalized.value.semanticRole !== undefined ? { semantic_role: normalized.value.semanticRole } : {}),
+      ...(normalized.value.visualFamily !== undefined ? { visual_family: normalized.value.visualFamily } : {}),
+      ...(normalized.value.variantOfAssetId !== undefined ? { variant_of_asset_id: normalized.value.variantOfAssetId } : {}),
+      ...(normalized.value.variantKind !== undefined ? { variant_kind: normalized.value.variantKind } : {}),
+      ...(normalized.value.compatibilityTags !== undefined
+        ? { compatibility_tags: normalized.value.compatibilityTags }
         : {}),
     })
     .eq('id', submissionId);
@@ -475,6 +544,11 @@ export const finalizeContributorTemplatePipelineDraft = async ({
     specialtyTags?: unknown;
     useCaseTags?: unknown;
     requestedStudioDestination?: unknown;
+    semanticRole?: unknown;
+    visualFamily?: unknown;
+    variantOfAssetId?: unknown;
+    variantKind?: unknown;
+    compatibilityTags?: unknown;
   };
 }): Promise<void> => {
   const supabase = getSupabaseServerClient();
@@ -498,6 +572,25 @@ export const finalizeContributorTemplatePipelineDraft = async ({
   if (!normalized.value.specialtyTags?.length) throw new PipelineStoreError('Choose at least one specialty.', 400);
   if (!normalized.value.useCaseTags?.length) throw new PipelineStoreError('Choose at least one use-case tag.', 400);
   if (!normalized.value.requestedStudioDestination) throw new PipelineStoreError('Choose where this Template belongs in Studio.', 400);
+  const semanticRole = normalized.value.semanticRole
+    ?? getDefaultPipelineSemanticRole('templates', normalized.value.requestedStudioDestination);
+  if (!semanticRole) throw new PipelineStoreError('Choose whether this is a front or back Template.', 400);
+
+  const { error: taxonomyError } = await supabase
+    .from('cardforge_contributor_asset_submissions')
+    .update({
+      semantic_role: semanticRole,
+      visual_family: normalized.value.visualFamily ?? null,
+      variant_of_asset_id: normalized.value.variantOfAssetId ?? null,
+      variant_kind: normalized.value.variantKind ?? null,
+      compatibility_tags: normalized.value.compatibilityTags ?? [],
+    })
+    .eq('id', submissionId)
+    .eq('status', 'draft');
+  if (taxonomyError) {
+    console.error('Failed to save Template semantic taxonomy:', taxonomyError);
+    throw new PipelineStoreError('Unable to save Template role and family before submission.', 500);
+  }
 
   await runRegistryCommand(async () => {
     await submitTemplatePipelineDraft({
