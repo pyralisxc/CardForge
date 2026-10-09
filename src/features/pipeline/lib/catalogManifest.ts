@@ -46,6 +46,11 @@ export interface PublishedPipelineCatalogItem {
   description?: string;
   specialtyTags?: string[];
   useCaseTags?: string[];
+  semanticRole?: string | null;
+  visualFamily?: string | null;
+  variantOfAssetId?: string | null;
+  variantKind?: string | null;
+  compatibilityTags?: string[];
   assetType: string;
   previewUrl: string | null;
   access: 'free' | 'paid' | 'contributor';
@@ -198,6 +203,11 @@ export const getCardForgeCatalogManifest = async (
         description: row.description ?? '',
         specialtyTags: row.specialty_tags ?? [],
         useCaseTags: row.use_case_tags ?? [],
+        semanticRole: row.semantic_role ?? null,
+        visualFamily: row.visual_family ?? null,
+        variantOfAssetId: row.variant_of_asset_id ?? null,
+        variantKind: row.variant_kind ?? null,
+        compatibilityTags: row.compatibility_tags ?? [],
         assetType: row.asset_type,
         previewUrl: row.preview_url ?? null,
         access: row.access_tier,
