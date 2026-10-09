@@ -9,6 +9,42 @@ import { getPersonalLibraryStatus, type LibraryViewItem } from '../components/Li
 import { useAccountLibraryProjection } from './useAccountLibraryProjection';
 import { useLibrarySharedProjection } from './useLibrarySharedProjection';
 
+const semanticFacetLabels = (item: LibraryViewItem): string[] => {
+  if (item.scope === 'published') {
+    return [
+      item.published.semanticRole ? `Role: ${formatContentTaxonomyTag(item.published.semanticRole)}` : null,
+      item.published.visualFamily ? `Family: ${formatContentTaxonomyTag(item.published.visualFamily)}` : null,
+    ].filter((value): value is string => Boolean(value));
+  }
+  if (item.scope === 'pipeline') {
+    return [
+      item.pipeline.submission.semanticRole ? `Role: ${formatContentTaxonomyTag(item.pipeline.submission.semanticRole)}` : null,
+      item.pipeline.submission.visualFamily ? `Family: ${formatContentTaxonomyTag(item.pipeline.submission.visualFamily)}` : null,
+    ].filter((value): value is string => Boolean(value));
+  }
+  return [];
+};
+
+const semanticSummary = ({
+  semanticRole,
+  visualFamily,
+  variantKind,
+  compatibilityTags,
+}: {
+  semanticRole?: string | null;
+  visualFamily?: string | null;
+  variantKind?: string | null;
+  compatibilityTags?: string[];
+}): string => [
+  semanticRole ? `Role: ${formatContentTaxonomyTag(semanticRole)}` : null,
+  visualFamily ? `Family: ${formatContentTaxonomyTag(visualFamily)}` : null,
+  variantKind ? `Variant: ${formatContentTaxonomyTag(variantKind)}` : null,
+  compatibilityTags?.length
+    ? `Compatible: ${compatibilityTags.slice(0, 3).map(formatContentTaxonomyTag).join(', ')}`
+    : null,
+].filter(Boolean).join(' · ');
+
+
 export function useUnifiedLibraryView({
   activeScope,
   pipelineAccess,
@@ -39,14 +75,20 @@ export function useUnifiedLibraryView({
   }), [projection.visibleItems]);
   const publishedItems = useMemo<LibraryViewItem[]>(() => shared.publishedItems.map((item) => ({
     id: item.id, scope: 'published', name: item.name, kindLabel: item.kindLabel, sourceLabel: item.sourceLabel,
-    statusLabel: item.accessLabel, summary: item.description || `${item.kindLabel} from the current ${item.accessLabel}.`, updatedAt: null,
+    statusLabel: item.accessLabel, summary: [
+      item.description || `${item.kindLabel} from the current ${item.accessLabel}.`,
+      semanticSummary(item),
+    ].filter(Boolean).join(' · '), updatedAt: null,
     sizeBytes: item.sizeBytes, previewUrl: item.previewUrl, fontFamily: item.fontFamily, published: item,
   })), [shared.publishedItems]);
   const pipelineItems = useMemo<LibraryViewItem[]>(() => shared.pipelineItems.map((item) => ({
     id: `pipeline:${item.submission.targetRegistryAssetId ?? item.submission.registryAssetId ?? item.submission.id}`,
     scope: 'pipeline', name: item.submission.name, kindLabel: item.kindLabel,
     sourceLabel: item.ownership === 'mine' ? 'Your contribution' : item.submission.contributorDisplayName ?? 'Shared Pipeline',
-    statusLabel: item.statusLabel, summary: item.submission.description || `${item.kindLabel} in Forge Review.`,
+    statusLabel: item.statusLabel, summary: [
+      item.submission.description || `${item.kindLabel} in Forge Review.`,
+      semanticSummary(item.submission),
+    ].filter(Boolean).join(' · '),
     updatedAt: item.submission.updatedAt ?? item.submission.submittedAt, sizeBytes: item.submission.sourceFileSizeBytes,
     previewUrl: item.previewUrl, fontFamily: item.fontFamily, pipeline: item,
   })), [shared.pipelineItems]);
@@ -75,7 +117,13 @@ export function useUnifiedLibraryView({
   [activeScope, contributorPipelineItems, contributorPublishedItems, personalItems, pipelineAccess, publishedItems]);
   const normalizedQuery = projection.query.trim().toLocaleLowerCase();
   const viewItems = useMemo(() => scopeItems.filter((item) => {
-    if (activeScope !== 'personal' && sharedType !== 'all' && item.kindLabel !== sharedType && item.statusLabel !== sharedType) return false;
+    if (
+      activeScope !== 'personal'
+      && sharedType !== 'all'
+      && item.kindLabel !== sharedType
+      && item.statusLabel !== sharedType
+      && !semanticFacetLabels(item).includes(sharedType)
+    ) return false;
     const tags = item.scope === 'published'
       ? [
           ...item.published.specialtyTags,
@@ -112,9 +160,11 @@ export function useUnifiedLibraryView({
       ? left.kindLabel.localeCompare(right.kindLabel) || left.name.localeCompare(right.name)
       : (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0) || left.name.localeCompare(right.name)),
   [activeScope, normalizedQuery, projection.sort, scopeItems, sharedType]);
-  const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => activeScope === 'pipeline'
-    ? [item.kindLabel, item.statusLabel]
-    : [item.kindLabel]))].toSorted(), [activeScope, scopeItems]);
+  const sharedTypes = useMemo(() => [...new Set(scopeItems.flatMap((item) => [
+    item.kindLabel,
+    ...(activeScope === 'pipeline' ? [item.statusLabel] : []),
+    ...semanticFacetLabels(item),
+  ]))].toSorted(), [activeScope, scopeItems]);
   const itemMap = useMemo(() => new Map([...personalItems, ...publishedItems, ...pipelineItems].map((item) => [item.id, item])), [personalItems, pipelineItems, publishedItems]);
   const activeFailure = activeScope === 'campaigns'
     ? null
