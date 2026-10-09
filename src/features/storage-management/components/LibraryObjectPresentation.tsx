@@ -142,6 +142,16 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
       ...(item.published.specialtyTags.length ? [['Specialties', item.published.specialtyTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.useCaseTags.length ? [['Use cases', item.published.useCaseTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
+      ...(item.published.semanticRole ? [['Semantic role', formatContentTaxonomyTag(item.published.semanticRole)] as const] : []),
+      ...(item.published.visualFamily ? [['Visual family', formatContentTaxonomyTag(item.published.visualFamily)] as const] : []),
+      ...(item.published.variantOfAssetId && item.published.variantKind ? [[
+        'Variant',
+        `${formatContentTaxonomyTag(item.published.variantKind)} of ${item.published.variantOfAssetId}`,
+      ] as const] : []),
+      ...(item.published.compatibilityTags.length ? [[
+        'Compatibility',
+        item.published.compatibilityTags.map(formatContentTaxonomyTag).join(' · '),
+      ] as const] : []),
       ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
       ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
       ...(item.published.studioDestinations.length ? [[
@@ -173,6 +183,16 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ...(item.pipeline.currentPublishedSubmission ? [['Published revision', getPipelineRevisionLabel(item.pipeline.currentPublishedSubmission)] as const] : []),
       ...(reviewSubmission ? [['Reviewing revision', getPipelineRevisionLabel(reviewSubmission)] as const] : []),
       ['Displayed revision votes', `${displayedRevision.positiveVotes} up · ${displayedRevision.negativeVotes} down`],
+      ['Semantic role', displayedRevision.semanticRole ? formatContentTaxonomyTag(displayedRevision.semanticRole) : 'Needs curation'],
+      ['Visual family', displayedRevision.visualFamily ? formatContentTaxonomyTag(displayedRevision.visualFamily) : 'Independent / not grouped'],
+      ...(displayedRevision.variantOfAssetId && displayedRevision.variantKind ? [[
+        'Variant',
+        `${formatContentTaxonomyTag(displayedRevision.variantKind)} of ${displayedRevision.variantOfAssetId}`,
+      ] as const] : []),
+      ...(displayedRevision.compatibilityTags.length ? [[
+        'Compatibility',
+        displayedRevision.compatibilityTags.map(formatContentTaxonomyTag).join(' · '),
+      ] as const] : []),
       ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
       ['Quality', displayedRevision.positiveVotes + displayedRevision.negativeVotes ? `${displayedRevision.qualityScore}/100` : 'Not yet rated'],
       ['Revisions', String(item.pipeline.revisions.length)],
@@ -190,7 +210,20 @@ export function PipelineDetailContent({ item, onVoteRevision, canReview, votingI
 }) {
   const submission = item.pipeline.submission;
   return <section className={styles.pipelineDetail} aria-label="Pipeline review details">
-    <div><h3>Classification &amp; rights</h3><p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p><p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No classification tags supplied.'}</p></div>
+    <div>
+      <h3>Classification &amp; rights</h3>
+      <p>{submission.sourceNotes || 'No source or rights notes were supplied.'}</p>
+      <p>{[...submission.specialtyTags, ...submission.useCaseTags].join(' · ') || 'No specialty/use-case classification supplied.'}</p>
+      <p>
+        {submission.semanticRole
+          ? `Role: ${formatContentTaxonomyTag(submission.semanticRole)}`
+          : 'Semantic role needs curation.'}
+        {submission.visualFamily ? ` · Family: ${formatContentTaxonomyTag(submission.visualFamily)}` : ''}
+        {submission.compatibilityTags.length
+          ? ` · Compatible: ${submission.compatibilityTags.map(formatContentTaxonomyTag).join(', ')}`
+          : ''}
+      </p>
+    </div>
     {submission.tierDecisionReason || submission.decisionReason ? <div><h3>Placement</h3><p>{getPipelineDecisionReasonLabel(submission.tierDecisionReason ?? submission.decisionReason)}</p></div> : null}
     <div><h3>Revision history</h3><ol>{item.pipeline.revisions.map((revision) => {
       const selfVoteBlocked = isSelfVoteBlocked(revision.contributorId);
