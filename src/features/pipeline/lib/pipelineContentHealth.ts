@@ -1,4 +1,7 @@
-import { hasRequiredPipelineClassification } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredSemanticTaxonomy,
+} from './contentTaxonomy';
 import type { CardForgeCatalogManifest } from './catalogManifest';
 import type { PipelineProgramView } from './pipelineProgram';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
@@ -7,7 +10,7 @@ import { buildPipelineContentReview, type PipelineContentReview } from './pipeli
 export type PipelineContentHealthSeverity = 'error' | 'warning';
 
 export interface PipelineContentHealthIssue {
-  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'route-content-mismatch' | 'retired-source' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision';
+  code: 'missing-lineage' | 'missing-route' | 'invalid-route' | 'route-content-mismatch' | 'retired-source' | 'unsafe-vector-route' | 'missing-taxonomy' | 'missing-semantic-role' | 'missing-preview' | 'missing-source' | 'duplicate-name' | 'invalid-package' | 'inferred-format' | 'legacy-revision';
   severity: PipelineContentHealthSeverity;
   objectId: string | null;
   objectName: string;
@@ -72,6 +75,12 @@ export const buildPipelineContentHealth = ({
     !submission.sourceNotes.trim()
     || !submission.previewUrl.trim()
     || !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)
+    || !hasRequiredSemanticTaxonomy({
+      assetType: submission.assetType,
+      semanticRole: submission.semanticRole,
+      variantOfAssetId: submission.variantOfAssetId,
+      variantKind: submission.variantKind,
+    })
   ));
   const editorial: PipelineEditorialReadiness = {
     checkedCount: activePublishedSubmissions.length,
@@ -107,7 +116,20 @@ export const buildPipelineContentHealth = ({
       || submission.assetType === 'dividers'
       || (submission.assetType === 'imageAssets' && Boolean(submission.requestedStudioDestination?.startsWith('image.border.')));
     if (isSvg && !isSafeVectorRoute) issues.push({ code: 'unsafe-vector-route', severity: 'error', objectId, objectName: submission.name, message: 'Published SVG is routed outside the reviewed Icon, Divider, or Border Overlay lanes.', repair: 'Archive it or publish a sanitized raster replacement in the matching Studio lane.' });
-    if (!hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId, objectName: submission.name, message: 'Published revision is missing controlled taxonomy.', repair: 'Choose this published item in Content Health and save its specialty and use-case tags.' });
+    if (!hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)) issues.push({ code: 'missing-taxonomy', severity: 'warning', objectId, objectName: submission.name, message: 'Published revision is missing controlled specialty/use-case taxonomy.', repair: 'Choose this published item in Content Health and save its specialty and use-case tags.' });
+    if (!hasRequiredSemanticTaxonomy({
+      assetType: submission.assetType,
+      semanticRole: submission.semanticRole,
+      variantOfAssetId: submission.variantOfAssetId,
+      variantKind: submission.variantKind,
+    })) issues.push({
+      code: 'missing-semantic-role',
+      severity: 'warning',
+      objectId,
+      objectName: submission.name,
+      message: 'Published revision has no valid semantic role or has an incomplete variant relationship.',
+      repair: 'Use Owner Pipeline Manage to set what this exact revision is, then re-review editorial readiness without changing its stable asset identity.',
+    });
     if (!submission.sourceUrl && !submission.sourcePayload) issues.push({ code: 'missing-source', severity: 'error', objectId, objectName: submission.name, message: 'Published revision has no readable source.', repair: 'Archive it or publish a verified replacement revision.' });
   });
   review.entries.filter((entry) => (
