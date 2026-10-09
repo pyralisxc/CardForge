@@ -439,11 +439,11 @@ export interface CreateUploadedPipelineSubmissionInput {
   studioDestination: unknown;
   specialtyTags: unknown;
   useCaseTags: unknown;
-  semanticRole: unknown;
-  visualFamily: unknown;
-  variantKind: unknown;
-  variantLabel: unknown;
-  compatibilityTags: unknown;
+  semanticRole?: unknown;
+  visualFamily?: unknown;
+  variantKind?: unknown;
+  variantLabel?: unknown;
+  compatibilityTags?: unknown;
   name: unknown;
   description: unknown;
   previewUrl: unknown;
