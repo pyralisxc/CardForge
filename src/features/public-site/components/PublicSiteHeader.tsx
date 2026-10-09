@@ -81,12 +81,13 @@ export function PublicSiteHeader({
           {visibleNavigation.map((item) => (
             <Link
               key={item.href}
+              data-site-navigation-id={item.id}
               href={item.href}
               prefetch={false}
               aria-current={currentPath === item.href ? 'page' : undefined}
               className={linkClassName(currentPath === item.href)}
             >
-              <span data-site-navigation-id={item.id}>{item.label}</span>
+              {item.label}
             </Link>
           ))}
         </nav>
@@ -96,11 +97,12 @@ export function PublicSiteHeader({
         </div>
 
         <Link
+          data-site-configuration-field="primaryCtaLabel"
           href={primaryCtaHref}
           prefetch={false}
           className="ml-auto hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)] shadow-[var(--public-shadow)] transition-colors hover:bg-[#e4bd68] xl:inline-flex"
         >
-          <span data-site-configuration-field="primaryCtaLabel">{primaryCtaLabel}</span>
+          {primaryCtaLabel}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
 
@@ -140,22 +142,24 @@ export function PublicSiteHeader({
               {visibleNavigation.map((item) => (
                 <SheetClose key={item.href} asChild>
                   <Link
+                    data-site-navigation-id={item.id}
                     href={item.href}
                     prefetch={false}
                     aria-current={currentPath === item.href ? 'page' : undefined}
                     className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] px-3 text-base font-semibold text-[var(--public-ivory)] hover:bg-[var(--public-surface-raised)] hover:text-[var(--public-brass)]"
                   >
-                    <span data-site-navigation-id={item.id}>{item.label}</span>
+                    {item.label}
                   </Link>
                 </SheetClose>
               ))}
               <SheetClose asChild>
                 <Link
+                  data-site-configuration-field="primaryCtaLabel"
                   href={primaryCtaHref}
                   prefetch={false}
                   className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)]"
                 >
-                  <span data-site-configuration-field="primaryCtaLabel">{primaryCtaLabel}</span>
+                  {primaryCtaLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </SheetClose>

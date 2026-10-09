@@ -25,7 +25,13 @@ vi.mock('@/infrastructure/database/supabaseServer', () => ({
       db.calls++;
       let mutation: Record<string, unknown> | null = null;
       const filters = new Map<string, unknown>();
-      const query = {
+      type Query = {
+        select: (fields: string) => Query;
+        update: (patch: Record<string, unknown>) => Query;
+        eq: (field: string, value: unknown) => Query;
+        limit: (count: number) => Promise<{ data: Record<string, unknown>[]; error: null }>;
+      };
+      const query: Query = {
         select: (_fields: string) => query,
         update: (patch: Record<string, unknown>) => { mutation = patch; return query; },
         eq: (field: string, value: unknown) => { filters.set(field, value); return query; },

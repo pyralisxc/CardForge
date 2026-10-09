@@ -74,8 +74,8 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-3xl">
           <h2 data-site-content-slug="landing.final.headline" className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">{siteContent['landing.final.headline']}</h2>
           <p data-site-content-slug="landing.final.body" className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['landing.final.body']}</p>
-          <Link href={siteConfiguration.primaryCtaHref} prefetch={false} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]">
-            <span data-site-configuration-field="primaryCtaLabel">{siteConfiguration.primaryCtaLabel}</span> <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          <Link data-site-configuration-field="primaryCtaLabel" href={siteConfiguration.primaryCtaHref} prefetch={false} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]">
+            {siteConfiguration.primaryCtaLabel} <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </section>
