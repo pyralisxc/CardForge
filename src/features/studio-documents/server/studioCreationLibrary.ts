@@ -1,4 +1,3 @@
-import { CARD_FONT_OPTIONS, mergeCardFontOptions } from '@/domain/rendering';
 import type {
   AppearanceStylePreset,
   CardAssetOption,
@@ -136,7 +135,10 @@ export const searchStudioCreationLibrary = async ({
     getCachedCardForgeStudioBootstrap('contributor'),
     getCachedCardForgeStudioAssets('contributor'),
   ]);
-  const fonts = mergeCardFontOptions(CARD_FONT_OPTIONS, bootstrap.fonts.fonts ?? []);
+  // Only published Pipeline fonts are discoverable creator assets. Bundled
+  // compatibility/system fonts remain usable by saved Templates, but are not
+  // editorial Pipeline objects and must not inflate the Studio Map/search.
+  const fonts = bootstrap.fonts.fonts ?? [];
   const frameKits = bootstrap.templates.defaults
     .map(templateFrameKitItem)
     .filter((item): item is StudioCreationLibraryItem => Boolean(item));

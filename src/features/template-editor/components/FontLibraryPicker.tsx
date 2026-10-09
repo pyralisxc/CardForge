@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Type } from 'lucide-react';
+import { CARD_FONT_OPTIONS, cardFontFamilyToCss } from '@/domain/rendering';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,10 @@ import {
   loadPersonalLibrary,
   type PersonalLibraryItem,
 } from '@/features/personal-library/client';
+
+// The canonical renderer fallback list identifies existing saved IDs. These
+// are not a second publication/catalog authority over Pipeline Font assets.
+const bundledFontIds = new Set(CARD_FONT_OPTIONS.map((font) => font.value));
 
 interface FontLibraryPickerProps {
   availableFonts: readonly { value: string; name: string }[];
@@ -40,17 +45,18 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
   const request = useMemo((): LibraryPickerRequest => ({
     purpose: 'template.font-family',
     title: 'Choose a font',
-    description: 'Choose a built-in, reviewed, project, or connected font for this text.',
+    description: 'Choose a built-in compatibility font, a published Pipeline font, a project font, or a connected font.',
     acceptedKinds: ['font'],
     acceptedRoles: ['font', 'reference'],
-    sources: ['project', 'personal', 'published', 'provider'],
+    sources: ['builtin', 'project', 'personal', 'published', 'provider'],
     selectionMode: 'single',
     target: { kind: 'template-element', ids: [targetId] },
     requiresProjectMaterialization: false,
   }), [targetId]);
   const resources = useMemo((): LibraryPickerResource[] => [
     ...availableFonts.map((font) => {
-      const source = font.value.startsWith('font-personal-') ? 'project' as const : 'published' as const;
+      const source = bundledFontIds.has(font.value) ? 'builtin' as const
+        : font.value.startsWith('font-personal-') ? 'project' as const : 'published' as const;
       return {
         id: `${source}:${font.value}`,
         objectId: font.value,
@@ -58,7 +64,7 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
         kind: 'font',
         role: 'font',
         source,
-        sourceLabel: source === 'project' ? 'This project' : font.value.startsWith('font-contributor-') ? 'Contributor Library' : 'CardForge fonts',
+        sourceLabel: source === 'builtin' ? 'Built-in compatibility' : source === 'project' ? 'This project' : 'Published Pipeline',
         materialization: source === 'project' ? 'already-local' as const : 'reference' as const,
       };
     }),
@@ -113,7 +119,10 @@ export function FontLibraryPicker({ availableFonts, targetId, onSelect }: FontLi
           onSelect(selection.objectId);
         }}
         renderPreview={(resource) => (
-          <div className="flex h-16 items-center justify-center rounded bg-[#07090d] text-2xl" style={{ fontFamily: resource.objectId }} aria-hidden="true">Aa</div>
+          <div className="flex h-20 flex-col items-center justify-center gap-0.5 overflow-hidden rounded bg-[#07090d] px-1 text-[#e1dbd0]" style={{ fontFamily: cardFontFamilyToCss(resource.objectId) ?? resource.objectId }} aria-hidden="true">
+            <span className="max-w-full truncate text-xl">Aa Zz 0123456789</span>
+            <span className="max-w-full truncate text-[11px]">Rule: Draw 2, pay 3! (1/2) #?</span>
+          </div>
         )}
       />
     </>

@@ -16,6 +16,9 @@ export interface RegistryFontRow {
   metadata: unknown;
 }
 
+/** Stable renderer compatibility/runtime choices, not published Pipeline content.
+ * Only the Pipeline registry may define governed and discoverable Font assets.
+ */
 export const CARD_FONT_OPTIONS: CardFontOption[] = [
   {
     name: 'System Sans',

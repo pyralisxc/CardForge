@@ -33,6 +33,16 @@ const resources: LibraryPickerResource[] = [
     },
   ])),
   {
+    id: 'builtin:font-cinzel',
+    objectId: 'font-cinzel',
+    name: 'Fantasy Display (Cinzel)',
+    kind: 'font',
+    role: 'font',
+    source: 'builtin',
+    sourceLabel: 'Built-in compatibility',
+    materialization: 'reference',
+  },
+  {
     id: 'published:built-in-icon:Sparkles',
     objectId: 'Sparkles',
     name: 'Sparkles',
@@ -49,7 +59,7 @@ const requestFor = (kind: typeof kinds[number]): LibraryPickerRequest => ({
   title: `Choose ${kind}`,
   acceptedKinds: [kind],
   acceptedRoles: [kind === 'image' ? 'artwork' : kind],
-  sources: ['project', 'personal', 'pipeline', 'published', 'provider'],
+  sources: ['builtin', 'project', 'personal', 'pipeline', 'published', 'provider'],
   selectionMode: 'single',
   target: { kind: kind === 'font' ? 'template-element' : 'template', ids: ['target-1'] },
   requiresProjectMaterialization: false,
@@ -64,6 +74,7 @@ describe('visual resource Picker contract', () => {
       `project:${kind}`,
       `personal:${kind}`,
       ...(kind === 'icon' ? ['published:built-in-icon:Sparkles'] : []),
+      ...(kind === 'font' ? ['builtin:font-cinzel'] : []),
     ]);
     expect(createLibraryPickerResult(request, resources, [`personal:${kind}`])).toEqual({
       purpose: `template.${kind}-source`,
@@ -75,6 +86,13 @@ describe('visual resource Picker contract', () => {
         source: 'personal',
       })],
     });
+  });
+
+  it('distinguishes built-in font fallbacks from actual published Pipeline resources', () => {
+    const compatible = getCompatibleLibraryPickerResources(requestFor('font'), resources);
+    const fallback = compatible.find((item) => item.objectId === 'font-cinzel');
+    expect(fallback).toMatchObject({ source: 'builtin', sourceLabel: 'Built-in compatibility', materialization: 'reference' });
+    expect(compatible.some((item) => item.objectId === 'font-cinzel' && item.source === 'published')).toBe(false);
   });
 
   it('does not leak a resource chosen for one visual role into another role', () => {
