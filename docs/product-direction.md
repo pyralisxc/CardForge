@@ -443,7 +443,7 @@ Profile may hold durable personal defaults only when ownership is truly personal
 
 ## Owner Operations
 
-Owner operations reveal as protected tools at their native recurring object. Profile composes Overview, Growth & People, and Governance. Campaigns live in Library → Campaigns, Pipeline authority lives in Library → Pipeline, public site controls reveal contextually on the homepage, and Roadmap rules/status controls reveal on `/roadmap`, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
+Owner operations reveal as protected tools at their native recurring object. Profile composes Overview, Growth & People, and Governance. Campaigns live in Library → Campaigns, Pipeline authority lives in Library → Pipeline, the public property provides an Owner-only **Edit page** mode directly on every public page, and Roadmap rules/status controls reveal on `/roadmap`, using the same canonical stores and mutations; anonymous visitors receive neither Owner client code nor unpublished control payloads.
 
 Owner responsibilities include:
 
@@ -451,14 +451,14 @@ Owner responsibilities include:
 - people and Contributor scopes;
 - shared Library → Pipeline review/publication/routing;
 - owner overrides and permanent purge;
-- contextual public-homepage site controls;
+- contextual public-page editing and small site-wide settings controls;
 - Library → Campaigns strategy/approval/distribution;
 - contextual Roadmap rules/status controls;
 - legal/governance/history;
 - service/provider readiness;
 - billing/usage/analytics reconciliation.
 
-Owner may reuse the same object renderers, Library projections, and review surfaces, but authority remains explicit and auditable.
+Owner may reuse the same object renderers, Library projections, and review surfaces, but authority remains explicit and auditable. On public pages, **the rendered page is the first editing surface**: the Owner enables Edit page, selects a real copy or media target, edits in place or uses a focused image drawer, and explicitly publishes that one owned value. If a field includes structured markup, preserve it and use a focused copy form instead of mutating its markup. Favicon, watermark, SEO, hidden/disabled sections, layout/navigation and other non-visible controls belong in a compact Site settings drawer; site configuration still publishes through its existing canonical Owner command, not a separate page-builder state. Always distinguish staging-only Preview publication from live production publication; Cancel and stale-version conflicts never overwrite already-published content.
 
 ## Campaign Contribution
 

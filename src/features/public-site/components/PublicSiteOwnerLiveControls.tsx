@@ -280,7 +280,7 @@ export function PublicSiteOwnerLiveControls({
       <Button type="button" size="sm" variant="outline" onClick={() => finishInlineEdit(true)} disabled={inlineSaving}><X className="mr-2 h-4 w-4" />Cancel</Button>
     </div> : null}
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent side="right" data-owner-site-editor-panel overlayClassName="bg-black/40" className="h-dvh w-[min(100vw,42rem)] max-w-[42rem] overflow-y-auto border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] px-3 pb-10 pt-14 text-[var(--cf-text)] sm:px-5">
+      <SheetContent side="right" data-owner-site-editor-panel overlayClassName="bg-black/40" className="h-dvh w-[min(100vw,42rem)] max-w-[42rem] overflow-y-auto sm:max-w-[42rem] border-[var(--cf-border-strong)] bg-[var(--cf-canvas)] px-3 pb-10 pt-14 text-[var(--cf-text)] sm:px-5">
         <SheetHeader>
           <SheetTitle className="font-serif text-xl text-[var(--cf-text-strong)]">{focusedMediaSlot
             ? `Edit ${contextualMedia.find((item) => item.slot === focusedMediaSlot)?.label ?? 'page image'}`
