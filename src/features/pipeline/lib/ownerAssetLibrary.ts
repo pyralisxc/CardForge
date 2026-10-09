@@ -34,6 +34,11 @@ const matchesSearch = (submission: PipelineSubmission, query: string): boolean =
     submission.contributorEmail,
     submission.contributorId,
     submission.registryAssetId,
+    submission.semanticRole,
+    submission.visualFamily,
+    submission.variantOfAssetId,
+    submission.variantKind,
+    ...submission.compatibilityTags,
   ].some((value) => value?.toLocaleLowerCase().includes(query));
 };
 
