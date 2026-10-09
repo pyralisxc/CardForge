@@ -191,6 +191,10 @@ export const CARDFORGE_VARIANT_KIND_OPTIONS = [
 export type PipelineVariantKind = typeof CARDFORGE_VARIANT_KIND_OPTIONS[number]['id'];
 const variantKindSet = new Set<string>(CARDFORGE_VARIANT_KIND_OPTIONS.map((option) => option.id));
 
+export const isPipelineVariantKind = (value: unknown): value is PipelineVariantKind => (
+  typeof value === 'string' && variantKindSet.has(normalizeTaxonomyTag(value))
+);
+
 export const normalizeVariantKind = (value: unknown): PipelineVariantKind | null => {
   const normalized = normalizeTaxonomyTag(value);
   return variantKindSet.has(normalized) ? normalized as PipelineVariantKind : null;
@@ -222,6 +226,10 @@ export const CARDFORGE_COMPATIBILITY_OPTIONS = [
 
 export type PipelineCompatibilityTag = typeof CARDFORGE_COMPATIBILITY_OPTIONS[number]['id'];
 const compatibilityTagSet = new Set<string>(CARDFORGE_COMPATIBILITY_OPTIONS.map((option) => option.id));
+
+export const isPipelineCompatibilityTag = (value: unknown): value is PipelineCompatibilityTag => (
+  typeof value === 'string' && compatibilityTagSet.has(normalizeTaxonomyTag(value))
+);
 
 export const normalizeCompatibilityTags = (value: unknown): PipelineCompatibilityTag[] =>
   normalizeCanonicalTags(value, compatibilityTagSet) as PipelineCompatibilityTag[];
