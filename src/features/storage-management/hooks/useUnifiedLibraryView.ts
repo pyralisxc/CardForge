@@ -14,12 +14,16 @@ const semanticFacetLabels = (item: LibraryViewItem): string[] => {
     return [
       item.published.semanticRole ? `Role: ${formatContentTaxonomyTag(item.published.semanticRole)}` : null,
       item.published.visualFamily ? `Family: ${formatContentTaxonomyTag(item.published.visualFamily)}` : null,
+      item.published.variantKind ? `Variant: ${formatContentTaxonomyTag(item.published.variantKind)}` : null,
+      ...item.published.compatibilityTags.map((tag) => `Compatible: ${formatContentTaxonomyTag(tag)}`),
     ].filter((value): value is string => Boolean(value));
   }
   if (item.scope === 'pipeline') {
     return [
       item.pipeline.submission.semanticRole ? `Role: ${formatContentTaxonomyTag(item.pipeline.submission.semanticRole)}` : null,
       item.pipeline.submission.visualFamily ? `Family: ${formatContentTaxonomyTag(item.pipeline.submission.visualFamily)}` : null,
+      item.pipeline.submission.variantKind ? `Variant: ${formatContentTaxonomyTag(item.pipeline.submission.variantKind)}` : null,
+      ...item.pipeline.submission.compatibilityTags.map((tag) => `Compatible: ${formatContentTaxonomyTag(tag)}`),
     ].filter((value): value is string => Boolean(value));
   }
   return [];
