@@ -1,4 +1,7 @@
-import { hasRequiredPipelineClassification } from './contentTaxonomy';
+import {
+  hasRequiredPipelineClassification,
+  hasRequiredPipelineSemanticClassification,
+} from './contentTaxonomy';
 import type { CardForgeCatalogManifest } from './catalogManifest';
 import type { PipelineProgramView } from './pipelineProgram';
 import { getPipelineStudioDestinationOptions } from './pipelineAssetTaxonomy';
@@ -72,6 +75,7 @@ export const buildPipelineContentHealth = ({
     !submission.sourceNotes.trim()
     || !submission.previewUrl.trim()
     || !hasRequiredPipelineClassification(submission.assetType, submission.specialtyTags, submission.useCaseTags)
+    || !hasRequiredPipelineSemanticClassification(submission.assetType, submission.semanticRole)
   ));
   const editorial: PipelineEditorialReadiness = {
     checkedCount: activePublishedSubmissions.length,
