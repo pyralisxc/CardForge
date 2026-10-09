@@ -42,6 +42,11 @@ export async function PATCH(
       specialtyTags?: unknown;
       useCaseTags?: unknown;
       requestedStudioDestination?: unknown;
+      semanticRole?: unknown;
+      visualFamily?: unknown;
+      variantOfAssetId?: unknown;
+      variantKind?: unknown;
+      compatibilityTags?: unknown;
     };
     await updatePipelineSubmissionDetails({
       submissionId,
@@ -88,6 +93,11 @@ export async function POST(
       specialtyTags?: unknown;
       useCaseTags?: unknown;
       requestedStudioDestination?: unknown;
+      semanticRole?: unknown;
+      visualFamily?: unknown;
+      variantOfAssetId?: unknown;
+      variantKind?: unknown;
+      compatibilityTags?: unknown;
     };
     if (body.action === 'withdraw' || body.action === 'retire') {
       requirePipelineRequestScope(access, 'assets.submit');
