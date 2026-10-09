@@ -6,7 +6,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-import { normalizeContentTaxonomyTags } from '../lib/contentTaxonomy';
+import {
+  getDefaultPipelineSemanticRole,
+  normalizeContentTaxonomyTags,
+} from '../lib/contentTaxonomy';
 import {
   getPipelineStudioDestinationOptions,
 } from '../lib/pipelineAssetTaxonomy';
@@ -29,6 +32,15 @@ export function PipelineSubmissionEditPanel({
   const [sourceNotes, setSourceNotes] = useState(submission.sourceNotes ?? '');
   const [specialtyTags, setSpecialtyTags] = useState(submission.specialtyTags.join(','));
   const [useCaseTags, setUseCaseTags] = useState(submission.useCaseTags.join(','));
+  const [semanticRole, setSemanticRole] = useState(
+    submission.semanticRole
+      ?? getDefaultPipelineSemanticRole(submission.assetType, submission.requestedStudioDestination)
+      ?? '',
+  );
+  const [visualFamily, setVisualFamily] = useState(submission.visualFamily ?? '');
+  const [variantOfAssetId, setVariantOfAssetId] = useState(submission.variantOfAssetId ?? '');
+  const [variantKind, setVariantKind] = useState(submission.variantKind ?? '');
+  const [compatibilityTags, setCompatibilityTags] = useState(submission.compatibilityTags.join(','));
   const [requestedStudioDestination, setRequestedStudioDestination] = useState(submission.requestedStudioDestination ?? '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -50,6 +62,11 @@ export function PipelineSubmissionEditPanel({
           sourceNotes,
           specialtyTags: normalizeContentTaxonomyTags(specialtyTags),
           useCaseTags: normalizeContentTaxonomyTags(useCaseTags),
+          semanticRole,
+          visualFamily,
+          variantOfAssetId,
+          variantKind,
+          compatibilityTags: normalizeContentTaxonomyTags(compatibilityTags),
           requestedStudioDestination,
         }),
       });
@@ -80,6 +97,11 @@ export function PipelineSubmissionEditPanel({
     sourceNotes={sourceNotes}
     specialtyTags={specialtyTags}
     useCaseTags={useCaseTags}
+    semanticRole={semanticRole}
+    visualFamily={visualFamily}
+    variantOfAssetId={variantOfAssetId}
+    variantKind={variantKind}
+    compatibilityTags={compatibilityTags}
     requestedStudioDestination={requestedStudioDestination}
     destinationOptions={destinationOptions}
     isDraft={submission.status === 'draft'}
@@ -90,6 +112,11 @@ export function PipelineSubmissionEditPanel({
     onSourceNotesChange={setSourceNotes}
     onSpecialtyTagsChange={setSpecialtyTags}
     onUseCaseTagsChange={setUseCaseTags}
+    onSemanticRoleChange={setSemanticRole}
+    onVisualFamilyChange={setVisualFamily}
+    onVariantOfAssetIdChange={setVariantOfAssetId}
+    onVariantKindChange={setVariantKind}
+    onCompatibilityTagsChange={setCompatibilityTags}
     onRequestedStudioDestinationChange={setRequestedStudioDestination}
     onCancel={onCancel}
     onSave={() => void save(false)}
