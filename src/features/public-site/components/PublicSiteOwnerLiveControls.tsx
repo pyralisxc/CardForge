@@ -173,7 +173,7 @@ export function PublicSiteOwnerLiveControls({
     if (copySaving) return false;
     const body = rawBody.trim();
     if (!body || body.length > block.maxLength) {
-      toast({ title: 'Invalid page copy', description: \`Use 1–\${block.maxLength} characters for \${block.label}.\`, variant: 'destructive' });
+      toast({ title: 'Invalid page copy', description: `Use 1–${block.maxLength} characters for ${block.label}.`, variant: 'destructive' });
       return false;
     }
     setCopySaving(true);
@@ -193,9 +193,9 @@ export function PublicSiteOwnerLiveControls({
         title: publicationPresentation.publishedTitle,
         description: publication.receipt.activityRecorded
           ? publicationPresentation.publishedDescription(block.label)
-          : \`\${publicationPresentation.publishedDescription(block.label)} Owner activity history could not be recorded.\`,
+          : `${publicationPresentation.publishedDescription(block.label)} Owner activity history could not be recorded.`,
       } : {
-        title: \`\${publicationPresentation.publishedTitle}; reload to verify\`,
+        title: `${publicationPresentation.publishedTitle}; reload to verify`,
         description: publication.receipt.message,
       });
       return true;
@@ -233,7 +233,7 @@ export function PublicSiteOwnerLiveControls({
       const slot = element.dataset.siteMediaSlot;
       const label = slug ? contextualBlocks.find((block) => block.slug === slug)?.label
         : contextualMedia.find((item) => item.slot === slot)?.label;
-      if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', \`Edit \${label}\`);
+      if (label && !element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Edit ${label}`);
     }
 
     const selectField = (event: MouseEvent) => {
@@ -252,7 +252,7 @@ export function PublicSiteOwnerLiveControls({
         originalBodyRef.current = block.body;
         field.setAttribute('contenteditable', 'plaintext-only');
         field.setAttribute('role', 'textbox');
-        field.setAttribute('aria-label', \`Edit \${block.label}\`);
+        field.setAttribute('aria-label', `Edit ${block.label}`);
         field.setAttribute('data-site-inline-active', 'true');
         field.setAttribute('spellcheck', 'true');
         field.focus({ preventScroll: true });
@@ -264,7 +264,6 @@ export function PublicSiteOwnerLiveControls({
       if (!image || !slot || !contextualMedia.some((item) => item.slot === slot)) return;
       // Do not treat unrelated text or links inside a hero section as an image click.
       if (image.tagName === 'SECTION' && image !== target) return;
-      if (target.closest('a, button, [role="button"]')?.contains(image)) return;
       event.preventDefault();
       event.stopPropagation();
       if (!copySaving) openMedia(slot as MediaSlot);
@@ -368,8 +367,8 @@ export function PublicSiteOwnerLiveControls({
         <SheetHeader>
           <SheetTitle className="font-serif text-xl text-[var(--cf-text-strong)]">
             {drawer?.kind === 'copy' ? 'Edit selected text'
-              : drawer?.kind === 'media' ? \`Edit \${contextualMedia.find((item) => item.slot === drawer.slot)?.label ?? 'selected image'}\`
-                : \`\${context.label} · Site settings\`}
+              : drawer?.kind === 'media' ? `Edit ${contextualMedia.find((item) => item.slot === drawer.slot)?.label ?? 'selected image'}`
+                : `${context.label} · Site settings`}
           </SheetTitle>
           <SheetDescription className="text-[var(--cf-text-muted)]">{publicationPresentation.dialogDescription}</SheetDescription>
         </SheetHeader>
