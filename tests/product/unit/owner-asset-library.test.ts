@@ -17,8 +17,10 @@ const submission = (
   requestedStudioDestination: null,
   specialtyTags: [],
   useCaseTags: [],
-  semanticRole: 'icon',
-  visualFamily: null,
+  semanticRole: assetType === 'templates' ? 'template-front'
+    : assetType === 'fonts' ? 'font'
+      : 'icon',
+  visualFamily: assetType === 'icons' ? 'foundry-sigils' : null,
   variantOfAssetId: null,
   variantKind: null,
   compatibilityTags: [],
@@ -75,6 +77,24 @@ describe('owner asset library', () => {
     expect(page.firstItemNumber).toBe(13);
     expect(page.lastItemNumber).toBe(13);
     expect(page.items.map((item) => item.id)).toEqual(['template-13']);
+  });
+
+  it('searches semantic roles and visual families during curation', () => {
+    const byRole = buildOwnerAssetLibraryPage(submissions, {
+      assetType: 'all',
+      status: 'all',
+      query: 'template-front',
+      page: 1,
+    });
+    const byFamily = buildOwnerAssetLibraryPage(submissions, {
+      assetType: 'all',
+      status: 'all',
+      query: 'foundry-sigils',
+      page: 1,
+    });
+
+    expect(byRole.totalItems).toBe(13);
+    expect(byFamily.items.map((item) => item.id)).toEqual(['icon-1']);
   });
 
   it('searches asset and contributor details and clamps invalid pages', () => {
