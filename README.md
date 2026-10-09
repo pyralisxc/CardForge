@@ -23,7 +23,7 @@ A fresh maintainer or agent should be able to work from the repository without p
 2. `docs/agent-map.md` to identify the affected owner, tests, and exact documentation sections.
 3. Only the routed source and documentation needed for the objective.
 
-For branch roles, CI cadence, exact-SHA Vercel Preview promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
+For branch roles, CI cadence, accumulated Preview integration, exact-SHA production promotion, provider-migration boundaries, and the final human merge gate, read `ORCHESTRATION.md`.
 
 PRs, commits, old migrations, audit reports, and provider history are historical evidence, not current product instructions. `docs/product-direction.md` owns the durable intended model and sequence; Development Intelligence owns rebuildable repository topology/semantic analysis plus durable accepted semantic authority in its canonical persistence; CardForge does not store a parallel machine semantic checkpoint; the live `/roadmap` and its Supabase records own publicly presented future/completed status and votes. Shipped work must be marked `shipped` rather than left looking planned.
 
