@@ -89,7 +89,7 @@ const publishConfigurationPatch = async (
       409,
     );
   }
-  return hydratePublicSiteConfiguration(data[0] as Record<string, unknown>);
+  return hydratePublicSiteConfiguration(data[0] as unknown as Record<string, unknown>);
 };
 
 export const updatePublicSiteConfiguration = async (
