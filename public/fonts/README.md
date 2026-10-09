@@ -1,33 +1,30 @@
-# CardForge Bundled Font Compatibility
+# Bundled font compatibility — exact upstream source and licensing
 
-CardForge self-hosts font binaries used by historical Templates and cards, so existing saved font IDs can render without live Google Fonts requests. **These files are not the governed Published Pipeline font catalog.** Pipeline owns editorial font publication, provenance, approval, discoverability, and eventual starter pairings; bundled/runtime fonts supply deterministic compatibility and technical fallbacks.
+These 17 original TTF files (ten families) are self-hosted **renderer compatibility** for existing CardForge Templates and Sets. They are **not** published, approved Pipeline typography; a font only enters that catalog via the native Pipeline process.
 
-## Current bundled families
+## Source and license verification — 2026-10-09
 
-- Alegreya — one variable weight file
-- Barlow Condensed — regular, semibold, bold
-- Cinzel — one variable weight file
-- Cormorant Garamond — one variable weight file
-- EB Garamond — one variable weight file
-- Lato — regular, bold, black
-- Orbitron — one variable weight file
-- Rajdhani — regular, semibold, bold
-- Spectral — regular, bold
-- Uncial Antiqua — regular
+Every checked-in TTF matched a binary in the official [google/fonts](https://github.com/google/fonts/tree/51303ca9e8ac9dcea7b12d307ba568fd0e6fcfca/ofl) repository at immutable commit **51303ca9e8ac9dcea7b12d307ba568fd0e6fcfca** by Git blob SHA-1 and byte count. The single [provenance.json](provenance.json) preserves each renamed local file's exact upstream filename, SHA and size; a regression test independently computes the Git blob IDs from the shipped bytes.
 
-Their existing render IDs/stacks are defined once in `src/domain/rendering/fonts.ts`. Their bundled CSS `@font-face` setup is a runtime implementation detail, not editorial source metadata. A bundled choice remains selectable as **Built-in compatibility**; the Studio/agent discovery of published font content reads only the actual Pipeline registry.
+All ten corresponding source directories carry **SIL Open Font License 1.1** with their original copyright and Reserved Font Name notices. Verbatim license text now accompanies each bundled family as its own OFL.txt; the regression test also checks that each notice matches its original upstream blob.
 
-## Provenance/rights gate before Pipeline publication
+The OFL allows unmodified font software to be bundled and embedded, and fonts to be used to create commercial artwork and printed/PDF material, subject to its conditions. Retain the full notices when distributing font software, avoid separately selling the raw fonts and respect Reserved Font Names on modified versions. See the [official OFL FAQ](https://openfontlicense.org/ofl-faq/).
 
-Earlier notes say these files were downloaded from Google Fonts. The repository currently has **no per-family font license text, recorded exact upstream binary revision/checksum, or complete embed/export-rights review**. An upstream family name or general Google Fonts license FAQ is insufficient to establish the exact provenance of the copies distributed here.
+| Family | Existing role (not new editorial approval) | Shipped faces | License |
+| --- | --- | --- | --- |
+| Alegreya | Story / rules | Variable | [OFL.txt](alegreya/OFL.txt) |
+| Barlow Condensed | Compact titles | Static regular/semibold/bold | [OFL.txt](barlow-condensed/OFL.txt) |
+| Cinzel | Display | Variable | [OFL.txt](cinzel/OFL.txt) |
+| Cormorant Garamond | Display / story | Variable | [OFL.txt](cormorant-garamond/OFL.txt) |
+| EB Garamond | Story / body | Variable | [OFL.txt](eb-garamond/OFL.txt) |
+| Lato | Readable body | Static regular/bold/black | [OFL.txt](lato/OFL.txt) |
+| Orbitron | Sci-fi display | Variable | [OFL.txt](orbitron/OFL.txt) |
+| Rajdhani | Utility / stats | Static regular/semibold/bold | [OFL.txt](rajdhani/OFL.txt) |
+| Spectral | Dense rules / story | Static regular/bold | [OFL.txt](spectral/OFL.txt) |
+| Uncial Antiqua | Decorative display | Static regular | [OFL.txt](uncial-antiqua/OFL.txt) |
 
-Before proposing any bundled family as a first-party Pipeline asset:
+## Separate remaining quality gate
 
-1. Match each exact binary hash, style/weight axis and copyright/license metadata to its trustworthy upstream release and preserve its complete applicable license/attribution notice.
-2. Confirm allowed self-hosting, redistribution, embedding, and generated card/PDF/export behavior, including reserved-name restrictions where relevant; do not assume an open license for a different version applies.
-3. Verify actual glyph/language coverage, variable axes, and specimen legibility at intended physical card sizes (headline, body/rules, numbers, punctuation).
-4. Establish family/weight/style identities and role-specific pairings as approved Pipeline content via existing contributor/editorial governance; never upload an unverified asset or invent a second editorial font list.
+Hash matching proves the original bytes and their original licensing, **not** physical-size text legibility, full language coverage, variable axes behavior in browsers, high-quality font pairings, or verified printer outputs. Those require representative specimens and release acceptance under the existing Pipeline quality standard. Existing saved font IDs are intentionally unchanged; no bundled file becomes a published Pipeline asset by this audit.
 
-Until these checks pass, keep existing templates and built-in rendering compatible, do not silently migrate their saved font IDs, and do not advertise the bundles as newly governed/approved content. User-supplied local/project/Google Drive fonts retain their separate ownership.
-
-Related launch issues: #377 (governed fonts), #379 (coherent starter catalog), #375 (content quality).
+Tracks #375, #377 and #379.
