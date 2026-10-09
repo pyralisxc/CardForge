@@ -137,6 +137,7 @@ export async function POST(request: Request) {
       compatibilityTags: body.compatibilityTags,
       name: body.name,
       description: body.description,
+      sourceNotes: body.sourceNotes,
       previewUrl: body.previewUrl,
       uploadedFile: uploadedFile as {
         storagePath: string;

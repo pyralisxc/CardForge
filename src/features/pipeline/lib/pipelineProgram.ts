@@ -40,7 +40,7 @@ const hasUnsupportedUseCaseSelection = (value: unknown): boolean => {
 };
 
 export type PipelineSubmissionInputResult =
-  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantKind' | 'variantLabel' | 'compatibilityTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<PipelineSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'semanticRole' | 'visualFamily' | 'variantKind' | 'variantLabel' | 'compatibilityTags' | 'name' | 'description' | 'sourceNotes' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type PipelineSubmissionEditInputResult =
@@ -330,6 +330,7 @@ export const normalizePipelineSubmissionInput = (value: {
   compatibilityTags?: unknown;
   name?: unknown;
   description?: unknown;
+  sourceNotes?: unknown;
   previewUrl?: unknown;
   sourceUrl?: unknown;
   sourceFileSizeBytes?: unknown;
@@ -396,6 +397,7 @@ export const normalizePipelineSubmissionInput = (value: {
       compatibilityTags,
       name,
       description: normalizePipelineLongText(value.description, 280),
+      sourceNotes: normalizePipelineLongText(value.sourceNotes, 600),
       previewUrl: previewUrl || sourceUrl,
       sourceUrl,
       sourceFileSizeBytes: normalizeOptionalInteger(value.sourceFileSizeBytes, 1, 50 * 1024 * 1024),

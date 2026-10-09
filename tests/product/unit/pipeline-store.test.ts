@@ -163,6 +163,7 @@ describe('contributor asset store helpers', () => {
       useCaseTags: ['tcg'],
       name: '  Moon Sigil  ',
       description: '  clean vector icon  ',
+      sourceNotes: '  Rights and sources: Original; publish permitted | AI assistance: None  ',
       previewUrl: '  https://example.test/moon.svg  ',
       sourceUrl: '  https://storage.example.test/moon.svg  ',
       sourceFileSizeBytes: '2048',
@@ -180,6 +181,7 @@ describe('contributor asset store helpers', () => {
         variantLabel: null,
         compatibilityTags: [],
         name: 'Moon Sigil',
+        sourceNotes: 'Rights and sources: Original; publish permitted | AI assistance: None',
         sourceStoragePath: 'contributor-1/icons/moon.svg',
       },
     });

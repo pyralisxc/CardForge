@@ -48,7 +48,7 @@ For broad cross-feature/current-topology questions, use Development Intelligence
 
 ## Pipeline and publication
 
-- Owners: `src/features/pipeline`, `contributor-program`; shared catalog persistence stays with Pipeline.
+- Owners: `src/features/pipeline`, `contributor-program`; shared catalog persistence stays with Pipeline. `src/features/pipeline/lib/contentQualityStandard.ts` owns the single role-specific quality/AI standard shown to contributors and Owner reviewers and used by repository-aware agents; do not create another editorial rubric.
 - Interfaces: feature `client.ts`/`server.ts` and immutable revision contracts.
 - Read: `docs/architecture.md#contributor-pipeline` and `docs/product-direction.md#pipeline-revisions-voting-and-publication`.
 - Tests: direct owner imports plus pipeline, registry, publication, vote, and asset tests.
