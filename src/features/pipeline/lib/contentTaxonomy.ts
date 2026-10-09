@@ -127,6 +127,11 @@ const semanticRoleById = new Map<PipelineSemanticRole, typeof CARDFORGE_SEMANTIC
   CARDFORGE_SEMANTIC_ROLE_OPTIONS.map((option) => [option.id, option]),
 );
 
+/** Use the controlled editorial label, not the storage slug, in creator-facing discovery. */
+export const getSemanticRoleLabel = (value: string | null | undefined): string | null => (
+  value ? semanticRoleById.get(value as PipelineSemanticRole)?.label ?? formatContentTaxonomyTag(value) : null
+);
+
 export const getSemanticRoleOptions = (
   assetType: PipelineTaxonomyAssetType,
 ): readonly typeof CARDFORGE_SEMANTIC_ROLE_OPTIONS[number][] => (

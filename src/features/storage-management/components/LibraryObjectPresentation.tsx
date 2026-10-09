@@ -9,7 +9,7 @@ import { hasCardBacking } from '@/domain/rendering';
 import type { ActionDescriptor, EnvironmentDetailRecord, EnvironmentStatusTone } from '@/features/app-shell/client/environment';
 import { getStudioAssetDestinationDefinition } from '@/domain/templates';
 import { appearanceToStyle, AuthoredObjectPreview } from '@/features/card-rendering/client';
-import { formatContentTaxonomyTag, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
+import { formatContentTaxonomyTag, getSemanticRoleLabel, getPipelineDecisionReasonLabel, getPipelineStatusLabel, isContributorPipelineVoteable } from '@/features/pipeline/client';
 import type { PipelineSubmission } from '@/features/pipeline/client';
 import type { selectAllTemplates } from '@/features/project/client/workspace';
 import { LocalLibraryResourcePreview } from '@/features/project/client/library-resources';
@@ -142,6 +142,16 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ['Collection', item.published.accessLabel], ['Authorship', item.sourceLabel],
       ...(item.published.specialtyTags.length ? [['Specialties', item.published.specialtyTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
       ...(item.published.useCaseTags.length ? [['Use cases', item.published.useCaseTags.map(formatContentTaxonomyTag).join(' · ')] as const] : []),
+      ...(item.published.semanticRole ? [['Semantic role', getSemanticRoleLabel(item.published.semanticRole) ?? formatContentTaxonomyTag(item.published.semanticRole)] as const] : []),
+      ...(item.published.visualFamily ? [['Visual family', item.published.visualFamily] as const] : []),
+      ...(item.published.variantKind && item.published.variantKind !== 'base' ? [[
+        'Variant',
+        [formatContentTaxonomyTag(item.published.variantKind), item.published.variantLabel].filter(Boolean).join(' · '),
+      ] as const] : []),
+      ...((item.published.compatibilityTags ?? []).length ? [[
+        'Compatibility',
+        (item.published.compatibilityTags ?? []).map(formatContentTaxonomyTag).join(' · '),
+      ] as const] : []),
       ...(item.published.revision ? [['Published revision', String(item.published.revision)] as const] : []),
       ...(formatAccountLibraryBytes(item.sizeBytes) ? [['Size', formatAccountLibraryBytes(item.sizeBytes)!] as const] : []),
       ...(item.published.studioDestinations.length ? [[
@@ -173,6 +183,16 @@ export const createLibraryDetailRecord = (item: LibraryViewItem): EnvironmentDet
       ...(item.pipeline.currentPublishedSubmission ? [['Published revision', getPipelineRevisionLabel(item.pipeline.currentPublishedSubmission)] as const] : []),
       ...(reviewSubmission ? [['Reviewing revision', getPipelineRevisionLabel(reviewSubmission)] as const] : []),
       ['Displayed revision votes', `${displayedRevision.positiveVotes} up · ${displayedRevision.negativeVotes} down`],
+      ['Semantic role', getSemanticRoleLabel(displayedRevision.semanticRole) ?? 'Needs curation'],
+      ['Visual family', displayedRevision.visualFamily ?? 'Independent / not grouped'],
+      ...(displayedRevision.variantKind && displayedRevision.variantKind !== 'base' ? [[
+        'Variant',
+        [formatContentTaxonomyTag(displayedRevision.variantKind), displayedRevision.variantLabel].filter(Boolean).join(' · '),
+      ] as const] : []),
+      ...(displayedRevision.compatibilityTags.length ? [[
+        'Compatibility',
+        displayedRevision.compatibilityTags.map(formatContentTaxonomyTag).join(' · '),
+      ] as const] : []),
       ['Tier', item.pipeline.submission.calculatedAccessTier === 'paid' ? 'Creator Pass' : item.pipeline.submission.calculatedAccessTier === 'free' ? 'Starter Library' : item.pipeline.submission.calculatedAccessTier === 'hidden' ? 'Hidden' : 'Contributor review'],
       ['Quality', displayedRevision.positiveVotes + displayedRevision.negativeVotes ? `${displayedRevision.qualityScore}/100` : 'Not yet rated'],
       ['Revisions', String(item.pipeline.revisions.length)],
